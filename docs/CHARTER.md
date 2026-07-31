@@ -2,9 +2,8 @@
 
 ## Mission
 
-`data-director` builds and maintains a reference implementation of the Research Data Alliance
-(RDA) Data Director Agentic AI Blueprint, so that researchers and institutions have a working,
-open example to adopt, adapt, and learn from.
+This project builds and maintains a **reference implementation** of the Research Data Alliance
+(RDA) [Data Director Agentic AI Blueprint](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/outputs/data-director-agentic-ai-tool-blueprint/), so that researchers and institutions have a working, open example to adopt, adapt, and learn from.
 
 ## Scope
 
