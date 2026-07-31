@@ -6,15 +6,10 @@ for evolving into a more formal structure as the community grows.
 
 ## Core maintainer group
 
-The project is led by a core maintainer group of two to four people. Maintainers have merge
+The project is led by a core maintainer group. Maintainers have merge
 rights and are collectively responsible for the health of the project.
 
-Current maintainers:
-
-- Joe Heffer ([@Joe-Heffer-Shef](https://github.com/Joe-Heffer-Shef)) — University of Sheffield
-
-The group starts with a single maintainer and is expected to grow. A new maintainer is added when
-an existing maintainer nominates a regular, trusted contributor and no other maintainer objects
+A new maintainer is added when an existing maintainer nominates a regular, trusted contributor and no other maintainer objects
 within 5 business days. The group is capped at four; if growth beyond four is warranted, see
 [Technical Steering Committee](#technical-steering-committee-tsc) below.
 
