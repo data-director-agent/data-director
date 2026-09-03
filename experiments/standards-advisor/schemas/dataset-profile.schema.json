@@ -2,23 +2,79 @@
   "$defs": {
     "ColumnProfile": {
       "additionalProperties": false,
-      "description": "One column, as inferred locally from sampled values. R3.4 depends on this.",
+      "description": "One column: observed from sampled values (\u00a75.1), or declared in a data dictionary (\u00a78).\n\nR3.4 depends on this either way. `type_derivation` says which route produced it \u2014\n`LOCAL_PARSE` for a column parsed from a file, `DECLARED_IN_DATA_DICTIONARY` for one a\nresearcher wrote down before the data existed.\n\nThe count fields are optional because a planned column has nothing to count. Reporting `0`\nblanks for a column that has never been filled in would be a statement about data that does\nnot exist, and the \u00a75.3 rules are already specified to skip a missing input rather than\nscore it zero.",
       "properties": {
         "blank_count": {
-          "title": "Blank Count",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blank Count"
         },
         "blank_proportion": {
-          "title": "Blank Proportion",
-          "type": "number"
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blank Proportion"
+        },
+        "declared_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Declared Type"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
         },
         "distinct_count": {
-          "title": "Distinct Count",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distinct Count"
         },
         "distinct_count_is_exact": {
-          "title": "Distinct Count Is Exact",
-          "type": "boolean"
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distinct Count Is Exact"
         },
         "example_values": {
           "items": {
@@ -33,6 +89,13 @@
         },
         "inferred_type": {
           "$ref": "#/$defs/ColumnType"
+        },
+        "missing_value_codes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Value Codes",
+          "type": "array"
         },
         "name": {
           "title": "Name",
@@ -50,13 +113,28 @@
           "default": null,
           "title": "Pattern"
         },
+        "permitted_values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Permitted Values",
+          "type": "array"
+        },
         "position": {
           "title": "Position",
           "type": "integer"
         },
         "sample_size": {
-          "title": "Sample Size",
-          "type": "integer"
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Size"
         },
         "type_derivation": {
           "$ref": "#/$defs/Derivation"
@@ -72,6 +150,17 @@
           ],
           "default": null,
           "title": "Unit"
+        },
+        "unit_derivation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Derivation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -79,12 +168,7 @@
         "position",
         "file",
         "inferred_type",
-        "type_derivation",
-        "sample_size",
-        "blank_count",
-        "blank_proportion",
-        "distinct_count",
-        "distinct_count_is_exact"
+        "type_derivation"
       ],
       "title": "ColumnProfile",
       "type": "object"
@@ -100,7 +184,11 @@
         "identifier",
         "coordinate",
         "free_text",
-        "empty"
+        "empty",
+        "time",
+        "duration",
+        "boolean",
+        "unknown"
       ],
       "title": "ColumnType",
       "type": "string"
@@ -136,9 +224,11 @@
       "type": "object"
     },
     "Derivation": {
-      "description": "How a statement in a profile was arrived at.",
+      "description": "How a statement in a profile was arrived at.\n\nRoughly ordered weakest to strongest, with one deliberate exception: `RESEARCHER_ANSWER` is\nthe *strongest* signal here, not the weakest. It is the person who will collect the data\nsaying what it is, which no amount of inference improves on \u2014 so it sits with the other\nnon-inferred sources rather than with the model-assisted ones.",
       "enum": [
         "supplied_metadata",
+        "declared_in_data_dictionary",
+        "researcher_answer",
         "file_extension",
         "file_magic",
         "local_parse",
@@ -225,6 +315,15 @@
       ],
       "title": "FileEntry",
       "type": "object"
+    },
+    "LifecyclePhase": {
+      "description": "Which of the Blueprint's researcher entry points a run serves (\u00a78).\n\nThe Blueprint's \u00a78.2 process flow has three entry points into six phases. Only the first two\nconcern R3, and they differ in one way that reaches every stage: whether the data exists yet.\n`PRE_COLLECTION` is Figure 1's \"workflow entry point for researchers starting a new project\nbefore data collection begins\" \u2014 there are no files to profile, so the profile is built from\nthe README and draft data dictionary R5 has produced, and the facets \u00a75.2 searches on have to\nbe asked for rather than inferred.",
+      "enum": [
+        "pre_collection",
+        "collected"
+      ],
+      "title": "LifecyclePhase",
+      "type": "string"
     },
     "MeasuredVariable": {
       "additionalProperties": false,
@@ -350,6 +449,17 @@
       "default": null,
       "title": "Abstract"
     },
+    "abstract_derivation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Derivation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "columns": {
       "items": {
         "$ref": "#/$defs/ColumnProfile"
@@ -388,6 +498,13 @@
       "title": "Formats Found",
       "type": "array"
     },
+    "formats_planned": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Formats Planned",
+      "type": "array"
+    },
     "keywords": {
       "items": {
         "type": "string"
@@ -395,12 +512,34 @@
       "title": "Keywords",
       "type": "array"
     },
+    "keywords_derivation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Derivation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "measured_variables": {
       "items": {
         "$ref": "#/$defs/MeasuredVariable"
       },
       "title": "Measured Variables",
       "type": "array"
+    },
+    "missing_value_codes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Value Codes",
+      "type": "array"
+    },
+    "phase": {
+      "$ref": "#/$defs/LifecyclePhase",
+      "default": "collected"
     },
     "profile_id": {
       "title": "Profile Id",
@@ -447,6 +586,17 @@
       ],
       "default": null,
       "title": "Title"
+    },
+    "title_derivation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Derivation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

@@ -20,6 +20,7 @@ from pydantic import Field
 from standards_advisor.models.common import (
     AgentRef,
     Frozen,
+    LifecyclePhase,
     PromptRef,
     RankingConfigRef,
     RecommendationKind,
@@ -62,6 +63,12 @@ class TargetKind(StrEnum):
     STRUCTURE = "structure"
     FILE = "file"
     DATASET = "dataset"
+    PLANNED_VARIABLE = "planned_variable"
+    """A variable declared in a draft data dictionary, with no data behind it yet (§8).
+
+    Distinct from `FIELD_VALUES` on purpose. Advice about values that exist and advice about
+    values a researcher is about to start recording are acted on differently — the first means
+    a migration, the second means a decision — and a reader must not have to guess which."""
 
 
 class Target(Frozen):
@@ -99,6 +106,13 @@ class Recommendation(Frozen):
     queries: list[str] = Field(default_factory=list)
     """Which registry queries found this candidate (§5.2). Without it a ranking bug cannot be
     diagnosed."""
+    brought_forward_from_phase: int | None = None
+    """Set when this advice belongs to a later Blueprint phase than the run's own (§8).
+
+    The Blueprint places R3 twice: vocabularies and ontologies in Phase 1 (Figure 1), open
+    formats in Phase 4 (Figure 4). A pre-collection run answers all four kinds anyway, because
+    format advice is at its cheapest before anything is written — but saying so is the
+    difference between a deliberate deviation and a silent one."""
 
 
 class NothingFoundReason(StrEnum):
@@ -139,6 +153,9 @@ class NothingFound(Frozen):
     """Plain prose for the researcher: what we looked for and why nothing qualified."""
     referral: str
     """Who to talk to instead. §5.5: R3 declining is a decline *with a referral*."""
+    brought_forward_from_phase: int | None = None
+    """As on `Recommendation` (§8). An abstention carries it too, so that "we found nothing" and
+    "we found nothing, and this was not really this phase's question anyway" read differently."""
 
 
 class RecommendationsDocument(Frozen):
@@ -152,6 +169,13 @@ class RecommendationsDocument(Frozen):
     mandatory human review is therefore a property of the output format."""
 
     generated_at: str
+    phase: LifecyclePhase = LifecyclePhase.COLLECTED
+    """Which Blueprint entry point this run served (§8).
+
+    In the document rather than only the manifest, because it changes how every entry in it
+    should be read: pre-collection advice is a decision to make, collected advice is a change to
+    make. A viewer that showed one as the other would be wrong in a way the reader could not
+    detect."""
     registry_snapshot: RegistrySnapshotRef
     agent: AgentRef
     ranking_config: RankingConfigRef

@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any
 from standards_advisor.errors import RegistryUnavailable
 from standards_advisor.models.candidates import Candidate, CandidateSet, RegistryQuery
 from standards_advisor.models.common import (
+    LifecyclePhase,
     RecommendationKind,
     StageName,
     StageStatus,
@@ -56,14 +57,26 @@ REPORTING_GUIDELINE_RECORD_TYPE = "reporting_guideline"
 ONTOLOGY_SUBTYPES = ("ontology",)
 
 # Column types that imply a field-level standard is worth searching for (R3.4).
+#
+# `TIME`, `DURATION` and `BOOLEAN` are here because each has a real answer that researchers
+# routinely get wrong — ISO 8601 covers times and durations, and how `true` and `false` are
+# written down is a genuine interoperability question. They only ever arise from a declared
+# dictionary type (§8); tier-1 inference does not produce them.
+#
+# `UNKNOWN` is deliberately absent, and `FREE_TEXT`, `NUMBER` and `EMPTY` remain so. There is no
+# field-level standard for a column we could not map, and searching for one would produce advice
+# that does not fit — which is the failure R3.6 exists to prevent.
 FIELD_LEVEL_TYPES: frozenset[ColumnType] = frozenset(
     {
         ColumnType.DATE,
         ColumnType.DATETIME,
+        ColumnType.TIME,
+        ColumnType.DURATION,
         ColumnType.COORDINATE,
         ColumnType.QUANTITY_WITH_UNIT,
         ColumnType.IDENTIFIER,
         ColumnType.CATEGORICAL,
+        ColumnType.BOOLEAN,
     }
 )
 
@@ -138,10 +151,13 @@ def _vocabulary_query(profile: DatasetProfile, facets: dict[str, list[str]]) -> 
     """R3.1 — terminology resources, *excluding* the ontology subtypes.
 
     Targets the columns whose values could be pinned to concept identifiers: categorical
-    columns first, since those are the ones with a small closed set of values.
+    columns first, since those are the ones with a small closed set of values. Pre-collection
+    that set is *declared* rather than sampled, which is a stronger signal — a dictionary's
+    enumeration is every value the column may take, not the ones that happened to appear in the
+    head of a file.
     """
     targets = [
-        Target(kind=TargetKind.FIELD_VALUES, field=column.name, file=column.file)
+        Target(kind=_field_target_kind(profile), field=column.name, file=column.file)
         for column in profile.columns
         if column.inferred_type == ColumnType.CATEGORICAL
     ]
@@ -178,15 +194,30 @@ def _ontology_query(profile: DatasetProfile, facets: dict[str, list[str]]) -> Re
 
 
 def _format_query(profile: DatasetProfile, facets: dict[str, list[str]]) -> RegistryQuery:
-    """R3.3 — models and formats, for the formats actually found in the input."""
+    """R3.3 — models and formats, for the formats found in the input or planned for it.
+
+    The two are kept in separate facets rather than merged. "You wrote XLSX, here is an open
+    alternative" and "you plan to write XLSX, here is what to write instead" are different
+    recommendations, and an abstention has to be able to say which question it failed to answer.
+    """
     return RegistryQuery(
         kind=RecommendationKind.OPEN_FORMAT,
         record_types=[MODEL_FORMAT_RECORD_TYPE],
-        facets={**facets, "format": list(profile.formats_found)},
-        targets=[
-            Target(kind=TargetKind.FILE, file=entry.path, detail=entry.format)
-            for entry in profile.files
-        ],
+        facets={
+            **facets,
+            "format": list(profile.formats_found),
+            "format_planned": list(profile.formats_planned),
+        },
+        targets=(
+            [
+                Target(kind=TargetKind.FILE, file=entry.path, detail=entry.format)
+                for entry in profile.files
+            ]
+            or [
+                Target(kind=TargetKind.DATASET, detail=f"planned format {fmt}")
+                for fmt in profile.formats_planned
+            ]
+        ),
     )
 
 
@@ -208,7 +239,7 @@ def _field_level_query(profile: DatasetProfile) -> RegistryQuery:
         },
         targets=[
             Target(
-                kind=TargetKind.FIELD_VALUES,
+                kind=_field_target_kind(profile),
                 field=column.name,
                 file=column.file,
                 detail=f"{column.inferred_type.value}"
@@ -217,6 +248,19 @@ def _field_level_query(profile: DatasetProfile) -> RegistryQuery:
             for column in interesting
         ],
     )
+
+
+def _field_target_kind(profile: DatasetProfile) -> TargetKind:
+    """What a column-level recommendation applies to, given the run's phase.
+
+    Pre-collection there are no values yet, so `FIELD_VALUES` would be a claim about data that
+    does not exist. The distinction is not cosmetic: it is the difference between advice that
+    means "migrate what you have" and advice that means "decide this before you start", and the
+    reader cannot recover it from anything else in the recommendation.
+    """
+    if profile.phase is LifecyclePhase.PRE_COLLECTION:
+        return TargetKind.PLANNED_VARIABLE
+    return TargetKind.FIELD_VALUES
 
 
 def _to_candidates(result: RegistrySearchResult) -> list[Candidate]:

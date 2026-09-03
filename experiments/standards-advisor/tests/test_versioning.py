@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from standards_advisor.errors import ConfigError, PromptNotFound
+from standards_advisor.intake import load_intake_config
 from standards_advisor.prompting import PromptLibrary
 from standards_advisor.ranking import RULES
 from standards_advisor.ranking.weights import load_ranking_config
@@ -146,3 +147,71 @@ def test_the_run_record_and_document_agree_on_the_versions_used(settings: Settin
     assert result.document.ranking_config.version == config.version
     assert result.document.ranking_config.sha256 == config.sha256
     assert result.manifest.ranking_config == result.document.ranking_config
+
+
+# -- intake question set (§8) -----------------------------------------------------------------
+
+
+def test_the_committed_question_set_loads_and_is_hashed(settings: Settings):
+    """The same discipline as the weights, for the same reason.
+
+    The questions put to a researcher are part of what happened on a run (R10), so a run record
+    has to resolve to the text actually asked — which a bare version string cannot guarantee.
+    """
+    intake = load_intake_config(settings.intake_config_path())
+    assert intake.version == "intake.v1"
+    assert len(intake.sha256) == 64
+    assert intake.ref().version == intake.version
+
+
+def test_the_question_set_version_is_its_filename(tmp_path: Path):
+    """A new question set is a new file, never an edit to an existing one."""
+    path = tmp_path / "intake.v1.toml"
+    path.write_text(
+        'version = "intake.v2"\n[[question]]\nid = "s"\nfacet = "subject"\n'
+        'text = "What?"\nwhy = "because"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="the filename is the version"):
+        load_intake_config(path)
+
+
+def test_every_question_facet_maps_onto_a_profile_field(settings: Settings):
+    """An answer nothing consumes is a question that wasted a researcher's time.
+
+    The loader rejects an unknown facet, so this asserts the committed set only uses facets the
+    profile builder actually reads — the pairing that makes `IntakeFacet` worth having.
+    """
+    from standards_advisor.models.elicitation import IntakeFacet
+
+    intake = load_intake_config(settings.intake_config_path())
+    used = {question.facet for question in intake.questions}
+    assert used <= set(IntakeFacet)
+    assert IntakeFacet.SUBJECT in used, "subject is the main signal; it must be asked"
+
+
+def test_a_question_with_an_unmapped_facet_is_refused(tmp_path: Path):
+    path = tmp_path / "intake.v1.toml"
+    path.write_text(
+        'version = "intake.v1"\n[[question]]\nid = "s"\nfacet = "favourite_colour"\n'
+        'text = "What?"\nwhy = "because"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError, match="known facets"):
+        load_intake_config(path)
+
+
+def test_a_repeated_question_id_is_refused(tmp_path: Path):
+    """Answers are matched to questions by id, so a duplicate would silently discard one."""
+    path = tmp_path / "intake.v1.toml"
+    entry = '[[question]]\nid = "s"\nfacet = "subject"\ntext = "What?"\nwhy = "because"\n'
+    path.write_text(f'version = "intake.v1"\n{entry}{entry}', encoding="utf-8")
+    with pytest.raises(ConfigError, match="repeats question id"):
+        load_intake_config(path)
+
+
+def test_a_question_set_with_no_questions_is_refused(tmp_path: Path):
+    path = tmp_path / "intake.v1.toml"
+    path.write_text('version = "intake.v1"\n', encoding="utf-8")
+    with pytest.raises(ConfigError, match="no \\[\\[question\\]\\] entries"):
+        load_intake_config(path)

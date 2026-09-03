@@ -16,6 +16,7 @@ DEFAULT_AGENT_IDENTITY = "urn:dd:agent:sheffield-r3"
 DEFAULT_HEAD_ROWS = 500
 DEFAULT_REGISTRY_ROUTE = "empty"
 DEFAULT_RANKING_CONFIG = "ranking.v1"
+DEFAULT_INTAKE_CONFIG = "intake.v1"
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class Settings:
     head_rows: int
     registry_route: str
     ranking_config: str
+    intake_config: str
 
     @property
     def prompts_root(self) -> Path:
@@ -44,6 +46,9 @@ class Settings:
 
     def ranking_config_path(self) -> Path:
         return self.config_root / f"{self.ranking_config}.toml"
+
+    def intake_config_path(self) -> Path:
+        return self.config_root / f"{self.intake_config}.toml"
 
 
 def find_project_root(start: Path | None = None) -> Path:
@@ -78,6 +83,7 @@ def load_settings(
         head_rows=_positive_int(environ.get("DD_HEAD_ROWS"), DEFAULT_HEAD_ROWS, "DD_HEAD_ROWS"),
         registry_route=environ.get("DD_REGISTRY_ROUTE") or DEFAULT_REGISTRY_ROUTE,
         ranking_config=environ.get("DD_RANKING_CONFIG") or DEFAULT_RANKING_CONFIG,
+        intake_config=environ.get("DD_INTAKE_CONFIG") or DEFAULT_INTAKE_CONFIG,
     )
 
 

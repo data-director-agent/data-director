@@ -45,10 +45,31 @@
       "title": "Evidence",
       "type": "object"
     },
+    "LifecyclePhase": {
+      "description": "Which of the Blueprint's researcher entry points a run serves (\u00a78).\n\nThe Blueprint's \u00a78.2 process flow has three entry points into six phases. Only the first two\nconcern R3, and they differ in one way that reaches every stage: whether the data exists yet.\n`PRE_COLLECTION` is Figure 1's \"workflow entry point for researchers starting a new project\nbefore data collection begins\" \u2014 there are no files to profile, so the profile is built from\nthe README and draft data dictionary R5 has produced, and the facets \u00a75.2 searches on have to\nbe asked for rather than inferred.",
+      "enum": [
+        "pre_collection",
+        "collected"
+      ],
+      "title": "LifecyclePhase",
+      "type": "string"
+    },
     "NothingFound": {
       "additionalProperties": false,
       "description": "An abstention. An equal output to a recommendation, not an error (R3.6).",
       "properties": {
+        "brought_forward_from_phase": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brought Forward From Phase"
+        },
         "kind": {
           "$ref": "#/$defs/RecommendationKind"
         },
@@ -137,6 +158,18 @@
     "Recommendation": {
       "additionalProperties": false,
       "properties": {
+        "brought_forward_from_phase": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brought Forward From Phase"
+        },
         "caveats": {
           "items": {
             "type": "string"
@@ -506,7 +539,8 @@
         "field_values",
         "structure",
         "file",
-        "dataset"
+        "dataset",
+        "planned_variable"
       ],
       "title": "TargetKind",
       "type": "string"
@@ -528,6 +562,10 @@
       },
       "title": "Nothing Found",
       "type": "array"
+    },
+    "phase": {
+      "$ref": "#/$defs/LifecyclePhase",
+      "default": "collected"
     },
     "profile_id": {
       "title": "Profile Id",

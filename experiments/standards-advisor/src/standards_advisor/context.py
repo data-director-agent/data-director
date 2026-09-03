@@ -20,6 +20,7 @@ from standards_advisor.models.common import AgentRef
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
 
+    from standards_advisor.intake.config import IntakeConfig
     from standards_advisor.prompting.library import PromptLibrary
     from standards_advisor.provenance.events import ProvenanceHandler
     from standards_advisor.provenance.run_dir import RunDirectory
@@ -35,6 +36,9 @@ class RunContext:
     registry_route: str
     prompts: PromptLibrary
     ranking: RankingConfig
+    intake: IntakeConfig
+    """The versioned intake question set (§8). Read by `elicit`, and empty of questions for any
+    phase but pre-collection."""
     run_dir: RunDirectory
     events: ProvenanceHandler
     agent: AgentRef

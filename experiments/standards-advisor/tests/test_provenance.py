@@ -12,7 +12,9 @@ import json
 
 import pytest
 
+from standards_advisor.graph import PIPELINE_ORDER
 from standards_advisor.models.common import StageName
+from standards_advisor.nodes.support import STAGE_ORDER
 from standards_advisor.runner import run_pipeline
 from standards_advisor.settings import Settings
 
@@ -36,15 +38,20 @@ def test_every_expected_file_is_written(result):
 
 
 def test_one_stage_file_per_stage_in_pipeline_order(result):
+    """Derived from `STAGE_ORDER` rather than listed, so it asserts the property.
+
+    The numeric prefix exists only to make the files sort into pipeline order, so what matters
+    is that every stage has exactly one file and the numbering matches the declared order — not
+    which names happened to be current when this was written. Adding a stage renumbers the ones
+    after it, and a run recorded before that change keeps its old numbering.
+    """
     files = sorted(p.name for p in result.run_dir.stages_path.glob("*.json"))
     assert files == [
-        "01-profile.json",
-        "02-retrieve.json",
-        "03-rank.json",
-        "04-explain.json",
-        "05-check.json",
-        "06-assemble.json",
+        f"{index:02d}-{stage.value}.json" for index, stage in enumerate(STAGE_ORDER, start=1)
     ]
+    assert list(STAGE_ORDER) == list(StageName), (
+        "STAGE_ORDER and StageName have diverged; the stage files would be misnumbered"
+    )
 
 
 def test_the_manifest_records_every_stage(result):
@@ -105,7 +112,7 @@ def test_prov_activities_form_a_chain(result):
 
     first = [node for node in activities if "prov:wasInformedBy" not in node]
     assert len(first) == 1
-    assert first[0]["prov:label"] == "stage profile"
+    assert first[0]["prov:label"] == f"stage {PIPELINE_ORDER[0].value}"
     assert len(activities) - 1 == sum("prov:wasInformedBy" in node for node in activities)
 
 

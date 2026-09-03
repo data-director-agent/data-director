@@ -87,6 +87,15 @@ We aim to test whether recommendations can be grounded in a registry.
   *metadata* — names, inferred types, counts — are ever sent to a model. Sample values are not. That
   is a constraint on the design, not a note about this prototype's test data.
 
+  The line this draws is **declared schema versus observed data**, and §8 makes that explicit
+  rather than changing it. A data dictionary's *declared* permitted values and variable
+  definitions may reach a model: a codebook entry is a statement the researcher wrote about what
+  may be recorded, not an observation of anything or anyone, and it is precisely what R3.1 needs
+  in order to match a vocabulary before any data exists. A value read out of a real file may not,
+  whatever its apparent innocuousness. The two live in separate fields of the profile
+  (`permitted_values` and `example_values`) so that `nodes/explain.py::_profile_digest` can
+  admit one and refuse the other, and so that a test can assert it.
+
 ---
 
 ## 2. Requirement R3
@@ -142,6 +151,8 @@ cannot be added later at all: by the time you go looking, the evidence C12 needs
 baked into the shape of the system rather than switched on at the end. Both get built from day one.
 After the table we list the controls we are skipping, so that they read as decisions we made rather
 than things we forgot.
+
+### 3.1 Non-functional requirements
 
 The Blueprint makes every control a *must*. So the MoSCoW column is **ours, not the Blueprint's**:
 MUST is what a v0.1 slice has to get right for its results to mean anything, SHOULD is what makes it
@@ -236,12 +247,19 @@ participants.
 
 ## 5. Processing pipeline
 
-Six stages. Each can be tested on its own, each saves its result, and each adds to the run record.
+Seven stages. Each can be tested on its own, each saves its result, and each adds to the run
+record.
 
 ```
-input → profile → retrieve → rank → explain → check → recommendations
-                                                     ↳ or a statement that nothing qualified
+input → elicit → profile → retrieve → rank → explain → check → recommendations
+          ↕                                                   ↳ or a statement that nothing
+     (asks the researcher, where                                 qualified
+      there is no data to read — §8)
 ```
+
+`elicit` belongs to §8 and has something to ask on only one of the two entry points. It runs on
+every path regardless, returning immediately where there is nothing to ask, so that the stage
+list does not depend on the input — see §8.3.
 
 ### 5.1 Profile
 
@@ -267,6 +285,20 @@ Three ways of pulling information out, in order of how much we trust them:
 Tier 1 is where the file contents stay (§1.4): values are read locally and only derived column
 metadata moves on.
 
+There is a **second route into the profile**, for the entry point where none of the above can run
+because no data exists (§8.2). It reads a README and a draft data dictionary instead of files, and
+it produces the same `DatasetProfile` — so the four searches, the ranking and the checks are
+unchanged and unaware of it. What differs is the derivation on every statement: `LOCAL_PARSE`
+where tier 1 parsed a value, `DECLARED_IN_DATA_DICTIONARY` where a researcher wrote down what a
+column will hold, and `RESEARCHER_ANSWER` where they were asked outright.
+
+Those last two are the *strongest* derivations in the enum, not the weakest, which inverts the
+reading order of the tiers above. A declaration is not a guess. What it cannot offer is the
+corroboration a sample gives — nothing in a dictionary can reveal that a column called
+`collection_date` will in fact be filled in with British-format dates — so a plan is never
+recorded as a measurement: the observation counts stay empty, and a declared enumeration is kept
+as `permitted_values` rather than as a distinct-value count.
+
 Working out column types does more work than it looks like. R3.4 rests on it entirely, and it is both
 cheap and reliable: a column recognised as dates by successfully parsing its sample values against a
 list of candidate formats gives an ISO 8601 recommendation with near-total confidence and no model
@@ -284,7 +316,7 @@ different filters to the registry and draws on different parts of the profile:
 |---|---|---|
 | Controlled vocabulary (R3.1) | Terminology resources, excluding the ontology subtypes | subject, field of research, entity scope |
 | Ontology (R3.2) | Terminology resources, ontology subtypes only | subject, field of research, entity scope, measured variables |
-| Dataset and file format (R3.3) | Models and formats | subject, formats found, kind of data |
+| Dataset and file format (R3.3) | Models and formats | subject, formats found *or* formats planned (§8), kind of data |
 | How values are written (R3.4) | Models and formats; reporting guidelines | column types worked out above |
 
 [**Entity scope**](glossary.md#standards-concepts) is what separates a vocabulary
@@ -422,15 +454,24 @@ is illustrative.
 
 ### 6.1 Dataset profile
 
-An identifier and content fingerprint; where it came from and when; title, abstract and keywords;
-subjects, fields of research and entity scope, each with the term, the list it came from, and
-whether the model picked it from the registry's list; files, with the format detected and how; columns, with the
-inferred type, how it was inferred, any pattern observed, the proportion of blanks and the number of
-distinct values; measured variables taken from the description; the target repository if known; and
-the profiler version.
+An identifier and content fingerprint; where it came from and when; the lifecycle phase it was
+built for (§8); title, abstract and keywords; subjects, fields of research and entity scope, each
+with the term, the list it came from, and whether the model picked it from the registry's list;
+files, with the format detected and how; columns, with the inferred type, how it was inferred, any
+pattern observed, the proportion of blanks and the number of distinct values; measured variables
+taken from the description; the target repository if known; and the profiler version.
+
+For a dataset that does not exist yet (§8.2) the same document carries what was *declared* rather
+than observed: per column, the declared type verbatim, the variable definition, the permitted
+values and any missing-value code; and per dataset, the formats the researcher intends to write,
+kept apart from the formats found. The observation counts are absent rather than zero, because
+there is nothing yet to count.
 
 Everything inferred records **how it was arrived at**. That is what lets the test harness tell a
-profiling mistake from a ranking mistake.
+profiling mistake from a ranking mistake. There are exactly two ways to carry it — a `Term`, or a
+sibling `*_derivation` field — and no third. Title, abstract and keywords each gained one for §8,
+because a title read out of README prose and a title copied from a repository record are not the
+same kind of statement, and `retrieve` puts both into registry queries as free text.
 
 ### 6.2 Recommendations
 
@@ -568,3 +609,169 @@ the record's DOI and URL. Share-alike only bites on redistribution, so using the
 recommendations is fine, but publishing a harvested collection or a fixture set built from one
 carries the obligation onto whatever we publish. The clean answer, and our recommendation: publish
 only record identifiers and let others fetch the records themselves.
+
+---
+
+## 8. Lifecycle phases and entry points
+
+Everything above assumes a dataset that exists. This section covers the case where it does not.
+
+### 8.1 Where this comes from
+
+§8.2 of the Blueprint sets out a six-phase process flow with three researcher entry points, and
+the first of them is before collection begins. Figure 1, verbatim:
+
+> **Figure 1**. Phase 1: Pre-collection Setup. The workflow entry point for researchers starting a
+> new project before data collection begins. Shows the initial drafting of data documentation (R5),
+> selection of controlled vocabularies and ontologies (R3), and a decision step to create a new
+> Data Management Plan or review an existing one.
+
+So R3 is invoked with no data in existence, on the output of **R5** — a README and a draft data
+dictionary. R5 is out of scope for this experiment and assumed done; this section is about what
+happens when its output arrives at R3's door.
+
+The advice is worth more here than anywhere later, which is the argument for building it at all.
+Adopting ISO 8601 before the first row is written costs nothing. Converting a finished
+spreadsheet costs a week and loses information.
+
+Two Blueprint requirements bear on how it is done. **R5** names what cannot be inferred and has
+to be asked for:
+
+> Elements that cannot be inferred and require direct researcher input include variable
+> definitions, units, missing value codes, study design details, and data collection procedures.
+
+And **R10** (MUST) requires that "all actions taken by AI agents on data and metadata" be
+recorded so they can be verified and audited. It is a banner across all six phase figures, not a
+phase-specific capability. Putting a set of questions to a researcher and acting on the answers
+is such an action, so the questions, the answers, and the fact that the profile depends on them
+are all in the run record.
+
+§8.2 of the Blueprint also sets the posture, and it is worth quoting because it is easy to get
+wrong when building an intake form: "The workflow belongs to the researcher; the Data Director's
+role is to assist, recommend, and flag, not to direct or control." Every question therefore says
+why it is being asked, and answering nothing is permitted for all of them.
+
+**Note on requirement numbering.** The Blueprint has no sub-requirements — R3.1 to R3.6 are this
+document's decomposition (§2), not the Blueprint's. Only R1 to R12 and C1 to C17 are its own.
+
+### 8.2 A second route into the profile
+
+`DatasetProfile` is the pipeline's only interface to the input: nothing after the profile stage
+reads the input or touches the filesystem. A pre-collection mode is therefore a new *producer* of
+that document, not a second pipeline and not a branch — `retrieve`, `rank`, `explain`, `check` and
+`assemble` are unchanged and unaware of it.
+
+The dictionary is read as **Frictionless Table Schema**. C5 says no formats are invented here, and
+Table Schema is an open published specification and itself a registered standard, so the input to
+a grounded recommendation is as grounded as the output. It is plain JSON, read directly rather
+than through the `frictionless` package: a heavy dependency for a type table is hard to justify in
+an experiment whose dependency list is part of what is being judged.
+
+Three things about the mapping are worth recording because they were not obvious:
+
+- **Table Schema's `format` is already strptime syntax** for temporal types, so there is no
+  translation layer — only a membership test against the patterns tier 1 knows. A valid pattern
+  tier 1 does not recognise is itself the R3.4 finding, and is noted rather than dropped.
+- **`missingValues` is declared per schema, not per field.** It lands on the profile rather than
+  being copied onto every column, because presenting one global declaration as sixteen per-field
+  facts would be a claim the schema never made. The empty string survives the read: "a blank cell
+  means missing" and "we have no convention for blank cells" are different statements.
+- **Nine of Table Schema's fifteen types have no field-level standard we can search for.** The
+  structured ones — `object`, `array`, `any` — become `ColumnType.UNKNOWN`, a failure records why,
+  and no field-level search runs for them. Filing them as free text and recommending a text
+  standard would be worse than saying nothing: it is the R3.6 failure one level down. The rest are
+  mapped, and `boolean`, `time` and `duration` gained column types of their own, because how a
+  flag, a clock time or an elapsed quantity is written down is a real interoperability question
+  with an ISO 8601 answer.
+
+### 8.3 Asking the researcher
+
+Subject, field of research and entity scope are what §5.2 searches on, and with no data they
+cannot be inferred at all. §5.1 tier 2 was meant to obtain them by having a model pick from the
+registry's own term lists — but with the default registry route `list_terms()` raises, so there is
+no list to pick from. Asking is not a weaker substitute for tier 2 here. It is the only honest
+source.
+
+That has a consequence to state plainly: at v0.1 every answer is free text, recorded as a term
+with **no list name** and the `RESEARCHER_ANSWER` derivation. It is not a controlled term, and
+R3.5 depends on the difference staying visible. When a registry route exists, these questions
+should offer the registry's own terms as choices — a change to the question set, not to the code.
+
+The elicitation is a **stage in the graph** that pauses, rather than a step before it. That keeps
+one run record, one provenance chain and one `thread_id` covering the whole thing, which is what
+R10 wants. Three consequences follow, and all three are load-bearing:
+
+- **The graph keeps its one unconditional line.** A conditional edge past `elicit` would make the
+  stage list depend on the input, and both the coverage check and §6.3's one-activity-per-stage
+  rely on it not doing that. So the node runs on every path and returns early where there is
+  nothing to ask, exactly as `profile` does for its unimplemented tiers.
+- **A paused node re-runs from the top on resume.** LangGraph replays it, with the pause returning
+  the answers instead of suspending. So everything before the pause must be deterministic, which
+  is why the question set is fixed, versioned configuration and not anything a model writes: a
+  generated question would be generated twice, and the researcher could be shown one set of
+  questions and have their answers matched against another. **TODO:** model-proposed follow-up
+  questions would have to be produced in a prior stage and read from state on replay. Not
+  attempted.
+- **A pause is not a stage outcome.** LangGraph's control-flow signals inherit from `Exception`,
+  so the scaffolding that records an unexpected exception would otherwise record a pause as a
+  degraded stage, write a stage file for a stage that had not finished, and write a second one on
+  resume — a run record showing the elicitation failing and then happening. It is re-raised
+  untouched instead, and a test pins that.
+
+A run that pauses reports `awaiting_input`, not `incomplete`. Both lack a document, but one is
+waiting for a person and the other has stopped, and the manifest is the field a reader trusts to
+tell them which.
+
+### 8.4 What the checkpoint now has to do
+
+This is the real cost of choosing an interruptible stage, and it is worth writing down because
+nothing before §8 paid it.
+
+Checkpoints used to be write-only. Every run started and finished in one process, and the
+checkpoints existed for the property in §5 — each stage saves its result — and were never read
+back. Resume was a capability nothing used. Now the checkpoint is written by one process and read
+by another, across a pause of arbitrary length, and the round trip has to actually work.
+
+Two things follow. The serialiser records state models by module path, so **moving or renaming a
+model breaks resuming an older checkpoint**; the models are allowlisted explicitly and the round
+trip is asserted in a test. And resuming re-reads the versioned configuration from disk, so a run
+that paused under one set of ranking weights and resumed under another would produce a single run
+record covering two versions. That is refused, on the same grounds `PromptLibrary` refuses a
+prompt edited in place.
+
+An in-memory checkpointer cannot outlive its process, so a run that would pause is refused up
+front rather than after the questions have been answered into a run that cannot continue.
+
+### 8.5 Which kinds a pre-collection run answers
+
+The Blueprint places R3 twice. Figure 1 puts vocabularies and ontologies in Phase 1; Figure 4
+puts open format recommendations in Phase 4, alongside data preparation.
+
+A pre-collection run answers **all four kinds anyway**, and says which ones it has brought
+forward. Format advice is at its cheapest before anything has been written, so withholding it
+until Phase 4 would be faithful to the figure and useless to the researcher. But this experiment
+exists to test the Blueprint's claims, so a deliberate deviation from it belongs in the output
+where a reader can see it — as a phase number on the recommendation and a sentence in the
+abstention — rather than only in a design document.
+
+**TODO:** the Blueprint places R3's field-level half (our R3.4) in no figure at all. It is treated
+here as Phase 1, on the grounds that how dates and units are written is settled in the data
+dictionary R5 is drafting in Phase 1. That is our reading and should be put to the maintainers.
+
+The referral text differs by phase, because the action does. After the fact, advice about a
+vocabulary means migrating values that already exist and a specialist has to help. Before
+collection it means writing a choice into a data dictionary and a data management plan — which is
+Figure 1's own next step, and something a researcher can do themselves.
+
+### 8.6 What this does not do
+
+The DMP create-or-review decision in Figure 1 is not implemented. It is the third of Phase 1's
+three activities and the one R3 has no part in; the abstentions point at it in prose, and nothing
+more. Phases 2 and 3 — governance constraints, and repository selection — are not addressed
+either, which matters more than it sounds: the Blueprint puts repository selection before metadata
+creation because the repository determines the schema and vocabularies that will apply, and a
+pre-collection run usually cannot name one. The §5.3 repository-fit rule is skipped in that case
+rather than scored zero.
+
+And with the default registry route, a pre-collection run declines all four kinds, exactly as a
+collected one does. The profile underneath it is real; the search is what is missing.

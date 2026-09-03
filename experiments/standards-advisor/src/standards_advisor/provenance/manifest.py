@@ -12,6 +12,7 @@ from pydantic import Field
 from standards_advisor.models.common import (
     AgentRef,
     Frozen,
+    IntakeConfigRef,
     PromptRef,
     RankingConfigRef,
     RegistrySnapshotRef,
@@ -50,6 +51,12 @@ class RunManifest(Frozen):
     model: ModelRecord
     prompts: list[PromptRef] = Field(default_factory=list)
     ranking_config: RankingConfigRef
+    intake_config: IntakeConfigRef | None = None
+    """Which intake question set was in force (§8).
+
+    Recorded on every run, not only pre-collection ones: the set was loaded and governed what
+    `elicit` would have asked, and "this version asked nothing at this phase" is a fact about
+    the version. R10 wants the actions recorded, and not asking is one of them."""
     registry_snapshot: RegistrySnapshotRef
     registry_route: str
 

@@ -1,11 +1,20 @@
 """The pipeline as a LangGraph `StateGraph`.
 
-Six nodes, one straight line, **no conditional edges**. That is a decision rather than a
+Seven nodes, one straight line, **no conditional edges**. That is a decision rather than a
 simplification, and it is the structural expression of R3.6: abstention is *output*, not control
 flow. A stage that finds nothing still runs the next one, and `assemble` writes the
 `nothing_found` entries. Branching on emptiness would put abstention on an error path — the one
-thing §5.5 says it must not be — and would make the six stage boundaries conditional, which both
+thing §5.5 says it must not be — and would make the stage boundaries conditional, which both
 the coverage check and §6.3's one-activity-per-stage rely on being unconditional.
+
+§8's `elicit` keeps that property rather than spoiling it. It has something to ask on only one
+of the two entry points, and the obvious way to express that — a conditional edge past it —
+would have made the stage list depend on the input. So instead the node always runs and returns
+early when there is nothing to ask, which is also how `profile` treats its unimplemented tiers.
+What `elicit` *does* introduce is a node that can **pause**: `interrupt()` suspends the graph
+mid-node to ask a human, and resuming re-runs that node from the top. That is not a branch — the
+edges are unchanged and every run still reports every stage — but it does mean a node may now
+execute twice, which `nodes/elicit.py` documents the consequences of.
 
 `StateGraph` rather than an LCEL `a | b | c` chain: LCEL has no state schema, no per-stage
 checkpointing and no resume, which is most of what this pipeline needs. And not `create_agent`:
@@ -26,6 +35,7 @@ from standards_advisor.models.common import StageName
 from standards_advisor.nodes import (
     assemble_node,
     check_node,
+    elicit_node,
     explain_node,
     profile_node,
     rank_node,
@@ -40,6 +50,7 @@ if TYPE_CHECKING:
 #: Stage order, and therefore edge order. `graph.get_state_history()` yields one boundary per
 #: entry, which is what §5's "each stage saves its result" comes down to.
 PIPELINE_ORDER: tuple[StageName, ...] = (
+    StageName.ELICIT,
     StageName.PROFILE,
     StageName.RETRIEVE,
     StageName.RANK,
@@ -63,6 +74,7 @@ def build_graph(
         PipelineState, context_schema=RunContext
     )
 
+    builder.add_node(StageName.ELICIT.value, elicit_node)
     builder.add_node(StageName.PROFILE.value, profile_node)
     builder.add_node(StageName.RETRIEVE.value, retrieve_node)
     builder.add_node(StageName.RANK.value, rank_node)

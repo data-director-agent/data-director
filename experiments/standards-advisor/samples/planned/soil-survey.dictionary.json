@@ -1,0 +1,97 @@
+{
+  "$schema": "https://datapackage.org/profiles/2.0/tableschema.json",
+  "title": "Upland grassland restoration monitoring — draft data dictionary",
+  "description": "Draft variable definitions for the restoration monitoring survey. Not yet used to collect anything.",
+  "missingValues": ["", "NA", "-999"],
+  "fields": [
+    {
+      "name": "plot_id",
+      "type": "string",
+      "format": "uuid",
+      "description": "Permanent identifier for the monitoring plot."
+    },
+    {
+      "name": "survey_date",
+      "type": "date",
+      "format": "%d/%m/%Y",
+      "description": "Date of the plot visit, as written by field staff on paper forms."
+    },
+    {
+      "name": "survey_start_time",
+      "type": "time",
+      "description": "Local clock time at which recording began."
+    },
+    {
+      "name": "survey_duration",
+      "type": "duration",
+      "description": "How long the plot visit took."
+    },
+    {
+      "name": "survey_year",
+      "type": "year",
+      "description": "Field season the visit belongs to."
+    },
+    {
+      "name": "latitude",
+      "type": "number",
+      "description": "Plot centre latitude."
+    },
+    {
+      "name": "longitude",
+      "type": "number",
+      "description": "Plot centre longitude."
+    },
+    {
+      "name": "soil_horizon",
+      "type": "string",
+      "description": "Horizon the core was taken from, identified in the field.",
+      "constraints": {
+        "enum": ["O", "A", "B"]
+      }
+    },
+    {
+      "name": "restoration_treatment",
+      "type": "string",
+      "description": "Restoration treatment applied to the plot.",
+      "constraints": {
+        "enum": ["none", "grazing exclusion", "seed addition", "seed addition and grazing exclusion"]
+      }
+    },
+    {
+      "name": "ph",
+      "type": "number",
+      "description": "Soil pH measured in water suspension."
+    },
+    {
+      "name": "organic_carbon_pct",
+      "type": "number",
+      "description": "Soil organic carbon as a percentage of dry mass."
+    },
+    {
+      "name": "total_nitrogen",
+      "type": "number",
+      "unit": "mg/kg",
+      "description": "Total soil nitrogen."
+    },
+    {
+      "name": "sward_height_cm",
+      "type": "number",
+      "description": "Mean sward height across the quadrat."
+    },
+    {
+      "name": "waterlogged",
+      "type": "boolean",
+      "description": "Whether standing water was present at the plot during the visit."
+    },
+    {
+      "name": "quadrat_species_cover",
+      "type": "object",
+      "description": "Percentage cover per species, keyed by species name."
+    },
+    {
+      "name": "surveyor_notes",
+      "type": "string",
+      "description": "Free-text observations from the surveyor."
+    }
+  ]
+}

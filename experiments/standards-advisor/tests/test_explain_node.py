@@ -19,8 +19,21 @@ from langgraph.runtime import Runtime
 
 from standards_advisor import __version__
 from standards_advisor.context import RunContext
-from standards_advisor.models.common import AgentRef, RecommendationKind
+from standards_advisor.intake import load_intake_config
+from standards_advisor.models.common import (
+    AgentRef,
+    Derivation,
+    LifecyclePhase,
+    RecommendationKind,
+)
 from standards_advisor.models.inputs import DatasetInput
+from standards_advisor.models.profile import (
+    ColumnProfile,
+    ColumnType,
+    ContentFingerprint,
+    DatasetProfile,
+    SourceRef,
+)
 from standards_advisor.nodes.explain import _profile_digest, explain_node
 from standards_advisor.nodes.profile import profile_node
 from standards_advisor.nodes.rank import rank_node
@@ -42,6 +55,7 @@ def _context(settings: Settings, tmp_path: Path, registry, model) -> RunContext:
         registry_route="fake",
         prompts=PromptLibrary(settings.prompts_root),
         ranking=load_ranking_config(settings.ranking_config_path()),
+        intake=load_intake_config(settings.intake_config_path()),
         run_dir=run_dir,
         events=ProvenanceHandler(run_dir),
         agent=AgentRef(identity="urn:dd:agent:test", version=__version__),
@@ -200,3 +214,72 @@ def test_sample_values_are_never_put_in_the_prompt(settings, tmp_path, sample_in
     # Metadata that should be there.
     assert "soil_horizon" in digest
     assert "categorical" in digest
+
+
+def test_declared_permitted_values_reach_the_prompt_but_observed_values_do_not(settings, tmp_path):
+    """§1.4 as amended by §8, and the only mechanical guard on the amended boundary.
+
+    The line is **declared schema versus observed data**, not "values are secret". A codebook
+    entry is a statement the researcher wrote about what may be recorded, and it is exactly what
+    R3.1 needs in order to match a vocabulary before any data exists. An `example_values` entry
+    is an observation read out of a real file, and no amount of usefulness makes it metadata.
+
+    The two live in separate fields precisely so this test can be written: one profile, one
+    column, both fields populated, and the digest has to contain one and not the other.
+    """
+    profile = DatasetProfile(
+        profile_id="test-profile",
+        fingerprint=ContentFingerprint(digest="0" * 64, total_bytes=0, files_hashed=0),
+        source=SourceRef(kind="planned_documentation"),
+        profiled_at="2026-09-03T00:00:00+00:00",
+        profiler_version=__version__,
+        phase=LifecyclePhase.PRE_COLLECTION,
+        columns=[
+            ColumnProfile(
+                name="land_use",
+                position=0,
+                file="dictionary.json",
+                inferred_type=ColumnType.CATEGORICAL,
+                type_derivation=Derivation.DECLARED_IN_DATA_DICTIONARY,
+                description="How the plot is managed.",
+                permitted_values=["grazed", "ungrazed", "restored"],
+                example_values=["SECRET-OBSERVED-VALUE"],
+            )
+        ],
+    )
+
+    digest = _profile_digest(profile)
+
+    assert "grazed" in digest
+    assert "restored" in digest
+    assert "How the plot is managed." in digest
+    assert "SECRET-OBSERVED-VALUE" not in digest, "an observed value leaked into the prompt"
+
+
+def test_a_planned_column_with_no_counts_does_not_break_the_digest(settings):
+    """`blank_proportion` is `None` pre-collection, and it is formatted as a percentage.
+
+    A format spec is not type-checked, so mypy would not have caught this — only a run would,
+    and only on the pre-collection path.
+    """
+    profile = DatasetProfile(
+        profile_id="test-profile",
+        fingerprint=ContentFingerprint(digest="0" * 64, total_bytes=0, files_hashed=0),
+        source=SourceRef(kind="planned_documentation"),
+        profiled_at="2026-09-03T00:00:00+00:00",
+        profiler_version=__version__,
+        phase=LifecyclePhase.PRE_COLLECTION,
+        columns=[
+            ColumnProfile(
+                name="ph",
+                position=0,
+                file="dictionary.json",
+                inferred_type=ColumnType.NUMBER,
+                type_derivation=Derivation.DECLARED_IN_DATA_DICTIONARY,
+            )
+        ],
+    )
+
+    digest = _profile_digest(profile)
+    assert "ph" in digest
+    assert "None" not in digest, "a missing count must read as '-', not as the word None"

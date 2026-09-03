@@ -40,6 +40,35 @@ class ProvenanceHandler(BaseCallbackHandler):
         self.token_totals: dict[str, int] = {"input_tokens": 0, "output_tokens": 0}
         self.model_calls = 0
 
+    @classmethod
+    def resumed(cls, run_dir: RunDirectory) -> ProvenanceHandler:
+        """A handler whose counters already include what an earlier process recorded (§8).
+
+        A pre-collection run pauses for a human and is resumed by a *different* process, so a
+        fresh handler's counters start at zero and the manifest would report only the calls made
+        after the pause. Today that happens to give the right answer, because `explain` is the
+        only stage that calls a model and it runs after `elicit` — which is exactly the kind of
+        accident that stops being true quietly. The event log is append-only and survives the
+        pause, so it is the authority; these counters are only a running total of it.
+
+        Parsing lives here rather than in `runner` so it stays next to the code that writes the
+        events being read. A malformed line cannot break a resume: `read_events` already skips
+        blanks, and anything without the fields we want contributes nothing.
+        """
+        handler = cls(run_dir)
+        for event in run_dir.read_events():
+            if event.get("event") == "chat_model_start":
+                handler.model_calls += 1
+            elif event.get("event") == "llm_end":
+                usage = event.get("usage")
+                if not isinstance(usage, dict):
+                    continue
+                for key in ("input_tokens", "output_tokens"):
+                    value = usage.get(key)
+                    if isinstance(value, int):
+                        handler.token_totals[key] = handler.token_totals.get(key, 0) + value
+        return handler
+
     # -- helpers -------------------------------------------------------------------------
 
     def _emit(self, event_type: str, **fields: Any) -> None:

@@ -7,6 +7,7 @@ the run directory exists at all (see `run_dir`).
 
 from __future__ import annotations
 
+from standards_advisor.models.common import StageName
 from standards_advisor.models.provenance import (
     EnergyEstimate,
     ProvActivity,
@@ -15,10 +16,32 @@ from standards_advisor.models.provenance import (
     ProvEntity,
 )
 from standards_advisor.provenance.manifest import RunManifest
+from standards_advisor.provenance.run_dir import RUN_FILES
 
 
 def _uri(run_id: str, *parts: str) -> str:
     return "urn:dd:r3:" + ":".join([run_id, *parts])
+
+
+def _primary_input(
+    stage: str,
+    input_entity: str,
+    registry_entity: str,
+    intake_entity: str | None,
+) -> str:
+    """The main entity a stage consumed.
+
+    A table rather than a chain of conditionals because it is a mapping, and because a stage
+    added without an entry here would otherwise be quietly attributed to the dataset input —
+    claiming it read something it never touched, in the one record whose whole purpose is to be
+    accurate about that.
+    """
+    if stage == StageName.ELICIT:
+        # The question set is what `elicit` consumes; the answers are what it produces.
+        return intake_entity or input_entity
+    if stage in {StageName.RETRIEVE, StageName.RANK}:
+        return registry_entity
+    return input_entity
 
 
 def build_prov_document(manifest: RunManifest, token_totals: dict[str, int]) -> ProvDocument:
@@ -81,6 +104,19 @@ def build_prov_document(manifest: RunManifest, token_totals: dict[str, int]) -> 
         )
     )
 
+    intake_entity: str | None = None
+    if manifest.intake_config is not None:
+        intake_entity = _uri(run_id, "entity", "intake-config")
+        nodes.append(
+            ProvEntity(
+                id=intake_entity,
+                type="prov:Entity",
+                label="intake question set",
+                dd_version=manifest.intake_config.version,
+                dd_sha256=manifest.intake_config.sha256,
+            )
+        )
+
     prompt_entities: dict[str, str] = {}
     for prompt in manifest.prompts:
         entity_id = _uri(run_id, "entity", "prompt", prompt.name, prompt.version)
@@ -104,8 +140,8 @@ def build_prov_document(manifest: RunManifest, token_totals: dict[str, int]) -> 
         activity_id = _uri(run_id, "activity", report.stage)
         stage_activities[report.stage] = activity_id
 
-        used = [registry_entity if report.stage in {"retrieve", "rank"} else input_entity]
-        if report.stage == "rank":
+        used = [_primary_input(report.stage, input_entity, registry_entity, intake_entity)]
+        if report.stage == StageName.RANK:
             used.append(ranking_entity)
         used.extend(prompt_entities[ref.name] for ref in report.prompts)
 
@@ -140,6 +176,24 @@ def build_prov_document(manifest: RunManifest, token_totals: dict[str, int]) -> 
 
     # -- outputs -------------------------------------------------------------------------
 
+    # The elicitation, as an entity in its own right. R10 requires the actions an agent takes on
+    # metadata be auditable, and asking a researcher a set of questions and recording their
+    # answers is one — the answers then steer every registry query the run makes, so a profile
+    # that used them has to say so.
+    answers_entity: str | None = None
+    if _asked_questions(manifest):
+        answers_entity = _uri(run_id, "entity", "answers")
+        nodes.append(
+            ProvEntity(
+                id=answers_entity,
+                type="prov:Entity",
+                label="intake answers",
+                generated_by=stage_activities[StageName.ELICIT],
+                derived_from=[entity for entity in (intake_entity,) if entity],
+                dd_path=RUN_FILES["answers"],
+            )
+        )
+
     if "profile" in stage_activities:
         nodes.append(
             ProvEntity(
@@ -147,7 +201,7 @@ def build_prov_document(manifest: RunManifest, token_totals: dict[str, int]) -> 
                 type="prov:Entity",
                 label="dataset profile",
                 generated_by=stage_activities["profile"],
-                derived_from=[input_entity],
+                derived_from=[input_entity, *([answers_entity] if answers_entity else [])],
                 dd_path="profile.json",
             )
         )
@@ -165,3 +219,17 @@ def build_prov_document(manifest: RunManifest, token_totals: dict[str, int]) -> 
         )
 
     return ProvDocument(graph=nodes)
+
+
+def _asked_questions(manifest: RunManifest) -> bool:
+    """Whether `elicit` actually put questions to anyone on this run.
+
+    Read off the stage's own counts rather than the run's phase, so the record reflects what
+    happened rather than what the input asked for. A collected run's `elicit` reports `empty`
+    with no questions, and inventing an answers entity for it would put a file in the graph that
+    was never written.
+    """
+    for report in manifest.stages:
+        if report.stage is StageName.ELICIT:
+            return report.counts.get("questions", 0) > 0
+    return False

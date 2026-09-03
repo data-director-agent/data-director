@@ -20,14 +20,23 @@ from typing import TYPE_CHECKING, Any
 
 from standards_advisor import __version__
 from standards_advisor.ids import sha256_file_head, utc_now
-from standards_advisor.models.common import Derivation, StageName, StageStatus, Term
+from standards_advisor.models.common import (
+    Derivation,
+    LifecyclePhase,
+    StageName,
+    StageStatus,
+    Term,
+)
+from standards_advisor.models.elicitation import IntakeFacet
 from standards_advisor.models.profile import (
     ContentFingerprint,
     DatasetProfile,
     FileEntry,
+    MeasuredVariable,
     SourceRef,
 )
 from standards_advisor.nodes.support import merge, stage
+from standards_advisor.planning import ParsedReadme, read_dictionary, read_readme
 from standards_advisor.profiling import columns as column_inference
 from standards_advisor.profiling import files as file_detection
 from standards_advisor.profiling import tabular
@@ -42,6 +51,9 @@ if TYPE_CHECKING:
 def profile_node(state: PipelineState, runtime: Runtime[RunContext]) -> dict[str, Any]:
     ctx = runtime.context
     inputs = state["inputs"]
+
+    if inputs.phase is LifecyclePhase.PRE_COLLECTION:
+        return _profile_planned(state, ctx)
 
     with stage(ctx, StageName.PROFILE) as run:
         paths = [Path(item) for item in inputs.files]
@@ -80,9 +92,13 @@ def profile_node(state: PipelineState, runtime: Runtime[RunContext]) -> dict[str
             ),
             profiled_at=utc_now().isoformat(),
             profiler_version=__version__,
+            phase=inputs.phase,
             title=inputs.title or _text(metadata, "title"),
             abstract=inputs.description or _text(metadata, "description"),
             keywords=inputs.keywords or _keywords(metadata),
+            title_derivation=Derivation.SUPPLIED_METADATA,
+            abstract_derivation=Derivation.SUPPLIED_METADATA,
+            keywords_derivation=Derivation.SUPPLIED_METADATA,
             subjects=subjects,
             fields_of_research=[],
             entity_scope=[],
@@ -99,12 +115,140 @@ def profile_node(state: PipelineState, runtime: Runtime[RunContext]) -> dict[str
             "columns": len(column_profiles),
             "rows_sampled": sum(entry.rows_sampled or 0 for entry in file_entries),
         }
-        if not file_entries:
+        if not file_entries and not column_profiles:
             run.status = StageStatus.EMPTY
 
         ctx.run_dir.write_json("profile", profile.model_dump(mode="json"))
 
     return merge(run, profile=run.payload)
+
+
+def _profile_planned(state: PipelineState, ctx: RunContext) -> dict[str, Any]:
+    """Build a profile from a README and a draft data dictionary, with no data (§8).
+
+    The same shape of output as the tier-1 route and the same obligations: every statement
+    carries a derivation, and nothing is invented to fill a gap. What differs is where the
+    statements come from — a declaration rather than a parse — and that the observation counts
+    are simply absent, because there is nothing yet to count.
+
+    Note what this does *not* do: it reads no data file, because there are none, so §5.1's
+    "the only stage that touches file contents" still holds of the profile stage as a whole.
+    """
+    inputs = state["inputs"]
+    answers = state.get("answers")
+
+    with stage(ctx, StageName.PROFILE) as run:
+        dictionary_path = Path(inputs.dictionary_path or "")
+        parsed = read_dictionary(dictionary_path)
+        for finding in parsed.findings:
+            run.fail(finding.kind, finding.detail)
+        for note in parsed.notes:
+            run.note(note)
+
+        readme = _read_readme(inputs.readme_path, run)
+
+        # Precedence throughout: what the caller passed explicitly, then what the researcher
+        # answered, then what a document said. An explicit flag is a deliberate override, and an
+        # answer is a person's direct statement — both outrank prose we parsed.
+        title = inputs.title or readme.title or parsed.title
+        abstract = inputs.description or readme.abstract or parsed.description
+        keywords = inputs.keywords or readme.keywords
+
+        subjects = answers.terms_for(IntakeFacet.SUBJECT) if answers else []
+        domains = answers.terms_for(IntakeFacet.FIELD_OF_RESEARCH) if answers else []
+        entities = answers.terms_for(IntakeFacet.ENTITY_SCOPE) if answers else []
+        variables = answers.values_for(IntakeFacet.MEASURED_VARIABLE) if answers else []
+        planned_formats = inputs.formats_planned or (
+            answers.values_for(IntakeFacet.FORMAT_PLANNED) if answers else []
+        )
+        repository = inputs.target_repository or (
+            answers.single(IntakeFacet.TARGET_REPOSITORY) if answers else None
+        )
+
+        if answers is None:
+            run.note("no intake answers reached the profile; the searches will have no facets")
+
+        documents = [path for path in (inputs.readme_path, inputs.dictionary_path) if path]
+        readable = [Path(path) for path in documents if Path(path).is_file()]
+
+        profile = DatasetProfile(
+            profile_id=f"{state['run_id']}-profile",
+            fingerprint=_fingerprint(readable),
+            source=SourceRef(
+                kind="planned_documentation",
+                locations=[str(path) for path in readable],
+                metadata_record=inputs.dictionary_path,
+            ),
+            profiled_at=utc_now().isoformat(),
+            profiler_version=__version__,
+            phase=inputs.phase,
+            title=title,
+            abstract=abstract,
+            keywords=keywords,
+            title_derivation=_text_derivation(title, readme.title, parsed.title),
+            abstract_derivation=_text_derivation(abstract, readme.abstract, parsed.description),
+            keywords_derivation=Derivation.LOCAL_PARSE if keywords else None,
+            subjects=subjects,
+            fields_of_research=domains,
+            entity_scope=entities,
+            files=[],
+            columns=parsed.columns,
+            measured_variables=[
+                MeasuredVariable(name=name, derivation=Derivation.RESEARCHER_ANSWER)
+                for name in variables
+            ],
+            missing_value_codes=parsed.missing_value_codes,
+            target_repository=repository,
+            formats_found=[],
+            formats_planned=sorted({fmt.strip().lower() for fmt in planned_formats if fmt.strip()}),
+        )
+
+        run.payload = profile
+        run.counts = {
+            "files": 0,
+            "columns": len(parsed.columns),
+            "planned_variables": len(parsed.columns),
+            "measured_variables": len(variables),
+        }
+        if not parsed.columns:
+            run.status = StageStatus.EMPTY
+            run.note("the data dictionary yielded no variables; there is nothing to advise on")
+
+        ctx.run_dir.write_json("profile", profile.model_dump(mode="json"))
+
+    return merge(run, profile=run.payload)
+
+
+def _read_readme(readme_path: str | None, run: Any) -> ParsedReadme:
+    """Read the README, recording rather than raising when it is missing."""
+    if readme_path is None:
+        run.note("no README supplied; title and abstract come from the dictionary if at all")
+        return ParsedReadme()
+    parsed = read_readme(Path(readme_path))
+    if parsed.error is not None:
+        run.fail("readme_unreadable", parsed.error)
+    for note in parsed.notes:
+        run.note(note)
+    return parsed
+
+
+def _text_derivation(
+    chosen: str | None, from_readme: str | None, from_dictionary: str | None
+) -> Derivation | None:
+    """Which source a free-text field actually came from.
+
+    §6.1 requires everything inferred to record how. Prose read out of a README is
+    `LOCAL_PARSE`; a title or description the dictionary declared is
+    `DECLARED_IN_DATA_DICTIONARY`; anything the caller passed on the command line is
+    `SUPPLIED_METADATA`, being neither parsed nor declared but simply given.
+    """
+    if chosen is None:
+        return None
+    if from_readme is not None and chosen == from_readme:
+        return Derivation.LOCAL_PARSE
+    if from_dictionary is not None and chosen == from_dictionary:
+        return Derivation.DECLARED_IN_DATA_DICTIONARY
+    return Derivation.SUPPLIED_METADATA
 
 
 def _profile_file(path: Path, head_rows: int) -> tuple[FileEntry, list[Any]]:

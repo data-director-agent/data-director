@@ -47,6 +47,11 @@ PROMPT_NAME = "explain"
 # tail costs tokens and produces recommendations nobody reads.
 TOP_N_PER_KIND = 3
 
+# How many of a column's declared permitted values are shown to the model. Enough to convey what
+# kind of thing the column names, which is what R3.1 matches on, without letting one large code
+# list crowd out the rest of the profile.
+PERMITTED_VALUES_SHOWN = 24
+
 
 class _DraftEvidence(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -136,22 +141,64 @@ def _shortlist(ranked_set: Any) -> list[RankedCandidate]:
 
 
 def _profile_digest(profile: DatasetProfile) -> str:
-    """The model's view of the dataset: metadata only, never sample values (§1.4)."""
+    """The model's view of the dataset. **The §1.4 chokepoint.**
+
+    Two categories of column information are permitted here and one is not, and the line between
+    them is the whole of §1.4 as amended by §8:
+
+    - **Permitted:** names, inferred and declared types, patterns, units, counts, and a data
+      dictionary's *declared* `permitted_values` and `description`. All of these are schema —
+      statements the researcher wrote about what the data will contain.
+    - **Never:** `example_values`. Those are observed values read out of a real file, and no
+      amount of usefulness makes them metadata.
+
+    `test_sample_values_are_never_put_in_the_prompt` and its `permitted_values` sibling are the
+    only mechanical guard on that boundary, so anything added to this function needs one.
+    """
     lines = [
+        f"Phase: {profile.phase.value}",
         f"Title: {profile.title or '(none supplied)'}",
         f"Abstract: {profile.abstract or '(none supplied)'}",
         f"Keywords: {', '.join(profile.keywords) or '(none)'}",
         f"Formats found: {', '.join(profile.formats_found) or '(none detected)'}",
+        f"Formats planned: {', '.join(profile.formats_planned) or '(none stated)'}",
         f"Subjects: {', '.join(term.term for term in profile.subjects) or '(none)'}",
+        f"Missing value codes: {', '.join(profile.missing_value_codes) or '(none declared)'}",
         "",
-        "Columns (name | inferred type | pattern | unit | blank % | distinct in sample):",
+        "Columns (name | type | pattern | unit | blanks | distinct | permitted values):",
     ]
     for column in profile.columns:
         lines.append(
             f"- {column.name} | {column.inferred_type.value} | {column.pattern or '-'} "
-            f"| {column.unit or '-'} | {column.blank_proportion:.0%} | {column.distinct_count}"
+            f"| {column.unit or '-'} | {_percent(column.blank_proportion)} "
+            f"| {_count(column.distinct_count)} | {_permitted(column.permitted_values)}"
         )
+        if column.description:
+            lines.append(f"    definition: {column.description}")
     return "\n".join(lines)
+
+
+def _percent(value: float | None) -> str:
+    """A proportion, or `-` where nothing was measured. `None` means no data was read (§8)."""
+    return "-" if value is None else f"{value:.0%}"
+
+
+def _count(value: int | None) -> str:
+    return "-" if value is None else str(value)
+
+
+def _permitted(values: list[str]) -> str:
+    """A column's declared permitted values, truncated.
+
+    Truncated rather than omitted: a long code list is still evidence of what kind of thing the
+    column names, which is what R3.1 matches on, and the count tells the model the list went on.
+    """
+    if not values:
+        return "-"
+    if len(values) <= PERMITTED_VALUES_SHOWN:
+        return ", ".join(values)
+    shown = ", ".join(values[:PERMITTED_VALUES_SHOWN])
+    return f"{shown}, ... ({len(values)} in total)"
 
 
 def _render(profile: DatasetProfile, shortlist: list[RankedCandidate]) -> str:
@@ -223,11 +270,23 @@ def _to_explanations(
 
 
 def _target(draft: _Draft, item: RankedCandidate) -> Target:
-    """Prefer the model's stated target, falling back to what the query was on behalf of."""
+    """Take the field the model named, but keep the *kind* the retriever assigned.
+
+    The model is asked which part of the dataset a recommendation applies to, not what sort of
+    thing that part is — the retriever already knows, because it chose the target when it built
+    the query. Overriding the kind with `FIELD_VALUES` whenever a field was named got two cases
+    wrong: an ontology recommendation would be labelled as applying to a column's values, which
+    is precisely the confusion §2.1 forbids, and a pre-collection recommendation about a planned
+    variable would be labelled as though the values already existed (§8).
+    """
+    existing = item.candidate.targets[0] if item.candidate.targets else None
     if draft.target_field:
         return Target(
-            kind=TargetKind.FIELD_VALUES, field=draft.target_field, detail=draft.target_detail
+            kind=existing.kind if existing is not None else TargetKind.FIELD_VALUES,
+            field=draft.target_field,
+            file=existing.file if existing is not None else None,
+            detail=draft.target_detail,
         )
-    if item.candidate.targets:
-        return item.candidate.targets[0]
+    if existing is not None:
+        return existing
     return Target(kind=TargetKind.DATASET, detail=draft.target_detail)

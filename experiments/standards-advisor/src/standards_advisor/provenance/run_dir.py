@@ -24,6 +24,10 @@ from typing import Any
 
 RUN_FILES = {
     "input": "input.json",
+    # `answers.json` is what `elicit` asked and was told (§8). Written only when there were
+    # questions to put, so a collected run's record has no such file — a key here names a file
+    # the run *may* write, not one it must, and `read_json` returns None for a missing one.
+    "answers": "answers.json",
     "profile": "profile.json",
     "recommendations": "recommendations.json",
     "provenance": "prov.jsonld",

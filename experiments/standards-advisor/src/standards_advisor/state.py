@@ -22,17 +22,19 @@ from standards_advisor.models.candidates import (
     RankedCandidateSet,
 )
 from standards_advisor.models.common import StageFailure, StageReport
+from standards_advisor.models.elicitation import ElicitedContext
 from standards_advisor.models.inputs import DatasetInput
 from standards_advisor.models.profile import DatasetProfile
 from standards_advisor.models.recommendations import RecommendationsDocument
 
 
 class PipelineState(TypedDict, total=False):
-    """§5's six stages, as state.
+    """§5's stages, as state.
 
     | Key | Written by |
     |---|---|
     | `run_id`, `inputs` | seeded at `invoke()` |
+    | `answers` | `elicit` |
     | `profile` | `profile` |
     | `candidates` | `retrieve` |
     | `ranked` | `rank` |
@@ -44,6 +46,15 @@ class PipelineState(TypedDict, total=False):
 
     run_id: str
     inputs: DatasetInput
+
+    answers: ElicitedContext | None
+    """What the researcher was asked and answered (§8). `None` outside pre-collection.
+
+    This is the one piece of state that has to survive a *process* boundary rather than just a
+    super-step: the graph pauses here for a human, and the answers are read back by a later
+    invocation. LangGraph serialises state models with a module-path marker, so moving or
+    renaming `ElicitedContext` breaks resuming an older checkpoint — see
+    `test_pydantic_objects_survive_a_checkpoint_round_trip`."""
 
     profile: DatasetProfile | None
     candidates: CandidateSet | None
@@ -61,6 +72,7 @@ def initial_state(run_id: str, inputs: DatasetInput) -> PipelineState:
     return PipelineState(
         run_id=run_id,
         inputs=inputs,
+        answers=None,
         profile=None,
         candidates=None,
         ranked=None,

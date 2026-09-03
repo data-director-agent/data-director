@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from langgraph.errors import GraphBubbleUp
 from pydantic import BaseModel
 
 from standards_advisor.ids import utc_now
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
 #: Stage order, and therefore the numeric prefix on `runs/<run_id>/stages/NN-*.json`.
 STAGE_ORDER: tuple[StageName, ...] = (
+    StageName.ELICIT,
     StageName.PROFILE,
     StageName.RETRIEVE,
     StageName.RANK,
@@ -88,6 +90,14 @@ def stage(ctx: RunContext, name: StageName) -> Iterator[StageRun]:
     started = utc_now().isoformat()
     try:
         yield run
+    except GraphBubbleUp:
+        # LangGraph's control-flow signals — `interrupt()` pausing for human input, a parent
+        # command, a drained graph — all inherit from `Exception`, so without this clause the
+        # generic handler below would record a pause as a DEGRADED stage that "raised
+        # GraphInterrupt", write a stage file for a stage that has not finished, and then write
+        # a second one when the node re-runs on resume. A pause is control flow, not an outcome:
+        # no report, no failure, nothing on disk. The resumed pass writes the one true report.
+        raise
     except Exception as exc:
         run.note(f"stage raised {type(exc).__name__}: {exc}")
         run.report = _build_report(run, started, StageStatus.DEGRADED)
