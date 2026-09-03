@@ -17,7 +17,7 @@ Sections are cross-referenced by number — preserve `§n` numbering when editin
 
 ## Working on the code
 
-Python 3.12, `uv`, LangChain/LangGraph v1. All of it lives in this directory; **nothing goes at the
+Python 3.14, `uv`, LangChain/LangGraph v1. All of it lives in this directory; **nothing goes at the
 repository root** (see the root `CLAUDE.md`).
 
 ```bash

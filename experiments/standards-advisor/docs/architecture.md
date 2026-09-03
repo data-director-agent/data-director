@@ -14,26 +14,12 @@ standards for how individual values are written, such as dates and units. It is 
 requirement.
 
 Functional requirement 3 (R3) specifies that the Data Director must "suggest appropriate
-vocabularies,
-ontologies and open
-data formats."
+vocabularies, ontologies and open data formats."
 
-> Recommend suitable
-> controlled vocabularies,
-> ontologies and file formats,
-> including field-level formats
-> such as date/time
-> standards, for a given
-> dataset to improve
-> consistency, interoperability
-> and discoverability. Must
-> support emerging
-> standards and new
-> mappings. Must distinguish
-> between ontology
-> alignment and controlled
-> vocabulary concept
-> linkage.
+> Recommend suitable controlled vocabularies, ontologies and file formats, including field-level formats
+> such as date/time standards, for a given dataset to improve consistency, interoperability
+> and discoverability. Must support emerging standards and new mappings. Must distinguish
+> between ontology alignment and controlled vocabulary concept linkage.
 
 This document sets out an over-arching plan for an experimental prototype of an approach to building this functionality.
 

@@ -1,0 +1,66 @@
+name: standards-advisor CI
+
+# Scoped to experiments/standards-advisor/: GitHub only picks up workflows from
+# .github/workflows/ at the repository root, so this file lives here even though the
+# project it tests lives entirely under experiments/standards-advisor/.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "experiments/standards-advisor/**"
+      - ".github/workflows/standards-advisor-ci.yml"
+  pull_request:
+    paths:
+      - "experiments/standards-advisor/**"
+      - ".github/workflows/standards-advisor-ci.yml"
+
+defaults:
+  run:
+    working-directory: experiments/standards-advisor
+
+jobs:
+  lint:
+    name: Ruff (lint + format)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache-dependency-glob: "experiments/standards-advisor/pyproject.toml"
+      - run: uv sync --all-extras
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  typecheck:
+    name: mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache-dependency-glob: "experiments/standards-advisor/pyproject.toml"
+      - run: uv sync --all-extras
+      - run: uv run mypy
+
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache-dependency-glob: "experiments/standards-advisor/pyproject.toml"
+      - run: uv sync --all-extras
+      - run: uv run pytest
+
+  schemas:
+    name: Generated schemas up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache-dependency-glob: "experiments/standards-advisor/pyproject.toml"
+      - run: uv sync --all-extras
+      - run: uv run python scripts/export_schemas.py
+      - run: git diff --exit-code -- schemas
