@@ -1,4 +1,4 @@
-# Contributing to data-director
+# Contribution guide
 
 Thank you for your interest in contributing to `data-director`, a reference implementation of the
 Research Data Alliance's Data Director Agentic AI Blueprint. This project is community-driven and
@@ -57,6 +57,6 @@ request description.
 Open an issue with your question, or start a discussion thread if the repository has discussions
 enabled.
 
-## Repository
+## Credit
 
-`TODO: repository URL`
+Please add your details to the [citation file](./CITATION.cff) to be acknowledged as a contributor.
