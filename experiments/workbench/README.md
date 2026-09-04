@@ -39,7 +39,7 @@ Process Run Crate).
 | `src/workbench/conductor.py` | Policy gate → agent → grounding linter → validation → store → provenance. A plain function every transport wraps. |
 | `src/workbench/tracing.py`, `grounding.py`, `evidence.py` | OpenTelemetry span tree with the owned `dd.*` attributes; the three grounding rules; evidence canonicalisation and hashing. |
 | `src/workbench/policy.py`, `profiles/` | The YAML institutional profile and the two questions the gate answers. |
-| `src/workbench/agents/r3/` | Retrieve → rank → explain. Retrieval adapter with snapshot and live FAIRsharing backends; bespoke ranking; template and Anthropic explainers. |
+| [`src/workbench/agents/r3/`](src/workbench/agents/r3/README.md) | Retrieve → rank → explain. Retrieval adapter with snapshot and live FAIRsharing backends; bespoke ranking; template and Anthropic explainers. |
 | `src/workbench/agents/abstain.py` | The stub: `abstained(capability_not_implemented)`, unconditionally. |
 | `src/workbench/transport/` | A2A JSON-RPC (agent invocation), AG-UI run events (shell), the Starlette app. |
 | `shell/` | The read-only, no-build shell: RJSF from a CDN, rendering from the generated schema with derivation badges and an evidence drawer. |
@@ -67,22 +67,8 @@ span started after a `retrieval` span ended, (G2) every recommended identifier w
 and (G3) every cited evidence hash appears on a retrieval span. A violation downgrades
 `succeeded` to `failed` with problem `grounding-violation`. Nothing ungrounded leaves the system.
 
-## Honest limits
+## Limitations
 
-- **Ranking is lexical and naive.** BM25 over name, abbreviation, description and subject
-  labels, weighted with subject overlap and curation status. Over the 169-record snapshot the
-  soil-chemistry sample gets sensible formats (CSV, Tabular Data Package, ISO 8601 for its date
-  fields) and plausible but arguable terminologies (a chemistry vocabulary ranks above AGROVOC).
-  Every recommendation carries its score and signals so a reviewer can disagree.
-- **Vocabulary versus ontology** (R3's one explicit distinction) is decided lexically from the
-  record's name and description, recorded as `classification_derivation: lexical`, with
-  `terminology_unclassified` when neither pattern fires. FAIRsharing's curated subtype is not
-  exposed on the public record route. **TODO:** read it from the authenticated API.
-- **Live search needs a FAIRsharing account** (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`);
-  record fetch does not. No live-search cassette is committed, so that path is unsubstantiated in
-  `CONFORMANCE.md` until someone with an account records one.
-- **The Anthropic explainer** (`DD_R3_EXPLAINER=anthropic`) is implemented but no cassette is
-  committed; the trace shape it produces is exercised with a fake model in tests.
 - **Energy** (P14) is a slot, not a measurement.
 - **Structured validation output** is fixed as the SHACL Validation Report vocabulary but not
   produced; only JSON Schema validation runs.
