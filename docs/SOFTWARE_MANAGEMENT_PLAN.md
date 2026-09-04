@@ -6,7 +6,8 @@ yet decided.
 
 ## Purpose and scope
 
-`data-director` is a reference implementation of the RDA Data Director Agentic AI Blueprint. See
+`data-director` is a reference implementation of the RDA Data Director Agentic AI Blueprint,
+officially adopted by the RDA and published at <https://doi.org/10.15497/RDA00157>. See
 [docs/CHARTER.md](CHARTER.md) for the project's mission and scope.
 
 ## Development approach

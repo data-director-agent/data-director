@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A reference implementation of the RDA [Data Director Agentic AI Blueprint](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/outputs/data-director-agentic-ai-tool-blueprint/).
+A reference implementation of the RDA [Data Director Agentic AI Blueprint](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/outputs/data-director-agentic-ai-tool-blueprint/), officially adopted by the RDA and published at <https://doi.org/10.15497/RDA00157>.
 
 ## Working here
 

@@ -2,6 +2,8 @@
 
 Retrieved from https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/outputs/data-director-agentic-ai-tool-blueprint/
 
+The Blueprint has since been officially adopted by the RDA and published: <https://doi.org/10.15497/RDA00157>. The metadata below (status, version, date) reflects the document as retrieved and is reproduced verbatim; it has not been updated to match the published record.
+
 **Initiative:** RDA-Microsoft Global Agentic AI Initiative
 
 **Status:** Final Version for RDA Council Endorsement
