@@ -137,18 +137,28 @@ class Claim(Frozen):
     context: str | None = None
 
 
-Input = Annotated[DatasetProfile | MetadataRecord | Claim, Field(discriminator="schema_class")]
+class Salutation(Frozen):
+    """The input of the `hello.world` template agent. See `agents/hello/`."""
+
+    schema_class: Literal["Salutation"] = "Salutation"
+    greeted_name: str
+    language: str | None = None
+
+
+AnyInput = DatasetProfile | MetadataRecord | Claim | Salutation
+Input = Annotated[AnyInput, Field(discriminator="schema_class")]
 INPUT_TYPES: dict[str, type[Frozen]] = {
     "DatasetProfile": DatasetProfile,
     "MetadataRecord": MetadataRecord,
     "Claim": Claim,
+    "Salutation": Salutation,
 }
 _input_adapter: TypeAdapter[Any] = TypeAdapter(Input)
 
 
-def parse_input(document: dict[str, Any]) -> DatasetProfile | MetadataRecord | Claim:
+def parse_input(document: dict[str, Any]) -> AnyInput:
     """Parse an input document by its `schema_class` designator. Raises pydantic.ValidationError."""
-    parsed: DatasetProfile | MetadataRecord | Claim = _input_adapter.validate_python(document)
+    parsed: AnyInput = _input_adapter.validate_python(document)
     return parsed
 
 
@@ -259,13 +269,22 @@ class FactCheck(Grounded):
     rationale_derivation: Derivation
 
 
+class Greeting(Grounded):
+    """The payload of the `hello.world` template agent. See `agents/hello/`."""
+
+    schema_class: Literal["Greeting"] = "Greeting"
+    greeting_text: str
+    greeting_derivation: Derivation
+
+
 Payload = Annotated[
-    Recommendations | QualityReview | FactCheck, Field(discriminator="schema_class")
+    Recommendations | QualityReview | FactCheck | Greeting, Field(discriminator="schema_class")
 ]
 PAYLOAD_TYPES: dict[str, type[Grounded]] = {
     "Recommendations": Recommendations,
     "QualityReview": QualityReview,
     "FactCheck": FactCheck,
+    "Greeting": Greeting,
 }
 
 

@@ -45,6 +45,7 @@ workbench = "workbench.cli:main"
 stub = "workbench.agents.abstain:build"
 quality = "workbench.agents.quality.agent:build"
 factcheck = "workbench.agents.factcheck.agent:build"
+hello = "workbench.agents.hello.agent:build"
 r3 = "workbench.agents.r3.factory:build"
 
 [tool.hatch.build.targets.wheel]

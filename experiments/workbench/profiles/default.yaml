@@ -8,6 +8,7 @@ agents_enabled:
   - fact.checker
   - r3.standards-advisor
   - stub.abstain
+  - hello.world
 
 actions_requiring_approval:
   - deposit

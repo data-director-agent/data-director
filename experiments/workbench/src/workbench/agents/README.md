@@ -10,14 +10,27 @@ timestamps, telemetry or its grounding mode.
 |---|---|---|---|---|---|
 | `quality/` | `quality.reviewer` | `MetadataRecord` | `input_only` | `QualityReview` | Demonstration: weighted completeness from `checks.yaml`. |
 | `factcheck/` | `fact.checker` | `Claim` | `retrieval` | `FactCheck` | Demonstration: lexical verdict over packaged `sources.json`. |
+| `hello/` | `hello.world` | `Salutation` | `none` | `Greeting` | **Template.** Greets whoever the input names; the worked example of every step below. |
 | `abstain.py` | `stub.abstain` | every input class | `none` | — | Abstains unconditionally. |
 | `r3/` | `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | **Not ported** to this interface; registered as unavailable (`r3/factory.py`). TODO. |
+
+## Start from `hello/`
+
+`hello/agent.py` is the smallest agent that walks the whole of the recipe below — its own input
+class, its own payload class, a declared grounding mode, a uischema fragment, an entry point, a
+profile entry, a sample and marked tests — with no domain logic in the way. It is commented
+against the numbered steps. Copy the package, rename it, and delete the greeting.
+
+It is also the check on the claim in the last line of this file: `hello.world` has no reason to
+fail other than the harness, so if adding an agent ever starts to require an edit to the
+conductor, linter, CLI, transports or shell, it is the agent that will show it.
 
 ## Adding an agent
 
 1. **Decide what it reads and returns.** If an existing input class (`DatasetProfile`,
-   `MetadataRecord`, `Claim`) or payload class (`Recommendations`, `QualityReview`, `FactCheck`)
-   fits, use it. Otherwise add a class to `schema/data_director.yaml` — an input class carries
+   `MetadataRecord`, `Claim`, `Salutation`) or payload class (`Recommendations`, `QualityReview`,
+   `FactCheck`, `Greeting`) fits, use it. Otherwise add a class to `schema/data_director.yaml` —
+   `Salutation` and `Greeting` are the worked example; an input class carries
    `schema_class`; a payload class carries `schema_class` and `mixins: [Grounded]` — add it to
    the relevant `any_of`, run `scripts/gen_schema.py`, and mirror it in `contract/models.py`
    (`INPUT_TYPES` / `PAYLOAD_TYPES`). See ADR-0007.

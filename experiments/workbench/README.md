@@ -27,6 +27,7 @@ uv run pytest                                          # network blocked; everyt
 uv run workbench agents                                # what is registered, what each accepts
 uv run workbench invoke --agent quality.reviewer --input samples/orda-record.metadata.json
 uv run workbench invoke --agent fact.checker     --input samples/claim.json
+uv run workbench invoke --agent hello.world      --input samples/hello.salutation.json
 uv run workbench invoke --agent quality.reviewer --input samples/claim.json   # failed: input-not-accepted
 uv run workbench invoke --agent stub.abstain     --input samples/claim.json   # abstained
 uv run workbench serve                                 # then open http://127.0.0.1:8000/shell/
@@ -42,24 +43,25 @@ Process Run Crate). `workbench lint <spans.jsonl> <envelope.json>` re-runs the l
 |---|---|---|---|---|
 | `quality.reviewer` | `MetadataRecord` | `input_only` | `QualityReview` | Weighted completeness of an existing record against fixed criteria. A demonstration of an agent that grounds on its input, not a quality framework. |
 | `fact.checker` | `Claim` | `retrieval` | `FactCheck` | A lexical verdict grounded on the sources it retrieved. A demonstration of a retrieval agent that is not R3; the rule checks word overlap and negation, not meaning. |
+| `hello.world` | `Salutation` | `none` | `Greeting` | The template agent. Greets whoever the input names; the smallest complete walk through the recipe, commented to be copied. |
 | `stub.abstain` | every input class | `none` | — | Abstains unconditionally; exercises the non-success path. |
 | `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | Recommends vocabularies, ontologies and formats over FAIRsharing. **Not yet ported** to the generalised interface; registered as unavailable, tests xfailed. TODO — see [`src/workbench/agents/r3/factory.py`](src/workbench/agents/r3/factory.py). |
 
 Adding one: a package, a `build` factory, one entry-point line, `uv sync`. The recipe is
-[`src/workbench/agents/README.md`](src/workbench/agents/README.md); nothing in the conductor,
-linter, CLI, transports or shell changes.
+[`src/workbench/agents/README.md`](src/workbench/agents/README.md) and `hello.world` is its
+worked example; nothing in the conductor, linter, CLI, transports or shell changes.
 
 ## What is here
 
 | Path | Contents |
 |---|---|
-| `schema/data_director.yaml` | The contract, in LinkML: `InvocationRequest`, `Envelope`, `Outcome`, `ProblemDetails`; input classes `DatasetProfile`, `MetadataRecord`, `Claim`; payload classes `Recommendations`, `QualityReview`, `FactCheck`, all mixing in `Grounded`; `GroundingRef`, `EvidenceItem`, `Telemetry`. `schema/generated/` holds the JSON Schema and SHACL it generates (never hand-edited). |
+| `schema/data_director.yaml` | The contract, in LinkML: `InvocationRequest`, `Envelope`, `Outcome`, `ProblemDetails`; input classes `DatasetProfile`, `MetadataRecord`, `Claim`, `Salutation`; payload classes `Recommendations`, `QualityReview`, `FactCheck`, `Greeting`, all mixing in `Grounded`; `GroundingRef`, `EvidenceItem`, `Telemetry`. `schema/generated/` holds the JSON Schema and SHACL it generates (never hand-edited). |
 | `src/workbench/contract/` | Pydantic mirrors of the schema (discriminated `Input` and `Payload` unions), JSON Schema validation, the conditional rules, RFC 9457 problem types. |
 | `src/workbench/agents/base.py`, `registry.py` | `AgentSpec`, the `Agent` protocol, the manifest; discovery through entry points. |
 | `src/workbench/conductor.py` | Policy gate → input check → agent → grounding linter → validation → store → provenance. A plain function every transport wraps; it knows no payload class. |
 | `src/workbench/tracing.py`, `grounding.py`, `evidence.py` | OpenTelemetry span tree with the owned `dd.*` attributes; the per-mode grounding rules; the registry of evidence canonicalisations. |
 | `src/workbench/policy.py`, `profiles/` | The YAML institutional profile and the two questions the gate answers. |
-| `src/workbench/agents/quality/`, `factcheck/`, `abstain.py`, [`r3/`](src/workbench/agents/r3/README.md) | The agents. |
+| `src/workbench/agents/quality/`, `factcheck/`, [`hello/`](src/workbench/agents/hello/agent.py), `abstain.py`, [`r3/`](src/workbench/agents/r3/README.md) | The agents; `hello/` is the template to copy. |
 | `src/workbench/transport/` | A2A JSON-RPC (agent invocation), AG-UI run events (shell), the Starlette app with `/agents` and `/samples`. |
 | `shell/` | The read-only, no-build shell: RJSF from a CDN, rendering from the generated schema; agent and sample pickers from the manifest; per-agent payload fragments with derivation badges; an evidence drawer. |
 | `data/fairsharing/` | The committed FAIRsharing snapshot R3 uses (CC BY-SA 4.0; see its `LICENCE.md`) and the script that builds it. |

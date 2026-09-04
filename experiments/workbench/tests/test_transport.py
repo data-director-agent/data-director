@@ -17,6 +17,7 @@ from a2a.types import Role, SendMessageRequest, TaskState
 from tests.fakes import claim, make_conductor, record, request
 from workbench.agents.abstain import AbstainingStub
 from workbench.agents.factcheck.agent import FactChecker
+from workbench.agents.hello.agent import HelloWorld
 from workbench.agents.quality.agent import QualityReviewer
 from workbench.contract.models import to_document
 from workbench.transport.app import build_app
@@ -25,7 +26,9 @@ BASE = "http://testserver"
 
 
 def _app(runs_dir: Path):
-    conductor = make_conductor(runs_dir, QualityReviewer(), FactChecker(), AbstainingStub())
+    conductor = make_conductor(
+        runs_dir, QualityReviewer(), FactChecker(), HelloWorld(), AbstainingStub()
+    )
     return conductor, build_app(conductor, base_url=BASE)
 
 
@@ -59,7 +62,7 @@ def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) 
     _, app = _app(runs_dir)
     _, card = _get(app, "/.well-known/agent-card.json")
     skills = {s["id"]: s for s in card["skills"]}
-    assert set(skills) == {"quality.reviewer", "fact.checker", "stub.abstain"}
+    assert set(skills) == {"quality.reviewer", "fact.checker", "hello.world", "stub.abstain"}
     assert {"grounding:input_only", "accepts:MetadataRecord", "R4.1"} <= set(
         skills["quality.reviewer"]["tags"]
     )

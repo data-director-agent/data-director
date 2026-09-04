@@ -17,6 +17,7 @@ import pytest
 from workbench.agents.abstain import AbstainingStub
 from workbench.agents.base import AgentSpec
 from workbench.agents.factcheck.agent import FactChecker
+from workbench.agents.hello.agent import HelloWorld
 from workbench.agents.quality.agent import QualityReviewer
 from workbench.contract.models import Derivation
 
@@ -24,7 +25,12 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = json.loads((ROOT / "shell" / "uischema.json").read_text(encoding="utf-8"))
 INDEX = (ROOT / "shell" / "index.html").read_text(encoding="utf-8")
 
-SPECS: list[AgentSpec] = [QualityReviewer.spec, FactChecker.spec, AbstainingStub.spec]
+SPECS: list[AgentSpec] = [
+    QualityReviewer.spec,
+    FactChecker.spec,
+    HelloWorld.spec,
+    AbstainingStub.spec,
+]
 
 
 def _walk(node: Any, path: tuple[str, ...] = ()) -> dict[tuple[str, ...], dict[str, Any]]:

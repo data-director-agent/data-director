@@ -8,6 +8,7 @@ agents_enabled:
   - fact.checker
   - quality.reviewer
   - stub.abstain
+  - hello.world
   - fake.retrieval
   - fake.input-only
   - fake.none

@@ -20,6 +20,7 @@ from workbench.contract.models import (
     EvidenceItem,
     FactCheck,
     Finding,
+    Greeting,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
@@ -33,6 +34,7 @@ from workbench.contract.models import (
     RecommendationKind,
     Recommendations,
     ResourceRef,
+    Salutation,
     Severity,
     Telemetry,
     Verdict,
@@ -193,6 +195,17 @@ def test_each_payload_class_validates_with_grounded_on() -> None:
     validate.validate_envelope(doc)
     assert doc["payload"]["schema_class"] == "QualityReview"
 
+    greeting = Greeting(
+        greeting_text="Hello, world!",
+        greeting_derivation=Derivation.TEMPLATE,
+        grounded_on=[_input_ref()],
+    )
+    doc = _succeeded(
+        grounding_mode=GroundingMode.NONE, payload=greeting, evidence=[_input_evidence()]
+    ).to_document()
+    validate.validate_envelope(doc)
+    assert doc["payload"]["schema_class"] == "Greeting"
+
 
 @pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
 def test_payload_without_grounded_on_or_schema_class_is_rejected() -> None:
@@ -324,6 +337,7 @@ def test_every_input_class_validates_and_is_discriminated_by_schema_class() -> N
         DatasetProfile(title="t"),
         MetadataRecord(identifier="doi:10.1/x", licence="CC-BY-4.0"),
         Claim(text="A DOI does not change."),
+        Salutation(greeted_name="world"),
     ):
         req = InvocationRequest(
             agent_id="stub.abstain", policy_bundle_ref="profile:default", input=inp

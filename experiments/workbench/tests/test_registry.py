@@ -13,7 +13,7 @@ from workbench.cli import main
 from workbench.contract.models import GroundingMode
 from workbench.settings import Settings, build_registry
 
-IN_TREE = {"fact.checker", "quality.reviewer", "stub.abstain"}
+IN_TREE = {"fact.checker", "hello.world", "quality.reviewer", "stub.abstain"}
 
 
 @pytest.mark.requirement("DD-REGISTRY")

@@ -2,9 +2,9 @@
 
 The Data Director Workbench: the invocation contract, a harness (conductor, policy gate, input
 check, OpenTelemetry trace, per-mode grounding linter, evidence hashes, JSONL store, Process Run
-Crate), an agent registry with three usable agents and one awaiting port (R3), a read-only shell,
-and a generated `CONFORMANCE.md`. `docs/MVP_PLAN.md` is the plan; `docs/adr/` records the
-decisions.
+Crate), an agent registry with four usable agents (one of them the `hello.world` template) and
+one awaiting port (R3), a read-only shell, and a generated `CONFORMANCE.md`. `docs/MVP_PLAN.md`
+is the plan; `docs/adr/` records the decisions.
 
 Two rules from the plan govern everything here:
 
@@ -36,8 +36,9 @@ uv run pytest --json-report --json-report-file=.report.json && uv run python scr
   `contract/models.py` in step; `tests/test_contract.py` checks both.
 - **Adding an agent touches nothing central.** A package with `AgentSpec` + `run` + `build`, one
   entry-point line in `pyproject.toml`, a sample, a uischema fragment, marked tests, a profile
-  entry. Recipe: `src/workbench/agents/README.md`. If you find yourself editing the conductor,
-  linter, CLI, transport or shell to add an agent, stop.
+  entry. Recipe: `src/workbench/agents/README.md`; `agents/hello/` is the worked example to
+  copy. If you find yourself editing the conductor, linter, CLI, transport or shell to add an
+  agent, stop.
 - **Only the conductor fills identifiers, timestamps, telemetry, grounding mode and input hash.**
   An agent returns an `AgentResult` (outcome, payload, evidence). If you find yourself setting
   `invocation_id` or `grounding_mode` in an agent, stop.

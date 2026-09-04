@@ -1,0 +1,5 @@
+{
+  "schema_class": "Salutation",
+  "greeted_name": "world",
+  "language": "en"
+}
