@@ -130,6 +130,13 @@ That is the right thing to show. It makes the case for the traceability rule mor
 
 ## 6. Deferred to v0.2 and later
 
+> **Amended 2026-09-04.** The harness was generalised to many agent kinds before v0.2: polymorphic
+> input and payload (ADR-0007), declared grounding modes and a per-mode linter (ADR-0008),
+> registered evidence canonicalisations (ADR-0009), and an agent registry with one manifest
+> (ADR-0010). R3 is not yet ported to the new interface and is registered as unavailable; its
+> tests are xfailed. Two demonstration agents (`quality.reviewer`, `fact.checker`) exercise the
+> other grounding modes. Conversation, orchestration and streaming remain deferred.
+
 Each item below has a defined place in the v0 architecture so that adoption is additive.
 
 | Item | Existing option | What v0 carries | Why deferred |
