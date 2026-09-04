@@ -1,0 +1,465 @@
+interactions:
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      host:
+      - fairsharing.org
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://fairsharing.org/399
+  response:
+    body:
+      string: '{"fairsharing_data_licence":"https://creativecommons.org/licenses/by-sa/4.0/.
+        Please link to https://fairsharing.org and https://api.fairsharing.org/img/fairsharing-attribution.svg
+        for attribution.","id":399,"name":"AGROVOC","registry":"Standard","type":"terminology_artefact","abbreviation":"AGROVOC","metadata":{"doi":"10.25504/FAIRsharing.anpj91","name":"AGROVOC","status":"ready","contacts":[{"contact_name":"General
+        contact","contact_email":"agrovoc@fao.org"}],"homepage":"https://www.fao.org/agrovoc/","citations":[{"doi":"https://doi.org/10.3390/engproc2021009017","pubmed_id":null,"publication_id":3152},{"doi":"https://doi.org/10.4060/cb2838en","pubmed_id":null,"publication_id":3154},{"doi":"10.1016/j.compag.2020.105965","pubmed_id":null,"publication_id":3312}],"identifier":399,"description":"AGROVOC
+        is a controlled vocabulary covering all areas of interest of the Food and
+        Agriculture Organization (FAO) of the United Nations, including food, nutrition,
+        agriculture, fisheries, forestry, environment etc. It is published by FAO
+        and edited by a community of experts. AGROVOC consists of over 41,400 concepts
+        available in up to 42 languages. AGROVOC uses semantic web technologies, linking
+        to other multilingual knowledge organization systems and building bridges
+        between datasets. Your library can use AGROVOC to index its documents or datasets,
+        or you can use it from inside your content management system (e.g., Drupal)
+        to organize your documents or web site. You can also use AGROVOC as an hub
+        to access many other vocabularies available on the web.  To date, AGROVOC
+        is used by researchers, librarians and information managers for indexing,
+        retrieving and organizing data in agricultural information systems and Web
+        pages. Currently, AGROVOC is an SKOS-XL concept scheme and a Linked Open Data
+        (LOD*) set aligned with over 20 other multilingual knowledge organization
+        systems related to agriculture. You may browse AGROVOC, access its Web Services
+        or SPARQL endpoint.","abbreviation":"AGROVOC","support_links":[{"url":"https://dgroups.org/fao/agrovoc/join","name":"AGROVOC
+        News mailing list","type":"Mailing list"},{"url":"https://en.wikipedia.org/wiki/AGROVOC","name":"Wikipedia","type":"Wikipedia"},{"url":"http://www.fao.org/agrovoc/about","name":"About","type":"Help
+        documentation"},{"url":"https://twitter.com/FAOAIMS","name":"@FAOAIMS","type":"Twitter"},{"url":"https://www.fao.org/3/cb8640en/cb8640en.pdf","name":"AGROVOC
+        Editorial Guidelines, Second edition","type":"Help documentation"},{"url":"https://www.fao.org/3/cb2838en/CB2838EN.pdf","name":"AGROVOC
+        Semantic data  interoperability on  food and agriculture","type":"Help documentation"},{"url":"https://www.fao.org/agrovoc/news","type":"Blog/News"}],"year_creation":1980,"cross_references":[{"url":"http://agroportal.lirmm.fr/ontologies/AGROVOC","name":"AgroPortal:AGROVOC","portal":"AgroPortal"}],"data_processes_and_conditions":[{"url":"https://www.fao.org/agrovoc/how-add-concept","name":"Suggest
+        Modifications \u0026 New Terms","type":"write","access_method":"User interface"},{"url":"https://agrovoc.fao.org/browse/agrovoc/en/","name":"Browse
+        and search","type":"read","access_method":"User interface"},{"url":"https://www.fao.org/agrovoc/releases","name":"Download","type":"read","access_method":"User
+        interface"},{"url":"https://agrovoc.fao.org/sparql","name":"Sparql endpoint","type":"read","access_method":"Other
+        machine-accessible method"},{"url":"https://www.fao.org/agrovoc/machine-use","name":"REST
+        API","type":"read","access_method":"REST"},{"url":"https://agrovoc.fao.org/search","name":"Single-language
+        interface in English, French, Spanish, Russian, Chinese or Arabic","type":"read","example_url":null,"access_method":"User
+        interface","documentation_url":null}]},"tags":{"subjects":[{"iri":"http://aims.fao.org/aos/agrovoc/c_10967","label":"Food
+        Security"},{"iri":"http://aims.fao.org/aos/agrovoc/c_16129","label":"Forest
+        Management"},{"iri":"http://aims.fao.org/aos/agrovoc/c_203","label":"Agriculture"},{"iri":"http://aims.fao.org/aos/agrovoc/c_211","label":"Agronomy"},{"iri":"http://aims.fao.org/aos/agrovoc/c_2934","label":"Fisheries
+        Science"},{"iri":"http://aims.fao.org/aos/agrovoc/c_331559","label":"Environmental
+        Science"},{"iri":"http://aims.fao.org/aos/agrovoc/c_550","label":"Aquaculture"},{"iri":"http://aims.fao.org/aos/agrovoc/c_8320","label":"Water
+        Management"},{"iri":"http://aims.fao.org/aos/agrovoc/c_9000089","label":"Knowledge
+        and Information Systems"},{"iri":"http://edamontology.org/topic_0780","label":"Botany"},{"iri":"http://edamontology.org/topic_3071","label":"Data
+        Management"},{"iri":"http://edamontology.org/topic_3390","label":"Nutritional
+        Science"}],"domains":[{"iri":"http://aims.fao.org/aos/agrovoc/c_8678","label":"Agricultural
+        products"},{"iri":"http://purl.obolibrary.org/obo/CHEBI_33290","label":"food"},{"iri":"http://purl.obolibrary.org/obo/ENVO_01001082","label":"climate"}],"user_defined_tags":[],"taxonomies":[{"iri":null,"label":"All"}],"countries":[{"id":251,"name":"Worldwide"}]}}'
+    headers:
+      access-control-allow-headers:
+      - DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,X-Client-Id,Authorization,Access-Control-Allow-Origin
+      access-control-allow-methods:
+      - GET, POST, PUT, DELETE, OPTIONS, HEAD
+      access-control-allow-origin:
+      - '*'
+      access-control-expose-headers:
+      - Content-Length,Content-Range,Maintenance,Read-Only
+      cache-control:
+      - max-age=0, private, must-revalidate
+      connection:
+      - keep-alive
+      content-length:
+      - '5026'
+      content-type:
+      - application/json; charset=utf-8
+      date:
+      - Fri, 04 Sep 2026 13:58:10 GMT
+      etag:
+      - W/"aabe615a287d8364f30a21598450ec0e"
+      link:
+      - <https://fairsharing.org/399>; rel="cite-as"
+      maintenance:
+      - 'false'
+      read-only:
+      - 'false'
+      referrer-policy:
+      - strict-origin-when-cross-origin
+      server:
+      - nginx/1.24.0 (Ubuntu)
+      x-content-type-options:
+      - nosniff
+      x-download-options:
+      - noopen
+      x-frame-options:
+      - SAMEORIGIN
+      x-permitted-cross-domain-policies:
+      - none
+      x-request-id:
+      - a4612c73-c39b-4157-9cdc-258f7f5fb9b1
+      x-runtime:
+      - '0.203627'
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      host:
+      - fairsharing.org
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://fairsharing.org/FAIRsharing.does-not-exist
+  response:
+    body:
+      string: "<!DOCTYPE html>\n    <html lang=\"en\">\n      <head>\n        <link
+        rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-c1fdc9df.Dn6leCsa.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-e109a83a.D28M6Fnj.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-7760b9d8.jjiGVyyI.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-965b62ec.ovdNYZx_.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-52e71364.hPwePpJ5.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-eaad17d7.Dfvw0OiW.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-35245b9b.B3YScow3.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-f5be13dc.0zXKzXUS.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-769b328f.BrmwxBgR.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-e154ddb9.I6CfkKSG.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-49f7dec7.C5v0-fWI.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-59bf9fe1.Bp3asBbY.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-adc85ac2.D5LGOeu1.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-5dc5462e.BvKaKg7Y.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-50fc3a04.UAz91foK.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-bea6281b.CSxDPpjj.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-1f1c6654.DzikL18a.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-4f557b67.gvjxlL3Z.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-88b3aef4.BKKQHYsD.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-a45ef91c.DhD5Lbvh.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-246a5908.ECiLCEE9.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-e94f5e1f.Riqf6IC3.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-c24ea974.DNIYWVSh.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-f2ea37eb.BOso_ZUF.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-ddf837b3.CdyXZKfD.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-37c98f4f.D1blawI_.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-a932a3d7.DvKwEp1j.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-13205a87.D6eBDVgx.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-78dbb877.BNcY_ygg.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-e53de8d2.CApanSuw.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-b7051ef1.DNxZMRZA.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-6c221724.DLRYvmGt.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-1eeaf698.DtZI6YEJ.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-59ad9a11.Czf-fUM7.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/AdvancedSearchDialogBox.B19i5dOV.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-cc142e11.kTLKO6TA.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-324a7c87.C4UPkEgf.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-b9bc1d8c.BHetI2cR.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-64895bd4.CvH8ekHL.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-7ac80f12.CgkIFNCO.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-7bdffbb3.Bll4R8JM.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-6f47ea5f.DqNaT6b1.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/onCreateApp.H9kXe3hE.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/-fortawesome-1287def3.BlpeDq0n.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/-mdi-ec55976c.BZKNrGou.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/roboto-fontface-fb478b74.CLrPd7RE.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vue-json-pretty-424d6e3b.DMDJB2gI.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-0eaa5bfb.UX37DEVp.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-2574fbae.CEkzFSz_.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-78c9fac5.BP1AkYXA.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-03f30b2c.C_ZPCSBq.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-42413158.DTMdX9Ml.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-a4b68e71.FkYAzDLl.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-6805f201.rFw0NCMV.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-083b74a1.DeZ0dGEk.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-a608ee10.DQlr8yNC.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-f17d0734.xbrWyysN.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-d3b8bc92.DTMn975q.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-efaa018d.D5Y3fW0s.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-512a38a0.jWmT-6Eu.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-5c4ae852.BT3cMEPt.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-542e70cb._FThJGg4.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-4d1d8ba7.DJgKgWZ3.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-c109d372.BXOYAuzg.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-04f3e2e9.DofeQpEp.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-d08a7426.D6G6vVbc.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-fec221bd.CMMQNZtN.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-a0a65f62.Cquces2D.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-5bdfae6f.BZKiQ542.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-9fb429e9.dotdZsY8.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-86cfb089.CxVz3wuy.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-21e2d9fa.DPZyvQOQ.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-a89f12e6.dYqF_qNr.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-a10e623a.CUvdhIUu.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-759c0890.ByB_rPoF.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-584ef50d.Dwzvf-gD.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-470bdf58.Eu_z8NP0.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-add71230.BNxdRoKV.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-744b90ef.izdAGX-2.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-9add40af.CZZfwI0S.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-27cb3dc6.B-XMauN8.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-fc8f0f1c.D-0vg8zC.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-093c28ee.nriRGCvq.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-227cfc45.ChTcBiVl.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-6f96a861.CzYbEIP2.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-110510d8._bO9VqG7.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-b9eb539c.vDqa__t1.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-8d40fa08.D8XhA5cJ.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-20b46421.CHgFuVNL.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-4b0f30b6.DzdIOHT1.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-e4cd88e1.9hOxaNiG.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-773f768b.D2BMmGHO.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-b14ee3e6.CtxcGtXB.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-98ecad9e.zCdHbgzV.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-d9bec18c.DeJW5guG.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-af3929ab.Cmz6dBmZ.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-e58c26f7.Dml9qK0Q.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-443d4639.BUyXt8fM.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-d3fb6e57.y8WoraBG.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-cf6f308c.BHOA2YMB.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-172da9f0.pCBuot5E.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-83172d3f.DHv8gULW.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-3764c08c.Bcgz4CBL.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-855667c3.gpDLsb6m.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-4092e955.CDZMGxUQ.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-f37fa1f9.D970AKF7.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-962c2e81.endbex0h.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-e3ce05f1.CYWBdCJL.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-93a2429d.BaxZ2yMb.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-3a1081da.ChBmo022.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-c4b3d893.DJxEJSTJ.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-51f6f059.Byw4HP6s.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-4fd8617c.D9EEJ5F9.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-569b05f0.BndLo6C9.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-31cf3d35.5MYmm7dd.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/vuetify-0f06ae3a.BNO3dJRn.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/src_components_ChatBot_FionaChat-675c260b.DLBo7Zo-.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/src_components_Navigation_Jumbotron-14baea50.DdIxvW58.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/src_components_Static_APIDoc_CodeBlock-b2fbca80.D50dv9PK.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/Home.Df9ed7i6.css\">\n
+        \       <link rel=\"stylesheet\" type=\"text/css\" href=\"/assets/static/src_components_Home_StatisticsBlock-754beda5.Co121ZzO.css\">\n
+        \       <link rel=\"preload\" href=\"/assets/static/Lato-Black.B_kLSaRn.ttf\"
+        as=\"font\" type=\"font/ttf\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/Lato-Regular.57KsL5Ww.ttf\" as=\"font\" type=\"font/ttf\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/Lato-Thin.CvSM47fD.ttf\"
+        as=\"font\" type=\"font/ttf\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/fa-brands-400.D_cYUPeE.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/fa-regular-400.BjRzuEpd.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/fa-solid-900.CTAAxXor.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/fa-v4compatibility.C9RhG_FT.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/materialdesignicons-webfont.Dp5v-WZN.woff2\" as=\"font\"
+        type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/Roboto-Thin.NicBC1pN.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/Roboto-ThinItalic.CKlCjrO_.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/Roboto-Light.DHTugVNA.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/Roboto-LightItalic.JQyp2Y3P.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/Roboto-Regular.C6rbFxYz.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/Roboto-RegularItalic.CvPUdkvM.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/Roboto-Medium.ByKogCTi.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/Roboto-MediumItalic.i1eR0KbF.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/Roboto-Bold.hN3duQhD.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/Roboto-BoldItalic.BWDm51uc.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <link rel=\"preload\" href=\"/assets/static/Roboto-Black.VhoA2qKx.woff2\"
+        as=\"font\" type=\"font/woff2\" crossorigin>\n        <link rel=\"preload\"
+        href=\"/assets/static/Roboto-BlackItalic.D4yie1YO.woff2\" as=\"font\" type=\"font/woff2\"
+        crossorigin>\n        <meta charset=\"UTF-8\" />\n        \n        \n    <title>FAIRsharing</title><meta
+        property=\"og:title\" content=\"FAIRsharing\">\n    \n    <!--[--><!--[--><meta
+        charset=\"utf-8\"><meta content=\"IE=edge\" http-equiv=\"X-UA-Compatible\"><meta
+        content=\"width=device-width, initial-scale=1\" name=\"viewport\"><link href=\"https://fediscience.org/@fairsharing\"
+        rel=\"me\"><noscript><strong>We&#39;re sorry but FAIRsharing doesn&#39;t work
+        properly without JavaScript enabled. Please enable it to continue.</strong></noscript><!--]--><script
+        type=\"application/ld+json\">{\"@context\":\"https://schema.org/\",\"@type\":\"DataCatalog\",\"identifier\":\"https://identifiers.org/MIR:00000364\",\"name\":\"FAIRsharing.org\",\"description\":\"A
+        manually curated, informative and educational resource on data and metadata
+        standards, inter-related to databases/data repositories and funder and journal
+        publisher data policies from across disciplines. FAIRsharing is an ELIXIR-UK
+        node resource and has an active role in the RDA and Force11 data initiatives.\",\"url\":\"https://fairsharing.org/\",\"dataset\":[{\"@type\":\"Dataset\",\"name\":\"Metadata
+        Standard\",\"description\":\"A manually curated registry of standards, split
+        into three types - Terminology Artifacts (ontologies, e.g. Gene Ontology),
+        Models and Formats (conceptual schema, formats, data models, e.g. FASTA),
+        and Reporting Guidelines (e.g. the ARRIVE guidelines for in vivo animal testing).
+        These are linked to the databases that implement them and the funder and journal
+        publisher data policies that recommend or endorse their use.\",\"identifier\":\"https://www.fairsharing.org/FAIRsharing-XXXXXX\",\"url\":\"https://fairsharing.org/standards\",\"keywords\":\"Standards,
+        Metadata, Formats, Ontologies, Terminology Artifacts, Reporting Guidelines\",\"includedInDataCatalog\":\"https://www.fairsharing.org\",\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https://creativecommons.org/licenses/by-sa/4.0/\"},\"creator\":{\"@type\":\"Organization\",\"name\":\"University
+        of Oxford, Dept. of Engineering Science, Data Readiness Group\",\"email\":\"contact@fairsharing.org\"}},{\"@type\":\"Dataset\",\"name\":\"Database\",\"description\":\"A
+        manually curated registry of databases/data repositories, conforming to the
+        BioDBcore standard (from the Life Sciences). These are linked to the standards
+        that they use and the funder and journal publisher data policies that recommend
+        or endorse their use.\",\"identifier\":\"https://www.fairsharing.org/FAIRsharing-XXXXXX\",\"url\":\"https://fairsharing.org/databases\",\"keywords\":\"Database,
+        Data repository\",\"includedInDataCatalog\":\"https://www.fairsharing.org\",\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https://creativecommons.org/licenses/by-sa/4.0/\"},\"creator\":{\"@type\":\"Organization\",\"name\":\"University
+        of Oxford, Dept. of Engineering Science, Data Readiness Group\",\"email\":\"contact@fairsharing.org\"}},{\"@type\":\"Dataset\",\"name\":\"Data
+        Policy\",\"description\":\"A manually curated registry of data policies from
+        research funders, journal publishers, societies, and other organisations.
+        These are linked to the databases and standards that they recommend for use\",\"identifier\":\"https://www.fairsharing.org/FAIRsharing-XXXXXX\",\"url\":\"https://fairsharing.org/policies\",\"keywords\":\"Data
+        policy, journal, funder, society\",\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https://creativecommons.org/licenses/by-sa/4.0/\"},\"creator\":{\"@type\":\"Organization\",\"name\":\"University
+        of Oxford, Dept. of Engineering Science, Data Readiness Group\",\"email\":\"contact@fairsharing.org\"}}],\"keywords\":\"registry,
+        life science, natural science, social science\",\"provider\":[{\"@type\":\"Person\",\"name\":\"FAIRsharing.org
+        support\",\"email\":\"contact@fairsharing.org\"},{\"@type\":\"Organization\",\"name\":\"Oxford
+        e-Research Centre, University of Oxford\",\"url\":\"http://www.oerc.ox.ac.uk/\"},{\"@type\":\"Organization\",\"name\":\"ELIXIR-UK\",\"url\":\"http://www.elixir-uk.org\"},{\"alternateName\":[\"FAIRsharing.org
+        Registry\",\"BioSharing.org\"]}],\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https://creativecommons.org/licenses/by-sa/4.0/\"},\"publication\":[{\"@type\":\"PublicationEvent\",\"name\":\"BioSharing:
+        curated and crowd-sourced metadata standards, databases and data policies
+        in the life sciences.\",\"url\":\"https://academic.oup.com/database/article-lookup/doi/10.1093/database/baw075\"},{\"@type\":\"PublicationEvent\",\"name\":\"FAIRsharing
+        as a community approach to standards, repositories and policies.\",\"url\":\"https://doi.org/10.1038/s41587-019-0080-8\"}]}</script><!--]-->\n
+        \   <link rel=\"icon\" href=\"/assets/favicon.ico\" />\n    <meta name=\"description\"
+        content=\"A curated, informative and educational resource on data and metadata
+        standards, databases and policies.\"><meta property=\"og:description\" content=\"A
+        curated, informative and educational resource on data and metadata standards,
+        databases and policies.\">\n    \n  \n        \n      </head>\n      <body>\n
+        \       \n        <div id=\"app\"><!----></div>\n        <div id=\"teleported\"></div>\n
+        \       <script id=\"vike_pageContext\" type=\"application/json\">{\"fromHtmlRenderer\":{},\"pageId\":\"\\\\\\/src\\\\\\/pages\\\\\\/index\",\"routeParams\":{},\"data\":{\"JSONLD\":{\"@context\":\"https:\\\\\\/\\\\\\/schema.org\\\\\\/\",\"@type\":\"DataCatalog\",\"identifier\":\"https:\\\\\\/\\\\\\/identifiers.org\\\\\\/MIR:00000364\",\"name\":\"FAIRsharing.org\",\"description\":\"A
+        manually curated, informative and educational resource on data and metadata
+        standards, inter-related to databases\\\\\\/data repositories and funder and
+        journal publisher data policies from across disciplines. FAIRsharing is an
+        ELIXIR-UK node resource and has an active role in the RDA and Force11 data
+        initiatives.\",\"url\":\"https:\\\\\\/\\\\\\/fairsharing.org\\\\\\/\",\"dataset\":[{\"@type\":\"Dataset\",\"name\":\"Metadata
+        Standard\",\"description\":\"A manually curated registry of standards, split
+        into three types - Terminology Artifacts (ontologies, e.g. Gene Ontology),
+        Models and Formats (conceptual schema, formats, data models, e.g. FASTA),
+        and Reporting Guidelines (e.g. the ARRIVE guidelines for in vivo animal testing).
+        These are linked to the databases that implement them and the funder and journal
+        publisher data policies that recommend or endorse their use.\",\"identifier\":\"https:\\\\\\/\\\\\\/www.fairsharing.org\\\\\\/FAIRsharing-XXXXXX\",\"url\":\"https:\\\\\\/\\\\\\/fairsharing.org\\\\\\/standards\",\"keywords\":\"Standards,
+        Metadata, Formats, Ontologies, Terminology Artifacts, Reporting Guidelines\",\"includedInDataCatalog\":\"https:\\\\\\/\\\\\\/www.fairsharing.org\",\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https:\\\\\\/\\\\\\/creativecommons.org\\\\\\/licenses\\\\\\/by-sa\\\\\\/4.0\\\\\\/\"},\"creator\":{\"@type\":\"Organization\",\"name\":\"University
+        of Oxford, Dept. of Engineering Science, Data Readiness Group\",\"email\":\"contact@fairsharing.org\"}},{\"@type\":\"Dataset\",\"name\":\"Database\",\"description\":\"A
+        manually curated registry of databases\\\\\\/data repositories, conforming
+        to the BioDBcore standard (from the Life Sciences). These are linked to the
+        standards that they use and the funder and journal publisher data policies
+        that recommend or endorse their use.\",\"identifier\":\"https:\\\\\\/\\\\\\/www.fairsharing.org\\\\\\/FAIRsharing-XXXXXX\",\"url\":\"https:\\\\\\/\\\\\\/fairsharing.org\\\\\\/databases\",\"keywords\":\"Database,
+        Data repository\",\"includedInDataCatalog\":\"https:\\\\\\/\\\\\\/www.fairsharing.org\",\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https:\\\\\\/\\\\\\/creativecommons.org\\\\\\/licenses\\\\\\/by-sa\\\\\\/4.0\\\\\\/\"},\"creator\":{\"@type\":\"Organization\",\"name\":\"University
+        of Oxford, Dept. of Engineering Science, Data Readiness Group\",\"email\":\"contact@fairsharing.org\"}},{\"@type\":\"Dataset\",\"name\":\"Data
+        Policy\",\"description\":\"A manually curated registry of data policies from
+        research funders, journal publishers, societies, and other organisations.
+        These are linked to the databases and standards that they recommend for use\",\"identifier\":\"https:\\\\\\/\\\\\\/www.fairsharing.org\\\\\\/FAIRsharing-XXXXXX\",\"url\":\"https:\\\\\\/\\\\\\/fairsharing.org\\\\\\/policies\",\"keywords\":\"Data
+        policy, journal, funder, society\",\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https:\\\\\\/\\\\\\/creativecommons.org\\\\\\/licenses\\\\\\/by-sa\\\\\\/4.0\\\\\\/\"},\"creator\":{\"@type\":\"Organization\",\"name\":\"University
+        of Oxford, Dept. of Engineering Science, Data Readiness Group\",\"email\":\"contact@fairsharing.org\"}}],\"keywords\":\"registry,
+        life science, natural science, social science\",\"provider\":[{\"@type\":\"Person\",\"name\":\"FAIRsharing.org
+        support\",\"email\":\"contact@fairsharing.org\"},{\"@type\":\"Organization\",\"name\":\"Oxford
+        e-Research Centre, University of Oxford\",\"url\":\"http:\\\\\\/\\\\\\/www.oerc.ox.ac.uk\\\\\\/\"},{\"@type\":\"Organization\",\"name\":\"ELIXIR-UK\",\"url\":\"http:\\\\\\/\\\\\\/www.elixir-uk.org\"},{\"alternateName\":[\"FAIRsharing.org
+        Registry\",\"BioSharing.org\"]}],\"license\":{\"@type\":\"CreativeWork\",\"name\":\"Creative
+        Commons CC BY-SA 4.0 Attribution\",\"url\":\"https:\\\\\\/\\\\\\/creativecommons.org\\\\\\/licenses\\\\\\/by-sa\\\\\\/4.0\\\\\\/\"},\"publication\":[{\"@type\":\"PublicationEvent\",\"name\":\"BioSharing:
+        curated and crowd-sourced metadata standards, databases and data policies
+        in the life sciences.\",\"url\":\"https:\\\\\\/\\\\\\/academic.oup.com\\\\\\/database\\\\\\/article-lookup\\\\\\/doi\\\\\\/10.1093\\\\\\/database\\\\\\/baw075\"},{\"@type\":\"PublicationEvent\",\"name\":\"FAIRsharing
+        as a community approach to standards, repositories and policies.\",\"url\":\"https:\\\\\\/\\\\\\/doi.org\\\\\\/10.1038\\\\\\/s41587-019-0080-8\"}]}}}</script>\n
+        \       <script id=\"vike_globalContext\" type=\"application/json\">{}</script>\n
+        \       <script src=\"/assets/entries/entry-client-routing.CFuqGHmC.js\" type=\"module\"
+        async></script>\n        <link rel=\"modulepreload\" href=\"/assets/entries/src_pages_index.Dss9zSRo.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CMxvf4Kt.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-ijjqqfTv2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-BDNMzG2s.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-_i8d3VJf.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CIBlILAU.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-DroJr2sV.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CFxcXhli.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-DvKzzGpD.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-BTXDq0_y.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-B791lye9.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CfLtlo0l2.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-D6oiQGe12.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-DXJuP0hl2.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-CeA54qlt2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-DqyhLuNp2.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-D87iTVJJ2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-87bMr2ww.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-X-cF1Ry6.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-Mo29N0fI.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-C6SUkMix.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CNNwHI4-.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-CMzcpMAY.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-7il7f9Db.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-fX4U2Oea.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CvlhiL4z.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-CqDUjRfE.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-DVyU53sF2.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-RLYgDmDE2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CgIS0H9J.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-q2iPq_8e.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-Dau4Bzzi.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-qGVvT6Mj.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-CWDc7S5X.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-Bz85Okwk2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-uIvPMHhJ.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-BuwlGnHJ.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-pend8dlG.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-8v0snNo_.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-B2m91bQn.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-C4akUiYN2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-BVgkJc_a2.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-CJhk4HSY.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-ClWfqyN9.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-D1XQwOsI.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-DFgnPRgB.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-Tbc6caVy2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-BnmZGlMM2.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-CD_bC_mA2.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-B1FesKLH.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-BJadpIdL.js\"
+        as=\"script\" type=\"text/javascript\">\n        <link rel=\"modulepreload\"
+        href=\"/assets/chunks/chunk-BQ_0-zs-.js\" as=\"script\" type=\"text/javascript\">\n
+        \       <link rel=\"modulepreload\" href=\"/assets/chunks/chunk-CMHxtXHv2.js\"
+        as=\"script\" type=\"text/javascript\">\n      </body>\n    </html>"
+    headers:
+      connection:
+      - keep-alive
+      content-length:
+      - '30231'
+      content-security-policy:
+      - frame-ancestors africarxiv.pubpub.org
+      content-type:
+      - text/html; charset=utf-8
+      date:
+      - Fri, 04 Sep 2026 13:58:10 GMT
+      etag:
+      - W/"6a9a7fb1-7617"
+      last-modified:
+      - Fri, 04 Sep 2026 08:22:09 GMT
+      server:
+      - nginx/1.24.0 (Ubuntu)
+      transfer-encoding:
+      - chunked
+      x-frame-options:
+      - ALLOW-FROM africarxiv.pubpub.org
+    status:
+      code: 200
+      message: OK
+version: 1

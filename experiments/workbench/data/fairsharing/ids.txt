@@ -1,0 +1,176 @@
+# FAIRsharing numeric record identifiers fetched by scripts/build_snapshot.py via the public
+# record route. One per line; text after '#' is a comment (the record name, for readers).
+# Curated core: what the soil-chemistry sample and each R3 recommendation kind need, plus
+# widely used cross-domain standards. Then up to five non-deprecated terminologies and formats
+# per non-life-science subject, so the snapshot is not only biomedical (standards-advisor §1.2).
+# ISO 8601 (4998) is the field-level date/time standard R3.4 recommends.
+
+1  # The BRENDA Tissue Ontology
+46  # IUPAC Compendium of Chemical Terminology
+50  # ISO 19136-1:2020 Geographic information -- Geography Markup Language -- Part 1: Fundamentals
+81  # ISO 19115-1:2014 Geographic information -- Metadata -- Part 1: Fundamentals
+91  # Chemical Markup Language
+99  # GeoNames Ontology
+149  # Namespaces in XML
+150  # JavaScript Object Notation for Linking Data
+231  # Ecological Metadata Language
+336  # RDF/XML Syntax Specification
+358  # GeoJSON
+367  # OWL-Time
+399  # AGROVOC
+449  # Observations and Measurements OWL implementation
+475  # JavaScript Object Notation
+484  # Statistical Data and Metadata eXchange
+527  # The Unified Code for Units of Measure
+581  # European Language Social Science Thesaurus
+595  # Data Documentation Initiative Controlled Vocabularies
+612  # United States Geological Survey Thesaurus
+663  # Resource Description Framework in Attributes
+678  # Provenance, Authoring and Versioning Ontology
+682  # Thesaurus for the Social Sciences
+697  # Ontology for Provenance and Plans
+713  # Tabular Data Package
+747  # Data Catalog Vocabulary
+905  # Dublin Core Metadata Initiative Terms
+919  # Environment Ontology
+940  # Turtle - Terse RDF Triple Language
+1024  # Schema.org
+1211  # Data Package
+1245  # Dublin Core Metadata Element Set
+1354  # Unidata's Network Common Data Form Data Model
+1358  # CSV Dialect Description Format
+1398  # Comma-separated Values
+40  # Groundnut Ontology
+47  # GEneral Multilingual Environmental Thesaurus
+58  # Information Artifact Ontology
+79  # Bilingual lexicon of water related texts and data
+88  # Apollo-SV
+89  # Inist Periodic Table of the Elements Trilingual Thesaurus
+101  # Chemistry vocabulary
+104  # Common European Research project Information Format
+109  # Hourly Global Ionospheric Maps
+111  # Joint Committee on Atomic and Molecular Physical data - working group on Data eXchange
+118  # CHARMM Card File Format
+124  # Information technology -- Topic Maps -- Part 2: Data model
+164  # Hyper Text Markup Language
+169  # Infrastructure for Spatial Information in Europe Data Specifications
+172  # Electrical engineering and Electro-energetics vocabulary
+177  # Ontology of Physics for Biology
+183  # Crystallographic Information Framework
+203  # Observations and Measurements
+226  # Table Schema
+232  # GO FAIR Core Ontology
+245  # Biorefinery
+253  # Scalable Vector Graphics
+256  # The Data Use Ontology
+278  # computer network
+293  # Radiomics Ontology
+307  # Brain Imaging Data Structure
+325  # Space Physics Archive Search and Extract Data Model
+335  # Directory Interchange Format
+351  # Metadata Encoding and Transmission Standard
+353  # Cochrane Core Vocabulary Ontology
+369  # Biodiversity Thesaurus
+384  # Gazetteer
+391  # Core Scientific MetaData model
+397  # Crop Ontology
+401  # Mathematics Markup Language
+407  # Sustainable Development Goals Interface Ontology
+433  # Cadastre and Land Administration Thesaurus
+489  # Time Event Ontology
+494  # Brachiaria Ontology
+509  # Observations Data Model 2 Controlled Vocabulary
+512  # Exposure Ontology
+521  # Open Archives Initiative Object Reuse and Exchange
+524  # NeXus Data Format
+532  # Numerical Markup Language
+539  # The CXI File Format for Coherent X-ray Imaging
+548  # National Agricultural Library Thesaurus
+567  # Psychology Ontology
+573  # ICPSR Thesaurus
+586  # Knowledge Object Reference Ontology
+594  # Metadata Application Profile: eBank UK project
+598  # Space Physics Archive Search and Extract Simulation Extensions
+604  # Domain Resource Application Ontology
+610  # Fire Ontology
+618  # EuroVoc
+626  # APA Statistical Cluster
+627  # Standard-Thesaurus Wirtschaft Thesaurus for Economics
+638  # Food Ontology
+643  # Ontology for Modeling and Representation of Social Entities
+646  # Language resource management -- Feature structures -- Part 1: Feature structure representation
+648  # Performed Music Ontology
+662  # General Ontology for Linguistic Description
+676  # Information technology -- Hypermedia/Time-based Structuring Language (HyTime)
+679  # Simulation Data Model
+681  # Human Ancestry Ontology
+684  # Biomedical Topics
+685  # Analytical Data Interchange Protocol for Chromatographic Data
+686  # Environmental Thesaurus
+708  # Astronomy Visualization Metadata
+718  # Integrated Authority File
+725  # Corpus Encoding Standards
+771  # Open Geospatial Consortium Sensor Model Language
+780  # IVOA Standard for Unified Content Descriptors
+782  # Joint Evaluated Fission and Fusion Nuclear Data Library
+788  # FISH Archaeological Sciences Thesaurus
+789  # Open Provenance Model for Workflows Ontology
+810  # VIVO Ontology
+820  # AS/NZS ISO 19115.1:2015 Metadata
+825  # Water Markup Language
+829  # Generic Statistical Information Model Specification
+833  # GenBank Sequence Format
+840  # Art and Archaeology Vocabulary
+854  # statismo - Statistical Image And Shape Models
+951  # Geographic Tagged Image File Format
+955  # Cruise Summary Reports
+958  # History and Sciences of Religions Vocabulary
+960  # Units Ontology
+967  # Geoscience Markup Language
+980  # Guidelines for Electronic Text Encoding and Interchange
+996  # Open Archives Initiative Protocol for Metadata Harvesting Schema
+1029  # CARARE Metadata Schema
+1033  # Energy Industry Profile (EIP) v1.1 of ISO-19115-1:2014
+1055  # Cooperative Ocean-Atmosphere Research Data Service Conventions
+1057  # Library of Congress Genre/Form Terms for Library and Archival Materials
+1091  # XML-based IUPAC Standard for Thermodynamic Property Data
+1094  # Flexible Image Transport System
+1104  # Vocabulary of Philosophy
+1105  # Matter Transfer Ontology
+1113  # World Meteorological Organization GRIdded Binary Codes Edition 2
+1116  # British Oceanographic Data Centre Parameter Usage Vocabulary
+1122  # International Classification of Primary Care, 2nd Edition
+1125  # Prehistory and Protohistory Vocabulary
+1137  # Thesaurus Cognitive psychology of human memory
+1138  # Information technology -- Processing languages -- Document Style Semantics and Specification Language (DSSSL)
+1142  # Electronics and Optoelectronics Vocabulary
+1148  # Data Documentation Initiative Codebook
+1169  # Statistics Ontology
+1181  # UK Archival Thesaurus
+1185  # Ontology of Biological and Clinical Statistics
+1196  # French Communes Thesaurus
+1199  # Climate and Forecast Standard Names Parameter Vocabulary
+1210  # Shoreline Metadata Profile of the Content Standards for Digital Geospatial Metadata
+1218  # UK GEo-spatial Metadata INteroperability iNItiative Metadata Standard
+1225  # RDF Data Cube Vocabulary
+1261  # ICAT Schema
+1266  # Thesaurus of Geographic Names
+1274  # Content Standard for Digital Geospatial Metadata: Extensions for Remote Sensing Metadata
+1286  # Semanticscience Integrated Ontology
+1359  # Marine Community Profile of ISO 19115 (Version 1.0 - Version 2.0)
+1367  # Data Documentation Initiative Lifecycle
+1368  # Humanities and Social Science Electronic Thesaurus
+1393  # UNESCO Thesaurus
+1395  # Climate and Forecast metadata conventions
+1396  # Access to Biological Collection Databases Extended for Geosciences
+1397  # EarthResourceML
+1425  # Core Scientific Dataset Model
+1429  # Common Workflow Language
+1438  # Observations Data Model 2
+1448  # UNBIS Thesaurus
+1473  # Open Databases Integration for Materials Design
+1516  # Union List of Artist Names
+1518  # Marine Regions
+1521  # Art & Architecture Thesaurus
+1526  # Cultural Objects Name Authority
+4998  # ISO 8601 Date and time format
