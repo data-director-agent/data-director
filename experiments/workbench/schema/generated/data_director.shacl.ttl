@@ -1,0 +1,467 @@
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dd: <https://w3id.org/data-director/> .
+@prefix linkml: <https://w3id.org/linkml/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dd:Envelope a sh:NodeShape ;
+    rdfs:comment "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:completed_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path prov:wasAssociatedWith ],
+        [ sh:datatype xsd:string ;
+            sh:description "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:invocation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:class dd:Outcome ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path dd:outcome ],
+        [ sh:class dd:ProblemDetails ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path dd:problem ],
+        [ sh:class dd:Telemetry ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path dd:telemetry ],
+        [ sh:description "Agent-specific payload; absent unless the outcome is succeeded." ;
+            sh:maxCount 1 ;
+            sh:or ( [ sh:class dd:Recommendations ] ) ;
+            sh:order 5 ;
+            sh:path dd:payload ],
+        [ sh:class dd:EvidenceItem ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:evidence ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope claiming otherwise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:requires_human_review ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:agent_version ] ;
+    sh:targetClass dd:Envelope .
+
+dd:InvocationRequest a sh:NodeShape ;
+    rdfs:comment "What the conductor hands to an agent. One request produces exactly one Envelope." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "Reference to the institutional profile the conductor applied (path or profile:<id>)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:policy_bundle_ref ],
+        [ sh:datatype xsd:string ;
+            sh:description "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:invocation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:issued_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path prov:wasAssociatedWith ],
+        [ sh:class dcat:Dataset ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path dd:input ],
+        [ sh:datatype xsd:string ;
+            sh:description "Blueprint or project requirement identifiers the invocation is exercising." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:requirement_ids ] ;
+    sh:targetClass dd:InvocationRequest .
+
+linkml:Any a sh:NodeShape ;
+    rdfs:comment "Placeholder range for slots whose value type is enumerated in any_of." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:targetClass linkml:Any .
+
+dcat:Dataset a sh:NodeShape ;
+    rdfs:comment "The only view of the input an agent gets. Deliberately minimal: only the slots R3 reads. Every slot maps onto an external vocabulary rather than a Data Director namespace." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:description ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dcterms:title ],
+        [ sh:class dd:TableField ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path dd:fields ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcat:keyword ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dcat:mediaType ],
+        [ sh:datatype xsd:string ;
+            sh:description "Discipline or subject, as free text or an IRI." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcat:theme ] ;
+    sh:targetClass dcat:Dataset .
+
+dd:EvidenceItem a sh:NodeShape ;
+    rdfs:comment "The retrieved content a grounding claim rests on, identified by a hash over its canonicalised projection (not the HTTP body)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:source_id ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:retrieved_at ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:canonicalisation ],
+        [ sh:datatype xsd:string ;
+            sh:description "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:snapshot_ref ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path dd:source_uri ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:content_hash ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:hash_algorithm ] ;
+    sh:targetClass dd:EvidenceItem .
+
+dd:Outcome a sh:NodeShape ;
+    rdfs:comment "One class rather than a union of five. The status enum carries the vocabulary; reason_code is required when status is abstained or referred; problem (on the Envelope) is required when status is failed or suspended." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "A human-readable sentence explaining the outcome (C14)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:statement ],
+        [ sh:in ( "succeeded" "abstained" "referred" "failed" "suspended" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:status ],
+        [ sh:in ( "no_qualifying_resource" "no_candidates_retrieved" "registry_unavailable" "not_applicable" "insufficient_input" "capability_not_implemented" "requires_human_judgement" "policy_requires_approval" "outside_agent_scope" ) ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path dd:reason_code ],
+        [ sh:datatype xsd:string ;
+            sh:description "The human role a referred outcome hands to, e.g. data_steward." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:referred_to ] ;
+    sh:targetClass dd:Outcome .
+
+dd:ProblemDetails a sh:NodeShape ;
+    rdfs:comment "RFC 9457 Problem Details for HTTP APIs, used verbatim for failed and suspended outcomes. The two extension members carry the resumption condition for suspended." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:detail ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path dd:instance ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "Earliest time a suspended invocation may resume (extension member)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:resume_after ],
+        [ sh:datatype xsd:string ;
+            sh:description "What must happen for a suspended invocation to resume (extension member)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:resume_condition ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:http_status ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:title ],
+        [ sh:description "RFC 9457 problem type URI." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path dd:type ] ;
+    sh:targetClass dd:ProblemDetails .
+
+dd:Recommendation a sh:NodeShape ;
+    rdfs:comment "One recommended resource for one target." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "dataset, or field:<name> for a field-level recommendation." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:target ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:rationale ],
+        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:rationale_derivation ],
+        [ sh:in ( "controlled_vocabulary" "ontology" "terminology_unclassified" "data_format" "field_format" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:kind ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:score ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:evidence_hashes ],
+        [ sh:class dd:ResourceRef ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path dd:resource ],
+        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 6 ;
+            sh:path dd:classification_derivation ] ;
+    sh:targetClass dd:Recommendation .
+
+dd:Recommendations a sh:NodeShape ;
+    rdfs:comment "The R3 payload." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class dd:SearchedSummary ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path dd:searched ],
+        [ sh:class dd:Recommendation ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 0 ;
+            sh:path dd:items ] ;
+    sh:targetClass dd:Recommendations .
+
+dd:ResourceRef a sh:NodeShape ;
+    rdfs:comment "A FAIRsharing record as it identified itself when retrieved." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:record_type ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:fairsharing_id ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path dd:url ],
+        [ sh:datatype xsd:string ;
+            sh:description "The registry's curation status for the record (ready, in_development, deprecated, ...)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:status ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:name ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:identifier ] ;
+    sh:targetClass dd:ResourceRef .
+
+dd:SearchedSummary a sh:NodeShape ;
+    rdfs:comment "What was looked for, so a reader can judge an abstention as well as a recommendation." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:candidates_qualifying ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:queries ],
+        [ sh:datatype xsd:string ;
+            sh:description "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:snapshot_ref ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:candidates_retrieved ] ;
+    sh:targetClass dd:SearchedSummary .
+
+dd:TableField a sh:NodeShape ;
+    rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO: revisit if Frictionless publishes term IRIs)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:field_type ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:field_format ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:name ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcterms:description ] ;
+    sh:targetClass dd:TableField .
+
+dd:Telemetry a sh:NodeShape ;
+    rdfs:comment "Run measurements. The energy slots exist so P14 can be populated later without a schema change; at v0 they are null and not_measured." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:output_tokens ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:input_tokens ],
+        [ sh:datatype xsd:string ;
+            sh:description "OpenTelemetry trace identifier, 32 lowercase hex characters." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:trace_id ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:energy_estimate_j ],
+        [ sh:in ( "not_measured" "estimated" "measured" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:energy_method ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:model_id ] ;
+    sh:targetClass dd:Telemetry .
+
+

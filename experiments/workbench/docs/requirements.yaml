@@ -1,0 +1,68 @@
+# Requirements register.
+#
+# The conformance report (scripts/conformance_report.py) iterates this list. Every identifier a
+# test marks with @pytest.mark.requirement(...) must appear here, and every entry here appears in
+# CONFORMANCE.md whether or not any test substantiates it. A row with no passing test is
+# rendered "unsubstantiated" — that is the intended default, not a gap to hide.
+#
+# source: blueprint  — the identifier and title are the Blueprint's own (docs/BLUEPRINT.md §7).
+# source: project    — a decomposition or obligation this project introduced; the Blueprint does
+#                      not use the identifier. R3.1–R3.6 come from experiments/standards-advisor.
+
+requirements:
+  - id: R3
+    source: blueprint
+    priority: MUST
+    title: Suggest appropriate vocabularies, ontologies and open data formats
+  - id: R3.1
+    source: project
+    parent: R3
+    title: Controlled vocabulary recommendations for concept linkage
+  - id: R3.2
+    source: project
+    parent: R3
+    title: Ontology recommendations for schema or model alignment
+  - id: R3.3
+    source: project
+    parent: R3
+    title: Open data format recommendations
+  - id: R3.4
+    source: project
+    parent: R3
+    title: Field-level format standards (date/time, units, codes)
+  - id: R3.5
+    source: project
+    parent: R3
+    title: Support for emerging standards; no hard-coded standards list
+  - id: R3.6
+    source: project
+    parent: R3
+    title: Explicit abstention where no suitable resource exists
+  - id: R10
+    source: blueprint
+    priority: MUST
+    title: Track provenance of AI agent actions on data and metadata
+  - id: C5
+    source: blueprint
+    title: Interoperability — open APIs and established metadata standards
+  - id: C13
+    source: blueprint
+    title: AI Governance — actions logged, attributable to an agent identity, subject to human oversight
+  - id: C14
+    source: blueprint
+    title: Explainability — human-readable explanations for recommendations and decisions
+  - id: C15
+    source: blueprint
+    title: Data and Metadata Quality — outputs flagged, human review mandatory
+  - id: P14
+    source: blueprint
+    title: Low Impact — energy footprint captured in provenance records
+  - id: DD-OUTCOME
+    source: project
+    title: Outcome vocabulary (succeeded, abstained, referred, failed, suspended) with reason codes
+  - id: DD-GROUNDING
+    source: project
+    title: Retrieval precedes any model call and every recommended identifier was retrieved
+  - id: DD-POLICY
+    source: project
+    title: Institutional profile gates which agents run and which actions need approval

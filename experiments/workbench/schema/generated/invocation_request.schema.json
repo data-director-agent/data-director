@@ -1,0 +1,669 @@
+{
+   "$defs": {
+      "Any": {
+         "additionalProperties": true,
+         "description": "Placeholder range for slots whose value type is enumerated in any_of.",
+         "title": "Any",
+         "type": [
+            "null",
+            "boolean",
+            "object",
+            "number",
+            "string"
+         ]
+      },
+      "DatasetProfile": {
+         "additionalProperties": false,
+         "description": "The only view of the input an agent gets. Deliberately minimal: only the slots R3 reads. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
+         "properties": {
+            "description": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fields": {
+               "items": {
+                  "$ref": "#/$defs/TableField"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "keywords": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "media_types": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "themes": {
+               "description": "Discipline or subject, as free text or an IRI.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "title": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "title": "DatasetProfile",
+         "type": "object"
+      },
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
+      "EnergyMethod": {
+         "description": "",
+         "enum": [
+            "not_measured",
+            "estimated",
+            "measured"
+         ],
+         "title": "EnergyMethod",
+         "type": "string"
+      },
+      "Envelope": {
+         "additionalProperties": false,
+         "description": "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload.",
+         "properties": {
+            "agent_id": {
+               "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
+               "type": "string"
+            },
+            "agent_version": {
+               "type": "string"
+            },
+            "completed_at": {
+               "format": "date-time",
+               "type": "string"
+            },
+            "evidence": {
+               "items": {
+                  "$ref": "#/$defs/EvidenceItem"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "invocation_id": {
+               "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "outcome": {
+               "$ref": "#/$defs/Outcome"
+            },
+            "payload": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Recommendations"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Agent-specific payload; absent unless the outcome is succeeded."
+            },
+            "problem": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ProblemDetails"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ]
+            },
+            "requires_human_review": {
+               "description": "Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope claiming otherwise.",
+               "type": "boolean",
+               "const": true
+            },
+            "telemetry": {
+               "$ref": "#/$defs/Telemetry"
+            }
+         },
+         "required": [
+            "invocation_id",
+            "agent_id",
+            "agent_version",
+            "completed_at",
+            "outcome",
+            "telemetry",
+            "requires_human_review"
+         ],
+         "title": "Envelope",
+         "type": "object"
+      },
+      "EvidenceItem": {
+         "additionalProperties": false,
+         "description": "The retrieved content a grounding claim rests on, identified by a hash over its canonicalised projection (not the HTTP body).",
+         "properties": {
+            "canonicalisation": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "hash_algorithm": {
+               "type": "string"
+            },
+            "retrieved_at": {
+               "format": "date-time",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "snapshot_ref": {
+               "description": "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "source_id": {
+               "type": "string"
+            },
+            "source_uri": {
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "source_id",
+            "hash_algorithm",
+            "canonicalisation",
+            "content_hash"
+         ],
+         "title": "EvidenceItem",
+         "type": "object"
+      },
+      "InvocationRequest": {
+         "additionalProperties": false,
+         "description": "What the conductor hands to an agent. One request produces exactly one Envelope.",
+         "properties": {
+            "agent_id": {
+               "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
+               "type": "string"
+            },
+            "input": {
+               "$ref": "#/$defs/DatasetProfile"
+            },
+            "invocation_id": {
+               "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "issued_at": {
+               "format": "date-time",
+               "type": "string"
+            },
+            "policy_bundle_ref": {
+               "description": "Reference to the institutional profile the conductor applied (path or profile:<id>).",
+               "type": "string"
+            },
+            "requirement_ids": {
+               "description": "Blueprint or project requirement identifiers the invocation is exercising.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "invocation_id",
+            "agent_id",
+            "issued_at",
+            "policy_bundle_ref",
+            "input"
+         ],
+         "title": "InvocationRequest",
+         "type": "object"
+      },
+      "Outcome": {
+         "additionalProperties": false,
+         "description": "One class rather than a union of five. The status enum carries the vocabulary; reason_code is required when status is abstained or referred; problem (on the Envelope) is required when status is failed or suspended.",
+         "properties": {
+            "reason_code": {
+               "$ref": "#/$defs/ReasonCode"
+            },
+            "referred_to": {
+               "description": "The human role a referred outcome hands to, e.g. data_steward.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "statement": {
+               "description": "A human-readable sentence explaining the outcome (C14).",
+               "type": "string"
+            },
+            "status": {
+               "$ref": "#/$defs/OutcomeStatus"
+            }
+         },
+         "required": [
+            "status",
+            "statement"
+         ],
+         "title": "Outcome",
+         "type": "object"
+      },
+      "OutcomeStatus": {
+         "description": "The outcome vocabulary. The Blueprint does not define one; this is the workbench's specification contribution.",
+         "enum": [
+            "succeeded",
+            "abstained",
+            "referred",
+            "failed",
+            "suspended"
+         ],
+         "title": "OutcomeStatus",
+         "type": "string"
+      },
+      "ProblemDetails": {
+         "additionalProperties": false,
+         "description": "RFC 9457 Problem Details for HTTP APIs, used verbatim for failed and suspended outcomes. The two extension members carry the resumption condition for suspended.",
+         "properties": {
+            "detail": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "http_status": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "instance": {
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "resume_after": {
+               "description": "Earliest time a suspended invocation may resume (extension member).",
+               "format": "date-time",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "resume_condition": {
+               "description": "What must happen for a suspended invocation to resume (extension member).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "title": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "type": {
+               "description": "RFC 9457 problem type URI.",
+               "format": "uri",
+               "type": "string"
+            }
+         },
+         "required": [
+            "type"
+         ],
+         "title": "ProblemDetails",
+         "type": "object"
+      },
+      "ReasonCode": {
+         "description": "Why an agent abstained or referred. Adapted from the standards-advisor experiment's NothingFoundReason.",
+         "enum": [
+            "no_qualifying_resource",
+            "no_candidates_retrieved",
+            "registry_unavailable",
+            "not_applicable",
+            "insufficient_input",
+            "capability_not_implemented",
+            "requires_human_judgement",
+            "policy_requires_approval",
+            "outside_agent_scope"
+         ],
+         "title": "ReasonCode",
+         "type": "string"
+      },
+      "Recommendation": {
+         "additionalProperties": false,
+         "description": "One recommended resource for one target.",
+         "properties": {
+            "classification_derivation": {
+               "$ref": "#/$defs/Derivation"
+            },
+            "evidence_hashes": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "kind": {
+               "$ref": "#/$defs/RecommendationKind"
+            },
+            "rationale": {
+               "type": "string"
+            },
+            "rationale_derivation": {
+               "$ref": "#/$defs/Derivation"
+            },
+            "resource": {
+               "$ref": "#/$defs/ResourceRef"
+            },
+            "score": {
+               "type": [
+                  "number",
+                  "null"
+               ]
+            },
+            "target": {
+               "description": "dataset, or field:<name> for a field-level recommendation.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "kind",
+            "target",
+            "resource",
+            "rationale",
+            "rationale_derivation"
+         ],
+         "title": "Recommendation",
+         "type": "object"
+      },
+      "RecommendationKind": {
+         "description": "",
+         "enum": [
+            "controlled_vocabulary",
+            "ontology",
+            "terminology_unclassified",
+            "data_format",
+            "field_format"
+         ],
+         "title": "RecommendationKind",
+         "type": "string"
+      },
+      "Recommendations": {
+         "additionalProperties": false,
+         "description": "The R3 payload.",
+         "properties": {
+            "items": {
+               "items": {
+                  "$ref": "#/$defs/Recommendation"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "searched": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SearchedSummary"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ]
+            }
+         },
+         "title": "Recommendations",
+         "type": "object"
+      },
+      "ResourceRef": {
+         "additionalProperties": false,
+         "description": "A FAIRsharing record as it identified itself when retrieved.",
+         "properties": {
+            "doi": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fairsharing_id": {
+               "type": "string"
+            },
+            "name": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "record_type": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "status": {
+               "description": "The registry's curation status for the record (ready, in_development, deprecated, ...).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "url": {
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "fairsharing_id"
+         ],
+         "title": "ResourceRef",
+         "type": "object"
+      },
+      "SearchedSummary": {
+         "additionalProperties": false,
+         "description": "What was looked for, so a reader can judge an abstention as well as a recommendation.",
+         "properties": {
+            "candidates_qualifying": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "candidates_retrieved": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "queries": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "snapshot_ref": {
+               "description": "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "title": "SearchedSummary",
+         "type": "object"
+      },
+      "TableField": {
+         "additionalProperties": false,
+         "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO: revisit if Frictionless publishes term IRIs).",
+         "properties": {
+            "field_description": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_format": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_type": {
+               "description": "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "name": {
+               "type": "string"
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "TableField",
+         "type": "object"
+      },
+      "Telemetry": {
+         "additionalProperties": false,
+         "description": "Run measurements. The energy slots exist so P14 can be populated later without a schema change; at v0 they are null and not_measured.",
+         "properties": {
+            "energy_estimate_j": {
+               "type": [
+                  "number",
+                  "null"
+               ]
+            },
+            "energy_method": {
+               "$ref": "#/$defs/EnergyMethod"
+            },
+            "input_tokens": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "model_id": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "output_tokens": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "trace_id": {
+               "description": "OpenTelemetry trace identifier, 32 lowercase hex characters.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "energy_method"
+         ],
+         "title": "Telemetry",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/schema/workbench",
+   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "additionalProperties": true,
+   "description": "What the conductor hands to an agent. One request produces exactly one Envelope.",
+   "metamodel_version": "1.11.0",
+   "properties": {
+      "agent_id": {
+         "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
+         "type": "string"
+      },
+      "input": {
+         "$ref": "#/$defs/DatasetProfile"
+      },
+      "invocation_id": {
+         "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
+         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+         "type": "string"
+      },
+      "issued_at": {
+         "format": "date-time",
+         "type": "string"
+      },
+      "policy_bundle_ref": {
+         "description": "Reference to the institutional profile the conductor applied (path or profile:<id>).",
+         "type": "string"
+      },
+      "requirement_ids": {
+         "description": "Blueprint or project requirement identifiers the invocation is exercising.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "invocation_id",
+      "agent_id",
+      "issued_at",
+      "policy_bundle_ref",
+      "input"
+   ],
+   "title": "data_director_workbench",
+   "type": "object",
+   "version": "0.1.0"
+}

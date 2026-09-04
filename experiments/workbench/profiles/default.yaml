@@ -1,0 +1,20 @@
+# Default institutional profile. See README.md in this directory for what each key means.
+profile_id: default
+version: 1
+description: Development profile for the workbench; enables both v0 agents, requires approval for writes.
+
+agents_enabled:
+  - r3.standards-advisor
+  - stub.abstain
+
+actions_requiring_approval:
+  - deposit
+  - metadata_write
+
+approved_repositories:
+  - https://orda.shef.ac.uk
+pid_systems:
+  - doi
+registries:
+  fairsharing:
+    allowed: true

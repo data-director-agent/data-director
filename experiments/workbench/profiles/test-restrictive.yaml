@@ -1,0 +1,18 @@
+# Test profile: exercises the refused and referred paths. Not for use with real invocations.
+profile_id: test-restrictive
+version: 1
+description: Disables R3 and requires approval even for advice.
+
+agents_enabled:
+  - stub.abstain
+
+actions_requiring_approval:
+  - advise
+  - deposit
+  - metadata_write
+
+approved_repositories: []
+pid_systems: []
+registries:
+  fairsharing:
+    allowed: false

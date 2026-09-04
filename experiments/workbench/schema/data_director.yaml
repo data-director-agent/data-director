@@ -1,0 +1,444 @@
+id: https://w3id.org/data-director/schema/workbench
+name: data_director_workbench
+title: Data Director Workbench contract
+description: >-
+  The invocation contract of the Data Director Workbench: the request an agent receives, the
+  envelope it returns, the outcome vocabulary, the minimal dataset profile agents read, and the
+  R3 recommendations payload. Formats here are fixed at v0; see docs/adr/ for the decisions.
+  Generated artefacts live in schema/generated/ and are never hand-edited.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  dd: https://w3id.org/data-director/
+  linkml: https://w3id.org/linkml/
+  dcterms: http://purl.org/dc/terms/
+  dcat: http://www.w3.org/ns/dcat#
+  schema: http://schema.org/
+  prov: http://www.w3.org/ns/prov#
+default_prefix: dd
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+
+  Any:
+    class_uri: linkml:Any
+    description: Placeholder range for slots whose value type is enumerated in any_of.
+
+  InvocationRequest:
+    description: >-
+      What the conductor hands to an agent. One request produces exactly one Envelope.
+    slots:
+      - invocation_id
+      - agent_id
+      - requirement_ids
+      - issued_at
+      - policy_bundle_ref
+      - input
+
+  Envelope:
+    description: >-
+      The agent's response. Every field an agent did not decide (identifiers, timestamps,
+      telemetry) is filled by the conductor, so an agent cannot mislabel its own run.
+      Conditional rules not expressible in JSON Schema are enforced by contract.validate:
+      failed or suspended requires problem; abstained or referred requires outcome.reason_code;
+      succeeded requires payload.
+    slots:
+      - invocation_id
+      - agent_id
+      - agent_version
+      - completed_at
+      - outcome
+      - payload
+      - evidence
+      - telemetry
+      - requires_human_review
+      - problem
+
+  Outcome:
+    description: >-
+      One class rather than a union of five. The status enum carries the vocabulary; reason_code
+      is required when status is abstained or referred; problem (on the Envelope) is required when
+      status is failed or suspended.
+    slots:
+      - status
+      - reason_code
+      - referred_to
+      - statement
+
+  ProblemDetails:
+    description: >-
+      RFC 9457 Problem Details for HTTP APIs, used verbatim for failed and suspended outcomes.
+      The two extension members carry the resumption condition for suspended.
+    slots:
+      - type
+      - title
+      - http_status
+      - detail
+      - instance
+      - resume_condition
+      - resume_after
+
+  DatasetProfile:
+    class_uri: dcat:Dataset
+    description: >-
+      The only view of the input an agent gets. Deliberately minimal: only the slots R3 reads.
+      Every slot maps onto an external vocabulary rather than a Data Director namespace.
+    slots:
+      - title
+      - description
+      - keywords
+      - themes
+      - media_types
+      - fields
+
+  TableField:
+    description: >-
+      One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
+      Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
+      slot_uri (TODO: revisit if Frictionless publishes term IRIs).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#field
+    slots:
+      - name
+      - field_type
+      - field_format
+      - field_description
+
+  Recommendations:
+    description: The R3 payload.
+    slots:
+      - items
+      - searched
+
+  Recommendation:
+    description: One recommended resource for one target.
+    slots:
+      - kind
+      - target
+      - resource
+      - score
+      - rationale
+      - rationale_derivation
+      - classification_derivation
+      - evidence_hashes
+
+  ResourceRef:
+    description: A FAIRsharing record as it identified itself when retrieved.
+    slots:
+      - fairsharing_id
+      - doi
+      - name
+      - url
+      - record_type
+      - status
+    slot_usage:
+      name:
+        required: false
+      status:
+        description: The registry's curation status for the record (ready, in_development, deprecated, ...).
+        range: string
+        required: false
+
+  SearchedSummary:
+    description: >-
+      What was looked for, so a reader can judge an abstention as well as a recommendation.
+    slots:
+      - queries
+      - snapshot_ref
+      - candidates_retrieved
+      - candidates_qualifying
+
+  EvidenceItem:
+    description: >-
+      The retrieved content a grounding claim rests on, identified by a hash over its
+      canonicalised projection (not the HTTP body).
+    slots:
+      - source_id
+      - source_uri
+      - retrieved_at
+      - snapshot_ref
+      - hash_algorithm
+      - canonicalisation
+      - content_hash
+
+  Telemetry:
+    description: >-
+      Run measurements. The energy slots exist so P14 can be populated later without a schema
+      change; at v0 they are null and not_measured.
+    slots:
+      - trace_id
+      - model_id
+      - input_tokens
+      - output_tokens
+      - energy_estimate_j
+      - energy_method
+
+slots:
+
+  invocation_id:
+    description: UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.
+    identifier: true
+    required: true
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  agent_id:
+    description: Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.
+    required: true
+    slot_uri: prov:wasAssociatedWith
+  agent_version:
+    required: true
+  requirement_ids:
+    description: Blueprint or project requirement identifiers the invocation is exercising.
+    multivalued: true
+  issued_at:
+    range: datetime
+    required: true
+  completed_at:
+    range: datetime
+    required: true
+  policy_bundle_ref:
+    description: Reference to the institutional profile the conductor applied (path or profile:<id>).
+    required: true
+  input:
+    range: DatasetProfile
+    required: true
+    inlined: true
+  outcome:
+    range: Outcome
+    required: true
+    inlined: true
+  payload:
+    description: Agent-specific payload; absent unless the outcome is succeeded.
+    range: Any
+    any_of:
+      - range: Recommendations
+    inlined: true
+  evidence:
+    range: EvidenceItem
+    multivalued: true
+    inlined_as_list: true
+  telemetry:
+    range: Telemetry
+    required: true
+    inlined: true
+  requires_human_review:
+    description: >-
+      Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope
+      claiming otherwise.
+    range: boolean
+    required: true
+    equals_expression: "true"
+  problem:
+    range: ProblemDetails
+    inlined: true
+
+  status:
+    range: OutcomeStatus
+    required: true
+  reason_code:
+    range: ReasonCode
+  referred_to:
+    description: The human role a referred outcome hands to, e.g. data_steward.
+  statement:
+    description: A human-readable sentence explaining the outcome (C14).
+    required: true
+
+  type:
+    description: RFC 9457 problem type URI.
+    range: uri
+    required: true
+  title:
+    slot_uri: dcterms:title
+  http_status:
+    range: integer
+  detail:
+  instance:
+    range: uri
+  resume_condition:
+    description: What must happen for a suspended invocation to resume (extension member).
+  resume_after:
+    description: Earliest time a suspended invocation may resume (extension member).
+    range: datetime
+
+  description:
+    slot_uri: dcterms:description
+  keywords:
+    slot_uri: dcat:keyword
+    multivalued: true
+  themes:
+    description: Discipline or subject, as free text or an IRI.
+    slot_uri: dcat:theme
+    multivalued: true
+  media_types:
+    slot_uri: dcat:mediaType
+    multivalued: true
+  fields:
+    range: TableField
+    multivalued: true
+    inlined_as_list: true
+
+  name:
+    required: true
+  field_type:
+    description: >-
+      Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
+      geopoint, ...).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#type
+  field_format:
+    see_also:
+      - https://datapackage.org/standard/table-schema/#format
+  field_description:
+    slot_uri: dcterms:description
+
+  items:
+    range: Recommendation
+    multivalued: true
+    inlined_as_list: true
+  searched:
+    range: SearchedSummary
+    inlined: true
+  kind:
+    range: RecommendationKind
+    required: true
+  target:
+    description: dataset, or field:<name> for a field-level recommendation.
+    required: true
+  resource:
+    range: ResourceRef
+    required: true
+    inlined: true
+  score:
+    range: float
+  rationale:
+    required: true
+  rationale_derivation:
+    range: Derivation
+    required: true
+  classification_derivation:
+    range: Derivation
+  evidence_hashes:
+    multivalued: true
+
+  fairsharing_id:
+    required: true
+  doi:
+    slot_uri: dcterms:identifier
+  url:
+    range: uri
+  record_type:
+  queries:
+    multivalued: true
+  snapshot_ref:
+    description: Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.
+  candidates_retrieved:
+    range: integer
+  candidates_qualifying:
+    range: integer
+
+  source_id:
+    required: true
+  source_uri:
+    range: uri
+  retrieved_at:
+    range: datetime
+  hash_algorithm:
+    required: true
+  canonicalisation:
+    required: true
+  content_hash:
+    required: true
+    pattern: "^[0-9a-f]{64}$"
+
+  trace_id:
+    description: OpenTelemetry trace identifier, 32 lowercase hex characters.
+  model_id:
+  input_tokens:
+    range: integer
+  output_tokens:
+    range: integer
+  energy_estimate_j:
+    range: float
+  energy_method:
+    range: EnergyMethod
+    required: true
+
+enums:
+
+  OutcomeStatus:
+    description: >-
+      The outcome vocabulary. The Blueprint does not define one; this is the workbench's
+      specification contribution.
+    permissible_values:
+      succeeded:
+        description: The agent produced a payload it stands behind.
+      abstained:
+        description: >-
+          The agent declined to recommend; reason_code says why. An equal output to succeeded,
+          not an error.
+      referred:
+        description: The agent hands the decision to a human role named in referred_to.
+      failed:
+        description: The agent or harness could not complete; problem carries RFC 9457 details.
+      suspended:
+        description: Awaiting an external condition; problem carries the resumption condition.
+
+  ReasonCode:
+    description: >-
+      Why an agent abstained or referred. Adapted from the standards-advisor experiment's
+      NothingFoundReason.
+    permissible_values:
+      no_qualifying_resource:
+        description: Candidates were retrieved, none met the qualification threshold.
+      no_candidates_retrieved:
+        description: The registry was searched and returned nothing.
+      registry_unavailable:
+        description: The registry could not be searched. Distinct from an empty search.
+      not_applicable:
+        description: The requirement does not apply to this input.
+      insufficient_input:
+        description: The profile lacks what the agent needs to search.
+      capability_not_implemented:
+        description: >-
+          The agent is a stub or the capability is not yet built. Honest about a stub rather
+          than implying a search.
+      requires_human_judgement:
+        description: The agent judged the decision to need a person.
+      policy_requires_approval:
+        description: The institutional profile requires approval for this action class.
+      outside_agent_scope:
+        description: The request asked for something this agent does not do.
+
+  RecommendationKind:
+    permissible_values:
+      controlled_vocabulary:
+        description: Concept linkage of field values to terms.
+      ontology:
+        description: Schema or model alignment.
+      terminology_unclassified:
+        description: >-
+          A terminology resource the agent could not classify as vocabulary or ontology from
+          the fields available.
+      data_format:
+      field_format:
+        description: A field-level standard such as ISO 8601 for dates.
+
+  Derivation:
+    permissible_values:
+      template:
+        description: Produced deterministically from retrieved fields.
+      model:
+        description: Produced by a language model.
+      lexical:
+        description: Produced by a keyword rule over retrieved fields.
+      registry:
+        description: Read directly from a curated registry field.
+
+  EnergyMethod:
+    permissible_values:
+      not_measured:
+      estimated:
+      measured:
