@@ -1,6 +1,6 @@
 # Data Director
 
-A proposed reference implementation for the [Data Director Agentic AI Blueprint](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/outputs/data-director-agentic-ai-tool-blueprint/) developed under the coordination of the [Research Data Alliance](https://www.rd-alliance.org/) in partnership with [Microsoft Research](https://www.microsoft.com/en-us/research/lab/microsoft-research-cambridge/). The Blueprint has been officially adopted by the RDA and published: <https://doi.org/10.15497/RDA00157>.
+A proposed reference implementation for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/).
 
 ## Contributing
 
