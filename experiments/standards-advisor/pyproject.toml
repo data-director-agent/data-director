@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "standards-advisor"
+version = "0.1.0"
+description = "Prototype of Data Director Blueprint requirement R3 — standards recommendation"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+
+dependencies = [
+  "langchain>=1.3,<2",
+  "langchain-core>=1.6,<2",
+  "langchain-anthropic>=1.0,<2",
+  "langgraph>=1.2,<2",
+  # Must be 3.1+: the 2.x line predates langgraph-checkpoint 4's serialiser and fails at the
+  # first checkpoint write with AttributeError on JsonPlusSerializer.dumps.
+  "langgraph-checkpoint-sqlite>=3.1,<4",
+  "pydantic>=2.11,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-socket>=0.7",
+  "jsonschema>=4.23",
+  "types-jsonschema>=4.23",
+  "ruff>=0.9",
+  "mypy>=1.15",
+]
+
+[project.scripts]
+standards-advisor = "standards_advisor.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/standards_advisor"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",      # pycodestyle, pyflakes
+  "I",                # import order
+  "N",                # naming
+  "UP",               # pyupgrade
+  "B",                # bugbear
+  "BLE",              # no bare broad excepts, except where justified with a noqa
+  "SIM",              # simplify
+  "ANN",              # annotations
+  "RUF",
+  "PTH",              # use pathlib
+  "TID",              # tidy imports
+  "C4",               # comprehensions
+  "DTZ",              # naive datetimes — §6.2 timestamps are UTC
+  "T20",              # no print outside the CLI
+]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN"]
+"scripts/*" = ["T20"]
+"src/standards_advisor/cli.py" = ["T20"]
+# The domain reads better without an Error suffix ("no prompt found", "registry
+# unavailable"), and these names appear in messages a researcher may see.
+"src/standards_advisor/errors.py" = ["N818"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config -ra --disable-socket --allow-unix-socket"
+filterwarnings = ["error"]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src", "tests", "scripts"]
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["langgraph.*", "langchain.*", "pytest_socket.*"]
+ignore_missing_imports = true
+
+# Test bodies stay strictly checked; only the `-> None` on every test function and the
+# annotations on pytest fixture parameters are waived. Requiring those adds no information —
+# the fixture types come from conftest and a test never returns anything — and the noise would
+# push people towards blanket ignores, which is the thing worth avoiding.
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false

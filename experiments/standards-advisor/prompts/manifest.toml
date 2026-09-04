@@ -1,0 +1,17 @@
+# Which prompt version is current, and the hash of its text (§5.4).
+#
+# The hash is verified on load and a mismatch is a hard failure. Editing a prompt is therefore a
+# deliberate two-step act: write the next version alongside the old one, then point `current`
+# at it and record the new hash. The old file stays on disk, so a run record from six months ago
+# still resolves to the text the model was actually given.
+#
+# Get a hash with:
+#   uv run python -c "import hashlib,pathlib; \
+#     print(hashlib.sha256(pathlib.Path('prompts/<name>/<version>.md').read_bytes()).hexdigest())"
+#
+# `profile_subject` is deliberately absent: tier 2 is not implemented at v0.1, and listing a
+# prompt nothing loads would imply otherwise. See prompts/profile_subject/v1.md.
+
+[explain]
+current = "v1"
+sha256 = "be2e4ad939f2de8f425cd8febd2e7f04e97908870140fd0a7af442f7eab9bada"

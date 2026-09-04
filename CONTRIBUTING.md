@@ -11,6 +11,13 @@ welcomes issues, discussion, and pull requests.
   Blueprint): open an `RFC` issue first. See [GOVERNANCE.md](GOVERNANCE.md#rfc-process-for-spec-conformance-changes)
   for the process.
 
+## Repository structure
+
+This repository is organised as follow:
+
+* `docs/` contains documentation
+* `experiments/` contains prototype work
+
 ## Developer Certificate of Origin (DCO)
 
 Every commit must be signed off to certify that you wrote it or otherwise have the right to submit

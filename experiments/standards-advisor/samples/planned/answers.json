@@ -1,0 +1,10 @@
+{
+  "subject": ["Environmental Science", "Soil Science"],
+  "field_of_research": ["soil chemistry", "restoration ecology"],
+  "entity_scope": ["soil horizons", "restoration treatments", "plant species"],
+  "measured_variables": ["pH", "organic carbon", "total nitrogen", "sward height"],
+  "collection_method": ["soil auger coring", "laboratory titration", "quadrat survey"],
+  "study_design": ["stratified design, four treatments, forty permanent plots, annual revisits"],
+  "formats_planned": ["xlsx", "csv"],
+  "target_repository": []
+}

@@ -11,9 +11,14 @@ yet decided.
 
 ## Development approach
 
-- **Language / stack**: `TODO` — not yet chosen; no code exists in the repository yet.
+- **Language / stack**: `TODO` — not yet chosen. Candidate approaches are being trialled in
+  [`experiments/`](../experiments/), which is prototype work and not the reference
+  implementation.
 - **Repository**: Git, hosted at `TODO: repository URL`.
 - **Branching and release strategy**: `TODO` — to be defined once initial development begins.
+  Until then, exploratory work happens under `experiments/`; promoting any of it to the reference
+  implementation follows the RFC / lazy consensus process in
+  [GOVERNANCE.md](../GOVERNANCE.md).
 - **Versioning**: [Semantic Versioning](https://semver.org/) once releases begin.
 
 ## Licensing

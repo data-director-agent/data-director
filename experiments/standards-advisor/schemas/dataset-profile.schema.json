@@ -1,0 +1,611 @@
+{
+  "$defs": {
+    "ColumnProfile": {
+      "additionalProperties": false,
+      "description": "One column: observed from sampled values (\u00a75.1), or declared in a data dictionary (\u00a78).\n\nR3.4 depends on this either way. `type_derivation` says which route produced it \u2014\n`LOCAL_PARSE` for a column parsed from a file, `DECLARED_IN_DATA_DICTIONARY` for one a\nresearcher wrote down before the data existed.\n\nThe count fields are optional because a planned column has nothing to count. Reporting `0`\nblanks for a column that has never been filled in would be a statement about data that does\nnot exist, and the \u00a75.3 rules are already specified to skip a missing input rather than\nscore it zero.",
+      "properties": {
+        "blank_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blank Count"
+        },
+        "blank_proportion": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Blank Proportion"
+        },
+        "declared_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Declared Type"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "distinct_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distinct Count"
+        },
+        "distinct_count_is_exact": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Distinct Count Is Exact"
+        },
+        "example_values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Example Values",
+          "type": "array"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "inferred_type": {
+          "$ref": "#/$defs/ColumnType"
+        },
+        "missing_value_codes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing Value Codes",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pattern"
+        },
+        "permitted_values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Permitted Values",
+          "type": "array"
+        },
+        "position": {
+          "title": "Position",
+          "type": "integer"
+        },
+        "sample_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Size"
+        },
+        "type_derivation": {
+          "$ref": "#/$defs/Derivation"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "unit_derivation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Derivation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name",
+        "position",
+        "file",
+        "inferred_type",
+        "type_derivation"
+      ],
+      "title": "ColumnProfile",
+      "type": "object"
+    },
+    "ColumnType": {
+      "description": "What tier-1 inference concluded a column holds.\n\nThese are the categories \u00a75.1 names, and R3.4 rests entirely on them: a column recognised\nas dates yields an ISO 8601 recommendation with near-total confidence and no model\ninvolved.",
+      "enum": [
+        "date",
+        "datetime",
+        "number",
+        "quantity_with_unit",
+        "categorical",
+        "identifier",
+        "coordinate",
+        "free_text",
+        "empty",
+        "time",
+        "duration",
+        "boolean",
+        "unknown"
+      ],
+      "title": "ColumnType",
+      "type": "string"
+    },
+    "ContentFingerprint": {
+      "additionalProperties": false,
+      "description": "Identifies the input, so C17 caching can be added later without reworking run records.",
+      "properties": {
+        "algorithm": {
+          "default": "sha256",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "digest": {
+          "title": "Digest",
+          "type": "string"
+        },
+        "files_hashed": {
+          "title": "Files Hashed",
+          "type": "integer"
+        },
+        "total_bytes": {
+          "title": "Total Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "total_bytes",
+        "files_hashed"
+      ],
+      "title": "ContentFingerprint",
+      "type": "object"
+    },
+    "Derivation": {
+      "description": "How a statement in a profile was arrived at.\n\nRoughly ordered weakest to strongest, with one deliberate exception: `RESEARCHER_ANSWER` is\nthe *strongest* signal here, not the weakest. It is the person who will collect the data\nsaying what it is, which no amount of inference improves on \u2014 so it sits with the other\nnon-inferred sources rather than with the model-assisted ones.",
+      "enum": [
+        "supplied_metadata",
+        "declared_in_data_dictionary",
+        "researcher_answer",
+        "file_extension",
+        "file_magic",
+        "local_parse",
+        "model_from_registry_list",
+        "model_inferred"
+      ],
+      "title": "Derivation",
+      "type": "string"
+    },
+    "FileEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Format"
+        },
+        "format_derivation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Derivation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "is_tabular": {
+          "default": false,
+          "title": "Is Tabular",
+          "type": "boolean"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Type"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "rows_sampled": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rows Sampled"
+        },
+        "size_bytes": {
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "format",
+        "format_derivation",
+        "size_bytes"
+      ],
+      "title": "FileEntry",
+      "type": "object"
+    },
+    "LifecyclePhase": {
+      "description": "Which of the Blueprint's researcher entry points a run serves (\u00a78).\n\nThe Blueprint's \u00a78.2 process flow has three entry points into six phases. Only the first two\nconcern R3, and they differ in one way that reaches every stage: whether the data exists yet.\n`PRE_COLLECTION` is Figure 1's \"workflow entry point for researchers starting a new project\nbefore data collection begins\" \u2014 there are no files to profile, so the profile is built from\nthe README and draft data dictionary R5 has produced, and the facets \u00a75.2 searches on have to\nbe asked for rather than inferred.",
+      "enum": [
+        "pre_collection",
+        "collected"
+      ],
+      "title": "LifecyclePhase",
+      "type": "string"
+    },
+    "MeasuredVariable": {
+      "additionalProperties": false,
+      "description": "A variable named in the free-text description (\u00a75.1 tier 3). None at v0.1.",
+      "properties": {
+        "derivation": {
+          "$ref": "#/$defs/Derivation"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "source_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Text"
+        }
+      },
+      "required": [
+        "name",
+        "derivation"
+      ],
+      "title": "MeasuredVariable",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "description": "Where the profile's inputs came from and when it was built.",
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "locations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Locations",
+          "type": "array"
+        },
+        "metadata_record": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metadata Record"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "Term": {
+      "additionalProperties": false,
+      "description": "A controlled term, with the list it came from and how it got here.",
+      "properties": {
+        "derivation": {
+          "$ref": "#/$defs/Derivation"
+        },
+        "list_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "List Name"
+        },
+        "list_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "List Version"
+        },
+        "term": {
+          "title": "Term",
+          "type": "string"
+        }
+      },
+      "required": [
+        "term",
+        "derivation"
+      ],
+      "title": "Term",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "\u00a76.1.",
+  "properties": {
+    "abstract": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Abstract"
+    },
+    "abstract_derivation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Derivation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "columns": {
+      "items": {
+        "$ref": "#/$defs/ColumnProfile"
+      },
+      "title": "Columns",
+      "type": "array"
+    },
+    "entity_scope": {
+      "items": {
+        "$ref": "#/$defs/Term"
+      },
+      "title": "Entity Scope",
+      "type": "array"
+    },
+    "fields_of_research": {
+      "items": {
+        "$ref": "#/$defs/Term"
+      },
+      "title": "Fields Of Research",
+      "type": "array"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/FileEntry"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "fingerprint": {
+      "$ref": "#/$defs/ContentFingerprint"
+    },
+    "formats_found": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Formats Found",
+      "type": "array"
+    },
+    "formats_planned": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Formats Planned",
+      "type": "array"
+    },
+    "keywords": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Keywords",
+      "type": "array"
+    },
+    "keywords_derivation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Derivation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "measured_variables": {
+      "items": {
+        "$ref": "#/$defs/MeasuredVariable"
+      },
+      "title": "Measured Variables",
+      "type": "array"
+    },
+    "missing_value_codes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Value Codes",
+      "type": "array"
+    },
+    "phase": {
+      "$ref": "#/$defs/LifecyclePhase",
+      "default": "collected"
+    },
+    "profile_id": {
+      "title": "Profile Id",
+      "type": "string"
+    },
+    "profiled_at": {
+      "title": "Profiled At",
+      "type": "string"
+    },
+    "profiler_version": {
+      "title": "Profiler Version",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/SourceRef"
+    },
+    "subjects": {
+      "items": {
+        "$ref": "#/$defs/Term"
+      },
+      "title": "Subjects",
+      "type": "array"
+    },
+    "target_repository": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Repository"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Title"
+    },
+    "title_derivation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Derivation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "profile_id",
+    "fingerprint",
+    "source",
+    "profiled_at",
+    "profiler_version"
+  ],
+  "title": "DatasetProfile",
+  "type": "object"
+}

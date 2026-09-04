@@ -1,0 +1,620 @@
+{
+  "$defs": {
+    "AgentRef": {
+      "additionalProperties": false,
+      "description": "Agent identity, written into every run record (C13).",
+      "properties": {
+        "identity": {
+          "title": "Identity",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "identity",
+        "version"
+      ],
+      "title": "AgentRef",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "One factual statement, tied to the registry field that backs it.\n\n\u00a75.5's evidence check is mechanical: it verifies that `record` and `field` are present and\nresolve, not that the prose is true. That is a deliberate limit \u2014 a check that tried to\nunderstand the sentence would be another thing needing review.",
+      "properties": {
+        "field": {
+          "title": "Field",
+          "type": "string"
+        },
+        "record": {
+          "title": "Record",
+          "type": "string"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement",
+        "record",
+        "field"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "LifecyclePhase": {
+      "description": "Which of the Blueprint's researcher entry points a run serves (\u00a78).\n\nThe Blueprint's \u00a78.2 process flow has three entry points into six phases. Only the first two\nconcern R3, and they differ in one way that reaches every stage: whether the data exists yet.\n`PRE_COLLECTION` is Figure 1's \"workflow entry point for researchers starting a new project\nbefore data collection begins\" \u2014 there are no files to profile, so the profile is built from\nthe README and draft data dictionary R5 has produced, and the facets \u00a75.2 searches on have to\nbe asked for rather than inferred.",
+      "enum": [
+        "pre_collection",
+        "collected"
+      ],
+      "title": "LifecyclePhase",
+      "type": "string"
+    },
+    "NothingFound": {
+      "additionalProperties": false,
+      "description": "An abstention. An equal output to a recommendation, not an error (R3.6).",
+      "properties": {
+        "brought_forward_from_phase": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brought Forward From Phase"
+        },
+        "kind": {
+          "$ref": "#/$defs/RecommendationKind"
+        },
+        "reason": {
+          "$ref": "#/$defs/NothingFoundReason"
+        },
+        "referral": {
+          "title": "Referral",
+          "type": "string"
+        },
+        "searched": {
+          "$ref": "#/$defs/SearchedSummary"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "reason",
+        "searched",
+        "statement",
+        "referral"
+      ],
+      "title": "NothingFound",
+      "type": "object"
+    },
+    "NothingFoundReason": {
+      "description": "Why a kind of recommendation produced nothing.\n\nDistinguishing these matters: \"we searched and nothing qualified\" and \"we could not\nsearch\" call for different responses from a reader, and collapsing them into one\n'no results' would hide the second.",
+      "enum": [
+        "no_qualifying_resource",
+        "no_candidates_retrieved",
+        "registry_unavailable",
+        "not_applicable",
+        "stage_not_implemented"
+      ],
+      "title": "NothingFoundReason",
+      "type": "string"
+    },
+    "PromptRef": {
+      "additionalProperties": false,
+      "description": "Which prompt, at which version, with which content (\u00a75.4).\n\nNot in \u00a76.2's sketch. Added because \u00a75.4 requires the prompt version be recorded with each\nrun, and a version string without a hash does not survive someone editing the file.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "sha256"
+      ],
+      "title": "PromptRef",
+      "type": "object"
+    },
+    "RankingConfigRef": {
+      "additionalProperties": false,
+      "description": "Which ranking weights were in force (\u00a75.3).",
+      "properties": {
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "sha256"
+      ],
+      "title": "RankingConfigRef",
+      "type": "object"
+    },
+    "Recommendation": {
+      "additionalProperties": false,
+      "properties": {
+        "brought_forward_from_phase": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Brought Forward From Phase"
+        },
+        "caveats": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Caveats",
+          "type": "array"
+        },
+        "confidence": {
+          "title": "Confidence",
+          "type": "number"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/RecommendationKind"
+        },
+        "queries": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Queries",
+          "type": "array"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "resource": {
+          "$ref": "#/$defs/ResourceRef"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "score_components": {
+          "items": {
+            "$ref": "#/$defs/ScoreComponent"
+          },
+          "title": "Score Components",
+          "type": "array"
+        },
+        "score_features": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Score Features",
+          "type": "object"
+        },
+        "target": {
+          "$ref": "#/$defs/Target"
+        }
+      },
+      "required": [
+        "kind",
+        "resource",
+        "target",
+        "score",
+        "confidence",
+        "reason"
+      ],
+      "title": "Recommendation",
+      "type": "object"
+    },
+    "RecommendationKind": {
+      "description": "The four kinds of recommendation R3 owes, one per \u00a75.2 search.\n\nThis enum is the mechanism for R3.6. `nodes/assemble.py` iterates it and writes a\n`NothingFound` for every member with no surviving recommendation, and nothing else in the\ncodebase constructs a `NothingFound`. A fifth kind therefore cannot be added without its\nabstention path appearing automatically.\n\nThe first two members are separate for the reason R3 demands: concept linkage pins a\ncolumn's *values* to identifiers, ontology alignment maps the dataset's *structure* onto\nclasses and properties (\u00a72.1).",
+      "enum": [
+        "controlled_vocabulary_linkage",
+        "ontology_alignment",
+        "open_format",
+        "field_level_standard"
+      ],
+      "title": "RecommendationKind",
+      "type": "string"
+    },
+    "RegistrySnapshotRef": {
+      "additionalProperties": false,
+      "description": "Which copy of the registry answered (\u00a77.3).\n\n`stale` and `version` appear in the output document, not only in a log, because \u00a77.3\nrequires the date be visible in the interface.",
+      "properties": {
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved At"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "stale": {
+          "title": "Stale",
+          "type": "boolean"
+        },
+        "version": {
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "source",
+        "stale"
+      ],
+      "title": "RegistrySnapshotRef",
+      "type": "object"
+    },
+    "ResourceRef": {
+      "additionalProperties": false,
+      "description": "The registry record a recommendation names.\n\n`registry_id` is what the \u00a75.5 grounding check tests against the candidate set. A\nrecommendation without one cannot pass, which is the entire mechanism preventing a\nfabricated standard from reaching a reader.",
+      "properties": {
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doi"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "record_subtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Subtype"
+        },
+        "record_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Type"
+        },
+        "registry_id": {
+          "title": "Registry Id",
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Status"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "name",
+        "registry_id"
+      ],
+      "title": "ResourceRef",
+      "type": "object"
+    },
+    "ScoreComponent": {
+      "additionalProperties": false,
+      "description": "One attributed contribution to a candidate's score.\n\nNot in \u00a76.2's sketch, which has only a flat `score_features` map. \u00a75.3 requires that a\nmodel's contribution be recorded as *its own named component*, \"not folded invisibly into\na rule's output\" \u2014 and a `{name: value}` map cannot say whether `subject_overlap: 0.9` came\nfrom a rule or from the model. Both are kept: `score_features` for readability,\n`score_components` for attribution.",
+      "properties": {
+        "contribution": {
+          "title": "Contribution",
+          "type": "number"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "raw": {
+          "title": "Raw",
+          "type": "number"
+        },
+        "source": {
+          "pattern": "^(rule|model)$",
+          "title": "Source",
+          "type": "string"
+        },
+        "weight": {
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "raw",
+        "weight",
+        "contribution"
+      ],
+      "title": "ScoreComponent",
+      "type": "object"
+    },
+    "SearchedSummary": {
+      "additionalProperties": false,
+      "description": "What was looked for, so a reader can judge the abstention (\u00a75.5 check 4).",
+      "properties": {
+        "candidates_retrieved": {
+          "default": 0,
+          "title": "Candidates Retrieved",
+          "type": "integer"
+        },
+        "candidates_surviving_checks": {
+          "default": 0,
+          "title": "Candidates Surviving Checks",
+          "type": "integer"
+        },
+        "confidence_floor": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence Floor"
+        },
+        "facets": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Facets",
+          "type": "object"
+        },
+        "highest_score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Highest Score"
+        },
+        "queries": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Queries",
+          "type": "array"
+        },
+        "registry_snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RegistrySnapshotRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "SearchedSummary",
+      "type": "object"
+    },
+    "Target": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Field"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "kind": {
+          "$ref": "#/$defs/TargetKind"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "Target",
+      "type": "object"
+    },
+    "TargetKind": {
+      "description": "What part of the dataset a recommendation applies to.\n\n`FIELD_VALUES` versus `STRUCTURE` is where \u00a72.1 draws the vocabulary/ontology line: concept\nlinkage targets a column's values, ontology alignment targets the dataset's shape.",
+      "enum": [
+        "field_values",
+        "structure",
+        "file",
+        "dataset",
+        "planned_variable"
+      ],
+      "title": "TargetKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "\u00a76.2. The only thing that leaves the system.",
+  "properties": {
+    "agent": {
+      "$ref": "#/$defs/AgentRef"
+    },
+    "generated_at": {
+      "title": "Generated At",
+      "type": "string"
+    },
+    "nothing_found": {
+      "items": {
+        "$ref": "#/$defs/NothingFound"
+      },
+      "title": "Nothing Found",
+      "type": "array"
+    },
+    "phase": {
+      "$ref": "#/$defs/LifecyclePhase",
+      "default": "collected"
+    },
+    "profile_id": {
+      "title": "Profile Id",
+      "type": "string"
+    },
+    "prompts": {
+      "items": {
+        "$ref": "#/$defs/PromptRef"
+      },
+      "title": "Prompts",
+      "type": "array"
+    },
+    "provenance": {
+      "title": "Provenance",
+      "type": "string"
+    },
+    "ranking_config": {
+      "$ref": "#/$defs/RankingConfigRef"
+    },
+    "recommendations": {
+      "items": {
+        "$ref": "#/$defs/Recommendation"
+      },
+      "title": "Recommendations",
+      "type": "array"
+    },
+    "registry_snapshot": {
+      "$ref": "#/$defs/RegistrySnapshotRef"
+    },
+    "requires_human_review": {
+      "const": true,
+      "default": true,
+      "title": "Requires Human Review",
+      "type": "boolean"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "profile_id",
+    "generated_at",
+    "registry_snapshot",
+    "agent",
+    "ranking_config",
+    "provenance"
+  ],
+  "title": "RecommendationsDocument",
+  "type": "object"
+}
