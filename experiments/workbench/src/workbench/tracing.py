@@ -39,6 +39,8 @@ ATTR_MODEL_ID = "dd.model_id"
 ATTR_INPUT_TOKENS = "dd.input_tokens"
 ATTR_OUTPUT_TOKENS = "dd.output_tokens"
 ATTR_OUTCOME = "dd.outcome"
+ATTR_GROUNDING_MODE = "dd.grounding_mode"  # ADR-0008: the mode the linter must apply
+ATTR_INPUT_HASH = "dd.input_hash"  # ADR-0009: what an input_only agent's evidence must equal
 
 OWNED_ATTRIBUTES = frozenset(
     {
@@ -50,6 +52,8 @@ OWNED_ATTRIBUTES = frozenset(
         ATTR_INPUT_TOKENS,
         ATTR_OUTPUT_TOKENS,
         ATTR_OUTCOME,
+        ATTR_GROUNDING_MODE,
+        ATTR_INPUT_HASH,
     }
 )
 
@@ -185,10 +189,16 @@ def make_tracing(console: IO[str] | None = None) -> Tracing:
 
 
 @contextlib.contextmanager
-def invoke_agent_span(tracer: Tracer, agent_id: str) -> Iterator[Span]:
+def invoke_agent_span(
+    tracer: Tracer, agent_id: str, grounding_mode: str, input_hash: str
+) -> Iterator[Span]:
+    """The root of one invocation. Mode and input hash are set here, by the conductor, so the
+    linter reads what the harness declared rather than what the agent claims."""
     with tracer.start_as_current_span(INVOKE_AGENT) as span:
         span.set_attribute(ATTR_OPERATION, INVOKE_AGENT)
         span.set_attribute(ATTR_AGENT_ID, agent_id)
+        span.set_attribute(ATTR_GROUNDING_MODE, grounding_mode)
+        span.set_attribute(ATTR_INPUT_HASH, input_hash)
         yield span
 
 

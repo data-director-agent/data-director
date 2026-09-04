@@ -16,7 +16,8 @@ from typing import Any
 from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
 
-from workbench.contract.models import OutcomeStatus
+from workbench.contract.models import GroundingMode, OutcomeStatus
+from workbench.evidence import CANONICALISATIONS, INPUT_CANONICALISATION
 
 SCHEMA_DIR = Path(__file__).resolve().parents[3] / "schema" / "generated"
 ENVELOPE_SCHEMA = SCHEMA_DIR / "envelope.schema.json"
@@ -67,6 +68,51 @@ def conditional_errors(envelope: dict[str, Any]) -> list[str]:
         errors.append(f"outcome.status={status} must not carry a payload")
     if status not in (OutcomeStatus.FAILED, OutcomeStatus.SUSPENDED) and has_problem:
         errors.append(f"outcome.status={status} must not carry a problem")
+    errors.extend(grounding_errors(envelope))
+    return errors
+
+
+def grounding_errors(envelope: dict[str, Any]) -> list[str]:
+    """Self-consistency between grounding_mode, payload and evidence (ADR-0008, ADR-0009).
+
+    Agreement with the trace is the linter's job; these rules hold on the document alone.
+    """
+    errors: list[str] = []
+    mode = envelope.get("grounding_mode")
+    status = (envelope.get("outcome") or {}).get("status")
+    payload = envelope.get("payload")
+    evidence: list[dict[str, Any]] = envelope.get("evidence") or []
+
+    if payload is not None:
+        if "schema_class" not in payload:
+            errors.append("payload lacks schema_class")
+        if "grounded_on" not in payload:
+            errors.append("payload lacks grounded_on: every payload class mixes in Grounded")
+
+    for ev in evidence:
+        name = ev.get("canonicalisation")
+        if name not in CANONICALISATIONS:
+            errors.append(f"evidence {ev.get('source_id')!r}: unknown canonicalisation {name!r}")
+
+    if status != OutcomeStatus.SUCCEEDED:
+        return errors
+    if mode == GroundingMode.RETRIEVAL:
+        if payload is not None and not payload.get("grounded_on"):
+            errors.append("grounding_mode=retrieval and succeeded requires non-empty grounded_on")
+    elif mode in (GroundingMode.INPUT_ONLY, GroundingMode.NONE):
+        cites_input = [
+            ev
+            for ev in evidence
+            if ev.get("canonicalisation") == INPUT_CANONICALISATION
+            and str(ev.get("source_id", "")).startswith("input:")
+        ]
+        if not cites_input:
+            errors.append(
+                f"grounding_mode={mode} and succeeded requires evidence citing the input "
+                f"({INPUT_CANONICALISATION}, source_id input:<invocation_id>)"
+            )
+        if len(cites_input) != len(evidence):
+            errors.append(f"grounding_mode={mode} permits no evidence other than the input")
     return errors
 
 

@@ -11,9 +11,9 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
@@ -78,7 +78,29 @@ class EnergyMethod(StrEnum):
     MEASURED = "measured"
 
 
-# --- Input ------------------------------------------------------------------------------------
+class GroundingMode(StrEnum):
+    """The grounding contract an agent declares (ADR-0008)."""
+
+    RETRIEVAL = "retrieval"
+    INPUT_ONLY = "input_only"
+    NONE = "none"
+
+
+class Severity(StrEnum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+class Verdict(StrEnum):
+    SUPPORTED = "supported"
+    REFUTED = "refuted"
+    UNVERIFIABLE = "unverifiable"
+
+
+# --- Inputs -----------------------------------------------------------------------------------
+# Every input class carries `schema_class` as a type designator with a single literal value, so
+# the union below is discriminated and `{}` cannot parse as a DatasetProfile.
 
 
 class TableField(Frozen):
@@ -89,6 +111,7 @@ class TableField(Frozen):
 
 
 class DatasetProfile(Frozen):
+    schema_class: Literal["DatasetProfile"] = "DatasetProfile"
     title: str | None = None
     description: str | None = None
     keywords: list[str] = Field(default_factory=list)
@@ -97,13 +120,45 @@ class DatasetProfile(Frozen):
     fields: list[TableField] = Field(default_factory=list)
 
 
+class MetadataRecord(Frozen):
+    schema_class: Literal["MetadataRecord"] = "MetadataRecord"
+    identifier: str | None = None
+    title: str | None = None
+    description: str | None = None
+    licence: str | None = None
+    creators: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+
+
+class Claim(Frozen):
+    schema_class: Literal["Claim"] = "Claim"
+    text: str
+    subject_uri: str | None = None
+    context: str | None = None
+
+
+Input = Annotated[DatasetProfile | MetadataRecord | Claim, Field(discriminator="schema_class")]
+INPUT_TYPES: dict[str, type[Frozen]] = {
+    "DatasetProfile": DatasetProfile,
+    "MetadataRecord": MetadataRecord,
+    "Claim": Claim,
+}
+_input_adapter: TypeAdapter[Any] = TypeAdapter(Input)
+
+
+def parse_input(document: dict[str, Any]) -> DatasetProfile | MetadataRecord | Claim:
+    """Parse an input document by its `schema_class` designator. Raises pydantic.ValidationError."""
+    parsed: DatasetProfile | MetadataRecord | Claim = _input_adapter.validate_python(document)
+    return parsed
+
+
 class InvocationRequest(Frozen):
     invocation_id: str = Field(default_factory=new_invocation_id, pattern=UUID7_PATTERN)
     agent_id: str
     requirement_ids: list[str] = Field(default_factory=list)
     issued_at: datetime = Field(default_factory=now)
     policy_bundle_ref: str
-    input: DatasetProfile
+    input: Input
 
 
 # --- Outcome and problems -------------------------------------------------------------------
@@ -126,7 +181,29 @@ class ProblemDetails(Frozen):
     resume_after: datetime | None = None
 
 
-# --- R3 payload -----------------------------------------------------------------------------
+# --- Grounding ------------------------------------------------------------------------------
+
+
+class GroundingRef(Frozen):
+    """Identity and content hash of one retrieved thing a payload rests on (ADR-0008)."""
+
+    source_id: str
+    content_hash: str = Field(pattern=SHA256_PATTERN)
+
+
+class Grounded(Frozen):
+    """Mixin: every payload class and every identity-asserting item carries `grounded_on`."""
+
+    grounded_on: list[GroundingRef] = Field(default_factory=list)
+
+
+def input_source_id(invocation_id: str) -> str:
+    """The `source_id` an input_only or none agent cites for the input it was given."""
+    return f"input:{invocation_id}"
+
+
+# --- Payloads -------------------------------------------------------------------------------
+# Every payload class carries `schema_class` and mixes in Grounded.
 
 
 class ResourceRef(Frozen):
@@ -138,7 +215,7 @@ class ResourceRef(Frozen):
     status: str | None = None
 
 
-class Recommendation(Frozen):
+class Recommendation(Grounded):
     kind: RecommendationKind
     target: str
     resource: ResourceRef
@@ -156,9 +233,40 @@ class SearchedSummary(Frozen):
     candidates_qualifying: int | None = None
 
 
-class Recommendations(Frozen):
+class Recommendations(Grounded):
+    schema_class: Literal["Recommendations"] = "Recommendations"
     items: list[Recommendation] = Field(default_factory=list)
     searched: SearchedSummary | None = None
+
+
+class Finding(Grounded):
+    criterion: str
+    severity: Severity
+    message: str
+    derivation: Derivation
+
+
+class QualityReview(Grounded):
+    schema_class: Literal["QualityReview"] = "QualityReview"
+    score: float | None = None
+    findings: list[Finding] = Field(default_factory=list)
+
+
+class FactCheck(Grounded):
+    schema_class: Literal["FactCheck"] = "FactCheck"
+    verdict: Verdict
+    rationale: str
+    rationale_derivation: Derivation
+
+
+Payload = Annotated[
+    Recommendations | QualityReview | FactCheck, Field(discriminator="schema_class")
+]
+PAYLOAD_TYPES: dict[str, type[Grounded]] = {
+    "Recommendations": Recommendations,
+    "QualityReview": QualityReview,
+    "FactCheck": FactCheck,
+}
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------
@@ -191,8 +299,9 @@ class Envelope(Frozen):
     agent_id: str
     agent_version: str
     completed_at: datetime
+    grounding_mode: GroundingMode
     outcome: Outcome
-    payload: Recommendations | None = None
+    payload: Payload | None = None
     evidence: list[EvidenceItem] = Field(default_factory=list)
     telemetry: Telemetry
     requires_human_review: Literal[True] = True

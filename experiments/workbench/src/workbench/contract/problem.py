@@ -40,3 +40,13 @@ def agent_error(agent_id: str, exc: BaseException) -> ProblemDetails:
         "Agent raised an exception",
         f"{agent_id}: {type(exc).__name__}: {exc}",
     )
+
+
+def input_not_accepted(agent_id: str, got: str, accepts: tuple[str, ...]) -> ProblemDetails:
+    return problem(
+        "input-not-accepted",
+        "Agent does not accept this input class",
+        f"Agent {agent_id!r} accepts {', '.join(accepts) or 'nothing'}; the request carried "
+        f"{got!r}.",
+        http_status=422,
+    )

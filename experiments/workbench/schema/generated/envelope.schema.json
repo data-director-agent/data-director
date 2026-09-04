@@ -12,9 +12,47 @@
             "string"
          ]
       },
+      "Claim": {
+         "additionalProperties": false,
+         "description": "A statement to be checked against sources. The input a fact-checking agent reads.",
+         "properties": {
+            "context": {
+               "description": "Where the claim was made or why it is being checked.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "Claim"
+               ],
+               "type": "string"
+            },
+            "subject_uri": {
+               "description": "What the claim is about, if it has an identifier.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "text": {
+               "description": "The claim, as a sentence.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "schema_class",
+            "text"
+         ],
+         "title": "Claim",
+         "type": "object"
+      },
       "DatasetProfile": {
          "additionalProperties": false,
-         "description": "The only view of the input an agent gets. Deliberately minimal: only the slots R3 reads. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
+         "description": "A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
          "properties": {
             "description": {
                "type": [
@@ -49,6 +87,13 @@
                   "null"
                ]
             },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "DatasetProfile"
+               ],
+               "type": "string"
+            },
             "themes": {
                "description": "Discipline or subject, as free text or an IRI.",
                "items": {
@@ -66,6 +111,9 @@
                ]
             }
          },
+         "required": [
+            "schema_class"
+         ],
          "title": "DatasetProfile",
          "type": "object"
       },
@@ -114,6 +162,10 @@
                   "null"
                ]
             },
+            "grounding_mode": {
+               "$ref": "#/$defs/GroundingMode",
+               "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
+            },
             "invocation_id": {
                "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -128,10 +180,16 @@
                      "$ref": "#/$defs/Recommendations"
                   },
                   {
+                     "$ref": "#/$defs/QualityReview"
+                  },
+                  {
+                     "$ref": "#/$defs/FactCheck"
+                  },
+                  {
                      "type": "null"
                   }
                ],
-               "description": "Agent-specific payload; absent unless the outcome is succeeded."
+               "description": "Agent-specific payload; absent unless the outcome is succeeded. One of the payload classes, discriminated by schema_class; every one mixes in Grounded."
             },
             "problem": {
                "anyOf": [
@@ -157,6 +215,7 @@
             "agent_id",
             "agent_version",
             "completed_at",
+            "grounding_mode",
             "outcome",
             "telemetry",
             "requires_human_review"
@@ -212,6 +271,128 @@
          "title": "EvidenceItem",
          "type": "object"
       },
+      "FactCheck": {
+         "additionalProperties": false,
+         "description": "The payload of a fact-checking agent: a verdict on a Claim and the rationale for it, grounded on the sources consulted.",
+         "properties": {
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            },
+            "rationale": {
+               "type": "string"
+            },
+            "rationale_derivation": {
+               "$ref": "#/$defs/Derivation"
+            },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "FactCheck"
+               ],
+               "type": "string"
+            },
+            "verdict": {
+               "$ref": "#/$defs/Verdict"
+            }
+         },
+         "required": [
+            "schema_class",
+            "verdict",
+            "rationale",
+            "rationale_derivation",
+            "grounded_on"
+         ],
+         "title": "FactCheck",
+         "type": "object"
+      },
+      "Finding": {
+         "additionalProperties": false,
+         "description": "One observation about one criterion.",
+         "properties": {
+            "criterion": {
+               "description": "The quality criterion assessed, e.g. licence_present.",
+               "type": "string"
+            },
+            "derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How the finding was produced."
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            },
+            "message": {
+               "description": "The finding, as a sentence a reviewer can act on.",
+               "type": "string"
+            },
+            "severity": {
+               "$ref": "#/$defs/Severity"
+            }
+         },
+         "required": [
+            "criterion",
+            "severity",
+            "message",
+            "derivation",
+            "grounded_on"
+         ],
+         "title": "Finding",
+         "type": "object"
+      },
+      "Grounded": {
+         "additionalProperties": false,
+         "description": "Mixed into every payload class and every item class that asserts an identity. The linter walks a payload document for grounded_on lists and never needs to know the payload class; a payload that lacks grounded_on at its root is a violation, not a pass.",
+         "properties": {
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "grounded_on"
+         ],
+         "title": "Grounded",
+         "type": "object"
+      },
+      "GroundingMode": {
+         "description": "The grounding contract an agent declares. The linter applies a rule set per mode (ADR-0008); an envelope always records which one applied.",
+         "enum": [
+            "retrieval",
+            "input_only",
+            "none"
+         ],
+         "title": "GroundingMode",
+         "type": "string"
+      },
+      "GroundingRef": {
+         "additionalProperties": false,
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity; the linter matches every GroundingRef against a retrieval span on both fields.",
+         "properties": {
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "source_id": {
+               "type": "string"
+            }
+         },
+         "required": [
+            "source_id",
+            "content_hash"
+         ],
+         "title": "GroundingRef",
+         "type": "object"
+      },
       "InvocationRequest": {
          "additionalProperties": false,
          "description": "What the conductor hands to an agent. One request produces exactly one Envelope.",
@@ -221,7 +402,18 @@
                "type": "string"
             },
             "input": {
-               "$ref": "#/$defs/DatasetProfile"
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/DatasetProfile"
+                  },
+                  {
+                     "$ref": "#/$defs/MetadataRecord"
+                  },
+                  {
+                     "$ref": "#/$defs/Claim"
+                  }
+               ],
+               "description": "What the agent is asked to work on. One of the input classes, discriminated by schema_class; an agent declares which it accepts."
             },
             "invocation_id": {
                "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
@@ -255,6 +447,68 @@
             "input"
          ],
          "title": "InvocationRequest",
+         "type": "object"
+      },
+      "MetadataRecord": {
+         "additionalProperties": false,
+         "description": "An existing metadata record about a dataset, as a repository or catalogue holds it. The input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a minimal record carries; TODO widen when a real repository export is exercised.",
+         "properties": {
+            "creators": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "description": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "identifier": {
+               "description": "The record's own identifier, e.g. a DOI or a catalogue URI.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "keywords": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "licence": {
+               "description": "The licence the record declares, as an IRI or SPDX identifier.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "MetadataRecord"
+               ],
+               "type": "string"
+            },
+            "title": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "schema_class"
+         ],
+         "title": "MetadataRecord",
          "type": "object"
       },
       "Outcome": {
@@ -354,6 +608,47 @@
          "title": "ProblemDetails",
          "type": "object"
       },
+      "QualityReview": {
+         "additionalProperties": false,
+         "description": "The payload of a quality or validation agent: a score over an existing record and the findings behind it. Grounded on the input itself (grounding mode input_only or none).",
+         "properties": {
+            "findings": {
+               "items": {
+                  "$ref": "#/$defs/Finding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "QualityReview"
+               ],
+               "type": "string"
+            },
+            "score": {
+               "type": [
+                  "number",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "schema_class",
+            "grounded_on"
+         ],
+         "title": "QualityReview",
+         "type": "object"
+      },
       "ReasonCode": {
          "description": "Why an agent abstained or referred. Adapted from the standards-advisor experiment's NothingFoundReason.",
          "enum": [
@@ -386,6 +681,13 @@
                   "null"
                ]
             },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            },
             "kind": {
                "$ref": "#/$defs/RecommendationKind"
             },
@@ -414,7 +716,8 @@
             "target",
             "resource",
             "rationale",
-            "rationale_derivation"
+            "rationale_derivation",
+            "grounded_on"
          ],
          "title": "Recommendation",
          "type": "object"
@@ -433,8 +736,15 @@
       },
       "Recommendations": {
          "additionalProperties": false,
-         "description": "The R3 payload.",
+         "description": "The R3 payload. Recommended vocabularies, ontologies and formats.",
          "properties": {
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            },
             "items": {
                "items": {
                   "$ref": "#/$defs/Recommendation"
@@ -443,6 +753,13 @@
                   "array",
                   "null"
                ]
+            },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "Recommendations"
+               ],
+               "type": "string"
             },
             "searched": {
                "anyOf": [
@@ -455,6 +772,10 @@
                ]
             }
          },
+         "required": [
+            "schema_class",
+            "grounded_on"
+         ],
          "title": "Recommendations",
          "type": "object"
       },
@@ -540,6 +861,16 @@
          "title": "SearchedSummary",
          "type": "object"
       },
+      "Severity": {
+         "description": "",
+         "enum": [
+            "info",
+            "warning",
+            "error"
+         ],
+         "title": "Severity",
+         "type": "string"
+      },
       "TableField": {
          "additionalProperties": false,
          "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO: revisit if Frictionless publishes term IRIs).",
@@ -617,6 +948,16 @@
          ],
          "title": "Telemetry",
          "type": "object"
+      },
+      "Verdict": {
+         "description": "",
+         "enum": [
+            "supported",
+            "refuted",
+            "unverifiable"
+         ],
+         "title": "Verdict",
+         "type": "string"
       }
    },
    "$id": "https://w3id.org/data-director/schema/workbench",
@@ -645,6 +986,10 @@
             "null"
          ]
       },
+      "grounding_mode": {
+         "$ref": "#/$defs/GroundingMode",
+         "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
+      },
       "invocation_id": {
          "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -659,10 +1004,16 @@
                "$ref": "#/$defs/Recommendations"
             },
             {
+               "$ref": "#/$defs/QualityReview"
+            },
+            {
+               "$ref": "#/$defs/FactCheck"
+            },
+            {
                "type": "null"
             }
          ],
-         "description": "Agent-specific payload; absent unless the outcome is succeeded."
+         "description": "Agent-specific payload; absent unless the outcome is succeeded. One of the payload classes, discriminated by schema_class; every one mixes in Grounded."
       },
       "problem": {
          "anyOf": [
@@ -688,11 +1039,12 @@
       "agent_id",
       "agent_version",
       "completed_at",
+      "grounding_mode",
       "outcome",
       "telemetry",
       "requires_human_review"
    ],
    "title": "data_director_workbench",
    "type": "object",
-   "version": "0.1.0"
+   "version": "0.2.0"
 }

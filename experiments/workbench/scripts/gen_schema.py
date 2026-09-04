@@ -52,18 +52,23 @@ def generate() -> dict[Path, str]:
 
 
 def _pin_constants(schema_text: str) -> str:
-    """Emit `requires_human_review` as `const: true`.
+    """Two repairs to the generator's output, made in the one place generation happens.
 
-    LinkML's `equals_expression` is not carried into JSON Schema by gen-json-schema, so the
-    constant is pinned here, in the one place generation happens, rather than by hand in the
-    output. C13/C15 make human review mandatory; a consumer in another language must be unable
-    to produce an envelope that claims otherwise.
+    1. `requires_human_review` is emitted as `const: true`. LinkML's `equals_expression` is not
+       carried into JSON Schema by gen-json-schema. C13/C15 make human review mandatory; a
+       consumer in another language must be unable to produce an envelope that claims otherwise.
+    2. A polymorphic slot (`range: Any` + `any_of`) that is required is emitted as
+       `{"$ref": "#/$defs/Any", "anyOf": [...]}`. Under Draft 7, `$ref` overrides every sibling
+       keyword, so the `anyOf` would never be checked and any object would validate. The `$ref`
+       is dropped; the `anyOf` alone is the constraint (ADR-0007).
     """
     schema = json.loads(schema_text)
     for holder in (schema, *schema.get("$defs", {}).values()):
-        prop = holder.get("properties", {}).get("requires_human_review")
-        if prop is not None:
-            prop["const"] = True
+        for name, prop in holder.get("properties", {}).items():
+            if name == "requires_human_review":
+                prop["const"] = True
+            if "anyOf" in prop and prop.get("$ref", "").endswith("/Any"):
+                del prop["$ref"]
     return json.dumps(schema, indent=3) + "\n"
 
 

@@ -3,10 +3,12 @@ name: data_director_workbench
 title: Data Director Workbench contract
 description: >-
   The invocation contract of the Data Director Workbench: the request an agent receives, the
-  envelope it returns, the outcome vocabulary, the minimal dataset profile agents read, and the
-  R3 recommendations payload. Formats here are fixed at v0; see docs/adr/ for the decisions.
+  envelope it returns, the outcome vocabulary, the input classes agents read and the payload
+  classes they return. Input and payload are polymorphic unions discriminated by schema_class
+  (ADR-0007); every payload mixes in Grounded so the grounding linter can check it without
+  knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.1.0
+version: 0.2.0
 license: MIT
 
 prefixes:
@@ -51,6 +53,7 @@ classes:
       - agent_id
       - agent_version
       - completed_at
+      - grounding_mode
       - outcome
       - payload
       - evidence
@@ -82,12 +85,17 @@ classes:
       - resume_condition
       - resume_after
 
+  # --- Inputs ---------------------------------------------------------------------------------
+  # Each input class carries schema_class as its type designator. An agent declares which input
+  # classes it accepts; the conductor refuses any other with problem input-not-accepted.
+
   DatasetProfile:
     class_uri: dcat:Dataset
     description: >-
-      The only view of the input an agent gets. Deliberately minimal: only the slots R3 reads.
-      Every slot maps onto an external vocabulary rather than a Data Director namespace.
+      A minimal description of a dataset being planned or prepared: what it is about and how it
+      is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.
     slots:
+      - schema_class
       - title
       - description
       - keywords
@@ -108,14 +116,65 @@ classes:
       - field_format
       - field_description
 
-  Recommendations:
-    description: The R3 payload.
+  MetadataRecord:
+    class_uri: dcat:Dataset
+    description: >-
+      An existing metadata record about a dataset, as a repository or catalogue holds it. The
+      input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a
+      minimal record carries; TODO widen when a real repository export is exercised.
     slots:
+      - schema_class
+      - identifier
+      - title
+      - description
+      - licence
+      - creators
+      - keywords
+
+  Claim:
+    description: A statement to be checked against sources. The input a fact-checking agent reads.
+    slots:
+      - schema_class
+      - text
+      - subject_uri
+      - context
+
+  # --- Grounding ------------------------------------------------------------------------------
+
+  GroundingRef:
+    description: >-
+      The identity and content hash of one retrieved thing a payload rests on. The only way a
+      payload may name an external resource as a decided identity; the linter matches every
+      GroundingRef against a retrieval span on both fields.
+    slots:
+      - source_id
+      - content_hash
+
+  Grounded:
+    mixin: true
+    description: >-
+      Mixed into every payload class and every item class that asserts an identity. The linter
+      walks a payload document for grounded_on lists and never needs to know the payload class;
+      a payload that lacks grounded_on at its root is a violation, not a pass.
+    slots:
+      - grounded_on
+
+  # --- Payloads -------------------------------------------------------------------------------
+  # Each payload class carries schema_class and mixes in Grounded.
+
+  Recommendations:
+    description: The R3 payload. Recommended vocabularies, ontologies and formats.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
       - items
       - searched
 
   Recommendation:
     description: One recommended resource for one target.
+    mixins:
+      - Grounded
     slots:
       - kind
       - target
@@ -151,6 +210,39 @@ classes:
       - snapshot_ref
       - candidates_retrieved
       - candidates_qualifying
+
+  QualityReview:
+    description: >-
+      The payload of a quality or validation agent: a score over an existing record and the
+      findings behind it. Grounded on the input itself (grounding mode input_only or none).
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - score
+      - findings
+
+  Finding:
+    description: One observation about one criterion.
+    mixins:
+      - Grounded
+    slots:
+      - criterion
+      - severity
+      - message
+      - derivation
+
+  FactCheck:
+    description: >-
+      The payload of a fact-checking agent: a verdict on a Claim and the rationale for it,
+      grounded on the sources consulted.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - verdict
+      - rationale
+      - rationale_derivation
 
   EvidenceItem:
     description: >-
@@ -203,19 +295,52 @@ slots:
     description: Reference to the institutional profile the conductor applied (path or profile:<id>).
     required: true
   input:
-    range: DatasetProfile
+    description: >-
+      What the agent is asked to work on. One of the input classes, discriminated by
+      schema_class; an agent declares which it accepts.
+    range: Any
+    any_of:
+      - range: DatasetProfile
+      - range: MetadataRecord
+      - range: Claim
     required: true
     inlined: true
+  schema_class:
+    description: >-
+      Type designator: the name of the class this object is an instance of. Discriminates the
+      input and payload unions, and lets a consumer name a payload class it does not recognise.
+    designates_type: true
+    range: string
+    required: true
+  grounding_mode:
+    description: >-
+      The grounding contract the agent declared and the linter applied. Filled by the conductor
+      from the agent's specification, never by the agent.
+    range: GroundingMode
+    required: true
   outcome:
     range: Outcome
     required: true
     inlined: true
   payload:
-    description: Agent-specific payload; absent unless the outcome is succeeded.
+    description: >-
+      Agent-specific payload; absent unless the outcome is succeeded. One of the payload
+      classes, discriminated by schema_class; every one mixes in Grounded.
     range: Any
     any_of:
       - range: Recommendations
+      - range: QualityReview
+      - range: FactCheck
     inlined: true
+  grounded_on:
+    description: >-
+      The retrieved things this object rests on. For grounding mode retrieval, each entry names
+      a retrieval span; for input_only and none, the single entry is the input itself
+      (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).
+    range: GroundingRef
+    multivalued: true
+    inlined_as_list: true
+    required: true
   evidence:
     range: EvidenceItem
     multivalued: true
@@ -279,6 +404,46 @@ slots:
     range: TableField
     multivalued: true
     inlined_as_list: true
+
+  identifier:
+    description: The record's own identifier, e.g. a DOI or a catalogue URI.
+    slot_uri: dcterms:identifier
+  licence:
+    description: The licence the record declares, as an IRI or SPDX identifier.
+    slot_uri: dcterms:license
+  creators:
+    slot_uri: dcterms:creator
+    multivalued: true
+
+  text:
+    description: The claim, as a sentence.
+    required: true
+  subject_uri:
+    description: What the claim is about, if it has an identifier.
+    range: uri
+  context:
+    description: Where the claim was made or why it is being checked.
+
+  findings:
+    range: Finding
+    multivalued: true
+    inlined_as_list: true
+  criterion:
+    description: The quality criterion assessed, e.g. licence_present.
+    required: true
+  severity:
+    range: Severity
+    required: true
+  message:
+    description: The finding, as a sentence a reviewer can act on.
+    required: true
+  derivation:
+    description: How the finding was produced.
+    range: Derivation
+    required: true
+  verdict:
+    range: Verdict
+    required: true
 
   name:
     required: true
@@ -436,6 +601,39 @@ enums:
         description: Produced by a keyword rule over retrieved fields.
       registry:
         description: Read directly from a curated registry field.
+
+  GroundingMode:
+    description: >-
+      The grounding contract an agent declares. The linter applies a rule set per mode
+      (ADR-0008); an envelope always records which one applied.
+    permissible_values:
+      retrieval:
+        description: >-
+          The agent retrieves external records before any model call and every identity it
+          asserts was retrieved (rules G1–G4).
+      input_only:
+        description: >-
+          The agent works only over the input it was given. No retrieval span may appear; a
+          model may be called; every grounding reference is the input hash (rules R1–R3).
+      none:
+        description: >-
+          The agent is deterministic over its input: no retrieval and no model call (rules
+          R1–R3 and N1).
+
+  Severity:
+    permissible_values:
+      info:
+      warning:
+      error:
+
+  Verdict:
+    permissible_values:
+      supported:
+        description: At least one consulted source supports the claim and none contradicts it.
+      refuted:
+        description: At least one consulted source contradicts the claim.
+      unverifiable:
+        description: The sources consulted neither support nor contradict the claim.
 
   EnergyMethod:
     permissible_values:
