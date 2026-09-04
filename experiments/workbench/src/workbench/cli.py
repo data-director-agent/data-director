@@ -1,4 +1,4 @@
-"""Command line: invoke an agent, lint a run, serve the transports, build the snapshot."""
+"""Command line: list agents, invoke one, lint a run, serve the transports, build the snapshot."""
 
 from __future__ import annotations
 
@@ -6,24 +6,76 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
+
+from pydantic import ValidationError
 
 from workbench import grounding
-from workbench.contract.models import DatasetProfile, InvocationRequest
-from workbench.settings import Settings, build_conductor
+from workbench.agents.registry import Registry
+from workbench.contract.models import INPUT_TYPES, InvocationRequest, parse_input
+from workbench.settings import Settings, build_conductor, build_registry
 from workbench.tracing import records_from_jsonl
 
 
+def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
+    """Resolve the input class: the document's schema_class, then --input-type, then the agent's
+    sole accepted class. Anything else is a usage error listing what the agent accepts."""
+    doc = json.loads(Path(args.input).read_text(encoding="utf-8"))
+    agent = registry.get(args.agent)
+    accepts = agent.spec.accepts_names() if agent else tuple(INPUT_TYPES)
+    if "schema_class" not in doc:
+        if args.input_type:
+            doc["schema_class"] = args.input_type
+        elif len(accepts) == 1:
+            doc["schema_class"] = accepts[0]
+        else:
+            sys.exit(
+                f"{args.input} has no schema_class and {args.agent} accepts more than one input "
+                f"class ({', '.join(accepts)}); pass --input-type"
+            )
+    try:
+        return parse_input(doc)
+    except ValidationError as exc:
+        sys.exit(f"{args.input} is not a valid {doc.get('schema_class')}: {exc}")
+
+
+def cmd_agents(args: argparse.Namespace) -> int:
+    registry = build_registry(Settings.from_env())
+    if args.json:
+        print(
+            json.dumps(
+                {"agents": registry.manifest(), "unavailable": registry.unavailable}, indent=2
+            )
+        )
+        return 0
+    rows = [
+        (
+            m["agent_id"],
+            m["version"],
+            m["grounding_mode"],
+            ", ".join(m["accepts"]),
+            m["payload"] or "—",
+            ", ".join(m["requirement_ids"]),
+        )
+        for m in registry.manifest()
+    ]
+    head = ("agent_id", "version", "mode", "accepts", "payload", "requirements")
+    widths = [max(len(str(r[i])) for r in (head, *rows)) for i in range(len(head))]
+    for r in (head, *rows):
+        print("  ".join(str(c).ljust(w) for c, w in zip(r, widths, strict=True)).rstrip())
+    for name, reason in registry.unavailable.items():
+        print(f"\n[{name}] unavailable: {reason}")
+    return 0
+
+
 def cmd_invoke(args: argparse.Namespace) -> int:
-    profile = DatasetProfile.model_validate(
-        json.loads(Path(args.input).read_text(encoding="utf-8"))
-    )
+    conductor = build_conductor(Settings.from_env())
     request = InvocationRequest(
         agent_id=args.agent,
         policy_bundle_ref=args.profile,
-        input=profile,
+        input=_load_input(args, conductor.registry),
         requirement_ids=args.requirement or [],
     )
-    conductor = build_conductor(Settings.from_env())
     envelope = conductor.invoke(request)
     report = conductor.grounding_reports[request.invocation_id]
     print(json.dumps(envelope.to_document(), indent=2))
@@ -67,9 +119,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="workbench", description="Data Director Workbench")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("invoke", help="run one agent over a dataset profile and print the envelope")
-    p.add_argument("--agent", required=True, help="r3.standards-advisor or stub.abstain")
-    p.add_argument("--input", required=True, help="path to a DatasetProfile JSON document")
+    p = sub.add_parser("agents", help="list the registered agents and what each accepts")
+    p.add_argument("--json", action="store_true", help="print the manifest as JSON")
+    p.set_defaults(func=cmd_agents)
+
+    p = sub.add_parser("invoke", help="run one agent over an input document and print the envelope")
+    p.add_argument("--agent", required=True, help="agent id; see `workbench agents`")
+    p.add_argument("--input", required=True, help="path to an input JSON document")
+    p.add_argument(
+        "--input-type",
+        choices=sorted(INPUT_TYPES),
+        help="input class, if the document has no schema_class and the agent accepts several",
+    )
     p.add_argument("--profile", default="profile:default", help="policy bundle reference")
     p.add_argument(
         "--requirement", action="append", help="requirement id being exercised (repeatable)"

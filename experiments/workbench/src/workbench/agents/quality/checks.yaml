@@ -1,0 +1,29 @@
+# Completeness criteria for a MetadataRecord. Each check names a slot, a weight and the message a
+# reviewer sees when the slot is empty. The score is the weighted share of slots present. Weights
+# are relative and were chosen by hand for the workbench; TODO replace with a community
+# assessment framework (e.g. FAIRsFAIR metrics) when a Validation agent is designed properly.
+checks:
+  - slot: identifier
+    weight: 3
+    missing_severity: error
+    missing: The record has no persistent identifier; it cannot be cited or resolved.
+  - slot: title
+    weight: 2
+    missing_severity: error
+    missing: The record has no title.
+  - slot: description
+    weight: 2
+    missing_severity: warning
+    missing: The record has no description; discovery and reuse depend on one.
+  - slot: licence
+    weight: 3
+    missing_severity: error
+    missing: The record declares no licence, so its reuse conditions are undefined.
+  - slot: creators
+    weight: 2
+    missing_severity: warning
+    missing: The record names no creators.
+  - slot: keywords
+    weight: 1
+    missing_severity: info
+    missing: The record has no keywords.

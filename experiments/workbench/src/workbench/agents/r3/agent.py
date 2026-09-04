@@ -89,6 +89,9 @@ class R3Agent:
     # --- assembly -------------------------------------------------------------------------
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        # TODO: R3 is not yet ported to the generalised interface (see factory.py); until then it
+        # narrows the polymorphic input itself.
+        assert isinstance(request.input, DatasetProfile)
         profile: DatasetProfile = request.input
         queries = ranking.build_queries(profile)
         if not queries:

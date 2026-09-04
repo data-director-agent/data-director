@@ -1,6 +1,13 @@
 {
+  "schema_class": "DatasetProfile",
   "fields": [
-    {"name": "col1", "field_type": "string"},
-    {"name": "col2", "field_type": "number"}
+    {
+      "name": "col1",
+      "field_type": "string"
+    },
+    {
+      "name": "col2",
+      "field_type": "number"
+    }
   ]
 }

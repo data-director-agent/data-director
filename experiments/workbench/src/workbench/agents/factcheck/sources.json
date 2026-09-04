@@ -1,0 +1,26 @@
+[
+  {
+    "source_id": "wb:iso-8601",
+    "uri": "https://www.iso.org/iso-8601-date-and-time-format.html",
+    "title": "ISO 8601 date and time format",
+    "text": "ISO 8601 is an international standard covering the exchange of date and time related data. It specifies the calendar date format YYYY-MM-DD."
+  },
+  {
+    "source_id": "wb:csv-rfc4180",
+    "uri": "https://www.rfc-editor.org/rfc/rfc4180",
+    "title": "RFC 4180: Common Format and MIME Type for CSV Files",
+    "text": "RFC 4180 documents the format used for comma-separated values (CSV) files and registers the MIME type text/csv. CSV is a plain text tabular format."
+  },
+  {
+    "source_id": "wb:doi-handbook",
+    "uri": "https://www.doi.org/the-identifier/resources/handbook",
+    "title": "DOI Handbook",
+    "text": "A digital object identifier (DOI) is a persistent identifier. A DOI is not a URL, although it resolves through one; a DOI does not change when the object moves."
+  },
+  {
+    "source_id": "wb:cc-by-4",
+    "uri": "https://creativecommons.org/licenses/by/4.0/",
+    "title": "Creative Commons Attribution 4.0 International",
+    "text": "The CC BY 4.0 licence permits sharing and adaptation for any purpose, including commercially, provided attribution is given. It does not restrict commercial use."
+  }
+]

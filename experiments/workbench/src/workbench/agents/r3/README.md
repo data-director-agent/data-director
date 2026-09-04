@@ -1,3 +1,7 @@
+> **Status (2026-09-04): not ported.** R3 predates the generalised agent interface (ADR-0007,
+> ADR-0008, ADR-0010) and is registered as unavailable by `factory.py`; its tests are xfailed.
+> The port is a TODO described in `factory.py`. The rest of this document describes R3 as built.
+
 # R3 — standards advisor
 
 Retrieve → rank → explain over FAIRsharing. See the [contract](../../../../schema/data_director.yaml)

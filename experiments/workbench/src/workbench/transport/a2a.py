@@ -29,12 +29,17 @@ PROTOCOL_VERSION = "1.0"
 def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
     skills = [
         AgentSkill(
-            id=agent.agent_id,
-            name=agent.agent_id,
-            description=(agent.__class__.__doc__ or agent.agent_id).strip().splitlines()[0],
-            tags=["data-director", *agent.requirement_ids],
+            id=entry["agent_id"],
+            name=entry["agent_id"],
+            description=entry["description"],
+            tags=[
+                "data-director",
+                f"grounding:{entry['grounding_mode']}",
+                *(f"accepts:{name}" for name in entry["accepts"]),
+                *entry["requirement_ids"],
+            ],
         )
-        for agent in conductor.agents.values()
+        for entry in conductor.registry.manifest()
     ]
     return AgentCard(
         name="Data Director Workbench",

@@ -1,8 +1,18 @@
 # Sample inputs
 
-| File | Purpose |
-|---|---|
-| `soil-chemistry.profile.json` | A `DatasetProfile` hand-derived from `experiments/standards-advisor/samples/soil-chemistry.metadata.json` and that CSV's header, so both experiments describe the same dataset. Exercises the succeeded path, including field-level (ISO 8601) recommendations. |
-| `empty.profile.json` | No title, keywords, themes, media types or temporal fields: nothing to search on. Exercises `abstained(insufficient_input)`. |
+Every sample carries `schema_class`, which names its input class; the shell lists a sample only
+for agents that accept that class, and `workbench invoke` reads it to parse the document.
 
-Invoke with `uv run workbench invoke --agent r3.standards-advisor --input samples/soil-chemistry.profile.json`.
+| File | Class | Purpose |
+|---|---|---|
+| `orda-record.metadata.json` | `MetadataRecord` | A minimal repository record, hand-derived from the soil-chemistry dataset, with no licence. Exercises `quality.reviewer`'s succeeded path with one unmet criterion. |
+| `claim.json` | `Claim` | A statement about DOIs that the packaged sources support. Exercises `fact.checker`'s succeeded path. |
+| `soil-chemistry.profile.json` | `DatasetProfile` | Hand-derived from `experiments/standards-advisor/samples/soil-chemistry.metadata.json` and that CSV's header. R3's succeeded path, including field-level (ISO 8601) recommendations, once R3 is ported. |
+| `empty.profile.json` | `DatasetProfile` | No title, keywords, themes, media types or temporal fields. R3's `abstained(insufficient_input)` path. |
+
+```sh
+uv run workbench agents
+uv run workbench invoke --agent quality.reviewer --input samples/orda-record.metadata.json
+uv run workbench invoke --agent fact.checker    --input samples/claim.json
+uv run workbench invoke --agent quality.reviewer --input samples/claim.json   # failed: input-not-accepted
+```

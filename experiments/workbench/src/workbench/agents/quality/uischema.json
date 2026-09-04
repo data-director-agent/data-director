@@ -1,0 +1,16 @@
+{
+  "ui:order": ["score", "findings", "grounded_on", "schema_class"],
+  "schema_class": { "ui:widget": "hidden" },
+  "score": { "ui:options": { "dd:derivation": "lexical" } },
+  "grounded_on": { "ui:widget": "hidden" },
+  "findings": {
+    "items": {
+      "ui:order": ["criterion", "severity", "message", "derivation", "grounded_on"],
+      "criterion": { "ui:options": { "dd:derivation": "verified" } },
+      "severity": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "lexical" } },
+      "message": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "lexical", "dd:derivation_field": "derivation" } },
+      "derivation": { "ui:widget": "hidden" },
+      "grounded_on": { "ui:widget": "hidden" }
+    }
+  }
+}

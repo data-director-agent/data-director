@@ -54,7 +54,7 @@
 <body>
   <header>
     <h1>Data Director Workbench</h1>
-    <p>Read-only shell. Renders an invocation envelope from the contract's JSON Schema. Every output requires human review.</p>
+    <p>Read-only shell. Renders an invocation envelope from the contract's JSON Schema; the payload section uses the fragment the agent ships. Every output requires human review.</p>
   </header>
   <main>
     <section aria-labelledby="envelope-heading">
@@ -62,8 +62,11 @@
       <div class="toolbar" role="group" aria-label="Choose a run">
         <label for="run-select" class="visually-hidden">Stored run</label>
         <select id="run-select"><option value="">Stored runs…</option></select>
-        <button id="run-r3" type="button">Run R3 on the soil sample</button>
-        <button id="run-stub" type="button">Run the abstaining stub</button>
+        <label for="agent-select" class="visually-hidden">Agent</label>
+        <select id="agent-select"><option value="">Agent…</option></select>
+        <label for="sample-select" class="visually-hidden">Sample input</label>
+        <select id="sample-select"><option value="">Sample…</option></select>
+        <button id="run" type="button" disabled>Run</button>
         <span id="status" class="muted" role="status" aria-live="polite">Loading schema…</span>
       </div>
       <p class="legend">
@@ -76,7 +79,7 @@
     </section>
     <aside aria-labelledby="evidence-heading" class="drawer">
       <h2 id="evidence-heading">Evidence</h2>
-      <p class="muted">Each item is a FAIRsharing record the trace shows was retrieved before any recommendation was made. The hash covers the canonicalised record, not the HTTP body; the grounding linter checks that every cited hash appears in the trace.</p>
+      <p class="muted">Each item is a source record the trace shows was retrieved before the agent decided anything, or, for an input-grounded agent, the input itself. The hash covers the canonicalised record, not the HTTP body; the grounding linter checks that every cited hash appears in the trace.</p>
       <ul id="evidence"></ul>
       <h2>Trace</h2>
       <p id="trace" class="muted"></p>
@@ -134,8 +137,16 @@
     }
 
     // --- Rendering ---------------------------------------------------------------------------
-    let schema, uiSchema;
+    // The base uiSchema covers the envelope; the payload fragment comes from the agent's manifest
+    // entry, so a new payload class renders as soon as its agent ships a fragment. Composed per
+    // render, never merged: a replayed run uses its own agent's fragment.
+    let schema, baseUiSchema, agents = {}, samples = [];
     const root = createRoot($("form"));
+
+    function uiSchemaFor(envelope) {
+      const fragment = agents[envelope.agent_id]?.uischema;
+      return fragment ? { ...baseUiSchema, payload: fragment } : baseUiSchema;
+    }
 
     function render(envelope) {
       const status = envelope.outcome.status;
@@ -144,11 +155,12 @@
       banner.innerHTML = "";
       banner.append(Object.assign(document.createElement("strong"), { textContent: status }));
       banner.append(document.createTextNode(` — ${envelope.outcome.statement}`));
+      banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `grounding mode: ${envelope.grounding_mode}` }));
       if (envelope.outcome.reason_code) banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `reason: ${envelope.outcome.reason_code}` }));
       if (envelope.problem) banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `problem: ${envelope.problem.type} — ${envelope.problem.detail || ""}` }));
 
       root.render(h(Form, {
-        schema, uiSchema, validator, widgets, formData: envelope, readonly: true,
+        schema, uiSchema: uiSchemaFor(envelope), validator, widgets, formData: envelope, readonly: true,
         formContext: { siblingValue: makeSiblingLookup(envelope) },
         onSubmit: () => {}, children: h("span"),
       }));
@@ -178,10 +190,10 @@
       render(events.find((e) => e.type === "RUN_FINISHED").result);
       $("status").textContent = `Showing ${id}`;
     }
-    async function run(agentId) {
-      $("status").textContent = `Running ${agentId}…`;
-      const profile = await (await fetch("/samples/soil-chemistry.profile.json")).json();
-      const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input: profile,
+    async function run(agentId, sampleName) {
+      $("status").textContent = `Running ${agentId} on ${sampleName}…`;
+      const input = await (await fetch(`/samples/${encodeURIComponent(sampleName)}`)).json();
+      const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input,
         invocation_id: crypto.randomUUID().replace(/^(.{14}).(.{4})./, (m, a, b) => `${a}7${b}${["8","9","a","b"][Math.floor(Math.random()*4)]}`),
         issued_at: new Date().toISOString(), requirement_ids: [] };
       const body = { threadId: "shell", runId: crypto.randomUUID(), messages: [], state: {}, tools: [], context: [], forwardedProps: { request } };
@@ -199,16 +211,39 @@
       sel.innerHTML = '<option value="">Stored runs…</option>';
       for (const r of runs) sel.append(new Option(`${r.completed_at.slice(0, 19)} ${r.agent_id} → ${r.status}`, r.invocation_id));
     }
+    // Samples are filtered to the input classes the chosen agent accepts, so the mismatch path
+    // is reachable only deliberately (via the CLI or A2A), not by accident here.
+    function refreshSamples() {
+      const agent = agents[$("agent-select").value];
+      const sel = $("sample-select");
+      sel.innerHTML = '<option value="">Sample…</option>';
+      for (const s of samples) {
+        if (!agent || agent.accepts.includes(s.schema_class)) sel.append(new Option(`${s.name} (${s.schema_class ?? "?"})`, s.name));
+      }
+      refreshRunButton();
+    }
+    function refreshRunButton() {
+      $("run").disabled = !($("agent-select").value && $("sample-select").value);
+    }
 
     async function main() {
-      [schema, uiSchema] = await Promise.all([
+      let manifest;
+      [schema, baseUiSchema, manifest, samples] = await Promise.all([
         fetch("/schema/envelope.schema.json").then((r) => r.json()),
         fetch("/schema/uischema.json").then((r) => r.json()),
+        fetch("/agents").then((r) => r.json()),
+        fetch("/samples").then((r) => r.json()),
       ]);
+      for (const a of manifest.agents) {
+        agents[a.agent_id] = a;
+        $("agent-select").append(new Option(`${a.agent_id} [${a.grounding_mode}]`, a.agent_id));
+      }
+      refreshSamples();
       await loadRuns();
       $("run-select").addEventListener("change", (e) => e.target.value && replay(e.target.value));
-      $("run-r3").addEventListener("click", () => run("r3.standards-advisor"));
-      $("run-stub").addEventListener("click", () => run("stub.abstain"));
+      $("agent-select").addEventListener("change", refreshSamples);
+      $("sample-select").addEventListener("change", refreshRunButton);
+      $("run").addEventListener("click", () => run($("agent-select").value, $("sample-select").value));
       const id = new URLSearchParams(location.search).get("invocation_id");
       if (id) await replay(id); else $("status").textContent = "Choose a stored run or run an agent.";
     }
