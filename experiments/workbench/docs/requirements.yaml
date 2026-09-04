@@ -3,13 +3,29 @@
 # The conformance report (scripts/conformance_report.py) iterates this list. Every identifier a
 # test marks with @pytest.mark.requirement(...) must appear here, and every entry here appears in
 # CONFORMANCE.md whether or not any test substantiates it. A row with no passing test is
-# rendered "unsubstantiated" — that is the intended default, not a gap to hide.
+# rendered "unsubstantiated" — that is the intended default, not a gap to hide. The register
+# therefore lists every functional (R) and non-functional (C) requirement in the Blueprint's §7
+# tables, not only the ones the workbench exercises.
 #
 # source: blueprint  — the identifier and title are the Blueprint's own (docs/BLUEPRINT.md §7).
 # source: project    — a decomposition or obligation this project introduced; the Blueprint does
 #                      not use the identifier. R3.1–R3.6 come from experiments/standards-advisor.
+#
+# Marker honesty: a test may carry an identifier only if it exercises the requirement as the
+# Blueprint states it. A test that checks the *shape* of a slot (the P14 energy slots exist and
+# say not_measured) does not substantiate the requirement (energy footprint captured), and is
+# not marked.
 
 requirements:
+  # --- Blueprint §7.1 functional requirements ---------------------------------------------
+  - id: R1
+    source: blueprint
+    priority: MUST
+    title: Recommend and select repositories meeting funder, journal, institutional and community requirements
+  - id: R2
+    source: blueprint
+    priority: MUST
+    title: Generate FAIR-aligned and discipline-appropriate metadata using controlled vocabularies, ontologies and community standards
   - id: R3
     source: blueprint
     priority: MUST
@@ -38,13 +54,71 @@ requirements:
     source: project
     parent: R3
     title: Explicit abstention where no suitable resource exists
+  - id: R4
+    source: blueprint
+    title: Validate metadata quality and produce standardised records assessed against community best practices
+  - id: R5
+    source: blueprint
+    title: Draft data documentation including READMEs and data dictionaries at publication
+  - id: R6
+    source: blueprint
+    title: Enable interoperable metadata across institutions and Data Director instances
+  - id: R7
+    source: blueprint
+    title: Support assignment of persistent identifiers (PIDs) at point of publication
+  - id: R8
+    source: blueprint
+    title: Verify data sharing at publication against Data Management Plan (DMP) commitments
+  - id: R9
+    source: blueprint
+    title: Retrofit FAIR-aligned metadata for already-published datasets and supplementary materials
   - id: R10
     source: blueprint
-    priority: MUST
     title: Track provenance of AI agent actions on data and metadata
+  - id: R11
+    source: blueprint
+    title: Link datasets to related research outputs including publications, people, grants and software
+  - id: R12
+    source: blueprint
+    title: Discover related datasets relevant to a research project
+
+  # --- Blueprint §7.2 non-functional requirements -----------------------------------------
+  - id: C1
+    source: blueprint
+    title: Security
+  - id: C2
+    source: blueprint
+    title: Privacy
+  - id: C3
+    source: blueprint
+    title: Compliance
+  - id: C4
+    source: blueprint
+    title: Sovereignty
   - id: C5
     source: blueprint
     title: Interoperability — open APIs and established metadata standards
+  - id: C6
+    source: blueprint
+    title: Accessibility
+  - id: C7
+    source: blueprint
+    title: Reliability
+  - id: C8
+    source: blueprint
+    title: Resiliency
+  - id: C9
+    source: blueprint
+    title: Availability
+  - id: C10
+    source: blueprint
+    title: Performance
+  - id: C11
+    source: blueprint
+    title: Scalability
+  - id: C12
+    source: blueprint
+    title: Data Governance
   - id: C13
     source: blueprint
     title: AI Governance — actions logged, attributable to an agent identity, subject to human oversight
@@ -53,10 +127,20 @@ requirements:
     title: Explainability — human-readable explanations for recommendations and decisions
   - id: C15
     source: blueprint
-    title: Data and Metadata Quality — outputs flagged, human review mandatory
+    title: Data and Metadata Quality — quality checks on outputs, human review mandatory
+  - id: C16
+    source: blueprint
+    title: Measurability
+  - id: C17
+    source: blueprint
+    title: Affordability
+
+  # --- Blueprint §6 principles the workbench carries a slot for -----------------------------
   - id: P14
     source: blueprint
     title: Low Impact — energy footprint captured in provenance records
+
+  # --- Project obligations (the contract itself) --------------------------------------------
   - id: DD-OUTCOME
     source: project
     title: Outcome vocabulary (succeeded, abstained, referred, failed, suspended) with reason codes
