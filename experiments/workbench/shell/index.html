@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Data Director Workbench — read-only shell</title>
+  <style>
+    :root {
+      --ink: #1b1f23; --muted: #57606a; --line: #d0d7de; --paper: #ffffff; --ground: #f6f8fa;
+      --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; --info: #0969da; --model: #8250df;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --ink: #e6edf3; --muted: #9da7b3; --line: #30363d; --paper: #0d1117; --ground: #161b22;
+              --ok: #3fb950; --warn: #d29922; --bad: #f85149; --info: #58a6ff; --model: #a371f7; }
+    }
+    html { color-scheme: light dark; }
+    body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--ground); }
+    header { background: var(--paper); border-bottom: 1px solid var(--line); padding: 0.75rem 1.25rem; display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap; }
+    header h1 { font-size: 1.1rem; margin: 0; }
+    header p { margin: 0; color: var(--muted); }
+    main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.25rem; padding: 1.25rem; max-width: 1400px; margin: 0 auto; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    section, aside { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 1rem 1.25rem; min-width: 0; }
+    h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+    .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+    button, select { font: inherit; padding: 0.35rem 0.75rem; border: 1px solid var(--line); border-radius: 6px; background: var(--ground); color: var(--ink); cursor: pointer; }
+    button:focus-visible, select:focus-visible, a:focus-visible, details summary:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+    .banner { padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid var(--line); margin-bottom: 1rem; }
+    .banner[data-status="succeeded"] { border-color: var(--ok); }
+    .banner[data-status="abstained"], .banner[data-status="referred"], .banner[data-status="suspended"] { border-color: var(--warn); }
+    .banner[data-status="failed"] { border-color: var(--bad); }
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid currentColor; margin-left: 0.5rem; vertical-align: middle; }
+    .badge.verified { color: var(--ok); }
+    .badge.model { color: var(--model); }
+    .badge.template, .badge.lexical, .badge.registry { color: var(--info); }
+    .badge.status-succeeded { color: var(--ok); } .badge.status-abstained, .badge.status-referred { color: var(--warn); } .badge.status-failed { color: var(--bad); }
+    .hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; word-break: break-all; }
+    .drawer li { margin-bottom: 0.75rem; }
+    .muted { color: var(--muted); }
+    /* RJSF read-only presentation */
+    form fieldset { border: 0; padding: 0; margin: 0 0 0.5rem; }
+    form legend { font-weight: 600; margin-top: 0.75rem; }
+    form label { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; }
+    form input, form textarea, form select { width: 100%; box-sizing: border-box; font: inherit; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--ground); color: var(--ink); }
+    form textarea { min-height: 4.5rem; }
+    form .array-item { border-left: 3px solid var(--line); padding-left: 0.75rem; margin: 0.5rem 0 1rem; }
+    form button[type="submit"], form .array-item-toolbox, form .btn-add, form .array-item-remove { display: none !important; }
+    form .field-description { color: var(--muted); font-size: 0.8rem; margin: 0; }
+    .legend { font-size: 0.85rem; }
+    .legend span { margin-right: 1rem; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Data Director Workbench</h1>
+    <p>Read-only shell. Renders an invocation envelope from the contract's JSON Schema. Every output requires human review.</p>
+  </header>
+  <main>
+    <section aria-labelledby="envelope-heading">
+      <h2 id="envelope-heading">Envelope</h2>
+      <div class="toolbar" role="group" aria-label="Choose a run">
+        <label for="run-select" class="visually-hidden">Stored run</label>
+        <select id="run-select"><option value="">Stored runs…</option></select>
+        <button id="run-r3" type="button">Run R3 on the soil sample</button>
+        <button id="run-stub" type="button">Run the abstaining stub</button>
+        <span id="status" class="muted" role="status" aria-live="polite">Loading schema…</span>
+      </div>
+      <p class="legend">
+        <span><span class="badge verified">verified</span> set by the harness or read from a registry</span>
+        <span><span class="badge model">AI-derived</span> written by a language model</span>
+        <span><span class="badge template">template / lexical</span> produced by a deterministic rule</span>
+      </p>
+      <div id="banner"></div>
+      <div id="form"></div>
+    </section>
+    <aside aria-labelledby="evidence-heading" class="drawer">
+      <h2 id="evidence-heading">Evidence</h2>
+      <p class="muted">Each item is a FAIRsharing record the trace shows was retrieved before any recommendation was made. The hash covers the canonicalised record, not the HTTP body; the grounding linter checks that every cited hash appears in the trace.</p>
+      <ul id="evidence"></ul>
+      <h2>Trace</h2>
+      <p id="trace" class="muted"></p>
+    </aside>
+  </main>
+
+  <script type="module">
+    import React from "https://esm.sh/react@19";
+    import { createRoot } from "https://esm.sh/react-dom@19/client";
+    import Form from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19,react-dom@19";
+    import validator from "https://esm.sh/@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19";
+
+    const h = React.createElement;
+    const $ = (id) => document.getElementById(id);
+
+    // --- Derivation badge: the uiSchema convention -----------------------------------------
+    // A field declares `ui:options.dd:derivation` ("verified" | "model" | "template" | "lexical" | "registry").
+    // If it also names `dd:derivation_field`, the badge reads the live value of that sibling field
+    // (e.g. rationale_derivation), so a template rationale is badged as template even where a model
+    // would normally have written it. New agents inherit the treatment by declaring their fields.
+    function badgeFor(derivation) {
+      const label = derivation === "model" ? "AI-derived" : derivation;
+      return h("span", { className: `badge ${derivation}`, title: `Derivation: ${derivation}` }, label);
+    }
+    function DerivationBadge(props) {
+      const { value, options = {}, formContext = {}, id } = props;
+      let derivation = options["dd:derivation"] || "verified";
+      const sibling = options["dd:derivation_field"];
+      if (sibling && formContext.siblingValue) {
+        const v = formContext.siblingValue(id, sibling);
+        if (v) derivation = v;
+      }
+      const text = value === true ? "true" : String(value ?? "");
+      const extra = props.name === "status" ? ` status-${text}` : "";
+      return h("div", null,
+        h("span", { className: `badge${extra}` }, text),
+        badgeFor(derivation));
+    }
+    function EvidenceHashes(props) {
+      const hashes = Array.isArray(props.value) ? props.value : [];
+      return h("ul", { className: "hash" }, hashes.map((x) => h("li", { key: x }, x)));
+    }
+    function Hidden() { return null; }
+    const widgets = { derivationBadge: DerivationBadge, evidenceHashes: EvidenceHashes, hidden: Hidden };
+
+    // Resolve a sibling field's value from an RJSF field id like root_payload_items_0_rationale.
+    function makeSiblingLookup(formData) {
+      return (id, siblingName) => {
+        const path = id.replace(/^root_?/, "").split("_").filter(Boolean);
+        path.pop();
+        let node = formData;
+        for (const p of path) { if (node == null) return undefined; node = node[/^\d+$/.test(p) ? Number(p) : p]; }
+        return node ? node[siblingName] : undefined;
+      };
+    }
+
+    // --- Rendering ---------------------------------------------------------------------------
+    let schema, uiSchema;
+    const root = createRoot($("form"));
+
+    function render(envelope) {
+      const status = envelope.outcome.status;
+      const banner = $("banner");
+      banner.className = "banner"; banner.dataset.status = status;
+      banner.innerHTML = "";
+      banner.append(Object.assign(document.createElement("strong"), { textContent: status }));
+      banner.append(document.createTextNode(` — ${envelope.outcome.statement}`));
+      if (envelope.outcome.reason_code) banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `reason: ${envelope.outcome.reason_code}` }));
+      if (envelope.problem) banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `problem: ${envelope.problem.type} — ${envelope.problem.detail || ""}` }));
+
+      root.render(h(Form, {
+        schema, uiSchema, validator, widgets, formData: envelope, readonly: true,
+        formContext: { siblingValue: makeSiblingLookup(envelope) },
+        onSubmit: () => {}, children: h("span"),
+      }));
+
+      const ev = $("evidence"); ev.innerHTML = "";
+      for (const item of envelope.evidence || []) {
+        const li = document.createElement("li");
+        const a = document.createElement("a"); a.href = item.source_uri || "#"; a.textContent = item.source_id; a.target = "_blank"; a.rel = "noopener";
+        li.append(a, document.createElement("br"));
+        li.append(Object.assign(document.createElement("span"), { className: "hash", textContent: `${item.hash_algorithm}:${item.content_hash}` }));
+        li.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `${item.canonicalisation} · ${item.snapshot_ref || ""}` }));
+        ev.append(li);
+      }
+      if (!(envelope.evidence || []).length) ev.append(Object.assign(document.createElement("li"), { className: "muted", textContent: "No evidence: this outcome rests on no retrieved record." }));
+      const t = envelope.telemetry || {};
+      $("trace").textContent = `trace ${t.trace_id || "—"} · model ${t.model_id || "none"} · tokens in/out ${t.input_tokens ?? "—"}/${t.output_tokens ?? "—"} · energy ${t.energy_estimate_j ?? "null"} (${t.energy_method})`;
+      history.replaceState(null, "", `?invocation_id=${envelope.invocation_id}`);
+    }
+
+    function parseSse(text) {
+      return text.split("\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
+    }
+    async function replay(id) {
+      $("status").textContent = `Loading ${id}…`;
+      const r = await fetch(`/agui/runs/${id}`);
+      const events = parseSse(await r.text());
+      render(events.find((e) => e.type === "RUN_FINISHED").result);
+      $("status").textContent = `Showing ${id}`;
+    }
+    async function run(agentId) {
+      $("status").textContent = `Running ${agentId}…`;
+      const profile = await (await fetch("/samples/soil-chemistry.profile.json")).json();
+      const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input: profile,
+        invocation_id: crypto.randomUUID().replace(/^(.{14}).(.{4})./, (m, a, b) => `${a}7${b}${["8","9","a","b"][Math.floor(Math.random()*4)]}`),
+        issued_at: new Date().toISOString(), requirement_ids: [] };
+      const body = { threadId: "shell", runId: crypto.randomUUID(), messages: [], state: {}, tools: [], context: [], forwardedProps: { request } };
+      const r = await fetch("/agui", { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(body) });
+      const events = parseSse(await r.text());
+      const fin = events.find((e) => e.type === "RUN_FINISHED");
+      if (!fin) { $("status").textContent = `Error: ${events.map((e) => e.message).join("; ")}`; return; }
+      render(fin.result);
+      $("status").textContent = `Completed ${fin.result.invocation_id}`;
+      await loadRuns();
+    }
+    async function loadRuns() {
+      const runs = await (await fetch("/runs")).json();
+      const sel = $("run-select");
+      sel.innerHTML = '<option value="">Stored runs…</option>';
+      for (const r of runs) sel.append(new Option(`${r.completed_at.slice(0, 19)} ${r.agent_id} → ${r.status}`, r.invocation_id));
+    }
+
+    async function main() {
+      [schema, uiSchema] = await Promise.all([
+        fetch("/schema/envelope.schema.json").then((r) => r.json()),
+        fetch("/schema/uischema.json").then((r) => r.json()),
+      ]);
+      await loadRuns();
+      $("run-select").addEventListener("change", (e) => e.target.value && replay(e.target.value));
+      $("run-r3").addEventListener("click", () => run("r3.standards-advisor"));
+      $("run-stub").addEventListener("click", () => run("stub.abstain"));
+      const id = new URLSearchParams(location.search).get("invocation_id");
+      if (id) await replay(id); else $("status").textContent = "Choose a stored run or run an agent.";
+    }
+    main().catch((e) => { $("status").textContent = `Error: ${e.message}`; console.error(e); });
+  </script>
+</body>
+</html>
