@@ -57,6 +57,10 @@ requirements:
   - id: R4
     source: blueprint
     title: Validate metadata quality and produce standardised records assessed against community best practices
+  - id: R4.1
+    source: project
+    parent: R4
+    title: Completeness of a metadata record scored against declared criteria, each finding explained
   - id: R5
     source: blueprint
     title: Draft data documentation including READMEs and data dictionaries at publication
@@ -146,7 +150,22 @@ requirements:
     title: Outcome vocabulary (succeeded, abstained, referred, failed, suspended) with reason codes
   - id: DD-GROUNDING
     source: project
-    title: Retrieval precedes any model call and every recommended identifier was retrieved
+    title: Retrieval precedes any model call and every identity a payload asserts was retrieved
+  - id: DD-GROUNDING-MODE
+    source: project
+    title: An agent declares its grounding mode; the conductor records it and the linter applies that mode's rules
+  - id: DD-GROUNDED-PAYLOAD
+    source: project
+    title: Every payload declares what it rests on (grounded_on); a payload the linter cannot ground is a violation, never a pass
+  - id: DD-INPUT-ACCEPTS
+    source: project
+    title: An agent declares the input classes it accepts; a request carrying another is a failed outcome with Problem Details
+  - id: DD-EVIDENCE
+    source: project
+    title: Evidence names a registered canonicalisation and its hash is reproducible from the source
+  - id: DD-REGISTRY
+    source: project
+    title: Agents are discovered from a registry and one manifest describes each to every consumer
   - id: DD-POLICY
     source: project
     title: Institutional profile gates which agents run and which actions need approval

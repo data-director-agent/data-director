@@ -1,4 +1,6 @@
-"""Conductor, policy gate, tracing, evidence and grounding linter, using fakes."""
+"""Conductor, policy gate, input check, tracing, evidence and grounding linter, using scripted
+agents. Nothing here depends on a real agent; see test_quality.py, test_factcheck.py and the
+xfailed test_r3_harness.py for those."""
 
 from __future__ import annotations
 
@@ -8,59 +10,58 @@ from pathlib import Path
 import pytest
 
 from tests import fakes
+from tests.fakes import (
+    SOURCE_A,
+    SOURCE_B,
+    Chat,
+    ScriptedAgent,
+    make_conductor,
+    request,
+)
 from workbench import grounding
 from workbench.agents.abstain import AbstainingStub
-from workbench.agents.r3.agent import R3Agent
-from workbench.agents.r3.explain import TemplateExplainer
-from workbench.conductor import Conductor
 from workbench.contract.models import (
+    Claim,
     DatasetProfile,
-    InvocationRequest,
+    GroundingMode,
+    MetadataRecord,
     OutcomeStatus,
+    QualityReview,
     ReasonCode,
-    RecommendationKind,
-    TableField,
 )
-from workbench.evidence import CANONICALISATION, canonicalise, content_hash
+from workbench.evidence import (
+    CANONICALISATION,
+    INPUT_CANONICALISATION,
+    canonicalise,
+    content_hash,
+    input_hash,
+)
 from workbench.policy import PROFILES_DIR, PolicyError, gate, load_profile
-from workbench.store import RunStore
 from workbench.tracing import records_from_jsonl
-
-SAMPLES = Path(__file__).resolve().parents[1] / "samples"
-
-
-def soil_profile() -> DatasetProfile:
-    return DatasetProfile.model_validate(
-        json.loads((SAMPLES / "soil-chemistry.profile.json").read_text())
-    )
-
-
-def make_conductor(runs_dir: Path, r3: R3Agent | None = None, crate: bool = True) -> Conductor:
-    r3 = r3 or R3Agent(retrieval=fakes.FakeRetrieval(), explainer=TemplateExplainer())
-    return Conductor(
-        agents={r3.agent_id: r3, "stub.abstain": AbstainingStub()},
-        store=RunStore(runs_dir),
-        write_crate=crate,
-    )
-
-
-def request(
-    agent_id: str, profile: DatasetProfile | None = None, bundle: str = "profile:default"
-) -> InvocationRequest:
-    return InvocationRequest(
-        agent_id=agent_id, policy_bundle_ref=bundle, input=profile or soil_profile()
-    )
-
 
 # --- Evidence ---------------------------------------------------------------------------------
 
 
-def test_canonicalisation_is_order_independent_and_projected() -> None:
+@pytest.mark.requirement("DD-EVIDENCE")
+def test_fairsharing_canonicalisation_is_order_independent_and_projected() -> None:
     a = {"fairsharing_id": "X", "name": "n", "subjects": ["b", "a"], "extra": 1}
     b = {"subjects": ["a", "b"], "name": "n", "fairsharing_id": "X", "extra": 2}
     assert canonicalise(a) == canonicalise(b)
     assert content_hash(a) == content_hash(b)
     assert CANONICALISATION == "json-sorted-utf8-v1"
+
+
+@pytest.mark.requirement("DD-EVIDENCE")
+def test_input_hash_is_stable_across_key_order_and_sensitive_to_list_order() -> None:
+    a = {"schema_class": "MetadataRecord", "creators": ["x", "y"], "title": "t"}
+    b = {"title": "t", "creators": ["x", "y"], "schema_class": "MetadataRecord"}
+    assert input_hash(a) == input_hash(b) == content_hash(a, INPUT_CANONICALISATION)
+    assert input_hash(a) != input_hash({**a, "creators": ["y", "x"]})
+
+
+def test_unknown_canonicalisation_is_a_programmer_error() -> None:
+    with pytest.raises(ValueError, match="unknown canonicalisation"):
+        content_hash({}, "nope")
 
 
 # --- Policy -----------------------------------------------------------------------------------
@@ -69,12 +70,12 @@ def test_canonicalisation_is_order_independent_and_projected() -> None:
 @pytest.mark.requirement("DD-POLICY")
 def test_gate_answers_only_two_questions() -> None:
     default = load_profile("profile:default", PROFILES_DIR)
-    assert gate(default, "r3.standards-advisor", "advise").allowed
-    assert not gate(default, "r3.standards-advisor", "advise").requires_approval
-    assert gate(default, "r3.standards-advisor", "deposit").requires_approval
+    assert gate(default, "quality.reviewer", "advise").allowed
+    assert not gate(default, "quality.reviewer", "advise").requires_approval
+    assert gate(default, "quality.reviewer", "deposit").requires_approval
     assert not gate(default, "unknown.agent", "advise").allowed
     restrictive = load_profile("profile:test-restrictive", PROFILES_DIR)
-    assert not gate(restrictive, "r3.standards-advisor", "advise").allowed
+    assert not gate(restrictive, "quality.reviewer", "advise").allowed
     assert gate(restrictive, "stub.abstain", "advise").requires_approval
 
 
@@ -85,17 +86,18 @@ def test_missing_profile_is_a_configuration_error() -> None:
 
 @pytest.mark.requirement("DD-POLICY", "C13")
 def test_disabled_agent_fails_with_problem_details(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, crate=False).invoke(
-        request("r3.standards-advisor", bundle="profile:test-restrictive")
+    agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)
+    env = make_conductor(runs_dir, agent).invoke(
+        request(agent.spec.agent_id, bundle="profile:test-restrictive")
     )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/agent-not-permitted")
-    assert env.payload is None
+    assert env.payload is None and agent.calls == 0
 
 
 @pytest.mark.requirement("DD-POLICY", "DD-OUTCOME", "C13")
 def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, crate=False).invoke(
+    env = make_conductor(runs_dir, AbstainingStub()).invoke(
         request("stub.abstain", bundle="profile:test-restrictive")
     )
     assert env.outcome.status == OutcomeStatus.REFERRED
@@ -103,169 +105,193 @@ def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
     assert env.outcome.referred_to == "data_steward"
 
 
-# --- Stub -------------------------------------------------------------------------------------
+# --- Input check ------------------------------------------------------------------------------
 
 
-@pytest.mark.requirement("DD-OUTCOME", "R3.6")
-def test_stub_abstains_unconditionally(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, crate=False).invoke(request("stub.abstain"))
-    assert env.outcome.status == OutcomeStatus.ABSTAINED
-    assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
-    assert env.requires_human_review is True
+@pytest.mark.requirement("DD-INPUT-ACCEPTS")
+def test_input_of_an_unaccepted_class_is_a_failed_outcome_and_the_agent_is_not_run(
+    runs_dir: Path,
+) -> None:
+    agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)  # accepts MetadataRecord
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")
+    assert env.problem.http_status == 422
+    assert "MetadataRecord" in (env.problem.detail or "") and "Claim" in (env.problem.detail or "")
+    assert agent.calls == 0
+    assert conductor.store.get(env.invocation_id) is not None  # refusals are stored too
 
 
-# --- R3 with fakes ----------------------------------------------------------------------------
-
-
-@pytest.mark.requirement("R3", "R3.1", "R3.2", "R3.3", "R3.4", "C14")
-def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
-    conductor = make_conductor(runs_dir, crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
-    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.payload is not None
-    kinds = {i.kind for i in env.payload.items}
-    assert RecommendationKind.CONTROLLED_VOCABULARY in kinds  # AGROVOC (R3.1)
-    assert RecommendationKind.ONTOLOGY in kinds  # ENVO (R3.2)
-    assert RecommendationKind.DATA_FORMAT in kinds  # CSV (R3.3)
-    field_targets = {
-        i.target for i in env.payload.items if i.kind == RecommendationKind.FIELD_FORMAT
-    }
-    assert field_targets == {
-        "field:collection_date",
-        "field:sampled_at",
-        "field:survey_date_uk",
-    }  # R3.4
-    assert all(i.rationale for i in env.payload.items)  # C14
-    cited = {i.resource.fairsharing_id for i in env.payload.items}
-    assert {e.source_id for e in env.evidence} == cited
-    hashes = {e.content_hash for e in env.evidence}
-    assert all(set(i.evidence_hashes) <= hashes for i in env.payload.items)
-    assert env.payload.searched is not None and env.payload.searched.candidates_retrieved
-    assert conductor.grounding_reports[env.invocation_id].passed
-
-
-@pytest.mark.requirement("R3.5")
-def test_deprecated_records_are_never_recommended_and_no_list_is_hard_coded(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor"))
-    assert env.payload is not None
-    assert "FAIRsharing.test-old" not in {i.resource.fairsharing_id for i in env.payload.items}
-    # Emerging: an in_development record is kept and flagged.
-    emerging = fakes.AGROVOC.model_copy(
-        update={"status": "in_development", "fairsharing_id": "FAIRsharing.test-new"}
-    )
-    r3 = R3Agent(retrieval=fakes.FakeRetrieval([emerging, fakes.CSV]))
-    env2 = make_conductor(runs_dir / "b", r3=r3, crate=False).invoke(
-        request("r3.standards-advisor")
-    )
-    assert env2.payload is not None
-    assert any(i.resource.status == "in_development" for i in env2.payload.items)
-
-
-@pytest.mark.requirement("R3.6", "DD-OUTCOME")
-def test_r3_abstention_reasons_are_distinct(runs_dir: Path) -> None:
-    empty = DatasetProfile.model_validate(json.loads((SAMPLES / "empty.profile.json").read_text()))
-    env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor", empty))
-    assert (env.outcome.status, env.outcome.reason_code) == (
-        OutcomeStatus.ABSTAINED,
-        ReasonCode.INSUFFICIENT_INPUT,
+@pytest.mark.requirement("DD-INPUT-ACCEPTS")
+def test_an_agent_may_accept_several_input_classes(runs_dir: Path) -> None:
+    agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)  # MetadataRecord or Profile
+    conductor = make_conductor(runs_dir, agent)
+    for inp in (fakes.record(), DatasetProfile(title="t")):
+        assert conductor.invoke(request(agent.spec.agent_id, inp)).outcome.status == (
+            OutcomeStatus.SUCCEEDED
+        )
+    assert conductor.invoke(request(agent.spec.agent_id, Claim(text="x"))).outcome.status == (
+        OutcomeStatus.FAILED
     )
 
-    down = R3Agent(retrieval=fakes.FakeRetrieval(unavailable=True))
-    env = make_conductor(runs_dir / "b", r3=down, crate=False).invoke(
-        request("r3.standards-advisor")
-    )
-    assert env.outcome.reason_code == ReasonCode.REGISTRY_UNAVAILABLE
 
-    nothing = R3Agent(retrieval=fakes.FakeRetrieval([]))
-    env = make_conductor(runs_dir / "c", r3=nothing, crate=False).invoke(
-        request("r3.standards-advisor")
-    )
-    assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED
-
-    unrelated = DatasetProfile(
-        title="Mediaeval manuscripts", keywords=["palaeography"], themes=["History"]
-    )
-    env = make_conductor(runs_dir / "d", crate=False).invoke(
-        request("r3.standards-advisor", unrelated)
-    )
-    assert env.outcome.status == OutcomeStatus.ABSTAINED
-    assert env.outcome.reason_code in (
-        ReasonCode.NO_QUALIFYING_RESOURCE,
-        ReasonCode.NO_CANDIDATES_RETRIEVED,
-    )
-    assert "Searched" in env.outcome.statement or "returned nothing" in env.outcome.statement
+@pytest.mark.requirement("DD-OUTCOME")
+def test_stub_accepts_every_input_class_and_abstains(runs_dir: Path) -> None:
+    conductor = make_conductor(runs_dir, AbstainingStub())
+    for inp in (fakes.record(), fakes.claim(), DatasetProfile()):
+        env = conductor.invoke(request("stub.abstain", inp))
+        assert env.outcome.status == OutcomeStatus.ABSTAINED
+        assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
+        assert env.grounding_mode == GroundingMode.NONE
+        assert env.requires_human_review is True
 
 
-# --- Grounding --------------------------------------------------------------------------------
+# --- Agent contract ---------------------------------------------------------------------------
+
+
+def test_agent_exception_becomes_failed_outcome(runs_dir: Path) -> None:
+    agent = ScriptedAgent(GroundingMode.NONE, RuntimeError("boom"))
+    env = make_conductor(runs_dir, agent).invoke(request(agent.spec.agent_id))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/agent-error")
+    assert "boom" in (env.problem.detail or "")
+
+
+def test_payload_of_the_wrong_class_is_a_failed_outcome(runs_dir: Path) -> None:
+    """An agent contradicting its own specification is a programmer error, not a content outcome."""
+    agent = ScriptedAgent(
+        GroundingMode.RETRIEVAL,
+        fakes.fact_check_over(SOURCE_A),
+        steps=[SOURCE_A],
+        payload_type=QualityReview,
+    )
+    env = make_conductor(runs_dir, agent).invoke(request(agent.spec.agent_id, fakes.claim()))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and "declared QualityReview" in (env.problem.detail or "")
+
+
+def test_unknown_agent_is_a_caller_error(runs_dir: Path) -> None:
+    from workbench.conductor import UnknownAgent
+
+    with pytest.raises(UnknownAgent):
+        make_conductor(runs_dir).invoke(request("nope"))
+
+
+# --- Grounding through the conductor ----------------------------------------------------------
+
+
+@pytest.mark.requirement("DD-GROUNDING-MODE", "C13")
+def test_conductor_records_the_declared_mode_on_envelope_and_root_span(runs_dir: Path) -> None:
+    for mode, behaviour, inp in (
+        (GroundingMode.INPUT_ONLY, fakes.review_of_input, fakes.record()),
+        (GroundingMode.NONE, fakes.review_of_input, fakes.record()),
+        (GroundingMode.RETRIEVAL, fakes.fact_check_over(SOURCE_A), fakes.claim()),
+    ):
+        agent = ScriptedAgent(
+            mode, behaviour, steps=[SOURCE_A] if mode.value == "retrieval" else []
+        )
+        conductor = make_conductor(runs_dir / mode.value, agent)
+        env = conductor.invoke(request(agent.spec.agent_id, inp))
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+        assert env.grounding_mode == mode
+        report = conductor.grounding_reports[env.invocation_id]
+        assert report.passed and report.mode == mode.value
+        root = next(r for r in conductor.tracing.finished_records() if r.name == "invoke_agent")
+        assert root.attributes["dd.grounding_mode"] == mode.value
+        assert root.attributes["dd.input_hash"] == input_hash(
+            conductor.store.get_request(env.invocation_id)["input"]  # type: ignore[index]
+        )
+
+
+@pytest.mark.requirement("DD-GROUNDING-MODE")
+def test_input_only_agent_may_call_a_model_without_retrieving(runs_dir: Path) -> None:
+    agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input, steps=[Chat()])
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED
+    assert conductor.grounding_reports[env.invocation_id].chat_count == 1
+
+
+@pytest.mark.requirement("DD-GROUNDING-MODE", "DD-GROUNDING")
+def test_none_agent_that_calls_a_model_is_withheld(runs_dir: Path) -> None:
+    agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input, steps=[Chat()])
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
+    assert env.payload is None and env.evidence == []
+    assert any(
+        v.startswith("N1") for v in conductor.grounding_reports[env.invocation_id].violations
+    )
+
+
+@pytest.mark.requirement("DD-GROUNDING-MODE")
+def test_input_only_agent_that_retrieves_is_withheld(runs_dir: Path) -> None:
+    agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input, steps=[SOURCE_A])
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert any(
+        v.startswith("R1") for v in conductor.grounding_reports[env.invocation_id].violations
+    )
 
 
 @pytest.mark.requirement("DD-GROUNDING", "C13", "R10")
-def test_model_call_after_retrieval_passes_linter_and_records_tokens(runs_dir: Path) -> None:
-    r3 = R3Agent(retrieval=fakes.FakeRetrieval(), explainer=fakes.FakeModelExplainer())
-    conductor = make_conductor(runs_dir, r3=r3, crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+def test_retrieval_agent_passes_when_it_rests_only_on_what_it_retrieved(runs_dir: Path) -> None:
+    agent = ScriptedAgent(
+        GroundingMode.RETRIEVAL,
+        fakes.fact_check_over(SOURCE_A, SOURCE_B),
+        steps=[SOURCE_A, SOURCE_B, Chat()],
+    )
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED
     report = conductor.grounding_reports[env.invocation_id]
-    assert report.passed and report.chat_count == 1 and report.retrieval_count >= 3
-    assert env.telemetry.model_id == "fake-model"
-    assert (env.telemetry.input_tokens, env.telemetry.output_tokens) == (100, 50)
+    assert report.passed and (report.retrieval_count, report.chat_count) == (2, 1)
     assert env.telemetry.trace_id and len(env.telemetry.trace_id) == 32
 
 
-@pytest.mark.requirement("DD-GROUNDING")
-def test_ungrounded_identifier_in_output_is_withheld(runs_dir: Path) -> None:
-    """A recommendation naming something never retrieved must not leave the system."""
-
-    class Smuggler(R3Agent):
-        def run(self, req: InvocationRequest, ctx):
-            result = super().run(req, ctx)
-            assert result.payload is not None
-            item = result.payload.items[0].model_copy(
-                update={
-                    "resource": result.payload.items[0].resource.model_copy(
-                        update={"fairsharing_id": "FAIRsharing.smuggled"}
-                    )
-                }
-            )
-            payload = result.payload.model_copy(update={"items": [item, *result.payload.items[1:]]})
-            return type(result)(outcome=result.outcome, payload=payload, evidence=result.evidence)
-
-    conductor = make_conductor(runs_dir, r3=Smuggler(retrieval=fakes.FakeRetrieval()), crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+@pytest.mark.requirement("DD-GROUNDING", "DD-GROUNDED-PAYLOAD")
+def test_identity_not_retrieved_is_withheld(runs_dir: Path) -> None:
+    """A payload resting on something never retrieved must not leave the system."""
+    agent = ScriptedAgent(
+        GroundingMode.RETRIEVAL, fakes.fact_check_over(SOURCE_A, SOURCE_B), steps=[SOURCE_A]
+    )
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
     assert env.payload is None
-    assert any(
-        v.startswith("G2") for v in conductor.grounding_reports[env.invocation_id].violations
-    )
+    violations = conductor.grounding_reports[env.invocation_id].violations
+    assert any(v.startswith("G2") and "'src:b'" in v for v in violations)
 
 
 @pytest.mark.requirement("DD-GROUNDING")
 def test_chat_before_retrieval_fails_g1(runs_dir: Path) -> None:
-    class EagerAgent(R3Agent):
-        def run(self, req: InvocationRequest, ctx):
-            # A model call before anything was retrieved.
-            fakes.FakeModelExplainer().explain(req.input, [], ctx)
-            return super().run(req, ctx)
-
-    conductor = make_conductor(
-        runs_dir, r3=EagerAgent(retrieval=fakes.FakeRetrieval()), crate=False
+    agent = ScriptedAgent(
+        GroundingMode.RETRIEVAL, fakes.fact_check_over(SOURCE_A), steps=[Chat(), SOURCE_A]
     )
-    env = conductor.invoke(request("r3.standards-advisor"))
-    report = conductor.grounding_reports[env.invocation_id]
-    assert not report.passed and any(v.startswith("G1") for v in report.violations)
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
     assert env.outcome.status == OutcomeStatus.FAILED
+    assert any(
+        v.startswith("G1") for v in conductor.grounding_reports[env.invocation_id].violations
+    )
 
 
+@pytest.mark.requirement("R10")
 def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
-    conductor = make_conductor(runs_dir, crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+    agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input, steps=[Chat()])
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id))
     run_dir = runs_dir / env.invocation_id
     lines = [json.loads(line) for line in (run_dir / "spans.jsonl").read_text().splitlines()]
     report = grounding.lint(
         records_from_jsonl(lines), json.loads((run_dir / "envelope.json").read_text())
     )
-    assert report.passed
-    assert (run_dir / "grounding.txt").read_text().startswith("grounding: passed")
+    assert report.passed and report.mode == "input_only"
+    assert (run_dir / "grounding.txt").read_text().startswith("grounding: passed [input_only]")
 
 
 # --- Store and provenance ---------------------------------------------------------------------
@@ -273,9 +299,10 @@ def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
 
 @pytest.mark.requirement("R10", "C13")
 def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
-    conductor = make_conductor(runs_dir, crate=True)
+    agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
+    conductor = make_conductor(runs_dir, agent, AbstainingStub(), crate=True)
     a = conductor.invoke(request("stub.abstain"))
-    b = conductor.invoke(request("r3.standards-advisor"))
+    b = conductor.invoke(request(agent.spec.agent_id))
     ids = [e["invocation_id"] for e in conductor.store.iter_envelopes()]
     assert ids == sorted(ids) == [a.invocation_id, b.invocation_id]  # UUIDv7 sorts chronologically
     for env in (a, b):
@@ -292,31 +319,12 @@ def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
 
 # Deliberately not marked P14: the slots exist and say not_measured; the footprint is not captured.
 def test_energy_footprint_slots_are_present_but_honestly_not_measured(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, crate=False).invoke(request("stub.abstain"))
+    env = make_conductor(runs_dir, AbstainingStub()).invoke(request("stub.abstain"))
     doc = env.to_document()
     assert doc["telemetry"]["energy_method"] == "not_measured"
     assert doc["telemetry"]["energy_estimate_j"] is None
 
 
-def test_unknown_agent_is_a_caller_error(runs_dir: Path) -> None:
-    from workbench.conductor import UnknownAgent
-
-    with pytest.raises(UnknownAgent):
-        make_conductor(runs_dir, crate=False).invoke(request("nope"))
-
-
-def test_table_field_types_drive_field_format_targets(runs_dir: Path) -> None:
-    profile = DatasetProfile(
-        title="Timings",
-        keywords=["soil"],
-        fields=[
-            TableField(name="when", field_type="datetime"),
-            TableField(name="how_long", field_type="duration"),
-        ],
-    )
-    env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor", profile))
-    assert env.payload is not None
-    assert {i.target for i in env.payload.items if i.kind == RecommendationKind.FIELD_FORMAT} == {
-        "field:when",
-        "field:how_long",
-    }
+def test_scripted_specs_accept_what_their_tests_assume() -> None:
+    assert fakes.SPECS[GroundingMode.INPUT_ONLY].accepts == (MetadataRecord,)
+    assert fakes.SPECS[GroundingMode.RETRIEVAL].accepts == (Claim,)

@@ -13,23 +13,35 @@ import pytest
 
 from workbench.contract import validate
 from workbench.contract.models import (
+    Claim,
     DatasetProfile,
     Derivation,
     Envelope,
     EvidenceItem,
+    FactCheck,
+    Finding,
+    GroundingMode,
+    GroundingRef,
     InvocationRequest,
+    MetadataRecord,
     Outcome,
     OutcomeStatus,
     ProblemDetails,
+    QualityReview,
     ReasonCode,
     Recommendation,
     RecommendationKind,
     Recommendations,
     ResourceRef,
+    Severity,
     Telemetry,
+    Verdict,
+    input_source_id,
     new_invocation_id,
+    parse_input,
     to_document,
 )
+from workbench.evidence import DOCUMENT_CANONICALISATION, INPUT_CANONICALISATION
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -68,12 +80,17 @@ def _telemetry() -> Telemetry:
     return Telemetry(trace_id="0" * 32)
 
 
+INV = new_invocation_id()
+INPUT_HASH = "1" * 64
+
+
 def _envelope(**overrides: object) -> Envelope:
     base: dict[str, object] = {
-        "invocation_id": new_invocation_id(),
+        "invocation_id": INV,
         "agent_id": "stub.abstain",
         "agent_version": "0.1.0",
         "completed_at": datetime.now(UTC),
+        "grounding_mode": GroundingMode.NONE,
         "outcome": Outcome(
             status=OutcomeStatus.ABSTAINED,
             reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
@@ -104,8 +121,31 @@ def test_energy_slots_present_and_not_measured() -> None:
     assert doc["telemetry"]["energy_method"] == "not_measured"
 
 
-def test_succeeded_envelope_with_payload_validates() -> None:
-    payload = Recommendations(
+def _input_ref() -> GroundingRef:
+    return GroundingRef(source_id=input_source_id(INV), content_hash=INPUT_HASH)
+
+
+def _input_evidence() -> EvidenceItem:
+    return EvidenceItem(
+        source_id=input_source_id(INV),
+        canonicalisation=INPUT_CANONICALISATION,
+        content_hash=INPUT_HASH,
+    )
+
+
+def _succeeded(**overrides: object) -> Envelope:
+    return _envelope(
+        outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."), **overrides
+    )
+
+
+@pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
+def test_each_payload_class_validates_with_grounded_on() -> None:
+    ref = GroundingRef(source_id="FAIRsharing.b44s4", content_hash="a" * 64)
+    ev = EvidenceItem(
+        source_id="FAIRsharing.b44s4", canonicalisation="json-sorted-utf8-v1", content_hash="a" * 64
+    )
+    recs = Recommendations(
         items=[
             Recommendation(
                 kind=RecommendationKind.FIELD_FORMAT,
@@ -113,22 +153,114 @@ def test_succeeded_envelope_with_payload_validates() -> None:
                 resource=ResourceRef(fairsharing_id="FAIRsharing.b44s4"),
                 rationale="Dates should be written to ISO 8601.",
                 rationale_derivation=Derivation.TEMPLATE,
-                evidence_hashes=["a" * 64],
-            )
-        ]
-    )
-    env = _envelope(
-        outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="One recommendation."),
-        payload=payload,
-        evidence=[
-            EvidenceItem(
-                source_id="FAIRsharing.b44s4",
-                canonicalisation="json-sorted-utf8-v1",
-                content_hash="a" * 64,
+                grounded_on=[ref],
             )
         ],
+        grounded_on=[ref],
     )
-    validate.validate_envelope(env.to_document())
+    validate.validate_envelope(
+        _succeeded(
+            grounding_mode=GroundingMode.RETRIEVAL, payload=recs, evidence=[ev]
+        ).to_document()
+    )
+    check = FactCheck(
+        verdict=Verdict.SUPPORTED,
+        rationale="r",
+        rationale_derivation=Derivation.TEMPLATE,
+        grounded_on=[ref],
+    )
+    validate.validate_envelope(
+        _succeeded(
+            grounding_mode=GroundingMode.RETRIEVAL, payload=check, evidence=[ev]
+        ).to_document()
+    )
+    review = QualityReview(
+        score=0.5,
+        findings=[
+            Finding(
+                criterion="licence_present",
+                severity=Severity.ERROR,
+                message="No licence.",
+                derivation=Derivation.LEXICAL,
+                grounded_on=[_input_ref()],
+            )
+        ],
+        grounded_on=[_input_ref()],
+    )
+    doc = _succeeded(
+        grounding_mode=GroundingMode.INPUT_ONLY, payload=review, evidence=[_input_evidence()]
+    ).to_document()
+    validate.validate_envelope(doc)
+    assert doc["payload"]["schema_class"] == "QualityReview"
+
+
+@pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
+def test_payload_without_grounded_on_or_schema_class_is_rejected() -> None:
+    doc = _succeeded(
+        grounding_mode=GroundingMode.INPUT_ONLY,
+        payload=QualityReview(grounded_on=[_input_ref()]),
+        evidence=[_input_evidence()],
+    ).to_document()
+    del doc["payload"]["grounded_on"]
+    with pytest.raises(validate.ContractViolation, match="grounded_on"):
+        validate.validate_envelope(doc)
+    doc = _succeeded(
+        grounding_mode=GroundingMode.INPUT_ONLY,
+        payload=QualityReview(grounded_on=[_input_ref()]),
+        evidence=[_input_evidence()],
+    ).to_document()
+    del doc["payload"]["schema_class"]
+    with pytest.raises(validate.ContractViolation, match="schema_class"):
+        validate.validate_envelope(doc)
+
+
+@pytest.mark.requirement("DD-GROUNDING-MODE")
+def test_envelope_requires_a_grounding_mode() -> None:
+    doc = _envelope().to_document()
+    del doc["grounding_mode"]
+    with pytest.raises(validate.ContractViolation, match="grounding_mode"):
+        validate.validate_envelope(doc)
+
+
+@pytest.mark.requirement("DD-GROUNDING-MODE")
+def test_input_grounded_success_must_cite_only_the_input() -> None:
+    payload = QualityReview(grounded_on=[_input_ref()])
+    with pytest.raises(validate.ContractViolation, match="citing the input"):
+        validate.validate_envelope(
+            _succeeded(grounding_mode=GroundingMode.INPUT_ONLY, payload=payload).to_document()
+        )
+    foreign = EvidenceItem(
+        source_id="S", canonicalisation=DOCUMENT_CANONICALISATION, content_hash="b" * 64
+    )
+    with pytest.raises(validate.ContractViolation, match="no evidence other than the input"):
+        validate.validate_envelope(
+            _succeeded(
+                grounding_mode=GroundingMode.NONE,
+                payload=payload,
+                evidence=[_input_evidence(), foreign],
+            ).to_document()
+        )
+
+
+@pytest.mark.requirement("DD-GROUNDING-MODE")
+def test_retrieval_success_requires_non_empty_grounded_on() -> None:
+    with pytest.raises(validate.ContractViolation, match="non-empty grounded_on"):
+        validate.validate_envelope(
+            _succeeded(
+                grounding_mode=GroundingMode.RETRIEVAL, payload=QualityReview()
+            ).to_document()
+        )
+
+
+@pytest.mark.requirement("DD-EVIDENCE")
+def test_unknown_canonicalisation_is_rejected() -> None:
+    env = _envelope(
+        evidence=[
+            EvidenceItem(source_id="S", canonicalisation="md5-of-vibes", content_hash="a" * 64)
+        ]
+    )
+    with pytest.raises(validate.ContractViolation, match="unknown canonicalisation"):
+        validate.validate_envelope(env.to_document())
 
 
 def test_succeeded_without_payload_is_rejected() -> None:
@@ -184,6 +316,37 @@ def test_request_validates_and_rejects_bad_id() -> None:
     doc["invocation_id"] = "not-a-uuid"
     with pytest.raises(validate.ContractViolation):
         validate.validate_request(doc)
+
+
+@pytest.mark.requirement("DD-INPUT-ACCEPTS")
+def test_every_input_class_validates_and_is_discriminated_by_schema_class() -> None:
+    for inp in (
+        DatasetProfile(title="t"),
+        MetadataRecord(identifier="doi:10.1/x", licence="CC-BY-4.0"),
+        Claim(text="A DOI does not change."),
+    ):
+        req = InvocationRequest(
+            agent_id="stub.abstain", policy_bundle_ref="profile:default", input=inp
+        )
+        doc = to_document(req)
+        validate.validate_request(doc)
+        assert doc["input"]["schema_class"] == type(inp).__name__
+        assert type(parse_input(doc["input"])) is type(inp)
+
+
+@pytest.mark.requirement("DD-INPUT-ACCEPTS")
+def test_input_without_schema_class_is_rejected() -> None:
+    """`{}` must not silently parse as a DatasetProfile (every slot of which is optional)."""
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        parse_input({})
+    req = to_document(
+        InvocationRequest(agent_id="a", policy_bundle_ref="profile:default", input=Claim(text="x"))
+    )
+    del req["input"]["schema_class"]
+    with pytest.raises(validate.ContractViolation):
+        validate.validate_request(req)
 
 
 def test_linkml_source_is_valid_yaml_for_the_generator() -> None:
