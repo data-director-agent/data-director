@@ -8,6 +8,8 @@ A reference implementation of the RDA [Data Director Agentic AI Blueprint](https
 
 - Prototype work belongs in `experiments/<name>/`, which is explicitly non-authoritative — see
   `experiments/README.md`. Promoting anything out of `experiments/` requires an RFC.
+- `workbench/` is the development environment for building and testing sub-agents against one
+  contract and harness — see `workbench/CLAUDE.md`.
 - `docs/BLUEPRINT.md` is the Blueprint reproduced verbatim (RDA, CC BY 4.0). It is **~540KB — never
   read it whole; grep for the requirement or section you need.** Requirements are cited by ID (`R3`,
   `R3.1`, …) throughout the repo. Treat it as read-only external material, not project prose to

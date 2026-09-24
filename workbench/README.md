@@ -1,7 +1,9 @@
 # Data Director Workbench
 
-**Status:** experiment. Not the reference implementation; promotion out of `experiments/` is an
-RFC decision under [GOVERNANCE.md](../../GOVERNANCE.md).
+**Status:** development environment. It is where sub-agents are built and tested, not the
+reference implementation itself; changes to its contract and formats follow the ADR process in
+[`docs/adr/`](docs/adr/) and, where they affect the project as a whole,
+[GOVERNANCE.md](../GOVERNANCE.md).
 
 A test-bed for developing Data Director sub-agents against one contract and one harness. An
 agent declares what it reads, what it returns and how it grounds its output; the harness holds it

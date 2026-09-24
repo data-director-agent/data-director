@@ -16,6 +16,7 @@ welcomes issues, discussion, and pull requests.
 This repository is organised as follow:
 
 * `docs/` contains documentation
+* `workbench/` contains the development environment for building and testing sub-agents
 * `experiments/` contains prototype work
 
 ## Developer Certificate of Origin (DCO)
