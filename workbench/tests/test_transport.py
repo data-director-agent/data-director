@@ -158,3 +158,9 @@ def test_manifest_samples_and_schema_are_served(runs_dir: Path) -> None:
     assert status == 200 and "payload" not in ui and "grounding_mode" in ui
     status, _ = _get(app, "/schema/envelope.schema.json")
     assert status == 200
+
+
+def test_favicon_is_served(runs_dir: Path) -> None:
+    _, app = _app(runs_dir)
+    status, _ = _get(app, "/favicon.ico")
+    assert status == 200

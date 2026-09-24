@@ -78,6 +78,9 @@ def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> 
     async def index(request: Request) -> Response:
         return FileResponse(SHELL_DIR / "index.html")
 
+    async def favicon(request: Request) -> Response:
+        return FileResponse(SHELL_DIR / "favicon.ico")
+
     return Starlette(
         routes=[
             *routes,
@@ -89,6 +92,7 @@ def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> 
             Route("/samples", samples, methods=["GET"]),
             Route("/samples/{name}", sample, methods=["GET"]),
             Route("/", index, methods=["GET"]),
+            Route("/favicon.ico", favicon, methods=["GET"]),
             Mount("/schema", StaticFiles(directory=SCHEMA_DIR), name="schema"),
             Mount("/shell", StaticFiles(directory=SHELL_DIR, html=True), name="shell"),
         ]
