@@ -9,6 +9,7 @@ actually came about, so a template fallback is not badged as AI-derived.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,7 @@ from workbench.agents.base import AgentSpec
 from workbench.agents.factcheck.agent import FactChecker
 from workbench.agents.hello.agent import HelloWorld
 from workbench.agents.quality.agent import QualityReviewer
-from workbench.contract.models import Derivation
+from workbench.contract.models import Derivation, GroundingMode, OutcomeStatus
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = json.loads((ROOT / "shell" / "uischema.json").read_text(encoding="utf-8"))
@@ -91,7 +92,33 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in INDEX
     assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in INDEX
     assert 'lang="en-GB"' in INDEX and 'role="status"' in INDEX
+    assert '<label for="agent-select">' in INDEX
     # Driven by the manifest and the samples listing; no agent or sample is named.
     assert 'fetch("/agents")' in INDEX and 'fetch("/samples")' in INDEX
     for name in ("r3.standards-advisor", "stub.abstain", "soil-chemistry", "FAIRsharing"):
         assert name not in INDEX, name
+
+
+def test_every_outcome_status_has_a_colour_rule() -> None:
+    for status in OutcomeStatus:
+        assert f'[data-status="{status.value}"]' in INDEX, status
+
+
+def _glossary_keys() -> set[str]:
+    block = INDEX.split("// --- Glossary: BEGIN", 1)[1].split("// --- Glossary: END", 1)[0]
+    return set(re.findall(r'^\s*"([^"]+)": \{ term: ', block, re.MULTILINE))
+
+
+def test_glossary_explains_every_contract_value_the_page_shows() -> None:
+    keys = _glossary_keys()
+    assert "envelope" in keys
+    expected = {f"status:{s.value}" for s in OutcomeStatus}
+    expected |= {f"mode:{m.value}" for m in GroundingMode}
+    expected |= {f"derivation:{d.value}" for d in Derivation} | {"derivation:verified"}
+    assert expected <= keys, sorted(expected - keys)
+
+
+def test_every_help_placeholder_names_a_glossary_entry() -> None:
+    placeholders = set(re.findall(r'data-help="([^"]+)"', INDEX))
+    assert placeholders, "the markup carries no help placeholders"
+    assert placeholders <= _glossary_keys(), sorted(placeholders - _glossary_keys())

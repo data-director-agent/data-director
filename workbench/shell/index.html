@@ -3,88 +3,241 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Data Director Workbench — read-only shell</title>
+  <title>Data Director Workbench</title>
   <style>
     :root {
-      --ink: #1b1f23; --muted: #57606a; --line: #d0d7de; --paper: #ffffff; --ground: #f6f8fa;
-      --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; --info: #0969da; --model: #8250df;
+      --ink: #1b1f23; --muted: #57606a; --faint: #8c959f; --line: #d0d7de; --paper: #ffffff; --ground: #f6f8fa; --hover: #eaeef2;
+      --ok: #1a7f37; --ok-bg: #dafbe1; --warn: #9a6700; --warn-bg: #fff8c5; --bad: #cf222e; --bad-bg: #ffebe9;
+      --info: #0969da; --info-bg: #ddf4ff; --model: #8250df; --model-bg: #fbefff;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     @media (prefers-color-scheme: dark) {
-      :root { --ink: #e6edf3; --muted: #9da7b3; --line: #30363d; --paper: #0d1117; --ground: #161b22;
-              --ok: #3fb950; --warn: #d29922; --bad: #f85149; --info: #58a6ff; --model: #a371f7; }
+      :root { --ink: #e6edf3; --muted: #9da7b3; --faint: #6e7681; --line: #30363d; --paper: #0d1117; --ground: #161b22; --hover: #1f2630;
+              --ok: #3fb950; --ok-bg: #12261e; --warn: #d29922; --warn-bg: #272115; --bad: #f85149; --bad-bg: #2d1517;
+              --info: #58a6ff; --info-bg: #121d2f; --model: #bc8cff; --model-bg: #231a33; }
     }
     html { color-scheme: light dark; }
-    body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--ground); }
-    header { background: var(--paper); border-bottom: 1px solid var(--line); padding: 0.75rem 1.25rem; display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap; }
-    header h1 { font-size: 1.1rem; margin: 0; }
-    header p { margin: 0; color: var(--muted); }
-    main { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.25rem; padding: 1.25rem; max-width: 1400px; margin: 0 auto; }
-    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-    section, aside { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 1rem 1.25rem; min-width: 0; }
-    h2 { font-size: 1rem; margin: 0 0 0.75rem; }
-    .toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
-    button, select { font: inherit; padding: 0.35rem 0.75rem; border: 1px solid var(--line); border-radius: 6px; background: var(--ground); color: var(--ink); cursor: pointer; }
-    button:focus-visible, select:focus-visible, a:focus-visible, details summary:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
-    .banner { padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid var(--line); margin-bottom: 1rem; }
-    .banner[data-status="succeeded"] { border-color: var(--ok); }
-    .banner[data-status="abstained"], .banner[data-status="referred"], .banner[data-status="suspended"] { border-color: var(--warn); }
-    .banner[data-status="failed"] { border-color: var(--bad); }
-    .badge { display: inline-block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid currentColor; margin-left: 0.5rem; vertical-align: middle; }
-    .badge.verified { color: var(--ok); }
-    .badge.model { color: var(--model); }
-    .badge.template, .badge.lexical, .badge.registry { color: var(--info); }
-    .badge.status-succeeded { color: var(--ok); } .badge.status-abstained, .badge.status-referred { color: var(--warn); } .badge.status-failed { color: var(--bad); }
-    .hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; word-break: break-all; }
-    .drawer li { margin-bottom: 0.75rem; }
-    .muted { color: var(--muted); }
-    /* RJSF read-only presentation */
-    form fieldset { border: 0; padding: 0; margin: 0 0 0.5rem; }
-    form legend { font-weight: 600; margin-top: 0.75rem; }
-    form label { display: block; color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; }
-    form input, form textarea, form select { width: 100%; box-sizing: border-box; font: inherit; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--ground); color: var(--ink); }
-    form textarea { min-height: 4.5rem; }
-    form .array-item { border-left: 3px solid var(--line); padding-left: 0.75rem; margin: 0.5rem 0 1rem; }
-    form button[type="submit"], form .array-item-toolbox, form .btn-add, form .array-item-remove { display: none !important; }
-    form .field-description { color: var(--muted); font-size: 0.8rem; margin: 0; }
-    .legend { font-size: 0.85rem; }
-    .legend span { margin-right: 1rem; }
-    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--ground); }
+    code, .mono { font-family: var(--mono); font-size: 0.85em; }
+    a { color: var(--info); }
+    header.top { background: var(--paper); border-bottom: 1px solid var(--line); padding: 0.6rem 1.25rem; display: flex; gap: 0.75rem; align-items: baseline; flex-wrap: wrap; }
+    header.top h1 { font-size: 1rem; margin: 0; }
+    header.top p { margin: 0; color: var(--muted); font-size: 0.85rem; flex: 1 1 20rem; }
+    .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 1rem; padding: 1rem; max-width: 1500px; margin: 0 auto; align-items: start; }
+    .layout > * { min-width: 0; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .history { max-height: 12rem; } }
+    .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 0.75rem 1rem; min-width: 0; }
+    .panel + .panel { margin-top: 1rem; }
+    h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 0.5rem; }
+    h3 { font-size: 0.9rem; margin: 0 0 0.5rem; }
+    button, select { font: inherit; padding: 0.3rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; background: var(--ground); color: var(--ink); cursor: pointer; }
+    button:hover:not(:disabled), select:hover { background: var(--hover); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    :focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+    button.primary, button.primary:hover:not(:disabled) { background: var(--ok); border-color: var(--ok); color: #fff; font-weight: 600; width: 100%; padding: 0.45rem; }
+    button.primary:hover:not(:disabled) { filter: brightness(1.1); }
+    button.small { font-size: 0.75rem; padding: 0.05rem 0.4rem; }
+    .muted { color: var(--muted); } .faint { color: var(--faint); }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+    /* Agent picker */
+    #agent-select { font-family: var(--mono); font-size: 0.85rem; }
+    .agent-detail { border: 1px solid var(--line); border-radius: 6px; background: var(--ground); padding: 0.45rem 0.6rem; margin: -0.25rem 0 0.75rem; }
+    .agent-detail[data-unavailable] { border-color: var(--warn); background: var(--warn-bg); }
+    .agent-detail .desc { font-size: 0.8rem; color: var(--muted); margin: 0 0 0.15rem; }
+    .agent-detail .meta { font-size: 0.72rem; color: var(--faint); display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center; }
+    .field-row { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.75rem; }
+    .field-row label { font-size: 0.8rem; color: var(--muted); }
+    .field-row select { width: 100%; }
+    kbd { font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--line); border-radius: 3px; padding: 0 0.25rem; }
+
+    /* History */
+    .history { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; }
+    .history button { width: 100%; text-align: left; border: 0; border-radius: 4px; background: none; padding: 0.3rem 0.4rem; display: grid; grid-template-columns: auto 1fr auto; gap: 0.4rem; align-items: center; font-size: 0.8rem; }
+    .history button[aria-current="true"] { background: var(--info-bg); }
+    .history .id { font-family: var(--mono); font-size: 0.72rem; color: var(--faint); white-space: nowrap; }
+    .history .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Chips, pills, badges */
+    .chip { display: inline-block; font-family: var(--mono); font-size: 0.72rem; padding: 0 0.4rem; border: 1px solid var(--line); border-radius: 4px; background: var(--ground); color: var(--muted); white-space: nowrap; }
+    .chip:empty { display: none; }
+    .pill { display: inline-block; font-weight: 600; font-size: 0.8rem; padding: 0.05rem 0.6rem; border-radius: 999px; border: 1px solid currentColor; }
+    .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; background: currentColor; }
+    [data-status="succeeded"] { color: var(--ok); }
+    [data-status="abstained"], [data-status="referred"], [data-status="suspended"] { color: var(--warn); }
+    [data-status="failed"] { color: var(--bad); }
+    .pill[data-status="succeeded"] { background: var(--ok-bg); }
+    .pill[data-status="abstained"], .pill[data-status="referred"], .pill[data-status="suspended"] { background: var(--warn-bg); }
+    .pill[data-status="failed"] { background: var(--bad-bg); }
+    .value-enum { font-family: var(--mono); font-size: 0.8rem; padding: 0 0.4rem; border-radius: 4px; background: var(--ground); border: 1px solid var(--line); }
+    .value-enum[data-value="error"], .value-enum[data-value="refuted"] { color: var(--bad); border-color: var(--bad); background: var(--bad-bg); }
+    .value-enum[data-value="warning"], .value-enum[data-value="insufficient_evidence"] { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+    .value-enum[data-value="supported"] { color: var(--ok); border-color: var(--ok); background: var(--ok-bg); }
+    .badge { display: inline-block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.03em; padding: 0 0.4rem; border-radius: 999px; margin-left: 0.4rem; vertical-align: 0.1em; white-space: nowrap; }
+    .badge.model { color: var(--model); background: var(--model-bg); border: 1px solid var(--model); }
+    .badge.template, .badge.lexical, .badge.registry { color: var(--info); background: var(--info-bg); border: 1px solid var(--info); }
+
+    /* Run view */
+    .empty { padding: 3rem 1rem; text-align: center; color: var(--muted); }
+    .summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+    .summary .statement { flex-basis: 100%; font-size: 1rem; margin: 0.25rem 0 0; }
+    .summary .kv { font-size: 0.8rem; color: var(--muted); display: inline-flex; gap: 0.3rem; align-items: center; }
+    .problem { margin-top: 0.75rem; border: 1px solid var(--bad); background: var(--bad-bg); border-radius: 6px; padding: 0.5rem 0.75rem; }
+    .problem dl { margin: 0; }
+    .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); margin: 1rem 0 0; position: sticky; top: 0; background: var(--ground); z-index: 1; padding-top: 0.25rem; }
+    .tabs button { border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0; background: none; margin-bottom: -1px; color: var(--muted); }
+    .tabs button[aria-selected="true"] { background: var(--paper); border-color: var(--line); color: var(--ink); font-weight: 600; }
+    .tabpanel { margin-top: 1rem; }
+    .io { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 1rem; }
+    @media (max-width: 1100px) { .io { grid-template-columns: 1fr; } }
+    .io .panel + .panel { margin-top: 0; }
+    .panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .panel-head h2 { margin: 0; }
+    dl.kvs { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.2rem 0.9rem; margin: 0; }
+    dl.kvs dt { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+    dl.kvs dd { margin: 0; overflow-wrap: anywhere; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-family: var(--mono); font-weight: 600; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+    .table-scroll { overflow-x: auto; }
+    .hash { font-family: var(--mono); font-size: 0.75rem; }
+    pre.json { margin: 0; font-family: var(--mono); font-size: 0.8rem; overflow: auto; max-height: 75vh; white-space: pre; }
+    .legend { font-size: 0.75rem; color: var(--muted); margin: 0.5rem 0 0; }
+
+    /* RJSF payload: rendered as a read-only document, not a form */
+    .payload .rjsf-field { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.9rem; padding: 0.2rem 0; }
+    .payload .rjsf-field > .label { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); min-width: 8rem; }
+    .payload .rjsf-field.block { display: block; }
+    .payload .rjsf-field.block > .label { display: block; margin: 0.5rem 0 0.25rem; }
+    .payload .rjsf-root > .rjsf-field { border-bottom: 1px dashed var(--line); }
+    .payload .rows { display: grid; border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+    .payload .row { display: contents; }
+    .payload .row > * { padding: 0.35rem 0.6rem; border-top: 1px solid var(--line); }
+    .payload .row.head > * { border-top: 0; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); background: var(--ground); font-weight: 600; }
+    .payload .row .rjsf-field { display: block; padding: 0; }
+    .payload .row .rjsf-field > .label { display: none; }
+    .payload .nested { border-left: 3px solid var(--line); padding-left: 0.75rem; }
+    .null { color: var(--faint); font-style: italic; }
+
+    /* Built-in help: a "?" button beside a term opens a tip; the Glossary dialog lists them all */
+    .help-wrap { display: inline-flex; vertical-align: 0.05em; }
+    button.help { width: 1.05rem; height: 1.05rem; padding: 0; border-radius: 50%; font-size: 0.68rem; font-weight: 700; line-height: 1; font-family: system-ui, sans-serif; color: var(--muted); background: var(--paper); border-color: var(--faint); display: inline-grid; place-items: center; margin-left: 0.25rem; }
+    button.help[aria-expanded="true"] { color: var(--info); border-color: var(--info); background: var(--info-bg); }
+    .tip { position: fixed; inset: auto; margin: 0; max-width: min(22rem, calc(100vw - 16px)); padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); box-shadow: 0 4px 14px rgb(0 0 0 / 0.18); font: 0.8rem/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: left; text-transform: none; letter-spacing: normal; white-space: normal; }
+    .tip > strong { display: block; font-family: var(--mono); font-size: 0.78rem; margin-bottom: 0.15rem; }
+    .tip > span { display: block; }
+    .tip > span + strong { margin-top: 0.4rem; }
+    .head-row, .label-row { display: flex; align-items: center; gap: 0.1rem; }
+    .head-row { margin-bottom: 0.5rem; }
+    .panel-head .head-row { margin-bottom: 0; }
+    .head-row h2 { margin: 0; }
+    header.top #open-glossary { margin-left: auto; align-self: center; }
+    dialog.glossary { max-width: min(46rem, calc(100vw - 32px)); max-height: 85vh; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
+    dialog.glossary::backdrop { background: rgb(0 0 0 / 0.4); }
+    dialog.glossary .dialog-head { position: sticky; top: 0; background: var(--paper); display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); }
+    dialog.glossary .dialog-head h2 { margin: 0; }
+    dialog.glossary .intro { margin: 0.75rem 1rem 0; color: var(--muted); font-size: 0.85rem; }
+    dialog.glossary dl { margin: 0; padding: 0.5rem 1rem 1rem; }
+    dialog.glossary dt { font-family: var(--mono); font-size: 0.82rem; font-weight: 600; margin-top: 0.6rem; }
+    dialog.glossary dd { margin: 0.1rem 0 0; font-size: 0.85rem; color: var(--muted); }
+    .empty .guide { display: inline-block; text-align: left; max-width: 36rem; }
+    .empty ol { margin: 0.5rem 0; padding-left: 1.25rem; }
+    .empty li + li { margin-top: 0.25rem; }
   </style>
 </head>
 <body>
-  <header>
+  <header class="top">
     <h1>Data Director Workbench</h1>
-    <p>Read-only shell. Renders an invocation envelope from the contract's JSON Schema; the payload section uses the fragment the agent ships. Every output requires human review.</p>
+    <p>Developer shell: run a registered agent on a sample input and inspect the envelope<span data-help="envelope"></span> it returns. Read-only. Every output requires human review<span data-help="human-review"></span>.</p>
+    <button type="button" id="open-glossary" class="small" aria-haspopup="dialog">Glossary</button>
   </header>
-  <main>
-    <section aria-labelledby="envelope-heading">
-      <h2 id="envelope-heading">Envelope</h2>
-      <div class="toolbar" role="group" aria-label="Choose a run">
-        <label for="run-select" class="visually-hidden">Stored run</label>
-        <select id="run-select"><option value="">Stored runs…</option></select>
-        <label for="agent-select" class="visually-hidden">Agent</label>
-        <select id="agent-select"><option value="">Agent…</option></select>
-        <label for="sample-select" class="visually-hidden">Sample input</label>
-        <select id="sample-select"><option value="">Sample…</option></select>
-        <button id="run" type="button" disabled>Run</button>
-        <span id="status" class="muted" role="status" aria-live="polite">Loading schema…</span>
+  <dialog class="glossary" id="glossary" aria-labelledby="glossary-heading">
+    <div class="dialog-head"><h2 id="glossary-heading">Glossary</h2><form method="dialog"><button class="small" type="submit">Close</button></form></div>
+    <p class="intro">The terms this page uses, from the workbench contract (<code>schema/data_director.yaml</code>). The same text appears behind each <kbd>?</kbd> button.</p>
+    <dl id="glossary-list"></dl>
+  </dialog>
+  <div class="layout">
+    <nav aria-label="Run controls">
+      <section class="panel" aria-labelledby="run-heading">
+        <h2 id="run-heading">New run</h2>
+        <div class="field-row">
+          <span class="label-row"><label for="agent-select">Agent</label><span data-help="agent"></span></span>
+          <select id="agent-select" aria-describedby="agent-detail"></select>
+        </div>
+        <div class="agent-detail" id="agent-detail" hidden></div>
+        <div class="field-row">
+          <span class="label-row"><label for="sample-select">Sample input</label><span data-help="sample"></span></span>
+          <select id="sample-select"><option value="">Choose an agent first</option></select>
+        </div>
+        <button id="run" class="primary" type="button" disabled>Run</button>
+        <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs · <span id="status" role="status" aria-live="polite">Loading…</span></p>
+      </section>
+      <section class="panel" aria-labelledby="history-heading">
+        <div class="head-row"><h2 id="history-heading">Stored runs</h2><span data-help="stored-runs"></span></div>
+        <ul class="history" id="history"></ul>
+      </section>
+    </nav>
+    <main id="view" aria-label="Run">
+      <div class="panel empty" id="empty">
+        <div class="guide">
+          <h3>Getting started</h3>
+          <ol>
+            <li>Choose an <strong>agent</strong>. The card beneath it says what the agent does and which inputs it accepts.</li>
+            <li>Choose a <strong>sample input</strong>. Only samples the agent accepts are listed.</li>
+            <li>Press <strong>Run</strong>, or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
+          </ol>
+          <p>Or open an earlier run from <strong>Stored runs</strong>. Each run returns one envelope: an outcome, the agent's payload if it succeeded, the evidence the payload rests on, and telemetry. Press <kbd>?</kbd> beside a term for an explanation, or open the <strong>Glossary</strong>.</p>
+        </div>
       </div>
-      <p class="legend">
-        <span><span class="badge verified">verified</span> set by the harness or read from a registry</span>
-        <span><span class="badge model">AI-derived</span> written by a language model</span>
-        <span><span class="badge template">template / lexical</span> produced by a deterministic rule</span>
-      </p>
-      <div id="banner"></div>
-      <div id="form"></div>
-    </section>
-    <aside aria-labelledby="evidence-heading" class="drawer">
-      <h2 id="evidence-heading">Evidence</h2>
-      <p class="muted">Each item is a source record the trace shows was retrieved before the agent decided anything, or, for an input-grounded agent, the input itself. The hash covers the canonicalised record, not the HTTP body; the grounding linter checks that every cited hash appears in the trace.</p>
-      <ul id="evidence"></ul>
-      <h2>Trace</h2>
-      <p id="trace" class="muted"></p>
-    </aside>
-  </main>
+      <div id="result" hidden>
+        <section class="panel" aria-labelledby="summary-heading">
+          <h2 id="summary-heading" class="visually-hidden">Outcome</h2>
+          <div class="summary" id="summary"></div>
+          <div id="problem"></div>
+        </section>
+        <div class="tabs" role="tablist" aria-label="Views">
+          <button role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true">Overview</button>
+          <button role="tab" id="tab-envelope" aria-controls="panel-envelope" aria-selected="false" tabindex="-1">Envelope JSON</button>
+          <button role="tab" id="tab-input" aria-controls="panel-input" aria-selected="false" tabindex="-1">Input JSON</button>
+        </div>
+        <div class="tabpanel" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
+          <div class="io">
+            <section class="panel" aria-labelledby="input-heading">
+              <div class="panel-head"><div class="head-row"><h2 id="input-heading">Input</h2><span data-help="input"></span></div><span class="chip" id="input-class"></span></div>
+              <div id="input"></div>
+            </section>
+            <section class="panel payload" aria-labelledby="payload-heading">
+              <div class="panel-head"><div class="head-row"><h2 id="payload-heading">Payload</h2><span data-help="payload"></span></div><span class="chip" id="payload-class"></span></div>
+              <div id="form"></div>
+              <p class="legend">Badges show how a field's value came about<span data-help="derivation"></span>:
+                <span class="badge model">model</span><span data-help="derivation:model"></span>
+                <span class="badge template">template</span><span data-help="derivation:template"></span>
+                <span class="badge lexical">lexical</span><span data-help="derivation:lexical"></span>
+                <span class="badge registry">registry</span><span data-help="derivation:registry"></span>.
+                Unbadged fields are verified<span data-help="derivation:verified"></span>.</p>
+            </section>
+          </div>
+          <section class="panel" aria-labelledby="evidence-heading">
+            <div class="panel-head"><div class="head-row"><h2 id="evidence-heading">Evidence</h2><span data-help="evidence"></span></div></div>
+            <div id="evidence" class="table-scroll"></div>
+          </section>
+          <section class="panel" aria-labelledby="telemetry-heading">
+            <div class="head-row"><h2 id="telemetry-heading">Telemetry</h2><span data-help="telemetry"></span></div>
+            <dl class="kvs" id="telemetry"></dl>
+          </section>
+        </div>
+        <div class="tabpanel panel" role="tabpanel" id="panel-envelope" aria-labelledby="tab-envelope" hidden>
+          <div class="panel-head"><div class="head-row"><h2>Envelope</h2><span data-help="envelope"></span></div><span><button class="small" id="copy-envelope" type="button">Copy</button> <a id="download-envelope" download>Download</a></span></div>
+          <pre class="json" id="envelope-json" tabindex="0"></pre>
+        </div>
+        <div class="tabpanel panel" role="tabpanel" id="panel-input" aria-labelledby="tab-input" hidden>
+          <div class="panel-head"><h2>Input</h2><button class="small" id="copy-input" type="button">Copy</button></div>
+          <pre class="json" id="input-json" tabindex="0"></pre>
+        </div>
+      </div>
+    </main>
+  </div>
 
   <script type="module">
     import React from "https://esm.sh/react@19";
@@ -94,158 +247,546 @@
 
     const h = React.createElement;
     const $ = (id) => document.getElementById(id);
+    const el = (tag, props = {}, ...children) => {
+      const node = Object.assign(document.createElement(tag), props);
+      for (const c of children) if (c != null) node.append(c);
+      return node;
+    };
+    const isEmpty = (v) => v === null || v === undefined || v === "";
+
+    // --- Glossary: BEGIN --------------------------------------------------------------------
+    // The one source of the page's explanatory text: the "?" tips and the Glossary dialog both read
+    // it. Definitions follow schema/data_director.yaml; keep them in step when the contract changes.
+    // A key "status:<value>", "mode:<value>" or "derivation:<value>" explains one enum value.
+    const GLOSSARY = {
+      "envelope": { term: "envelope", text: "The single JSON document a run returns: the outcome, the payload if the agent succeeded, the evidence it rests on, telemetry, and identifiers and timestamps. The conductor, not the agent, fills everything the agent did not decide, so an agent cannot mislabel its own run. One request produces exactly one envelope." },
+      "conductor": { term: "conductor", text: "The harness component that invokes an agent. It applies the policy gate and the input check, calls the agent, fills identifiers, timestamps, telemetry and grounding mode, and runs the grounding linter over the result." },
+      "linter": { term: "grounding linter", text: "Checks every envelope against the rules of the agent's grounding mode before it is stored. A violation turns succeeded into failed." },
+      "agent": { term: "agent", text: "A registered component that takes one input document and returns an outcome, with a payload if it succeeded. The list comes from the registry manifest (GET /agents), grouped by the prefix of each agent's id." },
+      "sample": { term: "sample input", text: "An example input document shipped with the workbench. Only samples whose schema_class the chosen agent accepts are listed." },
+      "stored-runs": { term: "stored runs", text: "Envelopes kept in the workbench's append-only JSONL store, newest first. Select one to load it again; its input is not stored, only the input's hash." },
+      "input": { term: "input", text: "The document the agent was given. It is shown only for runs started from this browser tab: the envelope records a hash of the input, not the input itself." },
+      "payload": { term: "payload", text: "The agent's answer, present only when the outcome is succeeded. Its shape is set by its payload class, shown as the schema_class beside the heading; every payload records what it rests on in grounded_on." },
+      "schema_class": { term: "schema_class", text: "The name of the schema class a document conforms to. The conductor uses it to check an agent accepts its input; the shell uses it to find the schema that renders a payload." },
+      "evidence": { term: "evidence", text: "One row per thing the run retrieved or rested on, including the input itself: where it came from, when, and a hash of its canonicalised content. A reader can re-hash a record to verify that what the payload cites is what was retrieved." },
+      "telemetry": { term: "telemetry", text: "Run measurements filled by the conductor: the OpenTelemetry trace, the model called and its token counts, and slots for energy use, which are null and not_measured for now." },
+      "problem": { term: "problem", text: "RFC 9457 Problem Details, present when the outcome is failed or suspended: a problem type URI, a title, a detail and an HTTP status. For suspended it also says when, or on what condition, the run may resume." },
+      "requirement": { term: "requirement id", text: "A requirement the agent declares it addresses: a Blueprint requirement (R3, R3.1, …) or a project one, as listed in docs/requirements.yaml. The conformance report traces each to the tests that substantiate it." },
+      "accepts": { term: "accepts", text: "The input classes (schema_class values) this agent accepts. An input of any other class fails with input-not-accepted." },
+      "unavailable": { term: "unavailable agent", text: "An agent that is registered but could not be built, for example one awaiting a port. It is listed so its reason can be read; it cannot be run." },
+      "human-review": { term: "requires_human_review", text: "Always true. Every workbench output needs a person to review it before it is acted on. It is emitted as a constant so no consumer can produce an envelope claiming otherwise." },
+      "status": { term: "outcome status", text: "What the run came to: succeeded, abstained, referred, failed or suspended. Abstaining is an honest answer, not an error." },
+      "status:succeeded": { term: "succeeded", text: "The agent produced a payload it stands behind, and the payload passed the grounding linter." },
+      "status:abstained": { term: "abstained", text: "The agent declined to recommend; reason_code says why. An equal output to succeeded, not an error." },
+      "status:referred": { term: "referred", text: "The agent hands the decision to the human role named in referred_to; reason_code says why." },
+      "status:failed": { term: "failed", text: "The agent or the harness could not complete, or the payload broke a grounding rule. The problem block carries RFC 9457 details." },
+      "status:suspended": { term: "suspended", text: "The run awaits an external condition; the problem block carries the condition for resuming." },
+      "reason_code": { term: "reason_code", text: "Why the agent abstained or referred, from a fixed vocabulary such as no_candidates_retrieved, registry_unavailable, insufficient_input or requires_human_judgement. Required for those two statuses." },
+      "referred_to": { term: "referred_to", text: "The human role a referred outcome hands the decision to, for example data_steward." },
+      "agent_version": { term: "agent_id@agent_version", text: "Which agent ran, and which version of it." },
+      "grounding_mode": { term: "grounding_mode", text: "The grounding contract the agent declares: what its output may rest on. The conductor records it from the agent's specification, never from the agent's output, and the grounding linter applies that mode's rules." },
+      "mode:retrieval": { term: "retrieval", text: "The agent retrieves external records before any model call, and every identity it asserts was retrieved (linter rules G1–G4)." },
+      "mode:input_only": { term: "input_only", text: "The agent works only over the input it was given. No retrieval may appear; a model may be called; every grounding reference is the input's hash (linter rules R1–R3)." },
+      "mode:none": { term: "none", text: "The agent is deterministic over its input: no retrieval and no model call (linter rules R1–R3 and N1)." },
+      "completed_at": { term: "completed_at", text: "When the conductor finished the run, shown in local time. Hover over the time for the full timestamp." },
+      "invocation_id": { term: "invocation_id", text: "The run's identifier: a UUIDv7, time-ordered so the append-only store sorts without an index. Add ?invocation_id=… to this page's address to reload the run." },
+      "derivation": { term: "derivation", text: "How a payload field's value came about. Each agent declares it per field in its uischema fragment. Where a model may write a field, the badge reads a sibling field recording what actually happened, so a template fallback is not badged as model output." },
+      "derivation:model": { term: "model", text: "Written by a language model. Check it against the evidence before relying on it." },
+      "derivation:template": { term: "template", text: "Produced deterministically from retrieved fields by a fixed template." },
+      "derivation:lexical": { term: "lexical", text: "Produced by a keyword rule over retrieved fields." },
+      "derivation:registry": { term: "registry", text: "Read directly from a curated registry field." },
+      "derivation:verified": { term: "verified", text: "The unbadged default: set by the harness or read from a registry, not generated." },
+      "source_id": { term: "source_id", text: "What was retrieved: a registry record identifier, or input:<invocation_id> for the input document itself." },
+      "cited": { term: "cited", text: "The row's content_hash appears in the payload's grounded_on, so the payload rests on it. A visual cross-check only; the grounding linter is what enforces it." },
+      "grounded_on": { term: "grounded_on", text: "The list in a payload, and in any item that asserts an identity, naming what it rests on: each entry a source_id and a content_hash. The only place a payload may assert an external identity." },
+      "retrieved_at": { term: "retrieved_at", text: "When the record was retrieved." },
+      "canonicalisation": { term: "canonicalisation", text: "The registered rule that projects a record to bytes before hashing, for example dd-input-json-v1 for the input document. A name's bytes never change, so a hash stays reproducible." },
+      "snapshot_ref": { term: "snapshot_ref", text: "Which copy of the registry answered, for example snapshot:2026-09-04 or live. Blank where no registry was involved." },
+      "content_hash": { term: "content_hash", text: "The hash of the canonicalised record, prefixed by its algorithm (sha256). Canonicalise the record under the same rule and hash it again to check it." },
+      "trace_id": { term: "trace_id", text: "The OpenTelemetry trace identifier for the run (32 hex characters). Look it up in a trace viewer to see the run's spans." },
+      "model_id": { term: "model_id", text: "The language model the agent called, or null if it called none." },
+      "tokens": { term: "tokens in / out", text: "Tokens sent to and received from the model; blank if no model was called." },
+      "energy_estimate_j": { term: "energy_estimate_j", text: "Estimated energy use of the run, in joules. Not yet measured, so null." },
+      "energy_method": { term: "energy_method", text: "How the energy figure was obtained: not_measured, estimated or measured." },
+    };
+    // --- Glossary: END ----------------------------------------------------------------------
+
+    // --- Help tips --------------------------------------------------------------------------
+    // A "?" button opens a popover="manual" tip: click pins it, hover shows it while the pointer is
+    // on the button or the tip, Escape or a click elsewhere closes it (WCAG 1.4.13). Positioned by
+    // script so it does not depend on CSS anchor positioning.
+    let tipSeq = 0, openTip = null;
+    function closeTip() {
+      const t = openTip; openTip = null;
+      try { t?.tip.hidePopover(); } catch {}
+    }
+    function wireTip(button, tip) {
+      const state = { button, tip, pinned: false, timer: 0 };
+      state.place = () => {
+        const b = button.getBoundingClientRect(), r = tip.getBoundingClientRect(), gap = 6, pad = 8;
+        const left = Math.min(Math.max(pad, b.left + b.width / 2 - r.width / 2), innerWidth - r.width - pad);
+        const fitsBelow = b.bottom + gap + r.height <= innerHeight - pad;
+        tip.style.left = `${Math.max(pad, left)}px`;
+        tip.style.top = `${fitsBelow ? b.bottom + gap : Math.max(pad, b.top - gap - r.height)}px`;
+      };
+      const show = (pin) => {
+        clearTimeout(state.timer);
+        if (openTip && openTip !== state) closeTip();
+        state.pinned ||= pin;
+        if (!tip.matches(":popover-open")) tip.showPopover();
+        state.place();
+        openTip = state;
+      };
+      const hideSoon = () => {
+        clearTimeout(state.timer);
+        if (!state.pinned) state.timer = setTimeout(() => { if (openTip === state) closeTip(); }, 200);
+      };
+      button.setAttribute("aria-expanded", "false");
+      tip.addEventListener("toggle", (e) => {
+        const open = e.newState === "open";
+        button.setAttribute("aria-expanded", String(open));
+        if (!open) { state.pinned = false; if (openTip === state) openTip = null; }
+      });
+      button.addEventListener("click", () => (state.pinned && openTip === state ? closeTip() : show(true)));
+      button.addEventListener("mouseenter", () => { clearTimeout(state.timer); state.timer = setTimeout(() => show(false), 250); });
+      button.addEventListener("mouseleave", hideSoon);
+      tip.addEventListener("mouseenter", () => clearTimeout(state.timer));
+      tip.addEventListener("mouseleave", hideSoon);
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && openTip) { const b = openTip.button; closeTip(); b.focus(); e.preventDefault(); }
+    });
+    document.addEventListener("pointerdown", (e) => {
+      if (openTip && !openTip.tip.contains(e.target) && !openTip.button.contains(e.target)) closeTip();
+    });
+    addEventListener("resize", () => openTip?.place());
+    addEventListener("scroll", () => openTip?.place(), { capture: true, passive: true });
+
+    // help("key") or help(["key", "key:value"]): a tip holding one or more glossary entries.
+    function help(keys) {
+      const entries = [].concat(keys).map((k) => GLOSSARY[k]).filter(Boolean);
+      return entries.length ? helpTip(entries) : null;
+    }
+    function helpTip(entries) {
+      const id = `tip-${++tipSeq}`;
+      const tip = el("span", { id, className: "tip" },
+        ...entries.flatMap((e) => [el("strong", { textContent: e.term }), el("span", { textContent: e.text })]));
+      tip.popover = "manual";
+      const button = el("button", { type: "button", className: "help", textContent: "?" });
+      button.setAttribute("aria-label", `About ${entries[0].term}`);
+      button.setAttribute("aria-describedby", id);
+      button.setAttribute("aria-controls", id);
+      wireTip(button, tip);
+      return el("span", { className: "help-wrap" }, button, tip);
+    }
+    // The same tip for RJSF, where the text is the payload schema's own field description.
+    function HelpTip({ term, text }) {
+      const button = React.useRef(null), tip = React.useRef(null), id = React.useId();
+      React.useEffect(() => wireTip(button.current, tip.current), []);
+      return h("span", { className: "help-wrap" },
+        h("button", { ref: button, type: "button", className: "help", "aria-label": `About ${term}`, "aria-describedby": id, "aria-controls": id }, "?"),
+        h("span", { ref: tip, id, className: "tip", popover: "manual" }, h("strong", null, term), h("span", null, text)));
+    }
+    for (const node of document.querySelectorAll("[data-help]")) node.replaceWith(help(node.dataset.help) ?? "");
+    // In the dialog an enum value is qualified by its vocabulary, so "none" and "model" read unambiguously.
+    const VOCABULARY = { status: "outcome status", mode: "grounding mode", derivation: "derivation" };
+    $("glossary-list").append(...Object.entries(GLOSSARY)
+      .map(([key, e]) => ({ ...e, term: key.includes(":") ? `${e.term} (${VOCABULARY[key.split(":")[0]]})` : e.term }))
+      .toSorted((a, b) => a.term.localeCompare(b.term, "en-GB"))
+      .flatMap((e) => [el("dt", { textContent: e.term }), el("dd", { textContent: e.text })]));
+    $("open-glossary").addEventListener("click", () => { closeTip(); $("glossary").showModal(); });
+    $("glossary").addEventListener("click", (e) => { if (e.target === $("glossary")) $("glossary").close(); });
 
     // --- Derivation badge: the uiSchema convention -----------------------------------------
     // A field declares `ui:options.dd:derivation` ("verified" | "model" | "template" | "lexical" | "registry").
     // If it also names `dd:derivation_field`, the badge reads the live value of that sibling field
     // (e.g. rationale_derivation), so a template rationale is badged as template even where a model
     // would normally have written it. New agents inherit the treatment by declaring their fields.
+    // `verified` is the unmarked default: only fields something other than the harness wrote are badged.
     function badgeFor(derivation) {
-      const label = derivation === "model" ? "AI-derived" : derivation;
-      return h("span", { className: `badge ${derivation}`, title: `Derivation: ${derivation}` }, label);
+      if (!derivation || derivation === "verified") return null;
+      return h("span", { className: `badge ${derivation}`, title: `dd:derivation = ${derivation}` }, derivation);
+    }
+    function valueNode(value, schema = {}) {
+      if (isEmpty(value)) return h("span", { className: "null" }, "null");
+      if (typeof value === "boolean") return h("code", null, String(value));
+      if (schema.enum || schema.$ref) return h("span", { className: "value-enum", "data-value": String(value) }, String(value));
+      return h("span", null, String(value));
     }
     function DerivationBadge(props) {
-      const { value, options = {}, formContext = {}, id } = props;
+      const { value, options = {}, id, schema } = props;
+      const formContext = props.registry?.formContext || props.formContext || {};
       let derivation = options["dd:derivation"] || "verified";
       const sibling = options["dd:derivation_field"];
       if (sibling && formContext.siblingValue) {
         const v = formContext.siblingValue(id, sibling);
         if (v) derivation = v;
       }
-      const text = value === true ? "true" : String(value ?? "");
-      const extra = props.name === "status" ? ` status-${text}` : "";
-      return h("div", null,
-        h("span", { className: `badge${extra}` }, text),
-        badgeFor(derivation));
+      return h("span", null, valueNode(value, schema), badgeFor(derivation));
     }
-    function EvidenceHashes(props) {
-      const hashes = Array.isArray(props.value) ? props.value : [];
-      return h("ul", { className: "hash" }, hashes.map((x) => h("li", { key: x }, x)));
-    }
+    function PlainValue(props) { return valueNode(props.value, props.schema); }
     function Hidden() { return null; }
-    const widgets = { derivationBadge: DerivationBadge, evidenceHashes: EvidenceHashes, hidden: Hidden };
+    const widgets = {
+      derivationBadge: DerivationBadge, hidden: Hidden,
+      TextWidget: PlainValue, TextareaWidget: PlainValue, SelectWidget: PlainValue, CheckboxWidget: PlainValue,
+    };
 
-    // Resolve a sibling field's value from an RJSF field id like root_payload_items_0_rationale.
+    // Resolve the object holding a field from an RJSF id like root_findings_0_message. Property
+    // names contain underscores, so match the longest key that exists at each level.
     function makeSiblingLookup(formData) {
       return (id, siblingName) => {
-        const path = id.replace(/^root_?/, "").split("_").filter(Boolean);
-        path.pop();
-        let node = formData;
-        for (const p of path) { if (node == null) return undefined; node = node[/^\d+$/.test(p) ? Number(p) : p]; }
-        return node ? node[siblingName] : undefined;
+        const tokens = id.replace(/^root_?/, "").split("_").filter(Boolean);
+        function walk(node, i) {
+          if (i === tokens.length) return null;
+          for (let j = tokens.length; j > i; j--) {
+            const key = tokens.slice(i, j).join("_");
+            const k = Array.isArray(node) && /^\d+$/.test(key) ? Number(key) : key;
+            if (node != null && typeof node === "object" && k in node) {
+              if (j === tokens.length) return node;
+              const found = walk(node[k], j);
+              if (found) return found;
+            }
+          }
+          return null;
+        }
+        return walk(formData, 0)?.[siblingName];
       };
     }
 
-    // --- Rendering ---------------------------------------------------------------------------
-    // The base uiSchema covers the envelope; the payload fragment comes from the agent's manifest
-    // entry, so a new payload class renders as soon as its agent ships a fragment. Composed per
-    // render, never merged: a replayed run uses its own agent's fragment.
-    let schema, baseUiSchema, agents = {}, samples = [];
+    // --- RJSF templates: read-only document presentation -----------------------------------
+    // Direct properties of an array item render as cells under a header row, so their labels are
+    // dropped; everything else is a label/value pair.
+    const inArrayItem = (fieldPathId) => {
+      const p = fieldPathId?.path || [];
+      return p.length >= 2 && typeof p[p.length - 2] === "number";
+    };
+    // A payload field's help is its own schema description, so an agent documents its payload by
+    // describing its LinkML slots, and the shell names no agent.
+    const describe = (term, text) => (text ? h(HelpTip, { term, text }) : null);
+    function FieldTemplate(props) {
+      const { hidden, label, children, schema, fieldPathId, uiSchema = {}, rawDescription } = props;
+      if (hidden || uiSchema["ui:widget"] === "hidden") return null;
+      const path = fieldPathId?.path || [];
+      if (path.length === 0 || typeof path[path.length - 1] === "number") return children;
+      const container = schema.type === "object" || schema.type === "array" || (Array.isArray(schema.type) && (schema.type.includes("array") || schema.type.includes("object")));
+      const name = uiSchema["ui:title"] || path[path.length - 1] || label;
+      return h("div", { className: `rjsf-field${container ? " block" : ""}` },
+        inArrayItem(fieldPathId) ? null : h("div", { className: "label" }, name, describe(name, schema.description || rawDescription)),
+        h("div", { className: "value" }, children));
+    }
+    function visibleProps(itemSchema, itemUi = {}) {
+      const props = Object.keys(itemSchema?.properties || {}).filter((k) => itemUi[k]?.["ui:widget"] !== "hidden");
+      const order = itemUi["ui:order"] || [];
+      return props.sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999));
+    }
+    // The container owns the column grid; rows are `display: contents`, so cells align across rows.
+    const gridFor = (n) => ({ gridTemplateColumns: `repeat(${n}, minmax(6rem, auto))` });
+    function ArrayFieldTemplate(props) {
+      const { items, schema, uiSchema = {}, registry, formData } = props;
+      if (!items.length) return h("span", { className: "null" }, Array.isArray(formData) ? "[] (empty)" : "null");
+      const itemSchema = registry.schemaUtils.retrieveSchema(schema.items || {});
+      if (itemSchema.type !== "object") return h("div", null, items);
+      const cols = visibleProps(itemSchema, uiSchema.items);
+      return h("div", { className: "rows", role: "table", style: gridFor(cols.length) },
+        h("div", { className: "row head", role: "row" },
+          cols.map((c) => {
+            const name = uiSchema.items?.[c]?.["ui:title"] || c;
+            return h("span", { key: c, role: "columnheader" }, name, describe(name, itemSchema.properties[c]?.description));
+          })),
+        items);
+    }
+    function ArrayFieldItemTemplate(props) { return props.children; }
+    function ObjectFieldTemplate(props) {
+      const { properties, fieldPathId, uiSchema = {} } = props;
+      const path = fieldPathId?.path || [];
+      const shown = properties.filter((p) => !p.hidden && uiSchema[p.name]?.["ui:widget"] !== "hidden");
+      if (typeof path[path.length - 1] === "number") {
+        return h("div", { className: "row", role: "row" },
+          shown.map((p) => h("div", { key: p.name, role: "cell" }, p.content)));
+      }
+      return h("div", { className: path.length === 0 ? "rjsf-root" : "nested" }, shown.map((p) => p.content));
+    }
+    function BaseInputTemplate(props) { return valueNode(props.value, props.schema); }
+    const templates = { FieldTemplate, ArrayFieldTemplate, ArrayFieldItemTemplate, ObjectFieldTemplate, BaseInputTemplate };
+
+    // --- State ------------------------------------------------------------------------------
+    // The payload fragment comes from the agent's manifest entry, so a new payload class renders
+    // as soon as its agent ships a fragment. A replayed run uses its own agent's fragment.
+    let schema, agents = {}, unavailable = {}, samples = [], current = null;
+    const inputs = new Map(); // invocation_id → input sent from this browser tab
+    try { for (const [k, v] of Object.entries(JSON.parse(sessionStorage.getItem("dd-inputs") || "{}"))) inputs.set(k, v); } catch {}
+    const rememberInput = (id, input) => {
+      inputs.set(id, input);
+      try { sessionStorage.setItem("dd-inputs", JSON.stringify(Object.fromEntries(inputs))); } catch {}
+    };
     const root = createRoot($("form"));
 
-    function uiSchemaFor(envelope) {
-      const fragment = agents[envelope.agent_id]?.uischema;
-      return fragment ? { ...baseUiSchema, payload: fragment } : baseUiSchema;
+    function payloadSchema(payload) {
+      const def = payload && schema.$defs?.[payload.schema_class];
+      return def ? { ...def, $defs: schema.$defs } : null;
+    }
+    function copyButton(text, label = "Copy") {
+      const b = el("button", { type: "button", className: "small", textContent: label, title: `Copy ${text}` });
+      b.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch { b.textContent = "Failed"; }
+        setTimeout(() => (b.textContent = label), 1200);
+      });
+      return b;
+    }
+    const fmtTime = (iso) => {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString("en-GB") : d.toLocaleString("en-GB");
+    };
+    const shortId = (id) => id.slice(-8);
+    function kv(key, value, extra, helpKeys = key) {
+      return el("span", { className: "kv" }, el("code", { textContent: key }), help(helpKeys), value, extra);
+    }
+    function collectCited(node, out = new Set()) {
+      if (Array.isArray(node)) node.forEach((n) => collectCited(n, out));
+      else if (node && typeof node === "object") {
+        if (Array.isArray(node.grounded_on)) for (const g of node.grounded_on) out.add(g.content_hash);
+        Object.values(node).forEach((v) => collectCited(v, out));
+      }
+      return out;
+    }
+    function kvList(obj) {
+      const dl = el("dl", { className: "kvs" });
+      for (const [k, v] of Object.entries(obj)) {
+        if (k === "schema_class") continue;
+        const text = isEmpty(v) ? el("span", { className: "null", textContent: "null" }) : (typeof v === "object" ? el("code", { textContent: JSON.stringify(v) }) : String(v));
+        dl.append(el("dt", { textContent: k }), el("dd", {}, text));
+      }
+      return dl;
     }
 
+    // --- Rendering --------------------------------------------------------------------------
     function render(envelope) {
-      const status = envelope.outcome.status;
-      const banner = $("banner");
-      banner.className = "banner"; banner.dataset.status = status;
-      banner.innerHTML = "";
-      banner.append(Object.assign(document.createElement("strong"), { textContent: status }));
-      banner.append(document.createTextNode(` — ${envelope.outcome.statement}`));
-      banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `grounding mode: ${envelope.grounding_mode}` }));
-      if (envelope.outcome.reason_code) banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `reason: ${envelope.outcome.reason_code}` }));
-      if (envelope.problem) banner.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `problem: ${envelope.problem.type} — ${envelope.problem.detail || ""}` }));
+      current = envelope;
+      closeTip();
+      $("empty").hidden = true; $("result").hidden = false;
+      const o = envelope.outcome;
 
-      root.render(h(Form, {
-        schema, uiSchema: uiSchemaFor(envelope), validator, widgets, formData: envelope, readonly: true,
-        formContext: { siblingValue: makeSiblingLookup(envelope) },
+      const s = $("summary"); s.replaceChildren();
+      s.append(el("span", { className: "pill", textContent: o.status }));
+      s.lastChild.dataset.status = o.status;
+      s.append(help(["status", `status:${o.status}`]) ?? "");
+      if (o.reason_code) s.append(kv("reason_code", el("code", { textContent: o.reason_code })));
+      if (o.referred_to) s.append(kv("referred_to", el("code", { textContent: o.referred_to })));
+      s.append(kv("agent", el("code", { textContent: `${envelope.agent_id}@${envelope.agent_version}` }), null, "agent_version"));
+      s.append(kv("grounding_mode", el("span", { className: "chip", textContent: envelope.grounding_mode }), null, ["grounding_mode", `mode:${envelope.grounding_mode}`]));
+      s.append(kv("completed_at", el("span", { textContent: fmtTime(envelope.completed_at), title: envelope.completed_at })));
+      s.append(kv("invocation_id", el("code", { textContent: envelope.invocation_id }), copyButton(envelope.invocation_id)));
+      if (envelope.requires_human_review) s.append(kv("requires_human_review", el("code", { textContent: "true" }), null, "human-review"));
+      s.append(el("p", { className: "statement", textContent: o.statement }));
+      const p = $("problem"); p.replaceChildren();
+      if (envelope.problem) p.append(el("div", { className: "problem", role: "alert" }, el("h3", {}, "Problem", help("problem")), kvList(envelope.problem)));
+
+      // Input: known only for runs started from this tab; the envelope stores its hash, not the input.
+      const input = inputs.get(envelope.invocation_id);
+      const inputEvidence = (envelope.evidence || []).find((e) => e.source_id === `input:${envelope.invocation_id}`);
+      $("input-class").textContent = input?.schema_class || "";
+      $("input").replaceChildren(input ? kvList(input) : el("p", { className: "muted" },
+        "Input not stored with the envelope.",
+        inputEvidence ? el("br") : null,
+        inputEvidence ? el("span", { className: "hash", textContent: `${inputEvidence.hash_algorithm}:${inputEvidence.content_hash}` }) : null));
+      $("tab-input").hidden = !input;
+      $("input-json").textContent = input ? JSON.stringify(input, null, 2) : "";
+
+      // Payload: schema-driven through RJSF with the agent's fragment.
+      const payload = envelope.payload;
+      $("payload-class").textContent = payload?.schema_class || "";
+      const ps = payloadSchema(payload);
+      if (!payload) root.render(h("p", { className: "muted" }, "No payload: the outcome is not succeeded."));
+      else if (!ps) root.render(h("pre", { className: "json" }, `Unknown payload class ${payload.schema_class}:\n${JSON.stringify(payload, null, 2)}`));
+      else root.render(h(Form, {
+        schema: ps, uiSchema: agents[envelope.agent_id]?.uischema || {}, validator, widgets, templates,
+        formData: payload, readonly: true, liveValidate: false, showErrorList: false,
+        formContext: { siblingValue: makeSiblingLookup(payload) },
         onSubmit: () => {}, children: h("span"),
       }));
 
-      const ev = $("evidence"); ev.innerHTML = "";
-      for (const item of envelope.evidence || []) {
-        const li = document.createElement("li");
-        const a = document.createElement("a"); a.href = item.source_uri || "#"; a.textContent = item.source_id; a.target = "_blank"; a.rel = "noopener";
-        li.append(a, document.createElement("br"));
-        li.append(Object.assign(document.createElement("span"), { className: "hash", textContent: `${item.hash_algorithm}:${item.content_hash}` }));
-        li.append(Object.assign(document.createElement("div"), { className: "muted", textContent: `${item.canonicalisation} · ${item.snapshot_ref || ""}` }));
-        ev.append(li);
-      }
-      if (!(envelope.evidence || []).length) ev.append(Object.assign(document.createElement("li"), { className: "muted", textContent: "No evidence: this outcome rests on no retrieved record." }));
+      // Evidence, with a cross-check against the payload's grounded_on hashes.
+      const cited = collectCited(payload);
+      const rows = (envelope.evidence || []).map((e) => {
+        const src = e.source_uri ? el("a", { href: e.source_uri, target: "_blank", rel: "noopener", textContent: e.source_id }) : el("code", { textContent: e.source_id });
+        return el("tr", {},
+          el("td", {}, src),
+          el("td", {}, cited.has(e.content_hash) ? el("span", { className: "chip", textContent: "cited" }) : el("span", { className: "faint", textContent: "—" })),
+          el("td", { title: e.retrieved_at, textContent: fmtTime(e.retrieved_at) }),
+          el("td", {}, el("code", { textContent: e.canonicalisation })),
+          el("td", {}, e.snapshot_ref ? el("code", { textContent: e.snapshot_ref }) : el("span", { className: "faint", textContent: "—" })),
+          el("td", {}, el("span", { className: "hash", title: e.content_hash, textContent: `${e.hash_algorithm}:${e.content_hash.slice(0, 12)}…` }), " ", copyButton(e.content_hash)));
+      });
+      $("evidence").replaceChildren(rows.length
+        ? el("table", {}, el("thead", {}, el("tr", {}, ...["source_id", "cited", "retrieved_at", "canonicalisation", "snapshot_ref", "content_hash"].map((t) => el("th", { scope: "col" }, t, help(t))))), el("tbody", {}, ...rows))
+        : el("p", { className: "muted", textContent: "No evidence: this outcome rests on no retrieved record." }));
+
       const t = envelope.telemetry || {};
-      $("trace").textContent = `trace ${t.trace_id || "—"} · model ${t.model_id || "none"} · tokens in/out ${t.input_tokens ?? "—"}/${t.output_tokens ?? "—"} · energy ${t.energy_estimate_j ?? "null"} (${t.energy_method})`;
+      const tel = $("telemetry"); tel.replaceChildren();
+      const add = (k, v, helpKey = k) => tel.append(el("dt", {}, k, help(helpKey)), el("dd", {}, v));
+      add("trace_id", t.trace_id ? el("span", {}, el("code", { textContent: t.trace_id }), " ", copyButton(t.trace_id)) : el("span", { className: "null", textContent: "null" }));
+      add("model_id", t.model_id ? el("code", { textContent: t.model_id }) : el("span", { className: "null", textContent: "null (no model)" }));
+      add("tokens in / out", `${t.input_tokens ?? "—"} / ${t.output_tokens ?? "—"}`, "tokens");
+      add("energy_estimate_j", t.energy_estimate_j == null ? el("span", { className: "null", textContent: "null" }) : String(t.energy_estimate_j));
+      add("energy_method", el("code", { textContent: t.energy_method || "—" }));
+
+      const json = JSON.stringify(envelope, null, 2);
+      $("envelope-json").textContent = json;
+      const dl = $("download-envelope");
+      if (dl.href) URL.revokeObjectURL(dl.href);
+      dl.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      dl.download = `${envelope.invocation_id}.json`;
+      if ($("tab-input").hidden && $("tab-input").getAttribute("aria-selected") === "true") selectTab("tab-overview");
+
       history.replaceState(null, "", `?invocation_id=${envelope.invocation_id}`);
+      markCurrentRun();
     }
 
+    // --- Tabs -------------------------------------------------------------------------------
+    const tabIds = ["tab-overview", "tab-envelope", "tab-input"];
+    function selectTab(id) {
+      for (const t of tabIds) {
+        const on = t === id;
+        $(t).setAttribute("aria-selected", String(on));
+        $(t).tabIndex = on ? 0 : -1;
+        $($(t).getAttribute("aria-controls")).hidden = !on;
+      }
+    }
+    for (const t of tabIds) {
+      $(t).addEventListener("click", () => selectTab(t));
+      $(t).addEventListener("keydown", (e) => {
+        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+        const visible = tabIds.filter((x) => !$(x).hidden);
+        const next = visible[(visible.indexOf(t) + (e.key === "ArrowRight" ? 1 : visible.length - 1)) % visible.length];
+        selectTab(next); $(next).focus();
+      });
+    }
+    $("copy-envelope").addEventListener("click", () => navigator.clipboard.writeText($("envelope-json").textContent));
+    $("copy-input").addEventListener("click", () => navigator.clipboard.writeText($("input-json").textContent));
+
+    // --- Transport --------------------------------------------------------------------------
     function parseSse(text) {
       return text.split("\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
     }
     async function replay(id) {
-      $("status").textContent = `Loading ${id}…`;
+      $("status").textContent = `Loading ${shortId(id)}…`;
       const r = await fetch(`/agui/runs/${id}`);
-      const events = parseSse(await r.text());
-      render(events.find((e) => e.type === "RUN_FINISHED").result);
-      $("status").textContent = `Showing ${id}`;
+      const fin = parseSse(await r.text()).find((e) => e.type === "RUN_FINISHED");
+      if (!fin) { $("status").textContent = `No stored run ${id}`; return; }
+      render(fin.result);
+      $("status").textContent = `Showing ${shortId(id)}`;
     }
     async function run(agentId, sampleName) {
+      const button = $("run");
+      button.disabled = true; button.textContent = "Running…";
       $("status").textContent = `Running ${agentId} on ${sampleName}…`;
-      const input = await (await fetch(`/samples/${encodeURIComponent(sampleName)}`)).json();
-      const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input,
-        invocation_id: crypto.randomUUID().replace(/^(.{14}).(.{4})./, (m, a, b) => `${a}7${b}${["8","9","a","b"][Math.floor(Math.random()*4)]}`),
-        issued_at: new Date().toISOString(), requirement_ids: [] };
-      const body = { threadId: "shell", runId: crypto.randomUUID(), messages: [], state: {}, tools: [], context: [], forwardedProps: { request } };
-      const r = await fetch("/agui", { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(body) });
-      const events = parseSse(await r.text());
-      const fin = events.find((e) => e.type === "RUN_FINISHED");
-      if (!fin) { $("status").textContent = `Error: ${events.map((e) => e.message).join("; ")}`; return; }
-      render(fin.result);
-      $("status").textContent = `Completed ${fin.result.invocation_id}`;
-      await loadRuns();
+      try {
+        const input = await (await fetch(`/samples/${encodeURIComponent(sampleName)}`)).json();
+        const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input,
+          invocation_id: crypto.randomUUID().replace(/^(.{14}).(.{4})./, (m, a, b) => `${a}7${b}${["8","9","a","b"][Math.floor(Math.random()*4)]}`),
+          issued_at: new Date().toISOString(), requirement_ids: [] };
+        const body = { threadId: "shell", runId: crypto.randomUUID(), messages: [], state: {}, tools: [], context: [], forwardedProps: { request } };
+        const r = await fetch("/agui", { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(body) });
+        const events = parseSse(await r.text());
+        const fin = events.find((e) => e.type === "RUN_FINISHED");
+        if (!fin) { $("status").textContent = `Error: ${events.map((e) => e.message).filter(Boolean).join("; ") || r.status}`; return; }
+        rememberInput(fin.result.invocation_id, input);
+        await loadRuns();
+        render(fin.result);
+        $("status").textContent = `Completed ${shortId(fin.result.invocation_id)}`;
+      } finally {
+        button.textContent = "Run"; refreshRunButton();
+      }
     }
+
+    // --- Controls ---------------------------------------------------------------------------
     async function loadRuns() {
       const runs = await (await fetch("/runs")).json();
-      const sel = $("run-select");
-      sel.innerHTML = '<option value="">Stored runs…</option>';
-      for (const r of runs) sel.append(new Option(`${r.completed_at.slice(0, 19)} ${r.agent_id} → ${r.status}`, r.invocation_id));
+      const list = $("history"); list.replaceChildren();
+      if (!runs.length) list.append(el("li", { className: "muted", textContent: "None yet." }));
+      for (const r of runs) {
+        const dot = el("span", { className: "dot", title: r.status }); dot.dataset.status = r.status;
+        const b = el("button", { type: "button", title: `${r.status} · ${r.invocation_id}` },
+          dot, el("span", { className: "mono", textContent: r.agent_id }),
+          el("span", { className: "id", textContent: `${fmtTime(r.completed_at)} · ${shortId(r.invocation_id)}` }));
+        b.dataset.id = r.invocation_id;
+        b.append(el("span", { className: "visually-hidden", textContent: ` ${r.status}` }));
+        b.addEventListener("click", () => replay(r.invocation_id));
+        list.append(el("li", {}, b));
+      }
+      markCurrentRun();
+    }
+    function markCurrentRun() {
+      for (const b of $("history").querySelectorAll("button")) b.setAttribute("aria-current", String(b.dataset.id === current?.invocation_id));
+    }
+    const selectedAgent = () => $("agent-select").value;
+    // One option per agent, grouped by the id prefix before the first dot, so the picker stays
+    // one line tall however many agents the registry holds. Unavailable agents stay selectable so
+    // their reason can be read in the detail card; Run stays disabled for them.
+    function renderAgents() {
+      const sel = $("agent-select");
+      const byId = (a, b) => a.localeCompare(b);
+      const groups = Map.groupBy(Object.keys(agents).sort(byId), (id) => id.split(".")[0]);
+      sel.replaceChildren(new Option("Choose an agent", ""));
+      for (const prefix of [...groups.keys()].sort(byId)) {
+        sel.append(el("optgroup", { label: prefix },
+          ...groups.get(prefix).map((id) => new Option(`${id}  ${agents[id].version}`, id))));
+      }
+      const down = Object.keys(unavailable).sort(byId);
+      if (down.length) sel.append(el("optgroup", { label: "Unavailable" }, ...down.map((id) => new Option(id, id))));
+      sel.addEventListener("change", () => { renderAgentDetail(); refreshSamples(); });
+    }
+    function renderAgentDetail() {
+      const id = selectedAgent(), a = agents[id], box = $("agent-detail");
+      box.toggleAttribute("data-unavailable", id in unavailable);
+      box.hidden = !id;
+      if (a) box.replaceChildren(
+        el("p", { className: "desc", textContent: a.description }),
+        el("div", { className: "meta" },
+          el("span", {}, el("span", { className: "chip", textContent: a.grounding_mode }), help(["grounding_mode", `mode:${a.grounding_mode}`])),
+          el("span", {}, `accepts ${a.accepts.join(", ")}`, help("accepts")),
+          ...a.requirement_ids.map((r) => el("span", { className: "chip", textContent: r })),
+          a.requirement_ids.length ? help("requirement") : null));
+      else box.replaceChildren(el("p", { className: "desc" }, id ? `Unavailable: ${unavailable[id]}` : "", id ? help("unavailable") : null));
     }
     // Samples are filtered to the input classes the chosen agent accepts, so the mismatch path
     // is reachable only deliberately (via the CLI or A2A), not by accident here.
     function refreshSamples() {
-      const agent = agents[$("agent-select").value];
+      const agent = agents[selectedAgent()];
       const sel = $("sample-select");
-      sel.innerHTML = '<option value="">Sample…</option>';
-      for (const s of samples) {
-        if (!agent || agent.accepts.includes(s.schema_class)) sel.append(new Option(`${s.name} (${s.schema_class ?? "?"})`, s.name));
+      sel.replaceChildren();
+      if (!agent) sel.append(new Option(selectedAgent() in unavailable ? "Agent unavailable" : "Choose an agent first", ""));
+      else {
+        const fit = samples.filter((s) => agent.accepts.includes(s.schema_class));
+        if (!fit.length) sel.append(new Option("No sample accepted by this agent", ""));
+        for (const s of fit) sel.append(new Option(`${s.name} — ${s.schema_class}`, s.name));
       }
       refreshRunButton();
     }
     function refreshRunButton() {
-      $("run").disabled = !($("agent-select").value && $("sample-select").value);
+      $("run").disabled = !(agents[selectedAgent()] && $("sample-select").value);
     }
 
     async function main() {
       let manifest;
-      [schema, baseUiSchema, manifest, samples] = await Promise.all([
+      [schema, manifest, samples] = await Promise.all([
         fetch("/schema/envelope.schema.json").then((r) => r.json()),
-        fetch("/schema/uischema.json").then((r) => r.json()),
         fetch("/agents").then((r) => r.json()),
         fetch("/samples").then((r) => r.json()),
       ]);
-      for (const a of manifest.agents) {
-        agents[a.agent_id] = a;
-        $("agent-select").append(new Option(`${a.agent_id} [${a.grounding_mode}]`, a.agent_id));
-      }
+      for (const a of manifest.agents) agents[a.agent_id] = a;
+      unavailable = manifest.unavailable || {};
+      renderAgents();
       refreshSamples();
       await loadRuns();
-      $("run-select").addEventListener("change", (e) => e.target.value && replay(e.target.value));
-      $("agent-select").addEventListener("change", refreshSamples);
       $("sample-select").addEventListener("change", refreshRunButton);
-      $("run").addEventListener("click", () => run($("agent-select").value, $("sample-select").value));
+      $("run").addEventListener("click", () => run(selectedAgent(), $("sample-select").value));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !$("run").disabled) run(selectedAgent(), $("sample-select").value);
+      });
       const id = new URLSearchParams(location.search).get("invocation_id");
-      if (id) await replay(id); else $("status").textContent = "Choose a stored run or run an agent.";
+      if (id) await replay(id); else $("status").textContent = "Ready.";
     }
     main().catch((e) => { $("status").textContent = `Error: ${e.message}`; console.error(e); });
   </script>
