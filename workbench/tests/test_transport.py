@@ -14,12 +14,12 @@ from a2a.client import ClientConfig, create_client
 from a2a.helpers import get_data_parts, new_data_part, new_message
 from a2a.types import Role, SendMessageRequest, TaskState
 
-from tests.fakes import claim, make_conductor, record, request
-from workbench.agents.abstain import AbstainingStub
-from workbench.agents.factcheck.agent import FactChecker
-from workbench.agents.hello.agent import HelloWorld
-from workbench.agents.quality.agent import QualityReviewer
-from workbench.contract.models import to_document
+from dd_agent_factcheck.agent import FactChecker
+from dd_agent_hello.agent import HelloWorld
+from dd_agent_quality.agent import QualityReviewer
+from dd_agent_stub.agent import AbstainingStub
+from dd_sdk.contract.models import to_document
+from workbench.testing import claim, make_conductor, record, request
 from workbench.transport.app import build_app
 
 BASE = "http://testserver"

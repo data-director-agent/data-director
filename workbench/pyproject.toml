@@ -5,18 +5,18 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-workbench"
 version = "0.1.0"
-description = "Data Director Workbench: contract, harness, agent registry, shell and conformance report"
+description = "Data Director Workbench: harness, agent registry, transports, shell and conformance report"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 
 dependencies = [
+  "data-director-sdk",
   "pydantic>=2.11,<3",
   "jsonschema>=4.23",
   "httpx>=0.28",
   "opentelemetry-sdk>=1.44",
-  "rank-bm25>=0.2.2",
   "a2a-sdk[http-server]>=1.1,<2",
   "ag-ui-protocol>=0.1.22,<0.2",
   "rocrate>=0.15",
@@ -24,83 +24,8 @@ dependencies = [
   "uvicorn>=0.30",
 ]
 
-[project.optional-dependencies]
-anthropic = ["anthropic>=0.50"]
-dev = [
-  "pytest>=8.3",
-  "pytest-recording>=0.13",
-  "pytest-json-report>=1.5",
-  "linkml>=1.11",
-  "ruff>=0.9",
-  "mypy>=1.15",
-  "types-jsonschema>=4.23",
-  "types-PyYAML>=6.0",
-]
-
 [project.scripts]
 workbench = "workbench.cli:main"
 
-# Agent discovery (ADR-0010). One line per agent; the value is a factory `build(settings) -> Agent`.
-[project.entry-points."workbench.agents"]
-stub = "workbench.agents.abstain:build"
-quality = "workbench.agents.quality.agent:build"
-factcheck = "workbench.agents.factcheck.agent:build"
-hello = "workbench.agents.hello.agent:build"
-r3 = "workbench.agents.r3.factory:build"
-
 [tool.hatch.build.targets.wheel]
 packages = ["src/workbench"]
-
-[tool.ruff]
-line-length = 100
-target-version = "py314"
-src = ["src", "tests", "scripts"]
-
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20"]
-ignore = ["ANN401"]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ANN"]
-"scripts/*" = ["T20", "E501"]  # report scripts embed Markdown prose
-"src/workbench/cli.py" = ["T20"]
-# The domain reads better without an Error suffix; these names appear in messages people read.
-"src/workbench/conductor.py" = ["N818"]
-"src/workbench/contract/validate.py" = ["N818"]
-"src/workbench/agents/r3/retrieve.py" = ["N818"]
-
-[tool.pytest.ini_options]
-minversion = "8.0"
-testpaths = ["tests"]
-addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network"
-filterwarnings = [
-  "error",
-  # a2a-sdk 1.1 calls protobuf's deprecated FieldDescriptor.label(); with warnings as errors the
-  # C-level call surfaces as a SystemError inside the JSON-RPC dispatcher. Not ours to fix.
-  "ignore:label\\(\\) is deprecated:DeprecationWarning",
-]
-markers = [
-  "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
-]
-
-[tool.mypy]
-python_version = "3.14"
-files = ["src", "tests", "scripts"]
-strict = true
-warn_unreachable = true
-plugins = ["pydantic.mypy"]
-
-[[tool.mypy.overrides]]
-module = ["a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-# R3 and its tests predate the generalised agent interface and are xfailed until ported
-# (see src/workbench/agents/r3/factory.py). TODO: remove with the port.
-[[tool.mypy.overrides]]
-module = ["tests.test_explain", "tests.test_fairsharing", "tests.test_r3_harness"]
-ignore_errors = true

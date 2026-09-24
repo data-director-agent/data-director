@@ -1,4 +1,7 @@
-"""Command line: list agents, invoke one, lint a run, serve the transports, build the snapshot."""
+"""Command line: list agents, invoke one, lint a run, serve the transports.
+
+R3's FAIRsharing snapshot is rebuilt by the agent's own script,
+`agents/r3/scripts/build_snapshot.py`; the workbench names no agent."""
 
 from __future__ import annotations
 
@@ -10,11 +13,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from dd_sdk.contract.models import INPUT_TYPES, InvocationRequest, parse_input
+from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
-from workbench.agents.registry import Registry
-from workbench.contract.models import INPUT_TYPES, InvocationRequest, parse_input
+from workbench.conductor import UnknownAgent
+from workbench.registry import Registry
 from workbench.settings import Settings, build_conductor, build_registry
-from workbench.tracing import records_from_jsonl
 
 
 def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
@@ -76,7 +80,10 @@ def cmd_invoke(args: argparse.Namespace) -> int:
         input=_load_input(args, conductor.registry),
         requirement_ids=args.requirement or [],
     )
-    envelope = conductor.invoke(request)
+    try:
+        envelope = conductor.invoke(request)
+    except UnknownAgent as exc:
+        sys.exit(str(exc))
     report = conductor.grounding_reports[request.invocation_id]
     print(json.dumps(envelope.to_document(), indent=2))
     print(report.summary(), file=sys.stderr)
@@ -106,13 +113,6 @@ def cmd_serve(args: argparse.Namespace) -> int:
     )
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
-
-
-def cmd_snapshot(args: argparse.Namespace) -> int:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
-    import build_snapshot
-
-    return int(build_snapshot.main(args.ids, args.out))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -146,14 +146,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)
-
-    p = sub.add_parser(
-        "snapshot",
-        help="(re)build data/fairsharing/snapshot.jsonl from ids.txt via the public record route",
-    )
-    p.add_argument("--ids", default=None)
-    p.add_argument("--out", default=None)
-    p.set_defaults(func=cmd_snapshot)
 
     args = parser.parse_args(argv)
     result: int = args.func(args)

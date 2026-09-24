@@ -6,9 +6,14 @@ class: it walks the payload document for `grounded_on` lists (the `Grounded` mix
 payload that has none is a violation. Nothing passes because the linter did not recognise it.
 
 Structural, every mode (G0):
-  exactly one `invoke_agent` root; the envelope's `grounding_mode` is valid and equals the root
+  exactly one `invoke_agent` root; every other span is in the root's trace and descends from the
+  root; only the root carries the attributes the conductor owns (`dd.grounding_mode`,
+  `dd.input_hash`, `dd.outcome`); the envelope's `grounding_mode` is valid and equals the root
   span's `dd.grounding_mode`; a payload, if present, has `schema_class` and a root `grounded_on`;
-  every grounding reference is well formed.
+  every grounding reference is well formed. The span checks matter because an agent's spans are
+  recorded in the agent's process and sent back over A2A (ADR-0011): a span outside the tree
+  would otherwise escape the mode rules, and one carrying a conductor attribute would be the
+  agent labelling its own run.
 
 `retrieval` — the agent retrieves before it reasons:
   G1 every `chat` span starts after at least one `retrieval` span has ended.
@@ -38,11 +43,12 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from workbench.contract.models import GroundingMode, input_source_id
-from workbench.tracing import (
+from dd_sdk.contract.models import GroundingMode, input_source_id
+from dd_sdk.tracing import (
     ATTR_CONTENT_HASH,
     ATTR_GROUNDING_MODE,
     ATTR_INPUT_HASH,
+    ATTR_OUTCOME,
     ATTR_SOURCE_ID,
     CHAT,
     INVOKE_AGENT,
@@ -260,6 +266,34 @@ RULES: dict[GroundingMode, tuple[Rule, ...]] = {
 
 # --- Entry point ------------------------------------------------------------------------------
 
+CONDUCTOR_ATTRIBUTES = (ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, ATTR_OUTCOME)
+
+
+def _tree_violations(
+    root: SpanRecord, descendants: list[SpanRecord], records: list[SpanRecord]
+) -> list[str]:
+    violations: list[str] = []
+    in_tree = {r.span_id for r in descendants}
+    for r in records:
+        if r is root:
+            continue
+        if r.trace_id != root.trace_id:
+            violations.append(
+                f"G0: span {r.name!r} ({r.span_id}) is in trace {r.trace_id}, not "
+                f"the invocation's trace {root.trace_id}"
+            )
+        elif r.span_id not in in_tree:
+            violations.append(
+                f"G0: span {r.name!r} ({r.span_id}) does not descend from {INVOKE_AGENT}"
+            )
+        owned = [a for a in CONDUCTOR_ATTRIBUTES if a in r.attributes]
+        if owned:
+            violations.append(
+                f"G0: span {r.name!r} ({r.span_id}) sets {', '.join(owned)}, which only the "
+                f"conductor's {INVOKE_AGENT} span may carry"
+            )
+    return violations
+
 
 def lint(records: list[SpanRecord], envelope: dict[str, Any]) -> GroundingReport:
     declared = envelope.get("grounding_mode")
@@ -277,7 +311,7 @@ def lint(records: list[SpanRecord], envelope: dict[str, Any]) -> GroundingReport
         retrievals=[r for r in descendants if r.name == RETRIEVAL],
         chats=[r for r in descendants if r.name == CHAT],
     )
-    violations: list[str] = []
+    violations: list[str] = _tree_violations(root, descendants, records)
 
     # G0: mode.
     try:

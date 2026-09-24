@@ -12,8 +12,8 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from dd_sdk.contract.validate import SCHEMA_DIR
 from workbench.conductor import Conductor
-from workbench.contract.validate import SCHEMA_DIR
 from workbench.transport import agui
 from workbench.transport.a2a import a2a_routes
 

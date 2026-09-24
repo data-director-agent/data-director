@@ -9,10 +9,10 @@ The traceability rule: a registered requirement is
 A report in which most rows are honestly unsubstantiated is the intended first governance
 artefact. "Substantiated by an example-based test" is not a conformance claim; the footer says so.
 
-Usage:
-    uv run pytest --json-report --json-report-file=.report.json
-    uv run python scripts/conformance_report.py            # writes CONFORMANCE.md
-    uv run python scripts/conformance_report.py --check    # exit 1 if the table body would change
+Usage, from the repository root (one test session covers the whole workspace):
+    uv run pytest --json-report --json-report-file=workbench/.report.json
+    uv run python workbench/scripts/conformance_report.py            # writes CONFORMANCE.md
+    uv run python workbench/scripts/conformance_report.py --check    # exit 1 if the table changes
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def load_register(path: Path = REGISTER) -> list[dict[str, Any]]:
 def load_report(path: Path = REPORT) -> dict[str, Any]:
     if not path.is_file():
         sys.exit(
-            f"{path} not found; run `uv run pytest --json-report --json-report-file={path.name}` first"
+            f"{path} not found; run `uv run pytest --json-report --json-report-file={path}` first"
         )
     report: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     return report

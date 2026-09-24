@@ -1,0 +1,15 @@
+# The agents this workbench calls (ADR-0011). Each is a separate service; start them with
+# `uv run <agent> serve --port N` from the repository root, or `docker compose up`.
+# The workbench reads each agent's card at start-up. One that cannot be reached is listed as
+# unavailable by `workbench agents`; the rest still run. Override the path with DD_AGENTS_CONFIG.
+agents:
+  - name: hello
+    url: http://127.0.0.1:8101
+  - name: quality
+    url: http://127.0.0.1:8102
+  - name: factcheck
+    url: http://127.0.0.1:8103
+  - name: stub
+    url: http://127.0.0.1:8104
+  - name: r3
+    url: http://127.0.0.1:8105

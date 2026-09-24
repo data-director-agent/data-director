@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-sdk"
+version = "0.1.0"
+description = "Data Director agent SDK: the invocation contract, evidence hashing, trace helpers and the A2A agent server"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+
+dependencies = [
+  "pydantic>=2.11,<3",
+  "jsonschema>=4.23",
+  "opentelemetry-sdk>=1.44",
+  "a2a-sdk[http-server]>=1.1,<2",
+  "uvicorn>=0.30",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_sdk"]

@@ -19,9 +19,9 @@ from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
 from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill
 from starlette.routing import BaseRoute
 
+from dd_sdk.contract.models import InvocationRequest
+from dd_sdk.contract.validate import ContractViolation
 from workbench.conductor import Conductor
-from workbench.contract.models import InvocationRequest
-from workbench.contract.validate import ContractViolation
 
 PROTOCOL_VERSION = "1.0"
 

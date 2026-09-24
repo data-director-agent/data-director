@@ -13,12 +13,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from workbench import grounding, policy
-from workbench.agents.base import AgentResult, RunContext
-from workbench.agents.registry import Registry
-from workbench.contract import problem as problems
-from workbench.contract import validate
-from workbench.contract.models import (
+from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.contract import problem as problems
+from dd_sdk.contract import validate
+from dd_sdk.contract.models import (
     Envelope,
     InvocationRequest,
     Outcome,
@@ -28,16 +26,18 @@ from workbench.contract.models import (
     input_source_id,
     to_document,
 )
-from workbench.evidence import input_hash as compute_input_hash
-from workbench.provenance import write_process_run_crate
-from workbench.store import RunStore
-from workbench.tracing import (
+from dd_sdk.evidence import input_hash as compute_input_hash
+from dd_sdk.tracing import (
     ATTR_OUTCOME,
     Tracing,
     invoke_agent_span,
     make_tracing,
     policy_gate_span,
 )
+from workbench import grounding, policy
+from workbench.provenance import write_process_run_crate
+from workbench.registry import Registry
+from workbench.store import RunStore
 
 DATA_STEWARD = "data_steward"
 
@@ -60,8 +60,13 @@ class Conductor:
         validate.validate_request(request_doc)  # raises: a malformed request is a caller bug
         agent = self.registry.get(request.agent_id)
         if agent is None:
+            unavailable = "".join(
+                f"\n  {name} unavailable: {reason}"
+                for name, reason in self.registry.unavailable.items()
+            )
             raise UnknownAgent(
                 f"no agent registered as {request.agent_id!r}; known: {self.registry.ids()}"
+                + unavailable
             )
         spec = agent.spec
         started = datetime.now(UTC)
@@ -125,6 +130,9 @@ class Conductor:
                     )
                     prob = problems.agent_error(spec.agent_id, exc)
                 else:
+                    # A remote agent's spans were recorded in its own process; bring them into
+                    # this trace so the linter reads one tree (ADR-0011).
+                    self.tracing.import_spans(trace_id, result.spans)
                     # An agent that returns a payload other than the class it declared is
                     # contradicting its own specification: a programmer error, handled the same
                     # way as an exception.

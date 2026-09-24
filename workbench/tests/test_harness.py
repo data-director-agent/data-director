@@ -9,18 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from tests import fakes
-from tests.fakes import (
-    SOURCE_A,
-    SOURCE_B,
-    Chat,
-    ScriptedAgent,
-    make_conductor,
-    request,
-)
-from workbench import grounding
-from workbench.agents.abstain import AbstainingStub
-from workbench.contract.models import (
+from dd_agent_stub.agent import AbstainingStub
+from dd_sdk.contract.models import (
     Claim,
     DatasetProfile,
     GroundingMode,
@@ -29,15 +19,25 @@ from workbench.contract.models import (
     QualityReview,
     ReasonCode,
 )
-from workbench.evidence import (
+from dd_sdk.evidence import (
     CANONICALISATION,
     INPUT_CANONICALISATION,
     canonicalise,
     content_hash,
     input_hash,
 )
+from dd_sdk.tracing import records_from_jsonl
+from workbench import grounding
+from workbench import testing as fakes
 from workbench.policy import PROFILES_DIR, PolicyError, gate, load_profile
-from workbench.tracing import records_from_jsonl
+from workbench.testing import (
+    SOURCE_A,
+    SOURCE_B,
+    Chat,
+    ScriptedAgent,
+    make_conductor,
+    request,
+)
 
 # --- Evidence ---------------------------------------------------------------------------------
 

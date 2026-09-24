@@ -166,6 +166,9 @@ requirements:
   - id: DD-REGISTRY
     source: project
     title: Agents are discovered from a registry and one manifest describes each to every consumer
+  - id: DD-REMOTE-AGENT
+    source: project
+    title: Agents run as separate services reached over A2A; their spans join the conductor's trace and are held to the same rules
   - id: DD-POLICY
     source: project
     title: Institutional profile gates which agents run and which actions need approval

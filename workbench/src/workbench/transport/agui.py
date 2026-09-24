@@ -16,9 +16,9 @@ from ag_ui.encoder import EventEncoder
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
+from dd_sdk.contract.models import InvocationRequest
+from dd_sdk.contract.validate import ContractViolation
 from workbench.conductor import Conductor
-from workbench.contract.models import InvocationRequest
-from workbench.contract.validate import ContractViolation
 
 
 def _events_for(envelope: dict[str, Any], thread_id: str, run_id: str) -> list[Any]:

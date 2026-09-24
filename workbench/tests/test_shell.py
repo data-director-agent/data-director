@@ -15,12 +15,12 @@ from typing import Any
 
 import pytest
 
-from workbench.agents.abstain import AbstainingStub
-from workbench.agents.base import AgentSpec
-from workbench.agents.factcheck.agent import FactChecker
-from workbench.agents.hello.agent import HelloWorld
-from workbench.agents.quality.agent import QualityReviewer
-from workbench.contract.models import Derivation, GroundingMode, OutcomeStatus
+from dd_agent_factcheck.agent import FactChecker
+from dd_agent_hello.agent import HelloWorld
+from dd_agent_quality.agent import QualityReviewer
+from dd_agent_stub.agent import AbstainingStub
+from dd_sdk.agent import AgentSpec
+from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = json.loads((ROOT / "shell" / "uischema.json").read_text(encoding="utf-8"))

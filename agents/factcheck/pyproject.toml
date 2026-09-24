@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-agent-factcheck"
+version = "0.1.0"
+description = "fact.checker: a demonstration retrieval-mode agent over packaged sources"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+dependencies = ["data-director-sdk"]
+
+[project.scripts]
+dd-factcheck = "dd_agent_factcheck.agent:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_agent_factcheck"]

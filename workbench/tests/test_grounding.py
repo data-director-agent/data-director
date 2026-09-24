@@ -10,9 +10,8 @@ from typing import Any
 
 import pytest
 
-from workbench import grounding
-from workbench.contract.models import input_source_id
-from workbench.tracing import (
+from dd_sdk.contract.models import input_source_id
+from dd_sdk.tracing import (
     ATTR_CONTENT_HASH,
     ATTR_GROUNDING_MODE,
     ATTR_INPUT_HASH,
@@ -22,6 +21,7 @@ from workbench.tracing import (
     RETRIEVAL,
     SpanRecord,
 )
+from workbench import grounding
 
 INV = "01a06cdb-985f-7375-9aa2-37be29f0f2a8"
 INPUT_HASH = "1" * 64
