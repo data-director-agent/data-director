@@ -14,7 +14,9 @@ import pytest
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
     Claim,
+    ConversationTurn,
     DatasetProfile,
+    Delegation,
     Derivation,
     Envelope,
     EvidenceItem,
@@ -24,6 +26,7 @@ from dd_sdk.contract.models import (
     GroundingMode,
     GroundingRef,
     InvocationRequest,
+    Message,
     MetadataRecord,
     Outcome,
     OutcomeStatus,
@@ -33,17 +36,26 @@ from dd_sdk.contract.models import (
     Recommendation,
     RecommendationKind,
     Recommendations,
+    Reply,
     ResourceRef,
     Salutation,
     Severity,
     Telemetry,
+    TurnRole,
     Verdict,
     input_source_id,
+    invocation_source_id,
     new_invocation_id,
     parse_input,
     to_document,
 )
-from dd_sdk.evidence import DOCUMENT_CANONICALISATION, INPUT_CANONICALISATION
+from dd_sdk.evidence import (
+    CANONICALISATIONS,
+    DOCUMENT_CANONICALISATION,
+    ENVELOPE_CANONICALISATION,
+    INPUT_CANONICALISATION,
+    envelope_hash,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "src" / "dd_sdk" / "schema"
@@ -339,6 +351,7 @@ def test_every_input_class_validates_and_is_discriminated_by_schema_class() -> N
         MetadataRecord(identifier="doi:10.1/x", licence="CC-BY-4.0"),
         Claim(text="A DOI does not change."),
         Salutation(greeted_name="world"),
+        Message(message_text="hello"),
     ):
         req = InvocationRequest(
             agent_id="stub.abstain", policy_bundle_ref="profile:default", input=inp
@@ -380,3 +393,120 @@ def test_linkml_source_is_valid_yaml_for_the_generator() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+# --- Conversation and delegation (ADR-0012) ---------------------------------------------------
+
+
+def _delegation(child: str, content_hash: str = "c" * 64) -> Delegation:
+    return Delegation(
+        delegated_invocation_id=child,
+        delegated_agent_id="hello.world",
+        delegated_agent_version="0.1.0",
+        delegated_status=OutcomeStatus.SUCCEEDED,
+        content_hash=content_hash,
+    )
+
+
+def _envelope_evidence(child: str, content_hash: str = "c" * 64) -> EvidenceItem:
+    return EvidenceItem(
+        source_id=invocation_source_id(child),
+        canonicalisation=ENVELOPE_CANONICALISATION,
+        content_hash=content_hash,
+    )
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_message_and_reply_validate_and_are_discriminated() -> None:
+    conv = new_invocation_id()
+    message = Message(
+        message_text="hello Joe",
+        history=[
+            ConversationTurn(role=TurnRole.USER, turn_text="hi"),
+            ConversationTurn(
+                role=TurnRole.AGENT,
+                turn_text="Hello!",
+                turn_agent_id="director.stub",
+                turn_agent_version="0.1.0",
+                turn_invocation_id=new_invocation_id(),
+            ),
+        ],
+    )
+    req = InvocationRequest(
+        agent_id="director.stub",
+        policy_bundle_ref="profile:default",
+        conversation_id=conv,
+        input=message,
+    )
+    doc = to_document(req)
+    validate.validate_request(doc)
+    assert doc["conversation_id"] == conv
+    assert type(parse_input(doc["input"])) is Message
+
+    child = new_invocation_id()
+    reply = Reply(
+        reply_text="Routed.",
+        reply_derivation=Derivation.TEMPLATE,
+        grounded_on=[
+            _input_ref(),
+            GroundingRef(source_id=f"invocation:{child}", content_hash="c" * 64),
+        ],
+    )
+    env = _succeeded(
+        grounding_mode=GroundingMode.DELEGATION,
+        payload=reply,
+        evidence=[_input_evidence(), _envelope_evidence(child)],
+        conversation_id=conv,
+        delegations=[_delegation(child)],
+    ).to_document()
+    validate.validate_envelope(env)
+    assert env["payload"]["schema_class"] == "Reply"
+    assert env["delegations"][0]["delegated_invocation_id"] == child
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_bad_conversation_id_is_rejected() -> None:
+    doc = to_document(
+        InvocationRequest(
+            agent_id="a", policy_bundle_ref="profile:default", input=Message(message_text="x")
+        )
+    )
+    doc["conversation_id"] = "not-a-uuid"
+    with pytest.raises(validate.ContractViolation, match="conversation_id"):
+        validate.validate_request(doc)
+
+
+def test_envelope_without_delegations_omits_the_key() -> None:
+    assert "delegations" not in _envelope().to_document()
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_delegation_evidence_must_be_the_input_or_a_recorded_delegation() -> None:
+    child = new_invocation_id()
+    reply = Reply(reply_text="r", reply_derivation=Derivation.TEMPLATE, grounded_on=[_input_ref()])
+    with pytest.raises(validate.ContractViolation, match="citing the input"):
+        validate.validate_envelope(
+            _succeeded(
+                grounding_mode=GroundingMode.DELEGATION,
+                payload=reply,
+                evidence=[_envelope_evidence(child)],
+                delegations=[_delegation(child)],
+            ).to_document()
+        )
+    with pytest.raises(validate.ContractViolation, match="neither the input nor a recorded"):
+        validate.validate_envelope(
+            _succeeded(
+                grounding_mode=GroundingMode.DELEGATION,
+                payload=reply,
+                evidence=[_input_evidence(), _envelope_evidence(child, "d" * 64)],
+                delegations=[_delegation(child)],
+            ).to_document()
+        )
+
+
+@pytest.mark.requirement("DD-EVIDENCE")
+def test_envelope_hash_is_reproducible_from_the_stored_document() -> None:
+    doc = _envelope().to_document()
+    stored = json.loads(json.dumps(doc, indent=2))  # the store's formatting does not matter
+    assert envelope_hash(stored) == envelope_hash(doc)
+    assert ENVELOPE_CANONICALISATION in CANONICALISATIONS

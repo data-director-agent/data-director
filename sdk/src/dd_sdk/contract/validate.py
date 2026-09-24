@@ -17,7 +17,11 @@ from jsonschema import Draft7Validator
 from jsonschema.exceptions import ValidationError
 
 from dd_sdk.contract.models import GroundingMode, OutcomeStatus
-from dd_sdk.evidence import CANONICALISATIONS, INPUT_CANONICALISATION
+from dd_sdk.evidence import (
+    CANONICALISATIONS,
+    ENVELOPE_CANONICALISATION,
+    INPUT_CANONICALISATION,
+)
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schema" / "generated"
 ENVELOPE_SCHEMA = SCHEMA_DIR / "envelope.schema.json"
@@ -99,7 +103,7 @@ def grounding_errors(envelope: dict[str, Any]) -> list[str]:
     if mode == GroundingMode.RETRIEVAL:
         if payload is not None and not payload.get("grounded_on"):
             errors.append("grounding_mode=retrieval and succeeded requires non-empty grounded_on")
-    elif mode in (GroundingMode.INPUT_ONLY, GroundingMode.NONE):
+    elif mode in (GroundingMode.INPUT_ONLY, GroundingMode.NONE, GroundingMode.DELEGATION):
         cites_input = [
             ev
             for ev in evidence
@@ -111,7 +115,27 @@ def grounding_errors(envelope: dict[str, Any]) -> list[str]:
                 f"grounding_mode={mode} and succeeded requires evidence citing the input "
                 f"({INPUT_CANONICALISATION}, source_id input:<invocation_id>)"
             )
-        if len(cites_input) != len(evidence):
+        if mode == GroundingMode.DELEGATION:
+            recorded = {
+                (f"invocation:{d.get('delegated_invocation_id')}", d.get("content_hash"))
+                for d in envelope.get("delegations") or []
+            }
+            for ev in evidence:
+                if ev in cites_input:
+                    continue
+                if (
+                    ev.get("canonicalisation") != ENVELOPE_CANONICALISATION
+                    or (
+                        ev.get("source_id"),
+                        ev.get("content_hash"),
+                    )
+                    not in recorded
+                ):
+                    errors.append(
+                        f"grounding_mode=delegation: evidence {ev.get('source_id')!r} is neither "
+                        f"the input nor a recorded delegation ({ENVELOPE_CANONICALISATION})"
+                    )
+        elif len(cites_input) != len(evidence):
             errors.append(f"grounding_mode={mode} permits no evidence other than the input")
     return errors
 

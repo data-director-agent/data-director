@@ -6,7 +6,7 @@ not an HTTP body. `EvidenceItem.canonicalisation` names which projection was use
 here; an unknown name is a programmer error, and `contract.validate` rejects an envelope that
 cites one.
 
-Three canonicalisations exist:
+Four canonicalisations exist:
 
 - `json-sorted-utf8-v1` — the FAIRsharing record projection R3 uses. Name and bytes are
   unchanged from v0 so hashes in stored runs still verify.
@@ -14,6 +14,9 @@ Three canonicalisations exist:
   What an `input_only` or `none` agent cites: it rests on nothing but what it was given.
 - `dd-json-document-v1` — a whole retrieved record, as the source handed it over, with no
   projection. For sources whose records are already small and self-describing.
+- `dd-envelope-json-v1` — a whole child envelope, as the conductor stored it in
+  `runs/<invocation_id>/envelope.json`. What a `delegation` agent cites for a reply it relays
+  (ADR-0012).
 
 Adding a field to a projection changes every hash it produces; do it deliberately and register
 a new name rather than editing an existing one.
@@ -90,6 +93,11 @@ def _input_projection(document: dict[str, Any]) -> bytes:
 DOCUMENT_CANONICALISATION = "dd-json-document-v1"
 
 
+# --- dd-envelope-json-v1: a whole child envelope ---------------------------------------------
+
+ENVELOPE_CANONICALISATION = "dd-envelope-json-v1"
+
+
 def _dumps(value: Any) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(
         "utf-8"
@@ -114,6 +122,11 @@ CANONICALISATIONS: dict[str, Canonicalisation] = {
             "A whole retrieved record, unprojected; lists in document order.",
             _dumps,
         ),
+        Canonicalisation(
+            ENVELOPE_CANONICALISATION,
+            "A whole envelope document as stored; lists in document order.",
+            _dumps,
+        ),
     )
 }
 
@@ -135,3 +148,8 @@ def content_hash(record: dict[str, Any], canonicalisation: str = CANONICALISATIO
 def input_hash(input_document: dict[str, Any]) -> str:
     """The `dd-input-json-v1` hash of an invocation's input document."""
     return content_hash(input_document, INPUT_CANONICALISATION)
+
+
+def envelope_hash(envelope_document: dict[str, Any]) -> str:
+    """The `dd-envelope-json-v1` hash of an envelope document (ADR-0012)."""
+    return content_hash(envelope_document, ENVELOPE_CANONICALISATION)

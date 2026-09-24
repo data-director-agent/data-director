@@ -50,6 +50,47 @@
          "title": "Claim",
          "type": "object"
       },
+      "ConversationTurn": {
+         "additionalProperties": false,
+         "description": "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.",
+         "properties": {
+            "role": {
+               "$ref": "#/$defs/TurnRole"
+            },
+            "turn_agent_id": {
+               "description": "For an agent turn, the agent that produced it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "turn_agent_version": {
+               "description": "For an agent turn, the version of the agent that produced it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "turn_invocation_id": {
+               "description": "For an agent turn, the invocation it came from.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "turn_text": {
+               "description": "What was said in the turn.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "role",
+            "turn_text"
+         ],
+         "title": "ConversationTurn",
+         "type": "object"
+      },
       "DatasetProfile": {
          "additionalProperties": false,
          "description": "A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
@@ -117,6 +158,38 @@
          "title": "DatasetProfile",
          "type": "object"
       },
+      "Delegation": {
+         "additionalProperties": false,
+         "description": "One child invocation an agent in grounding mode delegation made through the workbench (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
+         "properties": {
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "delegated_agent_id": {
+               "type": "string"
+            },
+            "delegated_agent_version": {
+               "type": "string"
+            },
+            "delegated_invocation_id": {
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "delegated_status": {
+               "$ref": "#/$defs/OutcomeStatus"
+            }
+         },
+         "required": [
+            "delegated_invocation_id",
+            "delegated_agent_id",
+            "delegated_agent_version",
+            "delegated_status",
+            "content_hash"
+         ],
+         "title": "Delegation",
+         "type": "object"
+      },
       "Derivation": {
          "description": "",
          "enum": [
@@ -153,6 +226,24 @@
                "format": "date-time",
                "type": "string"
             },
+            "conversation_id": {
+               "description": "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "delegations": {
+               "description": "The child invocations this invocation delegated to, in the order they ran.",
+               "items": {
+                  "$ref": "#/$defs/Delegation"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
             "evidence": {
                "items": {
                   "$ref": "#/$defs/EvidenceItem"
@@ -174,6 +265,14 @@
             "outcome": {
                "$ref": "#/$defs/Outcome"
             },
+            "parent_invocation_id": {
+               "description": "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "payload": {
                "anyOf": [
                   {
@@ -187,6 +286,9 @@
                   },
                   {
                      "$ref": "#/$defs/Greeting"
+                  },
+                  {
+                     "$ref": "#/$defs/Reply"
                   },
                   {
                      "type": "null"
@@ -408,7 +510,8 @@
          "enum": [
             "retrieval",
             "input_only",
-            "none"
+            "none",
+            "delegation"
          ],
          "title": "GroundingMode",
          "type": "string"
@@ -434,11 +537,19 @@
       },
       "InvocationRequest": {
          "additionalProperties": false,
-         "description": "What the conductor hands to an agent. One request produces exactly one Envelope.",
+         "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012).",
          "properties": {
             "agent_id": {
                "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
                "type": "string"
+            },
+            "conversation_id": {
+               "description": "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
             },
             "input": {
                "anyOf": [
@@ -453,6 +564,9 @@
                   },
                   {
                      "$ref": "#/$defs/Salutation"
+                  },
+                  {
+                     "$ref": "#/$defs/Message"
                   }
                ],
                "description": "What the agent is asked to work on. One of the input classes, discriminated by schema_class; an agent declares which it accepts."
@@ -465,6 +579,14 @@
             "issued_at": {
                "format": "date-time",
                "type": "string"
+            },
+            "parent_invocation_id": {
+               "description": "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
             },
             "policy_bundle_ref": {
                "description": "Reference to the institutional profile the conductor applied (path or profile:<id>).",
@@ -489,6 +611,39 @@
             "input"
          ],
          "title": "InvocationRequest",
+         "type": "object"
+      },
+      "Message": {
+         "additionalProperties": false,
+         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw.",
+         "properties": {
+            "history": {
+               "description": "The earlier turns of the conversation, oldest first.",
+               "items": {
+                  "$ref": "#/$defs/ConversationTurn"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "message_text": {
+               "description": "What the user said in this turn.",
+               "type": "string"
+            },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "Message"
+               ],
+               "type": "string"
+            }
+         },
+         "required": [
+            "schema_class",
+            "message_text"
+         ],
+         "title": "Message",
          "type": "object"
       },
       "MetadataRecord": {
@@ -821,6 +976,42 @@
          "title": "Recommendations",
          "type": "object"
       },
+      "Reply": {
+         "additionalProperties": false,
+         "description": "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to.",
+         "properties": {
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            },
+            "reply_derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How reply_text came about. template for a rule-based agent, model for a model."
+            },
+            "reply_text": {
+               "description": "The reply, as prose.",
+               "type": "string"
+            },
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "Reply"
+               ],
+               "type": "string"
+            }
+         },
+         "required": [
+            "schema_class",
+            "reply_text",
+            "reply_derivation",
+            "grounded_on"
+         ],
+         "title": "Reply",
+         "type": "object"
+      },
       "ResourceRef": {
          "additionalProperties": false,
          "description": "A FAIRsharing record as it identified itself when retrieved.",
@@ -1021,6 +1212,15 @@
          "title": "Telemetry",
          "type": "object"
       },
+      "TurnRole": {
+         "description": "Who spoke in a conversation turn.",
+         "enum": [
+            "user",
+            "agent"
+         ],
+         "title": "TurnRole",
+         "type": "string"
+      },
       "Verdict": {
          "description": "",
          "enum": [
@@ -1035,12 +1235,20 @@
    "$id": "https://w3id.org/data-director/schema/workbench",
    "$schema": "https://json-schema.org/draft/2019-09/schema",
    "additionalProperties": true,
-   "description": "What the conductor hands to an agent. One request produces exactly one Envelope.",
+   "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012).",
    "metamodel_version": "1.11.0",
    "properties": {
       "agent_id": {
          "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
          "type": "string"
+      },
+      "conversation_id": {
+         "description": "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.",
+         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+         "type": [
+            "string",
+            "null"
+         ]
       },
       "input": {
          "anyOf": [
@@ -1055,6 +1263,9 @@
             },
             {
                "$ref": "#/$defs/Salutation"
+            },
+            {
+               "$ref": "#/$defs/Message"
             }
          ],
          "description": "What the agent is asked to work on. One of the input classes, discriminated by schema_class; an agent declares which it accepts."
@@ -1067,6 +1278,14 @@
       "issued_at": {
          "format": "date-time",
          "type": "string"
+      },
+      "parent_invocation_id": {
+         "description": "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused.",
+         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+         "type": [
+            "string",
+            "null"
+         ]
       },
       "policy_bundle_ref": {
          "description": "Reference to the institutional profile the conductor applied (path or profile:<id>).",
@@ -1092,5 +1311,5 @@
    ],
    "title": "data_director_workbench",
    "type": "object",
-   "version": "0.2.0"
+   "version": "0.3.0"
 }

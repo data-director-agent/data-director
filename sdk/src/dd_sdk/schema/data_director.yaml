@@ -8,7 +8,7 @@ description: >-
   (ADR-0007); every payload mixes in Grounded so the grounding linter can check it without
   knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.2.0
+version: 0.3.0
 license: MIT
 
 prefixes:
@@ -32,13 +32,17 @@ classes:
 
   InvocationRequest:
     description: >-
-      What the conductor hands to an agent. One request produces exactly one Envelope.
+      What the conductor hands to an agent. One request produces exactly one Envelope. A
+      conversation is the set of top-level invocations sharing a conversation_id; each turn is
+      one request and one envelope (ADR-0012).
     slots:
       - invocation_id
       - agent_id
       - requirement_ids
       - issued_at
       - policy_bundle_ref
+      - conversation_id
+      - parent_invocation_id
       - input
 
   Envelope:
@@ -60,6 +64,22 @@ classes:
       - telemetry
       - requires_human_review
       - problem
+      - conversation_id
+      - parent_invocation_id
+      - delegations
+
+  Delegation:
+    description: >-
+      One child invocation an agent in grounding mode delegation made through the workbench
+      (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the
+      agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a
+      relayed reply cites.
+    slots:
+      - delegated_invocation_id
+      - delegated_agent_id
+      - delegated_agent_version
+      - delegated_status
+      - content_hash
 
   Outcome:
     description: >-
@@ -147,6 +167,26 @@ classes:
       - schema_class
       - greeted_name
       - language
+
+  Message:
+    description: >-
+      One conversational turn addressed to an agent: the text of the turn and the conversation so
+      far. The history is part of the input, so the input hash covers everything the agent saw.
+    slots:
+      - schema_class
+      - message_text
+      - history
+
+  ConversationTurn:
+    description: >-
+      One earlier turn of a conversation, as the caller presents it to the agent. An agent turn
+      names the agent and version that produced it and the invocation it came from.
+    slots:
+      - role
+      - turn_text
+      - turn_agent_id
+      - turn_agent_version
+      - turn_invocation_id
 
   # --- Grounding ------------------------------------------------------------------------------
 
@@ -264,6 +304,17 @@ classes:
       - greeting_text
       - greeting_derivation
 
+  Reply:
+    description: >-
+      The payload of a conversational agent: the text of its reply. An orchestrator's reply is
+      grounded on its input and on the envelopes of the invocations it delegated to.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - reply_text
+      - reply_derivation
+
   EvidenceItem:
     description: >-
       The retrieved content a grounding claim rests on, identified by a hash over its
@@ -324,6 +375,7 @@ slots:
       - range: MetadataRecord
       - range: Claim
       - range: Salutation
+      - range: Message
     required: true
     inlined: true
   schema_class:
@@ -353,6 +405,7 @@ slots:
       - range: QualityReview
       - range: FactCheck
       - range: Greeting
+      - range: Reply
     inlined: true
   grounded_on:
     description: >-
@@ -381,6 +434,30 @@ slots:
   problem:
     range: ProblemDetails
     inlined: true
+  conversation_id:
+    description: >-
+      UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  parent_invocation_id:
+    description: >-
+      The invocation that delegated this one. Set only by the conductor, from a delegation
+      grant; a caller's request that carries it is refused.
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  delegations:
+    description: The child invocations this invocation delegated to, in the order they ran.
+    range: Delegation
+    multivalued: true
+    inlined_as_list: true
+  delegated_invocation_id:
+    required: true
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  delegated_agent_id:
+    required: true
+  delegated_agent_version:
+    required: true
+  delegated_status:
+    range: OutcomeStatus
+    required: true
 
   status:
     range: OutcomeStatus
@@ -456,6 +533,35 @@ slots:
     required: true
   greeting_derivation:
     description: How greeting_text came about. Always template for this agent.
+    range: Derivation
+    required: true
+
+  message_text:
+    description: What the user said in this turn.
+    required: true
+  history:
+    description: The earlier turns of the conversation, oldest first.
+    range: ConversationTurn
+    multivalued: true
+    inlined_as_list: true
+  role:
+    range: TurnRole
+    required: true
+  turn_text:
+    description: What was said in the turn.
+    required: true
+  turn_agent_id:
+    description: For an agent turn, the agent that produced it.
+  turn_agent_version:
+    description: For an agent turn, the version of the agent that produced it.
+  turn_invocation_id:
+    description: For an agent turn, the invocation it came from.
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  reply_text:
+    description: The reply, as prose.
+    required: true
+  reply_derivation:
+    description: How reply_text came about. template for a rule-based agent, model for a model.
     range: Derivation
     required: true
 
@@ -654,6 +760,19 @@ enums:
         description: >-
           The agent is deterministic over its input: no retrieval and no model call (rules
           R1–R3 and N1).
+      delegation:
+        description: >-
+          The agent works over its input and the envelopes of invocations it delegated through
+          the workbench. No retrieval span may appear; a model may be called; every grounding
+          reference is the input hash or a recorded delegation (rules R1, D1–D3, ADR-0012).
+
+  TurnRole:
+    description: Who spoke in a conversation turn.
+    permissible_values:
+      user:
+        description: The person, or the caller, addressing the agent.
+      agent:
+        description: An agent's reply, named by turn_agent_id and turn_agent_version.
 
   Severity:
     permissible_values:
