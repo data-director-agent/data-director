@@ -1,4 +1,5 @@
-"""Serve one agent over A2A (ADR-0011). The SDK's only importer of `a2a`.
+"""Serve one agent over A2A (ADR-0011). With `dd_sdk.delegate`, one of the SDK's two importers of
+`a2a` (ADR-0012).
 
 `app(agent, base_url)` is a Starlette application with the agent card at
 `/.well-known/agent-card.json` and the JSON-RPC binding at `/a2a`. `main(build)` is the console
@@ -29,13 +30,16 @@ from opentelemetry import context as otel_context
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from starlette.applications import Starlette
 
-from dd_sdk.agent import Agent, AgentResult, RunContext, describe
+from dd_sdk import delegate as delegation
+from dd_sdk.agent import Agent, AgentResult, DelegationGrant, RunContext, describe
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.tracing import make_tracing
 from dd_sdk.wire import (
     ARTIFACT_NAME,
     EXTENSION_URI,
     JSONRPC_PATH,
+    META_DELEGATE_URL,
+    META_DELEGATION_TOKEN,
     META_INPUT_HASH,
     META_INPUT_REF,
     META_TRACEPARENT,
@@ -89,16 +93,26 @@ def agent_card(agent: Agent, base_url: str) -> AgentCard:
 
 
 def run_traced(
-    agent: Agent, request: InvocationRequest, metadata: dict[str, Any]
+    agent: Agent,
+    request: InvocationRequest,
+    metadata: dict[str, Any],
+    delegate_client_factory: delegation.ClientFactory = delegation.default_client,
 ) -> dict[str, Any]:
     """Run the agent under a tracer parented to the caller's span; return the artifact body.
 
-    An exception from the agent propagates; the executor turns it into a failed task.
+    If the workbench sent a delegation grant (ADR-0012), the agent's context carries a
+    `delegate` bound to it. An exception from the agent propagates; the executor turns it into a
+    failed task.
     """
     tracing = make_tracing(service_name=agent.spec.agent_id)
     parent = TraceContextTextMapPropagator().extract(
         {META_TRACEPARENT: str(metadata.get(META_TRACEPARENT, ""))}
     )
+    grant = None
+    if metadata.get(META_DELEGATE_URL) and metadata.get(META_DELEGATION_TOKEN):
+        grant = DelegationGrant(
+            url=str(metadata[META_DELEGATE_URL]), token=str(metadata[META_DELEGATION_TOKEN])
+        )
     token = otel_context.attach(parent)
     try:
         result: AgentResult = agent.run(
@@ -107,6 +121,17 @@ def run_traced(
                 tracer=tracing.tracer,
                 input_ref=str(metadata.get(META_INPUT_REF, "")),
                 input_hash=str(metadata.get(META_INPUT_HASH, "")),
+                grant=grant,
+                delegate=(
+                    delegation.WorkbenchDelegate(
+                        grant=grant,
+                        parent=request,
+                        tracer=tracing.tracer,
+                        client_factory=delegate_client_factory,
+                    )
+                    if grant is not None
+                    else None
+                ),
             ),
         )
     finally:
@@ -117,8 +142,13 @@ def run_traced(
 
 
 class AgentServerExecutor(AgentExecutor):
-    def __init__(self, agent: Agent) -> None:
+    def __init__(
+        self,
+        agent: Agent,
+        delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+    ) -> None:
         self.agent = agent
+        self.delegate_client_factory = delegate_client_factory
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         message = context.message
@@ -141,7 +171,9 @@ class AgentServerExecutor(AgentExecutor):
         metadata = MessageToDict(message.metadata) if message.HasField("metadata") else {}
         try:
             request = InvocationRequest.model_validate(inputs[0])
-            body = await asyncio.to_thread(run_traced, self.agent, request, metadata)
+            body = await asyncio.to_thread(
+                run_traced, self.agent, request, metadata, self.delegate_client_factory
+            )
         except Exception as exc:  # noqa: BLE001 — reported to the conductor, which records it
             await updater.failed(
                 updater.new_agent_message(
@@ -158,10 +190,18 @@ class AgentServerExecutor(AgentExecutor):
         raise NotImplementedError("invocations are synchronous; nothing to cancel")
 
 
-def app(agent: Agent, base_url: str = "http://127.0.0.1:8100") -> Starlette:
+def app(
+    agent: Agent,
+    base_url: str = "http://127.0.0.1:8100",
+    delegate_client_factory: delegation.ClientFactory = delegation.default_client,
+) -> Starlette:
+    """`delegate_client_factory` gives the httpx client a delegation agent uses to call the
+    workbench back; tests bind it to the workbench's in-process app."""
     card = agent_card(agent, base_url)
     handler = DefaultRequestHandler(
-        agent_executor=AgentServerExecutor(agent), task_store=InMemoryTaskStore(), agent_card=card
+        agent_executor=AgentServerExecutor(agent, delegate_client_factory),
+        task_store=InMemoryTaskStore(),
+        agent_card=card,
     )
     return Starlette(
         routes=[*create_agent_card_routes(card), *create_jsonrpc_routes(handler, JSONRPC_PATH)]

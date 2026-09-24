@@ -5,19 +5,34 @@ provenance.
 (ADR-0001). It fills in everything an agent must not decide about itself: identifiers,
 timestamps, telemetry, the grounding mode and input hash it is held to, and whether the output
 passed the grounding check. It knows nothing about any payload class.
+
+Delegation (ADR-0012). When the conductor runs an agent in grounding mode `delegation`, and it
+knows its own A2A address (`workbench_url`), it issues that invocation a grant: a random token
+the agent may present, while the invocation runs, to ask the workbench to invoke another agent.
+`invoke_delegated` runs such a request as an ordinary invocation, sets its lineage from the
+grant, and records the child against the parent. The parent's envelope lists those records in
+`delegations`, which is what the linter checks a relayed reply against. Delegation is one level
+deep: a child is never issued a grant.
 """
 
 from __future__ import annotations
 
+import secrets
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from dd_sdk.agent import AgentResult, RunContext
+from opentelemetry.trace import SpanContext
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+
+from dd_sdk.agent import AgentResult, DelegationGrant, RunContext
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
+    Delegation,
     Envelope,
+    GroundingMode,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
@@ -26,6 +41,7 @@ from dd_sdk.contract.models import (
     input_source_id,
     to_document,
 )
+from dd_sdk.evidence import envelope_hash
 from dd_sdk.evidence import input_hash as compute_input_hash
 from dd_sdk.tracing import (
     ATTR_OUTCOME,
@@ -46,6 +62,22 @@ class UnknownAgent(Exception):
     pass
 
 
+class DelegationError(ValueError):
+    """A request's lineage is not one the conductor issued: a caller error, never an outcome."""
+
+
+@dataclass
+class Grant:
+    """One delegation grant, live while its parent invocation runs."""
+
+    token: str
+    parent_invocation_id: str
+    parent_agent_id: str
+    conversation_id: str | None
+    policy_bundle_ref: str
+    delegations: list[Delegation] = field(default_factory=list)
+
+
 @dataclass
 class Conductor:
     registry: Registry
@@ -54,8 +86,72 @@ class Conductor:
     tracing: Tracing = field(default_factory=make_tracing)
     write_crate: bool = True
     grounding_reports: dict[str, grounding.GroundingReport] = field(default_factory=dict)
+    # The workbench's own A2A address, sent to delegation agents as their callback. None (the
+    # CLI) means no grant is issued and a delegation agent runs without `delegate`.
+    workbench_url: str | None = None
+    _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
+    _grants_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def invoke(self, request: InvocationRequest) -> Envelope:
+        """Run one top-level invocation. Lineage is the conductor's to set, never the caller's."""
+        if request.parent_invocation_id is not None:
+            raise DelegationError(
+                "parent_invocation_id is set by the conductor from a delegation grant; "
+                "a caller may not set it"
+            )
+        return self._invoke(request)
+
+    def invoke_delegated(
+        self, request: InvocationRequest, token: str, traceparent: str = ""
+    ) -> Envelope:
+        """Run a request a delegation agent sent back under its grant, and record it.
+
+        Raises `DelegationError` for an unknown or expired token or an agent delegating to
+        itself. The child's conversation and policy are the parent's, whatever the request says.
+        """
+        with self._grants_lock:
+            grant = self._grants.get(token)
+        if grant is None:
+            raise DelegationError("unknown or expired delegation token")
+        if request.agent_id == grant.parent_agent_id:
+            raise DelegationError(f"{request.agent_id} may not delegate to itself")
+        child = request.model_copy(
+            update={
+                "parent_invocation_id": grant.parent_invocation_id,
+                "conversation_id": grant.conversation_id,
+                "policy_bundle_ref": grant.policy_bundle_ref,
+            }
+        )
+        envelope = self._invoke(child, link=_span_context(traceparent))
+        record = Delegation(
+            delegated_invocation_id=envelope.invocation_id,
+            delegated_agent_id=envelope.agent_id,
+            delegated_agent_version=envelope.agent_version,
+            delegated_status=envelope.outcome.status,
+            content_hash=envelope_hash(envelope.to_document()),
+        )
+        with self._grants_lock:
+            grant.delegations.append(record)
+        return envelope
+
+    def _issue_grant(self, request: InvocationRequest) -> Grant:
+        grant = Grant(
+            token=secrets.token_urlsafe(32),
+            parent_invocation_id=request.invocation_id,
+            parent_agent_id=request.agent_id,
+            conversation_id=request.conversation_id,
+            policy_bundle_ref=request.policy_bundle_ref,
+        )
+        with self._grants_lock:
+            self._grants[grant.token] = grant
+        return grant
+
+    def _revoke_grant(self, grant: Grant) -> list[Delegation]:
+        with self._grants_lock:
+            self._grants.pop(grant.token, None)
+            return list(grant.delegations)
+
+    def _invoke(self, request: InvocationRequest, link: SpanContext | None = None) -> Envelope:
         request_doc = to_document(request)
         validate.validate_request(request_doc)  # raises: a malformed request is a caller bug
         agent = self.registry.get(request.agent_id)
@@ -74,8 +170,10 @@ class Conductor:
         input_hash = compute_input_hash(request_doc["input"])
         input_ref = input_source_id(request.invocation_id)
 
+        delegations: list[Delegation] = []
+        grant: Grant | None = None
         with invoke_agent_span(
-            tracer, spec.agent_id, spec.grounding_mode.value, input_hash
+            tracer, spec.agent_id, spec.grounding_mode.value, input_hash, link=link
         ) as root:
             trace_id = format(root.get_span_context().trace_id, "032x")
 
@@ -117,10 +215,25 @@ class Conductor:
             else:
                 # 3. Run the agent. An exception becomes a failed outcome; never a crash.
                 prob = None
+                if (
+                    spec.grounding_mode == GroundingMode.DELEGATION
+                    and request.parent_invocation_id is None
+                    and self.workbench_url is not None
+                ):
+                    grant = self._issue_grant(request)
                 try:
                     result = agent.run(
                         request,
-                        RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash),
+                        RunContext(
+                            tracer=tracer,
+                            input_ref=input_ref,
+                            input_hash=input_hash,
+                            grant=(
+                                DelegationGrant(url=self.workbench_url or "", token=grant.token)
+                                if grant is not None
+                                else None
+                            ),
+                        ),
                     )
                 except Exception as exc:  # noqa: BLE001 — converted to a failed outcome by design
                     result = AgentResult(
@@ -152,6 +265,10 @@ class Conductor:
                         )
                         prob = problems.agent_error(spec.agent_id, mismatch)
 
+            if grant is not None:
+                # Recorded whatever the agent did afterwards: the children ran and are stored.
+                delegations = self._revoke_grant(grant)
+
             envelope = Envelope(
                 invocation_id=request.invocation_id,
                 agent_id=spec.agent_id,
@@ -168,6 +285,9 @@ class Conductor:
                     output_tokens=result.output_tokens,
                 ),
                 problem=prob,
+                conversation_id=request.conversation_id,
+                parent_invocation_id=request.parent_invocation_id,
+                delegations=delegations,
             )
             root.set_attribute(ATTR_OUTCOME, envelope.outcome.status.value)
 
@@ -206,3 +326,12 @@ class Conductor:
                 started,
             )
         return envelope
+
+
+def _span_context(traceparent: str) -> SpanContext | None:
+    """The span a W3C `traceparent` names, or None if it names none."""
+    from opentelemetry import trace
+
+    ctx = TraceContextTextMapPropagator().extract({"traceparent": traceparent})
+    span_context = trace.get_current_span(ctx).get_span_context()
+    return span_context if span_context.is_valid else None

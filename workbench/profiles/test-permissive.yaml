@@ -12,6 +12,8 @@ agents_enabled:
   - fake.retrieval
   - fake.input-only
   - fake.none
+  - fake.delegation
+  - fake.inner
 
 actions_requiring_approval:
   - deposit

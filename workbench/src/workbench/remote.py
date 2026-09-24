@@ -36,6 +36,8 @@ from dd_sdk.wire import (
     ARTIFACT_NAME,
     CARD_PATH,
     EXTENSION_URI,
+    META_DELEGATE_URL,
+    META_DELEGATION_TOKEN,
     META_INPUT_HASH,
     META_INPUT_REF,
     META_TRACEPARENT,
@@ -105,6 +107,9 @@ class RemoteAgent:
             META_INPUT_HASH: ctx.input_hash,
             META_TRACEPARENT: carrier.get(META_TRACEPARENT, ""),
         }
+        if ctx.grant is not None:  # a delegation agent's callback (ADR-0012)
+            metadata[META_DELEGATE_URL] = ctx.grant.url
+            metadata[META_DELEGATION_TOKEN] = ctx.grant.token
         try:
             body = asyncio.run(self._send(to_document(request), metadata))
         except (httpx.HTTPError, TimeoutError) as exc:

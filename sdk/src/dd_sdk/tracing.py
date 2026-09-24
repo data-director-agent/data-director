@@ -19,11 +19,12 @@ from pathlib import Path
 from typing import IO, Any
 
 from opentelemetry import trace
+from opentelemetry.context import Context
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import Span, Tracer
+from opentelemetry.trace import Link, Span, SpanContext, Tracer
 
 # --- Span names -------------------------------------------------------------------------------
 
@@ -32,6 +33,7 @@ POLICY_GATE = "policy_gate"
 RETRIEVAL = "retrieval"
 CHAT = "chat"
 EXECUTE_TOOL = "execute_tool"
+DELEGATE = "delegate"  # ADR-0012: an agent asks the workbench to invoke another agent
 
 # --- Owned attributes (the linter reads only these) -------------------------------------------
 
@@ -210,11 +212,23 @@ def make_tracing(
 
 @contextlib.contextmanager
 def invoke_agent_span(
-    tracer: Tracer, agent_id: str, grounding_mode: str, input_hash: str
+    tracer: Tracer,
+    agent_id: str,
+    grounding_mode: str,
+    input_hash: str,
+    link: SpanContext | None = None,
 ) -> Iterator[Span]:
     """The root of one invocation. Mode and input hash are set here, by the conductor, so the
-    linter reads what the harness declared rather than what the agent claims."""
-    with tracer.start_as_current_span(INVOKE_AGENT) as span:
+    linter reads what the harness declared rather than what the agent claims.
+
+    A delegated invocation passes `link`, the delegating agent's `delegate` span: the child then
+    starts a trace of its own, linked to that span rather than nested in it, so each invocation
+    is linted over its own tree (ADR-0012).
+    """
+    kwargs: dict[str, Any] = {}
+    if link is not None:
+        kwargs = {"context": Context(), "links": [Link(link)]}
+    with tracer.start_as_current_span(INVOKE_AGENT, **kwargs) as span:
         span.set_attribute(ATTR_OPERATION, INVOKE_AGENT)
         span.set_attribute(ATTR_AGENT_ID, agent_id)
         span.set_attribute(ATTR_GROUNDING_MODE, grounding_mode)
@@ -245,6 +259,17 @@ def chat_span(tracer: Tracer, model_id: str) -> Iterator[Span]:
     with tracer.start_as_current_span(CHAT) as span:
         span.set_attribute(ATTR_OPERATION, CHAT)
         span.set_attribute(ATTR_MODEL_ID, model_id)
+        yield span
+
+
+@contextlib.contextmanager
+def delegate_span(tracer: Tracer, agent_id: str) -> Iterator[Span]:
+    """One span per delegation, in the delegating agent's trace. `dd.agent_id` names the agent
+    delegated to; the caller sets `dd.source_id` and `dd.content_hash` once the child envelope
+    is back, so a reader of the trace sees what was relayed."""
+    with tracer.start_as_current_span(DELEGATE) as span:
+        span.set_attribute(ATTR_OPERATION, DELEGATE)
+        span.set_attribute(ATTR_AGENT_ID, agent_id)
         yield span
 
 

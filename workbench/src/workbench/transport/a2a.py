@@ -8,20 +8,28 @@ protobuf-based, so documents cross as `google.protobuf.Struct` values via the SD
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
-from a2a.helpers import get_data_parts, new_data_part, new_task_from_user_message
+from a2a.helpers import (
+    get_data_parts,
+    new_data_part,
+    new_task_from_user_message,
+    new_text_part,
+)
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
 from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
 from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill
+from google.protobuf.json_format import MessageToDict
 from starlette.routing import BaseRoute
 
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
-from workbench.conductor import Conductor
+from dd_sdk.wire import ENVELOPE_JSON_ARTIFACT, META_DELEGATION_TOKEN, META_TRACEPARENT
+from workbench.conductor import Conductor, UnknownAgent
 
 PROTOCOL_VERSION = "1.0"
 
@@ -85,15 +93,32 @@ class WorkbenchExecutor(AgentExecutor):
                 )
             )
             return
+        metadata = MessageToDict(message.metadata) if message.HasField("metadata") else {}
+        token = metadata.get(META_DELEGATION_TOKEN)
         try:
             request = InvocationRequest.model_validate(inputs[0])
-            envelope = await asyncio.to_thread(self.conductor.invoke, request)
-        except (ContractViolation, ValueError) as exc:
+            if token:
+                # A delegation agent calling back under its grant (ADR-0012).
+                envelope = await asyncio.to_thread(
+                    self.conductor.invoke_delegated,
+                    request,
+                    str(token),
+                    str(metadata.get(META_TRACEPARENT, "")),
+                )
+            else:
+                envelope = await asyncio.to_thread(self.conductor.invoke, request)
+        except (ContractViolation, ValueError, UnknownAgent) as exc:
             await updater.failed(updater.new_agent_message([new_data_part({"error": str(exc)})]))
             return
+        document = envelope.to_document()
         await updater.add_artifact(
-            [new_data_part(envelope.to_document(), media_type="application/json")], name="envelope"
+            [new_data_part(document, media_type="application/json")], name="envelope"
         )
+        if token:
+            # The stored JSON, as text, so the caller's hash of it matches the conductor's.
+            await updater.add_artifact(
+                [new_text_part(json.dumps(document))], name=ENVELOPE_JSON_ARTIFACT
+            )
         await updater.complete()
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:

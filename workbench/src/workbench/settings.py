@@ -28,6 +28,10 @@ class Settings:
     profiles_dir: Path = PROFILES_DIR
     write_crate: bool = True
     agents_config: Path = DEFAULT_AGENTS_CONFIG
+    # The address delegation agents call the workbench back on (ADR-0012). `workbench serve`
+    # uses its own host and port when this is unset; set it when agents reach the workbench by
+    # another name (a container network, a proxy).
+    workbench_url: str | None = None
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -36,6 +40,7 @@ class Settings:
             profiles_dir=Path(os.environ.get("DD_PROFILES_DIR", str(PROFILES_DIR))),
             write_crate=os.environ.get("DD_WRITE_CRATE", "1") != "0",
             agents_config=Path(os.environ.get("DD_AGENTS_CONFIG", str(DEFAULT_AGENTS_CONFIG))),
+            workbench_url=os.environ.get("DD_WORKBENCH_URL") or None,
         )
 
 

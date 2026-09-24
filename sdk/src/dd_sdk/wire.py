@@ -12,6 +12,9 @@ builds that.
 
 The agent card declares the extension `EXTENSION_URI`, whose `params` are `describe(spec)`.
 
+A delegation agent's request back to the workbench (ADR-0012) carries `dd.delegation_token` and
+a `traceparent` in its metadata, and is answered with an `envelope-json` artifact.
+
 Both sides import this module, so the keys are spelt in one place.
 """
 
@@ -32,8 +35,16 @@ EXTENSION_URI = "https://w3id.org/data-director/a2a/agent-spec/v0"
 META_INPUT_REF = "dd.input_ref"
 META_INPUT_HASH = "dd.input_hash"
 META_TRACEPARENT = "traceparent"
+# ADR-0012: sent by the workbench only to an agent in grounding mode delegation. The URL is the
+# workbench's own A2A endpoint; the token is the grant a delegated request must present.
+META_DELEGATE_URL = "dd.delegate_url"
+META_DELEGATION_TOKEN = "dd.delegation_token"
 
 ARTIFACT_NAME = "agent-result"
+# The workbench's answer to a delegated request: one text part holding the envelope as the JSON
+# string the conductor stored, so its dd-envelope-json-v1 hash survives the wire (a Struct would
+# turn integers into floating-point numbers).
+ENVELOPE_JSON_ARTIFACT = "envelope-json"
 JSONRPC_PATH = "/a2a"
 CARD_PATH = "/.well-known/agent-card.json"
 

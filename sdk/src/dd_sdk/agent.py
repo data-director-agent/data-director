@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
@@ -32,6 +32,9 @@ from dd_sdk.contract.models import (
     InvocationRequest,
     Outcome,
 )
+
+if TYPE_CHECKING:
+    from dd_sdk.delegate import Delegated
 
 
 class SpecError(Exception):
@@ -136,16 +139,40 @@ class AgentResult:
 
 
 @dataclass(frozen=True)
+class DelegationGrant:
+    """Where and with what token an agent may ask the workbench to invoke another (ADR-0012).
+
+    Issued by the conductor to an agent in grounding mode delegation, for one invocation only.
+    """
+
+    url: str
+    token: str
+
+
+class Delegate(Protocol):
+    """Invoke another agent through the workbench and return its envelope (`dd_sdk.delegate`)."""
+
+    def __call__(self, agent_id: str, input: Frozen) -> Delegated: ...
+
+
+@dataclass(frozen=True)
 class RunContext:
     """What the conductor gives an agent besides the request.
 
     `input_ref` and `input_hash` are the source_id and content_hash an input_only or none agent
     cites; they are computed by the conductor so the agent cannot get them wrong.
+
+    `grant` is set by the conductor for an agent in grounding mode delegation, and forwarded by
+    the workbench's `RemoteAgent`. `delegate` is what the agent calls: `dd_sdk.serve` builds it
+    from the grant in the agent's process. Both are None for every other agent, and for a
+    delegation agent run where the workbench has no callback address (the CLI).
     """
 
     tracer: Tracer
     input_ref: str
     input_hash: str
+    grant: DelegationGrant | None = None
+    delegate: Delegate | None = None
 
 
 @runtime_checkable

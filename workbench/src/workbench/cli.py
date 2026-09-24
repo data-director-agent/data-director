@@ -108,9 +108,11 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     from workbench.transport.app import build_app
 
-    app = build_app(
-        build_conductor(Settings.from_env()), base_url=f"http://{args.host}:{args.port}"
-    )
+    settings = Settings.from_env()
+    base_url = f"http://{args.host}:{args.port}"
+    conductor = build_conductor(settings)
+    conductor.workbench_url = settings.workbench_url or base_url  # delegation callback (ADR-0012)
+    app = build_app(conductor, base_url=base_url)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
 

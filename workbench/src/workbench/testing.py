@@ -6,6 +6,10 @@ exercises the real A2A wire (request, metadata, spans, spec extension) without a
 second process. `make_conductor` does this for every agent it is given, so a harness test runs
 an agent the way the workbench runs it in production.
 
+The conductor `make_conductor` builds also serves its own A2A app in memory and gives each agent
+a delegate client bound to it, so a delegation agent's call back to the workbench (ADR-0012)
+crosses the real wire too.
+
 `ScriptedAgent` is a generic double whose specification and behaviour are set per test. It emits
 the spans a test asks for, then returns (or raises) what it was given, so harness and linter
 behaviour can be pinned for each grounding mode without a retrieval backend or a model. Nothing
@@ -34,12 +38,15 @@ from dd_sdk.contract.models import (
     GroundingMode,
     GroundingRef,
     InvocationRequest,
+    Message,
     MetadataRecord,
     Outcome,
     OutcomeStatus,
     QualityReview,
+    Reply,
     Verdict,
 )
+from dd_sdk.delegate import Delegated
 from dd_sdk.evidence import (
     DOCUMENT_CANONICALISATION,
     HASH_ALGORITHM,
@@ -119,6 +126,16 @@ SPECS: dict[GroundingMode, AgentSpec] = {
         grounding_mode=GroundingMode.NONE,
         payload_type=QualityReview,
     ),
+    GroundingMode.DELEGATION: AgentSpec(
+        agent_id="fake.delegation",
+        version="0",
+        description="Scripted delegation-mode agent.",
+        requirement_ids=(),
+        action_class="advise",
+        accepts=(Message,),
+        grounding_mode=GroundingMode.DELEGATION,
+        payload_type=Reply,
+    ),
 }
 
 
@@ -190,6 +207,20 @@ def fact_check_over(*sources: Retrieve) -> AgentResult:
     )
 
 
+def reply_over(ctx: RunContext, *delegated: Delegated) -> AgentResult:
+    """A succeeded Reply grounded on the input and the given child envelopes."""
+    text = "; ".join(f"{d.envelope.agent_id}: {d.envelope.outcome.statement}" for d in delegated)
+    return AgentResult(
+        outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Relayed."),
+        payload=Reply(
+            reply_text=text or "Nothing delegated.",
+            reply_derivation=Derivation.TEMPLATE,
+            grounded_on=[input_ref(ctx), *(d.ref for d in delegated)],
+        ),
+        evidence=[input_evidence(ctx), *(d.evidence for d in delegated)],
+    )
+
+
 SOURCE_A = Retrieve("src:a", {"source_id": "src:a", "text": "Alpha."})
 SOURCE_B = Retrieve("src:b", {"source_id": "src:b", "text": "Beta."})
 
@@ -208,10 +239,23 @@ def asgi_client_factory(app: Any) -> Callable[[str, float], httpx.AsyncClient]:
     return factory
 
 
-def in_process(agent: Agent, timeout_s: float = 30.0) -> RemoteAgent:
-    """Serve `agent` in memory and return the `RemoteAgent` built from its card."""
+WORKBENCH_URL = "http://workbench.test"
+
+
+def in_process(
+    agent: Agent,
+    timeout_s: float = 30.0,
+    delegate_client_factory: Callable[[str, float], httpx.AsyncClient] | None = None,
+) -> RemoteAgent:
+    """Serve `agent` in memory and return the `RemoteAgent` built from its card.
+
+    `delegate_client_factory` is the client a delegation agent calls the workbench back with.
+    """
     base_url = f"http://{agent.spec.agent_id}.agents.test"
-    app = serve.app(agent, base_url=base_url)
+    kwargs: dict[str, Any] = {}
+    if delegate_client_factory is not None:
+        kwargs["delegate_client_factory"] = delegate_client_factory
+    app = serve.app(agent, base_url=base_url, **kwargs)
     return RemoteAgent.from_url(
         base_url, timeout_s=timeout_s, client_factory=asgi_client_factory(app)
     )
@@ -220,9 +264,30 @@ def in_process(agent: Agent, timeout_s: float = 30.0) -> RemoteAgent:
 def make_conductor(
     runs_dir: Path, *agents: Agent, crate: bool = False, remote: bool = True
 ) -> Conductor:
-    """A conductor over `agents`, each reached over in-process A2A unless `remote` is False."""
-    registry = Registry.from_agents(in_process(a) if remote else a for a in agents)
-    return Conductor(registry=registry, store=RunStore(runs_dir), write_crate=crate)
+    """A conductor over `agents`, each reached over in-process A2A unless `remote` is False.
+
+    A remote conductor also serves its own A2A app in memory at `WORKBENCH_URL` and sets it as
+    the delegation callback, so delegation runs over the wire as it does in production.
+    """
+    from workbench.transport.app import build_app  # the app imports the conductor
+
+    workbench_app: dict[str, Any] = {}
+
+    def workbench_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        return asgi_client_factory(workbench_app["app"])(base_url, timeout_s)
+
+    registry = Registry.from_agents(
+        in_process(a, delegate_client_factory=workbench_client) if remote else a for a in agents
+    )
+    conductor = Conductor(registry=registry, store=RunStore(runs_dir), write_crate=crate)
+    if remote:
+        workbench_app["app"] = build_app(conductor, base_url=WORKBENCH_URL)
+        conductor.workbench_url = WORKBENCH_URL
+    return conductor
+
+
+def message(text: str = "hello") -> Message:
+    return Message(message_text=text)
 
 
 def record() -> MetadataRecord:

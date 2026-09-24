@@ -66,6 +66,7 @@ known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality"
 # The domain reads better without an Error suffix; these names appear in messages people read.
 "workbench/src/workbench/conductor.py" = ["N818"]
 "sdk/src/dd_sdk/contract/validate.py" = ["N818"]
+"sdk/src/dd_sdk/delegate.py" = ["N818"]
 "agents/r3/src/dd_agent_r3/retrieve.py" = ["N818"]
 
 [tool.pytest.ini_options]
