@@ -137,6 +137,12 @@ That is the right thing to show. It makes the case for the traceability rule mor
 > tests are xfailed. Two demonstration agents (`quality.reviewer`, `fact.checker`) exercise the
 > other grounding modes. Conversation, orchestration and streaming remain deferred.
 
+> **Amended 2026-09-24.** Conversation and a rule-based orchestrator are delivered (ADR-0012):
+> each turn is one invocation sharing a `conversation_id`; an agent in grounding mode
+> `delegation` hands work to other agents only through the workbench, which runs each child as a
+> governed invocation and records it on the parent; `director.stub` routes by rule; the shell has
+> Inspect and Chat modes. A model-backed orchestrator and streaming remain deferred.
+
 Each item below has a defined place in the v0 architecture so that adoption is additive.
 
 | Item | Existing option | What v0 carries | Why deferred |
@@ -151,6 +157,7 @@ Each item below has a defined place in the v0 architecture so that adoption is a
 | Payload editing and feedback capture | RJSF / JSON Forms editing mode | Read-only renderer | Workshop does not need it |
 | Streaming and `suspended` interrupt | AG-UI full event set | AG-UI declared as the protocol | One synchronous agent; nothing to stream |
 | DMP models | RDA DMP Common Standard (maDMP) | Nothing | Adopt when DMP alignment arrives; noted so it is not reinvented |
+| Model-backed orchestrator | The Anthropic SDK behind an explainer-style interface, as R3 uses | `Message` in, `Reply` out, mode `delegation`, `ctx.delegate` (ADR-0012) | Routing rules suffice to exercise conversation and delegation; prompt design and tool schemas are undecided (TODO) |
 | **D4 — Evaluation and workshop pack** | Inspect AI over the stratified ORDA corpus, seeded-defect pack, Exercise 4 materials | — | 5 pd, early 2027 |
 | **v0.2 total** | | | ~8 pd |
 

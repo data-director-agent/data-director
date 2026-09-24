@@ -15,9 +15,11 @@ An agent receives an `InvocationRequest`. Its main fields are:
 | `agent_id` | The agent to run, for example `quality.reviewer`. |
 | `policy_bundle_ref` | The institutional policy profile to apply, for example `profile:default`. |
 | `input` | The input document. |
+| `conversation_id` | Optional. The conversation this run is a turn of (see below). |
+| `parent_invocation_id` | Set only by the conductor, on a run another agent delegated. A caller that sets it is refused. |
 
-The input is one of several input classes: `DatasetProfile`, `MetadataRecord`, `Claim` or
-`Salutation`. Its `schema_class` field says which one it is
+The input is one of several input classes: `DatasetProfile`, `MetadataRecord`, `Claim`,
+`Salutation` or `Message`. Its `schema_class` field says which one it is
 ([ADR-0007](adr/0007-polymorphic-contract.md)).
 
 ## The envelope
@@ -33,6 +35,8 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 | `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields are always empty for now (`not_measured`). |
 | `requires_human_review` | Always `true`. The schema fixes it as a constant, so no envelope can claim otherwise. |
 | `problem` | Details of the problem, when the status is `failed` or `suspended`. |
+| `conversation_id`, `parent_invocation_id` | Copied from the request, when present. |
+| `delegations` | For an agent in grounding mode `delegation`: each run it delegated, with that run's agent, version, status and envelope hash. Omitted when empty. |
 
 The envelope also carries the invocation id, the agent id and version, and the completion time.
 The [conductor](conductor.md) fills these in, not the agent.
@@ -52,7 +56,28 @@ proposal.
 
 ## Payloads
 
-Each payload class is specific to an agent: `Recommendations`, `QualityReview`, `FactCheck` or
-`Greeting`. Every payload class includes the `Grounded` mixin, which adds a `grounded_on` list.
+Each payload class is specific to an agent: `Recommendations`, `QualityReview`, `FactCheck`,
+`Greeting` or `Reply`. Every payload class includes the `Grounded` mixin, which adds a `grounded_on` list.
 Each entry in that list names a source by its identifier and content hash. This is the only
 place a payload may assert which sources it relies on. The grounding linter checks each entry.
+
+## Conversations
+
+A conversation is a sequence of runs that share a `conversation_id`. Each turn is one ordinary
+run with its own envelope, so every check applies to it
+([ADR-0012](adr/0012-conversation-and-orchestration.md)).
+
+A conversational agent accepts `Message`: the text of this turn (`message_text`) and the
+conversation so far (`history`, a list of `ConversationTurn`). Each agent turn in the history
+names the agent, version and run it came from. The history is part of the input, so the input
+hash covers everything the agent was shown. The agent replies with a `Reply` payload
+(`reply_text`, `reply_derivation`).
+
+The workbench keeps no separate conversation store. `GET /conversations` lists conversations and
+`GET /conversations/{id}` returns one, read back from the stored runs: each turn with the runs it
+delegated, the stored inputs, where an agent's version changed between turns, and the history to
+send with the next `Message`.
+
+An orchestrator hands work to other agents only through the workbench. Each hand-off is a run of
+its own, stored with `parent_invocation_id`, and listed in the parent envelope's `delegations`.
+[`conductor.md`](conductor.md) describes how.

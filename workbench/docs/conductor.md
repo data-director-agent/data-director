@@ -45,10 +45,35 @@ reviewer all see the same record.
 The policy profile is a YAML file in `profiles/`. The gate answers only the two questions in
 step 1 ([ADR-0003](adr/0003-policy-profiles.md)).
 
+## Delegation
+
+An agent in grounding mode `delegation`, such as an orchestrator, may ask the workbench to run
+other agents for it ([ADR-0012](adr/0012-conversation-and-orchestration.md)). It never calls
+them directly.
+
+1. When the conductor runs such an agent, it issues a grant: a random token, valid only while
+   that run is in progress. The token and the workbench's own A2A address travel to the agent
+   with the request. `workbench serve` uses its own host and port as the address;
+   `DD_WORKBENCH_URL` overrides it. `workbench invoke` issues no grant.
+2. The agent calls `ctx.delegate(agent_id, input)`. The SDK sends a new request back to the
+   workbench's A2A endpoint with the token.
+3. `Conductor.invoke_delegated` checks the token and refuses an unknown or expired one, or an
+   agent delegating to itself. It then runs the request through every step above, as a run of
+   its own, in a trace of its own linked to the parent's. It takes the conversation and policy
+   profile from the grant, and sets `parent_invocation_id`.
+4. The conductor records the child's id, agent, version, status and envelope hash against the
+   grant. When the parent finishes, the grant is revoked and those records become the parent
+   envelope's `delegations`, even if the parent then fails.
+
+A delegated run is never given a grant, so delegation is one level deep. A delegated run refused
+by the policy gate is a `failed` child envelope, which the orchestrator relays. A caller may not
+set `parent_invocation_id`; `invoke` refuses a request that does.
+
 ## What a run leaves behind
 
 Each run appends the envelope to `runs/invocations.jsonl` and writes a folder,
-`runs/<invocation_id>/`, containing:
+`runs/<invocation_id>/`, containing the files below. A delegated run gets its own folder and
+line, written before its parent's.
 
 | File | Contents |
 |---|---|

@@ -54,12 +54,17 @@ uv run pytest --json-report --json-report-file=workbench/.report.json && uv run 
 - **Only the conductor fills identifiers, timestamps, telemetry, grounding mode and input hash.**
   An agent returns an `AgentResult` (outcome, payload, evidence). If you find yourself setting
   `invocation_id` or `grounding_mode` in an agent, stop.
+- **Only the conductor sets lineage.** `parent_invocation_id` and `delegations` come from a
+  delegation grant the conductor issued; `invoke` refuses a request that carries
+  `parent_invocation_id`. An orchestrator delegates through `ctx.delegate`, never by calling an
+  agent directly (ADR-0012).
 - **An input or payload class carries `schema_class`; a payload class mixes in `Grounded`.**
   `grounded_on` is the only place identity is asserted. A payload without it fails the linter
   (G0) by design. Do not add a payload class without the mixin.
 - **The linter applies the agent's declared mode.** `retrieval`: G1–G4. `input_only`: R1–R3.
-  `none`: R1–R3 + N1. A violation downgrades `succeeded` to `failed`. Do not weaken a rule to make
-  a test pass; do not add a mode without an ADR.
+  `none`: R1–R3 + N1. `delegation`: R1, D1–D3, G4 (ADR-0012). A violation downgrades
+  `succeeded` to `failed`. Do not weaken a rule to make a test pass; do not add a mode without an
+  ADR.
 - **A content problem is an outcome, not an exception.** Empty search → `abstained`; registry down
   → `abstained(registry_unavailable)`; policy refusal → `failed` with Problem Details or
   `referred`; wrong input class → `failed(input-not-accepted)`. Exceptions are for programmer and

@@ -72,6 +72,7 @@ grounding mode, which says what its output may rest on. There is no default.
 | `retrieval` | fetches records from outside sources, then reasons over them. | Yes, but only after it has fetched something. | only records it fetched in this run. | G0, G1–G4 | `fact.checker`, `r3.standards-advisor` |
 | `input_only` | works only on the input it was given. | Yes. | only the input. | G0, R1–R3 | `quality.reviewer` |
 | `none` | works only on its input, by fixed rules, with no model. The same input always gives the same result. | No. | only the input. | G0, R1–R3, N1 | `hello.world`, `stub.abstain` |
+| `delegation` | works on its input and on the envelopes of runs it delegated through the workbench. | Yes. | the input, and runs the conductor recorded as delegated. | G0, R1, D1–D3, G4 | `director.stub` |
 
 The modes run from least to most restricted: `input_only` forbids fetching, and `none` also
 forbids model calls. Every mode still requires a successful result to cite something, even if
@@ -106,6 +107,19 @@ For `input_only` and `none` agents:
 For `none` agents only:
 
 - **N1**: the trace contains no model calls.
+
+For `delegation` agents ([ADR-0012](adr/0012-conversation-and-orchestration.md)), R1 and G4 apply,
+and:
+
+- **D1**: every source in `grounded_on` is either the input (as R2 defines it) or a run listed in
+  the envelope's `delegations`. A delegated run is cited as `invocation:<child_id>`, with the
+  `dd-envelope-json-v1` hash of that run's stored envelope.
+- **D2**: every evidence item meets the same condition.
+- **D3**: a successful envelope cites the input.
+
+The conductor writes `delegations` from the runs it performed for the agent, so these rules
+check the agent's citations against the harness's own record, not against the agent's account
+of what it delegated.
 
 ## When a rule is broken
 

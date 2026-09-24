@@ -22,6 +22,7 @@ An agent never sets identifiers, timestamps, telemetry or its grounding mode.
 | `factcheck/` | `fact.checker` | `Claim` | `retrieval` | `FactCheck` | `dd-factcheck`, port 8103 | Demonstration: lexical verdict over packaged `sources.json`. |
 | `hello/` | `hello.world` | `Salutation` | `none` | `Greeting` | `dd-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
 | `stub/` | `stub.abstain` | every input class | `none` | — | `dd-stub`, port 8104 | Abstains unconditionally. |
+| `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012). |
 | `r3/` | `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-r3`, port 8105 | **Not ported** to this interface. `dd-r3 serve` exits, so the workbench lists R3 as unavailable (`r3/src/dd_agent_r3/factory.py`). TODO. |
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
@@ -50,8 +51,8 @@ CLI, transports or shell, this agent will show it.
 ## Adding an agent
 
 1. **Decide what it reads and returns.** If an existing input class (`DatasetProfile`,
-   `MetadataRecord`, `Claim`, `Salutation`) or payload class (`Recommendations`,
-   `QualityReview`, `FactCheck`, `Greeting`) fits, use it. Otherwise add a class to the central
+   `MetadataRecord`, `Claim`, `Salutation`, `Message`) or payload class (`Recommendations`,
+   `QualityReview`, `FactCheck`, `Greeting`, `Reply`) fits, use it. Otherwise add a class to the central
    contract, `sdk/src/dd_sdk/schema/data_director.yaml` (ADR-0007). `Salutation` and `Greeting`
    are the worked example:
    - an input class carries `schema_class`;
@@ -67,6 +68,11 @@ CLI, transports or shell, this agent will show it.
      `grounded_on`.
    - `input_only` if it works over the input and may call a model.
    - `none` if it is deterministic.
+   - `delegation` if it answers by handing work to other agents (an orchestrator). Call
+     `ctx.delegate(agent_id, input)`, never another agent directly; the workbench runs the child
+     and returns a `Delegated` whose `ref` and `evidence` are what the payload cites for it
+     (ADR-0012). `ctx.delegate` is `None` when no grant was issued (for example under
+     `workbench invoke`); handle that as an outcome. `director/` is the worked example.
 
    In `input_only` and `none`, `grounded_on` and `evidence` cite `ctx.input_ref` /
    `ctx.input_hash` and nothing else. Always use `ctx.tracer`. A span started some other way is
