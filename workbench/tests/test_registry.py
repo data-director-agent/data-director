@@ -144,7 +144,9 @@ def test_a_missing_or_malformed_config_is_a_registry_error(tmp_path: Path) -> No
 
 def test_the_shipped_config_lists_every_agent_package() -> None:
     names = {e["name"] for e in load_config(DEFAULT_AGENTS_CONFIG)}
-    assert names == {"hello", "quality", "factcheck", "stub", "r3"}
+    agents_dir = Path(__file__).resolve().parents[2] / "agents"
+    packages = {d.name for d in agents_dir.iterdir() if (d / "pyproject.toml").exists()}
+    assert names == packages == {"hello", "quality", "factcheck", "stub", "r3", "director"}
 
 
 def test_duplicate_agent_id_is_a_registry_error() -> None:

@@ -1,0 +1,28 @@
+# director.stub's routing rules. Tried in order against the whole message text, ignoring case.
+#
+#   name          identifies the rule in the reply and in tests
+#   agent_id      the agent the message is delegated to
+#   pattern       a Python regular expression; its named groups fill `input`
+#   input         the child input document; "{group}" placeholders are filled from the match
+#   mention_input the child input for "@<agent_id> <text>"; "{rest}" is the text
+#   relay_field   the child payload field quoted in the reply, if the child succeeded
+#   example       shown to the user when nothing matches
+#
+# A new agent is routable only once a rule names it. TODO: the LLM orchestrator routes from the
+# agent manifest instead of this file.
+rules:
+  - name: greet
+    agent_id: hello.world
+    pattern: '^(?:hello|hi|greet)\s+(?P<name>.+?)[.!]*$'
+    input: { schema_class: Salutation, greeted_name: "{name}" }
+    mention_input: { schema_class: Salutation, greeted_name: "{rest}" }
+    relay_field: greeting_text
+    example: hello Ada
+
+  - name: check
+    agent_id: fact.checker
+    pattern: '^(?:check(?: that)?|is it true that)\s+(?P<text>.+?)\??$'
+    input: { schema_class: Claim, text: "{text}" }
+    mention_input: { schema_class: Claim, text: "{rest}" }
+    relay_field: rationale
+    example: check A DOI does not change when the object moves.

@@ -9,6 +9,7 @@ agents_enabled:
   - quality.reviewer
   - stub.abstain
   - hello.world
+  - director.stub
   - fake.retrieval
   - fake.input-only
   - fake.none

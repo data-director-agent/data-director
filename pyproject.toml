@@ -17,6 +17,7 @@ dependencies = [
   "data-director-agent-factcheck",
   "data-director-agent-stub",
   "data-director-agent-r3",
+  "data-director-agent-director",
 ]
 
 [dependency-groups]
@@ -45,6 +46,7 @@ data-director-agent-quality = { workspace = true }
 data-director-agent-factcheck = { workspace = true }
 data-director-agent-stub = { workspace = true }
 data-director-agent-r3 = { workspace = true }
+data-director-agent-director = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -56,7 +58,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3"]
+known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -96,6 +98,7 @@ explicit_package_bases = true
 mypy_path = [
   "sdk/src", "sdk/scripts", "workbench/src", "workbench/scripts", "agents/hello/src",
   "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
+  "agents/director/src",
 ]
 strict = true
 warn_unreachable = true
