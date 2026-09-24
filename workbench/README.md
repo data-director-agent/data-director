@@ -47,24 +47,17 @@ provenance record. To re-run the grounding check on a finished run, use
 
 ## Agents
 
-| Agent | Reads | Grounding mode | Returns | Purpose |
-|---|---|---|---|---|
-| `hello.world` | `Salutation` | `none` | `Greeting` | The template to copy when writing a new agent. |
-| `quality.reviewer` | `MetadataRecord` | `input_only` | `QualityReview` | Scores how complete a metadata record is. A demonstration only. |
-| `fact.checker` | `Claim` | `retrieval` | `FactCheck` | Checks a claim against a few packaged sources by word overlap. A demonstration only. |
-| `stub.abstain` | any input | `none` | — | Always declines, to test the non-success path. |
-| `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | Recommends standards from FAIRsharing. Not yet ported; see [Limitations](#limitations). |
-
-The grounding mode says what an agent's output may be based on; see
-[`docs/grounding.md`](docs/grounding.md). To add an agent, follow
-[`../agents/README.md`](../agents/README.md). The workbench learns where each agent is from
-[`agents.yaml`](agents.yaml).
+The workbench learns where each agent is from [`agents.yaml`](agents.yaml); see
+[`docs/registry.md`](docs/registry.md). `workbench agents` lists what is registered. The agents
+themselves, and how to add one, are described in [`../agents/README.md`](../agents/README.md).
 
 ## Further reading
 
 - [Architecture](docs/architecture.md): the components, the order they run in, and where the
   code lives.
 - [The conductor](docs/conductor.md): the function that runs an agent and applies every check.
+- [The agent registry](docs/registry.md): how the workbench finds its agents, and what happens
+  when one cannot be reached.
 - [The contract](docs/contract.md): the request an agent receives and the response it returns.
 - [Grounding](docs/grounding.md): the rules that tie an agent's output to its sources.
 - [Glossary](docs/glossary.md): the terms used in this directory.

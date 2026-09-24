@@ -55,7 +55,7 @@ each run as its own service. Paths below are relative to the repository root.
 | Policy gate | Reads an institutional profile in YAML and decides whether an agent may run. | `workbench/src/workbench/policy.py`, `workbench/profiles/` |
 | Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `workbench/src/workbench/grounding.py` |
 | Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `workbench/src/workbench/store.py`, `provenance.py` |
-| Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. | `workbench/agents.yaml`, `workbench/src/workbench/registry.py`, `remote.py` |
+| Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](registry.md). | `workbench/agents.yaml`, `workbench/src/workbench/registry.py`, `remote.py` |
 | Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the shell uses. | `workbench/src/workbench/cli.py`, `transport/` |
 | Shell | A read-only browser page that renders requests and envelopes from the generated schema. No build step. | `workbench/shell/` |
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `workbench/src/workbench/testing.py` |

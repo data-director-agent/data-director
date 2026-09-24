@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -143,10 +144,14 @@ def test_a_missing_or_malformed_config_is_a_registry_error(tmp_path: Path) -> No
 
 
 def test_the_shipped_config_lists_every_agent_package() -> None:
-    names = {e["name"] for e in load_config(DEFAULT_AGENTS_CONFIG)}
-    agents_dir = Path(__file__).resolve().parents[2] / "agents"
-    packages = {d.name for d in agents_dir.iterdir() if (d / "pyproject.toml").exists()}
-    assert names == packages == {"hello", "quality", "factcheck", "stub", "r3", "director"}
+    # agents.yaml holds only URLs; run-agents.sh maps each package's script to its port.
+    root = Path(__file__).resolve().parents[2]
+    ports = {int(e["url"].rsplit(":", 1)[1]) for e in load_config(DEFAULT_AGENTS_CONFIG)}
+    script = (root / "scripts" / "run-agents.sh").read_text()
+    served = {m[0]: int(m[1]) for m in re.findall(r"\[dd-([a-z0-9]+)\]=(\d+)", script)}
+    packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
+    assert set(served) == packages == {"hello", "quality", "factcheck", "stub", "r3", "director"}
+    assert set(served.values()) == ports
 
 
 def test_duplicate_agent_id_is_a_registry_error() -> None:
