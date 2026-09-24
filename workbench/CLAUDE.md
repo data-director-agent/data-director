@@ -4,7 +4,7 @@ The Data Director Workbench: the invocation contract, a harness (conductor, poli
 check, OpenTelemetry trace, per-mode grounding linter, evidence hashes, JSONL store, Process Run
 Crate), an agent registry with four usable agents (one of them the `hello.world` template) and
 one awaiting port (R3), a read-only shell, and a generated `CONFORMANCE.md`. `docs/MVP_PLAN.md`
-is the plan; `docs/adr/` records the decisions.
+is the plan; `docs/adr/` records the decisions; `docs/architecture.md` is the overview.
 
 Two rules from the plan govern everything here:
 
