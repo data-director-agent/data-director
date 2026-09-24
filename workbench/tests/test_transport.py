@@ -18,7 +18,7 @@ from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_stub.agent import AbstainingStub
-from dd_sdk.contract.models import to_document
+from dd_sdk.contract.models import new_invocation_id, to_document
 from workbench.testing import claim, make_conductor, record, request
 from workbench.transport.app import build_app
 
@@ -132,6 +132,48 @@ def test_agui_run_and_replay_emit_started_and_finished(runs_dir: Path) -> None:
     assert live[1]["result"]["payload"]["schema_class"] == "QualityReview"
     assert replay[1]["result"] == live[1]["result"]
     assert index[0]["status"] == "succeeded"
+
+
+def _agui_body(request_doc: dict[str, Any], thread_id: str) -> dict[str, Any]:
+    return {
+        "threadId": thread_id,
+        "runId": "r1",
+        "messages": [],
+        "state": {},
+        "tools": [],
+        "context": [],
+        "forwardedProps": {"request": request_doc},
+    }
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: Path) -> None:
+    _, app = _app(runs_dir)
+    conv = new_invocation_id()
+    doc = to_document(
+        request("quality.reviewer", record()).model_copy(update={"conversation_id": conv})
+    )
+
+    async def go() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
+            ok = _sse_events((await hc.post("/agui", json=_agui_body(doc, conv))).text)
+            other = {**doc, "invocation_id": new_invocation_id()}
+            bad = _sse_events((await hc.post("/agui", json=_agui_body(other, "t9"))).text)
+            return ok, bad
+
+    ok, bad = asyncio.run(go())
+    assert ok[0]["threadId"] == conv
+    assert [e["type"] for e in bad] == ["RUN_ERROR"]
+    assert "conversation_id" in bad[0]["message"]
+
+    status, index = _get(app, "/conversations")
+    assert status == 200 and index[0]["conversation_id"] == conv
+    status, found = _get(app, f"/conversations/{conv}")
+    assert status == 200
+    assert found["turns"][0]["agent_id"] == "quality.reviewer"
+    assert found["turns"][0]["input"]["schema_class"] == "MetadataRecord"
+    status, _ = _get(app, f"/conversations/{new_invocation_id()}")
+    assert status == 404
 
 
 @pytest.mark.requirement("DD-REGISTRY")

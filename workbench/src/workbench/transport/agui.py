@@ -3,6 +3,11 @@
 Two events per run, `RUN_STARTED` then `RUN_FINISHED` with the envelope as `result`. With one
 synchronous agent there is nothing else to carry; streaming and the `suspended` interrupt
 arrive with the events that need them.
+
+AG-UI's thread is the contract's conversation (ADR-0012): a request carrying `conversation_id`
+runs in the thread of that id, and a `threadId` that names another is refused. The history an
+agent sees travels in the contract (`Message.history`), not in AG-UI `messages`, so every
+transport gives an agent the same input.
 """
 
 from __future__ import annotations
@@ -61,6 +66,14 @@ async def run_agent(request: Request, conductor: Conductor) -> Response:
         )
     try:
         invocation = InvocationRequest.model_validate(doc)
+        if invocation.conversation_id is not None:
+            given = body.get("threadId") or body.get("thread_id")
+            if given and given != invocation.conversation_id:
+                raise ValueError(
+                    f"threadId {given!r} is not the request's conversation_id "
+                    f"{invocation.conversation_id!r}"
+                )
+            thread_id = invocation.conversation_id
         envelope = await asyncio.to_thread(conductor.invoke, invocation)
     except (ContractViolation, ValueError) as exc:
         return _sse([RunErrorEvent(type=EventType.RUN_ERROR, message=str(exc))], accept)
@@ -74,6 +87,8 @@ async def replay_run(request: Request, conductor: Conductor) -> Response:
     if envelope is None:
         return JSONResponse({"error": f"no run {invocation_id}"}, status_code=404)
     return _sse(
-        _events_for(envelope, thread_id="replay", run_id=invocation_id),
+        _events_for(
+            envelope, thread_id=envelope.get("conversation_id") or "replay", run_id=invocation_id
+        ),
         request.headers.get("accept"),
     )

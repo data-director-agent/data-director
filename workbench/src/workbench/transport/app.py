@@ -1,5 +1,6 @@
 """The Starlette application: A2A, AG-UI, the agent manifest, samples, schema files, the store
-index and the static shell. Nothing here names an agent or a payload class."""
+index, conversations derived from it, and the static shell. Nothing here names an agent or a
+payload class."""
 
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from dd_sdk.contract.validate import SCHEMA_DIR
+from workbench import conversations
 from workbench.conductor import Conductor
 from workbench.transport import agui
 from workbench.transport.a2a import a2a_routes
@@ -57,6 +59,16 @@ def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> 
         ]
         return JSONResponse(list(reversed(items)))
 
+    async def conversations_index(request: Request) -> Response:
+        return JSONResponse(conversations.list_conversations(conductor.store))
+
+    async def conversation(request: Request) -> Response:
+        conversation_id = request.path_params["conversation_id"]
+        found = conversations.get_conversation(conductor.store, conversation_id)
+        if found is None:
+            return JSONResponse({"error": f"no conversation {conversation_id}"}, status_code=404)
+        return JSONResponse(found)
+
     async def uischema(request: Request) -> Response:
         return JSONResponse(json.loads(UISCHEMA.read_text(encoding="utf-8")))
 
@@ -87,6 +99,8 @@ def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> 
             Route("/agui", agui_run, methods=["POST"]),
             Route("/agui/runs/{invocation_id}", agui_replay, methods=["GET"]),
             Route("/runs", runs_index, methods=["GET"]),
+            Route("/conversations", conversations_index, methods=["GET"]),
+            Route("/conversations/{conversation_id}", conversation, methods=["GET"]),
             Route("/schema/uischema.json", uischema, methods=["GET"]),
             Route("/agents", agents, methods=["GET"]),
             Route("/samples", samples, methods=["GET"]),
