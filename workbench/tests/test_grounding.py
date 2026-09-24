@@ -232,6 +232,69 @@ def test_none_mode_forbids_chat() -> None:
     assert violations(grounding.lint([root("none"), chat()], env), "N1")
 
 
+# --- delegation (ADR-0012) ----------------------------------------------------------------------
+
+CHILD = "01a06cdb-985f-7375-9aa2-37be29f0f2a9"
+H_CHILD = "c" * 64
+
+
+def delegation_envelope(
+    grounded_on: list[dict[str, str]], evidence: list[tuple[str, str]]
+) -> dict[str, Any]:
+    env = envelope("delegation", {"schema_class": "Reply", "grounded_on": grounded_on}, evidence)
+    env["delegations"] = [
+        {
+            "delegated_invocation_id": CHILD,
+            "delegated_agent_id": "hello.world",
+            "delegated_agent_version": "0.1.0",
+            "delegated_status": "succeeded",
+            "content_hash": H_CHILD,
+        }
+    ]
+    return env
+
+
+INPUT_PAIR = (input_source_id(INV), INPUT_HASH)
+CHILD_PAIR = (f"invocation:{CHILD}", H_CHILD)
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_delegation_mode_passes_citing_input_and_a_recorded_child() -> None:
+    env = delegation_envelope([ref(*INPUT_PAIR), ref(*CHILD_PAIR)], [INPUT_PAIR, CHILD_PAIR])
+    report = grounding.lint([root("delegation"), chat()], env)  # a model call is allowed
+    assert report.passed, report.violations
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_delegation_mode_rejects_an_unrecorded_or_altered_child() -> None:
+    other = (f"invocation:{INV[:-1]}0", H_CHILD)
+    report = grounding.lint(
+        [root("delegation")],
+        delegation_envelope([ref(*INPUT_PAIR), ref(*other)], [INPUT_PAIR, other]),
+    )
+    assert violations(report, "D1") and violations(report, "D2")
+    altered = (CHILD_PAIR[0], H_A)
+    report = grounding.lint(
+        [root("delegation")],
+        delegation_envelope([ref(*INPUT_PAIR), ref(*altered)], [INPUT_PAIR, altered]),
+    )
+    assert violations(report, "D1") and violations(report, "D2")
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_delegation_mode_forbids_retrieval_and_requires_the_input() -> None:
+    env = delegation_envelope([ref(*INPUT_PAIR)], [INPUT_PAIR])
+    assert violations(grounding.lint([root("delegation"), retrieval("r1", "S", H_A)], env), "R1")
+    report = grounding.lint(
+        [root("delegation")], delegation_envelope([ref(*CHILD_PAIR)], [CHILD_PAIR])
+    )
+    assert violations(report, "D3")
+    report = grounding.lint(
+        [root("delegation")], delegation_envelope([ref(*CHILD_PAIR)], [INPUT_PAIR])
+    )
+    assert violations(report, "G4")
+
+
 def test_summary_names_the_mode() -> None:
     report = grounding.lint([root("none")], envelope("none", None, []))
     assert report.summary().startswith("grounding: passed [none]")

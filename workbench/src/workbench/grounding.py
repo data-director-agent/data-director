@@ -33,6 +33,15 @@ Structural, every mode (G0):
 `none` — deterministic over the input: R1-R3 and
   N1 no `chat` span exists.
 
+`delegation` — the agent works over its input and the envelopes of the invocations it delegated
+through the workbench (ADR-0012); it may call a model. R1, G4 and
+  D1 every `grounded_on` entry cites the input (as R2) or a delegation the conductor recorded in
+     the envelope's `delegations`: `source_id` `invocation:<child_id>` and `content_hash` that
+     child's `dd-envelope-json-v1` hash. The agent's own account of what it delegated is not
+     what is trusted; the conductor's record of the child runs it performed is.
+  D2 every evidence item meets the same condition.
+  D3 a succeeded envelope cites the input.
+
 The linter reads `SpanRecord`s and a plain envelope document, so it runs at invocation time (the
 conductor) and offline over `spans.jsonl` + `envelope.json` (the CLI).
 """
@@ -43,7 +52,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from dd_sdk.contract.models import GroundingMode, input_source_id
+from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
 from dd_sdk.tracing import (
     ATTR_CONTENT_HASH,
     ATTR_GROUNDING_MODE,
@@ -239,6 +248,58 @@ def n1_no_chat(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
     return []
 
 
+def _delegation_citable(tree: Tree, envelope: dict[str, Any]) -> set[tuple[str, str]]:
+    citable = {
+        (
+            input_source_id(str(envelope.get("invocation_id"))),
+            str(tree.root.attributes.get(ATTR_INPUT_HASH)),
+        )
+    }
+    for d in envelope.get("delegations") or []:
+        if isinstance(d, dict):
+            citable.add(
+                (
+                    invocation_source_id(str(d.get("delegated_invocation_id"))),
+                    str(d.get("content_hash")),
+                )
+            )
+    return citable
+
+
+def d1_grounded_on_input_or_delegation(
+    tree: Tree, envelope: dict[str, Any], refs: Refs
+) -> list[str]:
+    citable = _delegation_citable(tree, envelope)
+    return [
+        f"D1: payload rests on {source_id!r} ({content_hash[:12]}…), which is neither the input "
+        "nor a delegation recorded by the conductor"
+        for source_id, content_hash in refs.grounded_on
+        if (source_id, content_hash) not in citable
+    ]
+
+
+def d2_evidence_is_input_or_delegation(
+    tree: Tree, envelope: dict[str, Any], refs: Refs
+) -> list[str]:
+    citable = _delegation_citable(tree, envelope)
+    return [
+        f"D2: evidence {source_id!r} ({content_hash[:12]}…) is neither the input nor a "
+        "delegation recorded by the conductor"
+        for source_id, content_hash in refs.evidence
+        if (source_id, content_hash) not in citable
+    ]
+
+
+def d3_succeeded_cites_the_input(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    expected = (
+        input_source_id(str(envelope.get("invocation_id"))),
+        str(tree.root.attributes.get(ATTR_INPUT_HASH)),
+    )
+    if _succeeded(envelope) and expected not in refs.evidence:
+        return ["D3: a succeeded delegation envelope does not cite its input in evidence"]
+    return []
+
+
 def _succeeded(envelope: dict[str, Any]) -> bool:
     return bool((envelope.get("outcome") or {}).get("status") == "succeeded")
 
@@ -260,6 +321,13 @@ RULES: dict[GroundingMode, tuple[Rule, ...]] = {
         r2_everything_cites_the_input,
         r3_succeeded_cites_the_input,
         n1_no_chat,
+    ),
+    GroundingMode.DELEGATION: (
+        r1_no_retrieval,
+        d1_grounded_on_input_or_delegation,
+        d2_evidence_is_input_or_delegation,
+        g4_evidence_is_complete,
+        d3_succeeded_cites_the_input,
     ),
 }
 
