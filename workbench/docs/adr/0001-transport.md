@@ -3,6 +3,9 @@
 **Status:** Accepted
 **Date:** 2026-09-04
 
+Amended by [ADR-0011](0011-remote-agents.md): the workbench also calls its agents over A2A,
+using the same JSON-RPC binding.
+
 ## Context
 
 Agents must be invocable by other software (Blueprint C5: "expose open APIs … a harmonised API

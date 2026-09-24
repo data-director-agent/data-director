@@ -42,7 +42,7 @@ the stored runs. The right column shows one run:
   `grounding_mode`, `canonicalisation`, `snapshot_ref`, the derivation badges, …) opens a short
   explanation: hover to read it, click to keep it open, `Esc` to close. The **Glossary** button in
   the header lists every term. The text lives in one `GLOSSARY` object in `index.html`, written
-  from the definitions in `schema/data_director.yaml`; keep the two in step. A payload field's `?`
+  from the definitions in `sdk/src/dd_sdk/schema/data_director.yaml`; keep the two in step. A payload field's `?`
   shows the field's own schema description, so an agent documents its payload by describing its
   LinkML slots.
 

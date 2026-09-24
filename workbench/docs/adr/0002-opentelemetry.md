@@ -32,7 +32,7 @@ and SDKs disagree on attribute names, so aligning to them now would mean chasing
 
 | Dependency | Tier | Fallback if this dependency is abandoned |
 |---|---|---|
-| `opentelemetry-sdk` | Runtime path | `workbench.tracing` is the only module that imports it; the span helpers (`retrieval_span`, `chat_span`, …) take a dict of owned attributes and could write them to a JSON-lines file directly. The linter reads a plain span-record structure, not SDK objects. |
+| `opentelemetry-sdk` | Runtime path | `dd_sdk.tracing` is the only module that imports it; the span helpers (`retrieval_span`, `chat_span`, …) take a dict of owned attributes and could write them to a JSON-lines file directly. The linter reads a plain span-record structure, not SDK objects. |
 
 ## Consequences
 

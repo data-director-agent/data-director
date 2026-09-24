@@ -1,8 +1,9 @@
 # The contract
 
 The contract defines what an agent receives and what it returns. It is written in LinkML in
-[`schema/data_director.yaml`](../schema/data_director.yaml). The JSON Schema and SHACL shapes in
-`schema/generated/` are produced from that file and are never edited by hand.
+[`sdk/src/dd_sdk/schema/data_director.yaml`](../../sdk/src/dd_sdk/schema/data_director.yaml),
+which the workbench and every agent share through the SDK. The JSON Schema and SHACL shapes in
+`generated/` beside it are produced from that file and are never edited by hand.
 
 ## The request
 

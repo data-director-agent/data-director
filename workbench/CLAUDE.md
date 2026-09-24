@@ -1,9 +1,10 @@
 # workbench
 
-The Data Director Workbench: the invocation contract, a harness (conductor, policy gate, input
-check, OpenTelemetry trace, per-mode grounding linter, evidence hashes, JSONL store, Process Run
-Crate), an agent registry with four usable agents (one of them the `hello.world` template) and
-one awaiting port (R3), a read-only shell, and a generated `CONFORMANCE.md`. `docs/MVP_PLAN.md`
+The Data Director Workbench: a harness (conductor, policy gate, input check, OpenTelemetry trace,
+per-mode grounding linter, JSONL store, Process Run Crate), a registry of agents reached over A2A,
+a read-only shell, and a generated `CONFORMANCE.md`. The workbench contains no agent code. Agents
+are separate packages and services under `../agents/`, and what both sides share (the contract,
+evidence, span helpers, the A2A agent server) is `../sdk/` (ADR-0011). `docs/MVP_PLAN.md`
 is the plan; `docs/adr/` records the decisions; `docs/architecture.md` is the overview.
 
 Two rules from the plan govern everything here:
@@ -19,26 +20,37 @@ Two rules from the plan govern everything here:
 
 ## Working on the code
 
-Python 3.14, `uv`. All of it lives in this directory; nothing goes at the repository root.
+Python 3.14, `uv`. The repository root is a uv workspace (`sdk/`, `workbench/`, `agents/*`).
+Tooling config (pytest, ruff, mypy) is in the root `pyproject.toml`; run these from the root.
 
 ```bash
-uv sync --all-extras                            # also after adding an agent entry point
+uv sync --all-packages --all-extras             # after adding a workspace member
 uv run pytest                                   # network blocked; no credentials needed
 uv run ruff check . && uv run ruff format .
 uv run mypy
-uv run python scripts/gen_schema.py             # after editing schema/data_director.yaml
-uv run pytest --json-report --json-report-file=.report.json && uv run python scripts/conformance_report.py
+uv run python sdk/scripts/gen_schema.py         # after editing the LinkML schema
+scripts/run-agents.sh                           # every agent on the port agents.yaml expects
+uv run pytest --json-report --json-report-file=workbench/.report.json && uv run python workbench/scripts/conformance_report.py
 ```
 
 ## Load-bearing things
 
-- **`schema/generated/` is generated.** Edit `schema/data_director.yaml`, regenerate, and keep
-  `contract/models.py` in step; `tests/test_contract.py` checks both.
-- **Adding an agent touches nothing central.** A package with `AgentSpec` + `run` + `build`, one
-  entry-point line in `pyproject.toml`, a sample, a uischema fragment, marked tests, a profile
-  entry. Recipe: `src/workbench/agents/README.md`; `agents/hello/` is the worked example to
-  copy. If you find yourself editing the conductor, linter, CLI, transport or shell to add an
+- **`sdk/src/dd_sdk/schema/generated/` is generated.** Edit `data_director.yaml` beside it,
+  regenerate, and keep `dd_sdk/contract/models.py` in step; `sdk/tests/test_contract.py` checks
+  both.
+- **The workbench imports no agent.** Agents are services reached through `RemoteAgent`
+  (`remote.py`); `agents.yaml` lists their URLs. Tests may import agent packages to serve them in
+  memory (`testing.in_process`), and `src/` must not. If you find yourself importing
+  `dd_agent_*` from `src/workbench/`, stop.
+- **Adding an agent touches nothing central.** A package under `../agents/` with `AgentSpec` +
+  `run` + `build` + `main`, one line in `agents.yaml`, a sample, a uischema fragment, marked
+  tests, a profile entry. Recipe: `../agents/README.md`; `../agents/hello/` is the worked example
+  to copy. If you find yourself editing the conductor, linter, CLI, transport or shell to add an
   agent, stop.
+- **An agent's spans come back over the wire.** `RemoteAgent` returns them in
+  `AgentResult.spans`; the conductor imports them into its trace before linting. G0 rejects a
+  span outside the `invoke_agent` tree or one carrying a conductor attribute. Do not filter
+  imported spans by trace id; that would hide such spans from G0.
 - **Only the conductor fills identifiers, timestamps, telemetry, grounding mode and input hash.**
   An agent returns an `AgentResult` (outcome, payload, evidence). If you find yourself setting
   `invocation_id` or `grounding_mode` in an agent, stop.
@@ -52,17 +64,20 @@ uv run pytest --json-report --json-report-file=.report.json && uv run python scr
   → `abstained(registry_unavailable)`; policy refusal → `failed` with Problem Details or
   `referred`; wrong input class → `failed(input-not-accepted)`. Exceptions are for programmer and
   configuration errors (`ContractViolation`, `PolicyError`, `UnknownAgent`, `RegistryError`).
-- **A canonicalisation is registered, never invented.** `evidence.CANONICALISATIONS`; a new
+- **A canonicalisation is registered, never invented.** `dd_sdk.evidence.CANONICALISATIONS`; a new
   projection is a new name, and an existing name's bytes never change.
-- **A rule with missing inputs returns `None`, never `0.0`** (`agents/r3/rank.py`).
+- **A rule with missing inputs returns `None`, never `0.0`** (`agents/r3/src/dd_agent_r3/rank.py`).
 - **Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`**, and
   the ID must be in `docs/requirements.yaml`. Do not mark a test with an ID it does not actually
   exercise; a demonstration agent does not substantiate a Blueprint `R` it does not meet.
-- **R3 is xfailed, not deleted.** `agents/r3/factory.py` raises `NotImplementedError`; the port is
-  a TODO there. Do not "fix" R3 tests by widening the harness.
-- **`data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild with
-  `scripts/build_snapshot.py`; do not hand-edit records.
-- **Cassettes must not contain credentials.** `conftest.py` filters the auth headers and the
-  sign-in password; check a new cassette before committing it.
+- **R3 is xfailed, not deleted.** `agents/r3/src/dd_agent_r3/factory.py` raises
+  `NotImplementedError`, so `dd-r3 serve` exits and the registry lists R3 as unavailable; the
+  port is a TODO there. Do not "fix" R3 tests by widening the harness.
+- **`agents/r3/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
+  with `agents/r3/scripts/build_snapshot.py`; do not hand-edit records.
+- **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
+  the sign-in password; check a new cassette before committing it.
+- **Test module basenames are unique across the workspace.** Test directories are not packages;
+  shared doubles live in `workbench.testing` and `dd_agent_r3.testing`.
 
 British English, declarative prose, `TODO` rather than a plausible guess (root `CLAUDE.md`).

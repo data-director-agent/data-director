@@ -10,13 +10,15 @@ response, called an envelope. Three front ends can send requests: the command li
 JSON-RPC endpoint, and the browser shell. All three hand the request to the same function, the
 [conductor](conductor.md), so an agent behaves the same whichever front end is used.
 
-The conductor runs a fixed sequence of steps:
+Agents are separate services. The conductor reaches each one over A2A and gets back the
+agent's result together with the trace spans the agent recorded
+([ADR-0011](adr/0011-remote-agents.md)). The conductor runs a fixed sequence of steps:
 
 ```mermaid
 flowchart LR
     T["Front end<br/>CLI · A2A · shell"] --> P[Policy gate]
     P --> I[Input check]
-    I --> A[Agent]
+    I --> A["Agent service<br/>over A2A"]
     A --> G[Grounding linter]
     G --> V[Schema validation]
     V --> S["Run store<br/>trace · Process Run Crate"]
@@ -25,7 +27,8 @@ flowchart LR
 
 1. The **policy gate** checks that the institution's profile allows this agent to run.
 2. The **input check** confirms the agent reads this kind of input.
-3. The **agent** does its work and returns an outcome, a payload and its evidence.
+3. The **agent** does its work in its own process and returns an outcome, a payload, its
+   evidence and its trace spans. The conductor adds the spans to the run's trace.
 4. The **grounding linter** checks the output is based only on what the agent was allowed to use
    ([`grounding.md`](grounding.md)).
 5. The envelope is **validated** against the JSON Schema.
@@ -36,24 +39,29 @@ says what happened. [`conductor.md`](conductor.md) describes each step in detail
 
 ## Components
 
-All paths are relative to `workbench/`.
+The repository is a uv workspace with three kinds of package. `sdk/` holds everything an agent
+and the workbench share. `workbench/` is the harness. `agents/` holds one package per agent,
+each run as its own service. Paths below are relative to the repository root.
 
 | Component | What it does | Where |
 |---|---|---|
-| Contract | Defines the request, the envelope and every input and payload class, in LinkML. The JSON Schema and SHACL in `generated/` are produced from it. | `schema/data_director.yaml` |
-| Contract models | Python (Pydantic) versions of the schema classes, schema validation and the RFC 9457 problem types. | `src/workbench/contract/` |
-| Conductor | Runs the steps above. Every front end calls it. | `src/workbench/conductor.py` |
-| Policy gate | Reads an institutional profile in YAML and decides whether an agent may run. | `src/workbench/policy.py`, `profiles/` |
-| Tracing | Records each run as an OpenTelemetry span tree with the workbench's own `dd.*` attributes. | `src/workbench/tracing.py` |
-| Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `src/workbench/grounding.py` |
-| Evidence | Hashes each source record in a fixed, named way (a canonicalisation). | `src/workbench/evidence.py` |
-| Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `src/workbench/store.py`, `provenance.py` |
-| Agent registry | Finds agents through Python entry points and lists what each accepts. | `src/workbench/agents/base.py`, `registry.py` |
-| Agents | The agents themselves. `hello/` is the template to copy. | `src/workbench/agents/` |
-| Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the shell uses. | `src/workbench/cli.py`, `transport/` |
-| Shell | A read-only browser page that renders requests and envelopes from the generated schema. No build step. | `shell/` |
-| FAIRsharing snapshot | The committed copy of FAIRsharing records that R3 uses (CC BY-SA 4.0). | `data/fairsharing/` |
-| Conformance report | Maps passing tests to Blueprint requirements and generates `CONFORMANCE.md`. | `docs/requirements.yaml`, `scripts/conformance_report.py` |
+| Contract | Defines the request, the envelope and every input and payload class, in LinkML. The JSON Schema and SHACL in `generated/` are produced from it. | `sdk/src/dd_sdk/schema/data_director.yaml` |
+| Contract models | Python (Pydantic) versions of the schema classes, schema validation and the RFC 9457 problem types. | `sdk/src/dd_sdk/contract/` |
+| Agent interface | `AgentSpec`, `AgentResult`, `RunContext`, and the one manifest (`describe`). | `sdk/src/dd_sdk/agent.py` |
+| Agent server | Serves one agent over A2A. It publishes the agent card with the spec extension, runs the agent under a tracer parented to the caller's span, and returns the result and spans. | `sdk/src/dd_sdk/serve.py`, `wire.py` |
+| Tracing | Records each run as an OpenTelemetry span tree with the workbench's own `dd.*` attributes. | `sdk/src/dd_sdk/tracing.py` |
+| Evidence | Hashes each source record in a fixed, named way (a canonicalisation). | `sdk/src/dd_sdk/evidence.py` |
+| Conductor | Runs the steps above. Every front end calls it. | `workbench/src/workbench/conductor.py` |
+| Policy gate | Reads an institutional profile in YAML and decides whether an agent may run. | `workbench/src/workbench/policy.py`, `workbench/profiles/` |
+| Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `workbench/src/workbench/grounding.py` |
+| Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `workbench/src/workbench/store.py`, `provenance.py` |
+| Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. | `workbench/agents.yaml`, `workbench/src/workbench/registry.py`, `remote.py` |
+| Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the shell uses. | `workbench/src/workbench/cli.py`, `transport/` |
+| Shell | A read-only browser page that renders requests and envelopes from the generated schema. No build step. | `workbench/shell/` |
+| Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `workbench/src/workbench/testing.py` |
+| Conformance report | Maps passing tests to Blueprint requirements and generates `CONFORMANCE.md`. | `workbench/docs/requirements.yaml`, `workbench/scripts/conformance_report.py` |
+| Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |
+| FAIRsharing snapshot | The committed copy of FAIRsharing records that R3 uses (CC BY-SA 4.0). | `agents/r3/data/fairsharing/` |
 
 ## Design principles
 
@@ -86,4 +94,5 @@ Each design decision has a record in [`adr/`](adr/):
 | [0007](adr/0007-polymorphic-contract.md) | Polymorphic contract |
 | [0008](adr/0008-grounding-modes.md) | Grounding modes |
 | [0009](adr/0009-evidence-canonicalisations.md) | Evidence canonicalisations |
-| [0010](adr/0010-agent-registry.md) | Agent registry |
+| [0010](adr/0010-agent-registry.md) | Agent registry (superseded by 0011) |
+| [0011](adr/0011-remote-agents.md) | Agents as separate A2A services |

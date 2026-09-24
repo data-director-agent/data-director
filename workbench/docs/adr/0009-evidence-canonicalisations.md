@@ -13,7 +13,7 @@ had to start doing the work its name implied: identify a projection a reader can
 
 ## Decision
 
-1. `workbench.evidence` holds a registry `CANONICALISATIONS: dict[str, Canonicalisation]`; each
+1. `dd_sdk.evidence` holds a registry `CANONICALISATIONS: dict[str, Canonicalisation]`; each
    entry is a name, a one-line description and a function from a document to canonical bytes.
    `canonicalise` and `content_hash` take the name; an unknown name raises (programmer error), and
    `contract.validate` rejects an envelope whose evidence cites one.

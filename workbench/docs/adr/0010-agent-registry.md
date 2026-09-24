@@ -1,6 +1,6 @@
 # ADR-0010: Agents are discovered through entry points and described by one manifest
 
-**Status:** Accepted
+**Status:** Superseded by ADR-0011
 **Date:** 2026-09-04
 
 ## Context
@@ -19,7 +19,7 @@ shell.
 1. Agents are found through Python entry points in the group `workbench.agents`. Each entry
    point names a factory `build(settings) -> Agent`. In-tree agents are registered in the
    workbench's own `pyproject.toml`; a package outside this repository registers the same way.
-2. `workbench.agents.registry.Registry` loads them (`from_entry_points`) or takes a list
+2. `workbench.registry.Registry` loads them (`from_entry_points`) or takes a list
    (`from_agents`, for tests). A duplicate `agent_id` or an object that does not satisfy the
    `Agent` protocol is a `RegistryError`. A factory that raises `NotImplementedError` marks an
    agent that is registered but not usable; the registry records the reason and continues (R3,

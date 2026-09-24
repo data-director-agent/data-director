@@ -5,7 +5,9 @@ software engineers and testers who write those agents. It is not the reference i
 itself.
 
 Each agent states what input it reads, what output it returns, and what that output is based on.
-The workbench runs the agent and checks that it kept to those statements. It records every run
+Agents are separate services in [`../agents/`](../agents/). The workbench calls each one over
+A2A, then checks that it kept to those statements
+([ADR-0011](docs/adr/0011-remote-agents.md)). It records every run
 so that a person can inspect what the agent did and why. [`docs/architecture.md`](docs/architecture.md)
 explains how the pieces fit together.
 
@@ -13,9 +15,20 @@ explains how the pieces fit together.
 
 Requires Python 3.14 and [`uv`](https://docs.astral.sh/uv/). No account or API key is needed.
 
+Run these from the repository root, which is a uv workspace. The tests serve every agent in
+memory, so they need no agent running:
+
 ```sh
-uv sync --all-extras
+uv sync --all-packages --all-extras
 uv run pytest                                          # network blocked; everything offline
+```
+
+To call agents from the command line, start them first and leave them running. Then, in a second
+terminal in `workbench/`:
+
+```sh
+../scripts/run-agents.sh                               # in the first terminal
+
 uv run workbench agents                                # what is registered, what each accepts
 uv run workbench invoke --agent quality.reviewer --input samples/orda-record.metadata.json
 uv run workbench invoke --agent fact.checker     --input samples/claim.json
@@ -25,7 +38,9 @@ uv run workbench invoke --agent stub.abstain     --input samples/claim.json   # 
 uv run workbench serve                                 # then open http://127.0.0.1:8000/shell/
 ```
 
-`invoke` prints the agent's response and the result of the grounding check. It also writes a
+`invoke` prints the agent's response and the result of the grounding check, which confirms that
+everything the response relies on can be traced to something the agent actually read during the
+run ([`docs/grounding.md`](docs/grounding.md)). It also writes a
 folder, `runs/<invocation_id>/`, holding the request, the response, the trace of the run and a
 provenance record. To re-run the grounding check on a finished run, use
 `workbench lint <spans.jsonl> <envelope.json>`.
@@ -42,7 +57,8 @@ provenance record. To re-run the grounding check on a finished run, use
 
 The grounding mode says what an agent's output may be based on; see
 [`docs/grounding.md`](docs/grounding.md). To add an agent, follow
-[`src/workbench/agents/README.md`](src/workbench/agents/README.md).
+[`../agents/README.md`](../agents/README.md). The workbench learns where each agent is from
+[`agents.yaml`](agents.yaml).
 
 ## Further reading
 
@@ -60,9 +76,12 @@ The grounding mode says what an agent's output may be based on; see
 
 ## Limitations
 
-- The R3 standards advisor predates the current agent interface. It is registered as
-  unavailable and its tests are marked as expected failures until it is ported. TODO — see
-  [`src/workbench/agents/r3/factory.py`](src/workbench/agents/r3/factory.py).
+- The R3 standards advisor predates the current agent interface. Its service exits at start-up,
+  so the workbench lists it as unavailable, and its tests are marked as expected failures until
+  it is ported. TODO — see
+  [`../agents/r3/src/dd_agent_r3/factory.py`](../agents/r3/src/dd_agent_r3/factory.py).
+- Calls from the workbench to its agents are not authenticated. TODO. Do not expose agent ports
+  beyond the host or a private network.
 - `quality.reviewer` and `fact.checker` are demonstrations. Their scoring rules are simple and
   chosen by hand. They exist to exercise the harness.
 - Energy use (P14) has a field in the response but is not measured.
