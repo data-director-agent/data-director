@@ -45,7 +45,8 @@ def list_conversations(store: RunStore) -> list[dict[str, Any]]:
 
 
 def get_conversation(store: RunStore, conversation_id: str) -> dict[str, Any] | None:
-    """Every turn of one conversation, with its children, version changes and history.
+    """Every turn of one conversation, with its children, the inputs of both, version changes and
+    history.
 
     None if no invocation carries `conversation_id`.
     """
@@ -78,9 +79,16 @@ def get_conversation(store: RunStore, conversation_id: str) -> dict[str, Any] | 
                 "children": children.get(envelope["invocation_id"], []),
             }
         )
+    # Every stored input, the delegated children's too, so a reader can inspect any of them.
+    inputs: dict[str, Any] = {}
+    for envelope in [*top, *(c for cs in children.values() for c in cs)]:
+        stored = store.get_request(envelope["invocation_id"])
+        if stored is not None:
+            inputs[envelope["invocation_id"]] = stored.get("input")
     return {
         "conversation_id": conversation_id,
         "turns": turns,
+        "inputs": inputs,
         "version_changes": version_changes(turns),
         "history": [to_document(t) for t in history(turns)],
     }

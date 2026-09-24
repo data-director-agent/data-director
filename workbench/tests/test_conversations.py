@@ -58,6 +58,7 @@ def test_turns_are_in_order_with_children_nested_and_history_built(tmp_path: Pat
     [child] = found["turns"][0]["children"]
     assert child["invocation_id"] == first.delegations[0].delegated_invocation_id
     assert found["turns"][0]["input"]["message_text"] == "review this"
+    assert found["inputs"][child["invocation_id"]]["schema_class"] == "MetadataRecord"
     assert found["version_changes"] == []
 
     history = found["history"]
