@@ -27,6 +27,7 @@
     header.top p { margin: 0; color: var(--muted); font-size: 0.85rem; flex: 1 1 20rem; }
     .layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 1rem; padding: 1rem; max-width: 1500px; margin: 0 auto; align-items: start; }
     .layout > * { min-width: 0; }
+    .layout[hidden] { display: none; }
     @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .history { max-height: 12rem; } }
     .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 0.75rem 1rem; min-width: 0; }
     .panel + .panel { margin-top: 1rem; }
@@ -81,9 +82,13 @@
 
     /* Run view */
     .empty { padding: 3rem 1rem; text-align: center; color: var(--muted); }
-    .summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
-    .summary .statement { flex-basis: 100%; font-size: 1rem; margin: 0.25rem 0 0; }
-    .summary .kv { font-size: 0.8rem; color: var(--muted); display: inline-flex; gap: 0.3rem; align-items: center; }
+    .outcome-head { display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem; align-items: baseline; }
+    .outcome-head .status { display: inline-flex; align-items: center; white-space: nowrap; }
+    .outcome-head .statement { flex: 1 1 20rem; font-size: 1rem; margin: 0; }
+    .outcome-head .qualifier { font-size: 0.8rem; color: var(--muted); display: inline-flex; gap: 0.3rem; align-items: center; }
+    dl.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.6rem 1rem; margin: 0.75rem 0 0; padding-top: 0.6rem; border-top: 1px solid var(--line); }
+    dl.facts dt { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; }
+    dl.facts dd { margin: 0.1rem 0 0; overflow-wrap: anywhere; }
     .problem { margin-top: 0.75rem; border: 1px solid var(--bad); background: var(--bad-bg); border-radius: 6px; padding: 0.5rem 0.75rem; }
     .problem dl { margin: 0; }
     .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); margin: 1rem 0 0; position: sticky; top: 0; background: var(--ground); z-index: 1; padding-top: 0.25rem; }
@@ -143,6 +148,44 @@
     dialog.glossary dt { font-family: var(--mono); font-size: 0.82rem; font-weight: 600; margin-top: 0.6rem; }
     dialog.glossary dd { margin: 0.1rem 0 0; font-size: 0.85rem; color: var(--muted); }
     .empty .guide { display: inline-block; text-align: left; max-width: 36rem; }
+
+    /* Modes: Inspect (one run) and Chat (a conversation) */
+    nav.modes { display: flex; gap: 0.25rem; align-items: center; align-self: center; }
+    nav.modes a { padding: 0.2rem 0.7rem; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); text-decoration: none; background: var(--ground); }
+    nav.modes a:hover { background: var(--hover); }
+    nav.modes a[aria-current="page"] { background: var(--info-bg); border-color: var(--info); color: var(--info); font-weight: 600; }
+
+    /* Chat */
+    .chat-main > .panel + .panel { margin-top: 1rem; }
+    .chat-main .empty { padding: 1.5rem 1rem; }
+    .transcript { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+    .transcript > li { display: flex; flex-direction: column; }
+    .transcript .who { font-size: 0.72rem; color: var(--muted); margin-bottom: 0.15rem; }
+    .turn-user { align-items: flex-end; }
+    .turn-user .bubble { max-width: min(40rem, 85%); background: var(--info-bg); border: 1px solid var(--info); border-radius: 10px 10px 2px 10px; padding: 0.4rem 0.7rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+    .turn-agent { align-items: flex-start; }
+    .card { width: min(48rem, 95%); background: var(--paper); border: 1px solid var(--line); border-radius: 10px 10px 10px 2px; padding: 0.5rem 0.75rem; }
+    .card-head { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+    .card-head .inspect { margin-left: auto; font-size: 0.78rem; }
+    .agent-badge { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; padding: 0 0.45rem; border-radius: 4px; background: var(--ground); border: 1px solid var(--muted); white-space: nowrap; }
+    .card .reply { margin: 0.4rem 0 0; font-size: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .card .statement { margin: 0.3rem 0 0; overflow-wrap: anywhere; }
+    .card .reply + .statement { font-size: 0.8rem; color: var(--muted); }
+    .card dl.kvs { margin-top: 0.4rem; font-size: 0.85rem; }
+    .card .children { list-style: none; margin: 0.6rem 0 0; padding: 0 0 0 0.75rem; border-left: 3px solid var(--line); display: flex; flex-direction: column; gap: 0.4rem; }
+    .card .children .card { width: auto; border-radius: 6px; background: var(--ground); }
+    .handoff { font-size: 0.75rem; color: var(--muted); }
+    .version-change { align-items: center; font-size: 0.78rem; color: var(--warn); border-top: 1px dashed var(--warn); padding-top: 0.25rem; flex-direction: row !important; justify-content: center; gap: 0.3rem; }
+    .turn-error { border: 1px solid var(--bad); background: var(--bad-bg); border-radius: 6px; padding: 0.4rem 0.7rem; overflow-wrap: anywhere; }
+    .turn-pending .card { color: var(--muted); font-style: italic; }
+    .composer .to { font-size: 0.8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-bottom: 0.5rem; }
+    .composer textarea { width: 100%; font: inherit; min-height: 4.5rem; padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); resize: vertical; }
+    .composer textarea.json { font-family: var(--mono); font-size: 0.8rem; min-height: 12rem; }
+    .composer .actions { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin-top: 0.5rem; }
+    .composer .actions button.primary { width: auto; padding: 0.35rem 1.4rem; }
+    .composer .actions .legend { margin: 0; }
+    #new-conversation { width: 100%; }
+    .delegation-list { display: flex; flex-direction: column; gap: 0.15rem; }
     .empty ol { margin: 0.5rem 0; padding-left: 1.25rem; }
     .empty li + li { margin-top: 0.25rem; }
   </style>
@@ -150,7 +193,11 @@
 <body>
   <header class="top">
     <h1>Data Director Workbench</h1>
-    <p>Developer shell: run a registered agent on a sample input and inspect the envelope<span data-help="envelope"></span> it returns. Read-only. Every output requires human review<span data-help="human-review"></span>.</p>
+    <nav class="modes" aria-label="Mode">
+      <a href="?mode=inspect" id="mode-inspect" aria-current="page">Inspect</a><span data-help="inspect"></span>
+      <a href="?mode=chat" id="mode-chat">Chat</a><span data-help="chat"></span>
+    </nav>
+    <p>Developer shell: run a registered agent on an input and inspect the envelope<span data-help="envelope"></span> it returns, or hold a conversation with one, a turn at a time. Nothing here edits a stored run. Every output requires human review<span data-help="human-review"></span>.</p>
     <button type="button" id="open-glossary" class="small" aria-haspopup="dialog">Glossary</button>
   </header>
   <dialog class="glossary" id="glossary" aria-labelledby="glossary-heading">
@@ -158,7 +205,7 @@
     <p class="intro">The terms this page uses, from the workbench contract (<code>schema/data_director.yaml</code>). The same text appears behind each <kbd>?</kbd> button.</p>
     <dl id="glossary-list"></dl>
   </dialog>
-  <div class="layout">
+  <div class="layout" id="screen-inspect">
     <nav aria-label="Run controls">
       <section class="panel" aria-labelledby="run-heading">
         <h2 id="run-heading">New run</h2>
@@ -193,8 +240,9 @@
       </div>
       <div id="result" hidden>
         <section class="panel" aria-labelledby="summary-heading">
-          <h2 id="summary-heading" class="visually-hidden">Outcome</h2>
-          <div class="summary" id="summary"></div>
+          <div class="head-row"><h2 id="summary-heading">Run outcome</h2><span data-help="status"></span></div>
+          <div class="outcome-head" id="outcome-head"></div>
+          <dl class="facts" id="facts"></dl>
           <div id="problem"></div>
         </section>
         <div class="tabs" role="tablist" aria-label="Views">
@@ -240,6 +288,63 @@
     </main>
   </div>
 
+  <div class="layout" id="screen-chat" hidden>
+    <nav aria-label="Conversation controls">
+      <section class="panel" aria-labelledby="chat-heading">
+        <div class="head-row"><h2 id="chat-heading">Conversation</h2><span data-help="conversation"></span></div>
+        <div class="field-row">
+          <span class="label-row"><label for="chat-agent-select">Agent</label><span data-help="agent"></span></span>
+          <select id="chat-agent-select" aria-describedby="chat-agent-detail"></select>
+        </div>
+        <div class="agent-detail" id="chat-agent-detail" hidden></div>
+        <button id="new-conversation" type="button">New conversation</button>
+        <p class="legend" id="conversation-line"></p>
+      </section>
+      <section class="panel" aria-labelledby="conversations-heading">
+        <div class="head-row"><h2 id="conversations-heading">Conversations</h2><span data-help="conversation_id"></span></div>
+        <ul class="history" id="conversations"></ul>
+      </section>
+    </nav>
+    <main class="chat-main" aria-label="Chat">
+      <section class="panel" aria-labelledby="transcript-heading">
+        <div class="head-row"><h2 id="transcript-heading">Transcript</h2><span data-help="turn"></span></div>
+        <div class="empty" id="chat-empty">
+          <div class="guide">
+            <h3>Chatting with an agent</h3>
+            <ol>
+              <li>The picker starts on the <strong>orchestrator</strong><span data-help="orchestrator"></span>, if one is registered. Any other agent can be chosen instead.</li>
+              <li>An agent that accepts a Message<span data-help="message"></span> gets a text box. Any other agent gets its input as JSON, started from a sample.</li>
+              <li>Every reply names the agent and version that produced it. An orchestrator's reply lists the invocations it delegated<span data-help="delegation"></span>, each with its own agent and version.</li>
+            </ol>
+            <p>Each turn is one invocation with its own envelope; <strong>Inspect →</strong> on a reply opens it. Changing agent starts a new conversation.</p>
+          </div>
+        </div>
+        <ol class="transcript" id="transcript" aria-live="polite" aria-label="Transcript"></ol>
+      </section>
+      <form class="panel composer" id="composer">
+        <div class="to" id="composer-to"></div>
+        <div id="composer-text">
+          <label for="chat-text" class="visually-hidden">Message</label>
+          <textarea id="chat-text" placeholder="Write a message"></textarea>
+        </div>
+        <div id="composer-json" hidden>
+          <div class="field-row">
+            <span class="label-row"><label for="chat-sample-select">Start from sample</label><span data-help="sample"></span></span>
+            <select id="chat-sample-select"></select>
+          </div>
+          <div class="field-row">
+            <span class="label-row"><label for="chat-json">Input JSON</label><span data-help="input"></span></span>
+            <textarea id="chat-json" class="json" spellcheck="false"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="send" type="submit" disabled>Send</button>
+          <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends · <span id="chat-status" role="status" aria-live="polite"></span></p>
+        </div>
+      </form>
+    </main>
+  </div>
+
   <script type="module">
     import React from "https://esm.sh/react@19";
     import { createRoot } from "https://esm.sh/react-dom@19/client";
@@ -254,6 +359,16 @@
       return node;
     };
     const isEmpty = (v) => v === null || v === undefined || v === "";
+    // UUIDv7 (RFC 9562): 48-bit Unix milliseconds, then random bits, with version and variant set.
+    function uuid7() {
+      const b = crypto.getRandomValues(new Uint8Array(16));
+      let ms = BigInt(Date.now());
+      for (let i = 5; i >= 0; i--) { b[i] = Number(ms & 0xffn); ms >>= 8n; }
+      b[6] = (b[6] & 0x0f) | 0x70;
+      b[8] = (b[8] & 0x3f) | 0x80;
+      const hex = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    }
 
     // --- Glossary: BEGIN --------------------------------------------------------------------
     // The one source of the page's explanatory text: the "?" tips and the Glossary dialog both read
@@ -263,10 +378,21 @@
       "envelope": { term: "envelope", text: "The single JSON document a run returns: the outcome, the payload if the agent succeeded, the evidence it rests on, telemetry, and identifiers and timestamps. The conductor, not the agent, fills everything the agent did not decide, so an agent cannot mislabel its own run. One request produces exactly one envelope." },
       "conductor": { term: "conductor", text: "The harness component that invokes an agent. It applies the policy gate and the input check, calls the agent, fills identifiers, timestamps, telemetry and grounding mode, and runs the grounding linter over the result." },
       "linter": { term: "grounding linter", text: "Checks every envelope against the rules of the agent's grounding mode before it is stored. A violation turns succeeded into failed." },
-      "agent": { term: "agent", text: "A registered component that takes one input document and returns an outcome, with a payload if it succeeded. The list comes from the registry manifest (GET /agents), grouped by the prefix of each agent's id." },
+      "agent": { term: "agent", text: "A registered component that takes one input document and returns an outcome, with a payload if it succeeded. The list comes from the registry manifest (GET /agents), grouped by the prefix of each agent's id; the version shown is the one running now." },
       "sample": { term: "sample input", text: "An example input document shipped with the workbench. Only samples whose schema_class the chosen agent accepts are listed." },
-      "stored-runs": { term: "stored runs", text: "Envelopes kept in the workbench's append-only JSONL store, newest first. Select one to load it again; its input is not stored, only the input's hash." },
-      "input": { term: "input", text: "The document the agent was given. It is shown only for runs started from this browser tab: the envelope records a hash of the input, not the input itself." },
+      "stored-runs": { term: "stored runs", text: "Envelopes kept in the workbench's append-only JSONL store, newest first, including conversation turns and delegated invocations. Select one to load it again." },
+      "input": { term: "input", text: "The document the agent was given. The workbench stores it beside the envelope (request.json) and the envelope records its hash, but this page shows it only for runs sent, or conversations opened, in this browser tab." },
+      "inspect": { term: "Inspect", text: "Run one agent on one input and examine the envelope it returns: outcome, payload, evidence and telemetry. The deterministic test bench for an agent's inputs and outputs." },
+      "chat": { term: "Chat", text: "Hold a conversation with one agent, usually the orchestrator. Each turn is one invocation with its own stored envelope; every reply names the agent and version that produced it and links to that envelope in Inspect." },
+      "conversation": { term: "conversation", text: "A sequence of turns sharing one conversation_id. There is no separate conversation store: a conversation is read back from the stored invocations that carry its id (GET /conversations)." },
+      "conversation_id": { term: "conversation_id", text: "The UUIDv7 shared by every turn of a conversation, and by every invocation delegated during it. Add ?mode=chat&conversation_id=… to this page's address to reopen the conversation." },
+      "turn": { term: "turn", text: "One exchange in a conversation: what was sent (a Message, or any input the agent accepts) and the envelope that came back. A turn is exactly one invocation, so the policy gate, the grounding linter, storage and provenance apply to it as to any run." },
+      "message": { term: "Message", text: "The input class of a conversational agent: this turn's text (message_text) and the conversation so far (history). The history is part of the input, so the input hash covers everything the agent was shown." },
+      "reply": { term: "Reply", text: "The payload class of a conversational agent: reply_text, and reply_derivation recording whether a template or a model wrote it." },
+      "orchestrator": { term: "orchestrator", text: "An agent in grounding mode delegation: it answers by asking the workbench to invoke other agents and relaying what they return. The Blueprint's Data Director is one. Chat selects the first such agent by default." },
+      "delegation": { term: "delegation", text: "An invocation an orchestrator asked the workbench to run for it. The orchestrator never calls another agent directly: the workbench runs the child as an ordinary governed invocation, stores it with parent_invocation_id, and records it in the parent envelope's delegations, which is all the reply may cite besides its input." },
+      "parent_invocation_id": { term: "parent_invocation_id", text: "On a delegated invocation, the invocation that delegated it. Set only by the conductor, never by a caller." },
+      "version-change": { term: "version change", text: "The agent answered at a different version from an earlier turn of the same conversation, for example after it was rebuilt and restarted. Behaviour either side of the line comes from different code." },
       "payload": { term: "payload", text: "The agent's answer, present only when the outcome is succeeded. Its shape is set by its payload class, shown as the schema_class beside the heading; every payload records what it rests on in grounded_on." },
       "schema_class": { term: "schema_class", text: "The name of the schema class a document conforms to. The conductor uses it to check an agent accepts its input; the shell uses it to find the schema that renders a payload." },
       "evidence": { term: "evidence", text: "One row per thing the run retrieved or rested on, including the input itself: where it came from, when, and a hash of its canonicalised content. A reader can re-hash a record to verify that what the payload cites is what was retrieved." },
@@ -541,8 +667,33 @@
       return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString("en-GB") : d.toLocaleString("en-GB");
     };
     const shortId = (id) => id.slice(-8);
-    function kv(key, value, extra, helpKeys = key) {
-      return el("span", { className: "kv" }, el("code", { textContent: key }), help(helpKeys), value, extra);
+    function statusPill(status) {
+      const pill = el("span", { className: "pill", textContent: status });
+      pill.dataset.status = status;
+      return pill;
+    }
+    // Links that switch mode in place, and still work opened in a new tab.
+    function inspectLink(id, text = "Inspect →") {
+      const a = el("a", { href: `?invocation_id=${id}`, textContent: text, title: `Open ${id} in Inspect` });
+      a.addEventListener("click", (e) => {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault(); showMode("inspect"); replay(id);
+      });
+      return a;
+    }
+    function chatLink(conversationId, text = conversationId) {
+      const a = el("a", { href: `?mode=chat&conversation_id=${conversationId}`, textContent: text, title: "Open the conversation in Chat" });
+      a.addEventListener("click", (e) => {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault(); showMode("chat"); openConversation(conversationId);
+      });
+      return a;
+    }
+    function qualifier(key, value) {
+      return el("span", { className: "qualifier" }, el("code", { textContent: key }), help(key), value);
+    }
+    function fact(key, value, helpKeys = key) {
+      return el("div", {}, el("dt", {}, key, help(helpKeys)), el("dd", {}, value));
     }
     function collectCited(node, out = new Set()) {
       if (Array.isArray(node)) node.forEach((n) => collectCited(n, out));
@@ -569,18 +720,22 @@
       $("empty").hidden = true; $("result").hidden = false;
       const o = envelope.outcome;
 
-      const s = $("summary"); s.replaceChildren();
-      s.append(el("span", { className: "pill", textContent: o.status }));
-      s.lastChild.dataset.status = o.status;
-      s.append(help(["status", `status:${o.status}`]) ?? "");
-      if (o.reason_code) s.append(kv("reason_code", el("code", { textContent: o.reason_code })));
-      if (o.referred_to) s.append(kv("referred_to", el("code", { textContent: o.referred_to })));
-      s.append(kv("agent", el("code", { textContent: `${envelope.agent_id}@${envelope.agent_version}` }), null, "agent_version"));
-      s.append(kv("grounding_mode", el("span", { className: "chip", textContent: envelope.grounding_mode }), null, ["grounding_mode", `mode:${envelope.grounding_mode}`]));
-      s.append(kv("completed_at", el("span", { textContent: fmtTime(envelope.completed_at), title: envelope.completed_at })));
-      s.append(kv("invocation_id", el("code", { textContent: envelope.invocation_id }), copyButton(envelope.invocation_id)));
-      if (envelope.requires_human_review) s.append(kv("requires_human_review", el("code", { textContent: "true" }), null, "human-review"));
-      s.append(el("p", { className: "statement", textContent: o.statement }));
+      // The answer first (status and statement), then the run's identifying facts in a grid.
+      $("outcome-head").replaceChildren(
+        el("span", { className: "status" }, statusPill(o.status), help(`status:${o.status}`)),
+        el("p", { className: "statement", textContent: o.statement }),
+        o.reason_code ? qualifier("reason_code", el("code", { textContent: o.reason_code })) : "",
+        o.referred_to ? qualifier("referred_to", el("code", { textContent: o.referred_to })) : "");
+      $("facts").replaceChildren(
+        fact("agent", el("code", { textContent: `${envelope.agent_id}@${envelope.agent_version}` }), "agent_version"),
+        fact("grounding_mode", el("span", { className: "chip", textContent: envelope.grounding_mode }), ["grounding_mode", `mode:${envelope.grounding_mode}`]),
+        fact("completed_at", el("span", { textContent: fmtTime(envelope.completed_at), title: envelope.completed_at })),
+        fact("invocation_id", el("span", {}, el("code", { textContent: envelope.invocation_id }), " ", copyButton(envelope.invocation_id))),
+        envelope.requires_human_review ? fact("requires_human_review", el("code", { textContent: "true" }), "human-review") : "",
+        envelope.conversation_id ? fact("conversation_id", el("span", {}, chatLink(envelope.conversation_id), " ", copyButton(envelope.conversation_id))) : "",
+        envelope.parent_invocation_id ? fact("parent_invocation_id", inspectLink(envelope.parent_invocation_id, envelope.parent_invocation_id)) : "",
+        envelope.delegations?.length ? fact("delegations", el("span", { className: "delegation-list" },
+          ...envelope.delegations.map((d) => el("span", {}, inspectLink(d.delegated_invocation_id, `${d.delegated_agent_id}@${d.delegated_agent_version}`), " ", statusPill(d.delegated_status)))), "delegation") : "");
       const p = $("problem"); p.replaceChildren();
       if (envelope.problem) p.append(el("div", { className: "problem", role: "alert" }, el("h3", {}, "Problem", help("problem")), kvList(envelope.problem)));
 
@@ -611,7 +766,9 @@
       // Evidence, with a cross-check against the payload's grounded_on hashes.
       const cited = collectCited(payload);
       const rows = (envelope.evidence || []).map((e) => {
-        const src = e.source_uri ? el("a", { href: e.source_uri, target: "_blank", rel: "noopener", textContent: e.source_id }) : el("code", { textContent: e.source_id });
+        const src = e.source_uri ? el("a", { href: e.source_uri, target: "_blank", rel: "noopener", textContent: e.source_id })
+          : e.source_id.startsWith("invocation:") ? inspectLink(e.source_id.slice("invocation:".length), e.source_id)
+          : el("code", { textContent: e.source_id });
         return el("tr", {},
           el("td", {}, src),
           el("td", {}, cited.has(e.content_hash) ? el("span", { className: "chip", textContent: "cited" }) : el("span", { className: "faint", textContent: "—" })),
@@ -679,20 +836,31 @@
       render(fin.result);
       $("status").textContent = `Showing ${shortId(id)}`;
     }
+    // One AG-UI run: RUN_FINISHED carries the envelope, RUN_ERROR a refused request. In a
+    // conversation the thread is the conversation_id; `messages` mirrors the history for protocol
+    // fidelity, but the agent reads its history from the Message input, not from here.
+    function newRequest(agentId, input, conversationId = null) {
+      const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input,
+        invocation_id: uuid7(), issued_at: new Date().toISOString(), requirement_ids: [] };
+      if (conversationId) request.conversation_id = conversationId;
+      return request;
+    }
+    async function postRun(request, threadId = "shell", messages = []) {
+      const body = { threadId, runId: request.invocation_id, messages, state: {}, tools: [], context: [], forwardedProps: { request } };
+      const r = await fetch("/agui", { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(body) });
+      const events = parseSse(await r.text());
+      const fin = events.find((e) => e.type === "RUN_FINISHED");
+      return { envelope: fin?.result, error: fin ? null : (events.map((e) => e.message).filter(Boolean).join("; ") || `HTTP ${r.status}`) };
+    }
     async function run(agentId, sampleName) {
       const button = $("run");
       button.disabled = true; button.textContent = "Running…";
       $("status").textContent = `Running ${agentId} on ${sampleName}…`;
       try {
         const input = await (await fetch(`/samples/${encodeURIComponent(sampleName)}`)).json();
-        const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input,
-          invocation_id: crypto.randomUUID().replace(/^(.{14}).(.{4})./, (m, a, b) => `${a}7${b}${["8","9","a","b"][Math.floor(Math.random()*4)]}`),
-          issued_at: new Date().toISOString(), requirement_ids: [] };
-        const body = { threadId: "shell", runId: crypto.randomUUID(), messages: [], state: {}, tools: [], context: [], forwardedProps: { request } };
-        const r = await fetch("/agui", { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(body) });
-        const events = parseSse(await r.text());
-        const fin = events.find((e) => e.type === "RUN_FINISHED");
-        if (!fin) { $("status").textContent = `Error: ${events.map((e) => e.message).filter(Boolean).join("; ") || r.status}`; return; }
+        const { envelope, error } = await postRun(newRequest(agentId, input));
+        if (!envelope) { $("status").textContent = `Error: ${error}`; return; }
+        const fin = { result: envelope };
         rememberInput(fin.result.invocation_id, input);
         await loadRuns();
         render(fin.result);
@@ -725,9 +893,8 @@
     const selectedAgent = () => $("agent-select").value;
     // One option per agent, grouped by the id prefix before the first dot, so the picker stays
     // one line tall however many agents the registry holds. Unavailable agents stay selectable so
-    // their reason can be read in the detail card; Run stays disabled for them.
-    function renderAgents() {
-      const sel = $("agent-select");
+    // their reason can be read in the detail card; Run stays disabled for them. Both modes use it.
+    function renderAgents(sel) {
       const byId = (a, b) => a.localeCompare(b);
       const groups = Map.groupBy(Object.keys(agents).sort(byId), (id) => id.split(".")[0]);
       sel.replaceChildren(new Option("Choose an agent", ""));
@@ -737,10 +904,9 @@
       }
       const down = Object.keys(unavailable).sort(byId);
       if (down.length) sel.append(el("optgroup", { label: "Unavailable" }, ...down.map((id) => new Option(id, id))));
-      sel.addEventListener("change", () => { renderAgentDetail(); refreshSamples(); });
     }
-    function renderAgentDetail() {
-      const id = selectedAgent(), a = agents[id], box = $("agent-detail");
+    function renderAgentDetail(id = selectedAgent(), box = $("agent-detail")) {
+      const a = agents[id];
       box.toggleAttribute("data-unavailable", id in unavailable);
       box.hidden = !id;
       if (a) box.replaceChildren(
@@ -770,6 +936,198 @@
       $("run").disabled = !(agents[selectedAgent()] && $("sample-select").value);
     }
 
+    // --- Chat -------------------------------------------------------------------------------
+    // A conversation is a client-minted conversation_id plus whatever the store holds for it.
+    // `chat.conversation` is GET /conversations/{id}: turns (each with its children), inputs,
+    // version_changes and the history the next Message carries. The picker is locked once a
+    // conversation has turns, so every turn of one conversation addresses the same agent.
+    const chat = { id: null, agentId: "", conversation: null, busy: false };
+    const turns = () => chat.conversation?.turns || [];
+    const acceptsMessage = (a) => a?.accepts.includes("Message");
+    const defaultChatAgent = () =>
+      Object.keys(agents).sort((a, b) => a.localeCompare(b)).find((id) => agents[id].grounding_mode === "delegation")
+      || Object.keys(agents).sort((a, b) => a.localeCompare(b))[0] || "";
+
+    function newConversation(agentId = chat.agentId || defaultChatAgent()) {
+      chat.id = uuid7(); chat.agentId = agentId; chat.conversation = null;
+      $("chat-text").value = "";
+      renderChat();
+      refreshComposer();
+    }
+    async function openConversation(id) {
+      const r = await fetch(`/conversations/${encodeURIComponent(id)}`);
+      chat.id = id;
+      chat.conversation = r.ok ? await r.json() : null;
+      if (!r.ok) $("chat-status").textContent = `No stored turns for ${shortId(id)}; the next turn starts it.`;
+      for (const [k, v] of Object.entries(chat.conversation?.inputs || {})) rememberInput(k, v);
+      chat.agentId = turns()[0]?.agent_id || chat.agentId || defaultChatAgent();
+      renderChat();
+      refreshComposer();
+    }
+    function renderChat() {
+      const sel = $("chat-agent-select");
+      if (chat.agentId && ![...sel.options].some((o) => o.value === chat.agentId)) sel.append(new Option(`${chat.agentId} (not registered)`, chat.agentId));
+      sel.value = chat.agentId;
+      sel.disabled = turns().length > 0;
+      renderAgentDetail(chat.agentId, $("chat-agent-detail"));
+      $("conversation-line").replaceChildren(
+        el("code", { textContent: "conversation_id" }), help("conversation_id"), " ",
+        el("code", { textContent: shortId(chat.id), title: chat.id }), " ", copyButton(chat.id),
+        turns().length ? ` · ${turns().length} turn${turns().length === 1 ? "" : "s"} · agent locked` : " · no turns yet");
+      renderTranscript();
+      markCurrentConversation();
+      if (mode === "chat") history.replaceState(null, "", urlFor("chat"));
+    }
+    function renderTranscript() {
+      const list = $("transcript");
+      list.replaceChildren();
+      $("chat-empty").hidden = turns().length > 0;
+      const changes = Map.groupBy(chat.conversation?.version_changes || [], (c) => c.turn_index);
+      for (const t of turns()) {
+        for (const c of changes.get(t.turn_index) || []) {
+          list.append(el("li", { className: "version-change" },
+            el("code", { textContent: c.agent_id }), ` version changed ${c.from} → ${c.to}`, help("version-change")));
+        }
+        list.append(userTurn(t.input, t.turn_index));
+        list.append(el("li", { className: "turn-agent" }, envelopeCard(t.envelope, t.children)));
+      }
+    }
+    function userTurn(input, index) {
+      const who = el("span", { className: "who", textContent: `user · turn ${index + 1}` });
+      if (input?.schema_class === "Message") return el("li", { className: "turn-user" }, who, el("div", { className: "bubble", textContent: input.message_text }));
+      return el("li", { className: "turn-user" }, who,
+        el("div", { className: "bubble" }, el("span", { className: "chip", textContent: input?.schema_class || "input" }), input ? kvList(input) : " not stored"));
+    }
+    // One envelope as a chat card: which agent and version, the outcome, the reply or a summary of
+    // the payload, and the delegated invocations nested beneath, each with its own agent@version.
+    function envelopeCard(env, children = [], delegated = false) {
+      const o = env.outcome;
+      const head = el("div", { className: "card-head" },
+        delegated ? el("span", { className: "handoff", textContent: "→ delegated to" }) : null,
+        el("span", { className: "agent-badge", textContent: `${env.agent_id}@${env.agent_version}`, title: "agent_id@agent_version" }),
+        statusPill(o.status),
+        o.reason_code ? el("code", { textContent: o.reason_code, title: "reason_code" }) : null,
+        el("span", { className: "inspect" }, inspectLink(env.invocation_id)));
+      const reply = env.payload?.schema_class === "Reply" ? el("p", { className: "reply", textContent: env.payload.reply_text }) : null;
+      const card = el("article", { className: "card", "aria-label": `${env.agent_id}@${env.agent_version} ${o.status}` },
+        head, reply, el("p", { className: "statement", textContent: o.statement }));
+      if (env.payload && !reply) card.append(payloadSummary(env.payload));
+      if (children.length) {
+        card.append(el("ol", { className: "children", "aria-label": "Delegated invocations" },
+          ...children.map((c) => el("li", {}, envelopeCard(c, [], true)))));
+      }
+      return card;
+    }
+    // The payload's top-level scalar fields; the full render is one click away in Inspect.
+    function payloadSummary(payload) {
+      const shown = Object.fromEntries(Object.entries(payload)
+        .filter(([k, v]) => k !== "grounded_on" && !k.endsWith("_derivation") && (typeof v !== "object" || v === null || Array.isArray(v)))
+        .map(([k, v]) => [k, Array.isArray(v) ? `${v.length} item${v.length === 1 ? "" : "s"}` : v]));
+      return el("div", {}, el("span", { className: "chip", textContent: payload.schema_class }), kvList(shown));
+    }
+
+    function refreshComposer() {
+      const a = agents[chat.agentId];
+      const textMode = acceptsMessage(a);
+      $("composer-text").hidden = !textMode;
+      $("composer-json").hidden = textMode || !a;
+      $("composer-to").replaceChildren(a
+        ? el("span", {}, "To ", el("span", { className: "agent-badge", textContent: `${chat.agentId}@${a.version}` }),
+            textMode ? " as a Message" : ` as ${a.accepts.join(" or ")}`, help(textMode ? "message" : "accepts"))
+        : el("span", {}, chat.agentId ? `${chat.agentId} is unavailable; start a new conversation with another agent.` : "Choose an agent."));
+      if (a && !textMode) {
+        const sel = $("chat-sample-select");
+        const fit = samples.filter((s) => a.accepts.includes(s.schema_class));
+        const kept = sel.value;
+        sel.replaceChildren(...(fit.length ? fit.map((s) => new Option(`${s.name} — ${s.schema_class}`, s.name)) : [new Option("No sample; write the JSON", "")]));
+        if (fit.some((s) => s.name === kept)) sel.value = kept;
+        if (!$("chat-json").value.trim() || !fit.some((s) => s.name === kept)) loadChatSample();
+      }
+      $("send").disabled = !a || chat.busy;
+    }
+    async function loadChatSample() {
+      const name = $("chat-sample-select").value;
+      if (!name) { $("chat-json").value = ""; return; }
+      const doc = await (await fetch(`/samples/${encodeURIComponent(name)}`)).json();
+      $("chat-json").value = JSON.stringify(doc, null, 2);
+    }
+    function transcriptNote(className, ...content) {
+      const li = el("li", { className }, ...content);
+      $("transcript").append(li);
+      $("chat-empty").hidden = true;
+      li.scrollIntoView({ block: "nearest" });
+      return li;
+    }
+    async function send() {
+      const a = agents[chat.agentId];
+      if (!a || chat.busy) return;
+      let input;
+      if (acceptsMessage(a)) {
+        const text = $("chat-text").value.trim();
+        if (!text) { $("chat-text").focus(); return; }
+        input = { schema_class: "Message", message_text: text, history: chat.conversation?.history || [] };
+      } else {
+        try { input = JSON.parse($("chat-json").value); }
+        catch (e) { transcriptNote("turn-error", `Not sent: the input is not valid JSON (${e.message}).`); return; }
+      }
+      const request = newRequest(chat.agentId, input, chat.id);
+      const messages = (chat.conversation?.history || []).map((t, i) => ({ id: `${chat.id}-${i}`, role: t.role === "user" ? "user" : "assistant", content: t.turn_text }));
+      chat.busy = true; refreshComposer();
+      $("chat-status").textContent = `Waiting for ${chat.agentId}@${a.version}…`;
+      const pending = transcriptNote("turn-agent turn-pending", el("div", { className: "card" }, `${chat.agentId}@${a.version} is working…`));
+      try {
+        const { envelope, error } = await postRun(request, chat.id, messages);
+        pending.remove();
+        if (!envelope) { transcriptNote("turn-error", `Refused before any agent ran, so nothing was stored: ${error}`); $("chat-status").textContent = "Refused."; return; }
+        rememberInput(envelope.invocation_id, input);
+        if (acceptsMessage(a)) $("chat-text").value = "";
+        await openConversation(chat.id);
+        $("chat-status").textContent = `${envelope.agent_id}@${envelope.agent_version} ${envelope.outcome.status}.`;
+        loadConversations(); loadRuns();
+      } catch (e) {
+        pending.remove();
+        transcriptNote("turn-error", `Error: ${e.message}`);
+      } finally {
+        chat.busy = false; refreshComposer();
+      }
+    }
+    async function loadConversations() {
+      const items = await (await fetch("/conversations")).json();
+      const list = $("conversations"); list.replaceChildren();
+      if (!items.length) list.append(el("li", { className: "muted", textContent: "None yet." }));
+      for (const c of items) {
+        const dot = el("span", { className: "dot", title: c.last_status }); dot.dataset.status = c.last_status;
+        const b = el("button", { type: "button", title: `${c.turns} turn(s) · ${c.conversation_id}` },
+          dot, el("span", { className: "mono", textContent: c.agent_id }),
+          el("span", { className: "id", textContent: `${c.turns}× · ${fmtTime(c.last_completed_at)} · ${shortId(c.conversation_id)}` }));
+        b.dataset.id = c.conversation_id;
+        b.addEventListener("click", () => openConversation(c.conversation_id));
+        list.append(el("li", {}, b));
+      }
+      markCurrentConversation();
+    }
+    function markCurrentConversation() {
+      for (const b of $("conversations").querySelectorAll("button")) b.setAttribute("aria-current", String(b.dataset.id === chat.id));
+    }
+
+    // --- Modes ------------------------------------------------------------------------------
+    // ?invocation_id=… (Inspect) and ?mode=chat&conversation_id=… (Chat) reload what is on screen.
+    let mode = "inspect";
+    function urlFor(m) {
+      if (m === "chat") return turns().length ? `?mode=chat&conversation_id=${chat.id}` : "?mode=chat";
+      return current ? `?invocation_id=${current.invocation_id}` : "?mode=inspect";
+    }
+    function showMode(m) {
+      mode = m;
+      closeTip();
+      $("screen-inspect").hidden = m !== "inspect";
+      $("screen-chat").hidden = m !== "chat";
+      for (const [id, v] of [["mode-inspect", "inspect"], ["mode-chat", "chat"]]) {
+        if (v === m) $(id).setAttribute("aria-current", "page"); else $(id).removeAttribute("aria-current");
+      }
+      history.replaceState(null, "", urlFor(m));
+    }
+
     async function main() {
       let manifest;
       [schema, manifest, samples] = await Promise.all([
@@ -779,16 +1137,39 @@
       ]);
       for (const a of manifest.agents) agents[a.agent_id] = a;
       unavailable = manifest.unavailable || {};
-      renderAgents();
+      renderAgents($("agent-select"));
+      renderAgents($("chat-agent-select"));
+      $("agent-select").addEventListener("change", () => { renderAgentDetail(); refreshSamples(); });
+      $("chat-agent-select").addEventListener("change", () => { newConversation($("chat-agent-select").value); });
       refreshSamples();
-      await loadRuns();
       $("sample-select").addEventListener("change", refreshRunButton);
       $("run").addEventListener("click", () => run(selectedAgent(), $("sample-select").value));
+      $("new-conversation").addEventListener("click", () => newConversation());
+      $("chat-sample-select").addEventListener("change", loadChatSample);
+      $("composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
+      for (const [id, m] of [["mode-inspect", "inspect"], ["mode-chat", "chat"]]) {
+        $(id).addEventListener("click", (e) => {
+          if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+          e.preventDefault(); showMode(m);
+        });
+      }
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !$("run").disabled) run(selectedAgent(), $("sample-select").value);
+        if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return;
+        if (mode === "chat") { e.preventDefault(); send(); }
+        else if (!$("run").disabled) run(selectedAgent(), $("sample-select").value);
       });
-      const id = new URLSearchParams(location.search).get("invocation_id");
-      if (id) await replay(id); else $("status").textContent = "Ready.";
+      await Promise.all([loadRuns(), loadConversations()]);
+
+      const params = new URLSearchParams(location.search);
+      const conversationId = params.get("conversation_id"), id = params.get("invocation_id");
+      if (conversationId) await openConversation(conversationId); else newConversation(defaultChatAgent());
+      if (params.get("mode") === "chat" || conversationId) {
+        showMode("chat");
+        $("chat-status").textContent = "Ready.";
+      } else {
+        showMode("inspect");
+        if (id) await replay(id); else $("status").textContent = "Ready.";
+      }
     }
     main().catch((e) => { $("status").textContent = `Error: ${e.message}`; console.error(e); });
   </script>

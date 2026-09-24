@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from dd_agent_director.agent import DirectorStub
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
@@ -31,6 +32,7 @@ SPECS: list[AgentSpec] = [
     FactChecker.spec,
     HelloWorld.spec,
     AbstainingStub.spec,
+    DirectorStub.spec,
 ]
 
 
@@ -95,8 +97,28 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     assert '<label for="agent-select">' in INDEX
     # Driven by the manifest and the samples listing; no agent or sample is named.
     assert 'fetch("/agents")' in INDEX and 'fetch("/samples")' in INDEX
-    for name in ("r3.standards-advisor", "stub.abstain", "soil-chemistry", "FAIRsharing"):
+    for name in (
+        "r3.standards-advisor",
+        "stub.abstain",
+        "director.stub",
+        "soil-chemistry",
+        "FAIRsharing",
+    ):
         assert name not in INDEX, name
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_chat_mode_is_driven_by_the_conversation_api_and_names_every_agent_version() -> None:
+    assert 'id="screen-inspect"' in INDEX and 'id="screen-chat"' in INDEX
+    assert '<label for="chat-agent-select">' in INDEX
+    assert 'fetch("/conversations")' in INDEX and "fetch(`/conversations/${" in INDEX
+    # Every reply card, and every delegated card inside it, is labelled agent_id@agent_version.
+    assert "`${env.agent_id}@${env.agent_version}`" in INDEX
+    assert "version_changes" in INDEX
+    # The orchestrator is found by grounding mode, never by name.
+    assert 'grounding_mode === "delegation"' in INDEX
+    # Chat and Inspect both reload from the address bar.
+    assert "?mode=chat&conversation_id=" in INDEX and "?invocation_id=" in INDEX
 
 
 def test_every_outcome_status_has_a_colour_rule() -> None:
