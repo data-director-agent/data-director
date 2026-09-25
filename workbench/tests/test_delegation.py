@@ -5,6 +5,7 @@ over the in-memory A2A wire, runs a governed and stored child invocation that th
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -237,6 +238,38 @@ def test_delegations_are_kept_when_the_parent_fails_after_delegating(tmp_path: P
         assert len(env.delegations) == 1
         assert conductor.store.get(env.invocation_id) is not None
         assert conductor.store.get(env.delegations[0].delegated_invocation_id) is not None
+
+
+def test_a_child_that_finishes_after_its_parent_is_still_recorded(tmp_path: Path) -> None:
+    """The parent does not wait for its child (as when its delegate call times out). The child
+    is stored with the parent's id, so the parent's envelope must still list it."""
+    admitted, release = threading.Event(), threading.Event()
+
+    def slow_review(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        admitted.set()
+        release.wait(timeout=5)
+        return review_of_input(req, ctx)
+
+    def fire_and_forget(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        assert ctx.grant is not None
+        child = request("fake.none", record())
+        threading.Thread(target=conductor.invoke_delegated, args=(child, ctx.grant.token)).start()
+        admitted.wait(timeout=5)
+        # Released only after the parent has returned and reached revocation.
+        threading.Timer(0.2, release.set).start()
+        return abstain("Did not wait for the child.")
+
+    conductor = make_conductor(
+        tmp_path,
+        ScriptedAgent(GroundingMode.DELEGATION, fire_and_forget),
+        ScriptedAgent(GroundingMode.NONE, slow_review),
+        remote=False,
+    )
+    conductor.workbench_url = "http://workbench.test"
+    env = conductor.invoke(request("fake.delegation", message()))
+    [delegation] = env.delegations
+    stored = conductor.store.get(delegation.delegated_invocation_id)
+    assert stored is not None and stored["parent_invocation_id"] == env.invocation_id
 
 
 def test_a_delegation_agent_run_without_a_callback_gets_no_delegate(tmp_path: Path) -> None:

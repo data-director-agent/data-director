@@ -84,6 +84,8 @@ class Grant:
     conversation_id: str | None
     policy_bundle_ref: str
     delegations: list[Delegation] = field(default_factory=list)
+    # Children admitted under this grant and not yet finished; revocation waits for them.
+    in_flight: int = 0
 
 
 @dataclass
@@ -98,7 +100,7 @@ class Conductor:
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
     workbench_url: str | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
-    _grants_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
     _running_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -121,10 +123,19 @@ class Conductor:
         """
         with self._grants_lock:
             grant = self._grants.get(token)
-        if grant is None:
-            raise DelegationError("unknown or expired delegation token")
-        if request.agent_id == grant.parent_agent_id:
-            raise DelegationError(f"{request.agent_id} may not delegate to itself")
+            if grant is None:
+                raise DelegationError("unknown or expired delegation token")
+            if request.agent_id == grant.parent_agent_id:
+                raise DelegationError(f"{request.agent_id} may not delegate to itself")
+            grant.in_flight += 1
+        try:
+            return self._invoke_child(grant, request, traceparent)
+        finally:
+            with self._grants_lock:
+                grant.in_flight -= 1
+                self._grants_lock.notify_all()
+
+    def _invoke_child(self, grant: Grant, request: InvocationRequest, traceparent: str) -> Envelope:
         child = request.model_copy(
             update={
                 "parent_invocation_id": grant.parent_invocation_id,
@@ -157,8 +168,15 @@ class Conductor:
         return grant
 
     def _revoke_grant(self, grant: Grant) -> list[Delegation]:
+        """Refuse further children, wait for those already admitted, and return the records.
+
+        A child still running when its parent finishes (the parent's delegate call timed out, or
+        the parent did not wait) is stored with the parent's id, so the parent must list it. The
+        wait needs no timeout of its own: each child is bounded by its agent's transport timeout.
+        """
         with self._grants_lock:
             self._grants.pop(grant.token, None)
+            self._grants_lock.wait_for(lambda: grant.in_flight == 0)
             return list(grant.delegations)
 
     def _invoke(self, request: InvocationRequest, link: SpanContext | None = None) -> Envelope:
