@@ -96,12 +96,26 @@ def test_review_lane_reads_the_latest_review_and_stays_separate_from_tests() -> 
     text = cr.render(REGISTER, report, reviews)
     # A passing test and a failing review sit side by side; neither overrides the other.
     assert (
-        "| C6 | blueprint | Access | ✅ **substantiated** | `test_a` | ❌ **contradicted** | "
+        "| C6 | blueprint | Access | ✅ **substantiated** | `test_x::test_a` | "
+        "❌ **contradicted** | "
         "B. Reviewer (Example), 2026-10-03, `0123abc`, [record](https://example.org/notes) |"
     ) in text
     assert "| C4 | blueprint | Sovereignty | not assessed | — | ✅ **substantiated** |" in text
     assert "| substantiated | 1 | 1 |" in text  # test lane: C6; review lane: C4
     assert "| contradicted | 0 | 1 |" in text
+
+
+def test_same_named_tests_in_different_modules_are_told_apart() -> None:
+    report = _report([("test_a", "passed", ["R3"])])
+    report["tests"].append(
+        {
+            "nodeid": "agents/r3/tests/test_y.py::test_a",
+            "outcome": "passed",
+            "metadata": {"requirements": ["R3"]},
+        }
+    )
+    text = cr.render(REGISTER, report)
+    assert "`test_y::test_a`, `test_x::test_a`" in text  # sorted by node id
 
 
 def test_a_test_claiming_a_review_only_requirement_is_flagged() -> None:

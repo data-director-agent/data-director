@@ -36,7 +36,7 @@ def run(runs_dir: Path, text: str, checker: FactChecker | None = None):
     return conductor, env
 
 
-@pytest.mark.requirement("DD-GROUNDING", "DD-GROUNDED-PAYLOAD", "C14")
+@pytest.mark.requirement("DD-GROUNDING", "DD-GROUNDED-PAYLOAD", "C14.1")
 def test_verdict_rests_only_on_retrieved_sources_and_passes_the_linter(runs_dir: Path) -> None:
     conductor, env = run(runs_dir, "A DOI does not change when the object moves.")
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement

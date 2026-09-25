@@ -51,7 +51,10 @@ evaluation, which is reported separately ([ADR-0013](adr/0013-evaluation.md)).
 
 The register lists every functional (R) and non-functional (C) requirement in Blueprint §7,
 whether or not anything here addresses it. `source: blueprint` rows use the Blueprint's own
-identifiers; `source: project` rows (R3.1–R3.6, R4.1, `DD-*`) are ones this project introduced.
+identifiers; `source: project` rows (R3.1–R3.6, R4.1, R10.1, C5.1, C13.1, C13.2, C14.1, `DD-*`) are ones
+this project introduced. A sub-ID such as C13.1 splits a Blueprint requirement so that a row
+claims only what its tests show; its title says what is not exercised, and the Blueprint parent
+stays unsubstantiated until the rest is.
 
 ## Claiming a requirement with a test
 

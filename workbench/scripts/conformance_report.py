@@ -151,7 +151,9 @@ def review_verdict(review: dict[str, Any] | None) -> str:
 
 
 def _short(nodeid: str) -> str:
-    return nodeid.split("::")[-1]
+    """`module::test`: the module keeps same-named tests in different files apart."""
+    path, _, name = nodeid.partition("::")
+    return f"{Path(path).stem}::{name.split('::')[-1]}"
 
 
 def _cell(v: str) -> str:
@@ -260,8 +262,9 @@ stated intentions; this table records what a test run and the recorded reviews a
 
 `source: blueprint` rows use the Blueprint's own identifiers and titles (§7). `source: project`
 rows are identifiers this project introduced (the R3.n decomposition from
-`experiments/standards-advisor`, and `DD-*` for the contract itself); the Blueprint does not use
-them.
+`experiments/standards-advisor`, sub-IDs such as C13.1 that split a Blueprint requirement so a row
+claims only what its tests show, and `DD-*` for the contract itself); the Blueprint does not use
+them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiated itself.
 
 ## Summary
 

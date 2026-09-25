@@ -30,7 +30,7 @@ def _items() -> list[tuple]:  # type: ignore[type-arg]
     ]
 
 
-@pytest.mark.requirement("C14")
+@pytest.mark.requirement("C14.1")
 def test_template_rationale_names_resource_kind_and_target() -> None:
     text = template_rationale(*_items()[1])
     assert "ISO 8601" in text and "'collection_date'" in text and "field-level" in text
@@ -48,7 +48,7 @@ def _explainer() -> AnthropicExplainer:
     return AnthropicExplainer(client=_NoClient(), model_id="claude-opus-5")  # type: ignore[arg-type]
 
 
-@pytest.mark.requirement("DD-GROUNDING", "C14")
+@pytest.mark.requirement("DD-GROUNDING", "C14.1")
 def test_model_output_with_ungrounded_identifier_falls_back_to_template() -> None:
     ex = _explainer()
     text = "1. AGROVOC fits the soil keywords.\n2. Use FAIRsharing.made-up for dates."

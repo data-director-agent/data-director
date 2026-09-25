@@ -70,7 +70,6 @@ def test_public_record_projection_drops_personal_data_and_uses_doi_suffix_as_id(
 
 
 @pytest.mark.vcr
-@pytest.mark.requirement("R3.5")
 def test_live_record_fetch_needs_no_account() -> None:
     """Recorded from the public record route. Replayed with --record-mode=none in CI."""
     backend = LiveBackend()
@@ -118,7 +117,7 @@ def test_snapshot_search_filters_by_record_type(snapshot: SnapshotBackend) -> No
     assert formats and all(h.record.record_type == MODEL_AND_FORMAT for h in formats)
 
 
-@pytest.mark.requirement("R3", "R3.1", "R3.2", "R3.3", "R3.4", "R3.6")
+@pytest.mark.requirement("R3", "R3.1", "R3.2", "R3.3")
 def test_r3_over_the_real_snapshot_recommends_for_the_soil_sample(
     snapshot: SnapshotBackend, tmp_path: Path
 ) -> None:

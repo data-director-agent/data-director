@@ -29,7 +29,7 @@ def sample_record() -> MetadataRecord:
     )
 
 
-@pytest.mark.requirement("R4.1", "DD-GROUNDING-MODE", "C14")
+@pytest.mark.requirement("R4.1", "DD-GROUNDING-MODE", "C14.1")
 def test_review_is_grounded_on_the_input_and_passes_the_linter(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, QualityReviewer())
     env = conductor.invoke(request("quality.reviewer", sample_record()))

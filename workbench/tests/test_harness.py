@@ -287,7 +287,7 @@ def test_input_only_agent_that_retrieves_is_withheld(runs_dir: Path) -> None:
     )
 
 
-@pytest.mark.requirement("DD-GROUNDING", "C13.1", "R10")
+@pytest.mark.requirement("DD-GROUNDING", "C13.1", "R10.1")
 def test_retrieval_agent_passes_when_it_rests_only_on_what_it_retrieved(runs_dir: Path) -> None:
     agent = ScriptedAgent(
         GroundingMode.RETRIEVAL,
@@ -330,7 +330,7 @@ def test_chat_before_retrieval_fails_g1(runs_dir: Path) -> None:
     )
 
 
-@pytest.mark.requirement("R10")
+@pytest.mark.requirement("R10.1")
 def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input, steps=[Chat()])
     conductor = make_conductor(runs_dir, agent)
@@ -347,7 +347,7 @@ def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
 # --- Store and provenance ---------------------------------------------------------------------
 
 
-@pytest.mark.requirement("R10", "C13.1")
+@pytest.mark.requirement("R10.1", "C13.1")
 def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
     conductor = make_conductor(runs_dir, agent, AbstainingStub(), crate=True)
@@ -367,7 +367,7 @@ def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
         assert action["instrument"]["@id"].endswith(env.agent_id)
 
 
-@pytest.mark.requirement("R10")
+@pytest.mark.requirement("R10.1")
 def test_a_reused_invocation_id_is_refused_and_the_stored_run_kept(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub())
     req = request("stub.abstain")

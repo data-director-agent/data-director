@@ -30,7 +30,7 @@ request = fakes.request
 # --- R3 with fakes ----------------------------------------------------------------------------
 
 
-@pytest.mark.requirement("R3", "R3.1", "R3.2", "R3.3", "R3.4", "C14")
+@pytest.mark.requirement("R3", "R3.1", "R3.2", "R3.3", "R3.4", "C14.1")
 def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, crate=False)
     env = conductor.invoke(request("r3.standards-advisor"))
@@ -62,7 +62,7 @@ def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
 
 
 @pytest.mark.requirement("R3.5")
-def test_deprecated_records_are_never_recommended_and_no_list_is_hard_coded(runs_dir: Path) -> None:
+def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor"))
     assert env.payload is not None
     assert "FAIRsharing.test-old" not in {i.resource.fairsharing_id for i in env.payload.items}
@@ -116,7 +116,7 @@ def test_r3_abstention_reasons_are_distinct(runs_dir: Path) -> None:
 # --- Grounding --------------------------------------------------------------------------------
 
 
-@pytest.mark.requirement("DD-GROUNDING", "C13.1", "R10")
+@pytest.mark.requirement("DD-GROUNDING", "C13.1", "R10.1")
 def test_model_call_after_retrieval_passes_linter_and_records_tokens(runs_dir: Path) -> None:
     r3 = R3Agent(retrieval=fakes.FakeRetrieval(), explainer=fakes.FakeModelExplainer())
     conductor = make_conductor(runs_dir, r3=r3, crate=False)

@@ -57,7 +57,7 @@ async def _send_a2a(app: Any, payload: dict[str, Any]) -> Any:
         return last
 
 
-@pytest.mark.requirement("C5", "DD-REGISTRY")
+@pytest.mark.requirement("C5.1", "DD-REGISTRY")
 def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
     _, card = _get(app, "/.well-known/agent-card.json")
@@ -69,7 +69,7 @@ def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) 
     assert card["supportedInterfaces"][0]["protocolBinding"] == "JSONRPC"
 
 
-@pytest.mark.requirement("C5")
+@pytest.mark.requirement("C5.1")
 def test_a2a_message_send_returns_envelope_artifact(runs_dir: Path) -> None:
     conductor, app = _app(runs_dir)
     resp = asyncio.run(_send_a2a(app, to_document(request("fact.checker", claim()))))
@@ -104,7 +104,7 @@ def _sse_events(text: str) -> list[dict[str, Any]]:
     ]
 
 
-@pytest.mark.requirement("C5")
+@pytest.mark.requirement("C5.1")
 def test_agui_run_and_replay_emit_started_and_finished(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
 
