@@ -1,3 +1,7 @@
+# The core Data Director contract: the fixed format the workbench governs every agent by.
+# Owned by the SDK; changing it is an ADR. `version` is the contract version agent cards declare
+# (ADR-0019). After an edit, run `uv run dd-gen-schema` to regenerate generated/, and keep
+# ../contract/models.py in step; sdk/tests/test_contract.py checks both.
 id: https://w3id.org/data-director/schema/workbench
 name: data_director_workbench
 title: Data Director Workbench contract

@@ -60,24 +60,37 @@ from dd_sdk.evidence import (
     project,
     verify,
 )
+from dd_sdk.schema import gen
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "src" / "dd_sdk" / "schema"
 
 
 def test_generated_schemas_are_current() -> None:
-    """Byte-compare schema/generated/ against a fresh generation."""
-    sys.path.insert(0, str(ROOT / "scripts"))
-    import gen_schema
-
-    for path, content in gen_schema.generate().items():
+    """Byte-compare schema/generated/ against a fresh generation, and find no file left over."""
+    outputs = gen.generate()
+    for path, content in outputs.items():
+        assert path.exists(), f"{path.name} is missing; run `uv run dd-gen-schema`"
         current = path.read_text(encoding="utf-8")
         if path.suffix == ".ttl":
             # rdflib does not serialise blank nodes in a stable order, so the SHACL file is
             # compared as a graph rather than as bytes.
-            assert _isomorphic(current, content), f"{path.name} is stale; run scripts/gen_schema.py"
+            assert _isomorphic(current, content), (
+                f"{path.name} is stale; run `uv run dd-gen-schema`"
+            )
         else:
-            assert current == content, f"{path.name} is stale; run scripts/gen_schema.py"
+            assert current == content, f"{path.name} is stale; run `uv run dd-gen-schema`"
+    stale = set((SCHEMA / "generated").iterdir()) - set(outputs)
+    assert not stale, f"{sorted(p.name for p in stale)} are no longer generated; delete them"
+
+
+def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> None:
+    schema = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
+    assert schema["$comment"].endswith("Do not edit.")
+    assert schema["title"] == "Reply" and schema["additionalProperties"] is False
+    assert set(schema["$defs"]) == {"Derivation", "GroundingRef"}  # only what Reply reaches
+    assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
+    assert {"schema_class", "grounded_on"} <= set(schema["required"])
 
 
 def test_generated_properties_keep_the_linkml_slot_order() -> None:

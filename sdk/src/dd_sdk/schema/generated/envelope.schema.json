@@ -1,4 +1,5 @@
 {
+   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
       "Any": {
          "additionalProperties": true,

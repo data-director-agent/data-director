@@ -28,7 +28,7 @@ uv sync --all-packages --all-extras             # after adding a workspace membe
 uv run pytest                                   # network blocked; no credentials needed
 uv run ruff check . && uv run ruff format .
 uv run mypy
-uv run python sdk/scripts/gen_schema.py         # after editing the LinkML schema
+uv run dd-gen-schema [agents/<x>/.../<x>.yaml]   # after editing a LinkML schema (core by default)
 scripts/run-agents.sh                           # every agent on the port agents.yaml expects
 uv run pytest --json-report --json-report-file=workbench/.report.json && uv run python workbench/scripts/conformance_report.py
 uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013); needs DD_PRINCIPAL_*
@@ -111,7 +111,7 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   text or inside a labelled control, and each outcome status has exactly one (`STATUS_ICONS`).
 - **The manifest says what an agent does, not how to draw it (ADR-0016).** An agent declares how
   it produces each payload field in `AgentSpec.derivations`; the viewer works out the rest of the
-  payload's presentation from the schema, whose property order `gen_schema.py` keeps as the
+  payload's presentation from the schema, whose property order `dd-gen-schema` keeps as the
   LinkML slot order. Do not add an RJSF fragment, widget name or layout hint to `AgentSpec`.
 - **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
   the sign-in password; check a new cassette before committing it.

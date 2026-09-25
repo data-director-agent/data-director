@@ -18,7 +18,7 @@ After editing `src/dd_sdk/schema/data_director.yaml`, regenerate and keep
 `contract/models.py` in step:
 
 ```sh
-uv run python sdk/scripts/gen_schema.py
+uv run dd-gen-schema
 ```
 
 A change to the contract is an ADR (ADR-0007). `tests/test_contract.py` checks that the

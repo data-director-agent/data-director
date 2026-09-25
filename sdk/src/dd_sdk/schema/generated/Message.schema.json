@@ -1,0 +1,90 @@
+{
+   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$defs": {
+      "ConversationTurn": {
+         "additionalProperties": false,
+         "description": "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.",
+         "properties": {
+            "role": {
+               "$ref": "#/$defs/TurnRole"
+            },
+            "turn_text": {
+               "description": "What was said in the turn.",
+               "type": "string"
+            },
+            "turn_agent_id": {
+               "description": "For an agent turn, the agent that produced it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "turn_agent_version": {
+               "description": "For an agent turn, the version of the agent that produced it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "turn_invocation_id": {
+               "description": "For an agent turn, the invocation it came from.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "role",
+            "turn_text"
+         ],
+         "title": "ConversationTurn",
+         "type": "object"
+      },
+      "TurnRole": {
+         "description": "Who spoke in a conversation turn.",
+         "enum": [
+            "user",
+            "agent"
+         ],
+         "title": "TurnRole",
+         "type": "string"
+      }
+   },
+   "$id": "https://w3id.org/data-director/schema/workbench/Message",
+   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "additionalProperties": false,
+   "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw.",
+   "metamodel_version": "1.11.0",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "Message"
+         ],
+         "type": "string"
+      },
+      "message_text": {
+         "description": "What the user said in this turn.",
+         "type": "string"
+      },
+      "history": {
+         "description": "The earlier turns of the conversation, oldest first.",
+         "items": {
+            "$ref": "#/$defs/ConversationTurn"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class",
+      "message_text"
+   ],
+   "title": "Message",
+   "type": "object",
+   "version": "0.6.0"
+}
