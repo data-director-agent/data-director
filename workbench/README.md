@@ -1,27 +1,53 @@
 # Data Director Workbench
 
-The workbench is a test bed for building and testing Data Director sub-agents. It is for the
-software engineers and testers who write those agents. It is not the reference implementation
-itself.
+A test bed for building and testing Data Director sub-agents. It calls each agent, checks that the
+agent kept to a shared contract, and records every run so that a person can inspect what the agent
+did and why.
 
-Each agent states what input it reads, what output it returns, and what that output is based on.
+## Background
+
+The [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157), adopted by the
+Research Data Alliance (RDA), describes an assistant made of sub-agents that help researchers
+manage their data. This repository is a proposed reference implementation of it; the Blueprint is
+reproduced in [`../docs/BLUEPRINT.md`](../docs/BLUEPRINT.md) and its requirements are cited by ID
+(`R3`, `P14`, …).
+
+The workbench is not the reference implementation itself, and it contains no agent code. Each
+agent states what input it reads, what output it returns, and what that output is based on.
 Agents are separate services in [`../agents/`](../agents/). The workbench calls each one over
-A2A, then checks that it kept to those statements
-([ADR-0011](docs/adr/0011-remote-agents.md)). It records every run
-so that a person can inspect what the agent did and why. [`docs/architecture.md`](docs/architecture.md)
-explains how the pieces fit together.
+A2A, the [Agent2Agent protocol](https://a2a-protocol.org/), then checks that it kept to those
+statements ([ADR-0011](docs/adr/0011-remote-agents.md)).
+[`docs/architecture.md`](docs/architecture.md) explains how the pieces fit together.
 
-## Quick start
+## Who it is for
 
-Requires Python 3.14 and [`uv`](https://docs.astral.sh/uv/). No account or API key is needed.
+Software engineers and testers who write Data Director sub-agents, and anyone reviewing whether
+those agents meet the Blueprint. Using it requires familiarity with the command line and Python
+tooling; no knowledge of language models is needed, since the demonstration agents use none.
 
-Run these from the repository root, which is a uv workspace. The tests serve every agent in
-memory, so they need no agent running:
+## Installation
+
+Requirements:
+
+- Python 3.14.
+- [`uv`](https://docs.astral.sh/uv/), which installs the dependencies listed in
+  [`pyproject.toml`](pyproject.toml).
+- A Bash shell to run [`../scripts/run-agents.sh`](../scripts/run-agents.sh). On Windows, use
+  WSL.
+
+No account or API key is needed. Clone the repository, then from the repository root, which is a
+uv workspace:
 
 ```sh
 uv sync --all-packages --all-extras
 uv run pytest                                          # network blocked; everything offline
 ```
+
+The tests serve every agent in memory, so they need no agent running.
+
+## Usage
+
+### Quick start
 
 To call agents from the command line, start them first and leave them running. Then, in a second
 terminal in `workbench/`:
@@ -38,25 +64,111 @@ uv run workbench invoke --agent stub.abstain     --input samples/claim.json   # 
 uv run workbench serve                                 # then open http://127.0.0.1:8000/viewer/
 ```
 
-The viewer has two pages, reached by the tabs under its header. Inspect runs one agent over a
-sample and shows the run. Chat (`http://127.0.0.1:8000/viewer/chat.html`) holds a conversation with the orchestrator,
-`director.stub`, which hands each message to other agents and shows their replies inside its own
-([ADR-0012](docs/adr/0012-conversation-and-orchestration.md)). Only `serve` can run the
-orchestrator: `invoke` does not grant the permission it needs to call other agents, so
-`samples/director.message.json` has to go through the viewer or the conversation API.
+### The viewer
+
+The viewer has two pages, reached by the tabs under its header.
+
+- **Inspect** runs one agent over a sample and shows the run.
+- **Chat** (`http://127.0.0.1:8000/viewer/chat.html`) holds a conversation with the orchestrator,
+  `director.stub`, which hands each message to other agents and shows their replies inside its
+  own ([ADR-0012](docs/adr/0012-conversation-and-orchestration.md)).
+
+Only `serve` can run the orchestrator: `invoke` does not grant the permission it needs to call
+other agents, so `samples/director.message.json` has to go through the viewer or the conversation
+API.
+
+### Inputs and outputs
+
+An input is a JSON document whose `schema_class` names its input class; the samples and what each
+exercises are listed in [`samples/README.md`](samples/README.md). The request and response formats
+are described in [`docs/contract.md`](docs/contract.md).
 
 `invoke` prints the agent's response and the result of the grounding check, which confirms that
 everything the response relies on can be traced to something the agent actually read during the
-run ([`docs/grounding.md`](docs/grounding.md)). It also writes a
-folder, `runs/<invocation_id>/`, holding the request, the response, the trace of the run and a
-provenance record. To re-run the grounding check on a finished run, use
+run ([`docs/grounding.md`](docs/grounding.md)). It also writes a folder, `runs/<invocation_id>/`,
+holding the request, the response, the trace of the run and a provenance record (a
+[Process Run Crate](https://www.researchobject.org/workflow-run-crate/profiles/process_run_crate/)).
+To re-run the grounding check on a finished run, use
 `workbench lint <spans.jsonl> <envelope.json>`.
+
+Every response has one of five outcomes: `succeeded`, `abstained`, `referred`, `failed` or
+`suspended`; see [`docs/contract.md`](docs/contract.md).
+
+## Configuration
+
+The defaults run entirely offline, and nothing needs configuring to run the tests or the quick
+start. The workbench is configured in three places.
+
+### Environment variables
+
+The workbench reads these from the environment when it starts. It does not load a `.env` file
+itself: export them in the shell, or copy [`env.example`](env.example) to `.env` and run
+`uv run --env-file .env workbench …`.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DD_RUNS_DIR` | `runs` | Where each run's folder is written. |
+| `DD_WRITE_CRATE` | `1` | `0` stops the provenance record (Process Run Crate) being written. |
+| `DD_PROFILES_DIR` | `profiles` | The directory institutional profiles are read from. |
+| `DD_AGENTS_CONFIG` | `agents.yaml` | The agent registry file. |
+| `DD_WORKBENCH_URL` | the host and port of `serve` | The address the orchestrator uses to call the workbench back. Set it when agents reach the workbench by another name, such as a container network or a proxy. |
+
+Relative defaults are resolved against `workbench/`. Each agent is a separate process and reads
+its own variables, such as the R3 retrieval backend or a model API key, where it runs;
+[`env.example`](env.example) lists them.
+
+### Agent registry
+
+[`agents.yaml`](agents.yaml) lists the base URL of each agent, with an optional `timeout_s`. The
+ports match those started by `../scripts/run-agents.sh`. An agent that cannot be reached is listed
+as unavailable and the rest still run; see [`docs/registry.md`](docs/registry.md).
+
+### Institutional profiles
+
+A profile says which agents may run and which actions need a person's approval. `invoke` uses
+`profile:default`, which is [`profiles/default.yaml`](profiles/default.yaml); pass
+`--profile profile:<id>` to use another, or a path to a profile file. The format is described in
+[`profiles/README.md`](profiles/README.md).
+
+### Command-line options
+
+`uv run workbench <command> --help` lists every option. The ones most often changed are:
+
+- `serve --host 127.0.0.1 --port 8000`: the address the viewer and APIs are served on.
+- `invoke --input-type <class>`: the input class, when the document has no `schema_class` and the
+  agent accepts several.
+- `invoke --requirement <ID>`: the Blueprint requirement being exercised; repeatable.
+
+## Troubleshooting
+
+- **An agent is listed as unavailable.** Its service is not running or is on another port. Start
+  it with `../scripts/run-agents.sh`, and check its URL in `agents.yaml`.
+- **`failed: input-not-accepted`.** The agent does not read that input class. `workbench agents`
+  shows what each accepts.
+- **`failed: agent-not-permitted`.** The profile in use does not list the agent in
+  `agents_enabled`.
+- **`director.stub` cannot reach other agents from `invoke`.** `invoke` issues no delegation
+  grant, so the orchestrator has no way to call them. Use `workbench serve`; see
+  [The viewer](#the-viewer).
 
 ## Agents
 
-The workbench learns where each agent is from [`agents.yaml`](agents.yaml); see
-[`docs/registry.md`](docs/registry.md). `workbench agents` lists what is registered. The agents
-themselves, and how to add one, are described in [`../agents/README.md`](../agents/README.md).
+`workbench agents` lists what is registered. The agents themselves, and how to add one, are
+described in [`../agents/README.md`](../agents/README.md).
+
+## Project layout
+
+| Path | Contents |
+|---|---|
+| `src/workbench/` | The harness: the conductor, policy gate, input check, grounding linter, run store, provenance and the `workbench` CLI. |
+| `viewer/` | The browser UI served by `workbench serve`. |
+| `agents.yaml` | The agent registry. |
+| `profiles/` | Institutional profiles. |
+| `samples/` | Example inputs. |
+| `tests/` | The test suite. |
+| `scripts/` | Maintenance scripts, including the conformance report generator. |
+| `docs/` | Design documentation and decision records. |
+| `CONFORMANCE.md` | Generated report of which requirements the tests and reviews demonstrate. |
 
 ## Further reading
 
@@ -73,29 +185,12 @@ themselves, and how to add one, are described in [`../agents/README.md`](../agen
 - [`CONFORMANCE.md`](CONFORMANCE.md): which requirements the tests and the recorded reviews
   demonstrate. It is generated. A requirement with nothing behind it is marked
   *unsubstantiated*.
-- [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md): the plan for this version.
-- [`docs/adr/`](docs/adr/): the design decisions, one record per decision.
+- [`docs/adr/`](docs/adr/): the Architectural Decision Records (ADRs), one record per design
+  decision.
 
-## Limitations
+## Contributing, contact and licence
 
-- The R3 standards advisor predates the current agent interface. Its service exits at start-up,
-  so the workbench lists it as unavailable, and its tests are marked as expected failures until
-  it is ported. TODO — see
-  [`../agents/r3/src/dd_agent_r3/factory.py`](../agents/r3/src/dd_agent_r3/factory.py).
-- Calls from the workbench to its agents are not authenticated. TODO. Do not expose agent ports
-  beyond the host or a private network.
-- `quality.reviewer` and `fact.checker` are demonstrations. Their scoring rules are simple and
-  chosen by hand. They exist to exercise the harness.
-- Energy use (P14) has a field in the response but is not measured.
-- Validation reports are meant to use the SHACL vocabulary. Only JSON Schema validation runs so
-  far.
-- Frictionless has no RDF namespace, so `TableField` slots link to it with `see_also` instead of
-  a URI.
-- The w3id namespace used for problem types and agent identifiers is not yet registered.
-- The viewer is not tested in a browser in CI.
-- The orchestrator, `director.stub`, follows fixed rules. An orchestrator backed by a language
-  model, and streaming, are deferred (`docs/MVP_PLAN.md` §6).
-
-## Environment
-
-See [`env.example`](env.example). The defaults run entirely offline.
+See the [contribution guide](../CONTRIBUTING.md) and the links in the
+[repository README](../README.md). The maintainer is Joe Heffer, University of Sheffield
+(<j.heffer@sheffield.ac.uk>). The workbench is released under the [MIT Licence](../LICENSE); to
+cite it, use [`CITATION.cff`](../CITATION.cff).
