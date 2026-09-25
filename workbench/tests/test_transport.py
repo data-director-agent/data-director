@@ -305,6 +305,17 @@ def test_manifest_samples_and_schema_are_served(runs_dir: Path) -> None:
     assert status == 200
 
 
+@pytest.mark.requirement("DD-REGISTRY")
+def test_agent_detail_serves_the_resolved_spec_and_404s_an_unknown_id(runs_dir: Path) -> None:
+    _, app = _app(runs_dir)
+    status, entry = _get(app, "/agents/hello.world")
+    assert status == 200
+    assert entry["spec"]["agent_id"] == "hello.world"
+    assert entry["card"]["name"] == "hello.world"  # served in-process, but still a RemoteAgent
+    status, error = _get(app, "/agents/no.such.agent")
+    assert status == 404 and "no.such.agent" in error["error"]
+
+
 def test_favicon_is_served(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
     status, _ = _get(app, "/favicon.ico")

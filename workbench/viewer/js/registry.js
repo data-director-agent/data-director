@@ -15,20 +15,30 @@ export async function loadRegistry() {
   samples.push(...listing);
 }
 
+// Every registered id, grouped by the id prefix before the first dot, plus the unavailable and
+// incompatible names, all sorted. Shared by the agent picker (an option list) and the Agents tab
+// (a row list), so the two never disagree on what the registry holds or how it is grouped.
+const byId = (a, b) => a.localeCompare(b);
+export function groupedAgents() {
+  const groups = Map.groupBy(Object.keys(agents).sort(byId), (id) => id.split(".")[0]);
+  return {
+    groups: new Map([...groups.keys()].sort(byId).map((prefix) => [prefix, groups.get(prefix)])),
+    unavailable: Object.keys(unavailable).sort(byId),
+    incompatible: Object.keys(incompatible).sort(byId),
+  };
+}
+
 // One option per agent, grouped by the id prefix before the first dot, so the picker stays
 // one line tall however many agents the registry holds. Unavailable and incompatible agents stay
 // selectable so their reason can be read in the detail card; Run and Send stay disabled for them.
 export function renderAgents(sel) {
-  const byId = (a, b) => a.localeCompare(b);
-  const groups = Map.groupBy(Object.keys(agents).sort(byId), (id) => id.split(".")[0]);
+  const { groups, unavailable: down, incompatible: other } = groupedAgents();
   sel.replaceChildren(new Option("Choose an agent", ""));
-  for (const prefix of [...groups.keys()].sort(byId)) {
+  for (const [prefix, ids] of groups) {
     sel.append(el("optgroup", { label: prefix },
-      ...groups.get(prefix).map((id) => new Option(`${id}  ${agents[id].version}`, id))));
+      ...ids.map((id) => new Option(`${id}  ${agents[id].version}`, id))));
   }
-  const down = Object.keys(unavailable).sort(byId);
   if (down.length) sel.append(el("optgroup", { label: "Unavailable" }, ...down.map((id) => new Option(id, id))));
-  const other = Object.keys(incompatible).sort(byId);
   if (other.length) sel.append(el("optgroup", { label: "Incompatible" }, ...other.map((id) => new Option(id, id))));
 }
 // Why a registered name cannot be run, or null if it can.

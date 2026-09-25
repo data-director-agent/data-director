@@ -96,6 +96,14 @@ def test_config_lists_agents_by_url_and_the_registry_reads_each_card(tmp_path: P
 
 
 @pytest.mark.requirement("DD-REGISTRY")
+def test_from_url_keeps_the_raw_card_it_fetched(tmp_path: Path) -> None:
+    registry = registry_of(tmp_path)
+    agent = registry.get("hello.world")
+    assert isinstance(agent, RemoteAgent)
+    assert agent.card == fetch_card(AGENTS["http://hello.test"], "http://hello.test")
+
+
+@pytest.mark.requirement("DD-REGISTRY")
 def test_manifest_rebuilt_from_cards_equals_each_agents_own_description(tmp_path: Path) -> None:
     registry = registry_of(tmp_path)
     by_id = {a.spec.agent_id: a for a in AGENTS.values()}

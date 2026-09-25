@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agents · Data Director Workbench</title>
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+  <link rel="stylesheet" href="/viewer/viewer.css" />
+  <script type="module" src="/viewer/js/agents.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="title-row">
+      <h1>Data Director Workbench</h1>
+      <p>Developer viewer for the registered agents. Nothing here edits a stored run. Every output requires human review<span data-help="human-review"></span>.</p>
+      <button type="button" id="open-glossary" class="small" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#book-open"/></svg>Glossary</button>
+    </div>
+    <nav class="modes" aria-label="Mode">
+      <a href="/viewer/"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#microscope"/></svg>Inspect</span><span class="mode-sub">Run one agent on one input and examine the envelope it returns</span></a>
+      <a href="/viewer/chat.html"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#message-square"/></svg>Chat</span><span class="mode-sub">Hold a conversation with an agent, a turn at a time</span></a>
+      <a href="/viewer/agents.html" aria-current="page"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#bot"/></svg>Agents</span><span class="mode-sub">Browse the registered agents and their agent cards</span></a>
+    </nav>
+  </header>
+  <dialog class="glossary" id="glossary" aria-labelledby="glossary-heading">
+    <div class="dialog-head"><h2 id="glossary-heading">Glossary</h2><form method="dialog"><button class="small" type="submit"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#x"/></svg>Close</button></form></div>
+    <p class="intro">The terms this page uses, from the workbench contract (<code>schema/data_director.yaml</code>). The same text appears behind each <kbd>?</kbd> button.</p>
+    <dl id="glossary-list"></dl>
+  </dialog>
+  <div class="layout" id="screen-agents">
+    <nav aria-label="Registered agents">
+      <section class="panel" aria-labelledby="agents-heading">
+        <div class="head-row"><h2 id="agents-heading"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#bot"/></svg>Agents</h2><span data-help="agent"></span></div>
+        <ul class="history" id="agent-list"></ul>
+      </section>
+    </nav>
+    <main id="agent-view" aria-label="Agent">
+      <div class="panel empty" id="agent-empty">
+        <div class="guide">
+          <h3>Getting started</h3>
+          <p>Choose an agent to see its status, the raw agent card it published at
+            <code>/.well-known/agent-card.json</code>, and the <strong>AgentSpec</strong> the workbench
+            rebuilt from it: derivations, requirement IDs and grounding mode.</p>
+          <p>An agent that is <strong>unavailable</strong> or <strong>incompatible</strong> has no
+            resolved spec; only the reason the registry recorded at start-up is shown.</p>
+        </div>
+      </div>
+      <div id="agent-result" hidden>
+        <section class="panel" aria-labelledby="agent-summary-heading">
+          <div class="head-row"><h2 id="agent-summary-heading">Status</h2></div>
+          <div id="agent-status-head"></div>
+        </section>
+        <section class="panel" id="agent-spec-panel" aria-labelledby="agent-spec-heading">
+          <div class="head-row"><h2 id="agent-spec-heading">Resolved spec</h2><span data-help="agent"></span></div>
+          <div id="agent-spec"></div>
+        </section>
+        <section class="panel" id="agent-card-panel" aria-labelledby="agent-card-heading">
+          <div class="panel-head"><div class="head-row"><h2 id="agent-card-heading">Agent card</h2></div>
+            <button class="small" id="copy-card" type="button">Copy</button></div>
+          <pre class="json" id="agent-card-json" tabindex="0"></pre>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
