@@ -6,14 +6,22 @@ import { agents, classSchema, notRunnable, loadRegistry, renderAgents, renderAge
 import { payloadView } from "./payload.js";
 import { inputForm } from "./inputform.js";
 
-// A payload renders from its class's schema, which the agent's card carries (ADR-0019), so a new
-// payload class renders as soon as its agent is registered.
+// A payload renders from the class schema it was checked against: the envelope names its digest
+// and the run store keeps it (ADR-0019), so a new payload class renders as soon as its agent is
+// registered, and a stored run still renders after its agent's card has changed. A run stored
+// before digests were recorded has none and is shown as JSON.
 let current = null;
 const showPayload = payloadView($("form"));
 const editor = inputForm($("input-form"));
+const schemas = new Map();  // digest -> Promise of the schema, or of null
 
 function payloadSchema(envelope) {
-  return envelope.payload ? classSchema(envelope.agent_id, envelope.payload.schema_class) : null;
+  const digest = envelope.payload_schema;
+  if (!digest) return Promise.resolve(null);
+  if (!schemas.has(digest)) {
+    schemas.set(digest, fetch(`/schema/sha256/${digest}`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  }
+  return schemas.get(digest);
 }
 
 // A link to another run that loads it in place, and still works opened in a new tab.
@@ -90,7 +98,10 @@ function render(envelope) {
   // Payload: schema-driven through RJSF, badged from the agent's declared derivations.
   const payload = envelope.payload;
   $("payload-class").textContent = payload?.schema_class || "";
-  showPayload(payload, payloadSchema(envelope), agents[envelope.agent_id]?.derivations || {}, envelope.evidence || []);
+  const derivations = agents[envelope.agent_id]?.derivations || {};
+  payloadSchema(envelope).then((ps) => {
+    if (current === envelope) showPayload(payload, ps, derivations, envelope.evidence || []);
+  });
 
   // Evidence, with a cross-check against the payload's grounded_on hashes.
   const cited = collectCited(payload);

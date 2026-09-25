@@ -72,6 +72,8 @@ def conditional_errors(envelope: dict[str, Any]) -> list[str]:
         errors.append(f"outcome.status={status} must not carry a payload")
     if status not in (OutcomeStatus.FAILED, OutcomeStatus.SUSPENDED) and has_problem:
         errors.append(f"outcome.status={status} must not carry a problem")
+    if has_payload != ("payload_schema" in envelope):
+        errors.append("a payload requires payload_schema, and payload_schema a payload (ADR-0019)")
     errors.extend(grounding_errors(envelope))
     return errors
 

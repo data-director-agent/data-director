@@ -55,6 +55,7 @@ from dd_sdk.contract.models import (
     input_source_id,
     to_document,
 )
+from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.evidence import input_hash as compute_input_hash
@@ -242,6 +243,8 @@ class Conductor:
         started = datetime.now(UTC)
         tracer = self.tracing.tracer
         input_hash = compute_input_hash(request_doc["input"])
+        # The class schema the card carries for the input, if the agent accepts its class.
+        accepted = spec.accepted(str(request_doc["input"].get("schema_class")))
         input_ref = input_source_id(request.invocation_id)
 
         delegations: list[Delegation] = []
@@ -365,8 +368,13 @@ class Conductor:
                 policy_bundle_ref=profile.ref,
                 policy_digest=profile.digest,
                 acting_for=acting_for,
+                contract_version=CONTRACT_VERSION,
+                input_schema=accepted.digest if accepted else None,
                 outcome=result.outcome,
                 payload=result.payload,
+                payload_schema=(
+                    spec.payload.digest if result.payload is not None and spec.payload else None
+                ),
                 evidence=result.evidence,
                 telemetry=Telemetry(
                     trace_id=trace_id,
@@ -410,6 +418,7 @@ class Conductor:
                             + "; ".join(violations),
                         ),
                         "payload": None,
+                        "payload_schema": None,
                         "evidence": [],
                         "problem": problems.grounding_violation(violations),
                     }
@@ -432,13 +441,18 @@ class Conductor:
                                 + "; ".join(exc.messages),
                             ),
                             "payload": None,
+                            "payload_schema": None,
                             "evidence": [],
                             "problem": problems.agent_error(spec.agent_id, exc),
                         }
                     )
                     doc = envelope.to_document()
             validate.validate_envelope(doc)
-            run_dir = self.store.append(doc, request_doc)
+            # The schemas the run was checked against, kept by digest for the viewer (ADR-0019).
+            checked = [accepted] if accepted else []
+            if envelope.payload is not None and spec.payload is not None:
+                checked.append(spec.payload)
+            run_dir = self.store.append(doc, request_doc, checked)
             spans_path = run_dir / "spans.jsonl"
             self.tracing.write_jsonl(spans_path, trace_id)
             (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")

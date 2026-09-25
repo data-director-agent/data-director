@@ -74,6 +74,14 @@ def build_app(
             return JSONResponse({"error": f"no conversation {conversation_id}"}, status_code=404)
         return JSONResponse(found)
 
+    async def class_schema(request: Request) -> Response:
+        """A class schema a stored run was checked against, by its digest (ADR-0019)."""
+        digest = request.path_params["digest"]
+        found = conductor.store.get_schema(digest)
+        if found is None:
+            return JSONResponse({"error": f"no class schema {digest}"}, status_code=404)
+        return JSONResponse(found)
+
     async def uischema(request: Request) -> Response:
         return JSONResponse(json.loads(UISCHEMA.read_text(encoding="utf-8")))
 
@@ -105,6 +113,7 @@ def build_app(
             Route("/conversations", conversations_index, methods=["GET"]),
             Route("/conversations/{conversation_id}", conversation, methods=["GET"]),
             Route("/schema/uischema.json", uischema, methods=["GET"]),
+            Route("/schema/sha256/{digest}", class_schema, methods=["GET"]),
             Route("/agents", agents, methods=["GET"]),
             Route("/samples", samples, methods=["GET"]),
             Route("/samples/{name}", sample, methods=["GET"]),

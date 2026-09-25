@@ -38,6 +38,7 @@ from dd_sdk.contract.models import (
     new_invocation_id,
     to_document,
 )
+from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.evidence import (
     CANONICALISATIONS,
     DOCUMENT_CANONICALISATION,
@@ -123,6 +124,7 @@ def _envelope(**overrides: object) -> Envelope:
         "policy_bundle_ref": "profile:default@v2",
         "policy_digest": "0" * 64,
         "acting_for": PRINCIPAL,
+        "contract_version": CONTRACT_VERSION,
         "outcome": Outcome(
             status=OutcomeStatus.ABSTAINED,
             reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
@@ -165,10 +167,31 @@ def _input_evidence() -> EvidenceItem:
     )
 
 
+PAYLOAD_SCHEMA = "c" * 64  # the digest a conductor records beside a payload (ADR-0019)
+
+
 def _succeeded(**overrides: object) -> Envelope:
+    if "payload" in overrides:
+        overrides.setdefault("payload_schema", PAYLOAD_SCHEMA)
     return _envelope(
         outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."), **overrides
     )
+
+
+def test_a_payload_and_its_schema_digest_come_together() -> None:
+    doc = _succeeded(
+        grounding_mode=GroundingMode.INPUT_ONLY,
+        payload=_reply(_input_ref()),
+        evidence=[_input_evidence()],
+    ).to_document()
+    validate.validate_envelope(doc)
+    assert doc["contract_version"] == CONTRACT_VERSION and doc["payload_schema"] == PAYLOAD_SCHEMA
+    del doc["payload_schema"]
+    with pytest.raises(validate.ContractViolation, match="payload requires payload_schema"):
+        validate.validate_envelope(doc)
+    abstained = _envelope(payload_schema=PAYLOAD_SCHEMA).to_document()
+    with pytest.raises(validate.ContractViolation, match="payload_schema a payload"):
+        validate.validate_envelope(abstained)
 
 
 def _reply(*grounded_on: GroundingRef) -> Reply:
