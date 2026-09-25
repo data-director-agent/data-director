@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-agent-r3"
+version = "0.1.0"
+description = "r3.standards-advisor: recommends standards from FAIRsharing"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+dependencies = ["data-director-sdk", "httpx>=0.28", "pyyaml>=6.0", "rank-bm25>=0.2.2"]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.50"]
+
+[project.scripts]
+dd-r3 = "dd_agent_r3.factory:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_agent_r3"]

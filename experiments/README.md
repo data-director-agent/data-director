@@ -4,7 +4,7 @@ This directory holds prototype and exploratory work — not the reference implem
 
 ## Purpose
 
-The [project charter](../docs/CHARTER.md) commits this repository to a reference implementation
+The [project charter](https://github.com/data-director-agent/.github/blob/main/CHARTER.md) commits this repository to a reference implementation
 of the RDA Data Director Agentic AI Blueprint, but the stack, architecture, and structure for that
 implementation have not yet been decided by the maintainer group. `experiments/` is where that
 groundwork happens: trying out languages, frameworks, and designs for individual Blueprint
@@ -18,7 +18,7 @@ components before proposing any of it as the project's direction.
   `experiments/blueprint-orchestrator-python/`), with its own short `README.md` explaining what
   it's testing and its status.
 - **Promoting an experiment** to the reference implementation (or a part of it) goes through the
-  normal RFC / lazy consensus process in [GOVERNANCE.md](../GOVERNANCE.md) — moving code out of
+  normal RFC / lazy consensus process in [GOVERNANCE.md](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md) — moving code out of
   `experiments/` is a project decision, not a unilateral edit.
 - **Prune freely.** Abandoned or superseded experiments should be deleted rather than left to rot;
   git history preserves them if needed later.

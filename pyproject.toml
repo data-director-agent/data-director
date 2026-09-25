@@ -1,0 +1,114 @@
+# The uv workspace (ADR-0011). Not a package: it pins the members together, holds the shared
+# development tooling, and runs one test session so the conformance report sees every test.
+#
+#   sdk/         data-director-sdk        the contract, evidence, trace helpers, A2A agent server
+#   workbench/   data-director-workbench  the harness that calls agents over A2A
+#   agents/*/    data-director-agent-*    one package and one service per agent
+
+[project]
+name = "data-director"
+version = "0.0.0"
+requires-python = ">=3.14"
+dependencies = [
+  "data-director-sdk",
+  "data-director-workbench",
+  "data-director-agent-hello",
+  "data-director-agent-quality",
+  "data-director-agent-factcheck",
+  "data-director-agent-stub",
+  "data-director-agent-r3",
+  "data-director-agent-director",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-recording>=0.13",
+  "pytest-json-report>=1.5",
+  "linkml>=1.11",
+  "ruff>=0.9",
+  "mypy>=1.15",
+  "types-jsonschema>=4.23",
+  "types-PyYAML>=6.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["sdk", "workbench", "agents/*"]
+
+[tool.uv.sources]
+data-director-sdk = { workspace = true }
+data-director-workbench = { workspace = true }
+data-director-agent-hello = { workspace = true }
+data-director-agent-quality = { workspace = true }
+data-director-agent-factcheck = { workspace = true }
+data-director-agent-stub = { workspace = true }
+data-director-agent-r3 = { workspace = true }
+data-director-agent-director = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["experiments"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/*" = ["ANN"]
+"conftest.py" = ["ANN"]
+"**/scripts/*" = ["T20", "E501"]  # report scripts embed Markdown prose
+"workbench/src/workbench/cli.py" = ["T20"]
+# The domain reads better without an Error suffix; these names appear in messages people read.
+"workbench/src/workbench/conductor.py" = ["N818"]
+"sdk/src/dd_sdk/contract/validate.py" = ["N818"]
+"sdk/src/dd_sdk/delegate.py" = ["N818"]
+"agents/r3/src/dd_agent_r3/retrieve.py" = ["N818"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["sdk/tests", "workbench/tests", "agents"]
+# Test directories are not packages, so every test module is imported by its basename: keep the
+# basenames unique across the workspace. Shared doubles live in `workbench.testing` and
+# `dd_agent_r3.testing`, not in a test directory.
+addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network"
+filterwarnings = [
+  "error",
+  # a2a-sdk 1.1 calls protobuf's deprecated FieldDescriptor.label(); with warnings as errors the
+  # C-level call surfaces as a SystemError inside the JSON-RPC dispatcher. Not ours to fix.
+  "ignore:label\\(\\) is deprecated:DeprecationWarning",
+]
+markers = [
+  "requirement(*ids): the requirement identifiers this test substantiates (see workbench/docs/requirements.yaml)",
+]
+
+[tool.mypy]
+python_version = "3.14"
+files = [
+  "conftest.py", "sdk/src", "sdk/tests", "sdk/scripts", "workbench/src", "workbench/tests",
+  "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts",
+]
+explicit_package_bases = true
+mypy_path = [
+  "sdk/src", "sdk/scripts", "workbench/src", "workbench/scripts", "agents/hello/src",
+  "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
+  "agents/director/src",
+]
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*", "linkml_runtime.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["conftest", "sdk.tests.*", "workbench.tests.*", "agents.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false

@@ -1,0 +1,841 @@
+id: https://w3id.org/data-director/schema/workbench
+name: data_director_workbench
+title: Data Director Workbench contract
+description: >-
+  The invocation contract of the Data Director Workbench: the request an agent receives, the
+  envelope it returns, the outcome vocabulary, the input classes agents read and the payload
+  classes they return. Input and payload are polymorphic unions discriminated by schema_class
+  (ADR-0007); every payload mixes in Grounded so the grounding linter can check it without
+  knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
+  Generated artefacts live in schema/generated/ and are never hand-edited.
+version: 0.6.0
+license: MIT
+
+prefixes:
+  dd: https://w3id.org/data-director/
+  linkml: https://w3id.org/linkml/
+  dcterms: http://purl.org/dc/terms/
+  dcat: http://www.w3.org/ns/dcat#
+  schema: http://schema.org/
+  prov: http://www.w3.org/ns/prov#
+default_prefix: dd
+default_range: string
+
+imports:
+  - linkml:types
+
+classes:
+
+  Any:
+    class_uri: linkml:Any
+    description: Placeholder range for slots whose value type is enumerated in any_of.
+
+  InvocationRequest:
+    description: >-
+      What the conductor hands to an agent. One request produces exactly one Envelope. A
+      conversation is the set of top-level invocations sharing a conversation_id; each turn is
+      one request and one envelope (ADR-0012).
+    slots:
+      - invocation_id
+      - agent_id
+      - requirement_ids
+      - issued_at
+      - conversation_id
+      - parent_invocation_id
+      - input
+
+  Envelope:
+    description: >-
+      The agent's response. Every field an agent did not decide (identifiers, timestamps,
+      telemetry, the policy applied, the human it acted for) is filled by the conductor, so an
+      agent cannot mislabel its own run.
+      Conditional rules not expressible in JSON Schema are enforced by contract.validate:
+      failed or suspended requires problem; abstained or referred requires outcome.reason_code;
+      succeeded requires payload.
+    slots:
+      - invocation_id
+      - agent_id
+      - agent_version
+      - completed_at
+      - grounding_mode
+      - policy_bundle_ref
+      - policy_digest
+      - acting_for
+      - outcome
+      - payload
+      - evidence
+      - telemetry
+      - requires_human_review
+      - problem
+      - conversation_id
+      - parent_invocation_id
+      - delegations
+
+  Delegation:
+    description: >-
+      One child invocation an agent in grounding mode delegation made through the workbench
+      (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the
+      agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a
+      relayed reply cites.
+    slots:
+      - delegated_invocation_id
+      - delegated_agent_id
+      - delegated_agent_version
+      - delegated_status
+      - content_hash
+
+  Principal:
+    class_uri: prov:Agent
+    description: >-
+      The human an invocation acted for (Blueprint §5.4), or the accountable human role where it
+      acted for an institution. Named by the deployment's authentication boundary and recorded
+      by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018).
+    slots:
+      - principal_id
+      - name
+      - principal_kind
+      - assurance
+    slot_usage:
+      name:
+        description: How the person or role is named to a reader of the record.
+        pattern: "\\S"
+
+  Outcome:
+    description: >-
+      One class rather than a union of five. The status enum carries the vocabulary; reason_code
+      is required when status is abstained or referred; problem (on the Envelope) is required when
+      status is failed or suspended.
+    slots:
+      - status
+      - reason_code
+      - referred_to
+      - statement
+
+  ProblemDetails:
+    description: >-
+      RFC 9457 Problem Details for HTTP APIs, used verbatim for failed and suspended outcomes.
+      The two extension members carry the resumption condition for suspended.
+    slots:
+      - type
+      - title
+      - http_status
+      - detail
+      - instance
+      - resume_condition
+      - resume_after
+
+  # --- Inputs ---------------------------------------------------------------------------------
+  # Each input class carries schema_class as its type designator. An agent declares which input
+  # classes it accepts; the conductor refuses any other with problem input-not-accepted.
+
+  DatasetProfile:
+    class_uri: dcat:Dataset
+    description: >-
+      A minimal description of a dataset being planned or prepared: what it is about and how it
+      is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.
+    slots:
+      - schema_class
+      - title
+      - description
+      - keywords
+      - themes
+      - media_types
+      - fields
+
+  TableField:
+    description: >-
+      One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
+      Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
+      slot_uri (TODO: revisit if Frictionless publishes term IRIs).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#field
+    slots:
+      - name
+      - field_type
+      - field_format
+      - field_description
+
+  MetadataRecord:
+    class_uri: dcat:Dataset
+    description: >-
+      An existing metadata record about a dataset, as a repository or catalogue holds it. The
+      input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a
+      minimal record carries; TODO widen when a real repository export is exercised.
+    slots:
+      - schema_class
+      - identifier
+      - title
+      - description
+      - licence
+      - creators
+      - keywords
+
+  Claim:
+    description: A statement to be checked against sources. The input a fact-checking agent reads.
+    slots:
+      - schema_class
+      - text
+      - subject_uri
+      - context
+
+  Salutation:
+    description: >-
+      Whom to greet. The input of the hello.world template agent: the smallest input class the
+      contract admits, and the worked example for adding one (see agents/hello/).
+    slots:
+      - schema_class
+      - greeted_name
+      - language
+
+  Message:
+    description: >-
+      One conversational turn addressed to an agent: the text of the turn and the conversation so
+      far. The history is part of the input, so the input hash covers everything the agent saw.
+    slots:
+      - schema_class
+      - message_text
+      - history
+
+  ConversationTurn:
+    description: >-
+      One earlier turn of a conversation, as the caller presents it to the agent. An agent turn
+      names the agent and version that produced it and the invocation it came from.
+    slots:
+      - role
+      - turn_text
+      - turn_agent_id
+      - turn_agent_version
+      - turn_invocation_id
+
+  # --- Grounding ------------------------------------------------------------------------------
+
+  GroundingRef:
+    description: >-
+      The identity and content hash of one retrieved thing a payload rests on. The only way a
+      payload may name an external resource as a decided identity, and the only place it names
+      it: what the reference identifies is read from the evidence item with the same source_id
+      and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval
+      span on both fields.
+    slots:
+      - source_id
+      - content_hash
+
+  Grounded:
+    mixin: true
+    description: >-
+      Mixed into every payload class and every item class that asserts an identity. The linter
+      walks a payload document for grounded_on lists and never needs to know the payload class;
+      a payload that lacks grounded_on at its root is a violation, not a pass.
+    slots:
+      - grounded_on
+
+  # --- Payloads -------------------------------------------------------------------------------
+  # Each payload class carries schema_class and mixes in Grounded.
+
+  Recommendations:
+    description: The R3 payload. Recommended vocabularies, ontologies and formats.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - items
+      - searched
+
+  Recommendation:
+    description: >-
+      One recommended resource for one target. The resource is named only in grounded_on; its
+      name, status and DOI are in the cited evidence item's content (ADR-0015).
+    mixins:
+      - Grounded
+    slots:
+      - kind
+      - target
+      - score
+      - rationale
+      - rationale_derivation
+      - classification_derivation
+
+  SearchedSummary:
+    description: >-
+      What was looked for, so a reader can judge an abstention as well as a recommendation.
+    slots:
+      - queries
+      - snapshot_ref
+      - candidates_retrieved
+      - candidates_qualifying
+
+  QualityReview:
+    description: >-
+      The payload of a quality or validation agent: a score over an existing record and the
+      findings behind it. Grounded on the input itself (grounding mode input_only or none).
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - score
+      - findings
+
+  Finding:
+    description: One observation about one criterion.
+    mixins:
+      - Grounded
+    slots:
+      - criterion
+      - severity
+      - message
+      - derivation
+
+  FactCheck:
+    description: >-
+      The payload of a fact-checking agent: a verdict on a Claim and the rationale for it,
+      grounded on the sources consulted.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - verdict
+      - rationale
+      - rationale_derivation
+
+  Greeting:
+    description: >-
+      The payload of the hello.world template agent: one greeting, grounded on the Salutation it
+      was derived from. Exists to demonstrate the payload contract, not to do anything.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - greeting_text
+      - greeting_derivation
+
+  Reply:
+    description: >-
+      The payload of a conversational agent: the text of its reply. An orchestrator's reply is
+      grounded on its input and on the envelopes of the invocations it delegated to.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - reply_text
+      - reply_derivation
+
+  EvidenceItem:
+    description: >-
+      The retrieved content a grounding claim rests on, identified by a hash over its
+      canonicalised projection (not the HTTP body).
+    slots:
+      - source_id
+      - source_uri
+      - retrieved_at
+      - snapshot_ref
+      - hash_algorithm
+      - canonicalisation
+      - content_hash
+      - content
+
+  Telemetry:
+    description: >-
+      Run measurements. The energy slots exist so P14 can be populated later without a schema
+      change; at v0 they are null and not_measured.
+    slots:
+      - trace_id
+      - model_id
+      - input_tokens
+      - output_tokens
+      - energy_estimate_j
+      - energy_method
+
+slots:
+
+  invocation_id:
+    description: UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.
+    identifier: true
+    required: true
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  agent_id:
+    description: Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.
+    required: true
+    slot_uri: prov:wasAssociatedWith
+  agent_version:
+    required: true
+  requirement_ids:
+    description: Blueprint or project requirement identifiers the invocation is exercising.
+    multivalued: true
+  issued_at:
+    range: datetime
+    required: true
+  completed_at:
+    range: datetime
+    required: true
+  policy_bundle_ref:
+    description: >-
+      The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The
+      deployment chooses the profile; a request cannot name one (ADR-0017).
+    required: true
+    pattern: "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
+  policy_digest:
+    description: SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied.
+    required: true
+    pattern: "^[0-9a-f]{64}$"
+  acting_for:
+    description: >-
+      The human this invocation acted for. Filled by the conductor from the authentication
+      boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018).
+    range: Principal
+    required: true
+    inlined: true
+    slot_uri: prov:actedOnBehalfOf
+  principal_id:
+    description: >-
+      An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5).
+    range: uri
+    required: true
+    pattern: "^[a-z][a-z0-9+.-]*:\\S+$"
+  principal_kind:
+    range: PrincipalKind
+    required: true
+  assurance:
+    description: How the workbench came to know the principal.
+    range: Assurance
+    required: true
+  input:
+    description: >-
+      What the agent is asked to work on. One of the input classes, discriminated by
+      schema_class; an agent declares which it accepts.
+    range: Any
+    any_of:
+      - range: DatasetProfile
+      - range: MetadataRecord
+      - range: Claim
+      - range: Salutation
+      - range: Message
+    required: true
+    inlined: true
+  schema_class:
+    description: >-
+      Type designator: the name of the class this object is an instance of. Discriminates the
+      input and payload unions, and lets a consumer name a payload class it does not recognise.
+    designates_type: true
+    range: string
+    required: true
+  grounding_mode:
+    description: >-
+      The grounding contract the agent declared and the linter applied. Filled by the conductor
+      from the agent's specification, never by the agent.
+    range: GroundingMode
+    required: true
+  outcome:
+    range: Outcome
+    required: true
+    inlined: true
+  payload:
+    description: >-
+      Agent-specific payload; absent unless the outcome is succeeded. One of the payload
+      classes, discriminated by schema_class; every one mixes in Grounded.
+    range: Any
+    any_of:
+      - range: Recommendations
+      - range: QualityReview
+      - range: FactCheck
+      - range: Greeting
+      - range: Reply
+    inlined: true
+  grounded_on:
+    description: >-
+      The retrieved things this object rests on. For grounding mode retrieval, each entry names
+      a retrieval span; for input_only and none, the single entry is the input itself
+      (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).
+    range: GroundingRef
+    multivalued: true
+    inlined_as_list: true
+    required: true
+  evidence:
+    range: EvidenceItem
+    multivalued: true
+    inlined_as_list: true
+  telemetry:
+    range: Telemetry
+    required: true
+    inlined: true
+  requires_human_review:
+    description: >-
+      Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope
+      claiming otherwise.
+    range: boolean
+    required: true
+    equals_expression: "true"
+  problem:
+    range: ProblemDetails
+    inlined: true
+  conversation_id:
+    description: >-
+      UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  parent_invocation_id:
+    description: >-
+      The invocation that delegated this one. Set only by the conductor, from a delegation
+      grant; a caller's request that carries it is refused.
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  delegations:
+    description: The child invocations this invocation delegated to, in the order they ran.
+    range: Delegation
+    multivalued: true
+    inlined_as_list: true
+  delegated_invocation_id:
+    required: true
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  delegated_agent_id:
+    required: true
+  delegated_agent_version:
+    required: true
+  delegated_status:
+    range: OutcomeStatus
+    required: true
+
+  status:
+    range: OutcomeStatus
+    required: true
+  reason_code:
+    range: ReasonCode
+  referred_to:
+    description: The human role a referred outcome hands to, e.g. data_steward.
+  statement:
+    description: A human-readable sentence explaining the outcome (C14).
+    required: true
+
+  type:
+    description: RFC 9457 problem type URI.
+    range: uri
+    required: true
+  title:
+    slot_uri: dcterms:title
+  http_status:
+    range: integer
+  detail:
+  instance:
+    range: uri
+  resume_condition:
+    description: What must happen for a suspended invocation to resume (extension member).
+  resume_after:
+    description: Earliest time a suspended invocation may resume (extension member).
+    range: datetime
+
+  description:
+    slot_uri: dcterms:description
+  keywords:
+    slot_uri: dcat:keyword
+    multivalued: true
+  themes:
+    description: Discipline or subject, as free text or an IRI.
+    slot_uri: dcat:theme
+    multivalued: true
+  media_types:
+    slot_uri: dcat:mediaType
+    multivalued: true
+  fields:
+    range: TableField
+    multivalued: true
+    inlined_as_list: true
+
+  identifier:
+    description: The record's own identifier, e.g. a DOI or a catalogue URI.
+    slot_uri: dcterms:identifier
+  licence:
+    description: The licence the record declares, as an IRI or SPDX identifier.
+    slot_uri: dcterms:license
+  creators:
+    slot_uri: dcterms:creator
+    multivalued: true
+
+  text:
+    description: The claim, as a sentence.
+    required: true
+  subject_uri:
+    description: What the claim is about, if it has an identifier.
+    range: uri
+  context:
+    description: Where the claim was made or why it is being checked.
+
+  greeted_name:
+    description: Whom to greet.
+    required: true
+  language:
+    description: BCP 47 tag for the language to greet in. English if absent.
+  greeting_text:
+    description: The greeting, as a sentence.
+    required: true
+  greeting_derivation:
+    description: How greeting_text came about. Always template for this agent.
+    range: Derivation
+    required: true
+
+  message_text:
+    description: What the user said in this turn.
+    required: true
+  history:
+    description: The earlier turns of the conversation, oldest first.
+    range: ConversationTurn
+    multivalued: true
+    inlined_as_list: true
+  role:
+    range: TurnRole
+    required: true
+  turn_text:
+    description: What was said in the turn.
+    required: true
+  turn_agent_id:
+    description: For an agent turn, the agent that produced it.
+  turn_agent_version:
+    description: For an agent turn, the version of the agent that produced it.
+  turn_invocation_id:
+    description: For an agent turn, the invocation it came from.
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  reply_text:
+    description: The reply, as prose.
+    required: true
+  reply_derivation:
+    description: How reply_text came about. template for a rule-based agent, model for a model.
+    range: Derivation
+    required: true
+
+  findings:
+    range: Finding
+    multivalued: true
+    inlined_as_list: true
+  criterion:
+    description: The quality criterion assessed, e.g. licence_present.
+    required: true
+  severity:
+    range: Severity
+    required: true
+  message:
+    description: The finding, as a sentence a reviewer can act on.
+    required: true
+  derivation:
+    description: How the finding was produced.
+    range: Derivation
+    required: true
+  verdict:
+    range: Verdict
+    required: true
+
+  name:
+    required: true
+  field_type:
+    description: >-
+      Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
+      geopoint, ...).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#type
+  field_format:
+    see_also:
+      - https://datapackage.org/standard/table-schema/#format
+  field_description:
+    slot_uri: dcterms:description
+
+  items:
+    range: Recommendation
+    multivalued: true
+    inlined_as_list: true
+  searched:
+    range: SearchedSummary
+    inlined: true
+  kind:
+    range: RecommendationKind
+    required: true
+  target:
+    description: dataset, or field:<name> for a field-level recommendation.
+    required: true
+  score:
+    range: float
+  rationale:
+    required: true
+  rationale_derivation:
+    range: Derivation
+    required: true
+  classification_derivation:
+    range: Derivation
+
+  queries:
+    multivalued: true
+  snapshot_ref:
+    description: Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.
+  candidates_retrieved:
+    range: integer
+  candidates_qualifying:
+    range: integer
+
+  source_id:
+    required: true
+  source_uri:
+    range: uri
+  retrieved_at:
+    range: datetime
+  hash_algorithm:
+    required: true
+  canonicalisation:
+    required: true
+  content_hash:
+    required: true
+    pattern: "^[0-9a-f]{64}$"
+  content:
+    description: >-
+      The document the named canonicalisation turns into bytes, already projected, so that a
+      reader or the linter (E1) can recompute content_hash from the envelope alone (ADR-0015).
+      Where a payload cites this item from grounded_on, this is what the citation identifies.
+    range: Any
+
+  trace_id:
+    description: OpenTelemetry trace identifier, 32 lowercase hex characters.
+  model_id:
+  input_tokens:
+    range: integer
+  output_tokens:
+    range: integer
+  energy_estimate_j:
+    range: float
+  energy_method:
+    range: EnergyMethod
+    required: true
+
+enums:
+
+  OutcomeStatus:
+    description: >-
+      The outcome vocabulary. The Blueprint does not define one; this is the workbench's
+      specification contribution.
+    permissible_values:
+      succeeded:
+        description: The agent produced a payload it stands behind.
+      abstained:
+        description: >-
+          The agent declined to recommend; reason_code says why. An equal output to succeeded,
+          not an error.
+      referred:
+        description: The agent hands the decision to a human role named in referred_to.
+      failed:
+        description: The agent or harness could not complete; problem carries RFC 9457 details.
+      suspended:
+        description: Awaiting an external condition; problem carries the resumption condition.
+
+  ReasonCode:
+    description: >-
+      Why an agent abstained or referred. Adapted from the standards-advisor experiment's
+      NothingFoundReason.
+    permissible_values:
+      no_qualifying_resource:
+        description: Candidates were retrieved, none met the qualification threshold.
+      no_candidates_retrieved:
+        description: The registry was searched and returned nothing.
+      registry_unavailable:
+        description: The registry could not be searched. Distinct from an empty search.
+      not_applicable:
+        description: The requirement does not apply to this input.
+      insufficient_input:
+        description: The profile lacks what the agent needs to search.
+      capability_not_implemented:
+        description: >-
+          The agent is a stub or the capability is not yet built. Honest about a stub rather
+          than implying a search.
+      requires_human_judgement:
+        description: The agent judged the decision to need a person.
+      policy_requires_approval:
+        description: The institutional profile requires approval for this action class.
+      outside_agent_scope:
+        description: The request asked for something this agent does not do.
+
+  RecommendationKind:
+    permissible_values:
+      controlled_vocabulary:
+        description: Concept linkage of field values to terms.
+      ontology:
+        description: Schema or model alignment.
+      terminology_unclassified:
+        description: >-
+          A terminology resource the agent could not classify as vocabulary or ontology from
+          the fields available.
+      data_format:
+      field_format:
+        description: A field-level standard such as ISO 8601 for dates.
+
+  Derivation:
+    permissible_values:
+      template:
+        description: Produced deterministically from retrieved fields.
+      model:
+        description: Produced by a language model.
+      lexical:
+        description: Produced by a keyword rule over retrieved fields.
+      registry:
+        description: Read directly from a curated registry field.
+
+  GroundingMode:
+    description: >-
+      The grounding contract an agent declares. The linter applies a rule set per mode
+      (ADR-0008); an envelope always records which one applied.
+    permissible_values:
+      retrieval:
+        description: >-
+          The agent retrieves external records before any model call and every identity it
+          asserts was retrieved (rules G1–G4).
+      input_only:
+        description: >-
+          The agent works only over the input it was given. No retrieval span may appear; a
+          model may be called; every grounding reference is the input hash (rules R1–R3).
+      none:
+        description: >-
+          The agent is deterministic over its input: no retrieval and no model call (rules
+          R1–R3 and N1).
+      delegation:
+        description: >-
+          The agent works over its input and the envelopes of invocations it delegated through
+          the workbench. No retrieval span may appear; a model may be called; every grounding
+          reference is the input hash or a recorded delegation (rules R1, D1–D3, ADR-0012).
+
+  PrincipalKind:
+    permissible_values:
+      person:
+        description: A named, identified person.
+      accountable_role:
+        description: >-
+          The designated accountable human role for an invocation made on behalf of an
+          institution rather than an individual (Blueprint §5.4).
+
+  Assurance:
+    description: >-
+      How the workbench came to know the principal. TODO: authenticated arrives with
+      authentication, under its own ADR.
+    permissible_values:
+      asserted:
+        description: >-
+          Named in the deployment's configuration and not verified by anyone. On a shared
+          server every caller is recorded as that principal.
+
+  TurnRole:
+    description: Who spoke in a conversation turn.
+    permissible_values:
+      user:
+        description: The person, or the caller, addressing the agent.
+      agent:
+        description: An agent's reply, named by turn_agent_id and turn_agent_version.
+
+  Severity:
+    permissible_values:
+      info:
+      warning:
+      error:
+
+  Verdict:
+    permissible_values:
+      supported:
+        description: At least one consulted source supports the claim and none contradicts it.
+      refuted:
+        description: At least one consulted source contradicts the claim.
+      unverifiable:
+        description: The sources consulted neither support nor contradict the claim.
+
+  EnergyMethod:
+    permissible_values:
+      not_measured:
+      estimated:
+      measured:

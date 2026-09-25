@@ -1,0 +1,105 @@
+# Read-only viewer
+
+A developer tool: run a registered agent on an input, written in a form or started from a sample, and inspect the envelope it produced. It is
+not an end-user interface; end users will reach the agents through a chat interface or apps built
+on them (TODO: not yet designed).
+
+Two HTML pages, no build step: **Inspect** (`index.html`) and **Chat** (`chat.html`), switched by
+the tabs under the header. Each is markup only; the behaviour is in native ES modules under `js/`
+and the styles in `viewer.css`:
+
+| File | Holds |
+|---|---|
+| `js/common.js` | DOM and formatting helpers, the per-tab input cache, the AG-UI transport, cross-page links |
+| `js/glossary.js` | `GLOSSARY`, the text behind every `?` tip and the Glossary dialog |
+| `js/help.js` | the `?` tips and the Glossary dialog |
+| `js/registry.js` | the agent manifest and samples, the agent picker and its detail card, the input-class and **Start from** pickers |
+| `js/payload.js` | the RJSF payload view and the derivation badges (Inspect only) |
+| `js/inputform.js` | the editable RJSF input form, built from an input class's schema |
+| `js/inspect.js`, `js/chat.js` | each page's own behaviour |
+
+Paths are absolute under `/viewer/`, because Inspect is also served at `/`. The pages load React and
+react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
+contract's generated JSON Schema (`/schema/envelope.schema.json`). The agent and sample pickers are
+filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the viewer names
+no agent. A new agent's payload renders as soon as its class is in the LinkML schema; its badges come from
+the agent's `derivations` in the manifest (ADR-0016).
+
+Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/viewer/>. The pages need
+network access to `esm.sh` for the libraries; everything else is local.
+
+The two pages share only what the browser tab holds: an input sent from Chat is kept in
+`sessionStorage`, so **Inspect →** on a reply shows that turn's input, and Back returns to the same
+conversation. Addresses from before Chat had its own page (`?mode=chat&conversation_id=…`) are
+forwarded to `chat.html`.
+
+## What Inspect shows
+
+The left column holds the controls: an agent picker grouped by id prefix, with a card describing
+the chosen agent (description, grounding mode, accepted input classes, requirement ids;
+unavailable agents are listed in their own group, with their reason), the input form, **Run**
+(`Ctrl`+`Enter`), and the stored runs.
+
+The **input form** is built by RJSF from the input class's definition in the contract's generated
+`/schema/invocation_request.schema.json` (its `$defs`), so a new input class gets a form as soon
+as it is in the LinkML schema. An agent that accepts more than one class gets an **Input class**
+picker. **Start from** fills the form from one of the samples of that class, or leaves it blank;
+the user edits it from there. Run checks the form against the schema first and shows any errors
+beside their fields. The workbench checks the input again before any agent runs, so the form is
+a convenience, not a gate. The class designator `schema_class` is set by the chosen class and is
+not a field. The form uses the schema alone, in LinkML slot order. The right column shows one run:
+
+- **Summary**: `outcome.status`, `reason_code`, `agent_id@agent_version`, `grounding_mode`,
+  `completed_at`, `invocation_id` (copyable) and the statement; Problem Details when present.
+- **Input | Payload** side by side. The input shown is exactly what was sent. It is known only
+  for runs started from the same browser tab; the envelope stores the input's hash, not the input, so a replay shows the hash instead.
+- **Payload**, rendered by RJSF from the payload class in the envelope schema's `$defs`. The
+  uiSchema is worked out per render (`payloadUi` in `js/payload.js`), not shipped by the agent:
+  fields in schema order; `schema_class` and the payload's own `grounded_on` hidden; an item's
+  `grounded_on` first, resolved through evidence to the record it names. Custom templates present
+  it as a document rather than a disabled form: label/value pairs, and an array of objects as rows
+  under a header.
+- **Derivation badges.** The agent's manifest declares, per field, how its value came about
+  (`AgentSpec.derivations`): `model` (written by a language model), `template` / `lexical` /
+  `registry`. An undeclared field is `verified` (set by the harness or read from a registry; the
+  unbadged default). Where a declaration names `recorded_in`, the badge reads that sibling's live
+  value and the sibling is hidden, so a rationale that fell back to the template is badged as
+  template even though the slot is normally model-written.
+- **Evidence** as a table: source, retrieval time, canonicalisation, snapshot and content hash,
+  with a *cited* marker where the hash appears in the payload's `grounded_on`. The marker is a
+  visual cross-check; the grounding linter is what enforces it.
+- **Telemetry**: trace id, model, token counts, and the energy slots (null / `not_measured`).
+- **Envelope JSON** and **Input JSON** tabs, with copy and download.
+- **Built-in help.** A `?` button beside each contract term (envelope, outcome status,
+  `grounding_mode`, `canonicalisation`, `snapshot_ref`, the derivation badges, …) opens a short
+  explanation: hover to read it, click to keep it open, `Esc` to close. The **Glossary** button in
+  the header lists every term. The text lives in one `GLOSSARY` object in `js/glossary.js`, written
+  from the definitions in `sdk/src/dd_sdk/schema/data_director.yaml`; keep the two in step. A payload field's `?`
+  shows the field's own schema description, so an agent documents its payload by describing its
+  LinkML slots.
+
+Loads a run by `?invocation_id=` (AG-UI replay from the store), from the stored-runs list, or by
+running a chosen agent on the input in the form.
+
+## What Chat shows
+
+An agent picker (the orchestrator by default, found by grounding mode `delegation`), the stored
+conversations, the transcript and a composer. An agent that accepts a `Message` gets a text box;
+any other agent gets the same input form as Inspect, started from a sample or blank. The form is
+kept across turns, so the next turn starts from the last input sent. Every reply card names
+`agent_id@agent_version`, nests the invocations it delegated, and links to its envelope in
+Inspect. `?conversation_id=` reopens a conversation (`GET /conversations/{id}`).
+
+The envelope-level `uischema.json` is kept as the reference description of the envelope and is
+still served at `/schema/uischema.json`, but the page no longer renders the envelope through RJSF:
+the summary, evidence and telemetry are laid out directly. TODO: decide whether to drop it.
+
+## Not here, on purpose
+
+No editing of a stored run (composing a new input is not editing one), no feedback capture, no streaming, no `suspended` interrupt. Those arrive with the AG-UI events that need them.
+
+The browser is not exercised in CI. `tests/test_viewer.py` checks that every agent's derivations
+name each of its payload's derivation fields as some field's `recorded_in`, that the base covers
+the envelope only, that the glossary explains every outcome status, grounding mode and derivation value, that the
+pages name no agent or sample, that both pages carry the same mode tabs, and that every file a page
+or module references exists.

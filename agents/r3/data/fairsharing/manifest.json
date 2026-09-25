@@ -1,0 +1,14 @@
+{
+  "fetched_at": "2026-09-04T14:21:44+00:00",
+  "source": "https://fairsharing.org/{id}",
+  "requested": 169,
+  "records": 169,
+  "missing": [],
+  "sha256": "969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1",
+  "licence": "CC BY-SA 4.0 \u2014 see LICENCE.md",
+  "record_types": [
+    "model_and_format",
+    "reporting_guideline",
+    "terminology_artefact"
+  ]
+}

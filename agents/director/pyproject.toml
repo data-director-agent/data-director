@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-agent-director"
+version = "0.1.0"
+description = "director.stub: a rule-based stand-in for the Data Director orchestrator"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+dependencies = ["data-director-sdk", "pyyaml>=6.0"]
+
+[project.scripts]
+dd-director = "dd_agent_director.agent:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_agent_director"]

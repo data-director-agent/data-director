@@ -1,0 +1,104 @@
+# R3 seeded-defect cases (ADR-0013). Each case is a base profile, one registered defect
+# (defects.py) and what R3 should then do.
+#
+# expect:
+#   status, reason_code   the outcome (reason_code optional)
+#   include               FAIRsharing ids R3 should recommend
+#   kinds_present         recommendation kinds that should appear
+#   exclude               FAIRsharing ids that would be a wrong recommendation
+#   kinds_absent          recommendation kinds that would be wrong
+# A deprecated record is a wrong recommendation in every case; that needs no label.
+#
+# backend: `snapshot` (default) is the committed FAIRsharing snapshot; `unavailable` is a
+# registry that refuses every search. Only `snapshot` cases run against deployed services.
+#
+# PROVISIONAL LABELS. These were chosen on 2026-09-25 by applying the guidance in
+# Uzwyshyn, "The Research Data Director" v0.8.2: the Metadata Librarian reaches first for
+# community-endorsed, discipline-appropriate standards and grounds terms in community ontology
+# services (AgroPortal for agriculture, OLS), and "a confidently wrong mapping is worse than an
+# honest gap". No domain expert has reviewed them. The labelled ORDA corpus is to replace them
+# (https://github.com/data-director-agent/data-director/issues/22).
+#
+# Records named below, from the committed snapshot:
+#   FAIRsharing.1943d4  Comma-separated Values           the file is text/csv
+#   FAIRsharing.987d5a  ISO 8601 Date and time format    three date/time fields
+#   FAIRsharing.anpj91  AGROVOC                          the AgroPortal thesaurus; soil science
+#   FAIRsharing.azqskx  Environment Ontology (ENVO)      OBO ontology; covers soil horizons
+#   FAIRsharing.95n1ns  National Agricultural Library Thesaurus
+#   FAIRsharing.5bd3ef  United States Geological Survey Thesaurus
+#   FAIRsharing.dzxae   Food Ontology                    no food in a soil survey
+# NAL, USGS, Chemistry vocabulary, IUPAC and ODM2 are plausible for soil chemistry and are left
+# unlabelled for the soil profile: recommending them is neither required nor wrong.
+
+bases:
+  soil-chemistry: soil-chemistry.profile.json   # in workbench/samples/
+
+cases:
+  - id: soil-baseline
+    base: soil-chemistry
+    defect: none
+    expect:
+      status: succeeded
+      include: [FAIRsharing.1943d4, FAIRsharing.987d5a, FAIRsharing.anpj91, FAIRsharing.azqskx]
+      kinds_present: [data_format, field_format]
+      exclude: [FAIRsharing.dzxae]
+
+  - id: soil-no-temporal-fields
+    base: soil-chemistry
+    defect: drop-temporal-fields
+    expect:
+      status: succeeded
+      include: [FAIRsharing.1943d4]
+      kinds_absent: [field_format]
+
+  - id: soil-no-media-types
+    base: soil-chemistry
+    defect: drop-media-types
+    expect:
+      status: succeeded
+      include: [FAIRsharing.987d5a]
+      # Nothing in the profile says the data is CSV any more.
+      exclude: [FAIRsharing.1943d4]
+
+  - id: soil-no-themes-keywords
+    base: soil-chemistry
+    defect: drop-themes-keywords
+    expect:
+      # The title and description still describe a soil survey.
+      status: succeeded
+      include: [FAIRsharing.1943d4, FAIRsharing.987d5a, FAIRsharing.anpj91, FAIRsharing.azqskx]
+      exclude: [FAIRsharing.dzxae]
+
+  - id: soil-unhelpful-title
+    base: soil-chemistry
+    defect: unhelpful-title
+    expect:
+      status: succeeded
+      include: [FAIRsharing.1943d4, FAIRsharing.987d5a, FAIRsharing.anpj91, FAIRsharing.azqskx]
+      exclude: [FAIRsharing.dzxae]
+
+  - id: soil-off-domain
+    base: soil-chemistry
+    defect: off-domain
+    expect:
+      # The format recommendations still apply; soil and agriculture vocabularies do not.
+      status: succeeded
+      include: [FAIRsharing.1943d4, FAIRsharing.987d5a]
+      exclude:
+        [FAIRsharing.anpj91, FAIRsharing.azqskx, FAIRsharing.95n1ns, FAIRsharing.5bd3ef,
+         FAIRsharing.dzxae]
+
+  - id: soil-emptied
+    base: soil-chemistry
+    defect: empty-all
+    expect:
+      status: abstained
+      reason_code: insufficient_input
+
+  - id: soil-registry-down
+    base: soil-chemistry
+    defect: none
+    backend: unavailable
+    expect:
+      status: abstained
+      reason_code: registry_unavailable

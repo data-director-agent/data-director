@@ -1,0 +1,22 @@
+{
+  "ui:readonly": true,
+  "ui:order": ["outcome", "grounding_mode", "agent_id", "agent_version", "invocation_id", "completed_at", "requires_human_review", "payload", "evidence", "telemetry", "problem"],
+  "invocation_id": { "ui:options": { "dd:derivation": "verified" } },
+  "agent_id": { "ui:options": { "dd:derivation": "verified" } },
+  "agent_version": { "ui:options": { "dd:derivation": "verified" } },
+  "completed_at": { "ui:options": { "dd:derivation": "verified" } },
+  "grounding_mode": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "verified" } },
+  "requires_human_review": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "verified" } },
+  "outcome": {
+    "status": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "verified" } },
+    "reason_code": { "ui:options": { "dd:derivation": "verified" } },
+    "referred_to": { "ui:options": { "dd:derivation": "verified" } },
+    "statement": { "ui:widget": "textarea", "ui:options": { "dd:derivation": "verified" } }
+  },
+  "evidence": { "ui:widget": "hidden" },
+  "telemetry": {
+    "model_id": { "ui:options": { "dd:derivation": "verified" } },
+    "energy_estimate_j": { "ui:options": { "dd:derivation": "verified" } },
+    "energy_method": { "ui:options": { "dd:derivation": "verified" } }
+  }
+}

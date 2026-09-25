@@ -1,0 +1,27 @@
+# Ranking configuration for the R3 agent. Read once by rank.py.
+# Every number here is a decision; change it here, not in code.
+
+# How many hits to ask for per query.
+limit: 10
+# How many leading title words join the subject query.
+title_tokens: 6
+
+# Relative weights of the rules that fired. A rule with missing inputs is skipped (not zero)
+# and the weights of the rules that did fire are renormalised.
+weights:
+  lexical: 0.5          # BM25 score relative to the best hit for the same query
+  subject_overlap: 0.3  # share of the profile's themes/keywords found in the record's subjects/domains
+  status: 0.2           # curation status of the record (below)
+
+# Curation status weights. `deprecated` records are excluded before scoring, so no entry.
+status_weights:
+  ready: 1.0
+  in_development: 0.7   # kept, flagged as emerging (R3.5)
+  uncertain: 0.4
+
+# A recommendation must score at least this to be made; otherwise the agent abstains with
+# no_qualifying_resource and says what it searched.
+confidence_floor: 0.45
+
+# Maximum recommendations per kind, so the output stays reviewable (C15).
+max_per_kind: 3

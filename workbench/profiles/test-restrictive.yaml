@@ -1,0 +1,14 @@
+# Test profile: exercises the refused and referred paths. Not for use with real invocations.
+profile_id: test-restrictive
+version: 2
+description: Enables only the stub, and requires approval even for advice.
+
+agents:
+  stub.abstain: advise
+  # Assigned a class its card does not declare, to exercise action-class-mismatch.
+  quality.reviewer: deposit
+
+actions_requiring_approval:
+  - advise
+  - deposit
+  - metadata_write

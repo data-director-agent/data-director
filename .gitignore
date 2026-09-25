@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Inspect AI evaluation logs (ADR-0013)
+logs/

@@ -1,0 +1,18 @@
+# Default institutional profile. See README.md in this directory for what each key means.
+profile_id: default
+version: 2
+description: Development profile for the workbench; enables every in-tree agent, requires approval for writes.
+
+# Each agent that may run, and the action class the steward assigns it. An agent whose card
+# declares a different class is refused until this file is updated.
+agents:
+  quality.reviewer: advise
+  fact.checker: advise
+  r3.standards-advisor: advise
+  stub.abstain: advise
+  hello.world: advise
+  director.stub: advise
+
+actions_requiring_approval:
+  - deposit
+  - metadata_write

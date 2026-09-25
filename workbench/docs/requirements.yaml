@@ -1,0 +1,225 @@
+# Requirements register.
+#
+# The conformance report (scripts/conformance_report.py) iterates this list. Every identifier a
+# test marks with @pytest.mark.requirement(...) must appear here, and every entry here appears in
+# CONFORMANCE.md whether or not any test substantiates it. A row with no passing test is
+# rendered "unsubstantiated" — that is the intended default, not a gap to hide. The register
+# therefore lists every functional (R) and non-functional (C) requirement in the Blueprint's §7
+# tables, not only the ones the workbench exercises.
+#
+# source: blueprint  — the identifier and title are the Blueprint's own (docs/BLUEPRINT.md §7).
+# source: project    — a decomposition or obligation this project introduced; the Blueprint does
+#                      not use the identifier. R3.1–R3.6 come from experiments/standards-advisor;
+#                      the other sub-IDs (R4.1, R10.1, C5.1, C13.n, C14.1) split a Blueprint
+#                      requirement so that a row claims only what its tests show.
+#
+# assessed_by      — how the requirement is assessed (ADR-0014): `test` (a marked test in a pytest
+#                    run), `review` (a named person's review recorded in reviews.yaml), or both.
+#                    Absent means [test]. A requirement names `review` when a passing test cannot
+#                    show what the Blueprint asks for: quality judged by a domain expert (R3,
+#                    C15), a legal or institutional obligation (C3, C12), how a deployment is run
+#                    (C1, C4), or what only people can check (C6 beyond automated WCAG checks,
+#                    C2's human-reviewer pause). The two verdicts are reported side by side and
+#                    never combined.
+#
+# Marker honesty: a test may carry an identifier only if it exercises the requirement as the
+# Blueprint states it. A test that checks the *shape* of a slot (the P14 energy slots exist and
+# say not_measured) does not substantiate the requirement (energy footprint captured), and is
+# not marked.
+
+requirements:
+  # --- Blueprint §7.1 functional requirements ---------------------------------------------
+  - id: R1
+    source: blueprint
+    priority: MUST
+    title: Recommend and select repositories meeting funder, journal, institutional and community requirements
+  - id: R2
+    source: blueprint
+    priority: MUST
+    title: Generate FAIR-aligned and discipline-appropriate metadata using controlled vocabularies, ontologies and community standards
+  - id: R3
+    source: blueprint
+    priority: MUST
+    title: Suggest appropriate vocabularies, ontologies and open data formats
+    assessed_by: [test, review]
+  - id: R3.1
+    source: project
+    parent: R3
+    title: Controlled vocabulary recommendations for concept linkage
+  - id: R3.2
+    source: project
+    parent: R3
+    title: Ontology recommendations for schema or model alignment
+  - id: R3.3
+    source: project
+    parent: R3
+    title: Open data format recommendations
+  - id: R3.4
+    source: project
+    parent: R3
+    title: Field-level format standards (date/time, units, codes)
+  - id: R3.5
+    source: project
+    parent: R3
+    title: Support for emerging standards; no hard-coded standards list; that no list is hard-coded is not tested (#5)
+  - id: R3.6
+    source: project
+    parent: R3
+    title: Explicit abstention where no suitable resource exists
+  - id: R4
+    source: blueprint
+    title: Validate metadata quality and produce standardised records assessed against community best practices
+  - id: R4.1
+    source: project
+    parent: R4
+    title: Completeness of a metadata record scored against declared criteria, each finding explained
+  - id: R5
+    source: blueprint
+    title: Draft data documentation including READMEs and data dictionaries at publication
+  - id: R6
+    source: blueprint
+    title: Enable interoperable metadata across institutions and Data Director instances
+  - id: R7
+    source: blueprint
+    title: Support assignment of persistent identifiers (PIDs) at point of publication
+  - id: R8
+    source: blueprint
+    title: Verify data sharing at publication against Data Management Plan (DMP) commitments
+  - id: R9
+    source: blueprint
+    title: Retrofit FAIR-aligned metadata for already-published datasets and supplementary materials
+  - id: R10
+    source: blueprint
+    title: Track provenance of AI agent actions on data and metadata
+  - id: R10.1
+    source: project
+    parent: R10
+    title: Every invocation is stored, traced and packaged as a Process Run Crate; PROV-O alignment and audit-trail completeness are not exercised (#26)
+  - id: R11
+    source: blueprint
+    title: Link datasets to related research outputs including publications, people, grants and software
+  - id: R12
+    source: blueprint
+    title: Discover related datasets relevant to a research project
+
+  # --- Blueprint §7.2 non-functional requirements -----------------------------------------
+  - id: C1
+    source: blueprint
+    title: Security
+    assessed_by: [review]
+  - id: C2
+    source: blueprint
+    title: Privacy
+    assessed_by: [test, review]
+  - id: C3
+    source: blueprint
+    title: Compliance
+    assessed_by: [review]
+  - id: C4
+    source: blueprint
+    title: Sovereignty
+    assessed_by: [review]
+  - id: C5
+    source: blueprint
+    title: Interoperability — open APIs and established metadata standards
+  - id: C5.1
+    source: project
+    parent: C5
+    title: The workbench exposes an open API (A2A agent card and message send, AG-UI run and replay); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
+  - id: C6
+    source: blueprint
+    title: Accessibility
+    assessed_by: [test, review]
+  - id: C7
+    source: blueprint
+    title: Reliability
+  - id: C8
+    source: blueprint
+    title: Resiliency
+  - id: C9
+    source: blueprint
+    title: Availability
+  - id: C10
+    source: blueprint
+    title: Performance
+  - id: C11
+    source: blueprint
+    title: Scalability
+  - id: C12
+    source: blueprint
+    title: Data Governance
+    assessed_by: [test, review]
+  - id: C13
+    source: blueprint
+    title: AI Governance
+  - id: C13.1
+    source: project
+    parent: C13
+    title: Every agent action is stored, traced and attributed to the agent identity that took it
+  - id: C13.2
+    source: project
+    parent: C13
+    title: The policy gate refuses an agent the profile does not permit and refers an action requiring approval to a named human role; what happens after referral is not exercised (#16)
+  - id: C14
+    source: blueprint
+    title: Explainability — human-readable explanations for recommendations and decisions
+  - id: C14.1
+    source: project
+    parent: C14
+    title: Every recommendation and decision carries a human-readable rationale, and a model rationale naming an identity that was not retrieved is replaced; challenge and override by human roles and a reasoning log are not exercised (#25)
+  - id: C15
+    source: blueprint
+    title: Data and Metadata Quality — quality checks on outputs, human review mandatory
+    assessed_by: [test, review]
+  - id: C16
+    source: blueprint
+    title: Measurability
+  - id: C17
+    source: blueprint
+    title: Affordability
+
+  # --- Blueprint §6 principles the workbench carries a slot for -----------------------------
+  - id: P14
+    source: blueprint
+    title: Low Impact — energy footprint captured in provenance records
+
+  # --- Project obligations (the contract itself) --------------------------------------------
+  - id: DD-OUTCOME
+    source: project
+    title: Outcome vocabulary (succeeded, abstained, referred, failed, suspended) with reason codes; `suspended` is not yet produced (#16)
+  - id: DD-GROUNDING
+    source: project
+    title: The agent's account is consistent — its declared retrieval precedes any model call and every identity a payload asserts appears in its declared retrieval; that the agent retrieved anything is not shown by the linter (ADR-0016)
+  - id: DD-GROUNDING-MODE
+    source: project
+    title: An agent declares its grounding mode; the conductor records it and the linter applies that mode's rules
+  - id: DD-GROUNDED-PAYLOAD
+    source: project
+    title: Every payload declares what it rests on (grounded_on); a payload the linter cannot ground is a violation, never a pass
+  - id: DD-INPUT-ACCEPTS
+    source: project
+    title: An agent declares the input classes it accepts; a request carrying another is a failed outcome with Problem Details
+  - id: DD-EVIDENCE
+    source: project
+    title: Evidence names a registered canonicalisation and its hash is reproducible from the source
+  - id: DD-REGISTRY
+    source: project
+    title: Agents are discovered from a registry and one manifest describes each to every consumer
+  - id: DD-REMOTE-AGENT
+    source: project
+    title: Agents run as separate services reached over A2A; their spans join the conductor's trace and are held to the same rules
+  - id: DD-CONVERSATION
+    source: project
+    title: A conversation is a sequence of invocations sharing a conversation_id; every turn names the agent and version that produced it
+  - id: DD-DELEGATION
+    source: project
+    title: An orchestrator delegates only through the workbench; each child is a governed, stored invocation and the parent records it
+  - id: DD-POLICY
+    source: project
+    title: Institutional profile gates which agents run, assigns each its action class, and says which classes need approval
+  - id: DD-POLICY-OWNER
+    source: project
+    title: The deployment chooses the institutional profile; a request cannot name one, and every envelope records the profile and digest the conductor applied
+  - id: DD-ACTS-FOR
+    source: project
+    title: Every envelope and crate names the human the invocation acted for, taken from the deployment's authentication boundary and never from the request, and a delegated invocation acts for its parent's; authentication itself is not exercised (the identity is asserted by the operator)

@@ -1,0 +1,465 @@
+"""The grounding linter: bespoke rules over a generic trace substrate (ADR-0008).
+
+The linter is a consistency check (ADR-0016). It compares the agent's account of its run with
+itself and with what the conductor recorded. The conductor records the root span's attributes
+(mode, input hash, outcome) and `delegations`. The agent declares its `retrieval` and `chat`
+spans, their timing, `grounded_on` and evidence. The spans are written in the agent's process
+and sent back over A2A (ADR-0011). So G1-G3 show that the agent's declared retrievals agree with
+what it cites, not that it retrieved anything; `workbench.sources` re-hashes what it cites
+against the source. R2 and D1-D2 check citations against hashes the conductor computed.
+
+The linter reads the span tree of one `invoke_agent` and the envelope it produced, and applies
+the rule set for the grounding mode the envelope declares. It never needs to know the payload
+class: it walks the payload document for `grounded_on` lists (the `Grounded` mixin), and a
+payload that has none is a violation. Nothing passes because the linter did not recognise it.
+
+Structural, every mode (G0):
+  exactly one `invoke_agent` root; every other span is in the root's trace and descends from the
+  root; only the root carries the attributes the conductor owns (`dd.grounding_mode`,
+  `dd.input_hash`, `dd.outcome`); the envelope's `grounding_mode` is valid and equals the root
+  span's `dd.grounding_mode`; a payload, if present, has `schema_class` and a root `grounded_on`;
+  every grounding reference is well formed. The span checks matter because an agent's spans are
+  recorded in the agent's process and sent back over A2A (ADR-0011): a span outside the tree
+  would otherwise escape the mode rules, and one carrying a conductor attribute would be the
+  agent labelling its own run.
+
+Evidence, every mode (E1, ADR-0015):
+  E1 every evidence item that carries `content` hashes to its `content_hash` under its
+     `canonicalisation`. What a reader is shown about a cited record is what the hash covers.
+     E1 knows no payload class; a payload names a record only in `grounded_on`, and the reader
+     joins that reference to the evidence item with the same `source_id` and `content_hash`.
+
+`retrieval` — the agent retrieves before it reasons:
+  G1 every `chat` span starts after at least one `retrieval` span has ended.
+  G2 every `grounded_on` entry, at any depth, matches a `retrieval` span on both `dd.source_id`
+     and `dd.content_hash`. Nothing is asserted that was not retrieved. A succeeded payload with
+     no grounding reference at all is a G2 violation.
+  G3 every `content_hash` in the envelope's evidence appears on a `retrieval` span.
+  G4 every `grounded_on` hash appears in the envelope's evidence: the envelope is complete about
+     what it rests on.
+
+`input_only` — the agent works over what it was given; it may call a model:
+  R1 no `retrieval` span exists.
+  R2 every `grounded_on` entry and every evidence item cites the input: `source_id` is
+     `input:<invocation_id>` and `content_hash` equals the root span's `dd.input_hash`.
+  R3 a succeeded envelope cites the input at least once.
+
+`none` — deterministic over the input: R1-R3 and
+  N1 no `chat` span exists.
+
+`delegation` — the agent works over its input and the envelopes of the invocations it delegated
+through the workbench (ADR-0012); it may call a model. R1, G4 and
+  D1 every `grounded_on` entry cites the input (as R2) or a delegation the conductor recorded in
+     the envelope's `delegations`: `source_id` `invocation:<child_id>` and `content_hash` that
+     child's `dd-envelope-json-v1` hash. The agent's own account of what it delegated is not
+     what is trusted; the conductor's record of the child runs it performed is.
+  D2 every evidence item meets the same condition.
+  D3 a succeeded envelope cites the input.
+
+The linter reads `SpanRecord`s and a plain envelope document, so it runs at invocation time (the
+conductor) and offline over `spans.jsonl` + `envelope.json` (the CLI).
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
+from typing import Any
+
+from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
+from dd_sdk.evidence import verify
+from dd_sdk.tracing import (
+    ATTR_CONTENT_HASH,
+    ATTR_GROUNDING_MODE,
+    ATTR_INPUT_HASH,
+    ATTR_OUTCOME,
+    ATTR_SOURCE_ID,
+    CHAT,
+    INVOKE_AGENT,
+    RETRIEVAL,
+    SpanRecord,
+)
+
+
+@dataclass(frozen=True)
+class GroundingReport:
+    passed: bool
+    mode: str | None = None
+    violations: list[str] = field(default_factory=list)
+    retrieval_count: int = 0
+    chat_count: int = 0
+
+    def summary(self) -> str:
+        mode = self.mode or "unknown mode"
+        if self.passed:
+            return (
+                f"grounding: passed [{mode}] ({self.retrieval_count} retrieval, "
+                f"{self.chat_count} chat spans)"
+            )
+        return f"grounding: FAILED [{mode}]\n  - " + "\n  - ".join(self.violations)
+
+
+@dataclass(frozen=True)
+class Tree:
+    """The span tree of one invocation, indexed the way the rules read it."""
+
+    root: SpanRecord
+    retrievals: list[SpanRecord]
+    chats: list[SpanRecord]
+
+    @property
+    def retrieved(self) -> set[tuple[str, str]]:
+        return {
+            (str(r.attributes.get(ATTR_SOURCE_ID)), str(r.attributes.get(ATTR_CONTENT_HASH)))
+            for r in self.retrievals
+        }
+
+    @property
+    def retrieved_hashes(self) -> set[str]:
+        return {h for _, h in self.retrieved}
+
+
+@dataclass(frozen=True)
+class Refs:
+    """Every grounding reference the payload makes, and the envelope's evidence, as pairs."""
+
+    grounded_on: list[tuple[str, str]]
+    evidence: list[tuple[str, str]]
+
+
+Rule = Callable[[Tree, dict[str, Any], Refs], list[str]]
+
+
+def _descendants(root: SpanRecord, records: list[SpanRecord]) -> list[SpanRecord]:
+    by_parent: dict[str | None, list[SpanRecord]] = {}
+    for r in records:
+        by_parent.setdefault(r.parent_id, []).append(r)
+    out: list[SpanRecord] = []
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        for child in by_parent.get(node.span_id, []):
+            out.append(child)
+            stack.append(child)
+    return out
+
+
+def _walk_grounded_on(node: Any) -> Iterator[Any]:
+    """Yield every value under a `grounded_on` key, at any depth, in document order."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "grounded_on":
+                yield value
+            else:
+                yield from _walk_grounded_on(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _walk_grounded_on(item)
+
+
+def _collect_refs(envelope: dict[str, Any]) -> tuple[Refs, list[str]]:
+    violations: list[str] = []
+    grounded: list[tuple[str, str]] = []
+    for lst in _walk_grounded_on(envelope.get("payload")):
+        if not isinstance(lst, list):
+            violations.append("G0: grounded_on is not a list")
+            continue
+        for ref in lst:
+            if (
+                not isinstance(ref, dict)
+                or not isinstance(ref.get("source_id"), str)
+                or not isinstance(ref.get("content_hash"), str)
+            ):
+                violations.append(f"G0: malformed grounding reference {ref!r}")
+                continue
+            grounded.append((ref["source_id"], ref["content_hash"]))
+    evidence = [
+        (str(ev.get("source_id")), str(ev.get("content_hash")))
+        for ev in envelope.get("evidence") or []
+    ]
+    return Refs(grounded_on=grounded, evidence=evidence), violations
+
+
+# --- Rules ------------------------------------------------------------------------------------
+
+
+def g1_retrieval_before_chat(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    out: list[str] = []
+    first_retrieval_end = min((r.end_ns for r in tree.retrievals), default=None)
+    for chat in tree.chats:
+        if first_retrieval_end is None:
+            out.append("G1: a chat span exists but no retrieval span does")
+            break
+        if chat.start_ns < first_retrieval_end:
+            out.append(
+                f"G1: chat span {chat.span_id} started before the first retrieval span ended"
+            )
+    return out
+
+
+def g2_asserted_was_retrieved(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    out: list[str] = []
+    retrieved = tree.retrieved
+    for source_id, content_hash in refs.grounded_on:
+        if (source_id, content_hash) not in retrieved:
+            out.append(
+                f"G2: payload rests on {source_id!r} ({content_hash[:12]}…) which was not "
+                "retrieved in this invocation"
+            )
+    if _succeeded(envelope) and envelope.get("payload") is not None and not refs.grounded_on:
+        out.append("G2: a succeeded retrieval-mode payload rests on nothing")
+    return out
+
+
+def g3_evidence_was_retrieved(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    hashes = tree.retrieved_hashes
+    return [
+        f"G3: evidence {source_id!r} hash {content_hash[:12]}… not in trace"
+        for source_id, content_hash in refs.evidence
+        if content_hash not in hashes
+    ]
+
+
+def g4_evidence_is_complete(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    cited = {h for _, h in refs.evidence}
+    return [
+        f"G4: payload rests on {source_id!r} ({content_hash[:12]}…) absent from evidence"
+        for source_id, content_hash in refs.grounded_on
+        if content_hash not in cited
+    ]
+
+
+def r1_no_retrieval(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    if tree.retrievals:
+        return [f"R1: {len(tree.retrievals)} retrieval span(s) in an agent that declared none"]
+    return []
+
+
+def r2_everything_cites_the_input(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    expected = (
+        input_source_id(str(envelope.get("invocation_id"))),
+        str(tree.root.attributes.get(ATTR_INPUT_HASH)),
+    )
+    out: list[str] = []
+    for label, pairs in (("payload", refs.grounded_on), ("evidence", refs.evidence)):
+        for pair in pairs:
+            if pair != expected:
+                out.append(
+                    f"R2: {label} cites {pair[0]!r} ({pair[1][:12]}…); an input-grounded agent "
+                    f"may cite only {expected[0]!r} ({expected[1][:12]}…)"
+                )
+    return out
+
+
+def r3_succeeded_cites_the_input(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    if _succeeded(envelope) and not refs.evidence:
+        return ["R3: a succeeded input-grounded envelope cites no evidence"]
+    return []
+
+
+def n1_no_chat(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    if tree.chats:
+        return [f"N1: {len(tree.chats)} chat span(s) in an agent that declared no model call"]
+    return []
+
+
+def _delegation_citable(tree: Tree, envelope: dict[str, Any]) -> set[tuple[str, str]]:
+    citable = {
+        (
+            input_source_id(str(envelope.get("invocation_id"))),
+            str(tree.root.attributes.get(ATTR_INPUT_HASH)),
+        )
+    }
+    for d in envelope.get("delegations") or []:
+        if isinstance(d, dict):
+            citable.add(
+                (
+                    invocation_source_id(str(d.get("delegated_invocation_id"))),
+                    str(d.get("content_hash")),
+                )
+            )
+    return citable
+
+
+def d1_grounded_on_input_or_delegation(
+    tree: Tree, envelope: dict[str, Any], refs: Refs
+) -> list[str]:
+    citable = _delegation_citable(tree, envelope)
+    return [
+        f"D1: payload rests on {source_id!r} ({content_hash[:12]}…), which is neither the input "
+        "nor a delegation recorded by the conductor"
+        for source_id, content_hash in refs.grounded_on
+        if (source_id, content_hash) not in citable
+    ]
+
+
+def d2_evidence_is_input_or_delegation(
+    tree: Tree, envelope: dict[str, Any], refs: Refs
+) -> list[str]:
+    citable = _delegation_citable(tree, envelope)
+    return [
+        f"D2: evidence {source_id!r} ({content_hash[:12]}…) is neither the input nor a "
+        "delegation recorded by the conductor"
+        for source_id, content_hash in refs.evidence
+        if (source_id, content_hash) not in citable
+    ]
+
+
+def d3_succeeded_cites_the_input(tree: Tree, envelope: dict[str, Any], refs: Refs) -> list[str]:
+    expected = (
+        input_source_id(str(envelope.get("invocation_id"))),
+        str(tree.root.attributes.get(ATTR_INPUT_HASH)),
+    )
+    if _succeeded(envelope) and expected not in refs.evidence:
+        return ["D3: a succeeded delegation envelope does not cite its input in evidence"]
+    return []
+
+
+def e1_evidence_content_matches_hash(envelope: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for ev in envelope.get("evidence") or []:
+        if not isinstance(ev, dict) or ev.get("content") is None:
+            continue
+        source_id, content = ev.get("source_id"), ev["content"]
+        if not isinstance(content, dict):
+            out.append(f"E1: evidence {source_id!r} content is not an object")
+            continue
+        try:
+            matches = verify(content, str(ev.get("canonicalisation")), str(ev.get("content_hash")))
+        except ValueError as exc:
+            out.append(f"E1: evidence {source_id!r}: {exc}")
+            continue
+        if not matches:
+            out.append(
+                f"E1: evidence {source_id!r} content does not hash to its content_hash "
+                f"({str(ev.get('content_hash'))[:12]}…) under {ev.get('canonicalisation')!r}"
+            )
+    return out
+
+
+def _succeeded(envelope: dict[str, Any]) -> bool:
+    return bool((envelope.get("outcome") or {}).get("status") == "succeeded")
+
+
+RULES: dict[GroundingMode, tuple[Rule, ...]] = {
+    GroundingMode.RETRIEVAL: (
+        g1_retrieval_before_chat,
+        g2_asserted_was_retrieved,
+        g3_evidence_was_retrieved,
+        g4_evidence_is_complete,
+    ),
+    GroundingMode.INPUT_ONLY: (
+        r1_no_retrieval,
+        r2_everything_cites_the_input,
+        r3_succeeded_cites_the_input,
+    ),
+    GroundingMode.NONE: (
+        r1_no_retrieval,
+        r2_everything_cites_the_input,
+        r3_succeeded_cites_the_input,
+        n1_no_chat,
+    ),
+    GroundingMode.DELEGATION: (
+        r1_no_retrieval,
+        d1_grounded_on_input_or_delegation,
+        d2_evidence_is_input_or_delegation,
+        g4_evidence_is_complete,
+        d3_succeeded_cites_the_input,
+    ),
+}
+
+
+# --- Entry point ------------------------------------------------------------------------------
+
+CONDUCTOR_ATTRIBUTES = (ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, ATTR_OUTCOME)
+
+
+def _tree_violations(
+    root: SpanRecord, descendants: list[SpanRecord], records: list[SpanRecord]
+) -> list[str]:
+    violations: list[str] = []
+    in_tree = {r.span_id for r in descendants}
+    for r in records:
+        if r is root:
+            continue
+        if r.trace_id != root.trace_id:
+            violations.append(
+                f"G0: span {r.name!r} ({r.span_id}) is in trace {r.trace_id}, not "
+                f"the invocation's trace {root.trace_id}"
+            )
+        elif r.span_id not in in_tree:
+            violations.append(
+                f"G0: span {r.name!r} ({r.span_id}) does not descend from {INVOKE_AGENT}"
+            )
+        owned = [a for a in CONDUCTOR_ATTRIBUTES if a in r.attributes]
+        if owned:
+            violations.append(
+                f"G0: span {r.name!r} ({r.span_id}) sets {', '.join(owned)}, which only the "
+                f"conductor's {INVOKE_AGENT} span may carry"
+            )
+    return violations
+
+
+def lint(records: list[SpanRecord], envelope: dict[str, Any]) -> GroundingReport:
+    declared = envelope.get("grounding_mode")
+    roots = [r for r in records if r.name == INVOKE_AGENT]
+    if len(roots) != 1:
+        return GroundingReport(
+            passed=False,
+            mode=str(declared) if declared else None,
+            violations=[f"G0: expected exactly one {INVOKE_AGENT} span, found {len(roots)}"],
+        )
+    root = roots[0]
+    descendants = _descendants(root, records)
+    tree = Tree(
+        root=root,
+        retrievals=[r for r in descendants if r.name == RETRIEVAL],
+        chats=[r for r in descendants if r.name == CHAT],
+    )
+    violations: list[str] = _tree_violations(root, descendants, records)
+
+    # G0: mode.
+    try:
+        mode = GroundingMode(str(declared))
+    except ValueError:
+        return GroundingReport(
+            passed=False,
+            mode=str(declared) if declared else None,
+            violations=[f"G0: envelope declares no valid grounding_mode ({declared!r})"],
+            retrieval_count=len(tree.retrievals),
+            chat_count=len(tree.chats),
+        )
+    span_mode = root.attributes.get(ATTR_GROUNDING_MODE)
+    if span_mode != mode.value:
+        violations.append(
+            f"G0: envelope declares grounding_mode {mode.value!r} but the root span carries "
+            f"{span_mode!r}"
+        )
+
+    # G0: payload shape.
+    payload = envelope.get("payload")
+    if payload is not None:
+        if not isinstance(payload, dict):
+            violations.append("G0: payload is not an object")
+        else:
+            if "schema_class" not in payload:
+                violations.append("G0: payload lacks schema_class")
+            if "grounded_on" not in payload:
+                violations.append(
+                    f"G0: payload {payload.get('schema_class')!r} lacks grounded_on; an "
+                    "ungroundable payload is a violation, not a pass"
+                )
+    refs, ref_violations = _collect_refs(envelope)
+    violations.extend(ref_violations)
+    violations.extend(e1_evidence_content_matches_hash(envelope))
+
+    for rule in RULES[mode]:
+        violations.extend(rule(tree, envelope, refs))
+
+    return GroundingReport(
+        passed=not violations,
+        mode=mode.value,
+        violations=violations,
+        retrieval_count=len(tree.retrievals),
+        chat_count=len(tree.chats),
+    )

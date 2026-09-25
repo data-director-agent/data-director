@@ -1,0 +1,33 @@
+# Review record.
+#
+# The conformance report (scripts/conformance_report.py) reads this file for the review lane of
+# every requirement whose `assessed_by` in requirements.yaml names `review` (ADR-0014). The
+# latest review of a requirement gives its review verdict; on the same date, the later entry in
+# this file wins. A requirement with no entry is rendered "unsubstantiated".
+#
+# An entry is added by the person who carried out the review, or on their written instruction,
+# in a commit of its own. Nobody records a review on someone else's behalf without that
+# instruction, and an entry is never edited afterwards: a new finding is a new entry.
+#
+# Every field is required:
+#
+#   requirement  a registered identifier assessed by review (requirements.yaml)
+#   verdict      meets | does-not-meet
+#   reviewer     name and affiliation of the person who carried out the review
+#   date         the day the review finished, unquoted: 2026-10-01
+#   commit       the git commit that was reviewed (7–40 hexadecimal characters)
+#   scope        what was examined and how, in one or two sentences
+#   record       a link to the reviewer's notes: an issue, a file in the repository, or a report
+#
+# Example (not a real review):
+#
+#   - requirement: C6
+#     verdict: does-not-meet
+#     reviewer: A. Reviewer (University of Example)
+#     date: 2026-10-01
+#     commit: 0123abc
+#     scope: The viewer's Inspect and Chat pages, tested against WCAG 2.1 AA with NVDA and
+#       keyboard only.
+#     record: https://github.com/data-director-agent/data-director/issues/0
+
+reviews: []
