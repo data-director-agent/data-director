@@ -30,6 +30,7 @@ from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.wire import ENVELOPE_JSON_ARTIFACT, META_DELEGATION_TOKEN, META_TRACEPARENT
 from workbench.conductor import Conductor, UnknownAgent
+from workbench.policy import PolicyError
 
 PROTOCOL_VERSION = "1.0"
 
@@ -107,7 +108,7 @@ class WorkbenchExecutor(AgentExecutor):
                 )
             else:
                 envelope = await asyncio.to_thread(self.conductor.invoke, request)
-        except (ContractViolation, ValueError, UnknownAgent) as exc:
+        except (ContractViolation, ValueError, UnknownAgent, PolicyError) as exc:
             await updater.failed(updater.new_agent_message([new_data_part({"error": str(exc)})]))
             return
         document = envelope.to_document()

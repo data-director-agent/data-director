@@ -23,7 +23,8 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
-from workbench.conductor import Conductor
+from workbench.conductor import Conductor, UnknownAgent
+from workbench.policy import PolicyError
 
 
 def _events_for(envelope: dict[str, Any], thread_id: str, run_id: str) -> list[Any]:
@@ -75,7 +76,7 @@ async def run_agent(request: Request, conductor: Conductor) -> Response:
                 )
             thread_id = invocation.conversation_id
         envelope = await asyncio.to_thread(conductor.invoke, invocation)
-    except (ContractViolation, ValueError) as exc:
+    except (ContractViolation, ValueError, UnknownAgent, PolicyError) as exc:
         return _sse([RunErrorEvent(type=EventType.RUN_ERROR, message=str(exc))], accept)
     return _sse(_events_for(envelope.to_document(), thread_id, run_id), accept)
 
