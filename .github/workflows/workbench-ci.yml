@@ -52,7 +52,7 @@ jobs:
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
       - run: uv run pytest --json-report --json-report-file=workbench/.report.json
       - name: CONFORMANCE.md is current
-        run: uv run python workbench/scripts/conformance_report.py --check
+        run: uv run python workbench/scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
 
   schemas:
     name: Generated schemas up to date

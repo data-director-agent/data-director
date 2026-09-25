@@ -110,15 +110,16 @@ uv run pytest --json-report --json-report-file=workbench/.report.json
 uv run python workbench/scripts/conformance_report.py
 ```
 
-CI runs the same commands with `--check`. The check fails if the table differs from the
-committed file, so a change that alters any verdict must commit the regenerated report. The
-header, with its timestamp and commit, is left out of the comparison. The script exits with an
+CI runs the same commands with `--check`. The check compares the whole file, so a change that
+alters any verdict must commit the regenerated report. The file holds nothing that varies between
+runs of the same commit: the commit tested, the time, the Python version and the suite's counts
+belong to the run, and CI writes them to the job summary (`--summary`). The script exits with an
 error if `reviews.yaml` is malformed, rather than skipping the bad entry.
 
 ## What the report does not do
 
-- It is not signed. The commit hash in its header and the CI job are the only link between the
-  table and the code (ADR-0006, "Rejected for v0").
+- It is not signed. What ties the table to the code is the commit that contains it, where CI
+  regenerated it and found no difference (ADR-0006, "Rejected for v0").
 - It does not score quality. That is evaluation (ADR-0013).
 - It does not certify an instance. A deployment's security, sovereignty and compliance depend on
   how it is run, and a review records only what was examined.

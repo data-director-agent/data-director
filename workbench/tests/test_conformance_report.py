@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -73,14 +74,37 @@ def test_verdicts_follow_the_traceability_rule() -> None:
     assert "not** a conformance claim" in text
 
 
-def test_check_compares_table_body_not_header(tmp_path: Path) -> None:
+def test_the_report_is_the_same_for_every_run_of_a_commit() -> None:
     report = _report([("test_a", "passed", ["R3"])])
-    text = cr.render(REGISTER, report)
-    out = tmp_path / "CONFORMANCE.md"
-    out.write_text(text.replace("**Generated:**", "**Generated:** later "), encoding="utf-8")
-    assert cr.table_body(out.read_text()) == cr.table_body(text)
+    later = {**report, "created": 1_900_000_000, "summary": {"passed": 9, "total": 9}}
+    assert cr.render(REGISTER, later) == cr.render(REGISTER, report)
     changed = cr.render(REGISTER, _report([("test_a", "failed", ["R3"])]))
-    assert cr.table_body(changed) != cr.table_body(text)
+    assert changed != cr.render(REGISTER, report)
+
+
+def test_check_compares_the_whole_file(tmp_path: Path) -> None:
+    report = tmp_path / "report.json"
+    report.write_text(json.dumps(_report([("test_a", "passed", ["R3"])])), encoding="utf-8")
+    out = tmp_path / "CONFORMANCE.md"
+    args = ["--report", str(report), "--output", str(out)]
+    assert cr.main(args) == 0
+    assert cr.main([*args, "--check"]) == 0
+    out.write_text(out.read_text(encoding="utf-8") + "\nedited\n", encoding="utf-8")
+    assert cr.main([*args, "--check"]) == 1
+
+
+def test_the_run_summary_names_the_commit_tested(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GITHUB_SHA", "0123456789abcdef0123456789abcdef01234567")
+    report = tmp_path / "report.json"
+    report.write_text(json.dumps(_report([("test_a", "passed", ["R3"])])), encoding="utf-8")
+    summary = tmp_path / "summary.md"
+    args = ["--report", str(report), "--output", str(tmp_path / "C.md"), "--summary", str(summary)]
+    assert cr.main(args) == 0
+    text = summary.read_text(encoding="utf-8")
+    assert "`0123456789abcdef0123456789abcdef01234567`" in text
+    assert "2 passed, 1 failed, 1 skipped of 4" in text
 
 
 def test_review_lane_reads_the_latest_review_and_stays_separate_from_tests() -> None:
