@@ -1,6 +1,8 @@
 """Append-only JSONL store of envelopes, plus a per-invocation run directory.
 
-UUIDv7 identifiers mean the file is chronologically ordered as written and needs no index.
+UUIDv7 identifiers mean the file is chronologically ordered as written and needs no index. A run
+is written once: `append` refuses an `invocation_id` whose envelope is already stored, and the
+conductor refuses such a request before it runs (`DuplicateInvocation`).
 """
 
 from __future__ import annotations
@@ -27,9 +29,14 @@ class RunStore:
         d.mkdir(parents=True, exist_ok=True)
         return d
 
+    def has(self, invocation_id: str) -> bool:
+        return (self.root / invocation_id / "envelope.json").exists()
+
     def append(self, envelope: dict[str, Any], request: dict[str, Any] | None = None) -> Path:
+        """Store one envelope. Raises FileExistsError if its `invocation_id` is already stored."""
         run_dir = self.run_dir(envelope["invocation_id"])
-        (run_dir / "envelope.json").write_text(json.dumps(envelope, indent=2), encoding="utf-8")
+        with (run_dir / "envelope.json").open("x", encoding="utf-8") as fh:
+            fh.write(json.dumps(envelope, indent=2))
         if request is not None:
             (run_dir / "request.json").write_text(json.dumps(request, indent=2), encoding="utf-8")
         with self.index.open("a", encoding="utf-8") as fh:

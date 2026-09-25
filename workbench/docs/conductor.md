@@ -27,9 +27,10 @@ used, plus the model id and token counts if it called a model.
 
 ## The steps
 
-The conductor first validates the request against the JSON Schema and looks up the agent. A
-malformed request or an unknown agent id is a mistake by the caller, so the conductor raises an
-exception rather than returning an envelope.
+The conductor first validates the request against the JSON Schema, checks its `invocation_id` is
+new, and looks up the agent. A malformed request, an `invocation_id` that is already stored or
+still running, or an unknown agent id is a mistake by the caller, so the conductor raises an
+exception rather than returning an envelope. A stored run is never overwritten.
 
 After that, every problem becomes an outcome in the envelope. The caller, the run store and a
 reviewer all see the same record.

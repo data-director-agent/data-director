@@ -22,6 +22,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -66,6 +67,13 @@ class DelegationError(ValueError):
     """A request's lineage is not one the conductor issued: a caller error, never an outcome."""
 
 
+class DuplicateInvocation(ValueError):
+    """A request reuses an `invocation_id` the conductor has run or is running: a caller error.
+
+    Running it would overwrite the stored run, or collide with a parent still in flight.
+    """
+
+
 @dataclass
 class Grant:
     """One delegation grant, live while its parent invocation runs."""
@@ -91,6 +99,8 @@ class Conductor:
     workbench_url: str | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _running: set[str] = field(default_factory=set, repr=False)
+    _running_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def invoke(self, request: InvocationRequest) -> Envelope:
         """Run one top-level invocation. Lineage is the conductor's to set, never the caller's."""
@@ -154,6 +164,23 @@ class Conductor:
     def _invoke(self, request: InvocationRequest, link: SpanContext | None = None) -> Envelope:
         request_doc = to_document(request)
         validate.validate_request(request_doc)  # raises: a malformed request is a caller bug
+        invocation_id = request.invocation_id
+        with self._running_lock:
+            if invocation_id in self._running or self.store.has(invocation_id):
+                raise DuplicateInvocation(
+                    f"invocation_id {invocation_id} has already been used; "
+                    "send each request with a new one"
+                )
+            self._running.add(invocation_id)
+        try:
+            return self._run(request, request_doc, link)
+        finally:
+            with self._running_lock:
+                self._running.discard(invocation_id)
+
+    def _run(
+        self, request: InvocationRequest, request_doc: dict[str, Any], link: SpanContext | None
+    ) -> Envelope:
         agent = self.registry.get(request.agent_id)
         if agent is None:
             unavailable = "".join(

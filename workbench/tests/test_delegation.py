@@ -23,7 +23,7 @@ from dd_sdk.delegate import DelegationRefused
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
-from workbench.conductor import DelegationError
+from workbench.conductor import DelegationError, DuplicateInvocation
 from workbench.testing import (
     ScriptedAgent,
     make_conductor,
@@ -163,6 +163,26 @@ def test_self_delegation_and_a_second_level_are_refused(tmp_path: Path) -> None:
     child = conductor.store.get(env.delegations[0].delegated_invocation_id)
     assert child is not None
     assert child["outcome"]["statement"] == "No grant at depth 1."
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_a_child_may_not_reuse_its_parents_invocation_id(tmp_path: Path) -> None:
+    def reuse_parent_id(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        assert ctx.grant is not None
+        child = request("fake.none").model_copy(update={"invocation_id": req.invocation_id})
+        with pytest.raises(DuplicateInvocation):
+            conductor.invoke_delegated(child, ctx.grant.token)
+        return abstain("The child was refused.")
+
+    conductor = make_conductor(
+        tmp_path, ScriptedAgent(GroundingMode.DELEGATION, reuse_parent_id), child_agent()
+    )
+    parent = conductor.invoke(request("fake.delegation", message()))
+    assert parent.outcome.statement == "The child was refused."
+    assert parent.delegations == []
+    stored = conductor.store.get(parent.invocation_id)
+    assert stored is not None and stored["agent_id"] == "fake.delegation"
+    assert [e["invocation_id"] for e in conductor.store.iter_envelopes()] == [parent.invocation_id]
 
 
 @pytest.mark.requirement("DD-DELEGATION")

@@ -33,7 +33,9 @@ from dd_sdk.evidence import (
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
 from workbench import testing as fakes
+from workbench.conductor import DuplicateInvocation
 from workbench.policy import PROFILES_DIR, PolicyError, gate, load_profile
+from workbench.store import RunStore
 from workbench.testing import (
     SOURCE_A,
     SOURCE_B,
@@ -361,6 +363,28 @@ def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
         action = graph["#" + env.invocation_id]
         assert action["@type"] == "CreateAction"
         assert action["instrument"]["@id"].endswith(env.agent_id)
+
+
+@pytest.mark.requirement("R10")
+def test_a_reused_invocation_id_is_refused_and_the_stored_run_kept(runs_dir: Path) -> None:
+    conductor = make_conductor(runs_dir, AbstainingStub())
+    req = request("stub.abstain")
+    first = conductor.invoke(req)
+    envelope_path = runs_dir / first.invocation_id / "envelope.json"
+    stored = envelope_path.read_bytes()
+    report = conductor.grounding_reports[first.invocation_id]
+
+    with pytest.raises(DuplicateInvocation, match=first.invocation_id):
+        conductor.invoke(req)
+    assert envelope_path.read_bytes() == stored
+    assert conductor.grounding_reports[first.invocation_id] is report
+    assert [e["invocation_id"] for e in conductor.store.iter_envelopes()] == [first.invocation_id]
+
+
+def test_the_store_never_overwrites_a_run(tmp_path: Path) -> None:
+    env = make_conductor(tmp_path, AbstainingStub()).invoke(request("stub.abstain"))
+    with pytest.raises(FileExistsError):
+        RunStore(tmp_path).append(env.to_document())
 
 
 # Deliberately not marked P14: the slots exist and say not_measured; the footprint is not captured.
