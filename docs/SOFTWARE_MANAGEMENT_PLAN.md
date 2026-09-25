@@ -8,7 +8,7 @@ yet decided.
 
 `data-director` is a reference implementation of the RDA Data Director Agentic AI Blueprint,
 officially adopted by the RDA and published at <https://doi.org/10.15497/RDA00157>. See
-[docs/CHARTER.md](CHARTER.md) for the project's mission and scope.
+the [project charter](https://github.com/data-director-agent/.github/blob/main/CHARTER.md) for the project's mission and scope.
 
 ## Development approach
 
@@ -19,7 +19,7 @@ officially adopted by the RDA and published at <https://doi.org/10.15497/RDA0015
 - **Branching and release strategy**: `TODO` — to be defined once initial development begins.
   Until then, exploratory work happens under `experiments/`; promoting any of it to the reference
   implementation follows the RFC / lazy consensus process in
-  [GOVERNANCE.md](../GOVERNANCE.md).
+  [GOVERNANCE.md](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md).
 - **Versioning**: [Semantic Versioning](https://semver.org/) once releases begin.
 
 ## Licensing
@@ -28,19 +28,21 @@ MIT License (see [LICENSE](../LICENSE)).
 
 ## Governance and sustainability
 
-The project follows the lightweight governance model in [GOVERNANCE.md](../GOVERNANCE.md),
+The project follows the lightweight governance model in [GOVERNANCE.md](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md),
 including the trigger for forming a Technical Steering Committee as the contributor community
-grows. The project's mission and scope are set out in [docs/CHARTER.md](CHARTER.md).
+grows. The project's mission and scope are set out in the [project charter](https://github.com/data-director-agent/.github/blob/main/CHARTER.md).
 
 ## Contribution process
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for how to propose changes, the Developer Certificate of
+See the organisation-wide [contribution guide](https://github.com/data-director-agent/.github/blob/main/CONTRIBUTING.md) for how to propose changes, the Developer Certificate of
 Origin sign-off requirement, and the pull request workflow.
 
 ## Documentation plan
 
 - `README.md` — project overview.
-- `CONTRIBUTING.md`, `GOVERNANCE.md`, `docs/CHARTER.md` — process documentation (this set).
+- `CONTRIBUTING.md` — repository-specific contribution notes.
+- Charter, governance, contribution guide and code of conduct — organisation-wide, in
+  [`data-director-agent/.github`](https://github.com/data-director-agent/.github).
 - `docs/SOFTWARE_MANAGEMENT_PLAN.md` — this document.
 - Further user- and developer-facing documentation: `TODO`, to be added as the implementation
   takes shape.
