@@ -1,6 +1,6 @@
 # ADR-0011: Agents are separate services the workbench calls over A2A
 
-**Status:** Accepted
+**Status:** Accepted; amended by [ADR-0019](0019-core-contract-and-agent-owned-classes.md)
 **Date:** 2026-09-24
 
 Supersedes [ADR-0010](0010-agent-registry.md). Extends [ADR-0001](0001-transport.md), which

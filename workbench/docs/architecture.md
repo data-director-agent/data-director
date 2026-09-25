@@ -101,11 +101,11 @@ Each design decision has a record in [`adr/`](adr/):
 | [0004](adr/0004-identifiers-and-problems.md) | UUIDv7 identifiers and Problem Details |
 | [0005](adr/0005-dataset-profile-and-validation.md) | `DatasetProfile` and the validation format |
 | [0006](adr/0006-dependency-tiering.md) | Dependency tiering |
-| [0007](adr/0007-polymorphic-contract.md) | Polymorphic contract |
+| [0007](adr/0007-polymorphic-contract.md) | Polymorphic contract (amended by 0019) |
 | [0008](adr/0008-grounding-modes.md) | Grounding modes |
 | [0009](adr/0009-evidence-canonicalisations.md) | Evidence canonicalisations |
 | [0010](adr/0010-agent-registry.md) | Agent registry (superseded by 0011) |
-| [0011](adr/0011-remote-agents.md) | Agents as separate A2A services |
+| [0011](adr/0011-remote-agents.md) | Agents as separate A2A services (amended by 0019) |
 | [0012](adr/0012-conversation-and-orchestration.md) | Conversations, and orchestration through the workbench |
 | [0013](adr/0013-evaluation.md) | Evaluation is not conformance |
 | [0014](adr/0014-assessment-lanes.md) | Assessment lanes: tests and recorded reviews |
@@ -113,3 +113,4 @@ Each design decision has a record in [`adr/`](adr/):
 | [0016](adr/0016-source-check.md) | The linter checks consistency; a source check verifies citations |
 | [0017](adr/0017-policy-is-the-deployments.md) | The institutional profile belongs to the deployment, and assigns each agent its class |
 | [0018](adr/0018-acting-for.md) | Every invocation records the human it acted for, named by the authentication boundary |
+| [0019](adr/0019-core-contract-and-agent-owned-classes.md) | A core contract, and input and payload classes owned by their agents |

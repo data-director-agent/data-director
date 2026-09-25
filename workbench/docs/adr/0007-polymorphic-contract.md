@@ -1,6 +1,6 @@
 # ADR-0007: Polymorphic input and payload, discriminated by `schema_class`, grounded by mixin
 
-**Status:** Accepted (amends ADR-0005)
+**Status:** Accepted (amends ADR-0005); amended by [ADR-0019](0019-core-contract-and-agent-owned-classes.md)
 **Date:** 2026-09-04
 
 ## Context
