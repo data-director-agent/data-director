@@ -3,8 +3,8 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "data-director-agent-chat"
-# Alpha (agents/README.md): exploratory, ungoverned, and not an A2A service.
+name = "data-director-app"
+# Alpha: exploratory, and ungoverned by the workbench (README.md).
 version = "0.1.0a1"
 description = "An alpha Data Director: a browser chat with a tool-using model over the FAIRsharing snapshot"
 requires-python = ">=3.14"
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dd-chat = "dd_agent_chat.app:main"
+data-director = "dd_app.app:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/dd_agent_chat"]
+packages = ["src/dd_app"]

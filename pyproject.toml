@@ -4,6 +4,7 @@
 #   sdk/         data-director-sdk        the contract, evidence, trace helpers, A2A agent server
 #   workbench/   data-director-workbench  the harness that calls agents over A2A
 #   agents/*/    data-director-agent-*    one package and one service per agent
+#   app/         data-director-app        the Data Director app (alpha)
 
 [project]
 name = "data-director"
@@ -18,7 +19,7 @@ dependencies = [
   "data-director-agent-stub",
   "data-director-agent-r3",
   "data-director-agent-director",
-  "data-director-agent-chat",
+  "data-director-app",
 ]
 
 [dependency-groups]
@@ -37,7 +38,7 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["sdk", "workbench", "agents/*"]
+members = ["sdk", "workbench", "agents/*", "app"]
 
 [tool.uv.sources]
 data-director-sdk = { workspace = true }
@@ -48,7 +49,7 @@ data-director-agent-factcheck = { workspace = true }
 data-director-agent-stub = { workspace = true }
 data-director-agent-r3 = { workspace = true }
 data-director-agent-director = { workspace = true }
-data-director-agent-chat = { workspace = true }
+data-director-app = { workspace = true }
 
 [tool.ruff]
 line-length = 100
@@ -59,7 +60,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_agent_chat"]
+known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -74,7 +75,7 @@ known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["sdk/tests", "workbench/tests", "agents"]
+testpaths = ["sdk/tests", "workbench/tests", "agents", "app/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `workbench.testing` and
 # `dd_agent_r3.testing`, not in a test directory.
@@ -93,13 +94,14 @@ markers = [
 python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "sdk/scripts", "workbench/src", "workbench/tests",
-  "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts",
+  "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts", "app/src",
+  "app/tests",
 ]
 explicit_package_bases = true
 mypy_path = [
   "sdk/src", "sdk/scripts", "workbench/src", "workbench/scripts", "agents/hello/src",
   "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
-  "agents/director/src", "agents/chat/src",
+  "agents/director/src", "app/src",
 ]
 strict = true
 warn_unreachable = true
@@ -110,6 +112,6 @@ module = ["a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "go
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["conftest", "sdk.tests.*", "workbench.tests.*", "agents.*"]
+module = ["conftest", "sdk.tests.*", "workbench.tests.*", "agents.*", "app.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

@@ -13,13 +13,13 @@ resolution-markers = [
 [manifest]
 members = [
     "data-director",
-    "data-director-agent-chat",
     "data-director-agent-director",
     "data-director-agent-factcheck",
     "data-director-agent-hello",
     "data-director-agent-quality",
     "data-director-agent-r3",
     "data-director-agent-stub",
+    "data-director-app",
     "data-director-sdk",
     "data-director-workbench",
 ]
@@ -732,13 +732,13 @@ name = "data-director"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "data-director-agent-chat" },
     { name = "data-director-agent-director" },
     { name = "data-director-agent-factcheck" },
     { name = "data-director-agent-hello" },
     { name = "data-director-agent-quality" },
     { name = "data-director-agent-r3" },
     { name = "data-director-agent-stub" },
+    { name = "data-director-app" },
     { name = "data-director-sdk" },
     { name = "data-director-workbench" },
 ]
@@ -757,13 +757,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "data-director-agent-chat", editable = "agents/chat" },
     { name = "data-director-agent-director", editable = "agents/director" },
     { name = "data-director-agent-factcheck", editable = "agents/factcheck" },
     { name = "data-director-agent-hello", editable = "agents/hello" },
     { name = "data-director-agent-quality", editable = "agents/quality" },
     { name = "data-director-agent-r3", editable = "agents/r3" },
     { name = "data-director-agent-stub", editable = "agents/stub" },
+    { name = "data-director-app", editable = "app" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-workbench", editable = "workbench" },
 ]
@@ -778,23 +778,6 @@ dev = [
     { name = "ruff", specifier = ">=0.9" },
     { name = "types-jsonschema", specifier = ">=4.23" },
     { name = "types-pyyaml", specifier = ">=6.0" },
-]
-
-[[package]]
-name = "data-director-agent-chat"
-version = "0.1.0a1"
-source = { editable = "agents/chat" }
-dependencies = [
-    { name = "data-director-agent-r3" },
-    { name = "gradio" },
-    { name = "pydantic-ai-slim", extra = ["anthropic", "openai"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "data-director-agent-r3", editable = "agents/r3" },
-    { name = "gradio", specifier = ">=5.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic", "openai"], specifier = ">=1.0" },
 ]
 
 [[package]]
@@ -885,6 +868,23 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "data-director-sdk", editable = "sdk" }]
+
+[[package]]
+name = "data-director-app"
+version = "0.1.0a1"
+source = { editable = "app" }
+dependencies = [
+    { name = "data-director-agent-r3" },
+    { name = "gradio" },
+    { name = "pydantic-ai-slim", extra = ["anthropic", "openai"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-agent-r3", editable = "agents/r3" },
+    { name = "gradio", specifier = ">=5.0" },
+    { name = "pydantic-ai-slim", extras = ["anthropic", "openai"], specifier = ">=1.0" },
+]
 
 [[package]]
 name = "data-director-sdk"

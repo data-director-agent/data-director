@@ -1,4 +1,4 @@
-"""The alpha chat agent against a scripted model: tools, history, and one full turn.
+"""The Data Director app's agent against a scripted model: tools, history, and one full turn.
 
 An alpha substantiates no requirement, so these tests carry no requirement marker.
 """
@@ -19,7 +19,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from dd_agent_chat.agent import (
+from dd_app.agent import (
     build_agent,
     get_fairsharing_record,
     respond,

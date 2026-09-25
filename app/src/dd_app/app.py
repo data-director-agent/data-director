@@ -13,7 +13,7 @@ from typing import Any
 import gradio as gr
 from pydantic_ai.exceptions import UserError
 
-from dd_agent_chat.agent import build_agent, respond
+from dd_app.agent import build_agent, respond
 
 TITLE = "Data Director (alpha)"
 DESCRIPTION = (
@@ -57,7 +57,7 @@ def build_app() -> gr.ChatInterface:
 
 
 def main() -> int:
-    """The `dd-chat` console script."""
+    """The `data-director` console script."""
     os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")  # pydantic-ai's advertising banner
     build_app().launch(inbrowser=True)
     return 0

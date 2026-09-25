@@ -1,7 +1,7 @@
 """The alpha Data Director: one tool-using model over the FAIRsharing snapshot.
 
-This is an alpha (agents/README.md). It is not an A2A service and the workbench never calls it,
-so none of the contract applies: there is no policy gate, input check, grounding linter,
+This is an alpha. It does not use the workbench, which is a development tool, so none of the
+contract applies: there is no policy gate, input check, grounding linter,
 evidence hashing or run record. What the model says is unchecked; the tools only make it
 possible for the model to cite real FAIRsharing records rather than recall them.
 

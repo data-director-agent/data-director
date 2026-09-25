@@ -1,4 +1,4 @@
-# chat — an alpha Data Director
+# Data Director app (alpha)
 
 **Alpha** (`0.1.0a1`). This is the simplest possible Data Director: a chat page in a local
 browser, and one language model that can search a FAIRsharing snapshot. It is exploratory, and
@@ -10,15 +10,15 @@ It is built from off-the-shelf parts:
 - [pydantic-ai](https://ai.pydantic.dev/) runs the agent loop, the tool calls and model
   selection;
 - R3's `SnapshotBackend` searches the committed FAIRsharing snapshot
-  (`../r3/data/fairsharing/snapshot.jsonl`, CC BY-SA 4.0).
+  (`agents/r3/data/fairsharing/snapshot.jsonl`, CC BY-SA 4.0).
 
 ## Run it
 
 From the repository root:
 
 ```bash
-export ANTHROPIC_API_KEY=...        # or put it in workbench/.env and add --env-file workbench/.env
-uv run dd-chat                      # opens http://127.0.0.1:7860
+export ANTHROPIC_API_KEY=...        # or copy app/env.example to app/.env and add --env-file app/.env
+uv run data-director                # opens http://127.0.0.1:7860
 ```
 
 `DD_CHAT_MODEL` takes any [pydantic-ai model
@@ -26,7 +26,7 @@ string](https://ai.pydantic.dev/models/overview/). The default is `anthropic:cla
 To use a local model through Ollama:
 
 ```bash
-OLLAMA_BASE_URL=http://localhost:11434/v1 DD_CHAT_MODEL=ollama:llama3.1 uv run dd-chat
+OLLAMA_BASE_URL=http://localhost:11434/v1 DD_CHAT_MODEL=ollama:llama3.1 uv run data-director
 ```
 
 `DD_CHAT_MODEL=test` selects pydantic-ai's offline test model. It calls every tool and returns
@@ -46,7 +46,8 @@ answer.
 
 ## What it does not do
 
-It is not an A2A service. The workbench never calls it, so none of the contract applies:
+It does not use the workbench, which is a development tool for sub-agents, so none of the
+contract applies:
 
 - there is no policy gate, input check, grounding linter or evidence hashing;
 - no run is recorded;
@@ -57,5 +58,5 @@ lives in the browser page only, and is lost on reload.
 
 This package substantiates no Blueprint requirement, and its tests carry no requirement marker.
 
-TODO: decide whether this becomes a model-backed replacement for `director.stub` (delegation
-mode, through the workbench's Chat page) or stays a standalone prototype.
+TODO: decide whether the app should delegate to the sub-agents in `agents/` over A2A (through
+`sdk/`), and if so how those calls are governed outside the workbench.

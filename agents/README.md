@@ -24,7 +24,6 @@ An agent never sets identifiers, timestamps, telemetry or its grounding mode.
 | `stub/` | `stub.abstain` | every input class | `none` | — | `dd-stub`, port 8104 | Abstains unconditionally. |
 | `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012). |
 | `r3/` | `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-r3`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_R3_*` (`r3/src/dd_agent_r3/README.md`). |
-| `chat/` | — | chat messages | — | — | `dd-chat`, http://127.0.0.1:7860 | **Alpha, standalone.** A browser chat (Gradio) with a tool-using model (pydantic-ai) over R3's FAIRsharing snapshot. Not an A2A service: the workbench never calls it, and nothing it says is checked or recorded. See `chat/README.md`. |
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
 `uv run dd-hello serve --port 8101`.
