@@ -13,10 +13,12 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from dd_sdk.agent import describe
 from dd_sdk.contract.validate import SCHEMA_DIR
 from workbench import conversations
 from workbench.conductor import Conductor
 from workbench.identity import Authenticator
+from workbench.remote import RemoteAgent
 from workbench.transport import agui
 from workbench.transport.a2a import a2a_routes
 
@@ -80,6 +82,14 @@ def build_app(
     async def agents(request: Request) -> Response:
         return JSONResponse(conductor.registry.listing())
 
+    async def agent_detail(request: Request) -> Response:
+        agent_id = request.path_params["agent_id"]
+        registered = conductor.registry.get(agent_id)
+        if registered is None:
+            return JSONResponse({"error": f"no agent {agent_id}"}, status_code=404)
+        card = registered.card if isinstance(registered, RemoteAgent) else None
+        return JSONResponse({"card": card, "spec": describe(registered.spec)})
+
     async def samples(request: Request) -> Response:
         return JSONResponse(list_samples())
 
@@ -106,6 +116,7 @@ def build_app(
             Route("/conversations/{conversation_id}", conversation, methods=["GET"]),
             Route("/schema/uischema.json", uischema, methods=["GET"]),
             Route("/agents", agents, methods=["GET"]),
+            Route("/agents/{agent_id}", agent_detail, methods=["GET"]),
             Route("/samples", samples, methods=["GET"]),
             Route("/samples/{name}", sample, methods=["GET"]),
             Route("/", index, methods=["GET"]),

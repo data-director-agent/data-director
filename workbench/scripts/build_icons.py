@@ -46,6 +46,7 @@ ICONS = [
     # modes
     "microscope",  # Inspect
     "message-square",  # Chat
+    "bot",  # Agents
     # controls
     "play",  # Run
     "send-horizontal",  # Send

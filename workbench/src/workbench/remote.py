@@ -83,6 +83,7 @@ class RemoteAgent:
     url: str
     timeout_s: float = DEFAULT_TIMEOUT_S
     client_factory: ClientFactory = default_client
+    card: dict[str, Any] | None = None
 
     @classmethod
     def from_url(
@@ -106,7 +107,11 @@ class RemoteAgent:
         except (httpx.HTTPError, ValueError) as exc:
             raise RemoteAgentError(f"cannot read the agent card at {url}: {exc}") from exc
         return cls(
-            spec=spec_from_card(card), url=url, timeout_s=timeout_s, client_factory=client_factory
+            spec=spec_from_card(card),
+            url=url,
+            timeout_s=timeout_s,
+            client_factory=client_factory,
+            card=card,
         )
 
     def call(

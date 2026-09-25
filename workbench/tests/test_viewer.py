@@ -31,7 +31,10 @@ from dd_sdk.contract.models import Assurance, Derivation, GroundingMode, Outcome
 ROOT = Path(__file__).resolve().parents[1]
 VIEWER_DIR = ROOT / "viewer"
 BASE = json.loads((VIEWER_DIR / "uischema.json").read_text(encoding="utf-8"))
-PAGES = {n: (VIEWER_DIR / n).read_text(encoding="utf-8") for n in ("index.html", "chat.html")}
+PAGES = {
+    n: (VIEWER_DIR / n).read_text(encoding="utf-8")
+    for n in ("index.html", "chat.html", "agents.html")
+}
 SOURCES = sorted(
     [*VIEWER_DIR.glob("*.html"), *VIEWER_DIR.glob("*.css"), *VIEWER_DIR.glob("js/*.js")]
 )
@@ -182,12 +185,13 @@ def _mode_nav(page: str) -> str:
     return page.split('<nav class="modes"', 1)[1].split("</nav>", 1)[0]
 
 
-def test_both_pages_share_the_mode_tabs_and_mark_their_own() -> None:
+def test_all_pages_share_the_mode_tabs_and_mark_their_own() -> None:
     nav = {name: _mode_nav(page) for name, page in PAGES.items()}
     unmarked = {name: text.replace(' aria-current="page"', "") for name, text in nav.items()}
-    assert unmarked["index.html"] == unmarked["chat.html"]
+    assert unmarked["index.html"] == unmarked["chat.html"] == unmarked["agents.html"]
     assert re.search(r'href="/viewer/" aria-current="page"', nav["index.html"])
     assert re.search(r'href="/viewer/chat.html" aria-current="page"', nav["chat.html"])
+    assert re.search(r'href="/viewer/agents.html" aria-current="page"', nav["agents.html"])
     for name, page in PAGES.items():
         assert nav[name].count('aria-current="page"') == 1, name
         assert 'lang="en-GB"' in page, name
