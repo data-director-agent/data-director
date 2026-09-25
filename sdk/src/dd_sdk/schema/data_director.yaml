@@ -55,7 +55,8 @@ classes:
       agent cannot mislabel its own run.
       Conditional rules not expressible in JSON Schema are enforced by contract.validate:
       failed or suspended requires problem; abstained or referred requires outcome.reason_code;
-      succeeded requires payload.
+      succeeded requires payload; a payload requires payload_schema, and payload_schema a
+      payload.
     slots:
       - invocation_id
       - agent_id
@@ -65,8 +66,11 @@ classes:
       - policy_bundle_ref
       - policy_digest
       - acting_for
+      - contract_version
+      - input_schema
       - outcome
       - payload
+      - payload_schema
       - evidence
       - telemetry
       - requires_human_review
@@ -267,6 +271,22 @@ slots:
   policy_digest:
     description: SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied.
     required: true
+    pattern: "^[0-9a-f]{64}$"
+  contract_version:
+    description: >-
+      The version of this core contract the conductor governed the invocation under (ADR-0019).
+    required: true
+    pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+  input_schema:
+    description: >-
+      The digest of the class schema the input was checked against, as the agent's card carried
+      it. Absent when the agent does not accept the input's class (ADR-0019).
+    pattern: "^[0-9a-f]{64}$"
+  payload_schema:
+    description: >-
+      The digest of the class schema the payload was checked against, as the agent's card
+      carried it. Present exactly when there is a payload; the run store keeps the schema under
+      this digest, so a stored run renders with the schema it was checked against (ADR-0019).
     pattern: "^[0-9a-f]{64}$"
   acting_for:
     description: >-

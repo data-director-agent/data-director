@@ -18,8 +18,9 @@ from dd_agent_factcheck.agent import FactChecker
 from dd_agent_factcheck.classes import Claim
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
-from dd_agent_quality.classes import MetadataRecord
+from dd_agent_quality.classes import MetadataRecord, QualityReview
 from dd_agent_stub.agent import AbstainingStub
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import new_invocation_id, to_document
 from workbench.identity import OperatorAssertion
 from workbench.testing import TEST_PRINCIPAL, make_conductor, request
@@ -150,6 +151,15 @@ def test_agui_run_and_replay_emit_started_and_finished(runs_dir: Path) -> None:
     assert live[1]["result"]["payload"]["schema_class"] == "QualityReview"
     assert replay[1]["result"] == live[1]["result"]
     assert index[0]["status"] == "succeeded"
+    # The viewer renders the payload with the schema it was checked against, by digest.
+    status, schema = _get(app, f"/schema/sha256/{live[1]['result']['payload_schema']}")
+    assert status == 200 and schema == dict(ClassSchema.of(QualityReview).json_schema)
+
+
+def test_a_class_schema_is_served_only_by_a_digest_the_store_holds(runs_dir: Path) -> None:
+    _, app = _app(runs_dir)
+    assert _get(app, f"/schema/sha256/{'0' * 64}")[0] == 404
+    assert _get(app, "/schema/sha256/..%2F..%2Fenvelope.schema.json")[0] == 404
 
 
 def _agui_body(request_doc: dict[str, Any], thread_id: str) -> dict[str, Any]:

@@ -19,6 +19,7 @@ UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
 IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
+VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 
 
 class Frozen(BaseModel):
@@ -278,8 +279,13 @@ class Envelope(Frozen):
     policy_digest: str = Field(pattern=SHA256_PATTERN)
     # Named by the authentication boundary, never by the request (ADR-0018).
     acting_for: Principal
+    # The core contract, and the class schemas the card carried, that the run was checked
+    # against (ADR-0019). The digests name schemas the run store keeps.
+    contract_version: str = Field(pattern=VERSION_PATTERN)
+    input_schema: str | None = Field(default=None, pattern=SHA256_PATTERN)
     outcome: Outcome
     payload: AnyPayloadDocument | None = None
+    payload_schema: str | None = Field(default=None, pattern=SHA256_PATTERN)
     evidence: list[EvidenceItem] = Field(default_factory=list)
     telemetry: Telemetry
     requires_human_review: Literal[True] = True

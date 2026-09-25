@@ -24,6 +24,7 @@ from dd_sdk.contract.models import (
     to_document,
 )
 from dd_sdk.contract.validate import validate_envelope
+from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.evidence import (
     CANONICALISATION,
     INPUT_CANONICALISATION,
@@ -170,6 +171,31 @@ def test_the_envelope_records_whom_the_invocation_acted_for(runs_dir: Path) -> N
         stored = conductor.store.get(env.invocation_id)
         assert stored is not None and stored["acting_for"] == to_document(TEST_PRINCIPAL)
         assert stored["acting_for"]["assurance"] == "asserted"
+
+
+# --- The schemas a run was checked against (ADR-0019) -----------------------------------------
+
+
+@pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
+def test_a_run_names_the_contract_and_the_class_schemas_it_was_checked_against(
+    runs_dir: Path,
+) -> None:
+    agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.record()), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    record, review = ClassSchema.of(fakes.ProbeRecord), ClassSchema.of(fakes.ProbeReview)
+    assert env.contract_version == CONTRACT_VERSION
+    assert (env.input_schema, env.payload_schema) == (record.digest, review.digest)
+    # The store keeps both, by digest, whatever the agent's card says later.
+    assert conductor.store.get_schema(record.digest) == dict(record.json_schema)
+    assert conductor.store.get_schema(review.digest) == dict(review.json_schema)
+    assert conductor.store.get_schema("../invocations.jsonl") is None
+    # A refused input names no input schema; a withheld payload no payload schema.
+    refused = conductor.invoke(
+        request(agent.spec.agent_id, fakes.message()), acting_for=TEST_PRINCIPAL
+    )
+    assert refused.input_schema is None and refused.payload_schema is None
 
 
 # --- Input check ------------------------------------------------------------------------------
