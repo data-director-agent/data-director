@@ -27,5 +27,9 @@ dependencies = [
 [project.scripts]
 workbench = "workbench.cli:main"
 
+[project.optional-dependencies]
+# Evaluation on Inspect AI (ADR-0013): `workbench.evaluation` and each agent's `evals/`.
+eval = ["inspect-ai>=0.3.268"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/workbench"]

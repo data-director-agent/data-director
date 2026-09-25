@@ -32,7 +32,9 @@ agent builds `resource` and `grounded_on` from the same retrieved record. The ro
   labels, weighted with subject overlap and curation status. Over the 169-record snapshot the
   soil-chemistry sample gets sensible formats (CSV, Tabular Data Package, ISO 8601 for its date
   fields) and plausible but arguable terminologies (a chemistry vocabulary ranks above AGROVOC).
-  Every recommendation carries its score and signals so a reviewer can disagree.
+  Every recommendation carries its score and signals so a reviewer can disagree. The
+  [seeded-defect evaluation](evals/README.md) measures this: ENVO is never recommended for the
+  soil sample, AGROVOC only once the title is removed, and the Food Ontology is.
 - **Vocabulary versus ontology** (R3's one explicit distinction) is decided lexically from the
   record's name and description, recorded as `classification_derivation: lexical`, with
   `terminology_unclassified` when neither pattern fires. FAIRsharing's curated subtype is not

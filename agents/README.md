@@ -104,5 +104,9 @@ CLI, transports or viewer, this agent will show it.
    which serves it in memory over A2A exactly as the workbench calls it. Mark each test with the
    requirement identifiers it actually exercises (`workbench/docs/requirements.yaml`). Do not
    claim a Blueprint `R` a demonstration does not meet.
+10. **Optionally, evaluate it** (ADR-0013). Put an Inspect AI task in `<package>/evals/`, built
+    on `workbench.evaluation.invoke_agent` and its generic scorers, with the agent's own cases
+    and scorers beside it and a committed `baseline.json`. `dd_agent_r3.evals` is the worked
+    example.
 
 Nothing in the conductor, linter, CLI, transports or viewer is edited.

@@ -38,6 +38,7 @@ the dependency is in the wrong tier.
 | `uvicorn` | Runtime | `cli.py serve` | any ASGI server |
 | `anthropic` (optional extra) | Runtime | `agents/r3/explain.py::Explainer` | `TemplateExplainer`, or any HTTP client against the Messages API |
 | `pytest`, `pytest-recording`, `pytest-json-report`, `linkml`, `ruff`, `mypy` | Evaluation/CI | — | — |
+| `inspect-ai` (workbench `eval` extra; ADR-0013) | Evaluation/CI | `workbench/evaluation.py` | a loop over the case file calling `Conductor.invoke` |
 | OPA/Cedar; in-toto/Sigstore; LangChain/LangGraph and other agent frameworks; a bespoke cassette layer; a bespoke trace format; MCP and Signpost FAIRsharing backends | Rejected | — | — |
 
 The runtime tier has eleven members against the MVP plan's target of about eight. The three

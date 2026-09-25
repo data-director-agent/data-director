@@ -31,6 +31,8 @@ uv run mypy
 uv run python sdk/scripts/gen_schema.py         # after editing the LinkML schema
 scripts/run-agents.sh                           # every agent on the port agents.yaml expects
 uv run pytest --json-report --json-report-file=workbench/.report.json && uv run python workbench/scripts/conformance_report.py
+uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013)
+uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # what changed between runs
 ```
 
 ## Load-bearing things
@@ -72,6 +74,12 @@ uv run pytest --json-report --json-report-file=workbench/.report.json && uv run 
 - **A canonicalisation is registered, never invented.** `dd_sdk.evidence.CANONICALISATIONS`; a new
   projection is a new name, and an existing name's bytes never change.
 - **A rule with missing inputs returns `None`, never `0.0`** (`agents/r3/src/dd_agent_r3/rank.py`).
+- **Evaluation is not conformance (ADR-0013).** An evaluation test carries no requirement marker.
+  A defect (`dd_agent_r3.evals.defects.DEFECTS`) is registered and never edited: a new mutation
+  is a new name. Scores stay separate, never blended, and a scorer that does not apply returns
+  NOANSWER, not 0. `baseline.json` changes only in a commit of its own that says why, written by
+  `workbench/scripts/eval_compare.py --write-baseline`; `test_r3_evals.py` fails on any drift from
+  it, better or worse.
 - **Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`**, and
   the ID must be in `docs/requirements.yaml`. Do not mark a test with an ID it does not actually
   exercise; a demonstration agent does not substantiate a Blueprint `R` it does not meet.
