@@ -1,21 +1,20 @@
 name: workbench CI
 
-# Scoped to workbench/: GitHub only picks up workflows from .github/workflows/ at the repository
-# root, so this file lives here even though the project it tests lives entirely under workbench/.
+# Covers the uv workspace at the repository root (ADR-0011): sdk/, workbench/ and agents/. Every
+# step runs from the root, where the shared tooling config and the dev dependency group live.
 on:
   push:
     branches: [main]
-    paths:
+    paths: &paths
+      - "sdk/**"
       - "workbench/**"
+      - "agents/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "conftest.py"
       - ".github/workflows/workbench-ci.yml"
   pull_request:
-    paths:
-      - "workbench/**"
-      - ".github/workflows/workbench-ci.yml"
-
-defaults:
-  run:
-    working-directory: workbench
+    paths: *paths
 
 jobs:
   lint:
@@ -25,8 +24,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
-          cache-dependency-glob: "workbench/pyproject.toml"
-      - run: uv sync --all-extras
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --all-packages --all-extras
       - run: uv run ruff check .
       - run: uv run ruff format --check .
 
@@ -37,8 +36,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
-          cache-dependency-glob: "workbench/pyproject.toml"
-      - run: uv sync --all-extras
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --all-packages --all-extras
       - run: uv run mypy
 
   test:
@@ -48,12 +47,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
-          cache-dependency-glob: "workbench/pyproject.toml"
-      - run: uv sync --all-extras
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --all-packages --all-extras
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
-      - run: uv run pytest --json-report --json-report-file=.report.json
+      - run: uv run pytest --json-report --json-report-file=workbench/.report.json
       - name: CONFORMANCE.md is current
-        run: uv run python scripts/conformance_report.py --check
+        run: uv run python workbench/scripts/conformance_report.py --check
 
   schemas:
     name: Generated schemas up to date
@@ -62,9 +61,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
         with:
-          cache-dependency-glob: "workbench/pyproject.toml"
-      - run: uv sync --all-extras
-      - run: uv run python scripts/gen_schema.py
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --all-packages --all-extras
+      - run: uv run python sdk/scripts/gen_schema.py
       # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
-      # a graph by tests/test_contract.py instead.
-      - run: git diff --exit-code -- schema/generated/*.json
+      # a graph by sdk/tests/test_contract.py instead.
+      - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'

@@ -170,8 +170,8 @@ are the only link between the table and the code (see docs/adr/0006-dependency-t
 ## Regenerating
 
 ```sh
-uv run pytest --json-report --json-report-file=.report.json
-uv run python scripts/conformance_report.py
+uv run pytest --json-report --json-report-file=workbench/.report.json
+uv run python workbench/scripts/conformance_report.py
 ```
 
 CI runs the same two commands with `--check`, which fails if the table body differs from the
