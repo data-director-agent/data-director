@@ -132,33 +132,6 @@ classes:
   # Each input class carries schema_class as its type designator. An agent declares which input
   # classes it accepts; the conductor refuses any other with problem input-not-accepted.
 
-  DatasetProfile:
-    class_uri: dcat:Dataset
-    description: >-
-      A minimal description of a dataset being planned or prepared: what it is about and how it
-      is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.
-    slots:
-      - schema_class
-      - title
-      - description
-      - keywords
-      - themes
-      - media_types
-      - fields
-
-  TableField:
-    description: >-
-      One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
-      Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
-      slot_uri (TODO: revisit if Frictionless publishes term IRIs).
-    see_also:
-      - https://datapackage.org/standard/table-schema/#field
-    slots:
-      - name
-      - field_type
-      - field_format
-      - field_description
-
   Message:
     description: >-
       One conversational turn addressed to an agent: the text of the turn and the conversation so
@@ -225,38 +198,6 @@ classes:
 
   # --- Payloads -------------------------------------------------------------------------------
   # Each payload class carries schema_class and mixes in Grounded.
-
-  Recommendations:
-    description: The R3 payload. Recommended vocabularies, ontologies and formats.
-    mixins:
-      - Grounded
-    slots:
-      - schema_class
-      - items
-      - searched
-
-  Recommendation:
-    description: >-
-      One recommended resource for one target. The resource is named only in grounded_on; its
-      name, status and DOI are in the cited evidence item's content (ADR-0015).
-    mixins:
-      - Grounded
-    slots:
-      - kind
-      - target
-      - score
-      - rationale
-      - rationale_derivation
-      - classification_derivation
-
-  SearchedSummary:
-    description: >-
-      What was looked for, so a reader can judge an abstention as well as a recommendation.
-    slots:
-      - queries
-      - snapshot_ref
-      - candidates_retrieved
-      - candidates_qualifying
 
   Reply:
     description: >-
@@ -460,23 +401,6 @@ slots:
     description: Earliest time a suspended invocation may resume (extension member).
     range: datetime
 
-  description:
-    slot_uri: dcterms:description
-  keywords:
-    slot_uri: dcat:keyword
-    multivalued: true
-  themes:
-    description: Discipline or subject, as free text or an IRI.
-    slot_uri: dcat:theme
-    multivalued: true
-  media_types:
-    slot_uri: dcat:mediaType
-    multivalued: true
-  fields:
-    range: TableField
-    multivalued: true
-    inlined_as_list: true
-
   message_text:
     description: What the user said in this turn.
     required: true
@@ -508,50 +432,8 @@ slots:
 
   name:
     required: true
-  field_type:
-    description: >-
-      Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
-      geopoint, ...).
-    see_also:
-      - https://datapackage.org/standard/table-schema/#type
-  field_format:
-    see_also:
-      - https://datapackage.org/standard/table-schema/#format
-  field_description:
-    slot_uri: dcterms:description
-
-  items:
-    range: Recommendation
-    multivalued: true
-    inlined_as_list: true
-  searched:
-    range: SearchedSummary
-    inlined: true
-  kind:
-    range: RecommendationKind
-    required: true
-  target:
-    description: dataset, or field:<name> for a field-level recommendation.
-    required: true
-  score:
-    range: float
-  rationale:
-    required: true
-  rationale_derivation:
-    range: Derivation
-    required: true
-  classification_derivation:
-    range: Derivation
-
-  queries:
-    multivalued: true
   snapshot_ref:
     description: Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.
-  candidates_retrieved:
-    range: integer
-  candidates_qualifying:
-    range: integer
-
   source_id:
     required: true
   source_uri:
@@ -630,20 +512,6 @@ enums:
         description: The institutional profile requires approval for this action class.
       outside_agent_scope:
         description: The request asked for something this agent does not do.
-
-  RecommendationKind:
-    permissible_values:
-      controlled_vocabulary:
-        description: Concept linkage of field values to terms.
-      ontology:
-        description: Schema or model alignment.
-      terminology_unclassified:
-        description: >-
-          A terminology resource the agent could not classify as vocabulary or ontology from
-          the fields available.
-      data_format:
-      field_format:
-        description: A field-level standard such as ISO 8601 for dates.
 
   Derivation:
     permissible_values:

@@ -23,15 +23,83 @@ from dd_sdk.agent import (
 )
 from dd_sdk.contract.classes import ClassSchema, ClassSchemaError, schema_digest
 from dd_sdk.contract.models import (
-    DatasetProfile,
     Derivation,
     Frozen,
     GroundingMode,
     InvocationRequest,
+    Message,
     OpenInput,
-    Recommendations,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
+
+# The SDK knows no agent's classes, so this module brings its own, as an agent would (ADR-0019):
+# an input class and a payload class with nested items and an optional nested object, written as
+# `dd-gen-schema` would write them.
+DERIVATION = {"enum": [d.value for d in Derivation], "type": "string"}
+GROUNDING_REF = {
+    "additionalProperties": False,
+    "properties": {"source_id": {"type": "string"}, "content_hash": {"type": "string"}},
+    "required": ["source_id", "content_hash"],
+    "type": "object",
+}
+SURVEY = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": False,
+    "properties": {
+        "schema_class": {"enum": ["Survey"], "type": "string"},
+        "title": {"type": ["string", "null"]},
+    },
+    "required": ["schema_class"],
+    "title": "Survey",
+    "type": "object",
+}
+FINDINGS = {
+    "$defs": {
+        "Derivation": DERIVATION,
+        "GroundingRef": GROUNDING_REF,
+        "Item": {
+            "additionalProperties": False,
+            "properties": {
+                "kind": {"type": "string"},
+                "rationale": {"type": "string"},
+                "rationale_derivation": {"$ref": "#/$defs/Derivation"},
+                "classification_derivation": {
+                    "anyOf": [{"$ref": "#/$defs/Derivation"}, {"type": "null"}]
+                },
+                "target": {"type": "string"},
+            },
+            "required": ["kind", "rationale", "rationale_derivation", "target"],
+            "title": "Item",
+            "type": "object",
+        },
+        "Searched": {
+            "additionalProperties": False,
+            "properties": {"snapshot_ref": {"type": ["string", "null"]}},
+            "title": "Searched",
+            "type": "object",
+        },
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": False,
+    "properties": {
+        "schema_class": {"enum": ["Findings"], "type": "string"},
+        "items": {"items": {"$ref": "#/$defs/Item"}, "type": ["array", "null"]},
+        "searched": {"anyOf": [{"$ref": "#/$defs/Searched"}, {"type": "null"}]},
+        "grounded_on": {"items": {"$ref": "#/$defs/GroundingRef"}, "type": "array"},
+    },
+    "required": ["schema_class", "grounded_on"],
+    "title": "Findings",
+    "type": "object",
+}
+
+
+class Survey(Frozen):
+    schema_class: Literal["Survey"] = "Survey"
+    title: str | None = None
+
+
+SURVEY_CLASS = ClassSchema("Survey", SURVEY, schema_digest(SURVEY), Survey)
+FINDINGS_CLASS = ClassSchema("Findings", FINDINGS, schema_digest(FINDINGS))
 
 SPEC = AgentSpec(
     agent_id="test.spec",
@@ -39,9 +107,9 @@ SPEC = AgentSpec(
     description="A spec for testing derivations.",
     requirement_ids=(),
     action_class="advise",
-    accepts=(ClassSchema.of(DatasetProfile),),
+    accepts=(SURVEY_CLASS,),
     grounding_mode=GroundingMode.RETRIEVAL,
-    payload=ClassSchema.of(Recommendations),
+    payload=FINDINGS_CLASS,
     derivations={
         "items.kind": Derived(Derivation.LEXICAL, recorded_in="classification_derivation"),
         "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
@@ -135,7 +203,7 @@ def test_a_description_under_another_contract_is_a_contract_mismatch(
 
 def test_a_description_carries_each_class_schema_pinned_by_its_digest() -> None:
     entry = json.loads(json.dumps(describe(SPEC)))
-    assert set(entry["schemas"]) == {"DatasetProfile", "Recommendations"}
+    assert set(entry["schemas"]) == {"Survey", "Findings"}
     for name, schema in entry["schemas"].items():
         assert schema["digest"] == schema_digest(schema["json_schema"]), name
     rebuilt = spec_from_description(entry)
@@ -145,7 +213,7 @@ def test_a_description_carries_each_class_schema_pinned_by_its_digest() -> None:
 
 def test_a_class_the_workbench_has_never_seen_is_accepted_by_its_schema() -> None:
     entry = json.loads(json.dumps(describe(SPEC)))
-    horoscope = entry["schemas"]["DatasetProfile"]["json_schema"]
+    horoscope = entry["schemas"]["Survey"]["json_schema"]
     horoscope["title"] = "Horoscope"
     horoscope["properties"]["schema_class"]["enum"] = ["Horoscope"]
     entry["accepts"] = ["Horoscope"]
@@ -159,11 +227,11 @@ def test_a_class_the_workbench_has_never_seen_is_accepted_by_its_schema() -> Non
 
 def test_a_class_schema_that_is_missing_or_altered_is_refused() -> None:
     entry = json.loads(json.dumps(describe(SPEC)))
-    del entry["schemas"]["DatasetProfile"]
+    del entry["schemas"]["Survey"]
     with pytest.raises(SpecError, match="carries no schema"):
         spec_from_description(entry)
     entry = json.loads(json.dumps(describe(SPEC)))
-    entry["schemas"]["DatasetProfile"]["json_schema"]["title"] = "Other"
+    entry["schemas"]["Survey"]["json_schema"]["title"] = "Other"
     with pytest.raises(SpecError, match="does not match its digest"):
         spec_from_description(entry)
 
@@ -171,34 +239,40 @@ def test_a_class_schema_that_is_missing_or_altered_is_refused() -> None:
 def test_a_class_schema_that_does_not_designate_its_class_is_refused() -> None:
     entry = json.loads(json.dumps(describe(SPEC)))
     entry["accepts"] = ["Horoscope"]
-    entry["schemas"]["Horoscope"] = entry["schemas"]["DatasetProfile"]  # says DatasetProfile
+    entry["schemas"]["Horoscope"] = entry["schemas"]["Survey"]  # says Survey
     with pytest.raises(SpecError, match="does not require schema_class = 'Horoscope'"):
         spec_from_description(entry)
 
 
 def test_a_payload_class_that_does_not_mix_in_grounded_is_refused() -> None:
     entry = json.loads(json.dumps(describe(SPEC)))
-    entry["payload"] = "DatasetProfile"
+    entry["payload"] = "Survey"
     entry["derivations"] = {}
     with pytest.raises(SpecError, match="does not mix in Grounded"):
         spec_from_description(entry)
 
 
 def test_a_model_that_disagrees_with_its_generated_schema_is_refused() -> None:
-    class DatasetProfile(Frozen):  # the generated class's name, most of its fields missing
-        schema_class: Literal["DatasetProfile"] = "DatasetProfile"
-        title: str | None = None
+    class Message(Frozen):  # the core class's name, its history missing
+        schema_class: Literal["Message"] = "Message"
+        message_text: str
 
-    DatasetProfile.__module__ = "dd_sdk.contract.models"
+    Message.__module__ = "dd_sdk.contract.models"  # so its schema is read from the SDK
     with pytest.raises(ClassSchemaError, match="only in the schema"):
-        ClassSchema.of(DatasetProfile)
+        ClassSchema.of(Message)
+
+
+def test_a_core_class_reads_its_generated_schema_from_the_sdk() -> None:
+    message = ClassSchema.of(Message)
+    assert message.name == "Message" and message.model is Message
+    assert message.errors({"schema_class": "Message", "message_text": "hello"}) == []
 
 
 def test_the_agent_sees_its_own_model_and_the_workbench_the_document() -> None:
     request = InvocationRequest(
-        agent_id="test.spec", input=OpenInput(schema_class="DatasetProfile", title="t")
+        agent_id="test.spec", input=OpenInput(schema_class="Survey", title="t")
     )
     typed = typed_request(SPEC, request)
-    assert isinstance(typed.input, DatasetProfile) and typed.input.title == "t"
+    assert isinstance(typed.input, Survey) and typed.input.title == "t"
     rebuilt = spec_from_description(describe(SPEC))
     assert typed_request(rebuilt, request) is request  # no model on the workbench's side

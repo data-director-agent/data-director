@@ -1,5 +1,5 @@
 {
-   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$comment": "Generated from r3.yaml by `uv run dd-gen-schema <path to r3.yaml>`. Do not edit.",
    "$defs": {
       "TableField": {
          "additionalProperties": false,
@@ -35,7 +35,7 @@
          "type": "object"
       }
    },
-   "$id": "https://w3id.org/data-director/schema/workbench/DatasetProfile",
+   "$id": "https://w3id.org/data-director/agents/r3/DatasetProfile",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.",

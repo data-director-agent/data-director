@@ -7,17 +7,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from dd_agent_r3.classes import DatasetProfile, Recommendation
 from dd_agent_r3.explain import Explanation, Item, Rationale, Usage
 from dd_agent_r3.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
 from dd_agent_r3.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import (
-    DatasetProfile,
-    Derivation,
-    Envelope,
-    InvocationRequest,
-    Recommendation,
-)
+from dd_sdk.contract.models import Derivation, Envelope, InvocationRequest
 from dd_sdk.evidence import resolve
 from dd_sdk.tracing import chat_span
 

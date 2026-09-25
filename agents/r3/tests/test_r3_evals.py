@@ -15,10 +15,10 @@ from pathlib import Path
 import pytest
 from inspect_ai import eval as inspect_eval
 
+from dd_agent_r3.classes import DatasetProfile
 from dd_agent_r3.evals.defects import DEFECTS, apply_defect
 from dd_agent_r3.evals.seeded import load_cases, r3_seeded
 from dd_agent_r3.testing import SAMPLES
-from dd_sdk.contract.models import parse_input
 from workbench.evaluation import baseline_of, differences
 from workbench.testing import TEST_PRINCIPAL
 
@@ -48,7 +48,7 @@ def test_a_defect_copies_its_input_and_gives_the_same_result_every_time(name):
     first = apply_defect(name, SOIL)
     assert before == SOIL
     assert apply_defect(name, SOIL) == first
-    parse_input(first)  # still a valid DatasetProfile
+    DatasetProfile.model_validate(first)  # still a valid DatasetProfile
 
 
 def test_every_defect_but_none_changes_the_base_profile():

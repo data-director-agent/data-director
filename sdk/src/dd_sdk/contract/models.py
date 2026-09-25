@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, TypeAdapter
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
@@ -59,14 +59,6 @@ class ReasonCode(StrEnum):
     OUTSIDE_AGENT_SCOPE = "outside_agent_scope"
 
 
-class RecommendationKind(StrEnum):
-    CONTROLLED_VOCABULARY = "controlled_vocabulary"
-    ONTOLOGY = "ontology"
-    TERMINOLOGY_UNCLASSIFIED = "terminology_unclassified"
-    DATA_FORMAT = "data_format"
-    FIELD_FORMAT = "field_format"
-
-
 class Derivation(StrEnum):
     TEMPLATE = "template"
     MODEL = "model"
@@ -104,25 +96,9 @@ class TurnRole(StrEnum):
 
 
 # --- Inputs -----------------------------------------------------------------------------------
-# Every input class carries `schema_class` as a type designator with a single literal value, so
-# the union below is discriminated and `{}` cannot parse as a DatasetProfile.
-
-
-class TableField(Frozen):
-    name: str
-    field_type: str | None = None
-    field_format: str | None = None
-    field_description: str | None = None
-
-
-class DatasetProfile(Frozen):
-    schema_class: Literal["DatasetProfile"] = "DatasetProfile"
-    title: str | None = None
-    description: str | None = None
-    keywords: list[str] = Field(default_factory=list)
-    themes: list[str] = Field(default_factory=list)
-    media_types: list[str] = Field(default_factory=list)
-    fields: list[TableField] = Field(default_factory=list)
+# Every input class carries `schema_class` as a type designator with a single literal value. The
+# core defines only the conversation's Message; every other input class belongs to its agent
+# (ADR-0019), and the workbench holds such an input as an `OpenInput`.
 
 
 class ConversationTurn(Frozen):
@@ -139,21 +115,6 @@ class Message(Frozen):
     schema_class: Literal["Message"] = "Message"
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
-
-
-AnyInput = DatasetProfile | Message
-Input = Annotated[AnyInput, Field(discriminator="schema_class")]
-INPUT_TYPES: dict[str, type[Frozen]] = {
-    "DatasetProfile": DatasetProfile,
-    "Message": Message,
-}
-_input_adapter: TypeAdapter[Any] = TypeAdapter(Input)
-
-
-def parse_input(document: dict[str, Any]) -> AnyInput:
-    """Parse an input document by its `schema_class` designator. Raises pydantic.ValidationError."""
-    parsed: AnyInput = _input_adapter.validate_python(document)
-    return parsed
 
 
 class OpenInput(Frozen):
@@ -248,31 +209,8 @@ AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_p
 
 
 # --- Payloads -------------------------------------------------------------------------------
-# Every payload class carries `schema_class` and mixes in Grounded.
-
-
-class Recommendation(Grounded):
-    """Names its resource only in `grounded_on`; the description is in evidence (ADR-0015)."""
-
-    kind: RecommendationKind
-    target: str
-    score: float | None = None
-    rationale: str
-    rationale_derivation: Derivation
-    classification_derivation: Derivation | None = None
-
-
-class SearchedSummary(Frozen):
-    queries: list[str] = Field(default_factory=list)
-    snapshot_ref: str | None = None
-    candidates_retrieved: int | None = None
-    candidates_qualifying: int | None = None
-
-
-class Recommendations(Grounded):
-    schema_class: Literal["Recommendations"] = "Recommendations"
-    items: list[Recommendation] = Field(default_factory=list)
-    searched: SearchedSummary | None = None
+# Every payload class carries `schema_class` and mixes in Grounded. The core defines only the
+# conversation's Reply; every other payload class belongs to its agent (ADR-0019).
 
 
 class Reply(Grounded):
@@ -281,16 +219,6 @@ class Reply(Grounded):
     schema_class: Literal["Reply"] = "Reply"
     reply_text: str
     reply_derivation: Derivation
-
-
-Payload = Annotated[
-    Recommendations | Reply,
-    Field(discriminator="schema_class"),
-]
-PAYLOAD_TYPES: dict[str, type[Grounded]] = {
-    "Recommendations": Recommendations,
-    "Reply": Reply,
-}
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------
