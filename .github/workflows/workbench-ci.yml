@@ -41,7 +41,7 @@ jobs:
       - run: uv run mypy
 
   test:
-    name: pytest (no network) + conformance report
+    name: pytest (no network)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,9 +50,8 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - run: uv sync --all-packages --all-extras
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
-      - run: uv run pytest --json-report --json-report-file=workbench/.report.json
-      - name: CONFORMANCE.md is current
-        run: uv run python workbench/scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
+      # CONFORMANCE.md is checked by conformance.yml.
+      - run: uv run pytest
 
   schemas:
     name: Generated schemas up to date
