@@ -33,10 +33,9 @@
       }
    },
    "$id": "https://w3id.org/data-director/schema/workbench/Reply",
-   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to.",
-   "metamodel_version": "1.11.0",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -68,6 +67,5 @@
       "grounded_on"
    ],
    "title": "Reply",
-   "type": "object",
-   "version": "0.7.0"
+   "type": "object"
 }

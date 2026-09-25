@@ -40,6 +40,7 @@ CORE_DOCUMENTS = {
 SHACL = "data_director.shacl.ttl"
 DESIGNATOR = "schema_class"
 OPEN = "open"  # a class annotation: any object naming its class in schema_class
+DRAFT_7 = "http://json-schema.org/draft-07/schema#"
 
 
 def class_schema_name(class_name: str) -> str:
@@ -65,6 +66,11 @@ def generate(source: Path = CORE) -> dict[Path, str]:
             schema = _json_schema(source, class_name, importmap)
             schema = _prune(_repair(schema, class_name, view))
             schema["$id"] = f"{view.schema.id}/{class_name}"
+            # Validated as Draft 7 on both sides (dd_sdk.contract.classes, the viewer's ajv), so
+            # it says so; LinkML's metamodel keys mean nothing to a JSON Schema consumer.
+            schema["$schema"] = DRAFT_7
+            for key in ("metamodel_version", "version"):
+                schema.pop(key, None)
             schema["title"] = class_name
             # gen-json-schema leaves a top class open; a class schema is as closed as its
             # `$defs` are, as the Pydantic models are (extra="forbid").
@@ -195,6 +201,39 @@ def _dump(schema: dict[str, Any], source: Path) -> str:
     command = COMMAND if source == CORE.resolve() else f"{COMMAND} <path to {source.name}>"
     schema = {"$comment": f"Generated from {source.name} by `{command}`. Do not edit.", **schema}
     return json.dumps(schema, indent=3) + "\n"
+
+
+def stale(source: Path = CORE) -> list[str]:
+    """What in `generated/` beside `source` is out of date: missing, different, or no longer
+    generated. Empty when current. The core's SHACL file is compared as a graph, since rdflib
+    does not serialise blank nodes in a stable order. An agent's tests call this for its own
+    LinkML file, as `sdk/tests/test_contract.py` does for the core."""
+    outputs = generate(source)
+    found: list[str] = []
+    for path, content in outputs.items():
+        if not path.exists():
+            found.append(f"{path.name} is missing")
+        elif not _same(path, path.read_text(encoding="utf-8"), content):
+            found.append(f"{path.name} is stale")
+    directory = source.resolve().parent / GENERATED
+    left = (
+        sorted(p.name for p in directory.iterdir() if p not in outputs)
+        if directory.is_dir()
+        else []
+    )
+    found.extend(f"{name} is no longer generated" for name in left)
+    return found
+
+
+def _same(path: Path, current: str, fresh: str) -> bool:
+    if path.suffix != ".ttl":
+        return current == fresh
+    from rdflib import Graph
+    from rdflib.compare import to_isomorphic
+
+    graphs = [to_isomorphic(Graph().parse(data=text, format="turtle")) for text in (current, fresh)]
+    same: bool = graphs[0] == graphs[1]
+    return same
 
 
 def write(outputs: dict[Path, str]) -> None:

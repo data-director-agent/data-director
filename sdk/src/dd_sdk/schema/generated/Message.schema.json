@@ -53,10 +53,9 @@
       }
    },
    "$id": "https://w3id.org/data-director/schema/workbench/Message",
-   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw.",
-   "metamodel_version": "1.11.0",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -85,6 +84,5 @@
       "message_text"
    ],
    "title": "Message",
-   "type": "object",
-   "version": "0.7.0"
+   "type": "object"
 }

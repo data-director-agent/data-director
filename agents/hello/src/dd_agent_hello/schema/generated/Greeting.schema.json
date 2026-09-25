@@ -1,5 +1,5 @@
 {
-   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$comment": "Generated from hello.yaml by `uv run dd-gen-schema <path to hello.yaml>`. Do not edit.",
    "$defs": {
       "Derivation": {
          "description": "",
@@ -32,11 +32,10 @@
          "type": "object"
       }
    },
-   "$id": "https://w3id.org/data-director/schema/workbench/Greeting",
-   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "$id": "https://w3id.org/data-director/agents/hello/Greeting",
+   "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "The payload of the hello.world template agent: one greeting, grounded on the Salutation it was derived from. Exists to demonstrate the payload contract, not to do anything.",
-   "metamodel_version": "1.11.0",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -68,6 +67,5 @@
       "grounded_on"
    ],
    "title": "Greeting",
-   "type": "object",
-   "version": "0.7.0"
+   "type": "object"
 }

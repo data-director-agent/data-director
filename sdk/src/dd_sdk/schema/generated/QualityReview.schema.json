@@ -80,10 +80,9 @@
       }
    },
    "$id": "https://w3id.org/data-director/schema/workbench/QualityReview",
-   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "The payload of a quality or validation agent: a score over an existing record and the findings behind it. Grounded on the input itself (grounding mode input_only or none).",
-   "metamodel_version": "1.11.0",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -120,6 +119,5 @@
       "grounded_on"
    ],
    "title": "QualityReview",
-   "type": "object",
-   "version": "0.7.0"
+   "type": "object"
 }
