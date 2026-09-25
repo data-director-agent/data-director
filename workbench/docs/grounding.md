@@ -15,14 +15,24 @@ withholds the result rather than passing it on.
 
 ## What the check compares
 
-The check does not take the agent's word for what it did. It compares two independent records.
+The check compares two accounts of the run.
 
 1. **What the agent says it relied on.** Each result lists its sources in a `grounded_on` list
    ([`contract.md`](contract.md)). The envelope's evidence repeats those sources.
-2. **What the agent actually did.** The trace of the run records each step as it happens. The
-   workbench writes the trace, not the agent, so an agent cannot leave a step out or make one up.
+2. **What the trace says the agent did.** The trace records each step of the run.
 
 A result passes only if the two agree.
+
+The two accounts come from different places. Some facts are recorded by the conductor: the
+grounding mode, the hash of the input, the `invoke_agent` span, and the runs it performed for a
+delegating agent. The agent cannot change these. Other facts are declared by the agent: its
+`retrieval` and `chat` spans and their times, its `grounded_on` lists, its evidence and its
+derivation badges. An agent runs as a separate service and sends its spans back with its result
+([ADR-0011](adr/0011-remote-agents.md)), so a `retrieval` span is the agent's statement that it
+read a record, not the workbench's observation of it.
+
+The linter is therefore a **consistency check**
+([ADR-0016](adr/0016-source-check.md)). See [What a pass shows](#what-a-pass-shows-and-what-it-does-not).
 
 ## Traces and spans
 
@@ -46,10 +56,10 @@ The workbench uses only these three span names. It also uses a small set of its 
 whose names start with `dd.`, defined in `dd_sdk/tracing.py`. The check reads the tree in two
 ways:
 
-- the **start and end times** show whether the agent fetched its sources before it called a
+- the **start and end times** show whether the agent's declared fetches came before it called a
   model;
-- the **retrieval spans** show exactly which records were fetched, so every source the result
-  names can be looked up.
+- the **retrieval spans** list the records the agent says it fetched, so every source the result
+  names can be matched against them.
 
 Each finished run keeps its trace in `runs/<invocation_id>/spans.jsonl`.
 
@@ -79,8 +89,8 @@ forbids model calls. Every mode still requires a successful result to cite somet
 that is only the input.
 
 The declared mode is a claim, and the check tests it. The conductor records the mode on the
-envelope and on the trace. The linter then applies that mode's rules to what the trace shows the
-agent actually did. For example, a `none` agent that calls a model breaks rule N1 and its result
+envelope and on the trace. The linter then applies that mode's rules to what the trace says the
+agent did. For example, a `none` agent that calls a model breaks rule N1 and its result
 is withheld.
 
 ## Rules
@@ -139,8 +149,48 @@ they appear in the payload. A payload the linter cannot check, for example one w
 `grounded_on`, counts as a violation. No output passes because the linter failed to recognise
 it.
 
+## What a pass shows, and what it does not
+
+| Mode | A pass shows | A pass does not show |
+|---|---|---|
+| `retrieval` | The agent's citations, evidence and declared retrievals agree, and the agent declared a retrieval before any model call. | That the agent retrieved anything, or when. The source check covers part of this. |
+| `input_only`, `none` | The result cites only the input, by the hash the conductor computed, and the agent declared no retrieval (or no model call). | That a model's rationale is faithful to the input. That is for evaluation ([ADR-0013](adr/0013-evaluation.md)). |
+| `delegation` | The result cites only the input and runs the conductor itself performed for the agent. | That a relayed reply is faithful to the runs it relays. |
+
+In every mode, a derivation badge such as `rationale_derivation` is the agent's declaration of
+how a value was made. Neither check verifies it.
+
+## The source check
+
+After the linter, the conductor re-hashes what the evidence cites against a copy of the source
+that the workbench holds ([ADR-0016](adr/0016-source-check.md)). `sources.yaml` lists each copy
+by the evidence `snapshot_ref` it serves, and pins the file by its SHA-256 hash, so the copy
+does not depend on the agent.
+
+- **S1**: the copy holds a record with the evidence item's `source_id`. An invented record
+  breaks S1.
+- **S2**: that record, projected under the item's canonicalisation, hashes to the item's
+  `content_hash`. A record the agent altered and re-hashed passes E1 and breaks S2.
+
+An item whose `snapshot_ref` has no listed copy is *unresolved*: it is reported, and it is never
+counted as verified. R3's `live` route is unresolved for now. A violation withholds the result
+in the same way as a linter violation. The verdict is written to `sources.txt` in the run
+folder, separately from `grounding.txt`.
+
+The source check shows that a cited record exists in the source and says what the evidence says.
+It does not show that the agent read the record during the run. Showing that would need
+retrieval to go through the workbench, as delegation does (TODO, ADR-0016).
+
+## Running the checks offline
+
 The linter also runs offline over a finished run:
 
 ```sh
 uv run workbench lint runs/<invocation_id>/spans.jsonl runs/<invocation_id>/envelope.json
+```
+
+and the source check over its envelope:
+
+```sh
+uv run workbench verify runs/<invocation_id>/envelope.json
 ```

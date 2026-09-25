@@ -1,4 +1,4 @@
-"""Command line: list agents, invoke one, lint a run, serve the transports.
+"""Command line: list agents, invoke one, lint a run, check its sources, serve the transports.
 
 R3's FAIRsharing snapshot is rebuilt by the agent's own script,
 `agents/r3/scripts/build_snapshot.py`; the workbench names no agent."""
@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from dd_sdk.contract.models import INPUT_TYPES, InvocationRequest, parse_input
 from dd_sdk.tracing import records_from_jsonl
-from workbench import grounding
+from workbench import grounding, sources
 from workbench.conductor import UnknownAgent
 from workbench.registry import Registry
 from workbench.settings import Settings, build_conductor, build_registry
@@ -87,7 +87,9 @@ def cmd_invoke(args: argparse.Namespace) -> int:
     report = conductor.grounding_reports[request.invocation_id]
     print(json.dumps(envelope.to_document(), indent=2))
     print(report.summary(), file=sys.stderr)
-    print(f"run directory: {conductor.store.run_dir(request.invocation_id)}", file=sys.stderr)
+    run_dir = conductor.store.run_dir(request.invocation_id)
+    print((run_dir / "sources.txt").read_text(encoding="utf-8").rstrip(), file=sys.stderr)
+    print(f"run directory: {run_dir}", file=sys.stderr)
     return 0
 
 
@@ -99,6 +101,14 @@ def cmd_lint(args: argparse.Namespace) -> int:
     ]
     envelope = json.loads(Path(args.envelope).read_text(encoding="utf-8"))
     report = grounding.lint(records_from_jsonl(lines), envelope)
+    print(report.summary())
+    return 0 if report.passed else 1
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    envelope = json.loads(Path(args.envelope).read_text(encoding="utf-8"))
+    config = Path(args.sources) if args.sources else Settings.from_env().sources_config
+    report = sources.check(envelope, sources.Sources.from_config(config))
     print(report.summary())
     return 0 if report.passed else 1
 
@@ -143,6 +153,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("spans")
     p.add_argument("envelope")
     p.set_defaults(func=cmd_lint)
+
+    p = sub.add_parser(
+        "verify", help="re-hash an envelope.json's evidence against the workbench's source copies"
+    )
+    p.add_argument("envelope")
+    p.add_argument("--sources", help="source configuration (default: sources.yaml)")
+    p.set_defaults(func=cmd_verify)
 
     p = sub.add_parser("serve", help="serve A2A, AG-UI and the viewer")
     p.add_argument("--host", default="127.0.0.1")

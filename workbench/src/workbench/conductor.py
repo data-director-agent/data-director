@@ -1,10 +1,15 @@
-"""The conductor: policy gate → input check → agent → grounding linter → validation → store →
-provenance.
+"""The conductor: policy gate → input check → agent → grounding linter → source check →
+validation → store → provenance.
 
 `invoke` is a plain function. Every transport (CLI, A2A, AG-UI) is a wrapper around it
 (ADR-0001). It fills in everything an agent must not decide about itself: identifiers,
 timestamps, telemetry, the grounding mode and input hash it is held to, and whether the output
-passed the grounding check. It knows nothing about any payload class.
+passed the grounding check and the source check. It knows nothing about any payload class.
+
+The grounding linter checks the agent's account of its run for consistency; the source check
+re-hashes what the evidence cites against a copy of the source the workbench holds (ADR-0016).
+A violation of either withholds a succeeded result. Their verdicts are stored separately, in
+`grounding.txt` and `sources.txt`.
 
 Delegation (ADR-0012). When the conductor runs a remote agent in grounding mode `delegation`,
 and it knows its own A2A address (`workbench_url`), it issues that invocation a grant: a random
@@ -54,6 +59,7 @@ from dd_sdk.tracing import (
     policy_gate_span,
 )
 from workbench import grounding, policy
+from workbench import sources as source_check
 from workbench.provenance import write_process_run_crate
 from workbench.registry import Registry
 from workbench.remote import Received, RemoteAgent
@@ -104,6 +110,9 @@ class Conductor:
     tracing: Tracing = field(default_factory=make_tracing)
     write_crate: bool = True
     grounding_reports: dict[str, grounding.GroundingReport] = field(default_factory=dict)
+    # The copies of sources the source check resolves evidence against (ADR-0016). None held
+    # means every externally sourced evidence item is reported as unresolved.
+    sources: source_check.Sources = field(default_factory=source_check.Sources.none)
     # The workbench's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
     workbench_url: str | None = None
@@ -352,17 +361,30 @@ class Conductor:
             self.grounding_reports[request.invocation_id] = report
             while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
                 del self.grounding_reports[next(iter(self.grounding_reports))]
-            if not report.passed and envelope.outcome.status == OutcomeStatus.SUCCEEDED:
+            # 4a. Source check, over the evidence the linter has just read (ADR-0016).
+            source_report = source_check.check(envelope.to_document(), self.sources)
+            withheld = [
+                (check, found)
+                for check, found in (
+                    ("the grounding linter", report.violations),
+                    ("the source check", source_report.violations),
+                )
+                if found
+            ]
+            if withheld and envelope.outcome.status == OutcomeStatus.SUCCEEDED:
+                violations = [v for _, found in withheld for v in found]
                 envelope = envelope.model_copy(
                     update={
                         "outcome": Outcome(
                             status=OutcomeStatus.FAILED,
-                            statement="Output withheld: it failed the grounding linter. "
-                            + "; ".join(report.violations),
+                            statement="Output withheld: it failed "
+                            + " and ".join(check for check, _ in withheld)
+                            + ". "
+                            + "; ".join(violations),
                         ),
                         "payload": None,
                         "evidence": [],
-                        "problem": problems.grounding_violation(report.violations),
+                        "problem": problems.grounding_violation(violations),
                     }
                 )
 
@@ -393,6 +415,7 @@ class Conductor:
             spans_path = run_dir / "spans.jsonl"
             self.tracing.write_jsonl(spans_path, trace_id)
             (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")
+            (run_dir / "sources.txt").write_text(source_report.summary() + "\n", encoding="utf-8")
             if self.write_crate:
                 write_process_run_crate(
                     run_dir,

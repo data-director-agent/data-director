@@ -82,6 +82,7 @@ line, written before its parent's.
 | `envelope.json` | The envelope returned. |
 | `spans.jsonl` | The OpenTelemetry trace of the run. |
 | `grounding.txt` | The grounding linter's verdict and any violations. |
+| `sources.txt` | The source check's verdict: how many cited records were verified, which were unresolved, and any violations. |
 | `ro-crate-metadata.json` | A Process Run Crate: a standard provenance record naming the agent, the request and the outputs. |
 
 `DD_RUNS_DIR` changes where runs are written. `DD_WRITE_CRATE=0` stops the Process Run Crate

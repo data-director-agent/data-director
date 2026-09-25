@@ -1,0 +1,17 @@
+# Independent copies of the sources agents cite (ADR-0016). The source check re-hashes each
+# cited record against the copy listed for the evidence's snapshot_ref; evidence whose
+# snapshot_ref is not listed here is reported as unresolved, never as verified.
+# A copy is independent of the agent because its bytes are pinned by sha256, not because of
+# where it lives: a file that no longer matches its pin stops the workbench from starting.
+# Rebuilding a snapshot changes its label and its hash; add a new entry for it.
+# Override the path with DD_SOURCES_CONFIG. Paths are relative to this file.
+# TODO: a resolver for R3's `live` route (the FAIRsharing API needs credentials and network).
+sources:
+  - snapshot_refs: ["snapshot:2026-09-04", "snapshot:2026-09-04 (stale)"]
+    path: ../agents/r3/data/fairsharing/snapshot.jsonl
+    id_field: fairsharing_id
+    sha256: 969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1
+  - snapshot_refs: ["packaged:sources.json"]
+    path: ../agents/factcheck/src/dd_agent_factcheck/sources.json
+    id_field: source_id
+    sha256: 1fe1c40533c803ff032b8d42e9c81ca13a926be70c4f7a14a4c2563334b4cf27

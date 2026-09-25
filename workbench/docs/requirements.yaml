@@ -189,7 +189,7 @@ requirements:
     title: Outcome vocabulary (succeeded, abstained, referred, failed, suspended) with reason codes; `suspended` is not yet produced (#16)
   - id: DD-GROUNDING
     source: project
-    title: Retrieval precedes any model call and every identity a payload asserts was retrieved
+    title: The agent's account is consistent — its declared retrieval precedes any model call and every identity a payload asserts appears in its declared retrieval; that the agent retrieved anything is not shown by the linter (ADR-0016)
   - id: DD-GROUNDING-MODE
     source: project
     title: An agent declares its grounding mode; the conductor records it and the linter applies that mode's rules

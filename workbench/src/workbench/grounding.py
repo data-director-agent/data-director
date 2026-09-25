@@ -1,5 +1,13 @@
 """The grounding linter: bespoke rules over a generic trace substrate (ADR-0008).
 
+The linter is a consistency check (ADR-0016). It compares the agent's account of its run with
+itself and with what the conductor recorded. The conductor records the root span's attributes
+(mode, input hash, outcome) and `delegations`. The agent declares its `retrieval` and `chat`
+spans, their timing, `grounded_on` and evidence. The spans are written in the agent's process
+and sent back over A2A (ADR-0011). So G1-G3 show that the agent's declared retrievals agree with
+what it cites, not that it retrieved anything; `workbench.sources` re-hashes what it cites
+against the source. R2 and D1-D2 check citations against hashes the conductor computed.
+
 The linter reads the span tree of one `invoke_agent` and the envelope it produced, and applies
 the rule set for the grounding mode the envelope declares. It never needs to know the payload
 class: it walks the payload document for `grounded_on` lists (the `Grounded` mixin), and a

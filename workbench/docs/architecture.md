@@ -21,7 +21,8 @@ flowchart LR
     I --> A["Agent service<br/>over A2A"]
     A -. "ctx.delegate<br/>(delegation mode)" .-> P
     A --> G[Grounding linter]
-    G --> V[Schema validation]
+    G --> C[Source check]
+    C --> V[Schema validation]
     V --> S["Run store<br/>trace · Process Run Crate"]
     S --> T
 ```
@@ -34,10 +35,13 @@ flowchart LR
    agent through `ctx.delegate`. Each delegated run goes through every step here as a run of its
    own, and the conductor records it in the parent envelope's `delegations`
    ([ADR-0012](adr/0012-conversation-and-orchestration.md)).
-4. The **grounding linter** checks the output is based only on what the agent was allowed to use
-   ([`grounding.md`](grounding.md)).
-5. The envelope is **validated** against the JSON Schema.
-6. The run is **stored**, with its trace and a provenance record.
+4. The **grounding linter** checks that the agent's account of its run is consistent: the
+   output cites only what its grounding mode allows, and what the agent says it retrieved
+   ([`grounding.md`](grounding.md)). It is a consistency check, not proof of retrieval.
+5. The **source check** re-hashes each cited record against a pinned copy of the source that
+   the workbench holds ([ADR-0016](adr/0016-source-check.md)).
+6. The envelope is **validated** against the JSON Schema.
+7. The run is **stored**, with its trace and a provenance record.
 
 If a step refuses, later steps still record the refusal. The caller always gets an envelope that
 says what happened. [`conductor.md`](conductor.md) describes each step in detail.
@@ -59,6 +63,7 @@ each run as its own service. Paths below are relative to the repository root.
 | Conductor | Runs the steps above. Every front end calls it. | `workbench/src/workbench/conductor.py` |
 | Policy gate | Reads an institutional profile in YAML and decides whether an agent may run. | `workbench/src/workbench/policy.py`, `workbench/profiles/` |
 | Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `workbench/src/workbench/grounding.py` |
+| Source check | Re-hashes cited records against the pinned source copies listed in `sources.yaml`. | `workbench/src/workbench/sources.py`, `workbench/sources.yaml` |
 | Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `workbench/src/workbench/store.py`, `provenance.py` |
 | Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](registry.md). | `workbench/agents.yaml`, `workbench/src/workbench/registry.py`, `remote.py` |
 | Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the viewer uses. | `workbench/src/workbench/cli.py`, `transport/` |
@@ -102,3 +107,7 @@ Each design decision has a record in [`adr/`](adr/):
 | [0010](adr/0010-agent-registry.md) | Agent registry (superseded by 0011) |
 | [0011](adr/0011-remote-agents.md) | Agents as separate A2A services |
 | [0012](adr/0012-conversation-and-orchestration.md) | Conversations, and orchestration through the workbench |
+| [0013](adr/0013-evaluation.md) | Evaluation is not conformance |
+| [0014](adr/0014-assessment-lanes.md) | Assessment lanes: tests and recorded reviews |
+| [0015](adr/0015-evidence-carries-content.md) | Evidence carries the content its hash covers |
+| [0016](adr/0016-source-check.md) | The linter checks consistency; a source check verifies citations |

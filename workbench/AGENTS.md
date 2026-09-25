@@ -1,7 +1,7 @@
 # workbench
 
 The Data Director Workbench: a harness (conductor, policy gate, input check, OpenTelemetry trace,
-per-mode grounding linter, JSONL store, Process Run Crate), a registry of agents reached over A2A,
+per-mode grounding linter, source check, JSONL store, Process Run Crate), a registry of agents reached over A2A,
 a read-only viewer, and a generated `CONFORMANCE.md`. The workbench contains no agent code. Agents
 are separate packages and services under `../agents/`, and what both sides share (the contract,
 evidence, span helpers, the A2A agent server) is `../sdk/` (ADR-0011). `docs/adr/` records
@@ -72,6 +72,11 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   → `abstained(registry_unavailable)`; policy refusal → `failed` with Problem Details or
   `referred`; wrong input class → `failed(input-not-accepted)`. Exceptions are for programmer and
   configuration errors (`ContractViolation`, `PolicyError`, `UnknownAgent`, `RegistryError`).
+- **The linter checks consistency, not retrieval (ADR-0016).** An agent's `retrieval` spans are
+  its own declarations. `sources.py` re-hashes cited records against the pinned copies in
+  `sources.yaml`. An unresolved item is never counted as verified, and a source file is never
+  read without its `sha256` pin. Do not describe `grounding: passed` as proof that an agent
+  retrieved anything.
 - **A canonicalisation is registered, never invented.** `dd_sdk.evidence.CANONICALISATIONS`; a new
   projection is a new name, and an existing name's bytes never change.
 - **A rule with missing inputs returns `None`, never `0.0`** (`agents/r3/src/dd_agent_r3/rank.py`).
