@@ -172,6 +172,7 @@ class Conductor:
 
         delegations: list[Delegation] = []
         grant: Grant | None = None
+        from_agent = False
         with invoke_agent_span(
             tracer, spec.agent_id, spec.grounding_mode.value, input_hash, link=link
         ) as root:
@@ -243,6 +244,7 @@ class Conductor:
                     )
                     prob = problems.agent_error(spec.agent_id, exc)
                 else:
+                    from_agent = True
                     # A remote agent's spans were recorded in its own process; bring them into
                     # this trace so the linter reads one tree (ADR-0011).
                     self.tracing.import_spans(trace_id, result.spans)
@@ -309,8 +311,28 @@ class Conductor:
                 }
             )
 
-        # 5. Validate, store, trace file, provenance.
+        # 5. Validate, store, trace file, provenance. A result the agent returned that still
+        # breaks the contract is the agent's error, as a payload of the wrong class is: it is
+        # stored as failed(agent-error), not raised past the store. An envelope the conductor
+        # built itself that breaks the contract is a conductor bug, and raises.
         doc = envelope.to_document()
+        if from_agent:
+            try:
+                validate.validate_envelope(doc)
+            except validate.ContractViolation as exc:
+                envelope = envelope.model_copy(
+                    update={
+                        "outcome": Outcome(
+                            status=OutcomeStatus.FAILED,
+                            statement="Agent result violates the contract: "
+                            + "; ".join(exc.messages),
+                        ),
+                        "payload": None,
+                        "evidence": [],
+                        "problem": problems.agent_error(spec.agent_id, exc),
+                    }
+                )
+                doc = envelope.to_document()
         validate.validate_envelope(doc)
         run_dir = self.store.append(doc, request_doc)
         spans_path = run_dir / "spans.jsonl"

@@ -10,15 +10,19 @@ from pathlib import Path
 import pytest
 
 from dd_agent_stub.agent import AbstainingStub
+from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     Claim,
     DatasetProfile,
     GroundingMode,
+    InvocationRequest,
     MetadataRecord,
+    Outcome,
     OutcomeStatus,
     QualityReview,
     ReasonCode,
 )
+from dd_sdk.contract.validate import validate_envelope
 from dd_sdk.evidence import (
     CANONICALISATION,
     INPUT_CANONICALISATION,
@@ -169,6 +173,48 @@ def test_payload_of_the_wrong_class_is_a_failed_outcome(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, agent).invoke(request(agent.spec.agent_id, fakes.claim()))
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and "declared QualityReview" in (env.problem.detail or "")
+
+
+def _without_reason(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+    return AgentResult(outcome=Outcome(status=OutcomeStatus.ABSTAINED, statement="No reason."))
+
+
+def _succeeded_without_payload(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+    return AgentResult(outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Nothing."))
+
+
+def _failed_without_problem(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+    return AgentResult(outcome=Outcome(status=OutcomeStatus.FAILED, statement="Gave up."))
+
+
+def _unregistered_canonicalisation(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+    result = fakes.review_of_input(request, ctx)
+    evidence = [e.model_copy(update={"canonicalisation": "unregistered"}) for e in result.evidence]
+    return AgentResult(outcome=result.outcome, payload=result.payload, evidence=evidence)
+
+
+@pytest.mark.parametrize(
+    ("behaviour", "problem"),
+    [
+        (_without_reason, "agent-error"),
+        (_succeeded_without_payload, "grounding-violation"),  # the linter withholds it first
+        (_failed_without_problem, "agent-error"),
+        (_unregistered_canonicalisation, "agent-error"),
+    ],
+    ids=lambda b: getattr(b, "__name__", "").strip("_") or None,
+)
+def test_a_result_that_breaks_the_contract_is_a_stored_failed_outcome(
+    runs_dir: Path, behaviour: fakes.Behaviour, problem: str
+) -> None:
+    """A remote agent's contract violation is its own error: stored, never raised past the store."""
+    agent = ScriptedAgent(GroundingMode.NONE, behaviour)
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith(f"/{problem}")
+    stored = conductor.store.get(env.invocation_id)
+    assert stored is not None
+    validate_envelope(stored)
 
 
 def test_unknown_agent_is_a_caller_error(runs_dir: Path) -> None:

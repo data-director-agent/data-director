@@ -197,7 +197,16 @@ def test_delegations_are_kept_when_the_parent_fails_after_delegating(tmp_path: P
             evidence=result.evidence,
         )
 
-    for behaviour, status in ((then_raise, "failed"), (then_misground, "failed")):
+    def then_break_the_contract(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        assert ctx.delegate is not None
+        ctx.delegate("fake.none", record())
+        return AgentResult(outcome=Outcome(status=OutcomeStatus.ABSTAINED, statement="No reason."))
+
+    for behaviour, status in (
+        (then_raise, "failed"),
+        (then_misground, "failed"),
+        (then_break_the_contract, "failed"),
+    ):
         conductor = make_conductor(
             tmp_path / behaviour.__name__,
             ScriptedAgent(GroundingMode.DELEGATION, behaviour),
@@ -206,6 +215,7 @@ def test_delegations_are_kept_when_the_parent_fails_after_delegating(tmp_path: P
         env = conductor.invoke(request("fake.delegation", message()))
         assert env.outcome.status == status
         assert len(env.delegations) == 1
+        assert conductor.store.get(env.invocation_id) is not None
         assert conductor.store.get(env.delegations[0].delegated_invocation_id) is not None
 
 
