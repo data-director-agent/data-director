@@ -60,6 +60,29 @@ h2 > .icon { vertical-align: -0.25em; }
 .field-row { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.75rem; }
 .field-row label { font-size: 0.8rem; color: var(--muted); }
 .field-row select { width: 100%; }
+.field-row[hidden] { display: none; }
+/* Input form: RJSF's default markup (Bootstrap 3 class names), laid out for the narrow column */
+fieldset.input-form { border: 0; margin: 0 0 0.75rem; padding: 0; min-width: 0; }
+fieldset.input-form > legend { font-size: 0.8rem; color: var(--muted); padding: 0; margin-bottom: 0.25rem; }
+.input-form fieldset { border: 0; border-left: 3px solid var(--line); margin: 0; padding: 0 0 0 0.6rem; min-width: 0; }
+.input-form fieldset#in { border-left: 0; padding-left: 0; }
+.input-form legend { font-size: 0.85rem; font-weight: 600; padding: 0; }
+.input-form .form-group { margin-bottom: 0.6rem; }
+.input-form .control-label { display: block; font-family: var(--mono); font-size: 0.78rem; color: var(--ink); margin-bottom: 0.15rem; }
+.input-form .required { color: var(--bad); margin-left: 0.15rem; }
+.input-form .field-description { font-size: 0.75rem; color: var(--muted); margin: 0 0 0.25rem; }
+.input-form .form-control, .input-form textarea { width: 100%; font: inherit; padding: 0.3rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); }
+.input-form .has-error .form-control { border-color: var(--bad); }
+.input-form .error-detail { list-style: none; margin: 0.2rem 0 0; padding: 0; font-size: 0.75rem; color: var(--bad); }
+.input-form .error-detail li::before { content: "Error: "; font-weight: 600; }
+.input-form .rjsf-array-item { gap: 0.3rem; margin-bottom: 0.4rem; }
+.input-form .rjsf-array-item > :first-child { flex: 1 1 auto; min-width: 0; }
+.input-form .array-item-toolbox, .input-form .array-item-toolbox .btn-group { display: flex; gap: 0.25rem; }
+/* An item's class description repeats once per item; the array's own label says what it holds. */
+.input-form .rjsf-array-item fieldset > .field-description { display: none; }
+.input-form .row { margin: 0; }
+.input-form .hidden { display: none; }
+.input-form .rjsf-array-item-add { margin: 0; }
 kbd { font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--line); border-radius: 3px; padding: 0 0.25rem; }
 
 /* History */
@@ -189,7 +212,6 @@ dialog.glossary dd { margin: 0.1rem 0 0; font-size: 0.85rem; color: var(--muted)
 .turn-pending .card { color: var(--muted); font-style: italic; }
 .composer .to { font-size: 0.8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin-bottom: 0.5rem; }
 .composer textarea { width: 100%; font: inherit; min-height: 4.5rem; padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); resize: vertical; }
-.composer textarea.json { font-family: var(--mono); font-size: 0.8rem; min-height: 12rem; }
 .composer .actions { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin-top: 0.5rem; }
 .composer .actions button.primary { width: auto; padding: 0.35rem 1.4rem; }
 .composer .actions .legend { margin: 0; }

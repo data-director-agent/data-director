@@ -146,6 +146,25 @@ def _agui_body(request_doc: dict[str, Any], thread_id: str) -> dict[str, Any]:
     }
 
 
+def test_agui_runs_an_input_written_in_the_shell_form_not_only_a_sample(runs_dir: Path) -> None:
+    # What the shell's input form sends: the class's required slots, optional ones left out.
+    _, app = _app(runs_dir)
+    doc = {
+        **to_document(request("hello.world")),
+        "input": {"schema_class": "Salutation", "greeted_name": "Ada"},
+    }
+
+    async def go() -> list[dict[str, Any]]:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
+            return _sse_events((await hc.post("/agui", json=_agui_body(doc, "t1"))).text)
+
+    live = asyncio.run(go())
+    assert [e["type"] for e in live] == ["RUN_STARTED", "RUN_FINISHED"]
+    envelope = live[1]["result"]
+    assert envelope["outcome"]["status"] == "succeeded", envelope["outcome"]["statement"]
+    assert envelope["payload"]["greeting_text"] == "Hello, Ada!"
+
+
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: Path) -> None:
     _, app = _app(runs_dir)

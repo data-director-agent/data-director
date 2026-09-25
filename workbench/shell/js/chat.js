@@ -1,13 +1,16 @@
 // Chat: hold a conversation with one agent, a turn at a time. ?conversation_id=… reopens one.
 import { $, el, icon, statusIcon, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun } from "./common.js";
 import { help } from "./help.js";
-import { agents, samples, loadRegistry, renderAgents, renderAgentDetail } from "./registry.js";
+import { agents, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
+import { inputForm } from "./inputform.js";
 
 // A conversation is a client-minted conversation_id plus whatever the store holds for it.
 // `chat.conversation` is GET /conversations/{id}: turns (each with its children), inputs,
 // version_changes and the history the next Message carries. The picker is locked once a
 // conversation has turns, so every turn of one conversation addresses the same agent.
 const chat = { id: null, agentId: "", conversation: null, busy: false };
+const editor = inputForm($("chat-input-form"));
+let requestSchema, formFor = null, loading = 0;
 const turns = () => chat.conversation?.turns || [];
 const acceptsMessage = (a) => a?.accepts.includes("Message");
 const defaultChatAgent = () =>
@@ -96,26 +99,28 @@ function refreshComposer() {
   const a = agents[chat.agentId];
   const textMode = acceptsMessage(a);
   $("composer-text").hidden = !textMode;
-  $("composer-json").hidden = textMode || !a;
+  $("composer-form").hidden = textMode || !a;
   $("composer-to").replaceChildren(a
     ? el("span", {}, "To ", el("span", { className: "agent-badge", textContent: `${chat.agentId}@${a.version}` }),
         textMode ? " as a Message" : ` as ${a.accepts.join(" or ")}`, help(textMode ? "message" : "accepts"))
     : el("span", {}, chat.agentId ? `${chat.agentId} is unavailable; start a new conversation with another agent.` : "Choose an agent."));
-  if (a && !textMode) {
-    const sel = $("chat-sample-select");
-    const fit = samples.filter((s) => a.accepts.includes(s.schema_class));
-    const kept = sel.value;
-    sel.replaceChildren(...(fit.length ? fit.map((s) => new Option(`${s.name} — ${s.schema_class}`, s.name)) : [new Option("No sample; write the JSON", "")]));
-    if (fit.some((s) => s.name === kept)) sel.value = kept;
-    if (!$("chat-json").value.trim() || !fit.some((s) => s.name === kept)) loadChatSample();
+  // The form is rebuilt only when the agent changes, so an edited input survives a sent turn.
+  if (a && !textMode && formFor !== chat.agentId) {
+    formFor = chat.agentId;
+    renderClasses($("chat-class-select"), $("chat-class-row"), a);
+    refreshChatSamples();
   }
   $("send").disabled = !a || chat.busy;
 }
+function refreshChatSamples() {
+  renderSamples($("chat-sample-select"), $("chat-class-select").value);
+  return loadChatSample();
+}
+// Fill the form from the chosen sample, or blank; either way the user edits it from there.
 async function loadChatSample() {
-  const name = $("chat-sample-select").value;
-  if (!name) { $("chat-json").value = ""; return; }
-  const doc = await (await fetch(`/samples/${encodeURIComponent(name)}`)).json();
-  $("chat-json").value = JSON.stringify(doc, null, 2);
+  const cls = $("chat-class-select").value, mine = ++loading;
+  const doc = await fetchSample($("chat-sample-select").value);
+  if (mine === loading) editor.show(cls, requestSchema, doc);
 }
 function transcriptNote(className, ...content) {
   const li = el("li", { className }, ...content);
@@ -133,8 +138,8 @@ async function send() {
     if (!text) { $("chat-text").focus(); return; }
     input = { schema_class: "Message", message_text: text, history: chat.conversation?.history || [] };
   } else {
-    try { input = JSON.parse($("chat-json").value); }
-    catch (e) { transcriptNote("turn-error", `Not sent: the input is not valid JSON (${e.message}).`); return; }
+    if (!editor.validate()) { transcriptNote("turn-error", "Not sent: correct the input first."); return; }
+    input = editor.value();
   }
   const request = newRequest(chat.agentId, input, chat.id);
   const messages = (chat.conversation?.history || []).map((t, i) => ({ id: `${chat.id}-${i}`, role: t.role === "user" ? "user" : "assistant", content: t.turn_text }));
@@ -177,10 +182,14 @@ function markCurrentConversation() {
 }
 
 async function main() {
-  await loadRegistry();
+  [requestSchema] = await Promise.all([
+    fetch("/schema/invocation_request.schema.json").then((r) => r.json()),
+    loadRegistry(),
+  ]);
   renderAgents($("chat-agent-select"));
   $("chat-agent-select").addEventListener("change", () => { newConversation($("chat-agent-select").value); });
   $("new-conversation").addEventListener("click", () => newConversation());
+  $("chat-class-select").addEventListener("change", refreshChatSamples);
   $("chat-sample-select").addEventListener("change", loadChatSample);
   $("composer").addEventListener("submit", (e) => { e.preventDefault(); send(); });
   document.addEventListener("keydown", (e) => {

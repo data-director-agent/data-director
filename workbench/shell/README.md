@@ -1,6 +1,6 @@
 # Read-only shell
 
-A developer tool: run a registered agent on a sample and inspect the envelope it produced. It is
+A developer tool: run a registered agent on an input, written in a form or started from a sample, and inspect the envelope it produced. It is
 not an end-user interface; end users will reach the agents through a chat interface or apps built
 on them (TODO: not yet designed).
 
@@ -13,8 +13,9 @@ and the styles in `shell.css`:
 | `js/common.js` | DOM and formatting helpers, the per-tab input cache, the AG-UI transport, cross-page links |
 | `js/glossary.js` | `GLOSSARY`, the text behind every `?` tip and the Glossary dialog |
 | `js/help.js` | the `?` tips and the Glossary dialog |
-| `js/registry.js` | the agent manifest and samples, the agent picker and its detail card |
+| `js/registry.js` | the agent manifest and samples, the agent picker and its detail card, the input-class and **Start from** pickers |
 | `js/payload.js` | the RJSF payload view and the derivation badges (Inspect only) |
+| `js/inputform.js` | the editable RJSF input form, built from an input class's schema |
 | `js/inspect.js`, `js/chat.js` | each page's own behaviour |
 
 Paths are absolute under `/shell/`, because Inspect is also served at `/`. The pages load React and
@@ -36,13 +37,23 @@ forwarded to `chat.html`.
 
 The left column holds the controls: an agent picker grouped by id prefix, with a card describing
 the chosen agent (description, grounding mode, accepted input classes, requirement ids;
-unavailable agents are listed in their own group, with their reason), a sample picker filtered to the classes the agent accepts, **Run** (`Ctrl`+`Enter`), and
-the stored runs. The right column shows one run:
+unavailable agents are listed in their own group, with their reason), the input form, **Run**
+(`Ctrl`+`Enter`), and the stored runs.
+
+The **input form** is built by RJSF from the input class's definition in the contract's generated
+`/schema/invocation_request.schema.json` (its `$defs`), so a new input class gets a form as soon
+as it is in the LinkML schema. An agent that accepts more than one class gets an **Input class**
+picker. **Start from** fills the form from one of the samples of that class, or leaves it blank;
+the user edits it from there. Run checks the form against the schema first and shows any errors
+beside their fields. The workbench checks the input again before any agent runs, so the form is
+a convenience, not a gate. The class designator `schema_class` is set by the chosen class and is
+not a field. TODO: add an `AgentSpec` input uischema if an agent needs its input fields ordered
+or given particular widgets; today the form uses the schema alone. The right column shows one run:
 
 - **Summary**: `outcome.status`, `reason_code`, `agent_id@agent_version`, `grounding_mode`,
   `completed_at`, `invocation_id` (copyable) and the statement; Problem Details when present.
-- **Input | Payload** side by side. The input is known only for runs started from the same browser
-  tab; the envelope stores the input's hash, not the input, so a replay shows the hash instead.
+- **Input | Payload** side by side. The input shown is exactly what was sent. It is known only
+  for runs started from the same browser tab; the envelope stores the input's hash, not the input, so a replay shows the hash instead.
 - **Payload**, rendered by RJSF from the payload class in the envelope schema's `$defs` and the
   agent's fragment (`AgentSpec.uischema`). Custom templates present it as a document rather than a
   disabled form: label/value pairs, and an array of objects as rows under a header.
@@ -66,13 +77,14 @@ the stored runs. The right column shows one run:
   LinkML slots.
 
 Loads a run by `?invocation_id=` (AG-UI replay from the store), from the stored-runs list, or by
-running a chosen agent on a chosen sample.
+running a chosen agent on the input in the form.
 
 ## What Chat shows
 
 An agent picker (the orchestrator by default, found by grounding mode `delegation`), the stored
 conversations, the transcript and a composer. An agent that accepts a `Message` gets a text box;
-any other agent gets its input as JSON, started from a sample. Every reply card names
+any other agent gets the same input form as Inspect, started from a sample or blank. The form is
+kept across turns, so the next turn starts from the last input sent. Every reply card names
 `agent_id@agent_version`, nests the invocations it delegated, and links to its envelope in
 Inspect. `?conversation_id=` reopens a conversation (`GET /conversations/{id}`).
 
@@ -82,7 +94,7 @@ the summary, evidence and telemetry are laid out directly. TODO: decide whether 
 
 ## Not here, on purpose
 
-No editing, no feedback capture, no streaming, no `suspended` interrupt. Those arrive with the AG-UI events that need them.
+No editing of a stored run (composing a new input is not editing one), no feedback capture, no streaming, no `suspended` interrupt. Those arrive with the AG-UI events that need them.
 
 The browser is not exercised in CI. `tests/test_shell.py` checks that every agent's fragment badges
 its model-writable fields by their derivation sibling, that the base covers the envelope only,

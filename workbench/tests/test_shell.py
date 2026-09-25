@@ -114,6 +114,21 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
         assert name not in SHELL, name
 
 
+def test_input_form_is_built_from_the_input_schema_and_names_no_class() -> None:
+    form = (SHELL_DIR / "js" / "inputform.js").read_text(encoding="utf-8")
+    assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in form
+    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in form
+    assert 'tagName: "div"' in form  # Chat's composer is a <form>; forms do not nest
+    for page in ("inspect.js", "chat.js"):
+        module = (SHELL_DIR / "js" / page).read_text(encoding="utf-8")
+        assert 'fetch("/schema/invocation_request.schema.json")' in module, page
+        assert 'from "./inputform.js"' in module, page
+    # Chat names Message for its text box; no other input class is named anywhere.
+    for name in ("Salutation", "Claim", "MetadataRecord", "DatasetProfile"):
+        assert name not in SHELL, name
+    assert 'id="chat-json"' not in PAGES["chat.html"]
+
+
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_chat_mode_is_driven_by_the_conversation_api_and_names_every_agent_version() -> None:
     assert '<label for="chat-agent-select">' in PAGES["chat.html"]

@@ -41,3 +41,24 @@ export function renderAgentDetail(id, box) {
       a.requirement_ids.length ? help("requirement") : null));
   else box.replaceChildren(el("p", { className: "desc" }, id ? `Unavailable: ${unavailable[id]}` : "", id ? help("unavailable") : null));
 }
+
+// The input-class picker, shown only when the agent accepts more than one class. A class kept
+// from before stays chosen if the agent still accepts it.
+export function renderClasses(sel, row, agent) {
+  const kept = sel.value;
+  const classes = agent ? agent.accepts : [];
+  sel.replaceChildren(...classes.map((c) => new Option(c, c)));
+  if (classes.includes(kept)) sel.value = kept;
+  row.hidden = classes.length < 2;
+}
+// "Start from": a blank form, or one of the samples of the chosen class. The first sample is
+// chosen unless the one chosen before still fits.
+export function renderSamples(sel, cls) {
+  const kept = sel.value;
+  const fit = samples.filter((s) => s.schema_class === cls);
+  sel.replaceChildren(new Option(cls ? `Blank ${cls}` : "Choose an agent first", ""), ...fit.map((s) => new Option(s.name, s.name)));
+  sel.value = fit.some((s) => s.name === kept) ? kept : fit[0]?.name || "";
+}
+export async function fetchSample(name) {
+  return name ? (await fetch(`/samples/${encodeURIComponent(name)}`)).json() : null;
+}

@@ -41,10 +41,18 @@
           <select id="agent-select" aria-describedby="agent-detail"></select>
         </div>
         <div class="agent-detail" id="agent-detail" hidden></div>
+        <div class="field-row" id="class-row" hidden>
+          <span class="label-row"><label for="class-select">Input class</label><span data-help="accepts"></span></span>
+          <select id="class-select"></select>
+        </div>
         <div class="field-row">
-          <span class="label-row"><label for="sample-select">Sample input</label><span data-help="sample"></span></span>
+          <span class="label-row"><label for="sample-select">Start from</label><span data-help="sample"></span></span>
           <select id="sample-select"><option value="">Choose an agent first</option></select>
         </div>
+        <fieldset class="input-form" id="input-fieldset" hidden>
+          <legend class="label-row">Input<span data-help="input-form"></span></legend>
+          <div id="input-form"></div>
+        </fieldset>
         <button id="run" class="primary" type="button" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#play"/></svg>Run</button>
         <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs · <span id="status" role="status" aria-live="polite">Loading…</span></p>
       </section>
@@ -59,7 +67,7 @@
           <h3>Getting started</h3>
           <ol>
             <li>Choose an <strong>agent</strong>. The card beneath it says what the agent does and which inputs it accepts.</li>
-            <li>Choose a <strong>sample input</strong>. Only samples the agent accepts are listed.</li>
+            <li>Fill in the <strong>input</strong>. The form is built from the schema of the input class the agent accepts; <strong>Start from</strong> fills it from a sample, which you can then edit.</li>
             <li>Press <strong><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#play"/></svg>Run</strong>, or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
           </ol>
           <p>Or open an earlier run from <strong>Stored runs</strong>. Each run returns one envelope: an outcome, the agent's payload if it succeeded, the evidence the payload rests on, and telemetry. Press <kbd>?</kbd> beside a term for an explanation, or open the <strong>Glossary</strong>.</p>

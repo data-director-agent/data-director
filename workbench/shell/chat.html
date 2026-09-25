@@ -64,15 +64,19 @@
           <label for="chat-text" class="visually-hidden">Message</label>
           <textarea id="chat-text" placeholder="Write a message"></textarea>
         </div>
-        <div id="composer-json" hidden>
+        <div id="composer-form" hidden>
+          <div class="field-row" id="chat-class-row" hidden>
+            <span class="label-row"><label for="chat-class-select">Input class</label><span data-help="accepts"></span></span>
+            <select id="chat-class-select"></select>
+          </div>
           <div class="field-row">
-            <span class="label-row"><label for="chat-sample-select">Start from sample</label><span data-help="sample"></span></span>
+            <span class="label-row"><label for="chat-sample-select">Start from</label><span data-help="sample"></span></span>
             <select id="chat-sample-select"></select>
           </div>
-          <div class="field-row">
-            <span class="label-row"><label for="chat-json">Input JSON</label><span data-help="input"></span></span>
-            <textarea id="chat-json" class="json" spellcheck="false"></textarea>
-          </div>
+          <fieldset class="input-form">
+            <legend class="label-row">Input<span data-help="input-form"></span></legend>
+            <div id="chat-input-form"></div>
+          </fieldset>
         </div>
         <div class="actions">
           <button class="primary" id="send" type="submit" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#send-horizontal"/></svg>Send</button>

@@ -2,13 +2,15 @@
 // ?invocation_id=… reloads a run.
 import { $, el, icon, statusIcon, wireCopy, inputs, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, chatLink, parseSse, newRequest, postRun } from "./common.js";
 import { closeTip, help } from "./help.js";
-import { agents, unavailable, samples, loadRegistry, renderAgents, renderAgentDetail } from "./registry.js";
+import { agents, unavailable, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
 import { payloadView } from "./payload.js";
+import { inputForm } from "./inputform.js";
 
 // The payload fragment comes from the agent's manifest entry, so a new payload class renders
 // as soon as its agent ships a fragment. A replayed run uses its own agent's fragment.
-let schema, current = null;
+let schema, requestSchema, current = null;
 const showPayload = payloadView($("form"));
+const editor = inputForm($("input-form"));
 
 function payloadSchema(payload) {
   const def = payload && schema.$defs?.[payload.schema_class];
@@ -153,12 +155,13 @@ async function replay(id) {
   $("status").textContent = `Showing ${shortId(id)}`;
 }
 
-async function run(agentId, sampleName) {
+async function run(agentId) {
+  if (!editor.validate()) { $("status").textContent = "Not run: correct the input first."; return; }
+  const input = editor.value();
   const button = $("run");
   button.disabled = true; button.textContent = "Running…";
-  $("status").textContent = `Running ${agentId} on ${sampleName}…`;
+  $("status").textContent = `Running ${agentId} on a ${input.schema_class}…`;
   try {
-    const input = await (await fetch(`/samples/${encodeURIComponent(sampleName)}`)).json();
     const { envelope, error } = await postRun(newRequest(agentId, input));
     if (!envelope) { $("status").textContent = `Error: ${error}`; return; }
     const fin = { result: envelope };
@@ -192,37 +195,51 @@ function markCurrentRun() {
 }
 const selectedAgent = () => $("agent-select").value;
 
-// Samples are filtered to the input classes the chosen agent accepts, so the mismatch path
-// is reachable only deliberately (via the CLI or A2A), not by accident here.
-function refreshSamples() {
+// The form offers only the input classes the chosen agent accepts, so the mismatch path is
+// reachable only deliberately (via the CLI or A2A), not by accident here.
+let formReady = false, loading = 0;
+function refreshClasses() {
   const agent = agents[selectedAgent()];
-  const sel = $("sample-select");
-  sel.replaceChildren();
-  if (!agent) sel.append(new Option(selectedAgent() in unavailable ? "Agent unavailable" : "Choose an agent first", ""));
-  else {
-    const fit = samples.filter((s) => agent.accepts.includes(s.schema_class));
-    if (!fit.length) sel.append(new Option("No sample accepted by this agent", ""));
-    for (const s of fit) sel.append(new Option(`${s.name} — ${s.schema_class}`, s.name));
-  }
+  renderClasses($("class-select"), $("class-row"), agent);
+  if (!agent) {
+    $("sample-select").replaceChildren(new Option(selectedAgent() in unavailable ? "Agent unavailable" : "Choose an agent first", ""));
+    ++loading; $("input-fieldset").hidden = true; formReady = editor.show(null);
+    refreshRunButton();
+  } else refreshSamples();
+}
+function refreshSamples() {
+  renderSamples($("sample-select"), $("class-select").value);
+  return loadSample();
+}
+// Fill the form from the chosen sample, or blank; either way the user edits it from there.
+async function loadSample() {
+  const cls = $("class-select").value, mine = ++loading;
+  const doc = await fetchSample($("sample-select").value);
+  if (mine !== loading) return;  // a later choice has superseded this one
+  formReady = editor.show(cls, requestSchema, doc);
+  $("input-fieldset").hidden = !cls;
   refreshRunButton();
 }
 function refreshRunButton() {
-  $("run").disabled = !(agents[selectedAgent()] && $("sample-select").value);
+  $("run").disabled = !(agents[selectedAgent()] && formReady);
 }
 
 async function main() {
-  [schema] = await Promise.all([
+  [schema, requestSchema] = await Promise.all([
     fetch("/schema/envelope.schema.json").then((r) => r.json()),
+    fetch("/schema/invocation_request.schema.json").then((r) => r.json()),
     loadRegistry(),
   ]);
   renderAgents($("agent-select"));
-  $("agent-select").addEventListener("change", () => { renderAgentDetail(selectedAgent(), $("agent-detail")); refreshSamples(); });
-  refreshSamples();
-  $("sample-select").addEventListener("change", refreshRunButton);
-  $("run").addEventListener("click", () => run(selectedAgent(), $("sample-select").value));
+  $("agent-select").addEventListener("change", () => { renderAgentDetail(selectedAgent(), $("agent-detail")); refreshClasses(); });
+  refreshClasses();
+  $("class-select").addEventListener("change", refreshSamples);
+  $("sample-select").addEventListener("change", loadSample);
+  $("run").addEventListener("click", () => run(selectedAgent()));
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return;
-    if (!$("run").disabled) run(selectedAgent(), $("sample-select").value);
+    e.preventDefault();
+    if (!$("run").disabled) run(selectedAgent());
   });
   addEventListener("popstate", () => {
     const id = new URLSearchParams(location.search).get("invocation_id");
