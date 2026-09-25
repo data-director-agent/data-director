@@ -12,5 +12,4 @@ This is a community-driven, open-source project. See:
 - [Contribution guide](CONTRIBUTING.md) — this repository's structure and tooling; the organisation-wide [contribution guide](https://github.com/data-director-agent/.github/blob/main/CONTRIBUTING.md) covers RFCs, sign-off and pull requests
 - [Code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md) — expected standards of behaviour
 - [Software management plan](docs/SOFTWARE_MANAGEMENT_PLAN.md) — the software management plan
-- [Experiments](experiments/) — prototype work; not yet the reference implementation
 - [Workbench](workbench/) — development environment for building and testing sub-agents: the invocation contract (LinkML), an R3 agent over FAIRsharing, an abstaining stub, a read-only viewer, and a generated `CONFORMANCE.md`

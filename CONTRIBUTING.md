@@ -15,7 +15,8 @@ This repository is organised as follow:
 
 * `docs/` contains documentation
 * `workbench/` contains the development environment for building and testing sub-agents
-* `experiments/` contains prototype work
+* `agents/` contains one package per agent, including alpha-versioned experimental ones
+  (`agents/README.md`)
 
 ## Code style and testing
 

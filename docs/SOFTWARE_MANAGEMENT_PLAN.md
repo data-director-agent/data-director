@@ -12,14 +12,11 @@ the [project charter](https://github.com/data-director-agent/.github/blob/main/C
 
 ## Development approach
 
-- **Language / stack**: `TODO` — not yet chosen. Candidate approaches are being trialled in
-  [`experiments/`](../experiments/), which is prototype work and not the reference
-  implementation.
+- **Language / stack**: Python, `uv` workspace. Exploratory approaches are trialled as
+  alpha-versioned agents in [`agents/`](../agents/) (see `agents/README.md`) rather than in a
+  separate prototype tree.
 - **Repository**: Git, hosted at `TODO: repository URL`.
 - **Branching and release strategy**: `TODO` — to be defined once initial development begins.
-  Until then, exploratory work happens under `experiments/`; promoting any of it to the reference
-  implementation follows the RFC / lazy consensus process in
-  [GOVERNANCE.md](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md).
 - **Versioning**: [Semantic Versioning](https://semver.org/) once releases begin.
 
 ## Licensing

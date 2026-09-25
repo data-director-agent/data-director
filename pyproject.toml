@@ -51,7 +51,6 @@ data-director-agent-director = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-extend-exclude = ["experiments"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH", "TID", "C4", "DTZ", "T20"]

@@ -1,6 +1,0 @@
-# Run records are per-machine working output, not repository content.
-runs/
-.env
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
