@@ -36,6 +36,7 @@ from dd_sdk.contract.models import (
     InvocationRequest,
     Outcome,
 )
+from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -43,6 +44,10 @@ if TYPE_CHECKING:
 
 class SpecError(Exception):
     """A description does not rebuild into an `AgentSpec` against this contract."""
+
+
+class ContractVersionError(SpecError):
+    """A description declares a contract version this one cannot govern (ADR-0019)."""
 
 
 @dataclass(frozen=True)
@@ -71,6 +76,8 @@ class AgentSpec:
     # Payload field path ("score", "findings.severity"; list items are transparent) -> how the
     # agent produces it. An unlisted field is copied from input or evidence.
     derivations: Mapping[str, Derived] = field(default_factory=dict)
+    # The core contract the agent was built against: this SDK's, or the one its card declares.
+    contract_version: str = CONTRACT_VERSION
 
     def __post_init__(self) -> None:
         for path, derived in self.derivations.items():
@@ -91,6 +98,7 @@ DESCRIPTION_KEYS = frozenset(
         "grounding_mode",
         "payload",
         "derivations",
+        "contract_version",
     }
 )
 
@@ -151,6 +159,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             path: {"how": d.how.value, "recorded_in": d.recorded_in}
             for path, d in spec.derivations.items()
         },
+        "contract_version": spec.contract_version,
     }
 
 
@@ -159,7 +168,21 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
 
     A name the contract does not define is a `SpecError`: an agent cannot introduce an input or
     payload class the workbench does not know (the contract is central, ADR-0007).
+
+    A description built against a contract this one cannot govern is a `ContractVersionError`,
+    checked first, since under another contract the rest of the description may not parse.
     """
+    declared = entry.get("contract_version")
+    if not isinstance(declared, str):
+        raise ContractVersionError(
+            f"agent {entry.get('agent_id')!r} declares no contract version; this workbench "
+            f"governs contract {CONTRACT_VERSION}"
+        )
+    if not compatible(declared):
+        raise ContractVersionError(
+            f"agent {entry.get('agent_id')!r} was built against contract {declared}; this "
+            f"workbench governs contract {CONTRACT_VERSION}"
+        )
     missing = DESCRIPTION_KEYS - set(entry)
     if missing:
         raise SpecError(f"agent description lacks {sorted(missing)}")
@@ -196,6 +219,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         grounding_mode=mode,
         payload_type=PAYLOAD_TYPES[payload] if payload is not None else None,
         derivations=derivations,
+        contract_version=declared,
     )
 
 
