@@ -19,6 +19,7 @@ flowchart LR
     T["Front end<br/>CLI · A2A · shell"] --> P[Policy gate]
     P --> I[Input check]
     I --> A["Agent service<br/>over A2A"]
+    A -. "ctx.delegate<br/>(delegation mode)" .-> P
     A --> G[Grounding linter]
     G --> V[Schema validation]
     V --> S["Run store<br/>trace · Process Run Crate"]
@@ -28,7 +29,11 @@ flowchart LR
 1. The **policy gate** checks that the institution's profile allows this agent to run.
 2. The **input check** confirms the agent reads this kind of input.
 3. The **agent** does its work in its own process and returns an outcome, a payload, its
-   evidence and its trace spans. The conductor adds the spans to the run's trace.
+   evidence and its trace spans. The conductor adds the spans to the run's trace. An agent in
+   grounding mode `delegation`, such as an orchestrator, may ask the workbench to run another
+   agent through `ctx.delegate`. Each delegated run goes through every step here as a run of its
+   own, and the conductor records it in the parent envelope's `delegations`
+   ([ADR-0012](adr/0012-conversation-and-orchestration.md)).
 4. The **grounding linter** checks the output is based only on what the agent was allowed to use
    ([`grounding.md`](grounding.md)).
 5. The envelope is **validated** against the JSON Schema.
@@ -96,3 +101,4 @@ Each design decision has a record in [`adr/`](adr/):
 | [0009](adr/0009-evidence-canonicalisations.md) | Evidence canonicalisations |
 | [0010](adr/0010-agent-registry.md) | Agent registry (superseded by 0011) |
 | [0011](adr/0011-remote-agents.md) | Agents as separate A2A services |
+| [0012](adr/0012-conversation-and-orchestration.md) | Conversations, and orchestration through the workbench |
