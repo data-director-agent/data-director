@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from linkml_runtime.utils.schemaview import SchemaView
+
 ROOT = Path(__file__).resolve().parent.parent
 SCHEMA = ROOT / "src" / "dd_sdk" / "schema"
 SOURCE = SCHEMA / "data_director.yaml"
@@ -41,7 +43,7 @@ def generate() -> dict[Path, str]:
             capture_output=True,
             text=True,
         )
-        outputs[OUT / filename] = _pin_constants(result.stdout)
+        outputs[OUT / filename] = _pin_constants(result.stdout, top_class)
     result = subprocess.run(
         [sys.executable, "-m", "linkml.generators.shaclgen", str(SOURCE)],
         check=True,
@@ -52,8 +54,8 @@ def generate() -> dict[Path, str]:
     return outputs
 
 
-def _pin_constants(schema_text: str) -> str:
-    """Two repairs to the generator's output, made in the one place generation happens.
+def _pin_constants(schema_text: str, top_class: str) -> str:
+    """Three repairs to the generator's output, made in the one place generation happens.
 
     1. `requires_human_review` is emitted as `const: true`. LinkML's `equals_expression` is not
        carried into JSON Schema by gen-json-schema. C13/C15 make human review mandatory; a
@@ -62,14 +64,26 @@ def _pin_constants(schema_text: str) -> str:
        `{"$ref": "#/$defs/Any", "anyOf": [...]}`. Under Draft 7, `$ref` overrides every sibling
        keyword, so the `anyOf` would never be checked and any object would validate. The `$ref`
        is dropped; the `anyOf` alone is the constraint (ADR-0007).
+    3. Properties are emitted in alphabetical order. They are put back in the order the LinkML
+       source gives a class's slots, own slots before mixins, which is the order a reader meets
+       them in the viewer (ADR-0016). Property order carries no meaning in JSON Schema.
     """
     schema = json.loads(schema_text)
-    for holder in (schema, *schema.get("$defs", {}).values()):
-        for name, prop in holder.get("properties", {}).items():
+    view = SchemaView(str(SOURCE))
+    holders = [(top_class, schema), *schema.get("$defs", {}).items()]
+    for class_name, holder in holders:
+        properties = holder.get("properties", {})
+        for name, prop in properties.items():
             if name == "requires_human_review":
                 prop["const"] = True
             if "anyOf" in prop and prop.get("$ref", "").endswith("/Any"):
                 del prop["$ref"]
+        if properties and class_name in view.all_classes():
+            order = [s.name for s in view.class_induced_slots(class_name)]
+            rank = {name: i for i, name in enumerate(order)}
+            holder["properties"] = dict(
+                sorted(properties.items(), key=lambda kv: rank.get(kv[0], len(order)))
+            )
     return json.dumps(schema, indent=3) + "\n"
 
 

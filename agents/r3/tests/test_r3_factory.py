@@ -59,7 +59,8 @@ def test_the_spec_round_trips_through_the_manifest() -> None:
     assert spec.accepts == (DatasetProfile,)
     assert spec.grounding_mode == GroundingMode.RETRIEVAL
     assert spec.payload_type is Recommendations
-    assert spec.uischema is not None and "items" in spec.uischema
+    assert spec.derivations == R3Agent.spec.derivations
+    assert spec.derivations["items.rationale"].recorded_in == "rationale_derivation"
 
 
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")

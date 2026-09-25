@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.models import (
     Claim,
     Derivation,
@@ -41,7 +41,6 @@ from dd_sdk.tracing import retrieval_span
 
 HERE = Path(__file__).resolve().parent
 SOURCES = HERE / "sources.json"
-UISCHEMA = HERE / "uischema.json"
 
 STOPWORDS = frozenset(
     {
@@ -119,7 +118,10 @@ class FactChecker:
         accepts=(Claim,),
         grounding_mode=GroundingMode.RETRIEVAL,
         payload_type=FactCheck,
-        uischema=json.loads(UISCHEMA.read_text(encoding="utf-8")),
+        derivations={
+            "verdict": Derived(Derivation.LEXICAL),
+            "rationale": Derived(Derivation.TEMPLATE, recorded_in="rationale_derivation"),
+        },
     )
 
     def __init__(self, sources: SourceIndex | None = None) -> None:

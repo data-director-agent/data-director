@@ -12,19 +12,23 @@ A2A and sees the same `Agent` protocol through its `RemoteAgent`.
 `describe(spec)` is the one manifest every consumer reads: the agent's A2A card extension, the
 workbench's own agent card, `workbench agents`, `GET /agents` and the viewer's agent picker.
 `spec_from_description` is its inverse, used by the workbench to rebuild a spec from a card.
+The manifest says what an agent does, never how to draw it: the viewer works out a payload's
+presentation from its schema and the agent's `derivations` (ADR-0016).
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from types import NoneType, UnionType
+from typing import TYPE_CHECKING, Any, Protocol, Union, get_args, get_origin, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
 from dd_sdk.contract.models import (
     INPUT_TYPES,
     PAYLOAD_TYPES,
+    Derivation,
     EvidenceItem,
     Frozen,
     Grounded,
@@ -42,6 +46,19 @@ class SpecError(Exception):
 
 
 @dataclass(frozen=True)
+class Derived:
+    """How an agent produces one payload field that it does not copy from input or evidence.
+
+    `recorded_in` names a sibling field of type `Derivation` in which each value records how it
+    actually came about, so a template fallback where a model would normally write is shown as
+    template. Without it, `how` holds for every value.
+    """
+
+    how: Derivation
+    recorded_in: str | None = None
+
+
+@dataclass(frozen=True)
 class AgentSpec:
     agent_id: str
     version: str
@@ -51,7 +68,13 @@ class AgentSpec:
     accepts: tuple[type[Frozen], ...]  # input classes; anything else is input-not-accepted
     grounding_mode: GroundingMode
     payload_type: type[Grounded] | None  # None: the agent never succeeds with a payload
-    uischema: Mapping[str, Any] | None = None  # RJSF fragment for the payload, for the viewer
+    # Payload field path ("score", "findings.severity"; list items are transparent) -> how the
+    # agent produces it. An unlisted field is copied from input or evidence.
+    derivations: Mapping[str, Derived] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        for path, derived in self.derivations.items():
+            _check_derivation(self, path, derived)
 
     def accepts_names(self) -> tuple[str, ...]:
         return tuple(t.__name__ for t in self.accepts)
@@ -67,9 +90,50 @@ DESCRIPTION_KEYS = frozenset(
         "accepts",
         "grounding_mode",
         "payload",
-        "uischema",
+        "derivations",
     }
 )
+
+
+def _field_model(annotation: Any) -> type[Frozen] | None:
+    """The model a field holds, directly, in a list or as an optional; None for a scalar."""
+    if isinstance(annotation, type) and issubclass(annotation, Frozen):
+        return annotation
+    if get_origin(annotation) in (list, Union, UnionType):
+        for arg in get_args(annotation):
+            if arg is not NoneType and (found := _field_model(arg)) is not None:
+                return found
+    return None
+
+
+def _is_derivation(annotation: Any) -> bool:
+    if annotation is Derivation:
+        return True
+    return get_origin(annotation) in (Union, UnionType) and Derivation in get_args(annotation)
+
+
+def _check_derivation(spec: AgentSpec, path: str, derived: Derived) -> None:
+    where = f"agent {spec.agent_id!r} derivation {path!r}"
+    if spec.payload_type is None:
+        raise SpecError(f"{where}: the agent declares no payload")
+    if not isinstance(derived.how, Derivation):
+        raise SpecError(f"{where}: {derived.how!r} is not a Derivation")
+    *parents, name = path.split(".")
+    model: type[Frozen] = spec.payload_type
+    for part in parents:
+        info = model.model_fields.get(part)
+        nested = _field_model(info.annotation) if info else None
+        if nested is None:
+            raise SpecError(f"{where}: {model.__name__} has no nested field {part!r}")
+        model = nested
+    if name not in model.model_fields:
+        raise SpecError(f"{where}: {model.__name__} has no field {name!r}")
+    if derived.recorded_in is not None:
+        recorder = model.model_fields.get(derived.recorded_in)
+        if recorder is None or not _is_derivation(recorder.annotation):
+            raise SpecError(
+                f"{where}: {model.__name__}.{derived.recorded_in} is not a Derivation field"
+            )
 
 
 def describe(spec: AgentSpec) -> dict[str, Any]:
@@ -83,7 +147,10 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "accepts": list(spec.accepts_names()),
         "grounding_mode": spec.grounding_mode.value,
         "payload": spec.payload_type.__name__ if spec.payload_type else None,
-        "uischema": dict(spec.uischema) if spec.uischema else None,
+        "derivations": {
+            path: {"how": d.how.value, "recorded_in": d.recorded_in}
+            for path, d in spec.derivations.items()
+        },
     }
 
 
@@ -112,6 +179,13 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         mode = GroundingMode(entry["grounding_mode"])
     except ValueError as exc:
         raise SpecError(f"agent {entry['agent_id']!r}: {exc}") from exc
+    try:
+        derivations = {
+            str(path): Derived(Derivation(d["how"]), d.get("recorded_in"))
+            for path, d in entry["derivations"].items()
+        }
+    except (AttributeError, KeyError, TypeError, ValueError) as exc:
+        raise SpecError(f"agent {entry['agent_id']!r}: malformed derivations: {exc}") from exc
     return AgentSpec(
         agent_id=str(entry["agent_id"]),
         version=str(entry["version"]),
@@ -121,7 +195,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         accepts=tuple(INPUT_TYPES[name] for name in entry["accepts"]),
         grounding_mode=mode,
         payload_type=PAYLOAD_TYPES[payload] if payload is not None else None,
-        uischema=entry["uischema"],
+        derivations=derivations,
     )
 
 

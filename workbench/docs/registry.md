@@ -23,7 +23,7 @@ Set `DD_AGENTS_CONFIG` to use a different file, for example one per deployment.
 
 The file holds only addresses. Everything else about an agent comes from the agent itself:
 its identifier, version, the input classes it reads, its payload class, its grounding mode, its
-action class, its requirement identifiers and its uischema fragment.
+action class, its requirement identifiers and how it derives each payload field (`derivations`).
 
 ## What happens at start-up
 
@@ -76,7 +76,7 @@ therefore always agree with one another.
 | `uv run workbench agents` | A table of registered agents, then each unavailable agent with its reason. Add `--json` for the raw manifest. |
 | `GET /agents` | `{"agents": [...manifest...], "unavailable": {name: reason}}`. The viewer reads this. |
 | The workbench's own A2A card | One skill per registered agent, tagged with its grounding mode, the classes it accepts and its requirement identifiers. |
-| The viewer | The agent picker, grouped by the prefix of each `agent_id`. Unavailable agents appear with their reason and cannot be run. The payload form uses the agent's uischema fragment from the manifest. |
+| The viewer | The agent picker, grouped by the prefix of each `agent_id`. Unavailable agents appear with their reason and cannot be run. The payload view badges fields from the agent's `derivations` in the manifest. |
 
 ## Adding or removing an agent
 

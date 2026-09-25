@@ -1,9 +1,9 @@
 """hello.world: the template agent. Greets whoever the input names, and nothing else.
 
 This package exists to be copied. It is the smallest agent that walks the whole recipe in
-`agents/README.md` — a new input class, a new payload class, a grounding mode, a uischema
-fragment, a console script, a profile entry, a sample and marked tests — with no domain logic in
-the way. It runs as its own service (`dd-hello serve`); the workbench reaches it over A2A.
+`agents/README.md` — a new input class, a new payload class, a grounding mode, the payload's
+derivations, a console script, a profile entry, a sample and marked tests — with no domain logic
+in the way. It runs as its own service (`dd-hello serve`); the workbench reaches it over A2A.
 `quality.reviewer` and `fact.checker` show what a real agent does; this one shows only what the
 harness requires. Read it top to bottom, then delete the greeting.
 
@@ -19,12 +19,10 @@ source id and content hash the conductor computed and handed over in `ctx`.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
-from pathlib import Path
 
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
@@ -38,12 +36,6 @@ from dd_sdk.contract.models import (
     Salutation,
 )
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
-
-HERE = Path(__file__).resolve().parent
-
-# Step 8 of the recipe: the RJSF fragment the viewer composes under `payload`. Shipped with the
-# agent, read through `spec.uischema`, and never registered anywhere central.
-UISCHEMA = HERE / "uischema.json"
 
 # The whole of this agent's domain knowledge. A real agent would load a rule file or reach a
 # backend here; the point is that neither is the harness's business.
@@ -75,7 +67,11 @@ class HelloWorld:
         accepts=(Salutation,),
         grounding_mode=GroundingMode.NONE,
         payload_type=Greeting,
-        uischema=json.loads(UISCHEMA.read_text(encoding="utf-8")),
+        # Step 8 of the recipe: how each field that is not copied from the input comes about. The
+        # viewer badges `greeting_text` from this, reading `greeting_derivation` per value.
+        derivations={
+            "greeting_text": Derived(Derivation.TEMPLATE, recorded_in="greeting_derivation")
+        },
     )
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:

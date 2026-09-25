@@ -1,9 +1,10 @@
 """The viewer is not run in CI; these tests check what can be checked without a browser.
 
-The base `viewer/uischema.json` covers the envelope. Each agent ships an RJSF fragment for its
-payload in `spec.uischema`; the viewer composes the two per render. The convention a fragment must
-honour: a field a model may write points its badge at the sibling that records how the value
-actually came about, so a template fallback is not badged as AI-derived.
+The base `viewer/uischema.json` covers the envelope. A payload's uiSchema is worked out in the
+viewer from the payload class's schema and the agent's `spec.derivations` (ADR-0016); no agent
+ships presentation. The convention the derivations must honour: every field that records how a
+value came about is named as some field's `recorded_in`, so a template fallback where a model may
+write is not badged as AI-derived.
 
 The viewer is two pages (Inspect, Chat) sharing one stylesheet and a set of ES modules; the
 string checks below read all of them together.
@@ -14,7 +15,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 
@@ -22,6 +23,7 @@ from dd_agent_director.agent import DirectorStub
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
+from dd_agent_r3.agent import R3Agent
 from dd_agent_stub.agent import AbstainingStub
 from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus
@@ -37,6 +39,7 @@ VIEWER = "\n".join(p.read_text(encoding="utf-8") for p in SOURCES)
 GLOSSARY_JS = (VIEWER_DIR / "js" / "glossary.js").read_text(encoding="utf-8")
 
 SPECS: list[AgentSpec] = [
+    R3Agent.spec,
     QualityReviewer.spec,
     FactChecker.spec,
     HelloWorld.spec,
@@ -56,40 +59,44 @@ def _walk(node: Any, path: tuple[str, ...] = ()) -> dict[tuple[str, ...], dict[s
     return out
 
 
-def _derivation_pairs(
-    model: type[Any], path: tuple[str, ...] = ()
-) -> list[tuple[tuple[str, ...], str]]:
-    """(path to field X, name of sibling X_derivation) for every pair the payload model declares."""
-    out: list[tuple[tuple[str, ...], str]] = []
-    fields = model.model_fields
-    for name, info in fields.items():
-        if name.endswith("_derivation") and name[: -len("_derivation")] in fields:
-            out.append(((*path, name[: -len("_derivation")]), name))
-        inner = getattr(info.annotation, "__args__", None)
-        for candidate in inner or (info.annotation,):
-            if hasattr(candidate, "model_fields"):
-                # RJSF nests array items under an "items" key.
-                sub_path = (*path, name, "items") if inner else (*path, name)
-                out.extend(_derivation_pairs(candidate, sub_path))
+def _derivation_fields(model: type[Any], prefix: str = "") -> set[tuple[str, str]]:
+    """(parent path, field name) for every field of type Derivation in the payload model."""
+    out: set[tuple[str, str]] = set()
+    for name, info in model.model_fields.items():
+        candidates = get_args(info.annotation) or (info.annotation,)
+        if Derivation in candidates:
+            out.add((prefix, name))
+        for candidate in candidates:
+            for inner in get_args(candidate) or (candidate,):
+                if isinstance(inner, type) and hasattr(inner, "model_fields"):
+                    out |= _derivation_fields(inner, f"{prefix}{name}.")
     return out
 
 
 @pytest.mark.parametrize("spec", [s for s in SPECS if s.payload_type], ids=lambda s: s.agent_id)
-def test_model_writable_fields_point_at_their_derivation_sibling(spec: AgentSpec) -> None:
-    assert spec.uischema is not None, f"{spec.agent_id} declares a payload but ships no fragment"
-    declared = _walk(spec.uischema)
+def test_every_derivation_field_is_what_some_declared_field_is_recorded_in(
+    spec: AgentSpec,
+) -> None:
     assert spec.payload_type is not None
-    for path, sibling in _derivation_pairs(spec.payload_type):
-        assert path in declared, f"{spec.agent_id}: {'/'.join(path)} has no ui:options"
-        assert declared[path].get("dd:derivation_field") == sibling, (spec.agent_id, path)
+    recorders = {
+        (path.rpartition(".")[0] + "." if "." in path else "", d.recorded_in)
+        for path, d in spec.derivations.items()
+        if d.recorded_in
+    }
+    assert _derivation_fields(spec.payload_type) <= recorders, spec.agent_id
 
 
-def test_derivation_values_are_from_the_contract_enum_or_verified() -> None:
+def test_base_derivation_values_are_from_the_contract_enum_or_verified() -> None:
     allowed = {d.value for d in Derivation} | {"verified"}
-    for label, ui in [("base", BASE), *((s.agent_id, s.uischema) for s in SPECS if s.uischema)]:
-        for path, opts in _walk(ui).items():
-            if "dd:derivation" in opts:
-                assert opts["dd:derivation"] in allowed, (label, path)
+    for path, opts in _walk(BASE).items():
+        if "dd:derivation" in opts:
+            assert opts["dd:derivation"] in allowed, path
+
+
+def test_payload_presentation_is_worked_out_from_schema_and_derivations() -> None:
+    assert "uiSchema: payloadUi(ps, derivations)" in VIEWER
+    assert "agents[envelope.agent_id]?.derivations" in VIEWER
+    assert "uischema" not in (VIEWER_DIR / "js" / "inspect.js").read_text(encoding="utf-8")
 
 
 def test_base_uischema_covers_the_envelope_not_any_payload() -> None:

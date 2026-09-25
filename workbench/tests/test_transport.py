@@ -229,7 +229,10 @@ def test_manifest_samples_and_schema_are_served(runs_dir: Path) -> None:
     status, manifest = _get(app, "/agents")
     assert status == 200
     by_id = {m["agent_id"]: m for m in manifest["agents"]}
-    assert by_id["quality.reviewer"]["uischema"]  # the viewer composes this under `payload`
+    assert by_id["quality.reviewer"]["derivations"]["score"] == {
+        "how": "lexical",
+        "recorded_in": None,
+    }
     status, samples = _get(app, "/samples")
     assert status == 200
     classes = {s["name"]: s["schema_class"] for s in samples}

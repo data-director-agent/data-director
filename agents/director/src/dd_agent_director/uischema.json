@@ -1,7 +1,0 @@
-{
-  "ui:order": ["reply_text", "reply_derivation", "grounded_on", "schema_class"],
-  "schema_class": { "ui:widget": "hidden" },
-  "reply_text": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "template", "dd:derivation_field": "reply_derivation" } },
-  "reply_derivation": { "ui:widget": "hidden" },
-  "grounded_on": { "ui:widget": "hidden" }
-}

@@ -35,7 +35,7 @@ below with no domain logic in the way. It has:
 
 - its own input class and its own payload class;
 - a declared grounding mode;
-- a uischema fragment;
+- its payload fields' derivations;
 - a console script;
 - a profile entry;
 - a sample;
@@ -94,11 +94,14 @@ CLI, transports or viewer, this agent will show it.
    the URL it is served at, and its port to `scripts/run-agents.sh`.
 7. **Enable it** in the profiles that should run it (`workbench/profiles/default.yaml`,
    `workbench/profiles/test-permissive.yaml`). Registration is not permission.
-8. **Ship a sample input and a uischema fragment.**
+8. **Ship a sample input and declare the payload's derivations.**
    - Put a sample input, with `schema_class` set, in `workbench/samples/`.
-   - If the agent has a payload, ship a `uischema.json` fragment for it in the package
-     (`spec.uischema`). A field a model may write points its badge at the sibling that records
-     how the value came about (`dd:derivation_field`).
+   - If the agent has a payload, declare in `spec.derivations` how it produces each field that
+     it does not copy from input or evidence, for example
+     `{"rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation")}`. A field a
+     model may write names the sibling that records, per value, how it actually came about. The
+     spec refuses a path or a sibling that the payload class does not have. Ship no presentation:
+     the viewer lays the payload out from its schema, in LinkML slot order (ADR-0016).
 9. **Test it** in `<name>/tests/`, with a test module name no other package uses. Test the
    agent through a conductor with `workbench.testing.make_conductor(runs_dir, YourAgent())`,
    which serves it in memory over A2A exactly as the workbench calls it. Mark each test with the

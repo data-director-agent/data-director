@@ -24,7 +24,6 @@ TODO: decide whether the LLM orchestrator should mirror a failed child's status.
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -34,7 +33,7 @@ from typing import Any
 import yaml
 
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
@@ -53,7 +52,6 @@ from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 HERE = Path(__file__).resolve().parent
 ROUTING = HERE / "routing.yaml"
-UISCHEMA = HERE / "uischema.json"
 
 MENTION = re.compile(r"^@(?P<agent>[\w.-]+)\s+(?P<rest>.+)$", re.DOTALL)
 
@@ -140,7 +138,7 @@ class DirectorStub:
         accepts=(Message,),
         grounding_mode=GroundingMode.DELEGATION,
         payload_type=Reply,
-        uischema=json.loads(UISCHEMA.read_text(encoding="utf-8")),
+        derivations={"reply_text": Derived(Derivation.TEMPLATE, recorded_in="reply_derivation")},
     )
 
     def __init__(self, rules: list[Rule] | None = None) -> None:

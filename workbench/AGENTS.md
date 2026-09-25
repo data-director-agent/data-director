@@ -45,10 +45,10 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   memory (`testing.in_process`), and `src/` must not. If you find yourself importing
   `dd_agent_*` from `src/workbench/`, stop.
 - **Adding an agent touches nothing central.** A package under `../agents/` with `AgentSpec` +
-  `run` + `build` + `main`, one line in `agents.yaml`, a sample, a uischema fragment, marked
-  tests, a profile entry. Recipe: `../agents/README.md`; `../agents/hello/` is the worked example
-  to copy. If you find yourself editing the conductor, linter, CLI, transport or viewer to add an
-  agent, stop.
+  `run` + `build` + `main`, one line in `agents.yaml`, a sample, the payload's `derivations`,
+  marked tests, a profile entry. Recipe: `../agents/README.md`; `../agents/hello/` is the worked
+  example to copy. If you find yourself editing the conductor, linter, CLI, transport or viewer
+  to add an agent, stop.
 - **An agent's spans come back over the wire.** `RemoteAgent.call` returns them in
   `Received.spans`, beside the `AgentResult`, never inside it; the conductor imports them into
   its trace before linting. G0 rejects a span outside the `invoke_agent` tree or one carrying a
@@ -98,6 +98,10 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   built by `scripts/build_icons.py` from a pinned, hash-checked `lucide-static`; add an icon to
   `ICONS` there and rerun, never by hand. Icons are decorative (`aria-hidden`), sit beside visible
   text or inside a labelled control, and each outcome status has exactly one (`STATUS_ICONS`).
+- **The manifest says what an agent does, not how to draw it (ADR-0016).** An agent declares how
+  it produces each payload field in `AgentSpec.derivations`; the viewer works out the rest of the
+  payload's presentation from the schema, whose property order `gen_schema.py` keeps as the
+  LinkML slot order. Do not add an RJSF fragment, widget name or layout hint to `AgentSpec`.
 - **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
   the sign-in password; check a new cassette before committing it.
 - **Test module basenames are unique across the workspace.** Test directories are not packages;

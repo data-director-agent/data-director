@@ -78,4 +78,4 @@ def test_spec_declares_what_the_conductor_enforces() -> None:
     assert spec.accepts == (MetadataRecord,)
     assert spec.payload_type is QualityReview
     assert spec.grounding_mode == GroundingMode.INPUT_ONLY
-    assert spec.uischema is not None
+    assert spec.derivations["findings.message"].recorded_in == "derivation"

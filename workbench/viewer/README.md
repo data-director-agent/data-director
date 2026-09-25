@@ -22,8 +22,8 @@ Paths are absolute under `/viewer/`, because Inspect is also served at `/`. The 
 react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
 contract's generated JSON Schema (`/schema/envelope.schema.json`). The agent and sample pickers are
 filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the viewer names
-no agent. A new agent's payload renders as soon as its class is in the LinkML schema and the agent
-ships a uischema fragment.
+no agent. A new agent's payload renders as soon as its class is in the LinkML schema; its badges come from
+the agent's `derivations` in the manifest (ADR-0016).
 
 Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/viewer/>. The pages need
 network access to `esm.sh` for the libraries; everything else is local.
@@ -47,22 +47,24 @@ picker. **Start from** fills the form from one of the samples of that class, or 
 the user edits it from there. Run checks the form against the schema first and shows any errors
 beside their fields. The workbench checks the input again before any agent runs, so the form is
 a convenience, not a gate. The class designator `schema_class` is set by the chosen class and is
-not a field. TODO: add an `AgentSpec` input uischema if an agent needs its input fields ordered
-or given particular widgets; today the form uses the schema alone. The right column shows one run:
+not a field. The form uses the schema alone, in LinkML slot order. The right column shows one run:
 
 - **Summary**: `outcome.status`, `reason_code`, `agent_id@agent_version`, `grounding_mode`,
   `completed_at`, `invocation_id` (copyable) and the statement; Problem Details when present.
 - **Input | Payload** side by side. The input shown is exactly what was sent. It is known only
   for runs started from the same browser tab; the envelope stores the input's hash, not the input, so a replay shows the hash instead.
-- **Payload**, rendered by RJSF from the payload class in the envelope schema's `$defs` and the
-  agent's fragment (`AgentSpec.uischema`). Custom templates present it as a document rather than a
-  disabled form: label/value pairs, and an array of objects as rows under a header.
-- **Derivation badges.** A fragment declares, per field, how its value came about: `verified`
-  (set by the harness or read from a registry; the unbadged default), `model` (written by a
-  language model), `template` / `lexical` / `registry`. Where a field names a
-  `dd:derivation_field`, the badge reads the sibling's live value, so a rationale that fell back to
-  the template is badged as template even though the slot is normally model-written. This is the
-  convention a new agent inherits by declaring which of its fields are model-derived.
+- **Payload**, rendered by RJSF from the payload class in the envelope schema's `$defs`. The
+  uiSchema is worked out per render (`payloadUi` in `js/payload.js`), not shipped by the agent:
+  fields in schema order; `schema_class` and the payload's own `grounded_on` hidden; an item's
+  `grounded_on` first, resolved through evidence to the record it names. Custom templates present
+  it as a document rather than a disabled form: label/value pairs, and an array of objects as rows
+  under a header.
+- **Derivation badges.** The agent's manifest declares, per field, how its value came about
+  (`AgentSpec.derivations`): `model` (written by a language model), `template` / `lexical` /
+  `registry`. An undeclared field is `verified` (set by the harness or read from a registry; the
+  unbadged default). Where a declaration names `recorded_in`, the badge reads that sibling's live
+  value and the sibling is hidden, so a rationale that fell back to the template is badged as
+  template even though the slot is normally model-written.
 - **Evidence** as a table: source, retrieval time, canonicalisation, snapshot and content hash,
   with a *cited* marker where the hash appears in the payload's `grounded_on`. The marker is a
   visual cross-check; the grounding linter is what enforces it.
@@ -96,8 +98,8 @@ the summary, evidence and telemetry are laid out directly. TODO: decide whether 
 
 No editing of a stored run (composing a new input is not editing one), no feedback capture, no streaming, no `suspended` interrupt. Those arrive with the AG-UI events that need them.
 
-The browser is not exercised in CI. `tests/test_shell.py` checks that every agent's fragment badges
-its model-writable fields by their derivation sibling, that the base covers the envelope only,
-that the glossary explains every outcome status, grounding mode and derivation value, that the
+The browser is not exercised in CI. `tests/test_viewer.py` checks that every agent's derivations
+name each of its payload's derivation fields as some field's `recorded_in`, that the base covers
+the envelope only, that the glossary explains every outcome status, grounding mode and derivation value, that the
 pages name no agent or sample, that both pages carry the same mode tabs, and that every file a page
 or module references exists.

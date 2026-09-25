@@ -11,10 +11,8 @@ which the linter re-hashes (E1, ADR-0015). There is no second copy to disagree w
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from datetime import UTC, datetime
-from pathlib import Path
 
 from dd_agent_r3 import rank as ranking
 from dd_agent_r3.explain import Explainer, TemplateExplainer
@@ -27,9 +25,10 @@ from dd_agent_r3.retrieve import (
     RetrievalAdapter,
     SnapshotRef,
 )
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.models import (
     DatasetProfile,
+    Derivation,
     EvidenceItem,
     GroundingMode,
     GroundingRef,
@@ -45,8 +44,6 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM, project
 from dd_sdk.tracing import retrieval_span
 
-UISCHEMA = Path(__file__).resolve().parent / "uischema.json"
-
 
 class R3Agent:
     spec = AgentSpec(
@@ -61,7 +58,10 @@ class R3Agent:
         accepts=(DatasetProfile,),
         grounding_mode=GroundingMode.RETRIEVAL,
         payload_type=Recommendations,
-        uischema=json.loads(UISCHEMA.read_text(encoding="utf-8")),
+        derivations={
+            "items.kind": Derived(Derivation.LEXICAL, recorded_in="classification_derivation"),
+            "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
+        },
     )
 
     def __init__(

@@ -78,6 +78,21 @@ def test_generated_schemas_are_current() -> None:
             assert current == content, f"{path.name} is stale; run scripts/gen_schema.py"
 
 
+def test_generated_properties_keep_the_linkml_slot_order() -> None:
+    """The viewer shows fields in schema order, so the generator's alphabetical order is undone."""
+    schema = json.loads((SCHEMA / "generated" / "envelope.schema.json").read_text(encoding="utf-8"))
+    assert list(schema["properties"])[:3] == ["invocation_id", "agent_id", "agent_version"]
+    assert list(schema["$defs"]["Recommendation"]["properties"]) == [
+        "kind",
+        "target",
+        "score",
+        "rationale",
+        "rationale_derivation",
+        "classification_derivation",
+        "grounded_on",
+    ]
+
+
 def _isomorphic(left: str, right: str) -> bool:
     from rdflib import Graph
     from rdflib.compare import to_isomorphic

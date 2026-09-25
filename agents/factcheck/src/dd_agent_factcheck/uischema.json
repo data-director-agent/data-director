@@ -1,8 +1,0 @@
-{
-  "ui:order": ["verdict", "rationale", "rationale_derivation", "grounded_on", "schema_class"],
-  "schema_class": { "ui:widget": "hidden" },
-  "verdict": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "lexical" } },
-  "rationale": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "template", "dd:derivation_field": "rationale_derivation" } },
-  "rationale_derivation": { "ui:widget": "hidden" },
-  "grounded_on": { "ui:widget": "hidden" }
-}

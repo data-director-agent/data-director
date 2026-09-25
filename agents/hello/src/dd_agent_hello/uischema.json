@@ -1,7 +1,0 @@
-{
-  "ui:order": ["greeting_text", "greeting_derivation", "grounded_on", "schema_class"],
-  "schema_class": { "ui:widget": "hidden" },
-  "greeting_text": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "template", "dd:derivation_field": "greeting_derivation" } },
-  "greeting_derivation": { "ui:widget": "hidden" },
-  "grounded_on": { "ui:widget": "hidden" }
-}

@@ -47,7 +47,7 @@ export const GLOSSARY = {
   "mode:delegation": { term: "delegation", text: "The agent works over its input and the envelopes of invocations it delegated through the workbench. No retrieval may appear; a model may be called; every grounding reference is the input's hash or a delegation the conductor recorded (linter rules R1, D1–D3, G4)." },
   "completed_at": { term: "completed_at", text: "When the conductor finished the run, shown in local time. Hover over the time for the full timestamp." },
   "invocation_id": { term: "invocation_id", text: "The run's identifier: a UUIDv7, time-ordered so the append-only store sorts without an index. Add ?invocation_id=… to the Inspect page's address to reload the run." },
-  "derivation": { term: "derivation", text: "How a payload field's value came about. Each agent declares it per field in its uischema fragment. Where a model may write a field, the badge reads a sibling field recording what actually happened, so a template fallback is not badged as model output." },
+  "derivation": { term: "derivation", text: "How a payload field's value came about. Each agent declares it per field in its manifest (derivations). Where a model may write a field, the badge reads a sibling field recording what actually happened, so a template fallback is not badged as model output." },
   "derivation:model": { term: "model", text: "Written by a language model. Check it against the evidence before relying on it." },
   "derivation:template": { term: "template", text: "Produced deterministically from retrieved fields by a fixed template." },
   "derivation:lexical": { term: "lexical", text: "Produced by a keyword rule over retrieved fields." },

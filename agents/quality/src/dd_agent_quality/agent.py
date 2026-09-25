@@ -11,7 +11,6 @@ hand-chosen; see the TODO in `checks.yaml`.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,7 +18,7 @@ from typing import Any
 import yaml
 
 from dd_sdk import serve
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
@@ -38,7 +37,6 @@ from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 HERE = Path(__file__).resolve().parent
 CHECKS = HERE / "checks.yaml"
-UISCHEMA = HERE / "uischema.json"
 
 
 def load_checks(path: Path = CHECKS) -> list[dict[str, Any]]:
@@ -67,7 +65,11 @@ class QualityReviewer:
         accepts=(MetadataRecord,),
         grounding_mode=GroundingMode.INPUT_ONLY,
         payload_type=QualityReview,
-        uischema=json.loads(UISCHEMA.read_text(encoding="utf-8")),
+        derivations={
+            "score": Derived(Derivation.LEXICAL),
+            "findings.severity": Derived(Derivation.LEXICAL),
+            "findings.message": Derived(Derivation.LEXICAL, recorded_in="derivation"),
+        },
     )
 
     def __init__(self, checks: list[dict[str, Any]] | None = None) -> None:

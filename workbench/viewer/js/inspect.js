@@ -79,10 +79,10 @@ function render(envelope) {
   $("tab-input").hidden = !input;
   $("input-json").textContent = input ? JSON.stringify(input, null, 2) : "";
 
-  // Payload: schema-driven through RJSF with the agent's fragment.
+  // Payload: schema-driven through RJSF, badged from the agent's declared derivations.
   const payload = envelope.payload;
   $("payload-class").textContent = payload?.schema_class || "";
-  showPayload(payload, payloadSchema(payload), agents[envelope.agent_id]?.uischema || {}, envelope.evidence || []);
+  showPayload(payload, payloadSchema(payload), agents[envelope.agent_id]?.derivations || {}, envelope.evidence || []);
 
   // Evidence, with a cross-check against the payload's grounded_on hashes.
   const cited = collectCited(payload);

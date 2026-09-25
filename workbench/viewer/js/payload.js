@@ -19,12 +19,13 @@ function HelpTip({ term, text }) {
     h("span", { ref: tip, id, className: "tip", popover: "manual" }, h("strong", null, term), h("span", null, text)));
 }
 
-// --- Derivation badge: the uiSchema convention -----------------------------------------
-// A field declares `ui:options.dd:derivation` ("verified" | "model" | "template" | "lexical" | "registry").
-// If it also names `dd:derivation_field`, the badge reads the live value of that sibling field
-// (e.g. rationale_derivation), so a template rationale is badged as template even where a model
-// would normally have written it. New agents inherit the treatment by declaring their fields.
-// `verified` is the unmarked default: only fields something other than the harness wrote are badged.
+// --- Derivation badge ------------------------------------------------------------------
+// `payloadUi` gives a field the agent declares in its `derivations` the options
+// `dd:derivation` ("model" | "template" | "lexical" | "registry") and, where the declaration
+// names `recorded_in`, `dd:derivation_field`. The badge then reads the live value of that sibling
+// field (e.g. rationale_derivation), so a template rationale is badged as template even where a
+// model would normally have written it. `verified` is the unmarked default: only fields something
+// other than the harness wrote are badged.
 function badgeFor(derivation) {
   if (!derivation || derivation === "verified") return null;
   return h("span", { className: `badge ${derivation}`, title: `dd:derivation = ${derivation}` }, derivation);
@@ -51,7 +52,7 @@ function PlainValue(props) { return valueNode(props.value, props.schema); }
 // --- Grounding references, resolved through evidence (ADR-0015) --------------------------
 // A payload names a record only in `grounded_on`. What a reference names is the `content` of
 // the evidence item with the same source_id and content_hash, which the linter has re-hashed
-// (E1). A fragment shows an item's references with `"ui:field": "groundedOn"`.
+// (E1). `payloadUi` shows an item's references with `"ui:field": "groundedOn"`.
 function GroundedOn(props) {
   const refs = props.formData || [];
   const evidence = props.registry?.formContext?.evidence || [];
@@ -150,16 +151,54 @@ function ObjectFieldTemplate(props) {
 function BaseInputTemplate(props) { return valueNode(props.value, props.schema); }
 const templates = { FieldTemplate, ArrayFieldTemplate, ArrayFieldItemTemplate, ObjectFieldTemplate, BaseInputTemplate };
 
-// Render into `node`: nothing, an unknown-class fallback, or the payload through RJSF with its
-// agent's fragment. `ps` is the payload class's schema from the envelope schema's $defs;
-// `evidence` is the envelope's, against which `groundedOn` resolves references.
+// --- The payload's uiSchema, worked out rather than shipped (ADR-0016) -------------------
+// From the payload class's schema and the agent's manifest `derivations` (field path -> how,
+// recorded_in). Fields keep schema order, which is the LinkML slot order. `schema_class` is
+// hidden, and so is the payload's own `grounded_on`, which the evidence table shows. An item's
+// `grounded_on` names what the item is about, so it comes first and resolves through evidence.
+// A field a declaration names as `recorded_in` is hidden; the badge beside it reads it.
+const refName = (s) => s?.$ref?.split("/").pop();
+const nestedClass = (prop) => refName(prop.items) || refName((prop.anyOf || []).find((s) => s.$ref)) || refName(prop);
+export function payloadUi(schema, derivations = {}) {
+  const defs = schema?.$defs || {};
+  function forClass(def, prefix) {
+    const props = def?.properties || {};
+    const names = Object.keys(props);
+    const ui = {};
+    const recorders = new Set();
+    for (const name of names) {
+      const d = derivations[prefix + name];
+      if (!d) continue;
+      const options = { "dd:derivation": d.how };
+      if (d.recorded_in) { options["dd:derivation_field"] = d.recorded_in; recorders.add(d.recorded_in); }
+      ui[name] = { "ui:widget": "derivationBadge", "ui:options": options };
+    }
+    for (const name of names) {
+      if (ui[name]) continue;
+      const cls = nestedClass(props[name]);
+      if (name === "schema_class" || recorders.has(name) || (name === "grounded_on" && !prefix)) ui[name] = { "ui:widget": "hidden" };
+      else if (name === "grounded_on") ui[name] = { "ui:field": "groundedOn" };
+      else if (defs[cls]?.properties) {
+        const inner = forClass(defs[cls], `${prefix}${name}.`);
+        ui[name] = props[name].items ? { items: inner } : inner;
+      }
+    }
+    ui["ui:order"] = prefix && names.includes("grounded_on") ? ["grounded_on", ...names.filter((n) => n !== "grounded_on")] : names;
+    return ui;
+  }
+  return forClass(schema, "");
+}
+
+// Render into `node`: nothing, an unknown-class fallback, or the payload through RJSF. `ps` is
+// the payload class's schema from the envelope schema's $defs; `derivations` is the agent's,
+// from its manifest; `evidence` is the envelope's, against which `groundedOn` resolves references.
 export function payloadView(node) {
   const root = createRoot(node);
-  return (payload, ps, uiSchema, evidence = []) => {
+  return (payload, ps, derivations = {}, evidence = []) => {
     if (!payload) root.render(h("p", { className: "muted" }, "No payload: the outcome is not succeeded."));
     else if (!ps) root.render(h("pre", { className: "json" }, `Unknown payload class ${payload.schema_class}:\n${JSON.stringify(payload, null, 2)}`));
     else root.render(h(Form, {
-      schema: ps, uiSchema, validator, widgets, fields, templates,
+      schema: ps, uiSchema: payloadUi(ps, derivations), validator, widgets, fields, templates,
       formData: payload, readonly: true, liveValidate: false, showErrorList: false,
       formContext: { siblingValue: makeSiblingLookup(payload), evidence },
       onSubmit: () => {}, children: h("span"),
