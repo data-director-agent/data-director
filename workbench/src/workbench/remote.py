@@ -1,11 +1,11 @@
 """An agent that runs in another process, reached over A2A (ADR-0011).
 
-`RemoteAgent` satisfies the same `Agent` protocol as an in-process agent, so the conductor calls
-it the same way. Its `run` sends the `InvocationRequest` with the conductor's `input_ref`,
-`input_hash` and `traceparent`, waits for the task to finish, and returns the agent's
-`AgentResult` with the spans the agent recorded attached. The conductor imports those spans into
-its trace before linting. Nothing here decides whether the result is acceptable; the conductor's
-input check, payload check and grounding linter do.
+`RemoteAgent.call` sends the `InvocationRequest` with the conductor's `input_ref`, `input_hash`
+and `traceparent`, waits for the task to finish, and returns `Received`: the agent's
+`AgentResult` and, beside it, the spans the agent recorded. The conductor imports those spans into
+its trace before linting. `RemoteAgent` deliberately has no `Agent.run`, so there is no way to
+take the result and leave the spans behind. Nothing here decides whether the result is
+acceptable; the conductor's input check, payload check and grounding linter do.
 
 `from_url` reads the agent card and rebuilds the `AgentSpec` from the Data Director extension,
 resolving class names against the central contract.
@@ -42,7 +42,7 @@ from dd_sdk.wire import (
     META_INPUT_REF,
     META_TRACEPARENT,
     WireError,
-    result_from_document,
+    reply_from_document,
 )
 
 DEFAULT_TIMEOUT_S = 60.0
@@ -56,6 +56,16 @@ class RemoteAgentError(Exception):
 
 def default_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
     return httpx.AsyncClient(base_url=base_url, timeout=timeout_s)
+
+
+@dataclass(frozen=True)
+class Received:
+    """What came back from one invocation: the agent's result and the spans it recorded, as
+    `ReadableSpan.to_json` documents. An in-process agent's spans are already in the conductor's
+    trace, so it has none here."""
+
+    result: AgentResult
+    spans: tuple[dict[str, Any], ...] = ()
 
 
 def spec_from_card(card: dict[str, Any]) -> AgentSpec:
@@ -99,7 +109,7 @@ class RemoteAgent:
             spec=spec_from_card(card), url=url, timeout_s=timeout_s, client_factory=client_factory
         )
 
-    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+    def call(self, request: InvocationRequest, ctx: RunContext) -> Received:
         carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)  # the conductor's current span
         metadata = {
@@ -133,7 +143,7 @@ class RemoteAgent:
                     last = response
                 return last
 
-    def _parse(self, response: Any) -> AgentResult:
+    def _parse(self, response: Any) -> Received:
         agent_id = self.spec.agent_id
         task = getattr(response, "task", None)
         if task is None:
@@ -151,16 +161,12 @@ class RemoteAgent:
         parts = get_data_parts(artifacts[0].parts)
         if len(parts) != 1 or not isinstance(parts[0], dict):
             raise RemoteAgentError(f"{agent_id} returned a malformed {ARTIFACT_NAME} artifact")
-        body = parts[0]
-        spans = body.get("spans", [])
-        if not isinstance(spans, list) or not all(isinstance(s, str) for s in spans):
-            raise RemoteAgentError(f"{agent_id} returned spans that are not JSON strings")
         try:
-            result = result_from_document(body.get("result") or {}, spans)
-            records_from_jsonl(list(result.spans))  # every span must be readable by the linter
+            result, spans = reply_from_document(parts[0])
+            records_from_jsonl(list(spans))  # every span must be readable by the linter
         except (WireError, KeyError, ValueError, TypeError) as exc:
             raise RemoteAgentError(f"{agent_id}: {exc}") from exc
-        return result
+        return Received(result, spans)
 
 
 def _failure_detail(task: Any) -> str | None:

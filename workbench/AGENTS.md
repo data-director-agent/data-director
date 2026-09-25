@@ -49,10 +49,11 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   tests, a profile entry. Recipe: `../agents/README.md`; `../agents/hello/` is the worked example
   to copy. If you find yourself editing the conductor, linter, CLI, transport or viewer to add an
   agent, stop.
-- **An agent's spans come back over the wire.** `RemoteAgent` returns them in
-  `AgentResult.spans`; the conductor imports them into its trace before linting. G0 rejects a
-  span outside the `invoke_agent` tree or one carrying a conductor attribute. Do not filter
-  imported spans by trace id; that would hide such spans from G0.
+- **An agent's spans come back over the wire.** `RemoteAgent.call` returns them in
+  `Received.spans`, beside the `AgentResult`, never inside it; the conductor imports them into
+  its trace before linting. G0 rejects a span outside the `invoke_agent` tree or one carrying a
+  conductor attribute. Do not filter imported spans by trace id; that would hide such spans from
+  G0.
 - **Only the conductor fills identifiers, timestamps, telemetry, grounding mode and input hash.**
   An agent returns an `AgentResult` (outcome, payload, evidence). If you find yourself setting
   `invocation_id` or `grounding_mode` in an agent, stop.

@@ -55,7 +55,27 @@ class WireError(Exception):
     """A document on the wire does not have the shape this module writes."""
 
 
-def result_to_document(result: AgentResult) -> dict[str, Any]:
+def reply_to_document(result: AgentResult, spans: list[str]) -> dict[str, Any]:
+    """The data part of the `agent-result` artifact: the result and the agent's spans."""
+    return {"result": _result_to_document(result), "spans": spans}
+
+
+def reply_from_document(body: dict[str, Any]) -> tuple[AgentResult, tuple[dict[str, Any], ...]]:
+    """Rebuild the `AgentResult` and the span documents from the `agent-result` data part.
+
+    The payload is parsed by its `schema_class` against the contract. Raises `WireError` for a
+    body the contract does not admit.
+    """
+    spans = body.get("spans", [])
+    if not isinstance(spans, list) or not all(isinstance(s, str) for s in spans):
+        raise WireError("spans are not JSON strings")
+    try:
+        return _result_from_document(body.get("result") or {}), tuple(json.loads(s) for s in spans)
+    except (KeyError, ValueError, TypeError) as exc:  # pydantic.ValidationError is a ValueError
+        raise WireError(f"agent result does not conform to the contract: {exc}") from exc
+
+
+def _result_to_document(result: AgentResult) -> dict[str, Any]:
     doc: dict[str, Any] = {
         "outcome": to_document(result.outcome),
         "evidence": [to_document(e) for e in result.evidence],
@@ -69,26 +89,18 @@ def result_to_document(result: AgentResult) -> dict[str, Any]:
     return doc
 
 
-def result_from_document(doc: dict[str, Any], spans: list[str]) -> AgentResult:
-    """Rebuild an `AgentResult`, parsing the payload by its `schema_class` against the contract.
-
-    Raises `WireError` for a document the contract does not admit.
-    """
-    try:
-        payload: Grounded | None = (
-            _payload_adapter.validate_python(doc["payload"]) if "payload" in doc else None
-        )
-        return AgentResult(
-            outcome=Outcome.model_validate(doc["outcome"]),
-            payload=payload,
-            evidence=[EvidenceItem.model_validate(e) for e in doc.get("evidence", [])],
-            model_id=doc.get("model_id"),
-            input_tokens=_int_or_none(doc.get("input_tokens")),
-            output_tokens=_int_or_none(doc.get("output_tokens")),
-            spans=tuple(json.loads(s) for s in spans),
-        )
-    except (KeyError, ValueError, TypeError) as exc:  # pydantic.ValidationError is a ValueError
-        raise WireError(f"agent result does not conform to the contract: {exc}") from exc
+def _result_from_document(doc: dict[str, Any]) -> AgentResult:
+    payload: Grounded | None = (
+        _payload_adapter.validate_python(doc["payload"]) if "payload" in doc else None
+    )
+    return AgentResult(
+        outcome=Outcome.model_validate(doc["outcome"]),
+        payload=payload,
+        evidence=[EvidenceItem.model_validate(e) for e in doc.get("evidence", [])],
+        model_id=doc.get("model_id"),
+        input_tokens=_int_or_none(doc.get("input_tokens")),
+        output_tokens=_int_or_none(doc.get("output_tokens")),
+    )
 
 
 def _int_or_none(value: Any) -> int | None:

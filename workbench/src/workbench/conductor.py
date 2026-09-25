@@ -54,6 +54,7 @@ from dd_sdk.tracing import (
 from workbench import grounding, policy
 from workbench.provenance import write_process_run_crate
 from workbench.registry import Registry
+from workbench.remote import Received, RemoteAgent
 from workbench.store import RunStore
 
 DATA_STEWARD = "data_steward"
@@ -272,19 +273,22 @@ class Conductor:
                     and self.workbench_url is not None
                 ):
                     grant = self._issue_grant(request)
+                ctx = RunContext(
+                    tracer=tracer,
+                    input_ref=input_ref,
+                    input_hash=input_hash,
+                    grant=(
+                        DelegationGrant(url=self.workbench_url or "", token=grant.token)
+                        if grant is not None
+                        else None
+                    ),
+                )
                 try:
-                    result = agent.run(
-                        request,
-                        RunContext(
-                            tracer=tracer,
-                            input_ref=input_ref,
-                            input_hash=input_hash,
-                            grant=(
-                                DelegationGrant(url=self.workbench_url or "", token=grant.token)
-                                if grant is not None
-                                else None
-                            ),
-                        ),
+                    # An in-process agent records its spans in this trace already.
+                    received = (
+                        agent.call(request, ctx)
+                        if isinstance(agent, RemoteAgent)
+                        else Received(agent.run(request, ctx))
                     )
                 except Exception as exc:  # noqa: BLE001 — converted to a failed outcome by design
                     result = AgentResult(
@@ -297,7 +301,8 @@ class Conductor:
                     from_agent = True
                     # A remote agent's spans were recorded in its own process; bring them into
                     # this trace so the linter reads one tree (ADR-0011).
-                    self.tracing.import_spans(trace_id, result.spans)
+                    self.tracing.import_spans(trace_id, received.spans)
+                    result = received.result
                     # An agent that returns a payload other than the class it declared is
                     # contradicting its own specification: a programmer error, handled the same
                     # way as an exception.

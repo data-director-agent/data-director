@@ -133,9 +133,6 @@ class AgentResult:
     model_id: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
-    # The agent's finished spans as `ReadableSpan.to_json` documents. Filled by the workbench's
-    # `RemoteAgent` from the A2A response; an agent never sets it.
-    spans: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)

@@ -21,6 +21,7 @@ from dd_sdk.contract.models import GroundingMode
 from dd_sdk.wire import CARD_PATH, EXTENSION_URI
 from workbench import cli
 from workbench.registry import Registry, RegistryError, load_config
+from workbench.remote import RemoteAgent
 from workbench.settings import DEFAULT_AGENTS_CONFIG
 from workbench.testing import ScriptedAgent, in_process, review_of_input
 
@@ -89,7 +90,8 @@ def test_config_lists_agents_by_url_and_the_registry_reads_each_card(tmp_path: P
     assert set(registry.ids()) == IDS
     assert registry.unavailable == {}
     for agent in registry:
-        assert isinstance(agent, Agent)
+        # Reached only through `call`, which returns the spans beside the result.
+        assert isinstance(agent, RemoteAgent) and not isinstance(agent, Agent)
 
 
 @pytest.mark.requirement("DD-REGISTRY")

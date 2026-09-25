@@ -10,8 +10,8 @@ admits, is recorded as unavailable with the reason, and the registry carries on:
 down does not stop the workbench. The policy gate still decides, per profile, which registered
 agents may run. Registration is not permission.
 
-`from_agents` takes agent objects directly. Tests use it with `RemoteAgent`s bound to in-process
-ASGI apps (`workbench.testing`).
+`from_agents` takes agent objects directly: `RemoteAgent`s, which tests bind to in-process ASGI
+apps (`workbench.testing`), or in-process `Agent`s, which the conductor runs in its own trace.
 
 Configuration shape:
 
@@ -44,13 +44,17 @@ class RegistryError(Exception):
     pass
 
 
+# A service the conductor reaches over A2A, or an agent object run in the conductor's process.
+Registered = Agent | RemoteAgent
+
+
 @dataclass
 class Registry:
-    agents: dict[str, Agent] = field(default_factory=dict)
+    agents: dict[str, Registered] = field(default_factory=dict)
     unavailable: dict[str, str] = field(default_factory=dict)  # name or URL -> reason
 
     @classmethod
-    def from_agents(cls, agents: Iterable[Agent]) -> Registry:
+    def from_agents(cls, agents: Iterable[Registered]) -> Registry:
         registry = cls()
         for agent in agents:
             registry.add(agent)
@@ -76,18 +80,18 @@ class Registry:
             registry.add(agent)
         return registry
 
-    def add(self, agent: Agent) -> None:
-        if not isinstance(agent, Agent):
+    def add(self, agent: Registered) -> None:
+        if not isinstance(agent, (RemoteAgent, Agent)):
             raise RegistryError(f"{agent!r} does not implement the Agent protocol")
         agent_id = agent.spec.agent_id
         if agent_id in self.agents:
             raise RegistryError(f"two agents registered as {agent_id!r}")
         self.agents[agent_id] = agent
 
-    def get(self, agent_id: str) -> Agent | None:
+    def get(self, agent_id: str) -> Registered | None:
         return self.agents.get(agent_id)
 
-    def __iter__(self) -> Iterator[Agent]:
+    def __iter__(self) -> Iterator[Registered]:
         return iter(self.agents.values())
 
     def __len__(self) -> int:

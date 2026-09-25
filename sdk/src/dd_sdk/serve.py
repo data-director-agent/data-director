@@ -43,7 +43,7 @@ from dd_sdk.wire import (
     META_INPUT_HASH,
     META_INPUT_REF,
     META_TRACEPARENT,
-    result_to_document,
+    reply_to_document,
 )
 
 PROTOCOL_VERSION = "1.0"
@@ -138,7 +138,7 @@ def run_traced(
         otel_context.detach(token)
         spans = [s.to_json(indent=None) for s in tracing.memory.get_finished_spans()]
         tracing.shutdown()
-    return {"result": result_to_document(result), "spans": spans}
+    return reply_to_document(result, spans)
 
 
 class AgentServerExecutor(AgentExecutor):

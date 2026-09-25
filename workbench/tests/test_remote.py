@@ -25,6 +25,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
 )
 from dd_sdk.tracing import ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, records_from_jsonl
+from dd_sdk.wire import WireError, reply_from_document, reply_to_document
 from workbench.conductor import Conductor
 from workbench.registry import Registry
 from workbench.remote import RemoteAgent
@@ -153,3 +154,13 @@ def test_an_in_process_agent_and_its_remote_twin_produce_the_same_outcome(runs_d
     assert direct.outcome == wired.outcome
     assert direct.grounding_mode == wired.grounding_mode
     assert agent.calls == 2
+
+
+@pytest.mark.requirement("DD-REMOTE-AGENT")
+def test_the_reply_carries_the_spans_beside_the_result_and_refuses_malformed_ones() -> None:
+    result = AgentResult(outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."))
+    span = {"name": "retrieval", "context": {"trace_id": "0x01", "span_id": "0x02"}}
+    body = reply_to_document(result, [json.dumps(span)])
+    assert reply_from_document(body) == (result, (span,))
+    with pytest.raises(WireError, match="not JSON strings"):
+        reply_from_document({**body, "spans": [span]})
