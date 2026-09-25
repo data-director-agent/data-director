@@ -31,15 +31,13 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from starlette.applications import Starlette
 
 from dd_sdk import delegate as delegation
-from dd_sdk.agent import Agent, AgentResult, DelegationGrant, RunContext, describe
+from dd_sdk.agent import Agent, AgentResult, RunContext, describe
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.tracing import make_tracing
 from dd_sdk.wire import (
     ARTIFACT_NAME,
     EXTENSION_URI,
     JSONRPC_PATH,
-    META_DELEGATE_URL,
-    META_DELEGATION_TOKEN,
     META_INPUT_HASH,
     META_INPUT_REF,
     META_TRACEPARENT,
@@ -108,11 +106,7 @@ def run_traced(
     parent = TraceContextTextMapPropagator().extract(
         {META_TRACEPARENT: str(metadata.get(META_TRACEPARENT, ""))}
     )
-    grant = None
-    if metadata.get(META_DELEGATE_URL) and metadata.get(META_DELEGATION_TOKEN):
-        grant = DelegationGrant(
-            url=str(metadata[META_DELEGATE_URL]), token=str(metadata[META_DELEGATION_TOKEN])
-        )
+    grant = delegation.DelegationGrant.from_metadata(metadata)
     token = otel_context.attach(parent)
     try:
         result: AgentResult = agent.run(
@@ -121,7 +115,6 @@ def run_traced(
                 tracer=tracing.tracer,
                 input_ref=str(metadata.get(META_INPUT_REF, "")),
                 input_hash=str(metadata.get(META_INPUT_HASH, "")),
-                grant=grant,
                 delegate=(
                     delegation.WorkbenchDelegate(
                         grant=grant,

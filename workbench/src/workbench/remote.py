@@ -1,11 +1,12 @@
 """An agent that runs in another process, reached over A2A (ADR-0011).
 
-`RemoteAgent.call` sends the `InvocationRequest` with the conductor's `input_ref`, `input_hash`
-and `traceparent`, waits for the task to finish, and returns `Received`: the agent's
-`AgentResult` and, beside it, the spans the agent recorded. The conductor imports those spans into
-its trace before linting. `RemoteAgent` deliberately has no `Agent.run`, so there is no way to
-take the result and leave the spans behind. Nothing here decides whether the result is
-acceptable; the conductor's input check, payload check and grounding linter do.
+`RemoteAgent.call` sends the `InvocationRequest` with the conductor's `input_ref`, `input_hash`,
+`traceparent` and, for a delegation agent, its `DelegationGrant` (ADR-0012), waits for the task
+to finish, and returns `Received`: the agent's `AgentResult` and, beside it, the spans the agent
+recorded. The conductor imports those spans into its trace before linting. `RemoteAgent`
+deliberately has no `Agent.run`, so there is no way to take the result and leave the spans
+behind. Nothing here decides whether the result is acceptable; the conductor's input check,
+payload check and grounding linter do.
 
 `from_url` reads the agent card and rebuilds the `AgentSpec` from the Data Director extension,
 resolving class names against the central contract.
@@ -31,13 +32,12 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, SpecError, spec_from_description
 from dd_sdk.contract.models import InvocationRequest, new_invocation_id, to_document
+from dd_sdk.delegate import DelegationGrant
 from dd_sdk.tracing import records_from_jsonl
 from dd_sdk.wire import (
     ARTIFACT_NAME,
     CARD_PATH,
     EXTENSION_URI,
-    META_DELEGATE_URL,
-    META_DELEGATION_TOKEN,
     META_INPUT_HASH,
     META_INPUT_REF,
     META_TRACEPARENT,
@@ -109,7 +109,9 @@ class RemoteAgent:
             spec=spec_from_card(card), url=url, timeout_s=timeout_s, client_factory=client_factory
         )
 
-    def call(self, request: InvocationRequest, ctx: RunContext) -> Received:
+    def call(
+        self, request: InvocationRequest, ctx: RunContext, grant: DelegationGrant | None = None
+    ) -> Received:
         carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)  # the conductor's current span
         metadata = {
@@ -117,9 +119,8 @@ class RemoteAgent:
             META_INPUT_HASH: ctx.input_hash,
             META_TRACEPARENT: carrier.get(META_TRACEPARENT, ""),
         }
-        if ctx.grant is not None:  # a delegation agent's callback (ADR-0012)
-            metadata[META_DELEGATE_URL] = ctx.grant.url
-            metadata[META_DELEGATION_TOKEN] = ctx.grant.token
+        if grant is not None:  # a delegation agent's callback (ADR-0012)
+            metadata |= grant.metadata()
         try:
             body = asyncio.run(self._send(to_document(request), metadata))
         except (httpx.HTTPError, TimeoutError) as exc:

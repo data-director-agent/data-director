@@ -9,6 +9,10 @@ against the parent, and answers with the child envelope as the JSON the conducto
 `Delegated` carries the envelope and, computed here rather than by the agent, the grounding
 reference and evidence item that cite it (`invocation:<child_id>`, `dd-envelope-json-v1`), so
 a relayed reply cannot mis-cite what it relays.
+
+A `DelegationGrant` is transport, not agent context: the workbench's `RemoteAgent` writes it into
+the request metadata and `dd_sdk.serve` reads it back to bind the agent's `delegate`. The agent
+itself never sees it.
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Self
 
 import httpx
 from a2a.client import ClientConfig, create_client
@@ -27,7 +31,6 @@ from a2a.types import Message, Role, SendMessageRequest, TaskState
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_sdk.agent import DelegationGrant
 from dd_sdk.contract.models import (
     Envelope,
     EvidenceItem,
@@ -42,6 +45,7 @@ from dd_sdk.evidence import ENVELOPE_CANONICALISATION, HASH_ALGORITHM, envelope_
 from dd_sdk.tracing import ATTR_CONTENT_HASH, ATTR_SOURCE_ID, delegate_span
 from dd_sdk.wire import (
     ENVELOPE_JSON_ARTIFACT,
+    META_DELEGATE_URL,
     META_DELEGATION_TOKEN,
     META_TRACEPARENT,
 )
@@ -49,6 +53,27 @@ from dd_sdk.wire import (
 DEFAULT_TIMEOUT_S = 60.0
 
 ClientFactory = Callable[[str, float], httpx.AsyncClient]
+
+
+@dataclass(frozen=True)
+class DelegationGrant:
+    """Where and with what token an agent may ask the workbench to invoke another.
+
+    Issued by the conductor to an agent in grounding mode delegation, for one invocation only.
+    """
+
+    url: str
+    token: str
+
+    def metadata(self) -> dict[str, str]:
+        """The A2A message metadata that carries this grant to the agent."""
+        return {META_DELEGATE_URL: self.url, META_DELEGATION_TOKEN: self.token}
+
+    @classmethod
+    def from_metadata(cls, metadata: dict[str, Any]) -> Self | None:
+        """The grant a request's metadata carries, or None unless it has both a URL and a token."""
+        url, token = metadata.get(META_DELEGATE_URL), metadata.get(META_DELEGATION_TOKEN)
+        return cls(url=str(url), token=str(token)) if url and token else None
 
 
 class DelegationRefused(Exception):

@@ -27,6 +27,7 @@ from workbench import grounding
 from workbench.conductor import DelegationError, DuplicateInvocation
 from workbench.testing import (
     ScriptedAgent,
+    grant_token,
     make_conductor,
     message,
     record,
@@ -110,7 +111,7 @@ def test_only_a_delegation_agent_is_given_a_grant(tmp_path: Path) -> None:
 
     conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.NONE, behaviour))
     conductor.invoke(request("fake.none"))
-    assert seen[0].grant is None and seen[0].delegate is None
+    assert seen[0].delegate is None
 
 
 @pytest.mark.requirement("DD-DELEGATION")
@@ -118,8 +119,7 @@ def test_a_caller_may_not_set_lineage_or_use_an_unknown_or_expired_token(tmp_pat
     tokens: list[str] = []
 
     def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
-        assert ctx.grant is not None
-        tokens.append(ctx.grant.token)
+        tokens.append(grant_token(ctx))
         return abstain("Kept the token.")
 
     conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.DELEGATION, behaviour))
@@ -169,10 +169,9 @@ def test_self_delegation_and_a_second_level_are_refused(tmp_path: Path) -> None:
 @pytest.mark.requirement("DD-DELEGATION")
 def test_a_child_may_not_reuse_its_parents_invocation_id(tmp_path: Path) -> None:
     def reuse_parent_id(req: InvocationRequest, ctx: RunContext) -> AgentResult:
-        assert ctx.grant is not None
         child = request("fake.none").model_copy(update={"invocation_id": req.invocation_id})
         with pytest.raises(DuplicateInvocation):
-            conductor.invoke_delegated(child, ctx.grant.token)
+            conductor.invoke_delegated(child, grant_token(ctx))
         return abstain("The child was refused.")
 
     conductor = make_conductor(
@@ -251,9 +250,8 @@ def test_a_child_that_finishes_after_its_parent_is_still_recorded(tmp_path: Path
         return review_of_input(req, ctx)
 
     def fire_and_forget(req: InvocationRequest, ctx: RunContext) -> AgentResult:
-        assert ctx.grant is not None
         child = request("fake.none", record())
-        threading.Thread(target=conductor.invoke_delegated, args=(child, ctx.grant.token)).start()
+        threading.Thread(target=conductor.invoke_delegated, args=(child, grant_token(ctx))).start()
         admitted.wait(timeout=5)
         # Released only after the parent has returned and reached revocation.
         threading.Timer(0.2, release.set).start()
@@ -263,9 +261,7 @@ def test_a_child_that_finishes_after_its_parent_is_still_recorded(tmp_path: Path
         tmp_path,
         ScriptedAgent(GroundingMode.DELEGATION, fire_and_forget),
         ScriptedAgent(GroundingMode.NONE, slow_review),
-        remote=False,
     )
-    conductor.workbench_url = "http://workbench.test"
     env = conductor.invoke(request("fake.delegation", message()))
     [delegation] = env.delegations
     stored = conductor.store.get(delegation.delegated_invocation_id)
@@ -282,4 +278,4 @@ def test_a_delegation_agent_run_without_a_callback_gets_no_delegate(tmp_path: Pa
     conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.DELEGATION, behaviour))
     conductor.workbench_url = None  # as under `workbench invoke`
     conductor.invoke(request("fake.delegation", message()))
-    assert seen[0].grant is None and seen[0].delegate is None
+    assert seen[0].delegate is None

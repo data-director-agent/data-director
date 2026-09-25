@@ -135,17 +135,6 @@ class AgentResult:
     output_tokens: int | None = None
 
 
-@dataclass(frozen=True)
-class DelegationGrant:
-    """Where and with what token an agent may ask the workbench to invoke another (ADR-0012).
-
-    Issued by the conductor to an agent in grounding mode delegation, for one invocation only.
-    """
-
-    url: str
-    token: str
-
-
 class Delegate(Protocol):
     """Invoke another agent through the workbench and return its envelope (`dd_sdk.delegate`)."""
 
@@ -159,16 +148,15 @@ class RunContext:
     `input_ref` and `input_hash` are the source_id and content_hash an input_only or none agent
     cites; they are computed by the conductor so the agent cannot get them wrong.
 
-    `grant` is set by the conductor for an agent in grounding mode delegation, and forwarded by
-    the workbench's `RemoteAgent`. `delegate` is what the agent calls: `dd_sdk.serve` builds it
-    from the grant in the agent's process. Both are None for every other agent, and for a
-    delegation agent run where the workbench has no callback address (the CLI).
+    `delegate` is what an agent in grounding mode delegation calls to invoke another agent.
+    `dd_sdk.serve` binds it to the grant the workbench sent with the request (ADR-0012). It is
+    None for every other agent, and for a delegation agent run where the workbench has no
+    callback address (the CLI).
     """
 
     tracer: Tracer
     input_ref: str
     input_hash: str
-    grant: DelegationGrant | None = None
     delegate: Delegate | None = None
 
 

@@ -6,13 +6,14 @@ provenance.
 timestamps, telemetry, the grounding mode and input hash it is held to, and whether the output
 passed the grounding check. It knows nothing about any payload class.
 
-Delegation (ADR-0012). When the conductor runs an agent in grounding mode `delegation`, and it
-knows its own A2A address (`workbench_url`), it issues that invocation a grant: a random token
-the agent may present, while the invocation runs, to ask the workbench to invoke another agent.
-`invoke_delegated` runs such a request as an ordinary invocation, sets its lineage from the
-grant, and records the child against the parent. The parent's envelope lists those records in
-`delegations`, which is what the linter checks a relayed reply against. Delegation is one level
-deep: a child is never issued a grant.
+Delegation (ADR-0012). When the conductor runs a remote agent in grounding mode `delegation`,
+and it knows its own A2A address (`workbench_url`), it issues that invocation a grant: a random
+token, sent with the request (never in `RunContext`), that the agent may present while the
+invocation runs to ask the workbench to invoke another agent. `invoke_delegated` runs such a
+request as an ordinary invocation, sets its lineage from the grant, and records the child
+against the parent. The parent's envelope lists those records in `delegations`, which is what
+the linter checks a relayed reply against. Delegation is one level deep: a child is never issued
+a grant.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from typing import Any
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_sdk.agent import AgentResult, DelegationGrant, RunContext
+from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
@@ -42,6 +43,7 @@ from dd_sdk.contract.models import (
     input_source_id,
     to_document,
 )
+from dd_sdk.delegate import DelegationGrant
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.evidence import input_hash as compute_input_hash
 from dd_sdk.tracing import (
@@ -267,26 +269,21 @@ class Conductor:
             else:
                 # 3. Run the agent. An exception becomes a failed outcome; never a crash.
                 prob = None
+                # A grant travels on the A2A wire, so only a remote agent can be sent one.
+                sent_grant: DelegationGrant | None = None
                 if (
                     spec.grounding_mode == GroundingMode.DELEGATION
                     and request.parent_invocation_id is None
                     and self.workbench_url is not None
+                    and isinstance(agent, RemoteAgent)
                 ):
                     grant = self._issue_grant(request)
-                ctx = RunContext(
-                    tracer=tracer,
-                    input_ref=input_ref,
-                    input_hash=input_hash,
-                    grant=(
-                        DelegationGrant(url=self.workbench_url or "", token=grant.token)
-                        if grant is not None
-                        else None
-                    ),
-                )
+                    sent_grant = DelegationGrant(url=self.workbench_url, token=grant.token)
+                ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
                 try:
                     # An in-process agent records its spans in this trace already.
                     received = (
-                        agent.call(request, ctx)
+                        agent.call(request, ctx, sent_grant)
                         if isinstance(agent, RemoteAgent)
                         else Received(agent.run(request, ctx))
                     )

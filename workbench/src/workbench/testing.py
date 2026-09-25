@@ -46,7 +46,7 @@ from dd_sdk.contract.models import (
     Reply,
     Verdict,
 )
-from dd_sdk.delegate import Delegated
+from dd_sdk.delegate import Delegated, WorkbenchDelegate
 from dd_sdk.evidence import (
     DOCUMENT_CANONICALISATION,
     HASH_ALGORITHM,
@@ -205,6 +205,13 @@ def fact_check_over(*sources: Retrieve) -> AgentResult:
         ),
         evidence=[s.evidence() for s in sources],
     )
+
+
+def grant_token(ctx: RunContext) -> str:
+    """The grant token behind a delegation agent's `delegate`, for a test that presents it to
+    the conductor directly instead of through `delegate`."""
+    assert isinstance(ctx.delegate, WorkbenchDelegate), "the agent was not issued a grant"
+    return ctx.delegate.grant.token
 
 
 def reply_over(ctx: RunContext, *delegated: Delegated) -> AgentResult:
