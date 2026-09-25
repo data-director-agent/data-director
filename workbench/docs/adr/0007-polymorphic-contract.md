@@ -63,7 +63,8 @@ profile).
   (class + `any_of` arm), regenerates, and adds the Pydantic mirror to `contract/models.py`
   (`INPUT_TYPES` / `PAYLOAD_TYPES`). Nothing else changes.
 - `Recommendations` and `Recommendation` now carry `grounded_on`; R3's `evidence_hashes` slot is
-  redundant and should be removed when R3 is ported (TODO, see `agents/r3/factory.py`).
+  redundant and should be removed when R3 is ported. It was removed with the port, in contract
+  0.4.0.
 - The `DatasetProfile` description no longer says "the only view of the input an agent gets".
 - The contract version moves to 0.2.0. Stored v0 envelopes lack `grounding_mode` and
   `schema_class` and do not validate against the current schema; the workbench keeps no such

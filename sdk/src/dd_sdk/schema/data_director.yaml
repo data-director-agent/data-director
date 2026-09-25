@@ -8,7 +8,7 @@ description: >-
   (ADR-0007); every payload mixes in Grounded so the grounding linter can check it without
   knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.3.0
+version: 0.4.0
 license: MIT
 
 prefixes:
@@ -232,7 +232,6 @@ classes:
       - rationale
       - rationale_derivation
       - classification_derivation
-      - evidence_hashes
 
   ResourceRef:
     description: A FAIRsharing record as it identified itself when retrieved.
@@ -626,8 +625,6 @@ slots:
     required: true
   classification_derivation:
     range: Derivation
-  evidence_hashes:
-    multivalued: true
 
   fairsharing_id:
     required: true

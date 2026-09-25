@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Start every agent service on the port workbench/agents.yaml expects, for local development.
 # Ctrl-C stops them all. Then, in another terminal: `uv run workbench serve` (or `invoke`).
-#
-# R3 is listed but exits at once: it is not yet ported (agents/r3/src/dd_agent_r3/factory.py).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

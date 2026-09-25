@@ -1,11 +1,4 @@
-"""R3 through the conductor, with fakes. Moved out of test_harness.py when the harness was
-generalised (ADR-0007/0008/0010).
-
-R3 is not yet ported to the generalised agent interface (AgentSpec, polymorphic input and
-payload, declared grounding mode, `grounded_on` in place of `evidence_hashes`); see
-agents/r3/src/dd_agent_r3/factory.py. TODO: port and remove the module-level xfail. Tests that
-still pass are reported xpassed, not passed, so they do not substantiate a requirement.
-"""
+"""R3 through the conductor, with fakes, served in memory over A2A as the workbench calls it."""
 
 from __future__ import annotations
 
@@ -22,14 +15,11 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     ReasonCode,
     RecommendationKind,
+    Recommendations,
     TableField,
 )
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
-
-pytestmark = pytest.mark.xfail(
-    reason="R3 not yet ported to the generalised agent interface (TODO)", strict=False
-)
 
 SAMPLES = fakes.SAMPLES
 soil_profile = fakes.soil_profile
@@ -61,8 +51,12 @@ def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
     assert all(i.rationale for i in env.payload.items)  # C14
     cited = {i.resource.fairsharing_id for i in env.payload.items}
     assert {e.source_id for e in env.evidence} == cited
-    hashes = {e.content_hash for e in env.evidence}
-    assert all(set(i.evidence_hashes) <= hashes for i in env.payload.items)
+    evidenced = {(e.source_id, e.content_hash) for e in env.evidence}
+    for item in env.payload.items:
+        assert {(g.source_id, g.content_hash) for g in item.grounded_on} <= evidenced
+        # The linter reads only grounded_on; that it names the resource shown is R3's obligation.
+        assert [g.source_id for g in item.grounded_on] == [item.resource.fairsharing_id]
+    assert {(g.source_id, g.content_hash) for g in env.payload.grounded_on} == evidenced
     assert env.payload.searched is not None and env.payload.searched.candidates_retrieved
     assert conductor.grounding_reports[env.invocation_id].passed
 
@@ -141,12 +135,18 @@ def test_ungrounded_identifier_in_output_is_withheld(runs_dir: Path) -> None:
     class Smuggler(R3Agent):
         def run(self, req: InvocationRequest, ctx):
             result = super().run(req, ctx)
-            assert result.payload is not None
-            item = result.payload.items[0].model_copy(
+            assert isinstance(result.payload, Recommendations)
+            first = result.payload.items[0]
+            item = first.model_copy(
                 update={
-                    "resource": result.payload.items[0].resource.model_copy(
+                    "resource": first.resource.model_copy(
                         update={"fairsharing_id": "FAIRsharing.smuggled"}
-                    )
+                    ),
+                    "grounded_on": [
+                        first.grounded_on[0].model_copy(
+                            update={"source_id": "FAIRsharing.smuggled"}
+                        )
+                    ],
                 }
             )
             payload = result.payload.model_copy(update={"items": [item, *result.payload.items[1:]]})
@@ -167,6 +167,7 @@ def test_chat_before_retrieval_fails_g1(runs_dir: Path) -> None:
     class EagerAgent(R3Agent):
         def run(self, req: InvocationRequest, ctx):
             # A model call before anything was retrieved.
+            assert isinstance(req.input, DatasetProfile)
             fakes.FakeModelExplainer().explain(req.input, [], ctx)
             return super().run(req, ctx)
 

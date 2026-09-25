@@ -869,15 +869,6 @@
             "classification_derivation": {
                "$ref": "#/$defs/Derivation"
             },
-            "evidence_hashes": {
-               "items": {
-                  "type": "string"
-               },
-               "type": [
-                  "array",
-                  "null"
-               ]
-            },
             "grounded_on": {
                "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
                "items": {
@@ -1311,5 +1302,5 @@
    ],
    "title": "data_director_workbench",
    "type": "object",
-   "version": "0.3.0"
+   "version": "0.4.0"
 }

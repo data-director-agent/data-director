@@ -45,14 +45,6 @@ PUBLIC_SHAPE = {
     },
 }
 
-# R3 is not yet ported to the generalised agent interface (AgentSpec, polymorphic input and
-# payload, declared grounding mode); see src/workbench/agents/r3/factory.py. TODO: port and
-# remove this marker. Tests that still pass are reported xpassed, not passed, so they do not
-# substantiate a requirement in CONFORMANCE.md.
-pytestmark = pytest.mark.xfail(
-    reason="R3 not yet ported to the generalised agent interface (TODO)", strict=False
-)
-
 
 def test_public_record_projection_drops_personal_data_and_uses_doi_suffix_as_id() -> None:
     rec = from_public_json(PUBLIC_SHAPE, source_uri="https://fairsharing.org/399")

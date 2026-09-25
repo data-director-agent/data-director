@@ -1,11 +1,30 @@
-> **Status (2026-09-04): not ported.** R3 predates the generalised agent interface (ADR-0007,
-> ADR-0008, ADR-0010) and is registered as unavailable by `factory.py`; its tests are xfailed.
-> The port is a TODO described in `factory.py`. The rest of this document describes R3 as built.
-
 # R3 — standards advisor
 
-Retrieve → rank → explain over FAIRsharing. See the [contract](../../../../schema/data_director.yaml)
+Retrieve → rank → explain over FAIRsharing. See the [contract](../../../../sdk/src/dd_sdk/schema/data_director.yaml)
 for the shape every agent returns; this file covers what is specific to this one.
+
+`r3.standards-advisor` accepts a `DatasetProfile`, declares grounding mode `retrieval` and
+returns `Recommendations`. Serve it with `uv run dd-r3 serve --port 8105`.
+
+## Configuration
+
+`build()` in `factory.py` reads these environment variables:
+
+| Variable | Values | Default |
+|---|---|---|
+| `DD_R3_RETRIEVAL` | `snapshot`, or `live` (falls back to the snapshot, marked stale) | `snapshot` |
+| `DD_R3_EXPLAINER` | `template` or `anthropic` | `template` |
+| `DD_MODEL_ID` | model id for the Anthropic explainer | `explain.DEFAULT_MODEL` |
+| `DD_SNAPSHOT_PATH` | path to a snapshot JSONL file | `data/fairsharing/snapshot.jsonl` |
+
+An unknown value is a configuration error and stops the service at start-up.
+
+## Grounding
+
+Each `Recommendation` carries one `GroundingRef` for the FAIRsharing record it recommends. The
+agent builds `resource` and `grounded_on` from the same retrieved record. The root
+`Recommendations.grounded_on` lists every cited record once. The linter reads only
+`grounded_on`, so it is R3's own tests that check `resource.fairsharing_id` agrees with it.
 
 ## Honest limits
 

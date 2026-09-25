@@ -13,14 +13,6 @@ from dd_agent_r3.explain import (
 )
 from dd_sdk.contract.models import DatasetProfile, Derivation, RecommendationKind
 
-# R3 is not yet ported to the generalised agent interface (AgentSpec, polymorphic input and
-# payload, declared grounding mode); see src/workbench/agents/r3/factory.py. TODO: port and
-# remove this marker. Tests that still pass are reported xpassed, not passed, so they do not
-# substantiate a requirement in CONFORMANCE.md.
-pytestmark = pytest.mark.xfail(
-    reason="R3 not yet ported to the generalised agent interface (TODO)", strict=False
-)
-
 
 def _items() -> list[tuple]:  # type: ignore[type-arg]
     return [

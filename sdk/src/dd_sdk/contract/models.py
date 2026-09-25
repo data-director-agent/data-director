@@ -264,7 +264,6 @@ class Recommendation(Grounded):
     rationale: str
     rationale_derivation: Derivation
     classification_derivation: Derivation | None = None
-    evidence_hashes: list[str] = Field(default_factory=list)
 
 
 class SearchedSummary(Frozen):

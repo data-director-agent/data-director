@@ -1,0 +1,24 @@
+{
+  "ui:order": ["items", "searched", "grounded_on", "schema_class"],
+  "schema_class": { "ui:widget": "hidden" },
+  "grounded_on": { "ui:widget": "hidden" },
+  "searched": {
+    "queries": { "ui:options": { "dd:derivation": "verified" } },
+    "snapshot_ref": { "ui:options": { "dd:derivation": "verified" } },
+    "candidates_retrieved": { "ui:options": { "dd:derivation": "verified" } },
+    "candidates_qualifying": { "ui:options": { "dd:derivation": "verified" } }
+  },
+  "items": {
+    "items": {
+      "ui:order": ["kind", "target", "resource", "score", "rationale", "rationale_derivation", "classification_derivation", "grounded_on"],
+      "kind": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "lexical", "dd:derivation_field": "classification_derivation" } },
+      "target": { "ui:options": { "dd:derivation": "verified" } },
+      "resource": { "ui:options": { "dd:derivation": "verified" } },
+      "score": { "ui:options": { "dd:derivation": "verified" } },
+      "rationale": { "ui:widget": "derivationBadge", "ui:options": { "dd:derivation": "model", "dd:derivation_field": "rationale_derivation" } },
+      "rationale_derivation": { "ui:widget": "hidden" },
+      "classification_derivation": { "ui:widget": "hidden" },
+      "grounded_on": { "ui:widget": "hidden" }
+    }
+  }
+}

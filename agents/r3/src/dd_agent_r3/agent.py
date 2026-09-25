@@ -2,13 +2,19 @@
 
 Grounding invariant: retrieval precedes any model call, and the model never determines the
 identity of a recommendation. The explainer sees already-ranked records and writes rationale;
-`grounding.lint` checks the trace afterwards.
+the workbench's linter checks the trace afterwards (mode `retrieval`: G1-G4).
+
+Every recommendation asserts its identity twice, in `resource` for the reader and in
+`grounded_on` for the linter. Both are built from the same retrieved `Record`, so they cannot
+disagree; the linter reads only `grounded_on`.
 """
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import UTC, datetime
+from pathlib import Path
 
 from dd_agent_r3 import rank as ranking
 from dd_agent_r3.explain import Explainer, TemplateExplainer
@@ -21,10 +27,12 @@ from dd_agent_r3.retrieve import (
     RetrievalAdapter,
     SnapshotRef,
 )
-from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, RunContext
 from dd_sdk.contract.models import (
     DatasetProfile,
     EvidenceItem,
+    GroundingMode,
+    GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
@@ -38,12 +46,24 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM
 from dd_sdk.tracing import retrieval_span
 
+UISCHEMA = Path(__file__).resolve().parent / "uischema.json"
+
 
 class R3Agent:
-    agent_id = "r3.standards-advisor"
-    version = "0.1.0"
-    requirement_ids: tuple[str, ...] = ("R3", "R3.1", "R3.2", "R3.3", "R3.4", "R3.5", "R3.6")
-    action_class = "advise"
+    spec = AgentSpec(
+        agent_id="r3.standards-advisor",
+        version="0.2.0",
+        description=(
+            "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "
+            "for a dataset profile, grounded on the registry records it retrieved."
+        ),
+        requirement_ids=("R3", "R3.1", "R3.2", "R3.3", "R3.4", "R3.5", "R3.6"),
+        action_class="advise",
+        accepts=(DatasetProfile,),
+        grounding_mode=GroundingMode.RETRIEVAL,
+        payload_type=Recommendations,
+        uischema=json.loads(UISCHEMA.read_text(encoding="utf-8")),
+    )
 
     def __init__(
         self,
@@ -89,10 +109,8 @@ class R3Agent:
     # --- assembly -------------------------------------------------------------------------
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        # TODO: R3 is not yet ported to the generalised interface (see factory.py); until then it
-        # narrows the polymorphic input itself.
-        assert isinstance(request.input, DatasetProfile)
-        profile: DatasetProfile = request.input
+        profile = request.input
+        assert isinstance(profile, DatasetProfile)  # the conductor checked spec.accepts
         queries = ranking.build_queries(profile)
         if not queries:
             return AgentResult(
@@ -186,6 +204,7 @@ class R3Agent:
         items: list[Recommendation] = []
         for (r, target), rationale in zip(expanded, rationales, strict=True):
             rec = r.hit.record
+            grounding = GroundingRef(source_id=rec.fairsharing_id, content_hash=rec.content_hash())
             items.append(
                 Recommendation(
                     kind=r.kind,
@@ -202,7 +221,7 @@ class R3Agent:
                     rationale=rationale.text,
                     rationale_derivation=rationale.derivation,
                     classification_derivation=r.classification_derivation,
-                    evidence_hashes=[rec.content_hash()],
+                    grounded_on=[grounding],
                 )
             )
         cited = {i.resource.fairsharing_id for i in items}
@@ -219,6 +238,9 @@ class R3Agent:
             for rid, rec in sorted(retrieved.items())
             if rid in cited
         ]
+        grounded_on = [
+            GroundingRef(source_id=e.source_id, content_hash=e.content_hash) for e in evidence
+        ]
         kinds = sorted({i.kind.value for i in items})
         return AgentResult(
             outcome=Outcome(
@@ -229,7 +251,7 @@ class R3Agent:
                     "Human review is required."
                 ),
             ),
-            payload=Recommendations(items=items, searched=searched),
+            payload=Recommendations(items=items, searched=searched, grounded_on=grounded_on),
             evidence=evidence,
             model_id=self.explainer.model_id,
             input_tokens=self.explainer.usage.input_tokens,

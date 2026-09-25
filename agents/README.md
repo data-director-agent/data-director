@@ -23,7 +23,7 @@ An agent never sets identifiers, timestamps, telemetry or its grounding mode.
 | `hello/` | `hello.world` | `Salutation` | `none` | `Greeting` | `dd-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
 | `stub/` | `stub.abstain` | every input class | `none` | — | `dd-stub`, port 8104 | Abstains unconditionally. |
 | `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012). |
-| `r3/` | `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-r3`, port 8105 | **Not ported** to this interface. `dd-r3 serve` exits, so the workbench lists R3 as unavailable (`r3/src/dd_agent_r3/factory.py`). TODO. |
+| `r3/` | `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-r3`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_R3_*` (`r3/src/dd_agent_r3/README.md`). |
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
 `uv run dd-hello serve --port 8101`.

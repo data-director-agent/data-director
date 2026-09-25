@@ -112,9 +112,3 @@ ignore_missing_imports = true
 module = ["conftest", "sdk.tests.*", "workbench.tests.*", "agents.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
-
-# R3 and its tests predate the generalised agent interface and are xfailed until ported
-# (see agents/r3/src/dd_agent_r3/factory.py). TODO: remove with the port.
-[[tool.mypy.overrides]]
-module = ["agents.r3.tests.*", "dd_agent_r3.testing"]
-ignore_errors = true

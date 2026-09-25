@@ -143,6 +143,11 @@ That is the right thing to show. It makes the case for the traceability rule mor
 > governed invocation and records it on the parent; `director.stub` routes by rule; the shell has
 > Inspect and Chat modes. A model-backed orchestrator and streaming remain deferred.
 
+> **Amended 2026-09-25.** R3 is ported to the generalised interface: an `AgentSpec` with mode
+> `retrieval`, `grounded_on` on `Recommendations` and on each `Recommendation` in place of
+> `evidence_hashes` (removed in contract 0.4.0), and configuration read in its own `build`. Its
+> tests are no longer xfailed, and `dd-r3 serve` serves on port 8105.
+
 Each item below has a defined place in the v0 architecture so that adoption is additive.
 
 | Item | Existing option | What v0 carries | Why deferred |
