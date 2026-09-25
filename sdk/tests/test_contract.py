@@ -13,39 +13,29 @@ import pytest
 
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
-    Claim,
     ConversationTurn,
-    DatasetProfile,
     Delegation,
     Derivation,
     Envelope,
     EvidenceItem,
-    FactCheck,
-    Finding,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
     Message,
-    MetadataRecord,
+    OpenInput,
+    OpenPayload,
     Outcome,
     OutcomeStatus,
     Principal,
     PrincipalKind,
     ProblemDetails,
-    QualityReview,
     ReasonCode,
-    Recommendation,
-    RecommendationKind,
-    Recommendations,
     Reply,
-    Severity,
     Telemetry,
     TurnRole,
-    Verdict,
     input_source_id,
     invocation_source_id,
     new_invocation_id,
-    parse_input,
     to_document,
 )
 from dd_sdk.evidence import (
@@ -181,65 +171,47 @@ def _succeeded(**overrides: object) -> Envelope:
     )
 
 
+def _reply(*grounded_on: GroundingRef) -> Reply:
+    return Reply(
+        reply_text="r", reply_derivation=Derivation.TEMPLATE, grounded_on=list(grounded_on)
+    )
+
+
 @pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
-def test_each_payload_class_validates_with_grounded_on() -> None:
+def test_a_payload_of_any_class_validates_with_grounded_on() -> None:
+    """The core admits any payload that names its class and mixes in Grounded; the class
+    schema the agent's card carries checks the rest (ADR-0019)."""
     ref = GroundingRef(source_id="FAIRsharing.b44s4", content_hash="a" * 64)
     ev = EvidenceItem(
         source_id="FAIRsharing.b44s4", canonicalisation="json-sorted-utf8-v1", content_hash="a" * 64
     )
-    recs = Recommendations(
-        items=[
-            Recommendation(
-                kind=RecommendationKind.FIELD_FORMAT,
-                target="field:collection_date",
-                rationale="Dates should be written to ISO 8601.",
-                rationale_derivation=Derivation.TEMPLATE,
-                grounded_on=[ref],
-            )
-        ],
+    unseen = OpenPayload(
+        schema_class="Horoscope",
+        sign="Leo",
+        items=[{"grounded_on": [to_document(ref)]}],
         grounded_on=[ref],
-    )
-    validate.validate_envelope(
-        _succeeded(
-            grounding_mode=GroundingMode.RETRIEVAL, payload=recs, evidence=[ev]
-        ).to_document()
-    )
-    check = FactCheck(
-        verdict=Verdict.SUPPORTED,
-        rationale="r",
-        rationale_derivation=Derivation.TEMPLATE,
-        grounded_on=[ref],
-    )
-    validate.validate_envelope(
-        _succeeded(
-            grounding_mode=GroundingMode.RETRIEVAL, payload=check, evidence=[ev]
-        ).to_document()
-    )
-    review = QualityReview(
-        score=0.5,
-        findings=[
-            Finding(
-                criterion="licence_present",
-                severity=Severity.ERROR,
-                message="No licence.",
-                derivation=Derivation.LEXICAL,
-                grounded_on=[_input_ref()],
-            )
-        ],
-        grounded_on=[_input_ref()],
     )
     doc = _succeeded(
-        grounding_mode=GroundingMode.INPUT_ONLY, payload=review, evidence=[_input_evidence()]
+        grounding_mode=GroundingMode.RETRIEVAL, payload=unseen, evidence=[ev]
     ).to_document()
     validate.validate_envelope(doc)
-    assert doc["payload"]["schema_class"] == "QualityReview"
+    assert doc["payload"]["sign"] == "Leo"
+    assert Envelope.model_validate(doc).payload == unseen
+    doc = _succeeded(
+        grounding_mode=GroundingMode.INPUT_ONLY,
+        payload=_reply(_input_ref()),
+        evidence=[_input_evidence()],
+    ).to_document()
+    validate.validate_envelope(doc)
+    assert doc["payload"]["schema_class"] == "Reply"
+    assert Envelope.model_validate(doc).payload_as(Reply).reply_text == "r"
 
 
 @pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
 def test_payload_without_grounded_on_or_schema_class_is_rejected() -> None:
     doc = _succeeded(
         grounding_mode=GroundingMode.INPUT_ONLY,
-        payload=QualityReview(grounded_on=[_input_ref()]),
+        payload=_reply(_input_ref()),
         evidence=[_input_evidence()],
     ).to_document()
     del doc["payload"]["grounded_on"]
@@ -247,7 +219,7 @@ def test_payload_without_grounded_on_or_schema_class_is_rejected() -> None:
         validate.validate_envelope(doc)
     doc = _succeeded(
         grounding_mode=GroundingMode.INPUT_ONLY,
-        payload=QualityReview(grounded_on=[_input_ref()]),
+        payload=_reply(_input_ref()),
         evidence=[_input_evidence()],
     ).to_document()
     del doc["payload"]["schema_class"]
@@ -265,7 +237,7 @@ def test_envelope_requires_a_grounding_mode() -> None:
 
 @pytest.mark.requirement("DD-GROUNDING-MODE")
 def test_input_grounded_success_must_cite_only_the_input() -> None:
-    payload = QualityReview(grounded_on=[_input_ref()])
+    payload = _reply(_input_ref())
     with pytest.raises(validate.ContractViolation, match="citing the input"):
         validate.validate_envelope(
             _succeeded(grounding_mode=GroundingMode.INPUT_ONLY, payload=payload).to_document()
@@ -287,9 +259,7 @@ def test_input_grounded_success_must_cite_only_the_input() -> None:
 def test_retrieval_success_requires_non_empty_grounded_on() -> None:
     with pytest.raises(validate.ContractViolation, match="non-empty grounded_on"):
         validate.validate_envelope(
-            _succeeded(
-                grounding_mode=GroundingMode.RETRIEVAL, payload=QualityReview()
-            ).to_document()
+            _succeeded(grounding_mode=GroundingMode.RETRIEVAL, payload=_reply()).to_document()
         )
 
 
@@ -388,7 +358,7 @@ def test_an_accountable_role_is_a_principal() -> None:
 
 @pytest.mark.requirement("DD-ACTS-FOR")
 def test_a_request_cannot_say_whom_it_acts_for() -> None:
-    doc = to_document(InvocationRequest(agent_id="stub.abstain", input=DatasetProfile()))
+    doc = to_document(InvocationRequest(agent_id="stub.abstain", input=Message(message_text="hi")))
     doc["acting_for"] = to_document(PRINCIPAL)
     # The model refuses it, and every transport parses the request with the model before the
     # conductor sees it. TODO: the generated request schema's root is open, so a consumer that
@@ -398,7 +368,7 @@ def test_a_request_cannot_say_whom_it_acts_for() -> None:
 
 
 def test_request_validates_and_rejects_bad_id() -> None:
-    req = InvocationRequest(agent_id="stub.abstain", input=DatasetProfile())
+    req = InvocationRequest(agent_id="stub.abstain", input=Message(message_text="hi"))
     validate.validate_request(to_document(req))
     doc = to_document(req)
     doc["invocation_id"] = "not-a-uuid"
@@ -407,28 +377,23 @@ def test_request_validates_and_rejects_bad_id() -> None:
 
 
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
-def test_every_input_class_validates_and_is_discriminated_by_schema_class() -> None:
-    for inp in (
-        DatasetProfile(title="t"),
-        MetadataRecord(identifier="doi:10.1/x", licence="CC-BY-4.0"),
-        Claim(text="A DOI does not change."),
-        Message(message_text="hello"),
-    ):
+def test_an_input_of_any_class_validates_and_names_its_class() -> None:
+    for inp in (Message(message_text="hello"), OpenInput(schema_class="Horoscope", sign="Leo")):
         req = InvocationRequest(agent_id="stub.abstain", input=inp)
         doc = to_document(req)
         validate.validate_request(doc)
-        assert doc["input"]["schema_class"] == type(inp).__name__
-        assert type(parse_input(doc["input"])) is type(inp)
+        assert doc["input"]["schema_class"] == inp.schema_class
+        assert InvocationRequest.model_validate(doc).input == OpenInput.model_validate(doc["input"])
 
 
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
 def test_input_without_schema_class_is_rejected() -> None:
-    """`{}` must not silently parse as a DatasetProfile (every slot of which is optional)."""
+    """`{}` names no class, so no class schema could check it."""
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
-        parse_input({})
-    req = to_document(InvocationRequest(agent_id="a", input=Claim(text="x")))
+        InvocationRequest.model_validate({"agent_id": "a", "input": {}})
+    req = to_document(InvocationRequest(agent_id="a", input=Message(message_text="x")))
     del req["input"]["schema_class"]
     with pytest.raises(validate.ContractViolation):
         validate.validate_request(req)
@@ -497,7 +462,7 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
     doc = to_document(req)
     validate.validate_request(doc)
     assert doc["conversation_id"] == conv
-    assert type(parse_input(doc["input"])) is Message
+    assert Message.model_validate(doc["input"]) == message  # the core class round-trips
 
     child = new_invocation_id()
     reply = Reply(

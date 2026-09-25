@@ -1,0 +1,107 @@
+# The input and payload classes of quality.reviewer, owned by this package (ADR-0019). It
+# imports the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/quality/src/dd_agent_quality/schema/quality.yaml` to regenerate
+# generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
+id: https://w3id.org/data-director/agents/quality
+name: dd_agent_quality
+title: quality.reviewer classes
+description: >-
+  An existing metadata record, and a review of it: a score and the findings behind it.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  quality: https://w3id.org/data-director/agents/quality/
+  linkml: https://w3id.org/linkml/
+  dcterms: http://purl.org/dc/terms/
+  dcat: http://www.w3.org/ns/dcat#
+default_prefix: quality
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  MetadataRecord:
+    class_uri: dcat:Dataset
+    description: >-
+      An existing metadata record about a dataset, as a repository or catalogue holds it. The
+      input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a
+      minimal record carries; TODO widen when a real repository export is exercised.
+    slots:
+      - schema_class
+      - identifier
+      - title
+      - description
+      - licence
+      - creators
+      - keywords
+
+  QualityReview:
+    description: >-
+      The payload of a quality or validation agent: a score over an existing record and the
+      findings behind it. Grounded on the input itself (grounding mode input_only or none).
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - score
+      - findings
+
+  Finding:
+    description: One observation about one criterion.
+    mixins:
+      - Grounded
+    slots:
+      - criterion
+      - severity
+      - message
+      - derivation
+
+slots:
+
+  identifier:
+    description: The record's own identifier, e.g. a DOI or a catalogue URI.
+    slot_uri: dcterms:identifier
+  title:
+    slot_uri: dcterms:title
+  description:
+    slot_uri: dcterms:description
+  licence:
+    description: The licence the record declares, as an IRI or SPDX identifier.
+    slot_uri: dcterms:license
+  creators:
+    slot_uri: dcterms:creator
+    multivalued: true
+  keywords:
+    slot_uri: dcat:keyword
+    multivalued: true
+  score:
+    range: float
+  findings:
+    range: Finding
+    multivalued: true
+    inlined_as_list: true
+  criterion:
+    description: The quality criterion assessed, e.g. licence_present.
+    required: true
+  severity:
+    range: Severity
+    required: true
+  message:
+    description: The finding, as a sentence a reviewer can act on.
+    required: true
+  derivation:
+    description: How the finding was produced.
+    range: Derivation
+    required: true
+
+enums:
+
+  Severity:
+    permissible_values:
+      info:
+      warning:
+      error:

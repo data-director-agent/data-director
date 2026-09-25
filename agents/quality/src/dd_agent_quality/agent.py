@@ -17,22 +17,19 @@ from typing import Any
 
 import yaml
 
+from dd_agent_quality.classes import Finding, MetadataRecord, QualityReview, Severity
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
-    Finding,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
-    MetadataRecord,
     Outcome,
     OutcomeStatus,
-    QualityReview,
     ReasonCode,
-    Severity,
 )
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
