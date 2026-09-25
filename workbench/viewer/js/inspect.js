@@ -2,7 +2,7 @@
 // ?invocation_id=… reloads a run.
 import { $, el, icon, statusIcon, wireCopy, inputs, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, chatLink, parseSse, newRequest, postRun } from "./common.js";
 import { closeTip, help } from "./help.js";
-import { agents, notRunnable, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
+import { agents, unavailable, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
 import { payloadView } from "./payload.js";
 import { inputForm } from "./inputform.js";
 
@@ -211,7 +211,7 @@ function refreshClasses() {
   const agent = agents[selectedAgent()];
   renderClasses($("class-select"), $("class-row"), agent);
   if (!agent) {
-    $("sample-select").replaceChildren(new Option(notRunnable(selectedAgent()) ? `Agent ${notRunnable(selectedAgent()).state.toLowerCase()}` : "Choose an agent first", ""));
+    $("sample-select").replaceChildren(new Option(selectedAgent() in unavailable ? "Agent unavailable" : "Choose an agent first", ""));
     ++loading; $("input-fieldset").hidden = true; formReady = editor.show(null);
     refreshRunButton();
   } else refreshSamples();

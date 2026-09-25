@@ -128,9 +128,10 @@ for one command. If either is missing, the command stops with
 
 ### Environment variables
 
-The workbench reads these from the environment when it starts. It does not load a `.env` file
-itself: export them in the shell, or copy [`env.example`](env.example) to `.env` and run
-`uv run --env-file .env workbench …`.
+The workbench reads these from the environment when it starts. For local development, copy
+[`env.example`](env.example) to `workbench/.env`: the `workbench` command loads it at start-up,
+from whichever directory it is run. A variable already set in the environment takes precedence
+over the file. `scripts/run-agents.sh` passes the same file to the agents.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -181,9 +182,6 @@ pass `--profile <path>` to `invoke` or `serve`, to use another. The format is de
 - **An agent is listed as unavailable.** Its service is not running or is on another port. Start
   it with `../scripts/run-agents.sh`, and check its URL in `agents.yaml`.
 - **`failed: input-not-accepted`.** The agent does not read that input class. `workbench agents`
-- **An agent is listed as incompatible.** It was built against a contract version this workbench
-  cannot govern; the message names both. Rebuild the agent, or the workbench, against the same
-  SDK.
   shows what each accepts.
 - **`failed: agent-not-permitted`.** The profile in use does not list the agent under `agents`.
 - **`failed: action-class-mismatch`.** The agent declares a different action class from the one

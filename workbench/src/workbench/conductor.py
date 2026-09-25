@@ -234,9 +234,13 @@ class Conductor:
     ) -> Envelope:
         agent = self.registry.get(request.agent_id)
         if agent is None:
+            unavailable = "".join(
+                f"\n  {name} unavailable: {reason}"
+                for name, reason in self.registry.unavailable.items()
+            )
             raise UnknownAgent(
                 f"no agent registered as {request.agent_id!r}; known: {self.registry.ids()}"
-                + self.registry.not_registered()
+                + unavailable
             )
         spec = agent.spec
         started = datetime.now(UTC)

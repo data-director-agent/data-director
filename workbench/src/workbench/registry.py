@@ -7,9 +7,8 @@ transports and viewer read the registry and never name an agent.
 
 An agent whose card cannot be read, or whose card does not describe an agent this contract
 admits, is recorded as unavailable with the reason, and the registry carries on: one agent being
-down does not stop the workbench. An agent built against a contract version this workbench cannot
-govern is recorded apart, as incompatible, with both versions (ADR-0019). The policy gate still
-decides, per profile, which registered agents may run. Registration is not permission.
+down does not stop the workbench. The policy gate still decides, per profile, which registered
+agents may run. Registration is not permission.
 
 `from_agents` takes agent objects directly: `RemoteAgent`s, which tests bind to in-process ASGI
 apps (`workbench.testing`), or in-process `Agent`s, which the conductor runs in its own trace.
@@ -31,7 +30,7 @@ from typing import Any
 
 import yaml
 
-from dd_sdk.agent import Agent, ContractVersionError, SpecError, describe
+from dd_sdk.agent import Agent, SpecError, describe
 from workbench.remote import (
     DEFAULT_TIMEOUT_S,
     ClientFactory,
@@ -53,7 +52,6 @@ Registered = Agent | RemoteAgent
 class Registry:
     agents: dict[str, Registered] = field(default_factory=dict)
     unavailable: dict[str, str] = field(default_factory=dict)  # name or URL -> reason
-    incompatible: dict[str, str] = field(default_factory=dict)  # name or URL -> both versions
 
     @classmethod
     def from_agents(cls, agents: Iterable[Registered]) -> Registry:
@@ -65,8 +63,7 @@ class Registry:
     @classmethod
     def from_config(cls, path: Path, client_factory: ClientFactory = default_client) -> Registry:
         """Read `path` and each agent card it lists. A missing or malformed file is a
-        `RegistryError`; an agent that cannot be reached is recorded as unavailable, and one
-        built against another contract version as incompatible."""
+        `RegistryError`; an agent that cannot be reached is recorded as unavailable."""
         registry = cls()
         for entry in load_config(path):
             url = entry["url"]
@@ -77,9 +74,6 @@ class Registry:
                     timeout_s=float(entry.get("timeout_s", DEFAULT_TIMEOUT_S)),
                     client_factory=client_factory,
                 )
-            except ContractVersionError as exc:
-                registry.incompatible[name] = str(exc)
-                continue
             except (RemoteAgentError, SpecError) as exc:
                 registry.unavailable[name] = str(exc)
                 continue
@@ -108,25 +102,6 @@ class Registry:
 
     def manifest(self) -> list[dict[str, Any]]:
         return [describe(self.agents[agent_id].spec) for agent_id in self.ids()]
-
-    def listing(self) -> dict[str, Any]:
-        """The manifest and the agents that could not be registered (`GET /agents`, `--json`)."""
-        return {
-            "agents": self.manifest(),
-            "unavailable": self.unavailable,
-            "incompatible": self.incompatible,
-        }
-
-    def not_registered(self) -> str:
-        """One line per agent that could not be registered, and why."""
-        return "".join(
-            f"\n  {name} {state}: {reason}"
-            for state, found in (
-                ("unavailable", self.unavailable),
-                ("incompatible", self.incompatible),
-            )
-            for name, reason in found.items()
-        )
 
 
 def load_config(path: Path) -> list[dict[str, Any]]:

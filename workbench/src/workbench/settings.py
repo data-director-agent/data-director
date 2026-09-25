@@ -5,13 +5,19 @@ the invocations act for, whether to write a crate, where the agent and source co
 are). Agents are separate
 services and read their own `DD_<AGENT>_*` variables in their own processes; see env.example.
 Kept in one place so the CLI, the transports and the tests build the same object.
+
+`load_env_file` fills unset variables from `workbench/.env` for local development. Only the
+console-script entry calls it; `Settings.from_env()` reads the real environment alone.
 """
 
 from __future__ import annotations
 
 import os
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
+
+from dotenv import dotenv_values
 
 from dd_sdk.contract.models import Principal, PrincipalKind
 from workbench.conductor import Conductor
@@ -25,6 +31,23 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_RUNS_DIR = ROOT / "runs"
 DEFAULT_AGENTS_CONFIG = ROOT / "agents.yaml"
 DEFAULT_SOURCES_CONFIG = ROOT / "sources.yaml"
+DEFAULT_ENV_FILE = ROOT / ".env"
+
+
+def load_env_file(
+    path: Path = DEFAULT_ENV_FILE, environ: MutableMapping[str, str] = os.environ
+) -> bool:
+    """Fill unset variables from a local `.env` file; a variable already set is never replaced.
+
+    A convenience for development: the real environment (a shell `export`, CI, a deployment)
+    always wins. Returns whether the file exists; a missing file changes nothing.
+    """
+    if not path.is_file():
+        return False
+    for key, value in dotenv_values(path).items():
+        if value is not None:
+            environ.setdefault(key, value)
+    return True
 
 
 @dataclass(frozen=True)

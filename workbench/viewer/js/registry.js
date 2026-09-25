@@ -3,7 +3,7 @@
 import { el } from "./common.js";
 import { help } from "./help.js";
 
-export const agents = {}, unavailable = {}, incompatible = {}, samples = [];
+export const agents = {}, unavailable = {}, samples = [];
 export async function loadRegistry() {
   const [manifest, listing] = await Promise.all([
     fetch("/agents").then((r) => r.json()),
@@ -11,13 +11,12 @@ export async function loadRegistry() {
   ]);
   for (const a of manifest.agents) agents[a.agent_id] = a;
   Object.assign(unavailable, manifest.unavailable || {});
-  Object.assign(incompatible, manifest.incompatible || {});
   samples.push(...listing);
 }
 
 // One option per agent, grouped by the id prefix before the first dot, so the picker stays
-// one line tall however many agents the registry holds. Unavailable and incompatible agents stay
-// selectable so their reason can be read in the detail card; Run and Send stay disabled for them.
+// one line tall however many agents the registry holds. Unavailable agents stay selectable so
+// their reason can be read in the detail card; Run and Send stay disabled for them.
 export function renderAgents(sel) {
   const byId = (a, b) => a.localeCompare(b);
   const groups = Map.groupBy(Object.keys(agents).sort(byId), (id) => id.split(".")[0]);
@@ -28,19 +27,10 @@ export function renderAgents(sel) {
   }
   const down = Object.keys(unavailable).sort(byId);
   if (down.length) sel.append(el("optgroup", { label: "Unavailable" }, ...down.map((id) => new Option(id, id))));
-  const other = Object.keys(incompatible).sort(byId);
-  if (other.length) sel.append(el("optgroup", { label: "Incompatible" }, ...other.map((id) => new Option(id, id))));
-}
-// Why a registered name cannot be run, or null if it can.
-export function notRunnable(id) {
-  if (id in incompatible) return { state: "Incompatible", reason: incompatible[id], term: "incompatible" };
-  if (id in unavailable) return { state: "Unavailable", reason: unavailable[id], term: "unavailable" };
-  return null;
 }
 export function renderAgentDetail(id, box) {
   const a = agents[id];
-  const down = notRunnable(id);
-  box.toggleAttribute("data-unavailable", down !== null);
+  box.toggleAttribute("data-unavailable", id in unavailable);
   box.hidden = !id;
   if (a) box.replaceChildren(
     el("p", { className: "desc", textContent: a.description }),
@@ -49,7 +39,7 @@ export function renderAgentDetail(id, box) {
       el("span", {}, `accepts ${a.accepts.join(", ")}`, help("accepts")),
       ...a.requirement_ids.map((r) => el("span", { className: "chip", textContent: r })),
       a.requirement_ids.length ? help("requirement") : null));
-  else box.replaceChildren(el("p", { className: "desc" }, down ? `${down.state}: ${down.reason}` : "", down ? help(down.term) : null));
+  else box.replaceChildren(el("p", { className: "desc" }, id ? `Unavailable: ${unavailable[id]}` : "", id ? help("unavailable") : null));
 }
 
 // The input-class picker, shown only when the agent accepts more than one class. A class kept
