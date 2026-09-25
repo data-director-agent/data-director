@@ -69,11 +69,10 @@ def cmd_agents(args: argparse.Namespace) -> int:
             m["grounding_mode"],
             ", ".join(m["accepts"]),
             m["payload"] or "—",
-            ", ".join(m["requirement_ids"]),
         )
         for m in registry.manifest()
     ]
-    head = ("agent_id", "version", "mode", "accepts", "payload", "requirements")
+    head = ("agent_id", "version", "mode", "accepts", "payload")
     widths = [max(len(str(r[i])) for r in (head, *rows)) for i in range(len(head))]
     for r in (head, *rows):
         print("  ".join(str(c).ljust(w) for c, w in zip(r, widths, strict=True)).rstrip())

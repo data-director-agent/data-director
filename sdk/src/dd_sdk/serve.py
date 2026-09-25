@@ -83,7 +83,6 @@ def agent_card(agent: Agent, base_url: str) -> AgentCard:
                     "data-director",
                     f"grounding:{spec.grounding_mode.value}",
                     *(f"accepts:{name}" for name in entry["accepts"]),
-                    *spec.requirement_ids,
                 ],
             )
         ],

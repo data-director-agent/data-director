@@ -25,7 +25,6 @@ class AbstainingStub:
         agent_id="stub.abstain",
         version="0.2.0",
         description="Abstains unconditionally; exercises the non-success path.",
-        requirement_ids=("DD-OUTCOME",),
         action_class="advise",
         accepts=tuple(INPUT_TYPES.values()),
         grounding_mode=GroundingMode.NONE,

@@ -48,7 +48,6 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
                 "data-director",
                 f"grounding:{entry['grounding_mode']}",
                 *(f"accepts:{name}" for name in entry["accepts"]),
-                *entry["requirement_ids"],
             ],
         )
         for entry in conductor.registry.manifest()

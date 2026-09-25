@@ -26,7 +26,6 @@ SPEC = AgentSpec(
     agent_id="test.spec",
     version="0.0.0",
     description="A spec for testing derivations.",
-    requirement_ids=(),
     action_class="advise",
     accepts=(DatasetProfile,),
     grounding_mode=GroundingMode.RETRIEVAL,

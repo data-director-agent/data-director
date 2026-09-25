@@ -68,7 +68,6 @@ class AgentSpec:
     agent_id: str
     version: str
     description: str
-    requirement_ids: tuple[str, ...]
     action_class: str  # what the policy gate matches against actions_requiring_approval
     accepts: tuple[type[Frozen], ...]  # input classes; anything else is input-not-accepted
     grounding_mode: GroundingMode
@@ -92,7 +91,6 @@ DESCRIPTION_KEYS = frozenset(
         "agent_id",
         "version",
         "description",
-        "requirement_ids",
         "action_class",
         "accepts",
         "grounding_mode",
@@ -150,7 +148,6 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "agent_id": spec.agent_id,
         "version": spec.version,
         "description": spec.description,
-        "requirement_ids": list(spec.requirement_ids),
         "action_class": spec.action_class,
         "accepts": list(spec.accepts_names()),
         "grounding_mode": spec.grounding_mode.value,
@@ -213,7 +210,6 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         agent_id=str(entry["agent_id"]),
         version=str(entry["version"]),
         description=str(entry["description"]),
-        requirement_ids=tuple(entry["requirement_ids"]),
         action_class=str(entry["action_class"]),
         accepts=tuple(INPUT_TYPES[name] for name in entry["accepts"]),
         grounding_mode=mode,

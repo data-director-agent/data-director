@@ -55,14 +55,6 @@ class HelloWorld:
             "Greets whoever the input names. A template: it demonstrates the agent contract and "
             "does nothing useful."
         ),
-        # Only what this agent genuinely exercises. A template substantiates no Blueprint
-        # requirement, so none is claimed here (recipe step 9).
-        requirement_ids=(
-            "DD-REGISTRY",
-            "DD-INPUT-ACCEPTS",
-            "DD-GROUNDING-MODE",
-            "DD-GROUNDED-PAYLOAD",
-        ),
         action_class="advise",
         accepts=(Salutation,),
         grounding_mode=GroundingMode.NONE,

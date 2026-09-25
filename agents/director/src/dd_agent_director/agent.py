@@ -128,12 +128,6 @@ class DirectorStub:
             "A rule-based stand-in for the Data Director orchestrator. Routes each message to "
             "one specialist agent through the workbench and relays its answer."
         ),
-        requirement_ids=(
-            "DD-CONVERSATION",
-            "DD-DELEGATION",
-            "DD-GROUNDING-MODE",
-            "DD-GROUNDED-PAYLOAD",
-        ),
         action_class="advise",
         accepts=(Message,),
         grounding_mode=GroundingMode.DELEGATION,

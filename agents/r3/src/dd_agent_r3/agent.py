@@ -53,7 +53,6 @@ class R3Agent:
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "
             "for a dataset profile, grounded on the registry records it retrieved."
         ),
-        requirement_ids=("R3", "R3.1", "R3.2", "R3.3", "R3.4", "R3.5", "R3.6"),
         action_class="advise",
         accepts=(DatasetProfile,),
         grounding_mode=GroundingMode.RETRIEVAL,

@@ -60,7 +60,6 @@ class QualityReviewer:
         agent_id="quality.reviewer",
         version="0.1.0",
         description="Scores the completeness of a metadata record against fixed criteria.",
-        requirement_ids=("R4.1",),
         action_class="advise",
         accepts=(MetadataRecord,),
         grounding_mode=GroundingMode.INPUT_ONLY,

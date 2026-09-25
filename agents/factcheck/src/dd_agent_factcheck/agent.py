@@ -113,7 +113,6 @@ class FactChecker:
         agent_id="fact.checker",
         version="0.1.0",
         description="Gives a lexical verdict on a claim, grounded on the sources it retrieved.",
-        requirement_ids=("DD-GROUNDING",),
         action_class="advise",
         accepts=(Claim,),
         grounding_mode=GroundingMode.RETRIEVAL,

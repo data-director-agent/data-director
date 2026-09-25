@@ -99,5 +99,3 @@ def test_spec_declares_what_the_conductor_enforces() -> None:
     assert spec.accepts == (Salutation,)
     assert spec.payload_type is Greeting
     assert spec.grounding_mode == GroundingMode.NONE
-    # A template exercises the harness, not the Blueprint: every id it claims is a DD-* one.
-    assert all(r.startswith("DD-") for r in spec.requirement_ids), spec.requirement_ids

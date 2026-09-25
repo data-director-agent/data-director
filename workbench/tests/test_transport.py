@@ -64,7 +64,7 @@ def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) 
     _, card = _get(app, "/.well-known/agent-card.json")
     skills = {s["id"]: s for s in card["skills"]}
     assert set(skills) == {"quality.reviewer", "fact.checker", "hello.world", "stub.abstain"}
-    assert {"grounding:input_only", "accepts:MetadataRecord", "R4.1"} <= set(
+    assert {"grounding:input_only", "accepts:MetadataRecord"} <= set(
         skills["quality.reviewer"]["tags"]
     )
     assert card["supportedInterfaces"][0]["protocolBinding"] == "JSONRPC"
