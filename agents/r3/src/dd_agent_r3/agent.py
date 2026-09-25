@@ -196,13 +196,13 @@ class R3Agent:
                 expanded.append((r, "dataset"))
 
         # Explain — after retrieval, over decided identities only.
-        rationales = self.explainer.explain(
+        explanation = self.explainer.explain(
             profile, [(r.hit.record, r.kind, target, r.reasons) for r, target in expanded], ctx
         )
 
         now = datetime.now(UTC)
         items: list[Recommendation] = []
-        for (r, target), rationale in zip(expanded, rationales, strict=True):
+        for (r, target), rationale in zip(expanded, explanation.rationales, strict=True):
             rec = r.hit.record
             grounding = GroundingRef(source_id=rec.fairsharing_id, content_hash=rec.content_hash())
             items.append(
@@ -254,6 +254,6 @@ class R3Agent:
             payload=Recommendations(items=items, searched=searched, grounded_on=grounded_on),
             evidence=evidence,
             model_id=self.explainer.model_id,
-            input_tokens=self.explainer.usage.input_tokens,
-            output_tokens=self.explainer.usage.output_tokens,
+            input_tokens=explanation.usage.input_tokens,
+            output_tokens=explanation.usage.output_tokens,
         )

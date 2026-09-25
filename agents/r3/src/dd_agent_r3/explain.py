@@ -42,13 +42,24 @@ class Usage:
     output_tokens: int | None = None
 
 
+@dataclass(frozen=True)
+class Explanation:
+    """One rationale per item, and the tokens spent on this call.
+
+    Usage is returned rather than kept on the explainer, because one explainer instance serves
+    concurrent runs (`dd_sdk.serve` runs each request on its own thread).
+    """
+
+    rationales: list[Rationale]
+    usage: Usage
+
+
 class Explainer(Protocol):
     model_id: str | None
-    usage: Usage
 
     def explain(
         self, profile: DatasetProfile, items: list[Item], ctx: RunContext
-    ) -> list[Rationale]: ...
+    ) -> Explanation: ...
 
 
 _KIND_PHRASE = {
@@ -88,13 +99,10 @@ def template_rationale(
 class TemplateExplainer:
     model_id: str | None = None
 
-    def __init__(self) -> None:
-        self.usage = Usage()
-
-    def explain(
-        self, profile: DatasetProfile, items: list[Item], ctx: RunContext
-    ) -> list[Rationale]:
-        return [Rationale(template_rationale(*item), Derivation.TEMPLATE) for item in items]
+    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
+        return Explanation(
+            [Rationale(template_rationale(*item), Derivation.TEMPLATE) for item in items], Usage()
+        )
 
 
 DEFAULT_MODEL = "claude-opus-5"
@@ -121,7 +129,6 @@ class AnthropicExplainer:
 
         self._client = client or _anthropic.Anthropic()
         self.model_id: str | None = model_id
-        self.usage = Usage()
 
     def _prompt(self, profile: DatasetProfile, items: list[Item]) -> str:
         lines = [
@@ -148,11 +155,9 @@ class AnthropicExplainer:
             )
         return "\n".join(lines)
 
-    def explain(
-        self, profile: DatasetProfile, items: list[Item], ctx: RunContext
-    ) -> list[Rationale]:
+    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
         if not items:
-            return []
+            return Explanation([], Usage())
         assert self.model_id is not None
         with chat_span(ctx.tracer, self.model_id) as span:
             response = self._client.messages.create(
@@ -161,18 +166,21 @@ class AnthropicExplainer:
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": self._prompt(profile, items)}],
             )
-            self.usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
-            record_tokens(span, self.usage.input_tokens, self.usage.output_tokens)
+            usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
+            record_tokens(span, usage.input_tokens, usage.output_tokens)
         if response.stop_reason == "refusal":
-            return [
-                Rationale(
-                    template_rationale(*item) + " (Model declined; template used.)",
-                    Derivation.TEMPLATE,
-                )
-                for item in items
-            ]
+            return Explanation(
+                [
+                    Rationale(
+                        template_rationale(*item) + " (Model declined; template used.)",
+                        Derivation.TEMPLATE,
+                    )
+                    for item in items
+                ],
+                usage,
+            )
         text = "".join(block.text for block in response.content if block.type == "text")
-        return self._parse(text, items)
+        return Explanation(self._parse(text, items), usage)
 
     def _parse(self, text: str, items: list[Item]) -> list[Rationale]:
         numbered: dict[int, str] = {}

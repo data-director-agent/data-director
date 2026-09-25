@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from dd_agent_r3 import testing as fakes
@@ -11,7 +13,9 @@ from dd_agent_r3.explain import (
     TemplateExplainer,
     template_rationale,
 )
+from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import DatasetProfile, Derivation, RecommendationKind
+from dd_sdk.tracing import make_tracing
 
 
 def _items() -> list[tuple]:  # type: ignore[type-arg]
@@ -32,7 +36,7 @@ def test_template_rationale_names_resource_kind_and_target() -> None:
     assert "ISO 8601" in text and "'collection_date'" in text and "field-level" in text
     assert "not by a model" in text
     out = TemplateExplainer().explain(DatasetProfile(), _items(), None)  # type: ignore[arg-type]
-    assert [r.derivation for r in out] == [Derivation.TEMPLATE, Derivation.TEMPLATE]
+    assert [r.derivation for r in out.rationales] == [Derivation.TEMPLATE, Derivation.TEMPLATE]
 
 
 class _NoClient:
@@ -67,3 +71,32 @@ def test_prompt_carries_metadata_only() -> None:
     prompt = ex._prompt(profile, _items())
     assert "Soil" in prompt and "AGROVOC" in prompt and "ISO 8601" in prompt
     assert "ALREADY been selected" in SYSTEM_PROMPT and "Do not recommend anything" in SYSTEM_PROMPT
+
+
+class _CountingClient:
+    """A stub Anthropic client whose every call reports a different token count."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.messages = self
+
+    def create(self, **_: object) -> SimpleNamespace:
+        self.calls += 1
+        return SimpleNamespace(
+            usage=SimpleNamespace(input_tokens=self.calls * 10, output_tokens=self.calls),
+            stop_reason="end_turn",
+            content=[SimpleNamespace(type="text", text="1. First.\n2. Second.")],
+        )
+
+
+def test_each_call_returns_its_own_usage() -> None:
+    """Usage travels with the call, so concurrent runs on one explainer cannot swap counts."""
+    pytest.importorskip("anthropic")
+    ex = AnthropicExplainer(client=_CountingClient(), model_id="claude-opus-5")  # type: ignore[arg-type]
+    tracing = make_tracing()
+    ctx = RunContext(tracer=tracing.tracer, input_ref="", input_hash="")
+    first = ex.explain(DatasetProfile(), _items(), ctx)
+    second = ex.explain(DatasetProfile(), _items(), ctx)
+    assert (first.usage.input_tokens, first.usage.output_tokens) == (10, 1)
+    assert (second.usage.input_tokens, second.usage.output_tokens) == (20, 2)
+    assert not hasattr(ex, "usage")

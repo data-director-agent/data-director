@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from dd_agent_r3.explain import Item, Rationale, Usage
+from dd_agent_r3.explain import Explanation, Item, Rationale, Usage
 from dd_agent_r3.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
 from dd_agent_r3.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.agent import RunContext
@@ -108,21 +108,18 @@ class FakeModelExplainer:
     model_id: str | None = "fake-model"
 
     def __init__(self, hallucinate: bool = False) -> None:
-        self.usage = Usage()
         self.hallucinate = hallucinate
 
-    def explain(
-        self, profile: DatasetProfile, items: list[Item], ctx: RunContext
-    ) -> list[Rationale]:
+    def explain(self, profile: DatasetProfile, items: list[Item], ctx: RunContext) -> Explanation:
         with chat_span(ctx.tracer, "fake-model"):
-            self.usage = Usage(input_tokens=100, output_tokens=50)
+            usage = Usage(input_tokens=100, output_tokens=50)
         out = []
         for record, *_ in items:
             text = f"Model says {record.name} fits."
             if self.hallucinate:
                 text += " See also FAIRsharing.made-up."
             out.append(Rationale(text, Derivation.MODEL))
-        return out
+        return Explanation(out, usage)
 
 
 class ChatBeforeRetrievalExplainer(FakeModelExplainer):
