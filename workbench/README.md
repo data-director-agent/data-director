@@ -181,10 +181,10 @@ pass `--profile <path>` to `invoke` or `serve`, to use another. The format is de
   as `https://orcid.org/…`, and `DD_PRINCIPAL_KIND` must be `person` or `accountable_role`.
 - **An agent is listed as unavailable.** Its service is not running or is on another port. Start
   it with `../scripts/run-agents.sh`, and check its URL in `agents.yaml`.
-- **`failed: input-not-accepted`.** The agent does not read that input class. `workbench agents`
 - **An agent is listed as incompatible.** It was built against a contract version this workbench
   cannot govern; the message names both. Rebuild the agent, or the workbench, against the same
   SDK.
+- **`failed: input-not-accepted`.** The agent does not read that input class. `workbench agents`
   shows what each accepts.
 - **`failed: agent-not-permitted`.** The profile in use does not list the agent under `agents`.
 - **`failed: action-class-mismatch`.** The agent declares a different action class from the one
