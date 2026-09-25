@@ -1,0 +1,38 @@
+name: conformance
+
+# CONFORMANCE.md is decided by the requirements register, the review record, the report script
+# and the outcome of every requirement-marked test in the workspace, so the trigger covers the
+# workspace's code and tests and leaves out prose no test reads. Later patterns override earlier
+# ones: the workbench docs are excluded, then the register and review record are put back.
+on:
+  push:
+    branches: [main]
+    paths: &paths
+      - "sdk/**"
+      - "workbench/**"
+      - "agents/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "conftest.py"
+      - ".github/workflows/conformance.yml"
+      - "!**/README.md"
+      - "!**/AGENTS.md"
+      - "!workbench/docs/**"
+      - "workbench/docs/requirements.yaml"
+      - "workbench/docs/reviews.yaml"
+  pull_request:
+    paths: *paths
+
+jobs:
+  conformance:
+    name: CONFORMANCE.md is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache-dependency-glob: "uv.lock"
+      - run: uv sync --all-packages --all-extras
+      # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
+      - run: uv run pytest --json-report --json-report-file=workbench/.report.json
+      - run: uv run python workbench/scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
