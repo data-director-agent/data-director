@@ -3,6 +3,7 @@ wire, and the delegation-mode linter on a real orchestrator's reply."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ from dd_sdk.contract.models import (
     TurnRole,
 )
 from dd_sdk.evidence import input_hash
-from dd_sdk.tracing import CHAT, RETRIEVAL
+from dd_sdk.tracing import CHAT, DELEGATE, RETRIEVAL, records_from_jsonl
 from workbench.testing import make_conductor, request
 
 
@@ -43,7 +44,9 @@ def test_a_greeting_is_routed_to_hello_world_and_relayed(runs_dir: Path) -> None
     assert delegation.delegated_agent_id == "hello.world"
     assert c.grounding_reports[env.invocation_id].passed
 
-    names = {r.name for r in c.tracing.finished_records(env.telemetry.trace_id)}
+    spans = (runs_dir / env.invocation_id / "spans.jsonl").read_text()
+    names = {r.name for r in records_from_jsonl([json.loads(line) for line in spans.splitlines()])}
+    assert DELEGATE in names
     assert RETRIEVAL not in names and CHAT not in names
     assert env.telemetry.model_id is None
 

@@ -74,6 +74,11 @@ class DuplicateInvocation(ValueError):
     """
 
 
+# The most recent grounding reports kept in memory, for a caller that reads one straight after
+# `invoke` (the CLI, the evaluation). `grounding.txt` in each run directory is the durable copy.
+GROUNDING_REPORTS_KEPT = 256
+
+
 @dataclass
 class Grant:
     """One delegation grant, live while its parent invocation runs."""
@@ -338,60 +343,66 @@ class Conductor:
             )
             root.set_attribute(ATTR_OUTCOME, envelope.outcome.status.value)
 
-        # 4. Grounding linter, over the finished tree of this trace.
-        records = self.tracing.finished_records(trace_id)
-        report = grounding.lint(records, envelope.to_document())
-        self.grounding_reports[request.invocation_id] = report
-        if not report.passed and envelope.outcome.status == OutcomeStatus.SUCCEEDED:
-            envelope = envelope.model_copy(
-                update={
-                    "outcome": Outcome(
-                        status=OutcomeStatus.FAILED,
-                        statement="Output withheld: it failed the grounding linter. "
-                        + "; ".join(report.violations),
-                    ),
-                    "payload": None,
-                    "evidence": [],
-                    "problem": problems.grounding_violation(report.violations),
-                }
-            )
-
-        # 5. Validate, store, trace file, provenance. A result the agent returned that still
-        # breaks the contract is the agent's error, as a payload of the wrong class is: it is
-        # stored as failed(agent-error), not raised past the store. An envelope the conductor
-        # built itself that breaks the contract is a conductor bug, and raises.
-        doc = envelope.to_document()
-        if from_agent:
-            try:
-                validate.validate_envelope(doc)
-            except validate.ContractViolation as exc:
+        try:
+            # 4. Grounding linter, over the finished tree of this trace.
+            records = self.tracing.finished_records(trace_id)
+            report = grounding.lint(records, envelope.to_document())
+            self.grounding_reports[request.invocation_id] = report
+            while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
+                del self.grounding_reports[next(iter(self.grounding_reports))]
+            if not report.passed and envelope.outcome.status == OutcomeStatus.SUCCEEDED:
                 envelope = envelope.model_copy(
                     update={
                         "outcome": Outcome(
                             status=OutcomeStatus.FAILED,
-                            statement="Agent result violates the contract: "
-                            + "; ".join(exc.messages),
+                            statement="Output withheld: it failed the grounding linter. "
+                            + "; ".join(report.violations),
                         ),
                         "payload": None,
                         "evidence": [],
-                        "problem": problems.agent_error(spec.agent_id, exc),
+                        "problem": problems.grounding_violation(report.violations),
                     }
                 )
-                doc = envelope.to_document()
-        validate.validate_envelope(doc)
-        run_dir = self.store.append(doc, request_doc)
-        spans_path = run_dir / "spans.jsonl"
-        self.tracing.write_jsonl(spans_path, trace_id)
-        (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")
-        if self.write_crate:
-            write_process_run_crate(
-                run_dir,
-                doc,
-                run_dir / "request.json",
-                run_dir / "envelope.json",
-                spans_path,
-                started,
-            )
+
+            # 5. Validate, store, trace file, provenance. A result the agent returned that still
+            # breaks the contract is the agent's error, as a payload of the wrong class is: it is
+            # stored as failed(agent-error), not raised past the store. An envelope the conductor
+            # built itself that breaks the contract is a conductor bug, and raises.
+            doc = envelope.to_document()
+            if from_agent:
+                try:
+                    validate.validate_envelope(doc)
+                except validate.ContractViolation as exc:
+                    envelope = envelope.model_copy(
+                        update={
+                            "outcome": Outcome(
+                                status=OutcomeStatus.FAILED,
+                                statement="Agent result violates the contract: "
+                                + "; ".join(exc.messages),
+                            ),
+                            "payload": None,
+                            "evidence": [],
+                            "problem": problems.agent_error(spec.agent_id, exc),
+                        }
+                    )
+                    doc = envelope.to_document()
+            validate.validate_envelope(doc)
+            run_dir = self.store.append(doc, request_doc)
+            spans_path = run_dir / "spans.jsonl"
+            self.tracing.write_jsonl(spans_path, trace_id)
+            (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")
+            if self.write_crate:
+                write_process_run_crate(
+                    run_dir,
+                    doc,
+                    run_dir / "request.json",
+                    run_dir / "envelope.json",
+                    spans_path,
+                    started,
+                )
+        finally:
+            # spans.jsonl is the durable copy; a long-running server must not keep them all.
+            self.tracing.discard(trace_id)
         return envelope
 
 

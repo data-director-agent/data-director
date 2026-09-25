@@ -245,7 +245,9 @@ def test_conductor_records_the_declared_mode_on_envelope_and_root_span(runs_dir:
         assert env.grounding_mode == mode
         report = conductor.grounding_reports[env.invocation_id]
         assert report.passed and report.mode == mode.value
-        root = next(r for r in conductor.tracing.finished_records() if r.name == "invoke_agent")
+        spans = (runs_dir / mode.value / env.invocation_id / "spans.jsonl").read_text()
+        stored = records_from_jsonl([json.loads(line) for line in spans.splitlines()])
+        root = next(r for r in stored if r.name == "invoke_agent")
         assert root.attributes["dd.grounding_mode"] == mode.value
         assert root.attributes["dd.input_hash"] == input_hash(
             conductor.store.get_request(env.invocation_id)["input"]  # type: ignore[index]
@@ -398,3 +400,17 @@ def test_energy_footprint_slots_are_present_but_honestly_not_measured(runs_dir: 
 def test_scripted_specs_accept_what_their_tests_assume() -> None:
     assert fakes.SPECS[GroundingMode.INPUT_ONLY].accepts == (MetadataRecord,)
     assert fakes.SPECS[GroundingMode.RETRIEVAL].accepts == (Claim,)
+
+
+def test_the_conductor_keeps_no_spans_after_a_run_and_caps_its_reports(
+    runs_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A long-running `workbench serve` must not grow with every invocation."""
+    monkeypatch.setattr("workbench.conductor.GROUNDING_REPORTS_KEPT", 1)
+    conductor = make_conductor(runs_dir, ScriptedAgent(GroundingMode.NONE, fakes.review_of_input))
+    first = conductor.invoke(request("fake.none", fakes.record()))
+    second = conductor.invoke(request("fake.none", fakes.record()))
+    assert conductor.tracing.memory.get_finished_spans() == []
+    assert conductor.tracing.imported == {}
+    assert list(conductor.grounding_reports) == [second.invocation_id]
+    assert (runs_dir / first.invocation_id / "grounding.txt").exists()

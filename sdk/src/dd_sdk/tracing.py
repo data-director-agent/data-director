@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import contextlib
 import json
-from collections.abc import Iterable, Iterator
+import threading
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any
@@ -22,8 +23,12 @@ from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.sdk.trace.export import (
+    ConsoleSpanExporter,
+    SimpleSpanProcessor,
+    SpanExporter,
+    SpanExportResult,
+)
 from opentelemetry.trace import Link, Span, SpanContext, Tracer
 
 # --- Span names -------------------------------------------------------------------------------
@@ -132,12 +137,50 @@ def _iso_to_ns(value: str) -> int:
 # --- Provider ---------------------------------------------------------------------------------
 
 
+class TraceSpanExporter(SpanExporter):
+    """Finished spans held in memory by trace id, so one trace can be read and then released.
+
+    The SDK's `InMemorySpanExporter` keeps every span until `clear()` and has no per-trace
+    removal, so a long-running conductor would hold every span since start-up and filter all of
+    them on each run.
+    """
+
+    def __init__(self) -> None:
+        self._spans: dict[str, list[ReadableSpan]] = {}
+        self._lock = threading.Lock()
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        with self._lock:
+            for span in spans:
+                ctx = span.get_span_context()
+                assert ctx is not None
+                self._spans.setdefault(format(ctx.trace_id, "032x"), []).append(span)
+        return SpanExportResult.SUCCESS
+
+    def get_finished_spans(self, trace_id: str | None = None) -> list[ReadableSpan]:
+        with self._lock:
+            if trace_id is not None:
+                return list(self._spans.get(trace_id, []))
+            return [span for spans in self._spans.values() for span in spans]
+
+    def discard(self, trace_id: str) -> None:
+        with self._lock:
+            self._spans.pop(trace_id, None)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._spans.clear()
+
+    def shutdown(self) -> None:
+        self.clear()
+
+
 @dataclass
 class Tracing:
     """A tracer plus the in-memory exporter the conductor reads spans back from."""
 
     provider: TracerProvider
-    memory: InMemorySpanExporter
+    memory: TraceSpanExporter
     _file_handle: IO[str] | None = None
     # trace id the conductor issued -> span documents a remote agent returned for it. Kept under
     # the conductor's trace id whatever trace id the documents claim, so a span that names a
@@ -152,9 +195,8 @@ class Tracing:
         self.imported.setdefault(trace_id, []).extend(spans)
 
     def finished_records(self, trace_id: str | None = None) -> list[SpanRecord]:
-        records = records_from_spans(list(self.memory.get_finished_spans()))
+        records = records_from_spans(self.memory.get_finished_spans(trace_id))
         if trace_id is not None:
-            records = [r for r in records if r.trace_id == trace_id]
             records += records_from_jsonl(self.imported.get(trace_id, []))
         else:
             for spans in self.imported.values():
@@ -169,12 +211,15 @@ class Tracing:
         """
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as fh:
-            for span in self.memory.get_finished_spans():
-                ctx = span.get_span_context()
-                if ctx is not None and format(ctx.trace_id, "032x") == trace_id:
-                    fh.write(span.to_json(indent=None) + "\n")
+            for span in self.memory.get_finished_spans(trace_id):
+                fh.write(span.to_json(indent=None) + "\n")
             for doc in self.imported.get(trace_id, []):
                 fh.write(json.dumps(doc) + "\n")
+
+    def discard(self, trace_id: str) -> None:
+        """Release one trace's spans, local and imported, once they have been written out."""
+        self.memory.discard(trace_id)
+        self.imported.pop(trace_id, None)
 
     def clear(self) -> None:
         self.memory.clear()
@@ -196,7 +241,7 @@ def make_tracing(
     """
     resource = Resource.create({"service.name": service_name})
     provider = TracerProvider(resource=resource)
-    memory = InMemorySpanExporter()
+    memory = TraceSpanExporter()
     provider.add_span_processor(SimpleSpanProcessor(memory))
     if console is not None:
         provider.add_span_processor(
