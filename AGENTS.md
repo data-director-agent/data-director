@@ -6,8 +6,9 @@ A reference implementation of the RDA [Data Director Agentic AI Blueprint](https
 
 ## Working here
 
-- Prototype work belongs in `experiments/<name>/`, which is explicitly non-authoritative — see
-  `experiments/README.md`. Promoting anything out of `experiments/` requires an RFC.
+- Prototype and exploratory agents live in `agents/<name>/` like any other agent, marked as alpha
+  by their `pyproject.toml` version (`agents/README.md`) rather than kept in a separate
+  non-authoritative tree.
 - The repository root is a uv workspace. `workbench/` is the harness that governs agents against
   one contract (see below). `agents/` holds one package and one A2A service per agent
   (`agents/README.md`). `sdk/` is what the two share: the contract, evidence, span helpers and

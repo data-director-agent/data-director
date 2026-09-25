@@ -87,6 +87,12 @@ CLI, transports or viewer, this agent will show it.
 
    Read the agent's own `DD_<AGENT>_*` environment variables in `build`. A content problem is an
    outcome (`abstained` with a reason code), not an exception.
+
+   An agent that is exploratory — not yet validated, likely to change shape — ships with a
+   pre-release version (`version = "0.1.0a1"`, PEP 440) instead of the usual `0.1.0`, and its
+   `README.md` and its row in the table above say plainly that it is alpha. There is no separate
+   prototype tree for this: an experimental agent is a normal package under `agents/`, just marked
+   by its version. Bump it to an ordinary `0.1.0`-style version once it is no longer experimental.
 5. **Add it to the workspace.** Add the distribution to the `dependencies` and
    `[tool.uv.sources]` of the root `pyproject.toml`, then run `uv sync --all-packages`. A package
    that lives outside this repository skips this step; it only has to be served.

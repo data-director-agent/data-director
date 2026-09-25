@@ -9,8 +9,8 @@
 #
 # source: blueprint  — the identifier and title are the Blueprint's own (docs/BLUEPRINT.md §7).
 # source: project    — a decomposition or obligation this project introduced; the Blueprint does
-#                      not use the identifier. R3.1–R3.6 come from experiments/standards-advisor;
-#                      the other sub-IDs (R4.1, R10.1, C5.1, C13.n, C14.1) split a Blueprint
+#                      not use the identifier. R3.1–R3.6 come from agents/r3; the other sub-IDs
+#                      (R4.1, R10.1, C5.1, C13.n, C14.1) split a Blueprint
 #                      requirement so that a row claims only what its tests show.
 #
 # assessed_by      — how the requirement is assessed (ADR-0014): `test` (a marked test in a pytest

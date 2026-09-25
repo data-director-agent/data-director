@@ -265,8 +265,8 @@ default and the point of publishing this file: the Blueprint's Appendix D record
 stated intentions; this table records what a test run and the recorded reviews actually showed.
 
 `source: blueprint` rows use the Blueprint's own identifiers and titles (§7). `source: project`
-rows are identifiers this project introduced (the R3.n decomposition from
-`experiments/standards-advisor`, sub-IDs such as C13.1 that split a Blueprint requirement so a row
+rows are identifiers this project introduced (the R3.n decomposition from `agents/r3`, sub-IDs
+such as C13.1 that split a Blueprint requirement so a row
 claims only what its tests show, and `DD-*` for the contract itself); the Blueprint does not use
 them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiated itself.
 
