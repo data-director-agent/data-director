@@ -13,6 +13,7 @@ from dd_agent_r3.fairsharing.live import LiveBackend
 from dd_agent_r3.fairsharing.snapshot import DEFAULT_SNAPSHOT, SnapshotBackend
 from dd_agent_r3.testing import make_conductor
 from dd_sdk.agent import describe, spec_from_description
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     DatasetProfile,
     GroundingMode,
@@ -56,9 +57,9 @@ def test_an_unknown_setting_is_a_configuration_error(variable: str) -> None:
 def test_the_spec_round_trips_through_the_manifest() -> None:
     spec = spec_from_description(describe(R3Agent.spec))
     assert spec.agent_id == "r3.standards-advisor"
-    assert spec.accepts == (DatasetProfile,)
+    assert spec.accepts == (ClassSchema.of(DatasetProfile),)
     assert spec.grounding_mode == GroundingMode.RETRIEVAL
-    assert spec.payload_type is Recommendations
+    assert spec.payload == ClassSchema.of(Recommendations)
     assert spec.derivations == R3Agent.spec.derivations
     assert spec.derivations["items.rationale"].recorded_in == "rationale_derivation"
 

@@ -37,32 +37,30 @@ def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, crate=False)
     env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.payload is not None
-    kinds = {i.kind for i in env.payload.items}
+    payload = env.payload_as(Recommendations)
+    kinds = {i.kind for i in payload.items}
     assert RecommendationKind.CONTROLLED_VOCABULARY in kinds  # AGROVOC (R3.1)
     assert RecommendationKind.ONTOLOGY in kinds  # ENVO (R3.2)
     assert RecommendationKind.DATA_FORMAT in kinds  # CSV (R3.3)
-    field_targets = {
-        i.target for i in env.payload.items if i.kind == RecommendationKind.FIELD_FORMAT
-    }
+    field_targets = {i.target for i in payload.items if i.kind == RecommendationKind.FIELD_FORMAT}
     assert field_targets == {
         "field:collection_date",
         "field:sampled_at",
         "field:survey_date_uk",
     }  # R3.4
-    assert all(i.rationale for i in env.payload.items)  # C14
-    cited = {g.source_id for i in env.payload.items for g in i.grounded_on}
+    assert all(i.rationale for i in payload.items)  # C14
+    cited = {g.source_id for i in payload.items for g in i.grounded_on}
     assert {e.source_id for e in env.evidence} == cited
     evidenced = {(e.source_id, e.content_hash) for e in env.evidence}
     for ev in env.evidence:
         # What the reader is shown is what the hash covers (E1, ADR-0015).
         assert ev.content is not None and verify(ev.content, ev.canonicalisation, ev.content_hash)
-    for item in env.payload.items:
+    for item in payload.items:
         assert len(item.grounded_on) == 1
         assert {(g.source_id, g.content_hash) for g in item.grounded_on} <= evidenced
         assert fakes.cited_record(env, item)["fairsharing_id"] == item.grounded_on[0].source_id
-    assert {(g.source_id, g.content_hash) for g in env.payload.grounded_on} == evidenced
-    assert env.payload.searched is not None and env.payload.searched.candidates_retrieved
+    assert {(g.source_id, g.content_hash) for g in payload.grounded_on} == evidenced
+    assert payload.searched is not None and payload.searched.candidates_retrieved
     assert conductor.grounding_reports[env.invocation_id].passed
 
 
@@ -71,8 +69,8 @@ def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -
     env = make_conductor(runs_dir, crate=False).invoke(
         request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL
     )
-    assert env.payload is not None
-    assert "FAIRsharing.test-old" not in {i.grounded_on[0].source_id for i in env.payload.items}
+    payload = env.payload_as(Recommendations)
+    assert "FAIRsharing.test-old" not in {i.grounded_on[0].source_id for i in payload.items}
     # Emerging: an in_development record is kept and flagged.
     emerging = fakes.AGROVOC.model_copy(
         update={"status": "in_development", "fairsharing_id": "FAIRsharing.test-new"}
@@ -81,10 +79,8 @@ def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -
     env2 = make_conductor(runs_dir / "b", r3=r3, crate=False).invoke(
         request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL
     )
-    assert env2.payload is not None
-    assert any(
-        fakes.cited_record(env2, i)["status"] == "in_development" for i in env2.payload.items
-    )
+    payload2 = env2.payload_as(Recommendations)
+    assert any(fakes.cited_record(env2, i)["status"] == "in_development" for i in payload2.items)
 
 
 @pytest.mark.requirement("R3.6", "DD-OUTCOME")
@@ -243,8 +239,8 @@ def test_table_field_types_drive_field_format_targets(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, crate=False).invoke(
         request("r3.standards-advisor", profile), acting_for=TEST_PRINCIPAL
     )
-    assert env.payload is not None
-    assert {i.target for i in env.payload.items if i.kind == RecommendationKind.FIELD_FORMAT} == {
+    payload = env.payload_as(Recommendations)
+    assert {i.target for i in payload.items if i.kind == RecommendationKind.FIELD_FORMAT} == {
         "field:when",
         "field:how_long",
     }

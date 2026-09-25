@@ -52,7 +52,7 @@ Some problems stop the workbench from starting. Others affect only one agent.
 | `agents.yaml` is missing, has no top-level `agents:` list, or an entry has no `url` | `RegistryError`. The workbench does not start. |
 | Two cards declare the same `agent_id` | `RegistryError`. The workbench does not start. |
 | The card cannot be fetched (the service is down, the URL is wrong, or the request times out) | The agent is recorded as **unavailable**, with the reason. The other agents still load. |
-| The card has no Data Director extension, or names a class the contract does not define | The agent is recorded as unavailable. An agent cannot add a class of its own. |
+| The card has no Data Director extension; names a class it carries no schema for; carries a schema that does not match its digest; or declares a payload class that does not mix in `Grounded` | The agent is recorded as unavailable, with the reason. A class the workbench has not seen before is not a reason: the card carries its schema ([ADR-0019](adr/0019-core-contract-and-agent-owned-classes.md)). |
 | The card declares a `contract_version` this workbench cannot govern, or none | The agent is recorded as **incompatible**, with both versions. The other agents still load ([ADR-0019](adr/0019-core-contract-and-agent-owned-classes.md)). |
 | A request names an agent that is not registered | The conductor raises `UnknownAgent`. The message lists the registered agents and the reason each unavailable or incompatible one is missing. No envelope is written, because no agent ran. |
 | A registered agent cannot be reached when a request is sent, times out, or answers outside the contract | The run ends `failed`, with problem type `agent-error`, and the envelope is stored as usual. |

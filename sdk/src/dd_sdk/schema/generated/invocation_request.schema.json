@@ -264,25 +264,13 @@
             "payload": {
                "anyOf": [
                   {
-                     "$ref": "#/$defs/Recommendations"
-                  },
-                  {
-                     "$ref": "#/$defs/QualityReview"
-                  },
-                  {
-                     "$ref": "#/$defs/FactCheck"
-                  },
-                  {
-                     "$ref": "#/$defs/Greeting"
-                  },
-                  {
-                     "$ref": "#/$defs/Reply"
+                     "$ref": "#/$defs/Payload"
                   },
                   {
                      "type": "null"
                   }
                ],
-               "description": "Agent-specific payload; absent unless the outcome is succeeded. One of the payload classes, discriminated by schema_class; every one mixes in Grounded."
+               "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (ADR-0019)."
             },
             "evidence": {
                "items": {
@@ -572,6 +560,21 @@
          "title": "GroundingRef",
          "type": "object"
       },
+      "Input": {
+         "additionalProperties": true,
+         "description": "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (ADR-0019).",
+         "properties": {
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "schema_class"
+         ],
+         "title": "Input",
+         "type": "object"
+      },
       "InvocationRequest": {
          "additionalProperties": false,
          "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012).",
@@ -616,24 +619,8 @@
                ]
             },
             "input": {
-               "anyOf": [
-                  {
-                     "$ref": "#/$defs/DatasetProfile"
-                  },
-                  {
-                     "$ref": "#/$defs/MetadataRecord"
-                  },
-                  {
-                     "$ref": "#/$defs/Claim"
-                  },
-                  {
-                     "$ref": "#/$defs/Salutation"
-                  },
-                  {
-                     "$ref": "#/$defs/Message"
-                  }
-               ],
-               "description": "What the agent is asked to work on. One of the input classes, discriminated by schema_class; an agent declares which it accepts."
+               "$ref": "#/$defs/Input",
+               "description": "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (ADR-0019)."
             }
          },
          "required": [
@@ -780,6 +767,29 @@
          ],
          "title": "OutcomeStatus",
          "type": "string"
+      },
+      "Payload": {
+         "additionalProperties": true,
+         "description": "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (ADR-0019).",
+         "properties": {
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "type": "string"
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "schema_class",
+            "grounded_on"
+         ],
+         "title": "Payload",
+         "type": "object"
       },
       "Principal": {
          "additionalProperties": false,
@@ -1292,24 +1302,8 @@
          ]
       },
       "input": {
-         "anyOf": [
-            {
-               "$ref": "#/$defs/DatasetProfile"
-            },
-            {
-               "$ref": "#/$defs/MetadataRecord"
-            },
-            {
-               "$ref": "#/$defs/Claim"
-            },
-            {
-               "$ref": "#/$defs/Salutation"
-            },
-            {
-               "$ref": "#/$defs/Message"
-            }
-         ],
-         "description": "What the agent is asked to work on. One of the input classes, discriminated by schema_class; an agent declares which it accepts."
+         "$ref": "#/$defs/Input",
+         "description": "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (ADR-0019)."
       }
    },
    "required": [
@@ -1320,5 +1314,5 @@
    ],
    "title": "data_director_workbench",
    "type": "object",
-   "version": "0.6.0"
+   "version": "0.7.0"
 }

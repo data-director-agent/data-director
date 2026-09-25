@@ -38,10 +38,10 @@ def test_a_greeting_is_routed_to_hello_world_and_relayed(runs_dir: Path) -> None
     )
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.DELEGATION
-    assert isinstance(env.payload, Reply)
-    assert env.payload.reply_derivation == Derivation.TEMPLATE
-    assert "hello.world@0.1.0" in env.payload.reply_text
-    assert "Hello, Joe!" in env.payload.reply_text
+    payload = env.payload_as(Reply)
+    assert payload.reply_derivation == Derivation.TEMPLATE
+    assert "hello.world@0.1.0" in payload.reply_text
+    assert "Hello, Joe!" in payload.reply_text
     [delegation] = env.delegations
     assert delegation.delegated_agent_id == "hello.world"
     assert c.grounding_reports[env.invocation_id].passed

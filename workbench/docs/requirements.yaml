@@ -198,7 +198,7 @@ requirements:
     title: Every payload declares what it rests on (grounded_on); a payload the linter cannot ground is a violation, never a pass
   - id: DD-INPUT-ACCEPTS
     source: project
-    title: An agent declares the input classes it accepts; a request carrying another is a failed outcome with Problem Details
+    title: An agent declares the input classes it accepts; a request carrying another, or an input its class schema does not admit, is a failed outcome with Problem Details
   - id: DD-EVIDENCE
     source: project
     title: Evidence names a registered canonicalisation and its hash is reproducible from the source

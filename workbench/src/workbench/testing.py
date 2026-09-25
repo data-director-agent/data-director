@@ -28,6 +28,7 @@ import httpx
 
 from dd_sdk import serve
 from dd_sdk.agent import Agent, AgentResult, AgentSpec, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Claim,
     DatasetProfile,
@@ -111,36 +112,39 @@ SPECS: dict[GroundingMode, AgentSpec] = {
         version="0",
         description="Scripted retrieval-mode agent.",
         action_class="advise",
-        accepts=(Claim,),
+        accepts=(ClassSchema.of(Claim),),
         grounding_mode=GroundingMode.RETRIEVAL,
-        payload_type=FactCheck,
+        payload=ClassSchema.of(FactCheck),
     ),
     GroundingMode.INPUT_ONLY: AgentSpec(
         agent_id="fake.input-only",
         version="0",
         description="Scripted input-only agent.",
         action_class="advise",
-        accepts=(MetadataRecord,),
+        accepts=(ClassSchema.of(MetadataRecord),),
         grounding_mode=GroundingMode.INPUT_ONLY,
-        payload_type=QualityReview,
+        payload=ClassSchema.of(QualityReview),
     ),
     GroundingMode.NONE: AgentSpec(
         agent_id="fake.none",
         version="0",
         description="Scripted deterministic agent.",
         action_class="advise",
-        accepts=(MetadataRecord, DatasetProfile),
+        accepts=(
+            ClassSchema.of(MetadataRecord),
+            ClassSchema.of(DatasetProfile),
+        ),
         grounding_mode=GroundingMode.NONE,
-        payload_type=QualityReview,
+        payload=ClassSchema.of(QualityReview),
     ),
     GroundingMode.DELEGATION: AgentSpec(
         agent_id="fake.delegation",
         version="0",
         description="Scripted delegation-mode agent.",
         action_class="advise",
-        accepts=(Message,),
+        accepts=(ClassSchema.of(Message),),
         grounding_mode=GroundingMode.DELEGATION,
-        payload_type=Reply,
+        payload=ClassSchema.of(Reply),
     ),
 }
 

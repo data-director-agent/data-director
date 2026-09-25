@@ -54,11 +54,20 @@ def agent_error(agent_id: str, exc: BaseException) -> ProblemDetails:
     )
 
 
-def input_not_accepted(agent_id: str, got: str, accepts: tuple[str, ...]) -> ProblemDetails:
+def input_not_accepted(
+    agent_id: str, got: str, accepts: tuple[str, ...], errors: tuple[str, ...] = ()
+) -> ProblemDetails:
+    """The agent does not read `got`, or `errors` says how the input fails that class's schema."""
+    if errors:
+        detail = (
+            f"Agent {agent_id!r} accepts {got!r}, but the input does not conform to its schema: "
+            + "; ".join(errors)
+        )
+    else:
+        detail = (
+            f"Agent {agent_id!r} accepts {', '.join(accepts) or 'nothing'}; the request carried "
+            f"{got!r}."
+        )
     return problem(
-        "input-not-accepted",
-        "Agent does not accept this input class",
-        f"Agent {agent_id!r} accepts {', '.join(accepts) or 'nothing'}; the request carried "
-        f"{got!r}.",
-        http_status=422,
+        "input-not-accepted", "Agent does not accept this input", detail, http_status=422
     )
