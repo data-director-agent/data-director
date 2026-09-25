@@ -80,6 +80,10 @@ uv run pytest --json-report --json-report-file=workbench/.report.json && uv run 
   from the same retrieved record, and R3's own tests check that they agree.
 - **`agents/r3/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
   with `agents/r3/scripts/build_snapshot.py`; do not hand-edit records.
+- **`shell/icons.svg` is generated.** It is a sprite of Lucide icons (ISC, `shell/icons.LICENCE`)
+  built by `scripts/build_icons.py` from a pinned, hash-checked `lucide-static`; add an icon to
+  `ICONS` there and rerun, never by hand. Icons are decorative (`aria-hidden`), sit beside visible
+  text or inside a labelled control, and each outcome status has exactly one (`STATUS_ICONS`).
 - **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
   the sign-in password; check a new cassette before committing it.
 - **Test module basenames are unique across the workspace.** Test directories are not packages;

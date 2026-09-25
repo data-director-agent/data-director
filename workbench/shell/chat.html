@@ -13,15 +13,15 @@
     <div class="title-row">
       <h1>Data Director Workbench</h1>
       <p>Developer shell for the registered agents. Nothing here edits a stored run. Every output requires human review<span data-help="human-review"></span>.</p>
-      <button type="button" id="open-glossary" class="small" aria-haspopup="dialog">Glossary</button>
+      <button type="button" id="open-glossary" class="small" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#book-open"/></svg>Glossary</button>
     </div>
     <nav class="modes" aria-label="Mode">
-      <a href="/shell/"><span class="mode-name">Inspect</span><span class="mode-sub">Run one agent on one input and examine the envelope it returns</span></a>
-      <a href="/shell/chat.html" aria-current="page"><span class="mode-name">Chat</span><span class="mode-sub">Hold a conversation with an agent, a turn at a time</span></a>
+      <a href="/shell/"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#microscope"/></svg>Inspect</span><span class="mode-sub">Run one agent on one input and examine the envelope it returns</span></a>
+      <a href="/shell/chat.html" aria-current="page"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#message-square"/></svg>Chat</span><span class="mode-sub">Hold a conversation with an agent, a turn at a time</span></a>
     </nav>
   </header>
   <dialog class="glossary" id="glossary" aria-labelledby="glossary-heading">
-    <div class="dialog-head"><h2 id="glossary-heading">Glossary</h2><form method="dialog"><button class="small" type="submit">Close</button></form></div>
+    <div class="dialog-head"><h2 id="glossary-heading">Glossary</h2><form method="dialog"><button class="small" type="submit"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#x"/></svg>Close</button></form></div>
     <p class="intro">The terms this page uses, from the workbench contract (<code>schema/data_director.yaml</code>). The same text appears behind each <kbd>?</kbd> button.</p>
     <dl id="glossary-list"></dl>
   </dialog>
@@ -34,11 +34,11 @@
           <select id="chat-agent-select" aria-describedby="chat-agent-detail"></select>
         </div>
         <div class="agent-detail" id="chat-agent-detail" hidden></div>
-        <button id="new-conversation" type="button">New conversation</button>
+        <button id="new-conversation" type="button"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#message-square-plus"/></svg>New conversation</button>
         <p class="legend" id="conversation-line"></p>
       </section>
       <section class="panel" aria-labelledby="conversations-heading">
-        <div class="head-row"><h2 id="conversations-heading">Conversations</h2><span data-help="conversation_id"></span></div>
+        <div class="head-row"><h2 id="conversations-heading"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#rotate-ccw-clock"/></svg>Conversations</h2><span data-help="conversation_id"></span></div>
         <ul class="history" id="conversations"></ul>
       </section>
     </nav>
@@ -53,7 +53,7 @@
               <li>An agent that accepts a Message<span data-help="message"></span> gets a text box. Any other agent gets its input as JSON, started from a sample.</li>
               <li>Every reply names the agent and version that produced it. An orchestrator's reply lists the invocations it delegated<span data-help="delegation"></span>, each with its own agent and version.</li>
             </ol>
-            <p>Each turn is one invocation with its own envelope; <strong>Inspect →</strong> on a reply opens it. Changing agent starts a new conversation.</p>
+            <p>Each turn is one invocation with its own envelope; <strong>Inspect<svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#arrow-right"/></svg></strong> on a reply opens it. Changing agent starts a new conversation.</p>
           </div>
         </div>
         <ol class="transcript" id="transcript" aria-live="polite" aria-label="Transcript"></ol>
@@ -75,7 +75,7 @@
           </div>
         </div>
         <div class="actions">
-          <button class="primary" id="send" type="submit" disabled>Send</button>
+          <button class="primary" id="send" type="submit" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#send-horizontal"/></svg>Send</button>
           <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends · <span id="chat-status" role="status" aria-live="polite"></span></p>
         </div>
       </form>

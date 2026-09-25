@@ -39,8 +39,16 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 :focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
 button.primary, button.primary:hover:not(:disabled) { background: var(--ok); border-color: var(--ok); color: #fff; font-weight: 600; width: 100%; padding: 0.45rem; }
 button.primary:hover:not(:disabled) { filter: brightness(1.1); }
-button.small { font-size: 0.75rem; padding: 0.05rem 0.4rem; }
+button.small { font-size: 0.75rem; padding: 0.05rem 0.4rem; min-height: 24px; }
 .muted { color: var(--muted); } .faint { color: var(--faint); }
+/* Icons: Lucide symbols from icons.svg, drawn in currentColor so they take the text colour of
+   whatever holds them (and the system colours under forced-colors). Always decorative. */
+.icon { width: 1.1em; height: 1.1em; flex: none; vertical-align: -0.2em; }
+button > .icon:first-child, a > .icon:first-child, h2 > .icon:first-child, h3 > .icon:first-child, dt > .icon:first-child,
+.pill > .icon:first-child, .chip > .icon:first-child, .hash > .icon:first-child, .handoff > .icon:first-child,
+.mode-name > .icon:first-child, strong > .icon:first-child { margin-right: 0.3em; }
+a > .icon:last-child:not(:first-child), strong > .icon:last-child:not(:first-child) { margin-left: 0.2em; }
+h2 > .icon { vertical-align: -0.25em; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* Agent picker */
@@ -58,6 +66,7 @@ kbd { font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--line
 .history { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; }
 .history button { width: 100%; text-align: left; border: 0; border-radius: 4px; background: none; padding: 0.3rem 0.4rem; display: grid; grid-template-columns: auto 1fr auto; gap: 0.4rem; align-items: center; font-size: 0.8rem; }
 .history button[aria-current="true"] { background: var(--info-bg); }
+.history button > .icon { width: 1rem; height: 1rem; }
 .history .id { font-family: var(--mono); font-size: 0.72rem; color: var(--faint); white-space: nowrap; }
 .history .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -65,7 +74,6 @@ kbd { font-family: var(--mono); font-size: 0.72rem; border: 1px solid var(--line
 .chip { display: inline-block; font-family: var(--mono); font-size: 0.72rem; padding: 0 0.4rem; border: 1px solid var(--line); border-radius: 4px; background: var(--ground); color: var(--muted); white-space: nowrap; }
 .chip:empty { display: none; }
 .pill { display: inline-block; font-weight: 600; font-size: 0.8rem; padding: 0.05rem 0.6rem; border-radius: 999px; border: 1px solid currentColor; }
-.dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; display: inline-block; background: currentColor; }
 [data-status="succeeded"] { color: var(--ok); }
 [data-status="abstained"], [data-status="referred"], [data-status="suspended"] { color: var(--warn); }
 [data-status="failed"] { color: var(--bad); }
@@ -128,8 +136,14 @@ pre.json { margin: 0; font-family: var(--mono); font-size: 0.8rem; overflow: aut
 
 /* Built-in help: a "?" button beside a term opens a tip; the Glossary dialog lists them all */
 .help-wrap { display: inline-flex; vertical-align: 0.05em; }
-button.help { width: 1.05rem; height: 1.05rem; padding: 0; border-radius: 50%; font-size: 0.68rem; font-weight: 700; line-height: 1; font-family: system-ui, sans-serif; color: var(--muted); background: var(--paper); border-color: var(--faint); display: inline-grid; place-items: center; margin-left: 0.25rem; }
-button.help[aria-expanded="true"] { color: var(--info); border-color: var(--info); background: var(--info-bg); }
+/* The help button is the circled-question icon itself; its label is aria-label="About <term>".
+   A transparent ::before pads the hit area to 24×24 (WCAG 2.2 2.5.8) around the small glyph.
+   TODO: Lucide recommends 44×44 (WCAG 2.5.5, AAA); revisit in the accessibility review. */
+button.help { position: relative; width: 1.1rem; height: 1.1rem; padding: 0; border: 0; border-radius: 50%; line-height: 1; color: var(--muted); background: none; display: inline-grid; place-items: center; margin-left: 0.25rem; }
+button.help::before { content: ""; position: absolute; inset: 50% auto auto 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); }
+button.help > .icon { width: 1.1rem; height: 1.1rem; vertical-align: 0; }
+button.help:hover:not(:disabled) { color: var(--info); background: none; }
+button.help[aria-expanded="true"] { color: var(--info); background: var(--info-bg); }
 .tip { position: fixed; inset: auto; margin: 0; max-width: min(22rem, calc(100vw - 16px)); padding: 0.5rem 0.65rem; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); box-shadow: 0 4px 14px rgb(0 0 0 / 0.18); font: 0.8rem/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: left; text-transform: none; letter-spacing: normal; white-space: normal; }
 .tip > strong { display: block; font-family: var(--mono); font-size: 0.78rem; margin-bottom: 0.15rem; }
 .tip > span { display: block; }
@@ -169,6 +183,7 @@ dialog.glossary dd { margin: 0.1rem 0 0; font-size: 0.85rem; color: var(--muted)
 .card .children { list-style: none; margin: 0.6rem 0 0; padding: 0 0 0 0.75rem; border-left: 3px solid var(--line); display: flex; flex-direction: column; gap: 0.4rem; }
 .card .children .card { width: auto; border-radius: 6px; background: var(--ground); }
 .handoff { font-size: 0.75rem; color: var(--muted); }
+.version-change > .icon { flex: none; }
 .version-change { align-items: center; font-size: 0.78rem; color: var(--warn); border-top: 1px dashed var(--warn); padding-top: 0.25rem; flex-direction: row !important; justify-content: center; gap: 0.3rem; }
 .turn-error { border: 1px solid var(--bad); background: var(--bad-bg); border-radius: 6px; padding: 0.4rem 0.7rem; overflow-wrap: anywhere; }
 .turn-pending .card { color: var(--muted); font-style: italic; }

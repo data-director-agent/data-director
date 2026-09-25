@@ -1,6 +1,6 @@
 // Built-in help: a "?" button beside a term opens a tip; the Glossary dialog lists every term.
 // Importing this module expands the page's [data-help] placeholders and wires the dialog.
-import { $, el } from "./common.js";
+import { $, el, icon } from "./common.js";
 import { GLOSSARY } from "./glossary.js";
 
 // --- Help tips --------------------------------------------------------------------------
@@ -64,7 +64,7 @@ export function helpTip(entries) {
   const tip = el("span", { id, className: "tip" },
     ...entries.flatMap((e) => [el("strong", { textContent: e.term }), el("span", { textContent: e.text })]));
   tip.popover = "manual";
-  const button = el("button", { type: "button", className: "help", textContent: "?" });
+  const button = el("button", { type: "button", className: "help" }, icon("circle-question-mark"));
   button.setAttribute("aria-label", `About ${entries[0].term}`);
   button.setAttribute("aria-describedby", id);
   button.setAttribute("aria-controls", id);

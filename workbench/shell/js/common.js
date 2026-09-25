@@ -28,14 +28,48 @@ export const rememberInput = (id, input) => {
   try { sessionStorage.setItem("dd-inputs", JSON.stringify(Object.fromEntries(inputs))); } catch {}
 };
 
+// Lucide icons from the vendored sprite (icons.svg, built by scripts/build_icons.py). Icons are
+// decorative: hidden from assistive technology, never focusable, always beside visible text or
+// inside a control that carries its own label.
+const SVG = "http://www.w3.org/2000/svg";
+export function icon(name) {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("class", "icon");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  const use = document.createElementNS(SVG, "use");
+  use.setAttribute("href", `/shell/icons.svg#${name}`);
+  svg.append(use);
+  return svg;
+}
+// One icon per outcome status, so the status never rests on colour alone (WCAG 1.4.1).
+export const STATUS_ICONS = {
+  succeeded: "circle-check",
+  abstained: "circle-minus",
+  referred: "circle-arrow-right",
+  failed: "circle-x",
+  suspended: "circle-pause",
+};
+export function statusIcon(status) {
+  if (!(status in STATUS_ICONS)) return null;
+  const i = icon(STATUS_ICONS[status]);
+  i.dataset.status = status;
+  return i;
+}
+
 // --- Formatting -----------------------------------------------------------------------
-export function copyButton(text, label = "Copy") {
-  const b = el("button", { type: "button", className: "small", textContent: label, title: `Copy ${text}` });
-  b.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch { b.textContent = "Failed"; }
-    setTimeout(() => (b.textContent = label), 1200);
+// Copy on click; the button's icon and text change together to confirm, then revert.
+export function wireCopy(button, getText, label = "Copy") {
+  const show = (name, text) => button.replaceChildren(icon(name), text);
+  show("copy", label);
+  button.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(getText()); show("check", "Copied"); } catch { show("x", "Failed"); }
+    setTimeout(() => show("copy", label), 1200);
   });
-  return b;
+  return button;
+}
+export function copyButton(text, label = "Copy") {
+  return wireCopy(el("button", { type: "button", className: "small", title: `Copy ${text}` }), () => text, label);
 }
 export const fmtTime = (iso) => {
   if (!iso) return "—";
@@ -44,14 +78,14 @@ export const fmtTime = (iso) => {
 };
 export const shortId = (id) => id.slice(-8);
 export function statusPill(status) {
-  const pill = el("span", { className: "pill", textContent: status });
+  const pill = el("span", { className: "pill" }, statusIcon(status), status);
   pill.dataset.status = status;
   return pill;
 }
 
 // Links between the two pages. Paths are absolute because Inspect is also served at /.
-export const inspectLink = (id, text = "Inspect →") =>
-  el("a", { href: `/shell/?invocation_id=${id}`, textContent: text, title: `Open ${id} in Inspect` });
+export const inspectLink = (id, text) =>
+  el("a", { href: `/shell/?invocation_id=${id}`, title: `Open ${id} in Inspect` }, ...(text == null ? ["Inspect", icon("arrow-right")] : [text]));
 export const chatLink = (conversationId, text = conversationId) =>
   el("a", { href: `/shell/chat.html?conversation_id=${conversationId}`, textContent: text, title: "Open the conversation in Chat" });
 export function kvList(obj) {

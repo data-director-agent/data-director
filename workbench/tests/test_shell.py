@@ -175,3 +175,50 @@ def test_every_shell_path_a_page_or_module_references_exists() -> None:
     assert paths, "no shell paths referenced"
     for path in paths:
         assert (SHELL_DIR / path).is_file(), path
+
+
+# --- Icons --------------------------------------------------------------------------------
+# Lucide icons come from the vendored sprite shell/icons.svg (scripts/build_icons.py). They follow
+# https://lucide.dev/how-to/accessibility: decorative, hidden from assistive technology, beside
+# visible text or inside a control that carries its own label.
+SPRITE = (SHELL_DIR / "icons.svg").read_text(encoding="utf-8")
+COMMON_JS = (SHELL_DIR / "js" / "common.js").read_text(encoding="utf-8")
+
+
+def _icon_map(name: str) -> dict[str, str]:
+    body = re.search(rf"{name} = \{{([^}}]*)\}}", SHELL)
+    assert body, f"{name} not found"
+    return dict(re.findall(r'(\w+): "([a-z0-9-]+)"', body.group(1)))
+
+
+def test_every_outcome_status_has_an_icon() -> None:
+    icons = _icon_map("STATUS_ICONS")
+    for status in OutcomeStatus:
+        assert status.value in icons, status
+    assert len(set(icons.values())) == len(icons), "two statuses share an icon"
+
+
+def test_every_icon_the_shell_uses_is_in_the_sprite() -> None:
+    symbols = set(re.findall(r'<symbol id="([a-z0-9-]+)"', SPRITE))
+    used = set(re.findall(r'icons\.svg#([a-z0-9-]+)"', SHELL))
+    used |= set(re.findall(r'icon\("([a-z0-9-]+)"\)', SHELL))
+    used |= set(_icon_map("STATUS_ICONS").values()) | set(_icon_map("FACT_ICONS").values())
+    assert used, "the shell uses no icons"
+    assert used <= symbols, sorted(used - symbols)
+
+
+def test_icons_are_hidden_from_assistive_technology() -> None:
+    for name, page in PAGES.items():
+        tags = re.findall(r'<svg class="icon"[^>]*>', page)
+        assert tags, name
+        for tag in tags:
+            assert 'aria-hidden="true"' in tag and 'focusable="false"' in tag, (name, tag)
+            assert "aria-label" not in tag, (name, tag)
+    assert 'svg.setAttribute("aria-hidden", "true")' in COMMON_JS
+    assert 'svg.setAttribute("focusable", "false")' in COMMON_JS
+    assert "<title" not in SPRITE and "aria-label" not in SPRITE
+
+
+def test_icon_sprite_ships_its_licence() -> None:
+    assert "ISC License" in (SHELL_DIR / "icons.LICENCE").read_text(encoding="utf-8")
+    assert "see icons.LICENCE" in SPRITE

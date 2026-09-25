@@ -1,6 +1,6 @@
 // Inspect: run one agent on one input, or reload a stored run, and show its envelope.
 // ?invocation_id=… reloads a run.
-import { $, el, inputs, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, chatLink, parseSse, newRequest, postRun } from "./common.js";
+import { $, el, icon, statusIcon, wireCopy, inputs, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, chatLink, parseSse, newRequest, postRun } from "./common.js";
 import { closeTip, help } from "./help.js";
 import { agents, unavailable, samples, loadRegistry, renderAgents, renderAgentDetail } from "./registry.js";
 import { payloadView } from "./payload.js";
@@ -27,8 +27,9 @@ function runLink(id, text) {
 function qualifier(key, value) {
   return el("span", { className: "qualifier" }, el("code", { textContent: key }), help(key), value);
 }
+const FACT_ICONS = { delegations: "git-branch", parent_invocation_id: "corner-down-right" };
 function fact(key, value, helpKeys = key) {
-  return el("div", {}, el("dt", {}, key, help(helpKeys)), el("dd", {}, value));
+  return el("div", {}, el("dt", {}, FACT_ICONS[key] ? icon(FACT_ICONS[key]) : null, key, help(helpKeys)), el("dd", {}, value));
 }
 function collectCited(node, out = new Set()) {
   if (Array.isArray(node)) node.forEach((n) => collectCited(n, out));
@@ -63,7 +64,7 @@ function render(envelope) {
     envelope.delegations?.length ? fact("delegations", el("span", { className: "delegation-list" },
       ...envelope.delegations.map((d) => el("span", {}, runLink(d.delegated_invocation_id, `${d.delegated_agent_id}@${d.delegated_agent_version}`), " ", statusPill(d.delegated_status)))), "delegation") : "");
   const p = $("problem"); p.replaceChildren();
-  if (envelope.problem) p.append(el("div", { className: "problem", role: "alert" }, el("h3", {}, "Problem", help("problem")), kvList(envelope.problem)));
+  if (envelope.problem) p.append(el("div", { className: "problem", role: "alert" }, el("h3", {}, icon("triangle-alert"), "Problem", help("problem")), kvList(envelope.problem)));
 
   // Input: known only for runs started from this tab; the envelope stores its hash, not the input.
   const input = inputs.get(envelope.invocation_id);
@@ -72,7 +73,7 @@ function render(envelope) {
   $("input").replaceChildren(input ? kvList(input) : el("p", { className: "muted" },
     "Input not stored with the envelope.",
     inputEvidence ? el("br") : null,
-    inputEvidence ? el("span", { className: "hash", textContent: `${inputEvidence.hash_algorithm}:${inputEvidence.content_hash}` }) : null));
+    inputEvidence ? el("span", { className: "hash" }, icon("fingerprint-pattern"), `${inputEvidence.hash_algorithm}:${inputEvidence.content_hash}`) : null));
   $("tab-input").hidden = !input;
   $("input-json").textContent = input ? JSON.stringify(input, null, 2) : "";
 
@@ -89,7 +90,7 @@ function render(envelope) {
       : el("code", { textContent: e.source_id });
     return el("tr", {},
       el("td", {}, src),
-      el("td", {}, cited.has(e.content_hash) ? el("span", { className: "chip", textContent: "cited" }) : el("span", { className: "faint", textContent: "—" })),
+      el("td", {}, cited.has(e.content_hash) ? el("span", { className: "chip" }, icon("link"), "cited") : el("span", { className: "faint", textContent: "—" })),
       el("td", { title: e.retrieved_at, textContent: fmtTime(e.retrieved_at) }),
       el("td", {}, el("code", { textContent: e.canonicalisation })),
       el("td", {}, e.snapshot_ref ? el("code", { textContent: e.snapshot_ref }) : el("span", { className: "faint", textContent: "—" })),
@@ -139,8 +140,8 @@ for (const t of tabIds) {
     selectTab(next); $(next).focus();
   });
 }
-$("copy-envelope").addEventListener("click", () => navigator.clipboard.writeText($("envelope-json").textContent));
-$("copy-input").addEventListener("click", () => navigator.clipboard.writeText($("input-json").textContent));
+wireCopy($("copy-envelope"), () => $("envelope-json").textContent);
+wireCopy($("copy-input"), () => $("input-json").textContent);
 
 // --- Transport --------------------------------------------------------------------------
 async function replay(id) {
@@ -176,9 +177,8 @@ async function loadRuns() {
   const list = $("history"); list.replaceChildren();
   if (!runs.length) list.append(el("li", { className: "muted", textContent: "None yet." }));
   for (const r of runs) {
-    const dot = el("span", { className: "dot", title: r.status }); dot.dataset.status = r.status;
     const b = el("button", { type: "button", title: `${r.status} · ${r.invocation_id}` },
-      dot, el("span", { className: "mono", textContent: r.agent_id }),
+      statusIcon(r.status), el("span", { className: "mono", textContent: r.agent_id }),
       el("span", { className: "id", textContent: `${fmtTime(r.completed_at)} · ${shortId(r.invocation_id)}` }));
     b.dataset.id = r.invocation_id;
     b.append(el("span", { className: "visually-hidden", textContent: ` ${r.status}` }));

@@ -1,5 +1,5 @@
 // Chat: hold a conversation with one agent, a turn at a time. ?conversation_id=… reopens one.
-import { $, el, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun } from "./common.js";
+import { $, el, icon, statusIcon, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun } from "./common.js";
 import { help } from "./help.js";
 import { agents, samples, loadRegistry, renderAgents, renderAgentDetail } from "./registry.js";
 
@@ -51,7 +51,7 @@ function renderTranscript() {
   const changes = Map.groupBy(chat.conversation?.version_changes || [], (c) => c.turn_index);
   for (const t of turns()) {
     for (const c of changes.get(t.turn_index) || []) {
-      list.append(el("li", { className: "version-change" },
+      list.append(el("li", { className: "version-change" }, icon("git-compare"),
         el("code", { textContent: c.agent_id }), ` version changed ${c.from} → ${c.to}`, help("version-change")));
     }
     list.append(userTurn(t.input, t.turn_index));
@@ -69,7 +69,7 @@ function userTurn(input, index) {
 function envelopeCard(env, children = [], delegated = false) {
   const o = env.outcome;
   const head = el("div", { className: "card-head" },
-    delegated ? el("span", { className: "handoff", textContent: "→ delegated to" }) : null,
+    delegated ? el("span", { className: "handoff" }, icon("corner-down-right"), "delegated to") : null,
     el("span", { className: "agent-badge", textContent: `${env.agent_id}@${env.agent_version}`, title: "agent_id@agent_version" }),
     statusPill(o.status),
     o.reason_code ? el("code", { textContent: o.reason_code, title: "reason_code" }) : null,
@@ -162,11 +162,11 @@ async function loadConversations() {
   const list = $("conversations"); list.replaceChildren();
   if (!items.length) list.append(el("li", { className: "muted", textContent: "None yet." }));
   for (const c of items) {
-    const dot = el("span", { className: "dot", title: c.last_status }); dot.dataset.status = c.last_status;
-    const b = el("button", { type: "button", title: `${c.turns} turn(s) · ${c.conversation_id}` },
-      dot, el("span", { className: "mono", textContent: c.agent_id }),
+    const b = el("button", { type: "button", title: `${c.last_status} · ${c.turns} turn(s) · ${c.conversation_id}` },
+      statusIcon(c.last_status), el("span", { className: "mono", textContent: c.agent_id }),
       el("span", { className: "id", textContent: `${c.turns}× · ${fmtTime(c.last_completed_at)} · ${shortId(c.conversation_id)}` }));
     b.dataset.id = c.conversation_id;
+    b.append(el("span", { className: "visually-hidden", textContent: ` last turn ${c.last_status}` }));
     b.addEventListener("click", () => openConversation(c.conversation_id));
     list.append(el("li", {}, b));
   }
