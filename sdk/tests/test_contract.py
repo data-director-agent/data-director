@@ -118,7 +118,7 @@ def _envelope(**overrides: object) -> Envelope:
 
 
 # Deliberately unmarked. requires_human_review=true flags every output for review, but C15 also
-# asks for quality checks on outputs, which the workbench does not perform; C13 is substantiated
+# asks for quality checks on outputs, which the workbench does not perform; C13.1 is substantiated
 # by the harness tests (stored, traced, attributable), not by a document validating.
 def test_abstained_envelope_validates() -> None:
     validate.validate_envelope(_envelope().to_document())

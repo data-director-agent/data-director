@@ -116,7 +116,7 @@ def test_r3_abstention_reasons_are_distinct(runs_dir: Path) -> None:
 # --- Grounding --------------------------------------------------------------------------------
 
 
-@pytest.mark.requirement("DD-GROUNDING", "C13", "R10")
+@pytest.mark.requirement("DD-GROUNDING", "C13.1", "R10")
 def test_model_call_after_retrieval_passes_linter_and_records_tokens(runs_dir: Path) -> None:
     r3 = R3Agent(retrieval=fakes.FakeRetrieval(), explainer=fakes.FakeModelExplainer())
     conductor = make_conductor(runs_dir, r3=r3, crate=False)

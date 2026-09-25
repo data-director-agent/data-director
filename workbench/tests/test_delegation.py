@@ -67,7 +67,7 @@ def lint_stored(runs: Path, invocation_id: str) -> grounding.GroundingReport:
 
 
 @pytest.mark.requirement("DD-DELEGATION")
-@pytest.mark.requirement("C13")
+@pytest.mark.requirement("C13.1")
 def test_a_delegated_child_is_stored_with_its_lineage_and_recorded_by_the_parent(
     tmp_path: Path,
 ) -> None:

@@ -84,7 +84,7 @@ def test_missing_profile_is_a_configuration_error() -> None:
         load_profile("profile:does-not-exist", PROFILES_DIR)
 
 
-@pytest.mark.requirement("DD-POLICY", "C13")
+@pytest.mark.requirement("DD-POLICY", "C13.2")
 def test_disabled_agent_fails_with_problem_details(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)
     env = make_conductor(runs_dir, agent).invoke(
@@ -95,7 +95,7 @@ def test_disabled_agent_fails_with_problem_details(runs_dir: Path) -> None:
     assert env.payload is None and agent.calls == 0
 
 
-@pytest.mark.requirement("DD-POLICY", "DD-OUTCOME", "C13")
+@pytest.mark.requirement("DD-POLICY", "DD-OUTCOME", "C13.2")
 def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, AbstainingStub()).invoke(
         request("stub.abstain", bundle="profile:test-restrictive")
@@ -181,7 +181,7 @@ def test_unknown_agent_is_a_caller_error(runs_dir: Path) -> None:
 # --- Grounding through the conductor ----------------------------------------------------------
 
 
-@pytest.mark.requirement("DD-GROUNDING-MODE", "C13")
+@pytest.mark.requirement("DD-GROUNDING-MODE", "C13.1")
 def test_conductor_records_the_declared_mode_on_envelope_and_root_span(runs_dir: Path) -> None:
     for mode, behaviour, inp in (
         (GroundingMode.INPUT_ONLY, fakes.review_of_input, fakes.record()),
@@ -237,7 +237,7 @@ def test_input_only_agent_that_retrieves_is_withheld(runs_dir: Path) -> None:
     )
 
 
-@pytest.mark.requirement("DD-GROUNDING", "C13", "R10")
+@pytest.mark.requirement("DD-GROUNDING", "C13.1", "R10")
 def test_retrieval_agent_passes_when_it_rests_only_on_what_it_retrieved(runs_dir: Path) -> None:
     agent = ScriptedAgent(
         GroundingMode.RETRIEVAL,
@@ -297,7 +297,7 @@ def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
 # --- Store and provenance ---------------------------------------------------------------------
 
 
-@pytest.mark.requirement("R10", "C13")
+@pytest.mark.requirement("R10", "C13.1")
 def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
     conductor = make_conductor(runs_dir, agent, AbstainingStub(), crate=True)

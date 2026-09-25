@@ -141,7 +141,15 @@ requirements:
     assessed_by: [test, review]
   - id: C13
     source: blueprint
-    title: AI Governance — actions logged, attributable to an agent identity, subject to human oversight
+    title: AI Governance
+  - id: C13.1
+    source: project
+    parent: C13
+    title: Every agent action is stored, traced and attributed to the agent identity that took it
+  - id: C13.2
+    source: project
+    parent: C13
+    title: The policy gate refuses an agent the profile does not permit and refers an action requiring approval to a named human role; what happens after referral is not exercised
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions
