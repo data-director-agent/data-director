@@ -26,7 +26,7 @@ from dd_agent_quality.agent import QualityReviewer
 from dd_agent_r3.agent import R3Agent
 from dd_agent_stub.agent import AbstainingStub
 from dd_sdk.agent import AgentSpec
-from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus
+from dd_sdk.contract.models import Assurance, Derivation, GroundingMode, OutcomeStatus
 
 ROOT = Path(__file__).resolve().parents[1]
 VIEWER_DIR = ROOT / "viewer"
@@ -168,6 +168,7 @@ def test_glossary_explains_every_contract_value_the_page_shows() -> None:
     expected = {f"status:{s.value}" for s in OutcomeStatus}
     expected |= {f"mode:{m.value}" for m in GroundingMode}
     expected |= {f"derivation:{d.value}" for d in Derivation} | {"derivation:verified"}
+    expected |= {f"assurance:{a.value}" for a in Assurance} | {"acting_for"}
     assert expected <= keys, sorted(expected - keys)
 
 

@@ -65,10 +65,10 @@ def test_the_spec_round_trips_through_the_manifest() -> None:
 
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
 def test_an_input_class_it_did_not_declare_is_refused(runs_dir: Path) -> None:
-    from workbench.testing import claim
+    from workbench.testing import TEST_PRINCIPAL, claim
 
     env = make_conductor(runs_dir, crate=False).invoke(
-        InvocationRequest(agent_id="r3.standards-advisor", input=claim())
+        InvocationRequest(agent_id="r3.standards-advisor", input=claim()), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")

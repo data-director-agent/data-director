@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
+IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 
 
 class Frozen(BaseModel):
@@ -86,6 +87,15 @@ class GroundingMode(StrEnum):
     INPUT_ONLY = "input_only"
     NONE = "none"
     DELEGATION = "delegation"
+
+
+class PrincipalKind(StrEnum):
+    PERSON = "person"
+    ACCOUNTABLE_ROLE = "accountable_role"
+
+
+class Assurance(StrEnum):
+    ASSERTED = "asserted"
 
 
 class TurnRole(StrEnum):
@@ -357,6 +367,15 @@ class Delegation(Frozen):
     content_hash: str = Field(pattern=SHA256_PATTERN)
 
 
+class Principal(Frozen):
+    """The human an invocation acted for (Blueprint §5.4, ADR-0018)."""
+
+    principal_id: str = Field(pattern=IRI_PATTERN)
+    name: str = Field(pattern=r"\S")
+    principal_kind: PrincipalKind = PrincipalKind.PERSON
+    assurance: Assurance = Assurance.ASSERTED
+
+
 class Envelope(Frozen):
     invocation_id: str = Field(pattern=UUID7_PATTERN)
     agent_id: str
@@ -366,6 +385,8 @@ class Envelope(Frozen):
     # The profile the conductor applied; the deployment's, never the request's (ADR-0017).
     policy_bundle_ref: str = Field(pattern=POLICY_BUNDLE_REF_PATTERN)
     policy_digest: str = Field(pattern=SHA256_PATTERN)
+    # Named by the authentication boundary, never by the request (ADR-0018).
+    acting_for: Principal
     outcome: Outcome
     payload: Payload | None = None
     evidence: list[EvidenceItem] = Field(default_factory=list)

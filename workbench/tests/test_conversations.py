@@ -17,6 +17,7 @@ from dd_sdk.contract.models import (
 )
 from workbench import conversations
 from workbench.testing import (
+    TEST_PRINCIPAL,
     ScriptedAgent,
     make_conductor,
     message,
@@ -44,9 +45,13 @@ def test_turns_are_in_order_with_children_nested_and_history_built(tmp_path: Pat
         ScriptedAgent(GroundingMode.NONE, review_of_input),
     )
     conv = new_invocation_id()
-    first = conductor.invoke(turn("fake.delegation", conv, message("review this")))
-    second = conductor.invoke(turn("fake.delegation", conv, message("and again")))
-    conductor.invoke(request("fake.none"))  # outside any conversation
+    first = conductor.invoke(
+        turn("fake.delegation", conv, message("review this")), acting_for=TEST_PRINCIPAL
+    )
+    second = conductor.invoke(
+        turn("fake.delegation", conv, message("and again")), acting_for=TEST_PRINCIPAL
+    )
+    conductor.invoke(request("fake.none"), acting_for=TEST_PRINCIPAL)  # outside any conversation
 
     found = conversations.get_conversation(conductor.store, conv)
     assert found is not None
@@ -85,7 +90,7 @@ def test_a_version_change_between_turns_is_reported(tmp_path: Path) -> None:
         conductor = make_conductor(
             tmp_path, ScriptedAgent(GroundingMode.NONE, review_of_input, version=version)
         )
-        conductor.invoke(turn("fake.none", conv, record()))
+        conductor.invoke(turn("fake.none", conv, record()), acting_for=TEST_PRINCIPAL)
     found = conversations.get_conversation(conductor.store, conv)
     assert found is not None
     assert found["version_changes"] == [

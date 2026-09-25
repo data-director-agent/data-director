@@ -1,7 +1,9 @@
 """A2A JSON-RPC binding (ADR-0001). The only importer of `a2a` (ADR-0006).
 
 The request is an `InvocationRequest` carried as a data part of the user message; the response
-is the `Envelope` carried as a data part of the task's single artifact. `a2a-sdk` 1.x is
+is the `Envelope` carried as a data part of the task's single artifact. Whom the invocation acts
+for comes from the `Authenticator`, given the HTTP request's headers, never from the message
+(ADR-0018); a delegation callback acts for its parent's principal, whoever sent it. `a2a-sdk` 1.x is
 protobuf-based, so documents cross as `google.protobuf.Struct` values via the SDK helpers.
 """
 
@@ -30,6 +32,7 @@ from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.wire import ENVELOPE_JSON_ARTIFACT, META_DELEGATION_TOKEN, META_TRACEPARENT
 from workbench.conductor import Conductor, UnknownAgent
+from workbench.identity import Authenticator, IdentityError
 from workbench.policy import PolicyError
 
 PROTOCOL_VERSION = "1.0"
@@ -73,8 +76,9 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
 
 
 class WorkbenchExecutor(AgentExecutor):
-    def __init__(self, conductor: Conductor) -> None:
+    def __init__(self, conductor: Conductor, authenticator: Authenticator) -> None:
         self.conductor = conductor
+        self.authenticator = authenticator
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
         message = context.message
@@ -107,8 +111,14 @@ class WorkbenchExecutor(AgentExecutor):
                     str(metadata.get(META_TRACEPARENT, "")),
                 )
             else:
-                envelope = await asyncio.to_thread(self.conductor.invoke, request)
-        except (ContractViolation, ValueError, UnknownAgent, PolicyError) as exc:
+                headers = (
+                    context.call_context.state.get("headers") if context.call_context else None
+                )
+                acting_for = self.authenticator.principal_for(headers)
+                envelope = await asyncio.to_thread(
+                    self.conductor.invoke, request, acting_for=acting_for
+                )
+        except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             await updater.failed(updater.new_agent_message([new_data_part({"error": str(exc)})]))
             return
         document = envelope.to_document()
@@ -126,10 +136,14 @@ class WorkbenchExecutor(AgentExecutor):
         raise NotImplementedError("invocations are synchronous; nothing to cancel")
 
 
-def a2a_routes(conductor: Conductor, base_url: str) -> tuple[AgentCard, list[BaseRoute]]:
+def a2a_routes(
+    conductor: Conductor, authenticator: Authenticator, base_url: str
+) -> tuple[AgentCard, list[BaseRoute]]:
     card = agent_card(conductor, base_url)
     handler = DefaultRequestHandler(
-        agent_executor=WorkbenchExecutor(conductor), task_store=InMemoryTaskStore(), agent_card=card
+        agent_executor=WorkbenchExecutor(conductor, authenticator),
+        task_store=InMemoryTaskStore(),
+        agent_card=card,
     )
     routes: list[BaseRoute] = [
         *create_agent_card_routes(card),

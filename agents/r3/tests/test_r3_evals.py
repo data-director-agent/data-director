@@ -20,6 +20,7 @@ from dd_agent_r3.evals.seeded import load_cases, r3_seeded
 from dd_agent_r3.testing import SAMPLES
 from dd_sdk.contract.models import parse_input
 from workbench.evaluation import baseline_of, differences
+from workbench.testing import TEST_PRINCIPAL
 
 # Inspect AI leaves its sample-event stream unclosed (inspect_ai/hooks/_hooks.py, the sample
 # event emitter); with warnings as errors, its deallocator warning fails whichever test is
@@ -68,6 +69,9 @@ def test_no_case_scores_below_the_committed_baseline(tmp_path, monkeypatch):
     baseline (`workbench/scripts/eval_compare.py --write-baseline`) in a commit of its own."""
     for variable in ("DD_R3_RETRIEVAL", "DD_R3_EXPLAINER", "DD_MODEL_ID", "DD_SNAPSHOT_PATH"):
         monkeypatch.delenv(variable, raising=False)
+    # The evaluation acts for whoever runs it (ADR-0018); here, the test principal.
+    monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
+    monkeypatch.setenv("DD_PRINCIPAL_NAME", TEST_PRINCIPAL.name)
     [log] = inspect_eval(r3_seeded(), model="none", log_dir=str(tmp_path), display="none")
     assert log.status == "success", log.error
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))

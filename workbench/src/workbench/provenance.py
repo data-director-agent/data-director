@@ -1,7 +1,8 @@
 """Process Run Crate for one invocation (R10), written with ro-crate-py.
 
-One `CreateAction` per invocation: the agent is the instrument, the request the object, the
-envelope and the span file the results. Profile: https://w3id.org/ro/wfrun/process/0.5.
+One `CreateAction` per invocation: the agent is the instrument, the human it acted for the
+agent (Blueprint §5.4, ADR-0018), the request the object, the envelope and the span file the
+results. Profile: https://w3id.org/ro/wfrun/process/0.5.
 This module is the only importer of `rocrate` (ADR-0006).
 """
 
@@ -11,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rocrate.model import ContextEntity, SoftwareApplication
+from rocrate.model import ContextEntity, Person, SoftwareApplication
 from rocrate.rocrate import ROCrate
 
 PROCESS_RUN_CRATE = "https://w3id.org/ro/wfrun/process/0.5"
@@ -41,6 +42,22 @@ def write_process_run_crate(
             properties={"name": envelope["agent_id"], "version": envelope["agent_version"]},
         )
     )
+    # TODO: Process Run Crate has no convention for an accountable role; until one is settled,
+    # a role is recorded as a Person whose description says so.
+    principal = envelope["acting_for"]
+    human = crate.add(
+        Person(
+            crate,
+            principal["principal_id"],
+            properties={
+                "name": principal["name"],
+                "description": (
+                    f"The {principal['principal_kind'].replace('_', ' ')} this invocation acted "
+                    f"for (assurance: {principal['assurance']})."
+                ),
+            },
+        )
+    )
     request_file = crate.add_file(
         request_path, dest_path="request.json", properties={"encodingFormat": "application/json"}
     )
@@ -63,6 +80,7 @@ def write_process_run_crate(
         "endTime": envelope["completed_at"],
         "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
         "description": envelope["outcome"]["statement"],
+        "agent": human,
     }
     crate.add_action(
         agent,

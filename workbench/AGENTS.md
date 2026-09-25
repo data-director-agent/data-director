@@ -31,7 +31,7 @@ uv run mypy
 uv run python sdk/scripts/gen_schema.py         # after editing the LinkML schema
 scripts/run-agents.sh                           # every agent on the port agents.yaml expects
 uv run pytest --json-report --json-report-file=workbench/.report.json && uv run python workbench/scripts/conformance_report.py
-uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013)
+uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013); needs DD_PRINCIPAL_*
 uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # what changed between runs
 ```
 
@@ -57,6 +57,12 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 - **Only the conductor fills identifiers, timestamps, telemetry, grounding mode and input hash.**
   An agent returns an `AgentResult` (outcome, payload, evidence). If you find yourself setting
   `invocation_id` or `grounding_mode` in an agent, stop.
+- **Only the authentication boundary names the human (ADR-0018).** A transport asks its
+  `Authenticator` and passes `acting_for` to `Conductor.invoke`. The conductor holds no default,
+  and a delegated child acts for the grant's principal. The stub (`OperatorAssertion`) records
+  `assurance: asserted`; do not describe that as authenticated. If you find yourself reading
+  `acting_for` from a request body, sending it to an agent, or giving the conductor a default,
+  stop. Tests act for `workbench.testing.TEST_PRINCIPAL`.
 - **Only the conductor sets lineage.** `parent_invocation_id` and `delegations` come from a
   delegation grant the conductor issued; `invoke` refuses a request that carries
   `parent_invocation_id`. An orchestrator delegates through `ctx.delegate`, never by calling an

@@ -220,3 +220,6 @@ requirements:
   - id: DD-POLICY-OWNER
     source: project
     title: The deployment chooses the institutional profile; a request cannot name one, and every envelope records the profile and digest the conductor applied
+  - id: DD-ACTS-FOR
+    source: project
+    title: Every envelope and crate names the human the invocation acted for, taken from the deployment's authentication boundary and never from the request, and a delegated invocation acts for its parent's; authentication itself is not exercised (the identity is asserted by the operator)

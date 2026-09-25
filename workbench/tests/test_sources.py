@@ -133,7 +133,9 @@ def _fact_check(tmp_path: Path, source: fakes.Retrieve, sources: Sources) -> Any
     agent = fakes.ScriptedAgent(GroundingMode.RETRIEVAL, result, steps=[source])
     conductor = fakes.make_conductor(tmp_path / "runs", agent)
     conductor.sources = sources
-    envelope = conductor.invoke(fakes.request("fake.retrieval", fakes.claim()))
+    envelope = conductor.invoke(
+        fakes.request("fake.retrieval", fakes.claim()), acting_for=fakes.TEST_PRINCIPAL
+    )
     return envelope, conductor.store.run_dir(envelope.invocation_id)
 
 
@@ -181,7 +183,7 @@ def test_real_agents_evidence_verifies_against_the_committed_copies(
     conductor = fakes.make_conductor(tmp_path / "runs", agent, profile=DEFAULT_PROFILE)
     conductor.sources = Sources.from_config(DEFAULT_SOURCES_CONFIG)
     request = fakes.request(agent.spec.agent_id, _sample(sample))
-    envelope = conductor.invoke(request)
+    envelope = conductor.invoke(request, acting_for=fakes.TEST_PRINCIPAL)
     assert envelope.outcome.status == OutcomeStatus.SUCCEEDED, envelope.outcome.statement
     report = check(envelope.to_document(), conductor.sources)
     assert report.passed and report.verified > 0 and not report.unresolved

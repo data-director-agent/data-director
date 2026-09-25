@@ -24,7 +24,7 @@ from dd_sdk.contract.models import (
     input_source_id,
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
-from workbench.testing import make_conductor, request
+from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
 
@@ -38,7 +38,7 @@ def sample_salutation() -> Salutation:
 @pytest.mark.requirement("DD-GROUNDING-MODE", "DD-GROUNDED-PAYLOAD")
 def test_greeting_is_grounded_on_the_input_and_passes_the_linter(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, HelloWorld())
-    env = conductor.invoke(request("hello.world", sample_salutation()))
+    env = conductor.invoke(request("hello.world", sample_salutation()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.NONE
     assert isinstance(env.payload, Greeting)
@@ -60,7 +60,8 @@ def test_greeting_is_grounded_on_the_input_and_passes_the_linter(runs_dir: Path)
 @pytest.mark.requirement("DD-OUTCOME")
 def test_unknown_language_abstains_rather_than_raising(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, HelloWorld()).invoke(
-        request("hello.world", Salutation(greeted_name="world", language="qqq"))
+        request("hello.world", Salutation(greeted_name="world", language="qqq")),
+        acting_for=TEST_PRINCIPAL,
     )
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
@@ -71,7 +72,9 @@ def test_unknown_language_abstains_rather_than_raising(runs_dir: Path) -> None:
 def test_an_input_class_it_did_not_declare_is_refused(runs_dir: Path) -> None:
     from workbench.testing import claim
 
-    env = make_conductor(runs_dir, HelloWorld()).invoke(request("hello.world", claim()))
+    env = make_conductor(runs_dir, HelloWorld()).invoke(
+        request("hello.world", claim()), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")
     assert env.payload is None

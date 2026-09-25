@@ -19,7 +19,8 @@ from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_stub.agent import AbstainingStub
 from dd_sdk.contract.models import new_invocation_id, to_document
-from workbench.testing import claim, make_conductor, record, request
+from workbench.identity import OperatorAssertion
+from workbench.testing import TEST_PRINCIPAL, claim, make_conductor, record, request
 from workbench.transport.app import build_app
 
 BASE = "http://testserver"
@@ -29,7 +30,7 @@ def _app(runs_dir: Path):
     conductor = make_conductor(
         runs_dir, QualityReviewer(), FactChecker(), HelloWorld(), AbstainingStub()
     )
-    return conductor, build_app(conductor, base_url=BASE)
+    return conductor, build_app(conductor, OperatorAssertion(TEST_PRINCIPAL), base_url=BASE)
 
 
 def _get(app: Any, path: str) -> tuple[int, Any]:
@@ -231,6 +232,48 @@ def test_a2a_fails_a_request_naming_a_profile_and_runs_nothing(runs_dir: Path) -
     resp = asyncio.run(_send_a2a(app, _naming_a_profile()))
     assert resp.task.status.state == TaskState.TASK_STATE_FAILED
     assert list(conductor.store.iter_envelopes()) == []
+
+
+def _saying_whom_it_acts_for() -> dict[str, Any]:
+    """A request that tries to choose its own principal."""
+    doc = to_document(request("quality.reviewer", record()))
+    doc["acting_for"] = {"principal_id": "https://orcid.org/0000-0000-0000-0000", "name": "Else"}
+    return doc
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+def test_a_request_saying_whom_it_acts_for_is_refused_by_both_transports(runs_dir: Path) -> None:
+    conductor, app = _app(runs_dir)
+    resp = asyncio.run(_send_a2a(app, _saying_whom_it_acts_for()))
+    assert resp.task.status.state == TaskState.TASK_STATE_FAILED
+
+    async def agui() -> list[dict[str, Any]]:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
+            r = await hc.post("/agui", json=_agui_body(_saying_whom_it_acts_for(), "t1"))
+            return _sse_events(r.text)
+
+    events = asyncio.run(agui())
+    assert [e["type"] for e in events] == ["RUN_ERROR"] and "acting_for" in events[0]["message"]
+    assert list(conductor.store.iter_envelopes()) == []
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+def test_each_transport_records_the_principal_its_authenticator_names(runs_dir: Path) -> None:
+    conductor, app = _app(runs_dir)
+    resp = asyncio.run(_send_a2a(app, to_document(request("fact.checker", claim()))))
+    assert resp.task.status.state == TaskState.TASK_STATE_COMPLETED
+
+    async def agui() -> None:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
+            doc = to_document(request("fact.checker", claim()))
+            await hc.post("/agui", json=_agui_body(doc, "t1"))
+
+    asyncio.run(agui())
+    stored = list(conductor.store.iter_envelopes())
+    assert len(stored) == 2
+    assert all(e["acting_for"] == to_document(TEST_PRINCIPAL) for e in stored)
+    status, runs = _get(app, "/runs")
+    assert status == 200 and {r["acting_for"] for r in runs} == {TEST_PRINCIPAL.name}
 
 
 @pytest.mark.requirement("DD-REGISTRY")

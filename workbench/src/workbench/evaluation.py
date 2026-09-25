@@ -46,7 +46,7 @@ from inspect_ai.scorer import (
 )
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 
-from dd_sdk.contract.models import InvocationRequest, parse_input
+from dd_sdk.contract.models import InvocationRequest, Principal, parse_input
 from workbench.conductor import Conductor
 
 # The statuses in which an agent declined to answer. The source delivery plan counts them as
@@ -111,10 +111,11 @@ def answered_needlessly() -> Metric:
 
 
 @solver
-def invoke_agent(conductor_for: ConductorFor, agent_id: str) -> Solver:
-    """Invoke `agent_id` on the case's input through the conductor, and keep the envelope and
-    the linter's report in the sample's metadata. No model is called. The profile applied is
-    the one each conductor was built with (ADR-0017).
+def invoke_agent(conductor_for: ConductorFor, agent_id: str, acting_for: Principal) -> Solver:
+    """Invoke `agent_id` on the case's input through the conductor, on behalf of `acting_for`
+    (whoever runs the evaluation, ADR-0018), and keep the envelope and the linter's report in the
+    sample's metadata. No model is called. The profile applied is the one each conductor was
+    built with (ADR-0017).
 
     The conductor is synchronous and opens its own event loop per call, so it runs off Inspect's
     loop, on one worker thread that `conductor_for` is also called on. Build the conductor
@@ -128,7 +129,7 @@ def invoke_agent(conductor_for: ConductorFor, agent_id: str) -> Solver:
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         conductor = conductor_for(case)
         request = InvocationRequest(agent_id=agent_id, input=parse_input(document))
-        envelope = conductor.invoke(request)
+        envelope = conductor.invoke(request, acting_for=acting_for)
         report = conductor.grounding_reports.get(envelope.invocation_id)
         grounding = {
             "passed": report.passed if report else None,

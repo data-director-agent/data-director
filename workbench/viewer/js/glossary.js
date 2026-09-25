@@ -40,6 +40,8 @@ export const GLOSSARY = {
   "reason_code": { term: "reason_code", text: "Why the agent abstained or referred, from a fixed vocabulary such as no_candidates_retrieved, registry_unavailable, insufficient_input or requires_human_judgement. Required for those two statuses." },
   "referred_to": { term: "referred_to", text: "The human role a referred outcome hands the decision to, for example data_steward." },
   "agent_version": { term: "agent_id@agent_version", text: "Which agent ran, and which version of it." },
+  "acting_for": { term: "acting_for", text: "The person the run acted for, or the accountable role where it acted for an institution. The conductor records it from the workbench's sign-in boundary, never from the request, and a delegated run acts for its parent's. The agent is not told who it is." },
+  "assurance:asserted": { term: "asserted", text: "The workbench has no sign-in yet. Its operator configured this name, and nobody checked it. On a shared workbench every run shows the operator, whoever started it." },
   "grounding_mode": { term: "grounding_mode", text: "The grounding contract the agent declares: what its output may rest on. The conductor records it from the agent's specification, never from the agent's output, and the grounding linter applies that mode's rules." },
   "mode:retrieval": { term: "retrieval", text: "The agent retrieves external records before any model call, and every identity it asserts was retrieved (linter rules G1–G4)." },
   "mode:input_only": { term: "input_only", text: "The agent works only over the input it was given. No retrieval may appear; a model may be called; every grounding reference is the input's hash (linter rules R1–R3)." },

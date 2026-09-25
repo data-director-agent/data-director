@@ -9,6 +9,9 @@ and reached over in-memory A2A. With `agents`, each case goes to the services th
 cases needing a backend the evaluation cannot control there (`backend: unavailable`) are left
 out.
 
+The evaluation acts for whoever runs it, named by `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME`
+as for any invocation (ADR-0018); it does not start without them.
+
 The task's metadata records what produced the run, so two logs can be told apart: the git
 revision, R3's configuration variables, and the hashes of the ranking rules, the snapshot and
 the case file. None of these is covered by `AgentSpec.version`.
@@ -147,13 +150,14 @@ def r3_seeded(agents: str | None = None) -> Task:
         outcome_matches,
         stopped_correctly,
     )
+    from workbench.settings import Settings
 
     cases = load_cases()
     if agents:
         cases = [c for c in cases if c["backend"] == "snapshot"]
     return Task(
         dataset=dataset(cases),
-        solver=invoke_agent(conductors(agents), AGENT_ID),
+        solver=invoke_agent(conductors(agents), AGENT_ID, Settings.from_env().principal()),
         scorer=[
             outcome_matches(),
             stopped_correctly(),

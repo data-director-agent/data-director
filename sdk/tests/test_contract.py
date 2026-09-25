@@ -30,6 +30,8 @@ from dd_sdk.contract.models import (
     MetadataRecord,
     Outcome,
     OutcomeStatus,
+    Principal,
+    PrincipalKind,
     ProblemDetails,
     QualityReview,
     ReasonCode,
@@ -113,6 +115,8 @@ def _telemetry() -> Telemetry:
 
 
 INV = new_invocation_id()
+# The ORCID documentation's example researcher.
+PRINCIPAL = Principal(principal_id="https://orcid.org/0000-0002-1825-0097", name="Josiah Carberry")
 INPUT_HASH = "1" * 64
 
 
@@ -125,6 +129,7 @@ def _envelope(**overrides: object) -> Envelope:
         "grounding_mode": GroundingMode.NONE,
         "policy_bundle_ref": "profile:default@v2",
         "policy_digest": "0" * 64,
+        "acting_for": PRINCIPAL,
         "outcome": Outcome(
             status=OutcomeStatus.ABSTAINED,
             reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
@@ -349,6 +354,55 @@ def test_human_review_cannot_be_false() -> None:
     doc["requires_human_review"] = False
     with pytest.raises(validate.ContractViolation, match="requires_human_review"):
         validate.validate_envelope(doc)
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+def test_an_envelope_names_the_human_it_acted_for() -> None:
+    doc = _envelope().to_document()
+    assert doc["acting_for"] == {
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "name": "Josiah Carberry",
+        "principal_kind": "person",
+        "assurance": "asserted",
+    }
+    validate.validate_envelope(doc)
+    del doc["acting_for"]
+    with pytest.raises(validate.ContractViolation, match="acting_for"):
+        validate.validate_envelope(doc)
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+@pytest.mark.parametrize(
+    ("principal_id", "name"),
+    [("0000-0002-1825-0097", "Josiah Carberry"), ("https://orcid.org/x y", "J"), ("urn:x", "")],
+)
+def test_a_principal_needs_an_absolute_iri_and_a_name(principal_id: str, name: str) -> None:
+    with pytest.raises(ValueError):
+        Principal(principal_id=principal_id, name=name)
+    doc = _envelope().to_document()
+    doc["acting_for"] = {**doc["acting_for"], "principal_id": principal_id, "name": name}
+    with pytest.raises(validate.ContractViolation):
+        validate.validate_envelope(doc)
+
+
+def test_an_accountable_role_is_a_principal() -> None:
+    role = Principal(
+        principal_id="urn:example:role:data-steward",
+        name="Data steward, Research Data Service",
+        principal_kind=PrincipalKind.ACCOUNTABLE_ROLE,
+    )
+    validate.validate_envelope(_envelope(acting_for=role).to_document())
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+def test_a_request_cannot_say_whom_it_acts_for() -> None:
+    doc = to_document(InvocationRequest(agent_id="stub.abstain", input=DatasetProfile()))
+    doc["acting_for"] = to_document(PRINCIPAL)
+    # The model refuses it, and every transport parses the request with the model before the
+    # conductor sees it. TODO: the generated request schema's root is open, so a consumer that
+    # validates with the JSON Schema alone would not refuse it.
+    with pytest.raises(ValueError, match="acting_for"):
+        InvocationRequest.model_validate(doc)
 
 
 def test_request_validates_and_rejects_bad_id() -> None:

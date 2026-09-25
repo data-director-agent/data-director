@@ -17,8 +17,10 @@ from dd_sdk.contract.models import (
     InvocationRequest,
     Outcome,
     OutcomeStatus,
+    Principal,
     ReasonCode,
     new_invocation_id,
+    to_document,
 )
 from dd_sdk.delegate import DelegationRefused
 from dd_sdk.evidence import envelope_hash
@@ -26,6 +28,7 @@ from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
 from workbench.conductor import DelegationError, DuplicateInvocation
 from workbench.testing import (
+    TEST_PRINCIPAL,
     ScriptedAgent,
     grant_token,
     make_conductor,
@@ -78,7 +81,7 @@ def test_a_delegated_child_is_stored_with_its_lineage_and_recorded_by_the_parent
     parent_request = request("fake.delegation", message()).model_copy(
         update={"conversation_id": conversation}
     )
-    parent = conductor.invoke(parent_request)
+    parent = conductor.invoke(parent_request, acting_for=TEST_PRINCIPAL)
 
     assert parent.outcome.status == OutcomeStatus.SUCCEEDED, parent.outcome.statement
     assert parent.conversation_id == conversation
@@ -110,7 +113,7 @@ def test_only_a_delegation_agent_is_given_a_grant(tmp_path: Path) -> None:
         return review_of_input(req, ctx)
 
     conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.NONE, behaviour))
-    conductor.invoke(request("fake.none"))
+    conductor.invoke(request("fake.none"), acting_for=TEST_PRINCIPAL)
     assert seen[0].delegate is None
 
 
@@ -127,11 +130,11 @@ def test_a_caller_may_not_set_lineage_or_use_an_unknown_or_expired_token(tmp_pat
         update={"parent_invocation_id": new_invocation_id()}
     )
     with pytest.raises(DelegationError, match="set by the conductor"):
-        conductor.invoke(forged)
+        conductor.invoke(forged, acting_for=TEST_PRINCIPAL)
     with pytest.raises(DelegationError, match="unknown or expired"):
         conductor.invoke_delegated(request("fake.none"), "not-a-token")
 
-    conductor.invoke(request("fake.delegation", message()))
+    conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     with pytest.raises(DelegationError, match="unknown or expired"):
         conductor.invoke_delegated(request("fake.none"), tokens[0])  # the parent has finished
 
@@ -147,7 +150,7 @@ def test_self_delegation_and_a_second_level_are_refused(tmp_path: Path) -> None:
         raise AssertionError("self-delegation was not refused")
 
     conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.DELEGATION, to_self))
-    env = conductor.invoke(request("fake.delegation", message()))
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert "may not delegate to itself" in env.outcome.statement
 
@@ -159,7 +162,7 @@ def test_self_delegation_and_a_second_level_are_refused(tmp_path: Path) -> None:
     outer = ScriptedAgent(GroundingMode.DELEGATION, second_level)
     inner = ScriptedAgent(GroundingMode.DELEGATION, second_level, agent_id="fake.inner")
     conductor = make_conductor(tmp_path / "depth", outer, inner)
-    env = conductor.invoke(request("fake.delegation", message()))
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     child = conductor.store.get(env.delegations[0].delegated_invocation_id)
     assert child is not None
@@ -177,12 +180,24 @@ def test_a_child_may_not_reuse_its_parents_invocation_id(tmp_path: Path) -> None
     conductor = make_conductor(
         tmp_path, ScriptedAgent(GroundingMode.DELEGATION, reuse_parent_id), child_agent()
     )
-    parent = conductor.invoke(request("fake.delegation", message()))
+    parent = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert parent.outcome.statement == "The child was refused."
     assert parent.delegations == []
     stored = conductor.store.get(parent.invocation_id)
     assert stored is not None and stored["agent_id"] == "fake.delegation"
     assert [e["invocation_id"] for e in conductor.store.iter_envelopes()] == [parent.invocation_id]
+
+
+@pytest.mark.requirement("DD-DELEGATION", "DD-ACTS-FOR")
+def test_a_child_acts_for_its_parents_principal_not_its_callers(tmp_path: Path) -> None:
+    # The callback reaches the workbench's own app, which asserts TEST_PRINCIPAL for any caller.
+    # The parent acts for someone else; the child must act for them too.
+    other = Principal(principal_id="mailto:steward@example.org", name="A. Steward")
+    conductor = make_conductor(tmp_path, delegating("fake.none"), child_agent())
+    parent = conductor.invoke(request("fake.delegation", message()), acting_for=other)
+    assert parent.acting_for == other
+    child = conductor.store.get(parent.delegations[0].delegated_invocation_id)
+    assert child is not None and child["acting_for"] == to_document(other)
 
 
 @pytest.mark.requirement("DD-DELEGATION")
@@ -191,7 +206,7 @@ def test_a_child_refused_by_policy_is_recorded_and_relayed(tmp_path: Path) -> No
     conductor = make_conductor(
         tmp_path, delegating("fake.disabled"), child_agent(agent_id="fake.disabled")
     )
-    env = conductor.invoke(request("fake.delegation", message()))
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     assert env.delegations[0].delegated_status == OutcomeStatus.FAILED
     child = conductor.store.get(env.delegations[0].delegated_invocation_id)
@@ -235,7 +250,7 @@ def test_delegations_are_kept_when_the_parent_fails_after_delegating(tmp_path: P
             ScriptedAgent(GroundingMode.DELEGATION, behaviour),
             child_agent(),
         )
-        env = conductor.invoke(request("fake.delegation", message()))
+        env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
         assert env.outcome.status == status
         assert len(env.delegations) == 1
         assert conductor.store.get(env.invocation_id) is not None
@@ -265,7 +280,7 @@ def test_a_child_that_finishes_after_its_parent_is_still_recorded(tmp_path: Path
         ScriptedAgent(GroundingMode.DELEGATION, fire_and_forget),
         ScriptedAgent(GroundingMode.NONE, slow_review),
     )
-    env = conductor.invoke(request("fake.delegation", message()))
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     [delegation] = env.delegations
     stored = conductor.store.get(delegation.delegated_invocation_id)
     assert stored is not None and stored["parent_invocation_id"] == env.invocation_id
@@ -280,5 +295,5 @@ def test_a_delegation_agent_run_without_a_callback_gets_no_delegate(tmp_path: Pa
 
     conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.DELEGATION, behaviour))
     conductor.workbench_url = None  # as under `workbench invoke`
-    conductor.invoke(request("fake.delegation", message()))
+    conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert seen[0].delegate is None

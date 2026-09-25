@@ -50,11 +50,14 @@ The tests serve every agent in memory, so they need no agent running.
 ### Quick start
 
 To call agents from the command line, start them first and leave them running. Then, in a second
-terminal in `workbench/`:
+terminal in `workbench/`, name the person the invocations act for (see
+[Who an invocation acts for](#who-an-invocation-acts-for)) and run the commands:
 
 ```sh
 ../scripts/run-agents.sh                               # in the first terminal
 
+export DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097   # your ORCID iD, or another IRI
+export DD_PRINCIPAL_NAME="Josiah Carberry"                     # your name
 uv run workbench agents                                # what is registered, what each accepts
 uv run workbench invoke --agent quality.reviewer --input samples/orda-record.metadata.json
 uv run workbench invoke --agent fact.checker     --input samples/claim.json
@@ -96,8 +99,32 @@ Every response has one of five outcomes: `succeeded`, `abstained`, `referred`, `
 
 ## Configuration
 
-The defaults run entirely offline, and nothing needs configuring to run the tests or the quick
-start. The workbench is configured in three places.
+The defaults run entirely offline, and nothing needs configuring to run the tests. To invoke an
+agent, from the command line or through `serve`, the workbench must be told who the invocation
+acts for; it will not start `invoke` or `serve` without that. The workbench is configured in
+three places.
+
+### Who an invocation acts for
+
+The Blueprint (§5.4) requires that no agent operates anonymously: every invocation is made on
+behalf of a named human, and the response and the provenance record say who. A request cannot
+name that person. Until the workbench has authentication, the operator of the deployment names
+one person in its configuration, and every invocation is recorded as acting for them, marked
+`assurance: asserted` to show that nobody's identity was checked. On a shared `workbench serve`,
+every caller is therefore recorded as the operator.
+
+Set both of these before running `invoke` or `serve`:
+
+| Variable | Meaning |
+|---|---|
+| `DD_PRINCIPAL_ID` | An absolute IRI for the person, such as `https://orcid.org/0000-0002-1825-0097`. Use an ORCID iD where the person has one. |
+| `DD_PRINCIPAL_NAME` | The person's name, as it should appear in the record. |
+| `DD_PRINCIPAL_KIND` | Optional. `person` (the default), or `accountable_role` when the principal is a role rather than an individual. |
+
+`--acting-for-id` and `--acting-for-name` on `invoke` or `serve` take the place of the first two
+for one command. If either is missing, the command stops with
+`DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset`; if the identifier is not an IRI, it stops with
+`the configured principal is malformed`.
 
 ### Environment variables
 
@@ -107,6 +134,8 @@ itself: export them in the shell, or copy [`env.example`](env.example) to `.env`
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | none; required | Who every invocation acts for; see [above](#who-an-invocation-acts-for). |
+| `DD_PRINCIPAL_KIND` | `person` | `person` or `accountable_role`. |
 | `DD_RUNS_DIR` | `runs` | Where each run's folder is written. |
 | `DD_WRITE_CRATE` | `1` | `0` stops the provenance record (Process Run Crate) being written. |
 | `DD_PROFILE` | `profiles/default.yaml` | The institutional profile applied to every invocation. A request cannot name one (ADR-0017). |
@@ -136,12 +165,19 @@ pass `--profile <path>` to `invoke` or `serve`, to use another. The format is de
 `uv run workbench <command> --help` lists every option. The ones most often changed are:
 
 - `serve --host 127.0.0.1 --port 8000`: the address the viewer and APIs are served on.
+- `invoke|serve --acting-for-id <IRI> --acting-for-name <name>`: who the invocations act for,
+  in place of `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME`.
 - `invoke --input-type <class>`: the input class, when the document has no `schema_class` and the
   agent accepts several.
 - `invoke --requirement <ID>`: the Blueprint requirement being exercised; repeatable.
 
 ## Troubleshooting
 
+- **`invoke` or `serve` will not start: `DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset`.** Name
+  the person the invocations act for; see
+  [Who an invocation acts for](#who-an-invocation-acts-for).
+- **`the configured principal is malformed`.** `DD_PRINCIPAL_ID` must be an absolute IRI, such
+  as `https://orcid.org/…`, and `DD_PRINCIPAL_KIND` must be `person` or `accountable_role`.
 - **An agent is listed as unavailable.** Its service is not running or is on another port. Start
   it with `../scripts/run-agents.sh`, and check its URL in `agents.yaml`.
 - **`failed: input-not-accepted`.** The agent does not read that input class. `workbench agents`

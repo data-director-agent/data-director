@@ -12,6 +12,14 @@
             "string"
          ]
       },
+      "Assurance": {
+         "description": "How the workbench came to know the principal. TODO: authenticated arrives with authentication, under its own ADR.",
+         "enum": [
+            "asserted"
+         ],
+         "title": "Assurance",
+         "type": "string"
+      },
       "Claim": {
          "additionalProperties": false,
          "description": "A statement to be checked against sources. The input a fact-checking agent reads.",
@@ -213,7 +221,7 @@
       },
       "Envelope": {
          "additionalProperties": false,
-         "description": "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload.",
+         "description": "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied, the human it acted for) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload.",
          "properties": {
             "invocation_id": {
                "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
@@ -244,6 +252,10 @@
                "description": "SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied.",
                "pattern": "^[0-9a-f]{64}$",
                "type": "string"
+            },
+            "acting_for": {
+               "$ref": "#/$defs/Principal",
+               "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018)."
             },
             "outcome": {
                "$ref": "#/$defs/Outcome"
@@ -333,6 +345,7 @@
             "grounding_mode",
             "policy_bundle_ref",
             "policy_digest",
+            "acting_for",
             "outcome",
             "telemetry",
             "requires_human_review"
@@ -765,6 +778,47 @@
             "suspended"
          ],
          "title": "OutcomeStatus",
+         "type": "string"
+      },
+      "Principal": {
+         "additionalProperties": false,
+         "description": "The human an invocation acted for (Blueprint \u00a75.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018).",
+         "properties": {
+            "principal_id": {
+               "description": "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5).",
+               "format": "uri",
+               "pattern": "^[a-z][a-z0-9+.-]*:\\S+$",
+               "type": "string"
+            },
+            "name": {
+               "description": "How the person or role is named to a reader of the record.",
+               "pattern": "\\S",
+               "type": "string"
+            },
+            "principal_kind": {
+               "$ref": "#/$defs/PrincipalKind"
+            },
+            "assurance": {
+               "$ref": "#/$defs/Assurance",
+               "description": "How the workbench came to know the principal."
+            }
+         },
+         "required": [
+            "principal_id",
+            "name",
+            "principal_kind",
+            "assurance"
+         ],
+         "title": "Principal",
+         "type": "object"
+      },
+      "PrincipalKind": {
+         "description": "",
+         "enum": [
+            "person",
+            "accountable_role"
+         ],
+         "title": "PrincipalKind",
          "type": "string"
       },
       "ProblemDetails": {
@@ -1265,5 +1319,5 @@
    ],
    "title": "data_director_workbench",
    "type": "object",
-   "version": "0.5.0"
+   "version": "0.6.0"
 }

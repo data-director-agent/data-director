@@ -42,6 +42,7 @@ from dd_sdk.contract.models import (
     MetadataRecord,
     Outcome,
     OutcomeStatus,
+    Principal,
     QualityReview,
     Reply,
     Verdict,
@@ -55,6 +56,7 @@ from dd_sdk.evidence import (
 )
 from dd_sdk.tracing import chat_span, retrieval_span
 from workbench.conductor import Conductor
+from workbench.identity import OperatorAssertion
 from workbench.policy import PROFILES_DIR, load_profile
 from workbench.registry import Registry
 from workbench.remote import RemoteAgent
@@ -62,6 +64,12 @@ from workbench.store import RunStore
 
 PERMISSIVE = PROFILES_DIR / "test-permissive.yaml"
 RESTRICTIVE = PROFILES_DIR / "test-restrictive.yaml"
+
+# Whom test invocations act for (ADR-0018): the ORCID documentation's example researcher, so a
+# stored test run never names a real person.
+TEST_PRINCIPAL = Principal(
+    principal_id="https://orcid.org/0000-0002-1825-0097", name="Josiah Carberry"
+)
 
 Behaviour = AgentResult | Exception | Callable[[InvocationRequest, RunContext], AgentResult]
 
@@ -281,7 +289,8 @@ def make_conductor(
     governed by the institutional profile at `profile`.
 
     A remote conductor also serves its own A2A app in memory at `WORKBENCH_URL` and sets it as
-    the delegation callback, so delegation runs over the wire as it does in production.
+    the delegation callback, so delegation runs over the wire as it does in production. That app
+    acts for `TEST_PRINCIPAL`; a test invokes the conductor with `acting_for=TEST_PRINCIPAL`.
     """
     from workbench.transport.app import build_app  # the app imports the conductor
 
@@ -300,7 +309,9 @@ def make_conductor(
         write_crate=crate,
     )
     if remote:
-        workbench_app["app"] = build_app(conductor, base_url=WORKBENCH_URL)
+        workbench_app["app"] = build_app(
+            conductor, OperatorAssertion(TEST_PRINCIPAL), base_url=WORKBENCH_URL
+        )
         conductor.workbench_url = WORKBENCH_URL
     return conductor
 

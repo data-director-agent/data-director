@@ -23,7 +23,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.evidence import input_hash
 from dd_sdk.tracing import CHAT, DELEGATE, RETRIEVAL, records_from_jsonl
-from workbench.testing import make_conductor, request
+from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 
 def conductor(runs_dir: Path):
@@ -33,7 +33,9 @@ def conductor(runs_dir: Path):
 @pytest.mark.requirement("DD-DELEGATION", "DD-CONVERSATION")
 def test_a_greeting_is_routed_to_hello_world_and_relayed(runs_dir: Path) -> None:
     c = conductor(runs_dir)
-    env = c.invoke(request("director.stub", Message(message_text="hello Joe")))
+    env = c.invoke(
+        request("director.stub", Message(message_text="hello Joe")), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.DELEGATION
     assert isinstance(env.payload, Reply)
@@ -57,7 +59,8 @@ def test_a_claim_is_routed_to_the_fact_checker(runs_dir: Path) -> None:
         request(
             "director.stub",
             Message(message_text="check A DOI does not change when the object moves."),
-        )
+        ),
+        acting_for=TEST_PRINCIPAL,
     )
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.delegations[0].delegated_agent_id == "fact.checker"
@@ -78,7 +81,8 @@ def test_a_mention_picks_the_agent_and_no_match_abstains() -> None:
 @pytest.mark.requirement("DD-OUTCOME")
 def test_an_unroutable_message_abstains_naming_what_it_can_route(runs_dir: Path) -> None:
     env = conductor(runs_dir).invoke(
-        request("director.stub", Message(message_text="what is the weather"))
+        request("director.stub", Message(message_text="what is the weather")),
+        acting_for=TEST_PRINCIPAL,
     )
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.OUTSIDE_AGENT_SCOPE
@@ -90,14 +94,19 @@ def test_without_a_callback_it_abstains_rather_than_calling_agents_directly(
 ) -> None:
     c = conductor(runs_dir)
     c.workbench_url = None
-    env = c.invoke(request("director.stub", Message(message_text="hello Joe")))
+    env = c.invoke(
+        request("director.stub", Message(message_text="hello Joe")), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
 
 
 def test_an_unregistered_target_fails_with_an_agent_error(runs_dir: Path) -> None:
     c = make_conductor(runs_dir, DirectorStub(), HelloWorld())  # no fact.checker
-    env = c.invoke(request("director.stub", Message(message_text="check DOIs persist")))
+    env = c.invoke(
+        request("director.stub", Message(message_text="check DOIs persist")),
+        acting_for=TEST_PRINCIPAL,
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/agent-error")
 

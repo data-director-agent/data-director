@@ -18,7 +18,7 @@ from dd_sdk.contract.models import (
     input_source_id,
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
-from workbench.testing import make_conductor, request
+from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
 
@@ -32,7 +32,7 @@ def sample_record() -> MetadataRecord:
 @pytest.mark.requirement("R4.1", "DD-GROUNDING-MODE", "C14.1")
 def test_review_is_grounded_on_the_input_and_passes_the_linter(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, QualityReviewer())
-    env = conductor.invoke(request("quality.reviewer", sample_record()))
+    env = conductor.invoke(request("quality.reviewer", sample_record()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.INPUT_ONLY
     assert isinstance(env.payload, QualityReview)
@@ -57,7 +57,9 @@ def test_review_is_grounded_on_the_input_and_passes_the_linter(runs_dir: Path) -
 @pytest.mark.requirement("R4.1")
 def test_complete_record_scores_one_and_every_finding_is_informational(runs_dir: Path) -> None:
     record = sample_record().model_copy(update={"licence": "CC-BY-4.0"})
-    env = make_conductor(runs_dir, QualityReviewer()).invoke(request("quality.reviewer", record))
+    env = make_conductor(runs_dir, QualityReviewer()).invoke(
+        request("quality.reviewer", record), acting_for=TEST_PRINCIPAL
+    )
     assert isinstance(env.payload, QualityReview)
     assert env.payload.score == 1.0
     assert {f.severity for f in env.payload.findings} == {Severity.INFO}
@@ -66,7 +68,7 @@ def test_complete_record_scores_one_and_every_finding_is_informational(runs_dir:
 @pytest.mark.requirement("DD-OUTCOME")
 def test_empty_record_abstains(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, QualityReviewer()).invoke(
-        request("quality.reviewer", MetadataRecord())
+        request("quality.reviewer", MetadataRecord()), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.INSUFFICIENT_INPUT

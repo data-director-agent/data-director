@@ -24,6 +24,7 @@ from dd_agent_r3.fairsharing.snapshot import (
 from dd_agent_r3.retrieve import Query, RegistryUnavailable
 from dd_agent_r3.testing import make_conductor, request
 from dd_sdk.contract.models import OutcomeStatus, RecommendationKind
+from workbench.testing import TEST_PRINCIPAL
 
 PUBLIC_SHAPE = {
     "fairsharing_data_licence": "https://creativecommons.org/licenses/by-sa/4.0/ ...",
@@ -122,7 +123,7 @@ def test_r3_over_the_real_snapshot_recommends_for_the_soil_sample(
     snapshot: SnapshotBackend, tmp_path: Path
 ) -> None:
     conductor = make_conductor(tmp_path / "runs", r3=R3Agent(retrieval=snapshot), crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+    env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.payload is not None and env.payload.items
     kinds = {i.kind for i in env.payload.items}
@@ -146,7 +147,7 @@ def test_r3_over_the_real_snapshot_recommends_for_the_soil_sample(
     unrelated = DatasetProfile(
         title="Mediaeval manuscript catalogue", keywords=["palaeography", "codicology"]
     )
-    env2 = conductor.invoke(request("r3.standards-advisor", unrelated))
+    env2 = conductor.invoke(request("r3.standards-advisor", unrelated), acting_for=TEST_PRINCIPAL)
     assert env2.outcome.status in (OutcomeStatus.ABSTAINED, OutcomeStatus.SUCCEEDED)
     if env2.outcome.status == OutcomeStatus.ABSTAINED:
         assert env2.outcome.reason_code is not None

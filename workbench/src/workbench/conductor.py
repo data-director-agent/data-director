@@ -3,8 +3,9 @@ validation → store → provenance.
 
 `invoke` is a plain function. Every transport (CLI, A2A, AG-UI) is a wrapper around it
 (ADR-0001). It fills in everything an agent must not decide about itself: identifiers,
-timestamps, telemetry, the grounding mode and input hash it is held to, and whether the output
-passed the grounding check and the source check. It knows nothing about any payload class.
+timestamps, telemetry, the grounding mode and input hash it is held to, the human it acted for,
+and whether the output passed the grounding check and the source check. It knows nothing about
+any payload class.
 
 The grounding linter checks the agent's account of its run for consistency; the source check
 re-hashes what the evidence cites against a copy of the source the workbench holds (ADR-0016).
@@ -19,6 +20,12 @@ request as an ordinary invocation, sets its lineage from the grant, and records 
 against the parent. The parent's envelope lists those records in `delegations`, which is what
 the linter checks a relayed reply against. Delegation is one level deep: a child is never issued
 a grant.
+
+The human (ADR-0018). Every invocation acts for a principal, which the transport takes from its
+authentication boundary and passes to `invoke`; the conductor keeps none of its own, so an
+invocation without one cannot be written. A delegated child acts for its parent's principal,
+carried on the grant: the caller on that path is an agent, not the human. The principal is
+recorded in the envelope and the crate and is never sent to the agent.
 """
 
 from __future__ import annotations
@@ -42,6 +49,7 @@ from dd_sdk.contract.models import (
     InvocationRequest,
     Outcome,
     OutcomeStatus,
+    Principal,
     ReasonCode,
     Telemetry,
     input_source_id,
@@ -95,6 +103,7 @@ class Grant:
     parent_invocation_id: str
     parent_agent_id: str
     conversation_id: str | None
+    acting_for: Principal
     delegations: list[Delegation] = field(default_factory=list)
     # Children admitted under this grant and not yet finished; revocation waits for them.
     in_flight: int = 0
@@ -121,14 +130,15 @@ class Conductor:
     _running: set[str] = field(default_factory=set, repr=False)
     _running_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
-    def invoke(self, request: InvocationRequest) -> Envelope:
-        """Run one top-level invocation. Lineage is the conductor's to set, never the caller's."""
+    def invoke(self, request: InvocationRequest, *, acting_for: Principal) -> Envelope:
+        """Run one top-level invocation on behalf of `acting_for`, the principal the caller's
+        transport authenticated. Lineage is the conductor's to set, never the caller's."""
         if request.parent_invocation_id is not None:
             raise DelegationError(
                 "parent_invocation_id is set by the conductor from a delegation grant; "
                 "a caller may not set it"
             )
-        return self._invoke(request)
+        return self._invoke(request, acting_for)
 
     def invoke_delegated(
         self, request: InvocationRequest, token: str, traceparent: str = ""
@@ -136,8 +146,8 @@ class Conductor:
         """Run a request a delegation agent sent back under its grant, and record it.
 
         Raises `DelegationError` for an unknown or expired token or an agent delegating to
-        itself. The child's conversation is the parent's, whatever the request says; its policy is
-        the conductor's, as every invocation's is.
+        itself. The child's conversation and principal are the parent's, whatever the request or
+        its caller says; its policy is the conductor's, as every invocation's is.
         """
         with self._grants_lock:
             grant = self._grants.get(token)
@@ -160,7 +170,7 @@ class Conductor:
                 "conversation_id": grant.conversation_id,
             }
         )
-        envelope = self._invoke(child, link=_span_context(traceparent))
+        envelope = self._invoke(child, grant.acting_for, link=_span_context(traceparent))
         record = Delegation(
             delegated_invocation_id=envelope.invocation_id,
             delegated_agent_id=envelope.agent_id,
@@ -172,12 +182,13 @@ class Conductor:
             grant.delegations.append(record)
         return envelope
 
-    def _issue_grant(self, request: InvocationRequest) -> Grant:
+    def _issue_grant(self, request: InvocationRequest, acting_for: Principal) -> Grant:
         grant = Grant(
             token=secrets.token_urlsafe(32),
             parent_invocation_id=request.invocation_id,
             parent_agent_id=request.agent_id,
             conversation_id=request.conversation_id,
+            acting_for=acting_for,
         )
         with self._grants_lock:
             self._grants[grant.token] = grant
@@ -195,7 +206,9 @@ class Conductor:
             self._grants_lock.wait_for(lambda: grant.in_flight == 0)
             return list(grant.delegations)
 
-    def _invoke(self, request: InvocationRequest, link: SpanContext | None = None) -> Envelope:
+    def _invoke(
+        self, request: InvocationRequest, acting_for: Principal, link: SpanContext | None = None
+    ) -> Envelope:
         request_doc = to_document(request)
         validate.validate_request(request_doc)  # raises: a malformed request is a caller bug
         invocation_id = request.invocation_id
@@ -207,13 +220,17 @@ class Conductor:
                 )
             self._running.add(invocation_id)
         try:
-            return self._run(request, request_doc, link)
+            return self._run(request, request_doc, acting_for, link)
         finally:
             with self._running_lock:
                 self._running.discard(invocation_id)
 
     def _run(
-        self, request: InvocationRequest, request_doc: dict[str, Any], link: SpanContext | None
+        self,
+        request: InvocationRequest,
+        request_doc: dict[str, Any],
+        acting_for: Principal,
+        link: SpanContext | None,
     ) -> Envelope:
         agent = self.registry.get(request.agent_id)
         if agent is None:
@@ -297,7 +314,7 @@ class Conductor:
                     and self.workbench_url is not None
                     and isinstance(agent, RemoteAgent)
                 ):
-                    grant = self._issue_grant(request)
+                    grant = self._issue_grant(request, acting_for)
                     sent_grant = DelegationGrant(url=self.workbench_url, token=grant.token)
                 ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
                 try:
@@ -351,6 +368,7 @@ class Conductor:
                 grounding_mode=spec.grounding_mode,
                 policy_bundle_ref=profile.ref,
                 policy_digest=profile.digest,
+                acting_for=acting_for,
                 outcome=result.outcome,
                 payload=result.payload,
                 evidence=result.evidence,

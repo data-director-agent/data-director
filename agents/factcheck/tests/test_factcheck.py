@@ -16,7 +16,7 @@ from dd_sdk.contract.models import (
     Verdict,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION
-from workbench.testing import make_conductor, request
+from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SOURCES = InMemorySources(
     [
@@ -32,7 +32,7 @@ SOURCES = InMemorySources(
 
 def run(runs_dir: Path, text: str, checker: FactChecker | None = None):
     conductor = make_conductor(runs_dir, checker or FactChecker(SOURCES))
-    env = conductor.invoke(request("fact.checker", Claim(text=text)))
+    env = conductor.invoke(request("fact.checker", Claim(text=text)), acting_for=TEST_PRINCIPAL)
     return conductor, env
 
 

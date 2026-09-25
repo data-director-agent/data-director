@@ -21,6 +21,7 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import verify
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
+from workbench.testing import TEST_PRINCIPAL
 
 SAMPLES = fakes.SAMPLES
 soil_profile = fakes.soil_profile
@@ -34,7 +35,7 @@ request = fakes.request
 @pytest.mark.requirement("R3", "R3.1", "R3.2", "R3.3", "R3.4", "C14.1")
 def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+    env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.payload is not None
     kinds = {i.kind for i in env.payload.items}
@@ -67,7 +68,9 @@ def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
 
 @pytest.mark.requirement("R3.5")
 def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor"))
+    env = make_conductor(runs_dir, crate=False).invoke(
+        request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL
+    )
     assert env.payload is not None
     assert "FAIRsharing.test-old" not in {i.grounded_on[0].source_id for i in env.payload.items}
     # Emerging: an in_development record is kept and flagged.
@@ -76,7 +79,7 @@ def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -
     )
     r3 = R3Agent(retrieval=fakes.FakeRetrieval([emerging, fakes.CSV]))
     env2 = make_conductor(runs_dir / "b", r3=r3, crate=False).invoke(
-        request("r3.standards-advisor")
+        request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL
     )
     assert env2.payload is not None
     assert any(
@@ -87,7 +90,9 @@ def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -
 @pytest.mark.requirement("R3.6", "DD-OUTCOME")
 def test_r3_abstention_reasons_are_distinct(runs_dir: Path) -> None:
     empty = DatasetProfile.model_validate(json.loads((SAMPLES / "empty.profile.json").read_text()))
-    env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor", empty))
+    env = make_conductor(runs_dir, crate=False).invoke(
+        request("r3.standards-advisor", empty), acting_for=TEST_PRINCIPAL
+    )
     assert (env.outcome.status, env.outcome.reason_code) == (
         OutcomeStatus.ABSTAINED,
         ReasonCode.INSUFFICIENT_INPUT,
@@ -95,13 +100,13 @@ def test_r3_abstention_reasons_are_distinct(runs_dir: Path) -> None:
 
     down = R3Agent(retrieval=fakes.FakeRetrieval(unavailable=True))
     env = make_conductor(runs_dir / "b", r3=down, crate=False).invoke(
-        request("r3.standards-advisor")
+        request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.reason_code == ReasonCode.REGISTRY_UNAVAILABLE
 
     nothing = R3Agent(retrieval=fakes.FakeRetrieval([]))
     env = make_conductor(runs_dir / "c", r3=nothing, crate=False).invoke(
-        request("r3.standards-advisor")
+        request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED
 
@@ -109,7 +114,7 @@ def test_r3_abstention_reasons_are_distinct(runs_dir: Path) -> None:
         title="Mediaeval manuscripts", keywords=["palaeography"], themes=["History"]
     )
     env = make_conductor(runs_dir / "d", crate=False).invoke(
-        request("r3.standards-advisor", unrelated)
+        request("r3.standards-advisor", unrelated), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code in (
@@ -126,7 +131,7 @@ def test_r3_abstention_reasons_are_distinct(runs_dir: Path) -> None:
 def test_model_call_after_retrieval_passes_linter_and_records_tokens(runs_dir: Path) -> None:
     r3 = R3Agent(retrieval=fakes.FakeRetrieval(), explainer=fakes.FakeModelExplainer())
     conductor = make_conductor(runs_dir, r3=r3, crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+    env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     report = conductor.grounding_reports[env.invocation_id]
     assert report.passed and report.chat_count == 1 and report.retrieval_count >= 3
     assert env.telemetry.model_id == "fake-model"
@@ -157,7 +162,7 @@ def test_ungrounded_identifier_in_output_is_withheld(runs_dir: Path) -> None:
             return type(result)(outcome=result.outcome, payload=payload, evidence=result.evidence)
 
     conductor = make_conductor(runs_dir, r3=Smuggler(retrieval=fakes.FakeRetrieval()), crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+    env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
     assert env.payload is None
@@ -187,7 +192,7 @@ def test_a_relabelled_record_is_withheld(runs_dir: Path) -> None:
     conductor = make_conductor(
         runs_dir, r3=Relabeller(retrieval=fakes.FakeRetrieval()), crate=False
     )
-    env = conductor.invoke(request("r3.standards-advisor"))
+    env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
     assert env.payload is None
@@ -208,7 +213,7 @@ def test_chat_before_retrieval_fails_g1(runs_dir: Path) -> None:
     conductor = make_conductor(
         runs_dir, r3=EagerAgent(retrieval=fakes.FakeRetrieval()), crate=False
     )
-    env = conductor.invoke(request("r3.standards-advisor"))
+    env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     report = conductor.grounding_reports[env.invocation_id]
     assert not report.passed and any(v.startswith("G1") for v in report.violations)
     assert env.outcome.status == OutcomeStatus.FAILED
@@ -216,7 +221,7 @@ def test_chat_before_retrieval_fails_g1(runs_dir: Path) -> None:
 
 def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, crate=False)
-    env = conductor.invoke(request("r3.standards-advisor"))
+    env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     run_dir = runs_dir / env.invocation_id
     lines = [json.loads(line) for line in (run_dir / "spans.jsonl").read_text().splitlines()]
     report = grounding.lint(
@@ -235,7 +240,9 @@ def test_table_field_types_drive_field_format_targets(runs_dir: Path) -> None:
             TableField(name="how_long", field_type="duration"),
         ],
     )
-    env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor", profile))
+    env = make_conductor(runs_dir, crate=False).invoke(
+        request("r3.standards-advisor", profile), acting_for=TEST_PRINCIPAL
+    )
     assert env.payload is not None
     assert {i.target for i in env.payload.items if i.kind == RecommendationKind.FIELD_FORMAT} == {
         "field:when",

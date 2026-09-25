@@ -8,6 +8,9 @@ AG-UI's thread is the contract's conversation (ADR-0012): a request carrying `co
 runs in the thread of that id, and a `threadId` that names another is refused. The history an
 agent sees travels in the contract (`Message.history`), not in AG-UI `messages`, so every
 transport gives an agent the same input.
+
+Whom a run acts for comes from the `Authenticator`, given the request's headers, never from the
+body (ADR-0018).
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
 from workbench.conductor import Conductor, UnknownAgent
+from workbench.identity import Authenticator, IdentityError
 from workbench.policy import PolicyError
 
 
@@ -46,7 +50,9 @@ def _sse(events: list[Any], accept: str | None) -> Response:
     return StreamingResponse(gen(), media_type=encoder.get_content_type())
 
 
-async def run_agent(request: Request, conductor: Conductor) -> Response:
+async def run_agent(
+    request: Request, conductor: Conductor, authenticator: Authenticator
+) -> Response:
     """POST /agui — body is an AG-UI RunAgentInput; `forwardedProps.request` (or `forwarded_props`)
     carries the InvocationRequest document."""
     body = await request.json()
@@ -75,8 +81,9 @@ async def run_agent(request: Request, conductor: Conductor) -> Response:
                     f"{invocation.conversation_id!r}"
                 )
             thread_id = invocation.conversation_id
-        envelope = await asyncio.to_thread(conductor.invoke, invocation)
-    except (ContractViolation, ValueError, UnknownAgent, PolicyError) as exc:
+        acting_for = authenticator.principal_for(request.headers)
+        envelope = await asyncio.to_thread(conductor.invoke, invocation, acting_for=acting_for)
+    except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
         return _sse([RunErrorEvent(type=EventType.RUN_ERROR, message=str(exc))], accept)
     return _sse(_events_for(envelope.to_document(), thread_id, run_id), accept)
 

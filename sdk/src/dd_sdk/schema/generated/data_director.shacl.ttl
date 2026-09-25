@@ -9,90 +9,15 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dd:Envelope a sh:NodeShape ;
-    rdfs:comment "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload." ;
+    rdfs:comment "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied, the human it acted for) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:boolean ;
-            sh:description "Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope claiming otherwise." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 11 ;
-            sh:path dd:requires_human_review ],
-        [ sh:class dd:ProblemDetails ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 12 ;
-            sh:path dd:problem ],
-        [ sh:class dd:EvidenceItem ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 9 ;
-            sh:path dd:evidence ],
-        [ sh:datatype xsd:string ;
-            sh:description "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:invocation_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:policy_digest ;
-            sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path prov:wasAssociatedWith ],
-        [ sh:class dd:Telemetry ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 10 ;
-            sh:path dd:telemetry ],
-        [ sh:datatype xsd:dateTime ;
+    sh:property [ sh:datatype xsd:dateTime ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:completed_at ],
-        [ sh:datatype xsd:string ;
-            sh:description "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 14 ;
-            sh:path dd:parent_invocation_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 13 ;
-            sh:path dd:conversation_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:description "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent." ;
-            sh:in ( "retrieval" "input_only" "none" "delegation" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 4 ;
-            sh:path dd:grounding_mode ],
-        [ sh:class dd:Delegation ;
-            sh:description "The child invocations this invocation delegated to, in the order they ran." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 15 ;
-            sh:path dd:delegations ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:agent_version ],
         [ sh:datatype xsd:string ;
             sh:description "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017)." ;
             sh:maxCount 1 ;
@@ -101,17 +26,99 @@ dd:Envelope a sh:NodeShape ;
             sh:order 5 ;
             sh:path dd:policy_bundle_ref ;
             sh:pattern "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$" ],
-        [ sh:description "Agent-specific payload; absent unless the outcome is succeeded. One of the payload classes, discriminated by schema_class; every one mixes in Grounded." ;
+        [ sh:datatype xsd:string ;
+            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
             sh:maxCount 1 ;
-            sh:or ( [ sh:class dd:Recommendations ] [ sh:class dd:QualityReview ] [ sh:class dd:FactCheck ] [ sh:class dd:Greeting ] [ sh:class dd:Reply ] ) ;
-            sh:order 8 ;
-            sh:path dd:payload ],
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path prov:wasAssociatedWith ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope claiming otherwise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:requires_human_review ],
+        [ sh:class dd:Telemetry ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path dd:telemetry ],
+        [ sh:datatype xsd:string ;
+            sh:description "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:invocation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:class dd:Delegation ;
+            sh:description "The child invocations this invocation delegated to, in the order they ran." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 16 ;
+            sh:path dd:delegations ],
+        [ sh:datatype xsd:string ;
+            sh:description "SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:policy_digest ;
+            sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:class dd:Outcome ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:outcome ],
+        [ sh:description "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent." ;
+            sh:in ( "retrieval" "input_only" "none" "delegation" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path dd:grounding_mode ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:agent_version ],
+        [ sh:datatype xsd:string ;
+            sh:description "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path dd:parent_invocation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:conversation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:class dd:ProblemDetails ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 13 ;
+            sh:path dd:problem ],
+        [ sh:class prov:Agent ;
+            sh:description "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 7 ;
-            sh:path dd:outcome ] ;
+            sh:path prov:actedOnBehalfOf ],
+        [ sh:description "Agent-specific payload; absent unless the outcome is succeeded. One of the payload classes, discriminated by schema_class; every one mixes in Grounded." ;
+            sh:maxCount 1 ;
+            sh:or ( [ sh:class dd:Recommendations ] [ sh:class dd:QualityReview ] [ sh:class dd:FactCheck ] [ sh:class dd:Greeting ] [ sh:class dd:Reply ] ) ;
+            sh:order 9 ;
+            sh:path dd:payload ],
+        [ sh:class dd:EvidenceItem ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 10 ;
+            sh:path dd:evidence ] ;
     sh:targetClass dd:Envelope .
 
 dd:Grounded a sh:NodeShape ;
@@ -131,23 +138,18 @@ dd:InvocationRequest a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "Blueprint or project requirement identifiers the invocation is exercising." ;
+            sh:description "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's." ;
+            sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:requirement_ids ],
+            sh:order 4 ;
+            sh:path dd:conversation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
         [ sh:datatype xsd:string ;
             sh:description "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:parent_invocation_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:conversation_id ;
             sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
         [ sh:datatype xsd:dateTime ;
             sh:maxCount 1 ;
@@ -156,12 +158,17 @@ dd:InvocationRequest a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:issued_at ],
         [ sh:datatype xsd:string ;
-            sh:description "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index." ;
-            sh:maxCount 1 ;
+            sh:description "Blueprint or project requirement identifiers the invocation is exercising." ;
             sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:invocation_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+            sh:order 2 ;
+            sh:path dd:requirement_ids ],
+        [ sh:datatype xsd:string ;
+            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path prov:wasAssociatedWith ],
         [ sh:description "What the agent is asked to work on. One of the input classes, discriminated by schema_class; an agent declares which it accepts." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -169,12 +176,12 @@ dd:InvocationRequest a sh:NodeShape ;
             sh:order 6 ;
             sh:path dd:input ],
         [ sh:datatype xsd:string ;
-            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
+            sh:description "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path prov:wasAssociatedWith ] ;
+            sh:order 0 ;
+            sh:path dd:invocation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
     sh:targetClass dd:InvocationRequest .
 
 linkml:Any a sh:NodeShape ;
@@ -183,11 +190,56 @@ linkml:Any a sh:NodeShape ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:targetClass linkml:Any .
 
+prov:Agent a sh:NodeShape ;
+    rdfs:comment "The human an invocation acted for (Blueprint §5.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:in ( "person" "accountable_role" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:principal_kind ],
+        [ sh:description "How the workbench came to know the principal." ;
+            sh:in ( "asserted" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path dd:assurance ],
+        [ sh:description "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path dd:principal_id ;
+            sh:pattern "^[a-z][a-z0-9+.-]*:\\S+$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "How the person or role is named to a reader of the record." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:name ;
+            sh:pattern "\\S" ] ;
+    sh:targetClass prov:Agent .
+
 dd:Claim a sh:NodeShape ;
     rdfs:comment "A statement to be checked against sources. The input a fact-checking agent reads." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "What the claim is about, if it has an identifier." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "Where the claim was made or why it is being checked." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:context ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ],
+        [ sh:description "What the claim is about, if it has an identifier." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
             sh:order 2 ;
@@ -198,20 +250,7 @@ dd:Claim a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path dd:text ],
-        [ sh:datatype xsd:string ;
-            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:schema_class ],
-        [ sh:datatype xsd:string ;
-            sh:description "Where the claim was made or why it is being checked." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:context ] ;
+            sh:path dd:text ] ;
     sh:targetClass dd:Claim .
 
 dd:ConversationTurn a sh:NodeShape ;
@@ -219,18 +258,23 @@ dd:ConversationTurn a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "For an agent turn, the agent that produced it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:turn_agent_id ],
+        [ sh:datatype xsd:string ;
             sh:description "For an agent turn, the invocation it came from." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path dd:turn_invocation_id ;
             sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "For an agent turn, the version of the agent that produced it." ;
+        [ sh:in ( "user" "agent" ) ;
             sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:turn_agent_version ],
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:role ],
         [ sh:datatype xsd:string ;
             sh:description "What was said in the turn." ;
             sh:maxCount 1 ;
@@ -239,16 +283,11 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:turn_text ],
         [ sh:datatype xsd:string ;
-            sh:description "For an agent turn, the agent that produced it." ;
+            sh:description "For an agent turn, the version of the agent that produced it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:turn_agent_id ],
-        [ sh:in ( "user" "agent" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:role ] ;
+            sh:order 3 ;
+            sh:path dd:turn_agent_version ] ;
     sh:targetClass dd:ConversationTurn .
 
 dd:Delegation a sh:NodeShape ;
@@ -262,17 +301,17 @@ dd:Delegation a sh:NodeShape ;
             sh:order 4 ;
             sh:path dd:content_hash ;
             sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:in ( "succeeded" "abstained" "referred" "failed" "suspended" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 3 ;
-            sh:path dd:delegated_status ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dd:delegated_agent_version ],
+        [ sh:in ( "succeeded" "abstained" "referred" "failed" "suspended" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path dd:delegated_status ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -304,27 +343,6 @@ dd:EvidenceItem a sh:NodeShape ;
             sh:path dd:content_hash ;
             sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:datatype xsd:string ;
-            sh:description "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:snapshot_ref ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:order 1 ;
-            sh:path dd:source_uri ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:hash_algorithm ],
-        [ sh:datatype xsd:dateTime ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:retrieved_at ],
-        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -334,56 +352,71 @@ dd:EvidenceItem a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:hash_algorithm ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path dd:source_uri ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path dd:canonicalisation ] ;
+            sh:path dd:canonicalisation ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:retrieved_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:snapshot_ref ] ;
     sh:targetClass dd:EvidenceItem .
 
 dd:FactCheck a sh:NodeShape ;
     rdfs:comment "The payload of a fact-checking agent: a verdict on a Claim and the rationale for it, grounded on the sources consulted." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path dd:rationale_derivation ],
+        [ sh:class dd:GroundingRef ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path dd:grounded_on ],
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dd:rationale ],
-        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+        [ sh:in ( "supported" "refuted" "unverifiable" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
-            sh:order 3 ;
-            sh:path dd:rationale_derivation ],
+            sh:order 1 ;
+            sh:path dd:verdict ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:schema_class ],
-        [ sh:in ( "supported" "refuted" "unverifiable" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 1 ;
-            sh:path dd:verdict ],
-        [ sh:class dd:GroundingRef ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 4 ;
-            sh:path dd:grounded_on ] ;
+            sh:path dd:schema_class ] ;
     sh:targetClass dd:FactCheck .
 
 dd:Finding a sh:NodeShape ;
     rdfs:comment "One observation about one criterion." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "How the finding was produced." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 3 ;
-            sh:path dd:derivation ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "The finding, as a sentence a reviewer can act on." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -396,32 +429,31 @@ dd:Finding a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path dd:grounded_on ],
-        [ sh:in ( "info" "warning" "error" ) ;
+        [ sh:description "How the finding was produced." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
-            sh:order 1 ;
-            sh:path dd:severity ],
+            sh:order 3 ;
+            sh:path dd:derivation ],
         [ sh:datatype xsd:string ;
             sh:description "The quality criterion assessed, e.g. licence_present." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:criterion ] ;
+            sh:path dd:criterion ],
+        [ sh:in ( "info" "warning" "error" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path dd:severity ] ;
     sh:targetClass dd:Finding .
 
 dd:Greeting a sh:NodeShape ;
     rdfs:comment "The payload of the hello.world template agent: one greeting, grounded on the Salutation it was derived from. Exists to demonstrate the payload contract, not to do anything." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "The greeting, as a sentence." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:greeting_text ],
-        [ sh:description "How greeting_text came about. Always template for this agent." ;
+    sh:property [ sh:description "How greeting_text came about. Always template for this agent." ;
             sh:in ( "template" "model" "lexical" "registry" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -439,21 +471,21 @@ dd:Greeting a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:schema_class ] ;
+            sh:path dd:schema_class ],
+        [ sh:datatype xsd:string ;
+            sh:description "The greeting, as a sentence." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:greeting_text ] ;
     sh:targetClass dd:Greeting .
 
 dd:Message a sh:NodeShape ;
     rdfs:comment "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:schema_class ],
-        [ sh:class dd:ConversationTurn ;
+    sh:property [ sh:class dd:ConversationTurn ;
             sh:description "The earlier turns of the conversation, oldest first." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
@@ -464,22 +496,31 @@ dd:Message a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path dd:message_text ] ;
+            sh:path dd:message_text ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ] ;
     sh:targetClass dd:Message .
 
 dd:Outcome a sh:NodeShape ;
     rdfs:comment "One class rather than a union of five. The status enum carries the vocabulary; reason_code is required when status is abstained or referred; problem (on the Envelope) is required when status is failed or suspended." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:in ( "no_qualifying_resource" "no_candidates_retrieved" "registry_unavailable" "not_applicable" "insufficient_input" "capability_not_implemented" "requires_human_judgement" "policy_requires_approval" "outside_agent_scope" ) ;
-            sh:maxCount 1 ;
-            sh:order 1 ;
-            sh:path dd:reason_code ],
-        [ sh:in ( "succeeded" "abstained" "referred" "failed" "suspended" ) ;
+    sh:property [ sh:in ( "succeeded" "abstained" "referred" "failed" "suspended" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;
             sh:path dd:status ],
+        [ sh:datatype xsd:string ;
+            sh:description "The human role a referred outcome hands to, e.g. data_steward." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:referred_to ],
         [ sh:datatype xsd:string ;
             sh:description "A human-readable sentence explaining the outcome (C14)." ;
             sh:maxCount 1 ;
@@ -487,49 +528,47 @@ dd:Outcome a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:statement ],
-        [ sh:datatype xsd:string ;
-            sh:description "The human role a referred outcome hands to, e.g. data_steward." ;
+        [ sh:in ( "no_qualifying_resource" "no_candidates_retrieved" "registry_unavailable" "not_applicable" "insufficient_input" "capability_not_implemented" "requires_human_judgement" "policy_requires_approval" "outside_agent_scope" ) ;
             sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:referred_to ] ;
+            sh:order 1 ;
+            sh:path dd:reason_code ] ;
     sh:targetClass dd:Outcome .
 
 dd:ProblemDetails a sh:NodeShape ;
     rdfs:comment "RFC 9457 Problem Details for HTTP APIs, used verbatim for failed and suspended outcomes. The two extension members carry the resumption condition for suspended." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dcterms:title ],
+    sh:property [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path dd:instance ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:detail ],
-        [ sh:datatype xsd:integer ;
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:http_status ],
-        [ sh:maxCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:order 4 ;
-            sh:path dd:instance ],
-        [ sh:datatype xsd:dateTime ;
-            sh:description "Earliest time a suspended invocation may resume (extension member)." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:resume_after ],
+            sh:order 1 ;
+            sh:path dcterms:title ],
         [ sh:datatype xsd:string ;
             sh:description "What must happen for a suspended invocation to resume (extension member)." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:resume_condition ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:http_status ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "Earliest time a suspended invocation may resume (extension member)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:resume_after ],
         [ sh:description "RFC 9457 problem type URI." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -553,38 +592,50 @@ dd:QualityReview a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
             sh:path dd:findings ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:score ],
         [ sh:class dd:GroundingRef ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 3 ;
-            sh:path dd:grounded_on ],
-        [ sh:datatype xsd:float ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:score ] ;
+            sh:path dd:grounded_on ] ;
     sh:targetClass dd:QualityReview .
 
 dd:Recommendation a sh:NodeShape ;
     rdfs:comment "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (ADR-0015)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:in ( "template" "model" "lexical" "registry" ) ;
+    sh:property [ sh:in ( "controlled_vocabulary" "ontology" "terminology_unclassified" "data_format" "field_format" ) ;
             sh:maxCount 1 ;
-            sh:order 5 ;
-            sh:path dd:classification_derivation ],
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:kind ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:rationale ],
-        [ sh:in ( "controlled_vocabulary" "ontology" "terminology_unclassified" "data_format" "field_format" ) ;
+        [ sh:datatype xsd:string ;
+            sh:description "dataset, or field:<name> for a field-level recommendation." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:kind ],
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:target ],
+        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path dd:rationale_derivation ],
+        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 5 ;
+            sh:path dd:classification_derivation ],
         [ sh:datatype xsd:float ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -595,51 +646,11 @@ dd:Recommendation a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 6 ;
-            sh:path dd:grounded_on ],
-        [ sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 4 ;
-            sh:path dd:rationale_derivation ],
-        [ sh:datatype xsd:string ;
-            sh:description "dataset, or field:<name> for a field-level recommendation." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:target ] ;
+            sh:path dd:grounded_on ] ;
     sh:targetClass dd:Recommendation .
 
 dd:Recommendations a sh:NodeShape ;
     rdfs:comment "The R3 payload. Recommended vocabularies, ontologies and formats." ;
-    sh:closed true ;
-    sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:SearchedSummary ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 2 ;
-            sh:path dd:searched ],
-        [ sh:class dd:Recommendation ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path dd:items ],
-        [ sh:class dd:GroundingRef ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 3 ;
-            sh:path dd:grounded_on ],
-        [ sh:datatype xsd:string ;
-            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:schema_class ] ;
-    sh:targetClass dd:Recommendations .
-
-dd:Reply a sh:NodeShape ;
-    rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -649,7 +660,28 @@ dd:Reply a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:schema_class ],
+        [ sh:class dd:Recommendation ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path dd:items ],
+        [ sh:class dd:SearchedSummary ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path dd:searched ],
         [ sh:class dd:GroundingRef ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 3 ;
+            sh:path dd:grounded_on ] ;
+    sh:targetClass dd:Recommendations .
+
+dd:Reply a sh:NodeShape ;
+    rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class dd:GroundingRef ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -667,7 +699,14 @@ dd:Reply a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 2 ;
-            sh:path dd:reply_derivation ] ;
+            sh:path dd:reply_derivation ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ] ;
     sh:targetClass dd:Reply .
 
 dd:Salutation a sh:NodeShape ;
@@ -675,19 +714,19 @@ dd:Salutation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:schema_class ],
-        [ sh:datatype xsd:string ;
             sh:description "Whom to greet." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:greeted_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ],
         [ sh:datatype xsd:string ;
             sh:description "BCP 47 tag for the language to greet in. English if absent." ;
             sh:maxCount 1 ;
@@ -703,23 +742,23 @@ dd:SearchedSummary a sh:NodeShape ;
     sh:property [ sh:datatype xsd:integer ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:candidates_retrieved ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:candidates_qualifying ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:queries ],
         [ sh:datatype xsd:string ;
             sh:description "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:snapshot_ref ],
-        [ sh:datatype xsd:string ;
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:queries ] ;
+            sh:order 2 ;
+            sh:path dd:candidates_retrieved ] ;
     sh:targetClass dd:SearchedSummary .
 
 dd:TableField a sh:NodeShape ;
@@ -732,6 +771,12 @@ dd:TableField a sh:NodeShape ;
             sh:order 3 ;
             sh:path dcterms:description ],
         [ sh:datatype xsd:string ;
+            sh:description "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:field_type ],
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
@@ -741,35 +786,14 @@ dd:TableField a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:name ],
-        [ sh:datatype xsd:string ;
-            sh:description "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...)." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:field_type ] ;
+            sh:path dd:name ] ;
     sh:targetClass dd:TableField .
 
 dd:Telemetry a sh:NodeShape ;
     rdfs:comment "Run measurements. The energy slots exist so P14 can be populated later without a schema change; at v0 they are null and not_measured." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:in ( "not_measured" "estimated" "measured" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 5 ;
-            sh:path dd:energy_method ],
-        [ sh:datatype xsd:integer ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:output_tokens ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:model_id ],
-        [ sh:datatype xsd:float ;
+    sh:property [ sh:datatype xsd:float ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
@@ -777,14 +801,29 @@ dd:Telemetry a sh:NodeShape ;
         [ sh:datatype xsd:integer ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:input_tokens ],
+            sh:order 3 ;
+            sh:path dd:output_tokens ],
         [ sh:datatype xsd:string ;
             sh:description "OpenTelemetry trace identifier, 32 lowercase hex characters." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:trace_id ] ;
+            sh:path dd:trace_id ],
+        [ sh:in ( "not_measured" "estimated" "measured" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:energy_method ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:input_tokens ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:model_id ] ;
     sh:targetClass dd:Telemetry .
 
 dcat:Dataset a sh:NodeShape ;
@@ -794,46 +833,6 @@ dcat:Dataset a sh:NodeShape ;
     sh:ignoredProperties ( rdf:type ),
         ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dcat:keyword ],
-        [ sh:datatype xsd:string ;
-            sh:description "Discipline or subject, as free text or an IRI." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dcat:theme ],
-        [ sh:datatype xsd:string ;
-            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:schema_class ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dcterms:title ],
-        [ sh:datatype xsd:string ;
-            sh:description "The record's own identifier, e.g. a DOI or a catalogue URI." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dcterms:identifier ],
-        [ sh:class dd:TableField ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 6 ;
-            sh:path dd:fields ],
-        [ sh:datatype xsd:string ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dcterms:creator ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dcterms:title ],
-        [ sh:datatype xsd:string ;
             sh:description "The licence the record declares, as an IRI or SPDX identifier." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -846,10 +845,39 @@ dcat:Dataset a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:schema_class ],
+        [ sh:class dd:TableField ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:fields ],
+        [ sh:datatype xsd:string ;
+            sh:description "Discipline or subject, as free text or an IRI." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dcat:theme ],
+        [ sh:datatype xsd:string ;
+            sh:description "The record's own identifier, e.g. a DOI or a catalogue URI." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:identifier ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:title ],
         [ sh:datatype xsd:string ;
             sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dcat:mediaType ],
+            sh:order 3 ;
+            sh:path dcat:keyword ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcterms:description ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dcat:keyword ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -859,11 +887,22 @@ dcat:Dataset a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path dcterms:description ],
+            sh:path dcterms:title ],
         [ sh:datatype xsd:string ;
             sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dcat:keyword ] ;
+            sh:order 5 ;
+            sh:path dcterms:creator ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dcat:mediaType ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ] ;
     sh:targetClass dcat:Dataset .
 
 dd:GroundingRef a sh:NodeShape ;
@@ -874,15 +913,15 @@ dd:GroundingRef a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:source_id ],
+            sh:order 1 ;
+            sh:path dd:content_hash ;
+            sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:content_hash ;
-            sh:pattern "^[0-9a-f]{64}$" ] ;
+            sh:order 0 ;
+            sh:path dd:source_id ] ;
     sh:targetClass dd:GroundingRef .
 
 

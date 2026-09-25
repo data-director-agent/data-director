@@ -8,7 +8,7 @@ description: >-
   (ADR-0007); every payload mixes in Grounded so the grounding linter can check it without
   knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.5.0
+version: 0.6.0
 license: MIT
 
 prefixes:
@@ -47,8 +47,8 @@ classes:
   Envelope:
     description: >-
       The agent's response. Every field an agent did not decide (identifiers, timestamps,
-      telemetry, the policy applied) is filled by the conductor, so an agent cannot mislabel its
-      own run.
+      telemetry, the policy applied, the human it acted for) is filled by the conductor, so an
+      agent cannot mislabel its own run.
       Conditional rules not expressible in JSON Schema are enforced by contract.validate:
       failed or suspended requires problem; abstained or referred requires outcome.reason_code;
       succeeded requires payload.
@@ -60,6 +60,7 @@ classes:
       - grounding_mode
       - policy_bundle_ref
       - policy_digest
+      - acting_for
       - outcome
       - payload
       - evidence
@@ -82,6 +83,22 @@ classes:
       - delegated_agent_version
       - delegated_status
       - content_hash
+
+  Principal:
+    class_uri: prov:Agent
+    description: >-
+      The human an invocation acted for (Blueprint §5.4), or the accountable human role where it
+      acted for an institution. Named by the deployment's authentication boundary and recorded
+      by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018).
+    slots:
+      - principal_id
+      - name
+      - principal_kind
+      - assurance
+    slot_usage:
+      name:
+        description: How the person or role is named to a reader of the record.
+        pattern: "\\S"
 
   Outcome:
     description: >-
@@ -360,6 +377,27 @@ slots:
     description: SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied.
     required: true
     pattern: "^[0-9a-f]{64}$"
+  acting_for:
+    description: >-
+      The human this invocation acted for. Filled by the conductor from the authentication
+      boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018).
+    range: Principal
+    required: true
+    inlined: true
+    slot_uri: prov:actedOnBehalfOf
+  principal_id:
+    description: >-
+      An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5).
+    range: uri
+    required: true
+    pattern: "^[a-z][a-z0-9+.-]*:\\S+$"
+  principal_kind:
+    range: PrincipalKind
+    required: true
+  assurance:
+    description: How the workbench came to know the principal.
+    range: Assurance
+    required: true
   input:
     description: >-
       What the agent is asked to work on. One of the input classes, discriminated by
@@ -753,6 +791,25 @@ enums:
           The agent works over its input and the envelopes of invocations it delegated through
           the workbench. No retrieval span may appear; a model may be called; every grounding
           reference is the input hash or a recorded delegation (rules R1, D1–D3, ADR-0012).
+
+  PrincipalKind:
+    permissible_values:
+      person:
+        description: A named, identified person.
+      accountable_role:
+        description: >-
+          The designated accountable human role for an invocation made on behalf of an
+          institution rather than an individual (Blueprint §5.4).
+
+  Assurance:
+    description: >-
+      How the workbench came to know the principal. TODO: authenticated arrives with
+      authentication, under its own ADR.
+    permissible_values:
+      asserted:
+        description: >-
+          Named in the deployment's configuration and not verified by anyone. On a shared
+          server every caller is recorded as that principal.
 
   TurnRole:
     description: Who spoke in a conversation turn.

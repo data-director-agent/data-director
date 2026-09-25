@@ -20,7 +20,13 @@ these itself:
 - the invocation identifier and timestamps;
 - the telemetry, including the trace identifier;
 - the grounding mode the agent declared, which the linter then enforces;
-- the hash of the input.
+- the hash of the input;
+- the human the invocation acted for, `acting_for`.
+
+`acting_for` comes from the caller's transport, not the request. The transport asks its
+authenticator who the caller acts for and passes the answer to `invoke`. Until there is sign-in,
+the authenticator returns the one principal the operator configured, marked `assurance:
+asserted` ([ADR-0018](adr/0018-acting-for.md)). The agent is not told who it acts for.
 
 An agent returns only an `AgentResult`: an outcome, an optional payload, and the evidence it
 used, plus the model id and token counts if it called a model.
@@ -63,8 +69,9 @@ them directly.
    workbench's A2A endpoint with the token.
 3. `Conductor.invoke_delegated` checks the token and refuses an unknown or expired one, or an
    agent delegating to itself. It then runs the request through every step above, as a run of
-   its own, in a trace of its own linked to the parent's. It takes the conversation from the grant,
-   is gated by the conductor's own profile, and sets `parent_invocation_id`.
+   its own, in a trace of its own linked to the parent's. It takes the conversation and
+   `acting_for` from the grant, whoever sent the callback, is gated by the conductor's own
+   profile, and sets `parent_invocation_id`.
 4. The conductor records the child's id, agent, version, status and envelope hash against the
    grant. When the parent finishes, the grant is revoked and those records become the parent
    envelope's `delegations`, even if the parent then fails.
@@ -86,7 +93,7 @@ line, written before its parent's.
 | `spans.jsonl` | The OpenTelemetry trace of the run. |
 | `grounding.txt` | The grounding linter's verdict and any violations. |
 | `sources.txt` | The source check's verdict: how many cited records were verified, which were unresolved, and any violations. |
-| `ro-crate-metadata.json` | A Process Run Crate: a standard provenance record naming the agent, the request and the outputs. |
+| `ro-crate-metadata.json` | A Process Run Crate: a standard provenance record naming the agent, the human it acted for, the request and the outputs. |
 
 `DD_RUNS_DIR` changes where runs are written. `DD_WRITE_CRATE=0` stops the Process Run Crate
 being written.

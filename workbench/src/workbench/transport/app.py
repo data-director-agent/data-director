@@ -16,6 +16,7 @@ from starlette.staticfiles import StaticFiles
 from dd_sdk.contract.validate import SCHEMA_DIR
 from workbench import conversations
 from workbench.conductor import Conductor
+from workbench.identity import Authenticator
 from workbench.transport import agui
 from workbench.transport.a2a import a2a_routes
 
@@ -38,11 +39,13 @@ def list_samples(directory: Path = SAMPLES_DIR) -> list[dict[str, str | None]]:
     return out
 
 
-def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> Starlette:
-    _card, routes = a2a_routes(conductor, base_url)
+def build_app(
+    conductor: Conductor, authenticator: Authenticator, base_url: str = "http://127.0.0.1:8000"
+) -> Starlette:
+    _card, routes = a2a_routes(conductor, authenticator, base_url)
 
     async def agui_run(request: Request) -> Response:
-        return await agui.run_agent(request, conductor)
+        return await agui.run_agent(request, conductor, authenticator)
 
     async def agui_replay(request: Request) -> Response:
         return await agui.replay_run(request, conductor)
@@ -54,6 +57,8 @@ def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> 
                 "agent_id": e["agent_id"],
                 "status": e["outcome"]["status"],
                 "completed_at": e["completed_at"],
+                # Runs stored before ADR-0018 name no principal.
+                "acting_for": (e.get("acting_for") or {}).get("name"),
             }
             for e in conductor.store.iter_envelopes()
         ]

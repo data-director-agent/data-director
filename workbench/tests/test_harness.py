@@ -22,6 +22,7 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     QualityReview,
     ReasonCode,
+    to_document,
 )
 from dd_sdk.contract.validate import validate_envelope
 from dd_sdk.evidence import (
@@ -41,6 +42,7 @@ from workbench.testing import (
     RESTRICTIVE,
     SOURCE_A,
     SOURCE_B,
+    TEST_PRINCIPAL,
     Chat,
     ScriptedAgent,
     make_conductor,
@@ -111,7 +113,9 @@ def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
 @pytest.mark.requirement("DD-POLICY", "C13.2")
 def test_disabled_agent_fails_with_problem_details(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)
-    env = make_conductor(runs_dir, agent, profile=RESTRICTIVE).invoke(request(agent.spec.agent_id))
+    env = make_conductor(runs_dir, agent, profile=RESTRICTIVE).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/agent-not-permitted")
     assert env.payload is None and agent.calls == 0
@@ -124,7 +128,9 @@ def test_an_agent_declaring_another_class_than_assigned_fails_and_is_not_run(
     agent = ScriptedAgent(
         GroundingMode.INPUT_ONLY, fakes.review_of_input, agent_id="quality.reviewer"
     )
-    env = make_conductor(runs_dir, agent, profile=RESTRICTIVE).invoke(request(agent.spec.agent_id))
+    env = make_conductor(runs_dir, agent, profile=RESTRICTIVE).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/action-class-mismatch")
     assert env.problem.http_status == 403
@@ -134,7 +140,7 @@ def test_an_agent_declaring_another_class_than_assigned_fails_and_is_not_run(
 @pytest.mark.requirement("DD-POLICY", "DD-OUTCOME", "C13.2")
 def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, AbstainingStub(), profile=RESTRICTIVE).invoke(
-        request("stub.abstain")
+        request("stub.abstain"), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.status == OutcomeStatus.REFERRED
     assert env.outcome.reason_code == ReasonCode.POLICY_REQUIRES_APPROVAL
@@ -144,11 +150,26 @@ def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
 @pytest.mark.requirement("DD-POLICY-OWNER")
 def test_the_envelope_records_the_profile_the_conductor_applied(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub(), profile=RESTRICTIVE)
-    env = conductor.invoke(request("stub.abstain"))
+    env = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
     assert env.policy_bundle_ref == "profile:test-restrictive@v2"
     assert env.policy_digest == hashlib.sha256(RESTRICTIVE.read_bytes()).hexdigest()
     stored = conductor.store.get(env.invocation_id)
     assert stored is not None and stored["policy_digest"] == env.policy_digest
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+def test_the_envelope_records_whom_the_invocation_acted_for(runs_dir: Path) -> None:
+    disabled = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input, agent_id="fake.disabled")
+    conductor = make_conductor(runs_dir, AbstainingStub(), disabled)
+    ran = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
+    refused = conductor.invoke(request("fake.disabled"), acting_for=TEST_PRINCIPAL)
+    # A refused action was still attempted on someone's behalf.
+    assert refused.outcome.status == OutcomeStatus.FAILED
+    for env in (ran, refused):
+        assert env.acting_for == TEST_PRINCIPAL
+        stored = conductor.store.get(env.invocation_id)
+        assert stored is not None and stored["acting_for"] == to_document(TEST_PRINCIPAL)
+        assert stored["acting_for"]["assurance"] == "asserted"
 
 
 # --- Input check ------------------------------------------------------------------------------
@@ -160,7 +181,7 @@ def test_input_of_an_unaccepted_class_is_a_failed_outcome_and_the_agent_is_not_r
 ) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)  # accepts MetadataRecord
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")
     assert env.problem.http_status == 422
@@ -174,19 +195,19 @@ def test_an_agent_may_accept_several_input_classes(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)  # MetadataRecord or Profile
     conductor = make_conductor(runs_dir, agent)
     for inp in (fakes.record(), DatasetProfile(title="t")):
-        assert conductor.invoke(request(agent.spec.agent_id, inp)).outcome.status == (
-            OutcomeStatus.SUCCEEDED
-        )
-    assert conductor.invoke(request(agent.spec.agent_id, Claim(text="x"))).outcome.status == (
-        OutcomeStatus.FAILED
-    )
+        assert conductor.invoke(
+            request(agent.spec.agent_id, inp), acting_for=TEST_PRINCIPAL
+        ).outcome.status == (OutcomeStatus.SUCCEEDED)
+    assert conductor.invoke(
+        request(agent.spec.agent_id, Claim(text="x")), acting_for=TEST_PRINCIPAL
+    ).outcome.status == (OutcomeStatus.FAILED)
 
 
 @pytest.mark.requirement("DD-OUTCOME")
 def test_stub_accepts_every_input_class_and_abstains(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub())
     for inp in (fakes.record(), fakes.claim(), DatasetProfile()):
-        env = conductor.invoke(request("stub.abstain", inp))
+        env = conductor.invoke(request("stub.abstain", inp), acting_for=TEST_PRINCIPAL)
         assert env.outcome.status == OutcomeStatus.ABSTAINED
         assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
         assert env.grounding_mode == GroundingMode.NONE
@@ -198,7 +219,9 @@ def test_stub_accepts_every_input_class_and_abstains(runs_dir: Path) -> None:
 
 def test_agent_exception_becomes_failed_outcome(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, RuntimeError("boom"))
-    env = make_conductor(runs_dir, agent).invoke(request(agent.spec.agent_id))
+    env = make_conductor(runs_dir, agent).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/agent-error")
     assert "boom" in (env.problem.detail or "")
@@ -212,7 +235,9 @@ def test_payload_of_the_wrong_class_is_a_failed_outcome(runs_dir: Path) -> None:
         steps=[SOURCE_A],
         payload_type=QualityReview,
     )
-    env = make_conductor(runs_dir, agent).invoke(request(agent.spec.agent_id, fakes.claim()))
+    env = make_conductor(runs_dir, agent).invoke(
+        request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and "declared QualityReview" in (env.problem.detail or "")
 
@@ -251,7 +276,7 @@ def test_a_result_that_breaks_the_contract_is_a_stored_failed_outcome(
     """A remote agent's contract violation is its own error: stored, never raised past the store."""
     agent = ScriptedAgent(GroundingMode.NONE, behaviour)
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id))
+    env = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith(f"/{problem}")
     stored = conductor.store.get(env.invocation_id)
@@ -263,7 +288,7 @@ def test_unknown_agent_is_a_caller_error(runs_dir: Path) -> None:
     from workbench.conductor import UnknownAgent
 
     with pytest.raises(UnknownAgent):
-        make_conductor(runs_dir).invoke(request("nope"))
+        make_conductor(runs_dir).invoke(request("nope"), acting_for=TEST_PRINCIPAL)
 
 
 # --- Grounding through the conductor ----------------------------------------------------------
@@ -280,7 +305,7 @@ def test_conductor_records_the_declared_mode_on_envelope_and_root_span(runs_dir:
             mode, behaviour, steps=[SOURCE_A] if mode.value == "retrieval" else []
         )
         conductor = make_conductor(runs_dir / mode.value, agent)
-        env = conductor.invoke(request(agent.spec.agent_id, inp))
+        env = conductor.invoke(request(agent.spec.agent_id, inp), acting_for=TEST_PRINCIPAL)
         assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
         assert env.grounding_mode == mode
         report = conductor.grounding_reports[env.invocation_id]
@@ -298,7 +323,7 @@ def test_conductor_records_the_declared_mode_on_envelope_and_root_span(runs_dir:
 def test_input_only_agent_may_call_a_model_without_retrieving(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input, steps=[Chat()])
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id))
+    env = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     assert conductor.grounding_reports[env.invocation_id].chat_count == 1
 
@@ -307,7 +332,7 @@ def test_input_only_agent_may_call_a_model_without_retrieving(runs_dir: Path) ->
 def test_none_agent_that_calls_a_model_is_withheld(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input, steps=[Chat()])
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id))
+    env = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
     assert env.payload is None and env.evidence == []
@@ -320,7 +345,7 @@ def test_none_agent_that_calls_a_model_is_withheld(runs_dir: Path) -> None:
 def test_input_only_agent_that_retrieves_is_withheld(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input, steps=[SOURCE_A])
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id))
+    env = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert any(
         v.startswith("R1") for v in conductor.grounding_reports[env.invocation_id].violations
@@ -335,7 +360,7 @@ def test_retrieval_agent_passes_when_it_rests_only_on_what_it_retrieved(runs_dir
         steps=[SOURCE_A, SOURCE_B, Chat()],
     )
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     report = conductor.grounding_reports[env.invocation_id]
     assert report.passed and (report.retrieval_count, report.chat_count) == (2, 1)
@@ -349,7 +374,7 @@ def test_identity_not_retrieved_is_withheld(runs_dir: Path) -> None:
         GroundingMode.RETRIEVAL, fakes.fact_check_over(SOURCE_A, SOURCE_B), steps=[SOURCE_A]
     )
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
     assert env.payload is None
@@ -363,7 +388,7 @@ def test_chat_before_retrieval_fails_g1(runs_dir: Path) -> None:
         GroundingMode.RETRIEVAL, fakes.fact_check_over(SOURCE_A), steps=[Chat(), SOURCE_A]
     )
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()))
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert any(
         v.startswith("G1") for v in conductor.grounding_reports[env.invocation_id].violations
@@ -374,7 +399,7 @@ def test_chat_before_retrieval_fails_g1(runs_dir: Path) -> None:
 def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input, steps=[Chat()])
     conductor = make_conductor(runs_dir, agent)
-    env = conductor.invoke(request(agent.spec.agent_id))
+    env = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
     run_dir = runs_dir / env.invocation_id
     lines = [json.loads(line) for line in (run_dir / "spans.jsonl").read_text().splitlines()]
     report = grounding.lint(
@@ -391,8 +416,8 @@ def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
 def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
     conductor = make_conductor(runs_dir, agent, AbstainingStub(), crate=True)
-    a = conductor.invoke(request("stub.abstain"))
-    b = conductor.invoke(request(agent.spec.agent_id))
+    a = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
+    b = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
     ids = [e["invocation_id"] for e in conductor.store.iter_envelopes()]
     assert ids == sorted(ids) == [a.invocation_id, b.invocation_id]  # UUIDv7 sorts chronologically
     for env in (a, b):
@@ -407,31 +432,50 @@ def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
         assert action["instrument"]["@id"].endswith(env.agent_id)
 
 
+@pytest.mark.requirement("DD-ACTS-FOR", "R10.1")
+def test_the_crate_names_the_human_beside_the_agent(runs_dir: Path) -> None:
+    conductor = make_conductor(runs_dir, AbstainingStub(), crate=True)
+    env = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
+    meta = json.loads(
+        (runs_dir / env.invocation_id / "crate" / "ro-crate-metadata.json").read_text()
+    )
+    graph = {e["@id"]: e for e in meta["@graph"]}
+    action = graph["#" + env.invocation_id]
+    assert action["agent"] == {"@id": TEST_PRINCIPAL.principal_id}
+    person = graph[TEST_PRINCIPAL.principal_id]
+    assert person["@type"] == "Person" and person["name"] == TEST_PRINCIPAL.name
+    assert "asserted" in person["description"]
+
+
 @pytest.mark.requirement("R10.1")
 def test_a_reused_invocation_id_is_refused_and_the_stored_run_kept(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub())
     req = request("stub.abstain")
-    first = conductor.invoke(req)
+    first = conductor.invoke(req, acting_for=TEST_PRINCIPAL)
     envelope_path = runs_dir / first.invocation_id / "envelope.json"
     stored = envelope_path.read_bytes()
     report = conductor.grounding_reports[first.invocation_id]
 
     with pytest.raises(DuplicateInvocation, match=first.invocation_id):
-        conductor.invoke(req)
+        conductor.invoke(req, acting_for=TEST_PRINCIPAL)
     assert envelope_path.read_bytes() == stored
     assert conductor.grounding_reports[first.invocation_id] is report
     assert [e["invocation_id"] for e in conductor.store.iter_envelopes()] == [first.invocation_id]
 
 
 def test_the_store_never_overwrites_a_run(tmp_path: Path) -> None:
-    env = make_conductor(tmp_path, AbstainingStub()).invoke(request("stub.abstain"))
+    env = make_conductor(tmp_path, AbstainingStub()).invoke(
+        request("stub.abstain"), acting_for=TEST_PRINCIPAL
+    )
     with pytest.raises(FileExistsError):
         RunStore(tmp_path).append(env.to_document())
 
 
 # Deliberately not marked P14: the slots exist and say not_measured; the footprint is not captured.
 def test_energy_footprint_slots_are_present_but_honestly_not_measured(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, AbstainingStub()).invoke(request("stub.abstain"))
+    env = make_conductor(runs_dir, AbstainingStub()).invoke(
+        request("stub.abstain"), acting_for=TEST_PRINCIPAL
+    )
     doc = env.to_document()
     assert doc["telemetry"]["energy_method"] == "not_measured"
     assert doc["telemetry"]["energy_estimate_j"] is None
@@ -448,8 +492,8 @@ def test_the_conductor_keeps_no_spans_after_a_run_and_caps_its_reports(
     """A long-running `workbench serve` must not grow with every invocation."""
     monkeypatch.setattr("workbench.conductor.GROUNDING_REPORTS_KEPT", 1)
     conductor = make_conductor(runs_dir, ScriptedAgent(GroundingMode.NONE, fakes.review_of_input))
-    first = conductor.invoke(request("fake.none", fakes.record()))
-    second = conductor.invoke(request("fake.none", fakes.record()))
+    first = conductor.invoke(request("fake.none", fakes.record()), acting_for=TEST_PRINCIPAL)
+    second = conductor.invoke(request("fake.none", fakes.record()), acting_for=TEST_PRINCIPAL)
     assert conductor.tracing.memory.get_finished_spans() == []
     assert conductor.tracing.imported == {}
     assert list(conductor.grounding_reports) == [second.invocation_id]

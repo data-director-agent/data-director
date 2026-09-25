@@ -33,6 +33,14 @@ const FACT_ICONS = { delegations: "git-branch", parent_invocation_id: "corner-do
 function fact(key, value, helpKeys = key) {
   return el("div", {}, el("dt", {}, FACT_ICONS[key] ? icon(FACT_ICONS[key]) : null, key, help(helpKeys)), el("dd", {}, value));
 }
+// Whom the run acted for (ADR-0018): the name, the identifier (a link if it is a web address), and
+// how the workbench came to know it. Runs stored before ADR-0018 name no one and show no fact.
+function actingFor(p) {
+  const id = /^https?:/.test(p.principal_id)
+    ? el("a", { href: p.principal_id, target: "_blank", rel: "noopener", textContent: p.principal_id })
+    : el("code", { textContent: p.principal_id });
+  return el("span", {}, p.name, " ", id, " ", el("span", { className: "chip", textContent: p.assurance }));
+}
 function collectCited(node, out = new Set()) {
   if (Array.isArray(node)) node.forEach((n) => collectCited(n, out));
   else if (node && typeof node === "object") {
@@ -57,6 +65,7 @@ function render(envelope) {
     o.referred_to ? qualifier("referred_to", el("code", { textContent: o.referred_to })) : "");
   $("facts").replaceChildren(
     fact("agent", el("code", { textContent: `${envelope.agent_id}@${envelope.agent_version}` }), "agent_version"),
+    envelope.acting_for ? fact("acting_for", actingFor(envelope.acting_for), ["acting_for", `assurance:${envelope.acting_for.assurance}`]) : "",
     fact("grounding_mode", el("span", { className: "chip", textContent: envelope.grounding_mode }), ["grounding_mode", `mode:${envelope.grounding_mode}`]),
     fact("completed_at", el("span", { textContent: fmtTime(envelope.completed_at), title: envelope.completed_at })),
     fact("invocation_id", el("span", {}, el("code", { textContent: envelope.invocation_id }), " ", copyButton(envelope.invocation_id))),

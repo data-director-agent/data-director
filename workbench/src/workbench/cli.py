@@ -18,10 +18,15 @@ from dd_sdk.contract.models import INPUT_TYPES, InvocationRequest, parse_input
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding, sources
 from workbench.conductor import UnknownAgent
+from workbench.identity import IdentityError
 from workbench.registry import Registry
-from workbench.settings import Settings, build_conductor, build_registry
+from workbench.settings import Settings, build_authenticator, build_conductor, build_registry
 
 PROFILE_HELP = "institutional profile file (default: DD_PROFILE, else profiles/default.yaml)"
+ACTING_FOR_ID_HELP = (
+    "IRI of the human the invocation acts for, e.g. an ORCID iD (default: DD_PRINCIPAL_ID)"
+)
+ACTING_FOR_NAME_HELP = "name of the human the invocation acts for (default: DD_PRINCIPAL_NAME)"
 
 
 def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
@@ -76,21 +81,36 @@ def cmd_agents(args: argparse.Namespace) -> int:
 
 
 def _settings(args: argparse.Namespace) -> Settings:
-    """The environment's settings, with `--profile` in place of `DD_PROFILE` if given. Whoever
-    runs the CLI is the operator, so the profile is theirs to choose (ADR-0017)."""
+    """The environment's settings, with `--profile` and `--acting-for-*` in place of their
+    variables if given. Whoever runs the CLI is the operator, so the profile is theirs to choose
+    (ADR-0017), and so is the principal they assert (ADR-0018)."""
     settings = Settings.from_env()
-    return replace(settings, profile=Path(args.profile)) if args.profile else settings
+    if args.profile:
+        settings = replace(settings, profile=Path(args.profile))
+    if args.acting_for_id:
+        settings = replace(settings, principal_id=args.acting_for_id)
+    if args.acting_for_name:
+        settings = replace(settings, principal_name=args.acting_for_name)
+    return settings
+
+
+def _add_settings_arguments(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--profile", help=PROFILE_HELP)
+    p.add_argument("--acting-for-id", help=ACTING_FOR_ID_HELP)
+    p.add_argument("--acting-for-name", help=ACTING_FOR_NAME_HELP)
 
 
 def cmd_invoke(args: argparse.Namespace) -> int:
-    conductor = build_conductor(_settings(args))
+    settings = _settings(args)
+    acting_for = build_authenticator(settings).principal_for(None)
+    conductor = build_conductor(settings)
     request = InvocationRequest(
         agent_id=args.agent,
         input=_load_input(args, conductor.registry),
         requirement_ids=args.requirement or [],
     )
     try:
-        envelope = conductor.invoke(request)
+        envelope = conductor.invoke(request, acting_for=acting_for)
     except UnknownAgent as exc:
         sys.exit(str(exc))
     report = conductor.grounding_reports[request.invocation_id]
@@ -129,9 +149,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     settings = _settings(args)
     base_url = f"http://{args.host}:{args.port}"
+    authenticator = build_authenticator(settings)  # an unset principal stops start-up here
     conductor = build_conductor(settings)
     conductor.workbench_url = settings.workbench_url or base_url  # delegation callback (ADR-0012)
-    app = build_app(conductor, base_url=base_url)
+    app = build_app(conductor, authenticator, base_url=base_url)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
@@ -152,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=sorted(INPUT_TYPES),
         help="input class, if the document has no schema_class and the agent accepts several",
     )
-    p.add_argument("--profile", help=PROFILE_HELP)
+    _add_settings_arguments(p)
     p.add_argument(
         "--requirement", action="append", help="requirement id being exercised (repeatable)"
     )
@@ -173,11 +194,14 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("serve", help="serve A2A, AG-UI and the viewer")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
-    p.add_argument("--profile", help=PROFILE_HELP)
+    _add_settings_arguments(p)
     p.set_defaults(func=cmd_serve)
 
     args = parser.parse_args(argv)
-    result: int = args.func(args)
+    try:
+        result: int = args.func(args)
+    except IdentityError as exc:  # no principal configured: nothing may run (ADR-0018)
+        sys.exit(f"workbench: {exc}")
     return result
 
 

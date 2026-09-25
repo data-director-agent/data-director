@@ -34,6 +34,7 @@ from workbench.store import RunStore
 from workbench.testing import (
     PERMISSIVE,
     SOURCE_A,
+    TEST_PRINCIPAL,
     ScriptedAgent,
     claim,
     fact_check_over,
@@ -53,7 +54,7 @@ def spans_of(runs_dir: Path, invocation_id: str) -> list[dict[str, object]]:
 def test_agent_spans_join_the_conductors_trace_under_invoke_agent(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.RETRIEVAL, fact_check_over(SOURCE_A), steps=[SOURCE_A])
     req = request(agent.spec.agent_id, claim())
-    env = make_conductor(runs_dir, agent).invoke(req)
+    env = make_conductor(runs_dir, agent).invoke(req, acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
 
     records = records_from_jsonl(spans_of(runs_dir, req.invocation_id))
@@ -80,7 +81,9 @@ def test_a_span_carrying_a_conductor_attribute_is_withheld(
     runs_dir: Path, attribute: str, value: str
 ) -> None:
     agent = _spoofing(attribute, value)
-    env = make_conductor(runs_dir, agent).invoke(request(agent.spec.agent_id))
+    env = make_conductor(runs_dir, agent).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
     assert attribute in env.outcome.statement
@@ -100,7 +103,9 @@ def test_a_span_outside_the_invocations_trace_is_withheld(runs_dir: Path) -> Non
         return review_of_input(req, ctx)
 
     agent = ScriptedAgent(GroundingMode.NONE, behaviour)
-    env = make_conductor(runs_dir, agent).invoke(request(agent.spec.agent_id))
+    env = make_conductor(runs_dir, agent).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
     assert "not the invocation's trace" in env.outcome.statement
@@ -119,7 +124,7 @@ def test_an_agent_that_exceeds_its_timeout_is_a_failed_envelope(runs_dir: Path) 
         profile=load_profile(PERMISSIVE),
         write_crate=False,
     )
-    env = conductor.invoke(request(remote.spec.agent_id))
+    env = conductor.invoke(request(remote.spec.agent_id), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     # Over HTTP the client's deadline raises TimeoutError; in process the A2A handler absorbs the
     # cancellation and returns the task still working. Either way the envelope is agent-error.
@@ -140,7 +145,7 @@ def test_an_agent_that_goes_away_after_registration_is_a_failed_envelope(runs_di
         profile=load_profile(PERMISSIVE),
         write_crate=False,
     )
-    env = conductor.invoke(request(gone.spec.agent_id))
+    env = conductor.invoke(request(gone.spec.agent_id), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and "connection refused" in (env.problem.detail or "")
 
@@ -156,9 +161,11 @@ def test_an_in_process_agent_and_its_remote_twin_produce_the_same_outcome(runs_d
     )
     agent = ScriptedAgent(GroundingMode.NONE, result)
     direct = make_conductor(runs_dir / "direct", agent, remote=False).invoke(
-        request(agent.spec.agent_id)
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
     )
-    wired = make_conductor(runs_dir / "wired", agent).invoke(request(agent.spec.agent_id))
+    wired = make_conductor(runs_dir / "wired", agent).invoke(
+        request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
+    )
     assert direct.outcome == wired.outcome
     assert direct.grounding_mode == wired.grounding_mode
     assert agent.calls == 2
