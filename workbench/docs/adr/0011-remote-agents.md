@@ -102,7 +102,7 @@ Rejected:
 ## Consequences
 
 - Adding an agent means adding a package under `agents/` (or anywhere else), serving it, and
-  adding one line to `agents.yaml`. The conductor, linter, CLI, transports and shell are not
+  adding one line to `agents.yaml`. The conductor, linter, CLI, transports and viewer are not
   edited.
 - An agent can be deployed, scaled and restarted on its own. It can also be unreachable, and the
   workbench reports it as unavailable and carries on.

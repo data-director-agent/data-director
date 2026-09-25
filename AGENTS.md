@@ -29,7 +29,7 @@ inspect what the agent did and why.
   the JSONL run store, Process Run Crate provenance, and the `workbench` CLI.
 - `agents.yaml`: the registry of agent URLs. `profiles/` holds institutional profiles (what an
   instance may do) and `samples/` example inputs.
-- `shell/`: the browser UI served by `workbench serve`, with an Inspect page and a Chat page.
+- `viewer/`: the browser UI served by `workbench serve`, with an Inspect page and a Chat page.
 - `docs/`: `architecture.md` is the overview and `adr/` records the decisions. Changing a fixed
   format (schema, `dd.*` trace attributes, evidence canonicalisation, outcome vocabulary) needs
   an ADR.

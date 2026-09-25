@@ -8,7 +8,7 @@ the way. It runs as its own service (`dd-hello serve`); the workbench reaches it
 harness requires. Read it top to bottom, then delete the greeting.
 
 It also keeps the workbench's modularity claim honest: if adding an agent ever starts to require
-an edit to the conductor, linter, CLI, transport or shell, this agent will be the one that shows
+an edit to the conductor, linter, CLI, transport or viewer, this agent will be the one that shows
 it, because it has no other reason to fail.
 
 Grounding mode `none` (ADR-0008): deterministic over the input, no retrieval and no model call.
@@ -41,7 +41,7 @@ from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 HERE = Path(__file__).resolve().parent
 
-# Step 8 of the recipe: the RJSF fragment the shell composes under `payload`. Shipped with the
+# Step 8 of the recipe: the RJSF fragment the viewer composes under `payload`. Shipped with the
 # agent, read through `spec.uischema`, and never registered anywhere central.
 UISCHEMA = HERE / "uischema.json"
 
@@ -113,7 +113,7 @@ class HelloWorld:
             # without it fails the linter (G0) rather than passing unnoticed.
             payload=Greeting(
                 greeting_text=f"{GREETINGS[language]}, {salutation.greeted_name}!",
-                # The badge the shell renders beside `greeting_text`: filled from a format
+                # The badge the viewer renders beside `greeting_text`: filled from a format
                 # string, not written by a model.
                 greeting_derivation=Derivation.TEMPLATE,
                 grounded_on=[ref],

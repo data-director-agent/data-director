@@ -5,30 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inspect · Data Director Workbench</title>
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-  <link rel="stylesheet" href="/shell/shell.css" />
+  <link rel="stylesheet" href="/viewer/viewer.css" />
   <script>
     // Addresses from before Chat had its own page: ?mode=chat[&conversation_id=…].
     {
       const p = new URLSearchParams(location.search), id = p.get("conversation_id");
-      if (p.get("mode") === "chat" || id) location.replace(`/shell/chat.html${id ? `?conversation_id=${encodeURIComponent(id)}` : ""}`);
+      if (p.get("mode") === "chat" || id) location.replace(`/viewer/chat.html${id ? `?conversation_id=${encodeURIComponent(id)}` : ""}`);
     }
   </script>
-  <script type="module" src="/shell/js/inspect.js"></script>
+  <script type="module" src="/viewer/js/inspect.js"></script>
 </head>
 <body>
   <header class="top">
     <div class="title-row">
       <h1>Data Director Workbench</h1>
-      <p>Developer shell for the registered agents. Nothing here edits a stored run. Every output requires human review<span data-help="human-review"></span>.</p>
-      <button type="button" id="open-glossary" class="small" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#book-open"/></svg>Glossary</button>
+      <p>Developer viewer for the registered agents. Nothing here edits a stored run. Every output requires human review<span data-help="human-review"></span>.</p>
+      <button type="button" id="open-glossary" class="small" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#book-open"/></svg>Glossary</button>
     </div>
     <nav class="modes" aria-label="Mode">
-      <a href="/shell/" aria-current="page"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#microscope"/></svg>Inspect</span><span class="mode-sub">Run one agent on one input and examine the envelope it returns</span></a>
-      <a href="/shell/chat.html"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#message-square"/></svg>Chat</span><span class="mode-sub">Hold a conversation with an agent, a turn at a time</span></a>
+      <a href="/viewer/" aria-current="page"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#microscope"/></svg>Inspect</span><span class="mode-sub">Run one agent on one input and examine the envelope it returns</span></a>
+      <a href="/viewer/chat.html"><span class="mode-name"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#message-square"/></svg>Chat</span><span class="mode-sub">Hold a conversation with an agent, a turn at a time</span></a>
     </nav>
   </header>
   <dialog class="glossary" id="glossary" aria-labelledby="glossary-heading">
-    <div class="dialog-head"><h2 id="glossary-heading">Glossary</h2><form method="dialog"><button class="small" type="submit"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#x"/></svg>Close</button></form></div>
+    <div class="dialog-head"><h2 id="glossary-heading">Glossary</h2><form method="dialog"><button class="small" type="submit"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#x"/></svg>Close</button></form></div>
     <p class="intro">The terms this page uses, from the workbench contract (<code>schema/data_director.yaml</code>). The same text appears behind each <kbd>?</kbd> button.</p>
     <dl id="glossary-list"></dl>
   </dialog>
@@ -53,11 +53,11 @@
           <legend class="label-row">Input<span data-help="input-form"></span></legend>
           <div id="input-form"></div>
         </fieldset>
-        <button id="run" class="primary" type="button" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#play"/></svg>Run</button>
+        <button id="run" class="primary" type="button" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#play"/></svg>Run</button>
         <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs · <span id="status" role="status" aria-live="polite">Loading…</span></p>
       </section>
       <section class="panel" aria-labelledby="history-heading">
-        <div class="head-row"><h2 id="history-heading"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#rotate-ccw-clock"/></svg>Stored runs</h2><span data-help="stored-runs"></span></div>
+        <div class="head-row"><h2 id="history-heading"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#rotate-ccw-clock"/></svg>Stored runs</h2><span data-help="stored-runs"></span></div>
         <ul class="history" id="history"></ul>
       </section>
     </nav>
@@ -68,7 +68,7 @@
           <ol>
             <li>Choose an <strong>agent</strong>. The card beneath it says what the agent does and which inputs it accepts.</li>
             <li>Fill in the <strong>input</strong>. The form is built from the schema of the input class the agent accepts; <strong>Start from</strong> fills it from a sample, which you can then edit.</li>
-            <li>Press <strong><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#play"/></svg>Run</strong>, or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
+            <li>Press <strong><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#play"/></svg>Run</strong>, or <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.</li>
           </ol>
           <p>Or open an earlier run from <strong>Stored runs</strong>. Each run returns one envelope: an outcome, the agent's payload if it succeeded, the evidence the payload rests on, and telemetry. Press <kbd>?</kbd> beside a term for an explanation, or open the <strong>Glossary</strong>.</p>
         </div>
@@ -82,8 +82,8 @@
         </section>
         <div class="tabs" role="tablist" aria-label="Views">
           <button role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true">Overview</button>
-          <button role="tab" id="tab-envelope" aria-controls="panel-envelope" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#braces"/></svg>Envelope JSON</button>
-          <button role="tab" id="tab-input" aria-controls="panel-input" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#braces"/></svg>Input JSON</button>
+          <button role="tab" id="tab-envelope" aria-controls="panel-envelope" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#braces"/></svg>Envelope JSON</button>
+          <button role="tab" id="tab-input" aria-controls="panel-input" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#braces"/></svg>Input JSON</button>
         </div>
         <div class="tabpanel" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
           <div class="io">
@@ -112,7 +112,7 @@
           </section>
         </div>
         <div class="tabpanel panel" role="tabpanel" id="panel-envelope" aria-labelledby="tab-envelope" hidden>
-          <div class="panel-head"><div class="head-row"><h2>Envelope</h2><span data-help="envelope"></span></div><span><button class="small" id="copy-envelope" type="button">Copy</button> <a id="download-envelope" download><svg class="icon" aria-hidden="true" focusable="false"><use href="/shell/icons.svg#download"/></svg>Download</a></span></div>
+          <div class="panel-head"><div class="head-row"><h2>Envelope</h2><span data-help="envelope"></span></div><span><button class="small" id="copy-envelope" type="button">Copy</button> <a id="download-envelope" download><svg class="icon" aria-hidden="true" focusable="false"><use href="/viewer/icons.svg#download"/></svg>Download</a></span></div>
           <pre class="json" id="envelope-json" tabindex="0"></pre>
         </div>
         <div class="tabpanel panel" role="tabpanel" id="panel-input" aria-labelledby="tab-input" hidden>

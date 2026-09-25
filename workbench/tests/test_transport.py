@@ -147,7 +147,7 @@ def _agui_body(request_doc: dict[str, Any], thread_id: str) -> dict[str, Any]:
 
 
 def test_agui_runs_an_input_written_in_the_shell_form_not_only_a_sample(runs_dir: Path) -> None:
-    # What the shell's input form sends: the class's required slots, optional ones left out.
+    # What the viewer's input form sends: the class's required slots, optional ones left out.
     _, app = _app(runs_dir)
     doc = {
         **to_document(request("hello.world")),
@@ -201,7 +201,7 @@ def test_manifest_samples_and_schema_are_served(runs_dir: Path) -> None:
     status, manifest = _get(app, "/agents")
     assert status == 200
     by_id = {m["agent_id"]: m for m in manifest["agents"]}
-    assert by_id["quality.reviewer"]["uischema"]  # the shell composes this under `payload`
+    assert by_id["quality.reviewer"]["uischema"]  # the viewer composes this under `payload`
     status, samples = _get(app, "/samples")
     assert status == 200
     classes = {s["name"]: s["schema_class"] for s in samples}

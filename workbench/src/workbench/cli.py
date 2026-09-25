@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("envelope")
     p.set_defaults(func=cmd_lint)
 
-    p = sub.add_parser("serve", help="serve A2A, AG-UI and the shell")
+    p = sub.add_parser("serve", help="serve A2A, AG-UI and the viewer")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)

@@ -1,7 +1,7 @@
 # The agent registry
 
 The registry is the workbench's list of agents it can call. The conductor, the CLI, the
-transports and the shell all read the agent list from it. None of them names an agent in code.
+transports and the viewer all read the agent list from it. None of them names an agent in code.
 The decision behind this design is [ADR-0011](adr/0011-remote-agents.md). It replaced the
 entry-point discovery of [ADR-0010](adr/0010-agent-registry.md).
 
@@ -74,9 +74,9 @@ therefore always agree with one another.
 | Where | What it shows |
 |---|---|
 | `uv run workbench agents` | A table of registered agents, then each unavailable agent with its reason. Add `--json` for the raw manifest. |
-| `GET /agents` | `{"agents": [...manifest...], "unavailable": {name: reason}}`. The shell reads this. |
+| `GET /agents` | `{"agents": [...manifest...], "unavailable": {name: reason}}`. The viewer reads this. |
 | The workbench's own A2A card | One skill per registered agent, tagged with its grounding mode, the classes it accepts and its requirement identifiers. |
-| The shell | The agent picker, grouped by the prefix of each `agent_id`. Unavailable agents appear with their reason and cannot be run. The payload form uses the agent's uischema fragment from the manifest. |
+| The viewer | The agent picker, grouped by the prefix of each `agent_id`. Unavailable agents appear with their reason and cannot be run. The payload form uses the agent's uischema fragment from the manifest. |
 
 ## Adding or removing an agent
 

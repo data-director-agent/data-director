@@ -1,6 +1,6 @@
 """The abstaining stub. Returns `abstained(capability_not_implemented)` unconditionally.
 
-It exists so the shell, the outcome vocabulary and the conformance report are exercised
+It exists so the viewer, the outcome vocabulary and the conformance report are exercised
 against something other than a successful payload, and so the renderer does not grow features
 only one agent needs. It accepts every input class and declares grounding mode `none`: it
 retrieves nothing and calls no model.

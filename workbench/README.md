@@ -35,15 +35,15 @@ uv run workbench invoke --agent fact.checker     --input samples/claim.json
 uv run workbench invoke --agent hello.world      --input samples/hello.salutation.json
 uv run workbench invoke --agent quality.reviewer --input samples/claim.json   # failed: input-not-accepted
 uv run workbench invoke --agent stub.abstain     --input samples/claim.json   # abstained
-uv run workbench serve                                 # then open http://127.0.0.1:8000/shell/
+uv run workbench serve                                 # then open http://127.0.0.1:8000/viewer/
 ```
 
-The shell has two pages, reached by the tabs under its header. Inspect runs one agent over a
-sample and shows the run. Chat (`http://127.0.0.1:8000/shell/chat.html`) holds a conversation with the orchestrator,
+The viewer has two pages, reached by the tabs under its header. Inspect runs one agent over a
+sample and shows the run. Chat (`http://127.0.0.1:8000/viewer/chat.html`) holds a conversation with the orchestrator,
 `director.stub`, which hands each message to other agents and shows their replies inside its own
 ([ADR-0012](docs/adr/0012-conversation-and-orchestration.md)). Only `serve` can run the
 orchestrator: `invoke` does not grant the permission it needs to call other agents, so
-`samples/director.message.json` has to go through the shell or the conversation API.
+`samples/director.message.json` has to go through the viewer or the conversation API.
 
 `invoke` prints the agent's response and the result of the grounding check, which confirms that
 everything the response relies on can be traced to something the agent actually read during the
@@ -90,7 +90,7 @@ themselves, and how to add one, are described in [`../agents/README.md`](../agen
 - Frictionless has no RDF namespace, so `TableField` slots link to it with `see_also` instead of
   a URI.
 - The w3id namespace used for problem types and agent identifiers is not yet registered.
-- The shell is not tested in a browser in CI.
+- The viewer is not tested in a browser in CI.
 - The orchestrator, `director.stub`, follows fixed rules. An orchestrator backed by a language
   model, and streaming, are deferred (`docs/MVP_PLAN.md` §6).
 

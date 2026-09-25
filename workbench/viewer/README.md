@@ -1,4 +1,4 @@
-# Read-only shell
+# Read-only viewer
 
 A developer tool: run a registered agent on an input, written in a form or started from a sample, and inspect the envelope it produced. It is
 not an end-user interface; end users will reach the agents through a chat interface or apps built
@@ -6,7 +6,7 @@ on them (TODO: not yet designed).
 
 Two HTML pages, no build step: **Inspect** (`index.html`) and **Chat** (`chat.html`), switched by
 the tabs under the header. Each is markup only; the behaviour is in native ES modules under `js/`
-and the styles in `shell.css`:
+and the styles in `viewer.css`:
 
 | File | Holds |
 |---|---|
@@ -18,14 +18,14 @@ and the styles in `shell.css`:
 | `js/inputform.js` | the editable RJSF input form, built from an input class's schema |
 | `js/inspect.js`, `js/chat.js` | each page's own behaviour |
 
-Paths are absolute under `/shell/`, because Inspect is also served at `/`. The pages load React and
+Paths are absolute under `/viewer/`, because Inspect is also served at `/`. The pages load React and
 react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
 contract's generated JSON Schema (`/schema/envelope.schema.json`). The agent and sample pickers are
-filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the shell names
+filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the viewer names
 no agent. A new agent's payload renders as soon as its class is in the LinkML schema and the agent
 ships a uischema fragment.
 
-Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/shell/>. The pages need
+Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/viewer/>. The pages need
 network access to `esm.sh` for the libraries; everything else is local.
 
 The two pages share only what the browser tab holds: an input sent from Chat is kept in

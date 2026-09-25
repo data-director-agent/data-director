@@ -2,7 +2,7 @@
 
 The Data Director Workbench: a harness (conductor, policy gate, input check, OpenTelemetry trace,
 per-mode grounding linter, JSONL store, Process Run Crate), a registry of agents reached over A2A,
-a read-only shell, and a generated `CONFORMANCE.md`. The workbench contains no agent code. Agents
+a read-only viewer, and a generated `CONFORMANCE.md`. The workbench contains no agent code. Agents
 are separate packages and services under `../agents/`, and what both sides share (the contract,
 evidence, span helpers, the A2A agent server) is `../sdk/` (ADR-0011). `docs/MVP_PLAN.md`
 is the plan; `docs/adr/` records the decisions; `docs/architecture.md` is the overview.
@@ -45,7 +45,7 @@ uv run pytest --json-report --json-report-file=workbench/.report.json && uv run 
 - **Adding an agent touches nothing central.** A package under `../agents/` with `AgentSpec` +
   `run` + `build` + `main`, one line in `agents.yaml`, a sample, a uischema fragment, marked
   tests, a profile entry. Recipe: `../agents/README.md`; `../agents/hello/` is the worked example
-  to copy. If you find yourself editing the conductor, linter, CLI, transport or shell to add an
+  to copy. If you find yourself editing the conductor, linter, CLI, transport or viewer to add an
   agent, stop.
 - **An agent's spans come back over the wire.** `RemoteAgent` returns them in
   `AgentResult.spans`; the conductor imports them into its trace before linting. G0 rejects a
@@ -80,7 +80,7 @@ uv run pytest --json-report --json-report-file=workbench/.report.json && uv run 
   from the same retrieved record, and R3's own tests check that they agree.
 - **`agents/r3/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
   with `agents/r3/scripts/build_snapshot.py`; do not hand-edit records.
-- **`shell/icons.svg` is generated.** It is a sprite of Lucide icons (ISC, `shell/icons.LICENCE`)
+- **`viewer/icons.svg` is generated.** It is a sprite of Lucide icons (ISC, `viewer/icons.LICENCE`)
   built by `scripts/build_icons.py` from a pinned, hash-checked `lucide-static`; add an icon to
   `ICONS` there and rerun, never by hand. Icons are decorative (`aria-hidden`), sit beside visible
   text or inside a labelled control, and each outcome status has exactly one (`STATUS_ICONS`).

@@ -1,11 +1,11 @@
-"""The shell is not run in CI; these tests check what can be checked without a browser.
+"""The viewer is not run in CI; these tests check what can be checked without a browser.
 
-The base `shell/uischema.json` covers the envelope. Each agent ships an RJSF fragment for its
-payload in `spec.uischema`; the shell composes the two per render. The convention a fragment must
+The base `viewer/uischema.json` covers the envelope. Each agent ships an RJSF fragment for its
+payload in `spec.uischema`; the viewer composes the two per render. The convention a fragment must
 honour: a field a model may write points its badge at the sibling that records how the value
 actually came about, so a template fallback is not badged as AI-derived.
 
-The shell is two pages (Inspect, Chat) sharing one stylesheet and a set of ES modules; the
+The viewer is two pages (Inspect, Chat) sharing one stylesheet and a set of ES modules; the
 string checks below read all of them together.
 """
 
@@ -27,12 +27,14 @@ from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus
 
 ROOT = Path(__file__).resolve().parents[1]
-SHELL_DIR = ROOT / "shell"
-BASE = json.loads((SHELL_DIR / "uischema.json").read_text(encoding="utf-8"))
-PAGES = {n: (SHELL_DIR / n).read_text(encoding="utf-8") for n in ("index.html", "chat.html")}
-SOURCES = sorted([*SHELL_DIR.glob("*.html"), *SHELL_DIR.glob("*.css"), *SHELL_DIR.glob("js/*.js")])
-SHELL = "\n".join(p.read_text(encoding="utf-8") for p in SOURCES)
-GLOSSARY_JS = (SHELL_DIR / "js" / "glossary.js").read_text(encoding="utf-8")
+VIEWER_DIR = ROOT / "viewer"
+BASE = json.loads((VIEWER_DIR / "uischema.json").read_text(encoding="utf-8"))
+PAGES = {n: (VIEWER_DIR / n).read_text(encoding="utf-8") for n in ("index.html", "chat.html")}
+SOURCES = sorted(
+    [*VIEWER_DIR.glob("*.html"), *VIEWER_DIR.glob("*.css"), *VIEWER_DIR.glob("js/*.js")]
+)
+VIEWER = "\n".join(p.read_text(encoding="utf-8") for p in SOURCES)
+GLOSSARY_JS = (VIEWER_DIR / "js" / "glossary.js").read_text(encoding="utf-8")
 
 SPECS: list[AgentSpec] = [
     QualityReviewer.spec,
@@ -97,13 +99,13 @@ def test_base_uischema_covers_the_envelope_not_any_payload() -> None:
 
 def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     assert BASE["ui:readonly"] is True
-    assert "readonly: true" in SHELL
-    assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in SHELL
-    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in SHELL
+    assert "readonly: true" in VIEWER
+    assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in VIEWER
+    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in VIEWER
     assert 'role="status"' in PAGES["index.html"] and 'role="status"' in PAGES["chat.html"]
-    assert '<label for="agent-select">' in SHELL
+    assert '<label for="agent-select">' in VIEWER
     # Driven by the manifest and the samples listing; no agent or sample is named.
-    assert 'fetch("/agents")' in SHELL and 'fetch("/samples")' in SHELL
+    assert 'fetch("/agents")' in VIEWER and 'fetch("/samples")' in VIEWER
     for name in (
         "r3.standards-advisor",
         "stub.abstain",
@@ -111,41 +113,41 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
         "soil-chemistry",
         "FAIRsharing",
     ):
-        assert name not in SHELL, name
+        assert name not in VIEWER, name
 
 
 def test_input_form_is_built_from_the_input_schema_and_names_no_class() -> None:
-    form = (SHELL_DIR / "js" / "inputform.js").read_text(encoding="utf-8")
+    form = (VIEWER_DIR / "js" / "inputform.js").read_text(encoding="utf-8")
     assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in form
     assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in form
     assert 'tagName: "div"' in form  # Chat's composer is a <form>; forms do not nest
     for page in ("inspect.js", "chat.js"):
-        module = (SHELL_DIR / "js" / page).read_text(encoding="utf-8")
+        module = (VIEWER_DIR / "js" / page).read_text(encoding="utf-8")
         assert 'fetch("/schema/invocation_request.schema.json")' in module, page
         assert 'from "./inputform.js"' in module, page
     # Chat names Message for its text box; no other input class is named anywhere.
     for name in ("Salutation", "Claim", "MetadataRecord", "DatasetProfile"):
-        assert name not in SHELL, name
+        assert name not in VIEWER, name
     assert 'id="chat-json"' not in PAGES["chat.html"]
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_chat_mode_is_driven_by_the_conversation_api_and_names_every_agent_version() -> None:
     assert '<label for="chat-agent-select">' in PAGES["chat.html"]
-    assert 'fetch("/conversations")' in SHELL and "fetch(`/conversations/${" in SHELL
+    assert 'fetch("/conversations")' in VIEWER and "fetch(`/conversations/${" in VIEWER
     # Every reply card, and every delegated card inside it, is labelled agent_id@agent_version.
-    assert "`${env.agent_id}@${env.agent_version}`" in SHELL
-    assert "version_changes" in SHELL
+    assert "`${env.agent_id}@${env.agent_version}`" in VIEWER
+    assert "version_changes" in VIEWER
     # The orchestrator is found by grounding mode, never by name.
-    assert 'grounding_mode === "delegation"' in SHELL
+    assert 'grounding_mode === "delegation"' in VIEWER
     # Chat and Inspect both reload from the address bar; Inspect forwards the old Chat address.
-    assert "/shell/chat.html?conversation_id=" in SHELL and "/shell/?invocation_id=" in SHELL
+    assert "/viewer/chat.html?conversation_id=" in VIEWER and "/viewer/?invocation_id=" in VIEWER
     assert 'p.get("mode") === "chat"' in PAGES["index.html"]
 
 
 def test_every_outcome_status_has_a_colour_rule() -> None:
     for status in OutcomeStatus:
-        assert f'[data-status="{status.value}"]' in SHELL, status
+        assert f'[data-status="{status.value}"]' in VIEWER, status
 
 
 def _glossary_keys() -> set[str]:
@@ -163,7 +165,7 @@ def test_glossary_explains_every_contract_value_the_page_shows() -> None:
 
 
 def test_every_help_placeholder_names_a_glossary_entry() -> None:
-    placeholders = set(re.findall(r'data-help="([^"]+)"', SHELL))
+    placeholders = set(re.findall(r'data-help="([^"]+)"', VIEWER))
     assert placeholders, "the markup carries no help placeholders"
     assert placeholders <= _glossary_keys(), sorted(placeholders - _glossary_keys())
 
@@ -176,8 +178,8 @@ def test_both_pages_share_the_mode_tabs_and_mark_their_own() -> None:
     nav = {name: _mode_nav(page) for name, page in PAGES.items()}
     unmarked = {name: text.replace(' aria-current="page"', "") for name, text in nav.items()}
     assert unmarked["index.html"] == unmarked["chat.html"]
-    assert re.search(r'href="/shell/" aria-current="page"', nav["index.html"])
-    assert re.search(r'href="/shell/chat.html" aria-current="page"', nav["chat.html"])
+    assert re.search(r'href="/viewer/" aria-current="page"', nav["index.html"])
+    assert re.search(r'href="/viewer/chat.html" aria-current="page"', nav["chat.html"])
     for name, page in PAGES.items():
         assert nav[name].count('aria-current="page"') == 1, name
         assert 'lang="en-GB"' in page, name
@@ -185,23 +187,23 @@ def test_both_pages_share_the_mode_tabs_and_mark_their_own() -> None:
 
 
 def test_every_shell_path_a_page_or_module_references_exists() -> None:
-    paths = set(re.findall(r'(?:href|src)="/shell/([^"?#]+)"', SHELL))
-    paths |= {f"js/{m}" for m in re.findall(r'from "\./([^"]+)"', SHELL)}
-    assert paths, "no shell paths referenced"
+    paths = set(re.findall(r'(?:href|src)="/viewer/([^"?#]+)"', VIEWER))
+    paths |= {f"js/{m}" for m in re.findall(r'from "\./([^"]+)"', VIEWER)}
+    assert paths, "no viewer paths referenced"
     for path in paths:
-        assert (SHELL_DIR / path).is_file(), path
+        assert (VIEWER_DIR / path).is_file(), path
 
 
 # --- Icons --------------------------------------------------------------------------------
-# Lucide icons come from the vendored sprite shell/icons.svg (scripts/build_icons.py). They follow
+# Lucide icons come from the vendored sprite viewer/icons.svg (scripts/build_icons.py). They follow
 # https://lucide.dev/how-to/accessibility: decorative, hidden from assistive technology, beside
 # visible text or inside a control that carries its own label.
-SPRITE = (SHELL_DIR / "icons.svg").read_text(encoding="utf-8")
-COMMON_JS = (SHELL_DIR / "js" / "common.js").read_text(encoding="utf-8")
+SPRITE = (VIEWER_DIR / "icons.svg").read_text(encoding="utf-8")
+COMMON_JS = (VIEWER_DIR / "js" / "common.js").read_text(encoding="utf-8")
 
 
 def _icon_map(name: str) -> dict[str, str]:
-    body = re.search(rf"{name} = \{{([^}}]*)\}}", SHELL)
+    body = re.search(rf"{name} = \{{([^}}]*)\}}", VIEWER)
     assert body, f"{name} not found"
     return dict(re.findall(r'(\w+): "([a-z0-9-]+)"', body.group(1)))
 
@@ -215,10 +217,10 @@ def test_every_outcome_status_has_an_icon() -> None:
 
 def test_every_icon_the_shell_uses_is_in_the_sprite() -> None:
     symbols = set(re.findall(r'<symbol id="([a-z0-9-]+)"', SPRITE))
-    used = set(re.findall(r'icons\.svg#([a-z0-9-]+)"', SHELL))
-    used |= set(re.findall(r'icon\("([a-z0-9-]+)"\)', SHELL))
+    used = set(re.findall(r'icons\.svg#([a-z0-9-]+)"', VIEWER))
+    used |= set(re.findall(r'icon\("([a-z0-9-]+)"\)', VIEWER))
     used |= set(_icon_map("STATUS_ICONS").values()) | set(_icon_map("FACT_ICONS").values())
-    assert used, "the shell uses no icons"
+    assert used, "the viewer uses no icons"
     assert used <= symbols, sorted(used - symbols)
 
 
@@ -235,5 +237,5 @@ def test_icons_are_hidden_from_assistive_technology() -> None:
 
 
 def test_icon_sprite_ships_its_licence() -> None:
-    assert "ISC License" in (SHELL_DIR / "icons.LICENCE").read_text(encoding="utf-8")
+    assert "ISC License" in (VIEWER_DIR / "icons.LICENCE").read_text(encoding="utf-8")
     assert "see icons.LICENCE" in SPRITE

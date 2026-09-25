@@ -1,4 +1,4 @@
-"""AG-UI run events for the shell (ADR-0001). The only importer of `ag_ui` (ADR-0006).
+"""AG-UI run events for the viewer (ADR-0001). The only importer of `ag_ui` (ADR-0006).
 
 Two events per run, `RUN_STARTED` then `RUN_FINISHED` with the envelope as `result`. With one
 synchronous agent there is nothing else to carry; streaming and the `suspended` interrupt

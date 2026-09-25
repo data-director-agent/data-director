@@ -1,6 +1,6 @@
 # Sample inputs
 
-Every sample carries `schema_class`, which names its input class; the shell lists a sample only
+Every sample carries `schema_class`, which names its input class; the viewer lists a sample only
 for agents that accept that class, and `workbench invoke` reads it to parse the document.
 
 | File | Class | Purpose |

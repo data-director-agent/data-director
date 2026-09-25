@@ -41,7 +41,7 @@ Several constraints shaped the answer:
    agent turn `turn_agent_id`, `turn_agent_version`, `turn_invocation_id`). The history is part
    of the input, so the input hash covers what the agent was shown, and every transport gives
    the agent the same document. AG-UI's `threadId` is the `conversation_id`; its `messages` are
-   mirrored by the shell but not read.
+   mirrored by the viewer but not read.
 3. **A new payload class, `Reply`** (`reply_text`, `reply_derivation`), mixes in `Grounded` as
    every payload does.
 4. **Conversations are derived, not stored.** `workbench.conversations` reads them from
@@ -82,7 +82,7 @@ Several constraints shaped the answer:
     from `routing.yaml`, a template reply, no model. It succeeds once it has delegated and
     relayed, whatever the child's outcome; the child's status is on its own envelope and in
     `delegations`.
-12. **The shell has two modes.** Inspect is the existing single-run screen. Chat holds a
+12. **The viewer has two modes.** Inspect is the existing single-run screen. Chat holds a
     conversation with one agent, labels every reply and every delegated child
     `agent_id@agent_version`, marks version changes between turns, and links each card to its
     envelope in Inspect. The orchestrator is found by grounding mode, never by name.

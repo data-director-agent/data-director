@@ -1,4 +1,4 @@
-# ADR-0001: Tier 1 transport is A2A JSON-RPC; AG-UI carries run events to the shell
+# ADR-0001: Tier 1 transport is A2A JSON-RPC; AG-UI carries run events to the viewer
 
 **Status:** Accepted
 **Date:** 2026-09-04
@@ -9,7 +9,7 @@ using the same JSON-RPC binding.
 ## Context
 
 Agents must be invocable by other software (Blueprint C5: "expose open APIs … a harmonised API
-for core features to enable inter-Director interactions"), and a read-only shell must be able to
+for core features to enable inter-Director interactions"), and a read-only viewer must be able to
 show what an agent returned. The MVP plan left open whether to bind the contract to A2A JSON-RPC,
 to a plain REST `POST /invoke`, or both.
 
@@ -18,7 +18,7 @@ transport is a thin wrapper and a second one adds test surface without adding ca
 the only candidate designed for agent-to-agent invocation with an agent card describing skills,
 which is what C5's inter-Director interaction needs. AG-UI is the only candidate designed for the
 agent-to-frontend direction, and its `RUN_FINISHED` event carries an arbitrary result, which is
-all a synchronous read-only shell needs.
+all a synchronous read-only viewer needs.
 
 ## Decision
 
@@ -26,7 +26,7 @@ all a synchronous read-only shell needs.
   is an `InvocationRequest` document carried as a data part of the user message; the response is
   an `Envelope` document carried as a data part of the task's single artifact. The agent card lists
   one skill per agent identifier.
-- **Shell delivery** uses AG-UI: `POST /agui` accepts a `RunAgentInput` whose `forwarded_props`
+- **Viewer delivery** uses AG-UI: `POST /agui` accepts a `RunAgentInput` whose `forwarded_props`
   carry the `InvocationRequest`, and streams `RUN_STARTED` then `RUN_FINISHED` with the envelope as
   `result`. `GET /agui/runs/{invocation_id}` replays the same two events from the store, so a
   workshop can show a fixed output. No other AG-UI event is emitted at v0; streaming and the
@@ -40,7 +40,7 @@ all a synchronous read-only shell needs.
 | Dependency | Tier | Fallback if this dependency is abandoned |
 |---|---|---|
 | `a2a-sdk[http-server]` | Runtime path | The conductor is a function; a hand-written JSON-RPC 2.0 handler over Starlette reproduces `message/send` in under a hundred lines. The `InvocationRequest`/`Envelope` documents are unchanged. |
-| `ag-ui-protocol` | Runtime path | Two pydantic event models and an SSE encoder; trivially re-implemented. The shell reads `RUN_FINISHED.result` only. |
+| `ag-ui-protocol` | Runtime path | Two pydantic event models and an SSE encoder; trivially re-implemented. The viewer reads `RUN_FINISHED.result` only. |
 
 ## Consequences
 

@@ -84,7 +84,7 @@ def test_the_template_ships_everything_the_manifest_needs() -> None:
     assert entry["accepts"] == ["Salutation"]
     assert entry["grounding_mode"] == "none"
     assert entry["payload"] == "Greeting"
-    # The shell composes this fragment under `payload`; without it a Greeting renders untyped.
+    # The viewer composes this fragment under `payload`; without it a Greeting renders untyped.
     assert entry["uischema"] is not None
     json.dumps(entry)
 

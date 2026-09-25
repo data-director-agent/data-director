@@ -83,7 +83,7 @@ const inArrayItem = (fieldPathId) => {
   return p.length >= 2 && typeof p[p.length - 2] === "number";
 };
 // A payload field's help is its own schema description, so an agent documents its payload by
-// describing its LinkML slots, and the shell names no agent.
+// describing its LinkML slots, and the viewer names no agent.
 const describe = (term, text) => (text ? h(HelpTip, { term, text }) : null);
 function FieldTemplate(props) {
   const { hidden, label, children, schema, fieldPathId, uiSchema = {}, rawDescription } = props;

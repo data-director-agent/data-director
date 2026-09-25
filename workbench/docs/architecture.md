@@ -7,7 +7,7 @@ This page gives a short overview of how the workbench is put together. The full 
 
 A caller sends a request naming an agent and giving it an input. The workbench returns one
 response, called an envelope. Three front ends can send requests: the command line, an A2A
-JSON-RPC endpoint, and the browser shell. All three hand the request to the same function, the
+JSON-RPC endpoint, and the web viewer. All three hand the request to the same function, the
 [conductor](conductor.md), so an agent behaves the same whichever front end is used.
 
 Agents are separate services. The conductor reaches each one over A2A and gets back the
@@ -16,7 +16,7 @@ agent's result together with the trace spans the agent recorded
 
 ```mermaid
 flowchart LR
-    T["Front end<br/>CLI · A2A · shell"] --> P[Policy gate]
+    T["Front end<br/>CLI · A2A · viewer"] --> P[Policy gate]
     P --> I[Input check]
     I --> A["Agent service<br/>over A2A"]
     A -. "ctx.delegate<br/>(delegation mode)" .-> P
@@ -61,8 +61,8 @@ each run as its own service. Paths below are relative to the repository root.
 | Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `workbench/src/workbench/grounding.py` |
 | Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `workbench/src/workbench/store.py`, `provenance.py` |
 | Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](registry.md). | `workbench/agents.yaml`, `workbench/src/workbench/registry.py`, `remote.py` |
-| Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the shell uses. | `workbench/src/workbench/cli.py`, `transport/` |
-| Shell | Two read-only browser pages, Inspect and Chat, that render requests and envelopes from the generated schema. No build step. | `workbench/shell/` |
+| Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the viewer uses. | `workbench/src/workbench/cli.py`, `transport/` |
+| Viewer | Two read-only browser pages, Inspect and Chat, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `workbench/src/workbench/testing.py` |
 | Conformance report | Maps passing tests to Blueprint requirements and generates `CONFORMANCE.md`. | `workbench/docs/requirements.yaml`, `workbench/scripts/conformance_report.py` |
 | Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |

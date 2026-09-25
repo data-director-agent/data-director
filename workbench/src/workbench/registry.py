@@ -3,7 +3,7 @@
 Agents run as their own services. The workbench learns about them from a configuration file,
 `agents.yaml`, that lists each agent's base URL; it reads each agent card and rebuilds the
 `AgentSpec` from the card's Data Director extension (`workbench.remote`). The conductor, CLI,
-transports and shell read the registry and never name an agent.
+transports and viewer read the registry and never name an agent.
 
 An agent whose card cannot be read, or whose card does not describe an agent this contract
 admits, is recorded as unavailable with the reason, and the registry carries on: one agent being

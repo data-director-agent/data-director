@@ -1,13 +1,13 @@
-"""Build shell/icons.svg, an SVG sprite of the Lucide icons the shell uses.
+"""Build viewer/icons.svg, an SVG sprite of the Lucide icons the viewer uses.
 
 The icons come from the `lucide-static` npm package at a pinned version, checked against a pinned
 SHA-256 before anything is extracted. Each icon becomes one `<symbol>` whose id is its Lucide name,
-used from the shell as:
+used from the viewer as:
 
-    <svg class="icon" aria-hidden="true"><use href="/shell/icons.svg#circle-check"/></svg>
+    <svg class="icon" aria-hidden="true"><use href="/viewer/icons.svg#circle-check"/></svg>
 
 Lucide is ISC-licensed, with some icons MIT-licensed from Feather; the package's licence text is
-copied to shell/icons.LICENCE beside the sprite.
+copied to viewer/icons.LICENCE beside the sprite.
 
 To add an icon, append its canonical Lucide name to ICONS (search at https://lucide.dev; an alias
 such as `circle-help` is refused) and rerun. To upgrade, change VERSION and SHA256 together.
@@ -27,9 +27,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SHELL_DIR = ROOT / "shell"
-SPRITE = SHELL_DIR / "icons.svg"
-LICENCE = SHELL_DIR / "icons.LICENCE"
+VIEWER_DIR = ROOT / "viewer"
+SPRITE = VIEWER_DIR / "icons.svg"
+LICENCE = VIEWER_DIR / "icons.LICENCE"
 
 VERSION = "1.48.0"
 SHA256 = "3c2ecda3d25f6a9692d83f8036d9a526f7da584a51af74cd16eda4498c5c33d8"
@@ -70,7 +70,7 @@ ICONS = [
 
 SVG_NS = "http://www.w3.org/2000/svg"
 # Presentation attributes every Lucide icon carries; kept on each symbol so the sprite renders
-# correctly without the shell's stylesheet.
+# correctly without the viewer's stylesheet.
 SYMBOL_ATTRS = ("viewBox", "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin")
 
 

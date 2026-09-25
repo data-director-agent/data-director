@@ -4,7 +4,7 @@ The conductor is the part of the workbench that runs an agent. It takes a reques
 check, calls the agent, and returns an envelope. It lives in
 [`src/workbench/conductor.py`](../src/workbench/conductor.py) as `Conductor.invoke`.
 
-Every front end calls the conductor. The CLI, the A2A endpoint and the browser shell are thin
+Every front end calls the conductor. The CLI, the A2A endpoint and the web viewer are thin
 wrappers around it ([ADR-0001](adr/0001-transport.md)). This means an agent is held to the same
 rules however it is called.
 

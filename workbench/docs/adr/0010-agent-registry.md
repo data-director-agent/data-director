@@ -6,13 +6,13 @@
 ## Context
 
 At v0 `settings.build_conductor` constructed R3 and the stub by name, `cli invoke --agent` listed
-them in its help text, the A2A card derived skills from the agents dict, the shell hard-coded two
-buttons and one sample, and `shell/uischema.json` described R3's payload. Adding an agent meant
+them in its help text, the A2A card derived skills from the agents dict, the viewer hard-coded two
+buttons and one sample, and `viewer/uischema.json` described R3's payload. Adding an agent meant
 editing five places, three of which had nothing to do with the agent.
 
 The workbench should let a new agent kind be added by creating one package and one registration,
 in-tree or in a separate distribution, without editing the conductor, linter, CLI, transports or
-shell.
+viewer.
 
 ## Decision
 
@@ -27,12 +27,12 @@ shell.
 3. An agent is an `AgentSpec` plus `run`. The spec carries identity, version, description,
    requirement identifiers, action class, accepted input classes, grounding mode, payload class
    and an optional RJSF fragment for its payload. `agents.base.describe(spec)` renders the one
-   manifest entry that the A2A agent card, `workbench agents`, `GET /agents` and the shell's
+   manifest entry that the A2A agent card, `workbench agents`, `GET /agents` and the viewer's
    agent picker all consume.
 4. Harness settings (`Settings`) hold only harness concerns: runs directory, profiles directory,
    whether to write a crate. Each agent reads its own `DD_<AGENT>_*` environment variables in its
    own factory.
-5. The shell composes its UI schema per render: the envelope-level base from `shell/uischema.json`
+5. The viewer composes its UI schema per render: the envelope-level base from `viewer/uischema.json`
    plus the payload fragment from the manifest entry of the envelope's `agent_id`. Nothing is
    merged server-side; a replayed run renders with its own agent's fragment.
 

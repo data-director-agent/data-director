@@ -46,7 +46,7 @@ greeting.
 
 It is also the check on the claim in the last line of this file. `hello.world` has no reason to
 fail other than the harness. If adding an agent ever needs an edit to the conductor, linter,
-CLI, transports or shell, this agent will show it.
+CLI, transports or viewer, this agent will show it.
 
 ## Adding an agent
 
@@ -105,4 +105,4 @@ CLI, transports or shell, this agent will show it.
    requirement identifiers it actually exercises (`workbench/docs/requirements.yaml`). Do not
    claim a Blueprint `R` a demonstration does not meet.
 
-Nothing in the conductor, linter, CLI, transports or shell is edited.
+Nothing in the conductor, linter, CLI, transports or viewer is edited.

@@ -2,7 +2,7 @@
 
 The Blueprint's Data Director is an orchestrator: one agent a person converses with, which hands
 work to specialist agents. This package is the smallest agent that exercises that shape through
-the workbench, so the conversation contract, the delegation grant, the shell's chat screen and the
+the workbench, so the conversation contract, the delegation grant, the viewer's chat screen and the
 linter's `delegation` rules have something real to run against before a model-backed
 orchestrator exists.
 

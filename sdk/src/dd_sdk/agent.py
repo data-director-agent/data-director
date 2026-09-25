@@ -10,7 +10,7 @@ An agent runs in its own process behind `dd_sdk.serve` (ADR-0011). The workbench
 A2A and sees the same `Agent` protocol through its `RemoteAgent`.
 
 `describe(spec)` is the one manifest every consumer reads: the agent's A2A card extension, the
-workbench's own agent card, `workbench agents`, `GET /agents` and the shell's agent picker.
+workbench's own agent card, `workbench agents`, `GET /agents` and the viewer's agent picker.
 `spec_from_description` is its inverse, used by the workbench to rebuild a spec from a card.
 """
 
@@ -51,7 +51,7 @@ class AgentSpec:
     accepts: tuple[type[Frozen], ...]  # input classes; anything else is input-not-accepted
     grounding_mode: GroundingMode
     payload_type: type[Grounded] | None  # None: the agent never succeeds with a payload
-    uischema: Mapping[str, Any] | None = None  # RJSF fragment for the payload, for the shell
+    uischema: Mapping[str, Any] | None = None  # RJSF fragment for the payload, for the viewer
 
     def accepts_names(self) -> tuple[str, ...]:
         return tuple(t.__name__ for t in self.accepts)

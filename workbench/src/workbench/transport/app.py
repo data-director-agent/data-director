@@ -1,5 +1,5 @@
 """The Starlette application: A2A, AG-UI, the agent manifest, samples, schema files, the store
-index, conversations derived from it, and the static shell. Nothing here names an agent or a
+index, conversations derived from it, and the static viewer. Nothing here names an agent or a
 payload class."""
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from workbench.transport import agui
 from workbench.transport.a2a import a2a_routes
 
 ROOT = Path(__file__).resolve().parents[3]
-SHELL_DIR = ROOT / "shell"
+VIEWER_DIR = ROOT / "viewer"
 SAMPLES_DIR = ROOT / "samples"
-UISCHEMA = SHELL_DIR / "uischema.json"
+UISCHEMA = VIEWER_DIR / "uischema.json"
 
 
 def list_samples(directory: Path = SAMPLES_DIR) -> list[dict[str, str | None]]:
@@ -88,10 +88,10 @@ def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> 
         return FileResponse(SAMPLES_DIR / name)
 
     async def index(request: Request) -> Response:
-        return FileResponse(SHELL_DIR / "index.html")
+        return FileResponse(VIEWER_DIR / "index.html")
 
     async def favicon(request: Request) -> Response:
-        return FileResponse(SHELL_DIR / "favicon.ico")
+        return FileResponse(VIEWER_DIR / "favicon.ico")
 
     return Starlette(
         routes=[
@@ -108,6 +108,6 @@ def build_app(conductor: Conductor, base_url: str = "http://127.0.0.1:8000") -> 
             Route("/", index, methods=["GET"]),
             Route("/favicon.ico", favicon, methods=["GET"]),
             Mount("/schema", StaticFiles(directory=SCHEMA_DIR), name="schema"),
-            Mount("/shell", StaticFiles(directory=SHELL_DIR, html=True), name="shell"),
+            Mount("/viewer", StaticFiles(directory=VIEWER_DIR, html=True), name="viewer"),
         ]
     )

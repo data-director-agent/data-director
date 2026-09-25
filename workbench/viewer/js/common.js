@@ -38,7 +38,7 @@ export function icon(name) {
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("focusable", "false");
   const use = document.createElementNS(SVG, "use");
-  use.setAttribute("href", `/shell/icons.svg#${name}`);
+  use.setAttribute("href", `/viewer/icons.svg#${name}`);
   svg.append(use);
   return svg;
 }
@@ -85,9 +85,9 @@ export function statusPill(status) {
 
 // Links between the two pages. Paths are absolute because Inspect is also served at /.
 export const inspectLink = (id, text) =>
-  el("a", { href: `/shell/?invocation_id=${id}`, title: `Open ${id} in Inspect` }, ...(text == null ? ["Inspect", icon("arrow-right")] : [text]));
+  el("a", { href: `/viewer/?invocation_id=${id}`, title: `Open ${id} in Inspect` }, ...(text == null ? ["Inspect", icon("arrow-right")] : [text]));
 export const chatLink = (conversationId, text = conversationId) =>
-  el("a", { href: `/shell/chat.html?conversation_id=${conversationId}`, textContent: text, title: "Open the conversation in Chat" });
+  el("a", { href: `/viewer/chat.html?conversation_id=${conversationId}`, textContent: text, title: "Open the conversation in Chat" });
 export function kvList(obj) {
   const dl = el("dl", { className: "kvs" });
   for (const [k, v] of Object.entries(obj)) {
@@ -111,7 +111,7 @@ export function newRequest(agentId, input, conversationId = null) {
   if (conversationId) request.conversation_id = conversationId;
   return request;
 }
-export async function postRun(request, threadId = "shell", messages = []) {
+export async function postRun(request, threadId = "viewer", messages = []) {
   const body = { threadId, runId: request.invocation_id, messages, state: {}, tools: [], context: [], forwardedProps: { request } };
   const r = await fetch("/agui", { method: "POST", headers: { "content-type": "application/json", accept: "text/event-stream" }, body: JSON.stringify(body) });
   const events = parseSse(await r.text());
