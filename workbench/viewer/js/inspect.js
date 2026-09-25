@@ -82,7 +82,7 @@ function render(envelope) {
   // Payload: schema-driven through RJSF with the agent's fragment.
   const payload = envelope.payload;
   $("payload-class").textContent = payload?.schema_class || "";
-  showPayload(payload, payloadSchema(payload), agents[envelope.agent_id]?.uischema || {});
+  showPayload(payload, payloadSchema(payload), agents[envelope.agent_id]?.uischema || {}, envelope.evidence || []);
 
   // Evidence, with a cross-check against the payload's grounded_on hashes.
   const cited = collectCited(payload);

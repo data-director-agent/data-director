@@ -335,6 +335,17 @@
             "canonicalisation": {
                "type": "string"
             },
+            "content": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Any"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The document the named canonicalisation turns into bytes, already projected, so that a reader or the linter (E1) can recompute content_hash from the envelope alone (ADR-0015). Where a payload cites this item from grounded_on, this is what the citation identifies."
+            },
             "content_hash": {
                "pattern": "^[0-9a-f]{64}$",
                "type": "string"
@@ -518,7 +529,7 @@
       },
       "GroundingRef": {
          "additionalProperties": false,
-         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity; the linter matches every GroundingRef against a retrieval span on both fields.",
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
          "properties": {
             "content_hash": {
                "pattern": "^[0-9a-f]{64}$",
@@ -864,7 +875,7 @@
       },
       "Recommendation": {
          "additionalProperties": false,
-         "description": "One recommended resource for one target.",
+         "description": "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (ADR-0015).",
          "properties": {
             "classification_derivation": {
                "$ref": "#/$defs/Derivation"
@@ -885,9 +896,6 @@
             "rationale_derivation": {
                "$ref": "#/$defs/Derivation"
             },
-            "resource": {
-               "$ref": "#/$defs/ResourceRef"
-            },
             "score": {
                "type": [
                   "number",
@@ -902,7 +910,6 @@
          "required": [
             "kind",
             "target",
-            "resource",
             "rationale",
             "rationale_derivation",
             "grounded_on"
@@ -1001,52 +1008,6 @@
             "grounded_on"
          ],
          "title": "Reply",
-         "type": "object"
-      },
-      "ResourceRef": {
-         "additionalProperties": false,
-         "description": "A FAIRsharing record as it identified itself when retrieved.",
-         "properties": {
-            "doi": {
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "fairsharing_id": {
-               "type": "string"
-            },
-            "name": {
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "record_type": {
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "status": {
-               "description": "The registry's curation status for the record (ready, in_development, deprecated, ...).",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "url": {
-               "format": "uri",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            }
-         },
-         "required": [
-            "fairsharing_id"
-         ],
-         "title": "ResourceRef",
          "type": "object"
       },
       "Salutation": {

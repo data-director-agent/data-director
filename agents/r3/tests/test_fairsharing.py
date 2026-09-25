@@ -138,7 +138,7 @@ def test_r3_over_the_real_snapshot_recommends_for_the_soil_sample(
     assert conductor.grounding_reports[env.invocation_id].passed
     # Every cited record is a real snapshot record with a DOI, so attribution holds (CC BY-SA).
     for item in env.payload.items:
-        rec = snapshot.fetch(item.resource.fairsharing_id)
+        rec = snapshot.fetch(item.grounded_on[0].source_id)
         assert rec is not None and rec.doi
     # R3.6 on the same snapshot: an unrelated profile abstains rather than guessing.
     from dd_sdk.contract.models import DatasetProfile

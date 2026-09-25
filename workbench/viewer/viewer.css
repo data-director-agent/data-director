@@ -156,6 +156,7 @@ pre.json { margin: 0; font-family: var(--mono); font-size: 0.8rem; overflow: aut
 .payload .row .rjsf-field > .label { display: none; }
 .payload .nested { border-left: 3px solid var(--line); padding-left: 0.75rem; }
 .null { color: var(--faint); font-style: italic; }
+.grounded-ref { display: block; }
 
 /* Built-in help: a "?" button beside a term opens a tip; the Glossary dialog lists them all */
 .help-wrap { display: inline-flex; vertical-align: 0.05em; }

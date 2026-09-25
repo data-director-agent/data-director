@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from dd_sdk.contract.models import input_source_id
+from dd_sdk.evidence import CANONICALISATION, content_hash, project
 from dd_sdk.tracing import (
     ATTR_CONTENT_HASH,
     ATTR_GROUNDING_MODE,
@@ -196,6 +197,38 @@ def test_g3_and_g4_evidence_agrees_with_trace_and_payload() -> None:
     # Evidence omits something the payload rests on.
     report = grounding.lint(records, envelope("retrieval", payload, []))
     assert violations(report, "G4")
+
+
+# --- E1: evidence content ----------------------------------------------------------------------
+
+
+@pytest.mark.requirement("DD-EVIDENCE", "DD-GROUNDING")
+@pytest.mark.parametrize("mode", ["retrieval", "input_only", "none", "delegation"])
+def test_e1_evidence_content_must_hash_to_its_content_hash(mode: str) -> None:
+    """ADR-0015: what a reader is shown about a cited record is what the hash covers."""
+    record = {"fairsharing_id": "S", "name": "ISO 8601", "status": "ready"}
+    digest = content_hash(record)
+    item: dict[str, Any] = {
+        "source_id": "S",
+        "canonicalisation": CANONICALISATION,
+        "content_hash": digest,
+        "content": project(record),
+    }
+    env = {"invocation_id": INV, "grounding_mode": mode, "outcome": {}, "evidence": [item]}
+    assert not violations(grounding.lint([root(mode)], env), "E1")
+
+    renamed = {**item, "content": {**item["content"], "name": "ISO 8602"}}
+    report = grounding.lint([root(mode)], {**env, "evidence": [renamed]})
+    assert any("'S'" in v for v in violations(report, "E1")) and not report.passed
+
+    for bad in ({**item, "content": ["S"]}, {**item, "canonicalisation": "md5-of-vibes"}):
+        assert violations(grounding.lint([root(mode)], {**env, "evidence": [bad]}), "E1")
+
+
+def test_e1_does_not_apply_to_evidence_without_content() -> None:
+    records = [root("retrieval"), retrieval("r1", "S", H_A)]
+    payload = {"schema_class": "P", "grounded_on": [ref("S", H_A)]}
+    assert grounding.lint(records, envelope("retrieval", payload, [("S", H_A)])).passed
 
 
 # --- input_only and none ------------------------------------------------------------------------

@@ -37,7 +37,6 @@ from dd_sdk.contract.models import (
     RecommendationKind,
     Recommendations,
     Reply,
-    ResourceRef,
     Salutation,
     Severity,
     Telemetry,
@@ -54,7 +53,10 @@ from dd_sdk.evidence import (
     DOCUMENT_CANONICALISATION,
     ENVELOPE_CANONICALISATION,
     INPUT_CANONICALISATION,
+    content_hash,
     envelope_hash,
+    project,
+    verify,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -165,7 +167,6 @@ def test_each_payload_class_validates_with_grounded_on() -> None:
             Recommendation(
                 kind=RecommendationKind.FIELD_FORMAT,
                 target="field:collection_date",
-                resource=ResourceRef(fairsharing_id="FAIRsharing.b44s4"),
                 rationale="Dates should be written to ISO 8601.",
                 rationale_derivation=Derivation.TEMPLATE,
                 grounded_on=[ref],
@@ -502,6 +503,31 @@ def test_delegation_evidence_must_be_the_input_or_a_recorded_delegation() -> Non
                 delegations=[_delegation(child)],
             ).to_document()
         )
+
+
+@pytest.mark.requirement("DD-EVIDENCE")
+@pytest.mark.parametrize("name", sorted(CANONICALISATIONS))
+def test_evidence_content_reproduces_its_hash(name: str) -> None:
+    """ADR-0015: the projection is what is hashed, and survives the envelope round trip."""
+    record = {"fairsharing_id": "FAIRsharing.b44s4", "name": "ISO 8601", "subjects": ["b", "a"]}
+    digest = content_hash(record, name)
+    content = project(record, name)
+    assert project(content, name) == content
+    env = _envelope(
+        evidence=[
+            EvidenceItem(
+                source_id="FAIRsharing.b44s4",
+                canonicalisation=name,
+                content_hash=digest,
+                content=content,
+            )
+        ]
+    )
+    doc = env.to_document()
+    validate.validate_envelope(doc)
+    stored = json.loads(json.dumps(doc))["evidence"][0]
+    assert verify(stored["content"], name, stored["content_hash"])
+    assert not verify({**stored["content"], "name": "ISO 8602"}, name, stored["content_hash"])
 
 
 @pytest.mark.requirement("DD-EVIDENCE")

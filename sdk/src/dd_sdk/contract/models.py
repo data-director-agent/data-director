@@ -247,19 +247,11 @@ def invocation_source_id(invocation_id: str) -> str:
 # Every payload class carries `schema_class` and mixes in Grounded.
 
 
-class ResourceRef(Frozen):
-    fairsharing_id: str
-    doi: str | None = None
-    name: str | None = None
-    url: str | None = None
-    record_type: str | None = None
-    status: str | None = None
-
-
 class Recommendation(Grounded):
+    """Names its resource only in `grounded_on`; the description is in evidence (ADR-0015)."""
+
     kind: RecommendationKind
     target: str
-    resource: ResourceRef
     score: float | None = None
     rationale: str
     rationale_derivation: Derivation
@@ -339,6 +331,8 @@ class EvidenceItem(Frozen):
     hash_algorithm: str = "sha256"
     canonicalisation: str
     content_hash: str = Field(pattern=SHA256_PATTERN)
+    # What the hash covers, already projected; the linter re-hashes it (E1, ADR-0015).
+    content: dict[str, Any] | None = None
 
 
 class Telemetry(Frozen):

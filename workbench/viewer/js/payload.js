@@ -47,6 +47,25 @@ function DerivationBadge(props) {
   return h("span", null, valueNode(value, schema), badgeFor(derivation));
 }
 function PlainValue(props) { return valueNode(props.value, props.schema); }
+
+// --- Grounding references, resolved through evidence (ADR-0015) --------------------------
+// A payload names a record only in `grounded_on`. What a reference names is the `content` of
+// the evidence item with the same source_id and content_hash, which the linter has re-hashed
+// (E1). A fragment shows an item's references with `"ui:field": "groundedOn"`.
+function GroundedOn(props) {
+  const refs = props.formData || [];
+  const evidence = props.registry?.formContext?.evidence || [];
+  if (!refs.length) return h("span", { className: "null" }, "[] (empty)");
+  return h("span", null, refs.map((g, i) => {
+    const ev = evidence.find((e) => e.source_id === g.source_id && e.content_hash === g.content_hash);
+    const c = ev?.content || {};
+    const label = c.name || g.source_id;
+    const named = ev?.source_uri ? h("a", { href: ev.source_uri, target: "_blank", rel: "noopener" }, label) : h("code", null, label);
+    const about = [c.name ? g.source_id : null, c.record_type, c.status].filter(Boolean);
+    return h("span", { key: i, className: "grounded-ref" }, named, about.length ? h("span", { className: "faint" }, ` (${about.join(", ")})`) : null);
+  }));
+}
+const fields = { groundedOn: GroundedOn };
 function Hidden() { return null; }
 const widgets = {
   derivationBadge: DerivationBadge, hidden: Hidden,
@@ -132,16 +151,17 @@ function BaseInputTemplate(props) { return valueNode(props.value, props.schema);
 const templates = { FieldTemplate, ArrayFieldTemplate, ArrayFieldItemTemplate, ObjectFieldTemplate, BaseInputTemplate };
 
 // Render into `node`: nothing, an unknown-class fallback, or the payload through RJSF with its
-// agent's fragment. `ps` is the payload class's schema from the envelope schema's $defs.
+// agent's fragment. `ps` is the payload class's schema from the envelope schema's $defs;
+// `evidence` is the envelope's, against which `groundedOn` resolves references.
 export function payloadView(node) {
   const root = createRoot(node);
-  return (payload, ps, uiSchema) => {
+  return (payload, ps, uiSchema, evidence = []) => {
     if (!payload) root.render(h("p", { className: "muted" }, "No payload: the outcome is not succeeded."));
     else if (!ps) root.render(h("pre", { className: "json" }, `Unknown payload class ${payload.schema_class}:\n${JSON.stringify(payload, null, 2)}`));
     else root.render(h(Form, {
-      schema: ps, uiSchema, validator, widgets, templates,
+      schema: ps, uiSchema, validator, widgets, fields, templates,
       formData: payload, readonly: true, liveValidate: false, showErrorList: false,
-      formContext: { siblingValue: makeSiblingLookup(payload) },
+      formContext: { siblingValue: makeSiblingLookup(payload), evidence },
       onSubmit: () => {}, children: h("span"),
     }));
   };

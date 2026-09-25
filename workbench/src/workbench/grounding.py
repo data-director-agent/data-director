@@ -15,6 +15,12 @@ Structural, every mode (G0):
   would otherwise escape the mode rules, and one carrying a conductor attribute would be the
   agent labelling its own run.
 
+Evidence, every mode (E1, ADR-0015):
+  E1 every evidence item that carries `content` hashes to its `content_hash` under its
+     `canonicalisation`. What a reader is shown about a cited record is what the hash covers.
+     E1 knows no payload class; a payload names a record only in `grounded_on`, and the reader
+     joins that reference to the evidence item with the same `source_id` and `content_hash`.
+
 `retrieval` — the agent retrieves before it reasons:
   G1 every `chat` span starts after at least one `retrieval` span has ended.
   G2 every `grounded_on` entry, at any depth, matches a `retrieval` span on both `dd.source_id`
@@ -53,6 +59,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
+from dd_sdk.evidence import verify
 from dd_sdk.tracing import (
     ATTR_CONTENT_HASH,
     ATTR_GROUNDING_MODE,
@@ -300,6 +307,28 @@ def d3_succeeded_cites_the_input(tree: Tree, envelope: dict[str, Any], refs: Ref
     return []
 
 
+def e1_evidence_content_matches_hash(envelope: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for ev in envelope.get("evidence") or []:
+        if not isinstance(ev, dict) or ev.get("content") is None:
+            continue
+        source_id, content = ev.get("source_id"), ev["content"]
+        if not isinstance(content, dict):
+            out.append(f"E1: evidence {source_id!r} content is not an object")
+            continue
+        try:
+            matches = verify(content, str(ev.get("canonicalisation")), str(ev.get("content_hash")))
+        except ValueError as exc:
+            out.append(f"E1: evidence {source_id!r}: {exc}")
+            continue
+        if not matches:
+            out.append(
+                f"E1: evidence {source_id!r} content does not hash to its content_hash "
+                f"({str(ev.get('content_hash'))[:12]}…) under {ev.get('canonicalisation')!r}"
+            )
+    return out
+
+
 def _succeeded(envelope: dict[str, Any]) -> bool:
     return bool((envelope.get("outcome") or {}).get("status") == "succeeded")
 
@@ -414,6 +443,7 @@ def lint(records: list[SpanRecord], envelope: dict[str, Any]) -> GroundingReport
                 )
     refs, ref_violations = _collect_refs(envelope)
     violations.extend(ref_violations)
+    violations.extend(e1_evidence_content_matches_hash(envelope))
 
     for rule in RULES[mode]:
         violations.extend(rule(tree, envelope, refs))

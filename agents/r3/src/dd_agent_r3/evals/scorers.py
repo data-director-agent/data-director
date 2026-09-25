@@ -11,12 +11,17 @@ from typing import Any
 from inspect_ai.scorer import CORRECT, INCORRECT, NOANSWER, Score, Scorer, Target, accuracy, scorer
 from inspect_ai.solver import TaskState
 
+from dd_sdk.evidence import resolve
 from workbench.evaluation import envelope_of, expectation_of, mean_applicable
 
 
-def recommended(envelope: dict[str, Any]) -> list[dict[str, Any]]:
-    items: list[dict[str, Any]] = (envelope.get("payload") or {}).get("items", [])
-    return items
+def recommended(envelope: dict[str, Any]) -> list[tuple[dict[str, Any], str, dict[str, Any]]]:
+    """Each recommendation with the id it rests on and the record the evidence holds for it."""
+    out: list[tuple[dict[str, Any], str, dict[str, Any]]] = []
+    for item in (envelope.get("payload") or {}).get("items", []):
+        ref = item["grounded_on"][0]
+        out.append((item, ref["source_id"], resolve(envelope, ref) or {}))
+    return out
 
 
 @scorer(metrics=[mean_applicable()])
@@ -27,8 +32,8 @@ def expected_recall() -> Scorer:
     async def score(state: TaskState, target: Target) -> Score:
         expect = expectation_of(state)
         items = recommended(envelope_of(state))
-        ids = {i["resource"]["fairsharing_id"] for i in items}
-        kinds = {i["kind"] for i in items}
+        ids = {rid for _, rid, _ in items}
+        kinds = {i["kind"] for i, _, _ in items}
         wanted = [("id", x) for x in expect.get("include", [])] + [
             ("kind", k) for k in expect.get("kinds_present", [])
         ]
@@ -56,14 +61,12 @@ def no_wrong_recommendations() -> Scorer:
         exclude = set(expect.get("exclude", []))
         kinds_absent = set(expect.get("kinds_absent", []))
         wrong: list[str] = []
-        for item in recommended(envelope_of(state)):
-            resource = item["resource"]
-            rid = resource["fairsharing_id"]
+        for item, rid, record in recommended(envelope_of(state)):
             if rid in exclude:
-                wrong.append(f"{rid} ({resource.get('name')}) is labelled wrong for this case")
+                wrong.append(f"{rid} ({record.get('name')}) is labelled wrong for this case")
             if item["kind"] in kinds_absent:
                 wrong.append(f"{rid} is a {item['kind']} recommendation, which this case rules out")
-            if resource.get("status") == "deprecated":
+            if record.get("status") == "deprecated":
                 wrong.append(f"{rid} is deprecated")
         wrong = sorted(set(wrong))
         return Score(

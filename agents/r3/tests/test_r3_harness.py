@@ -18,6 +18,7 @@ from dd_sdk.contract.models import (
     Recommendations,
     TableField,
 )
+from dd_sdk.evidence import verify
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
 
@@ -49,13 +50,16 @@ def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
         "field:survey_date_uk",
     }  # R3.4
     assert all(i.rationale for i in env.payload.items)  # C14
-    cited = {i.resource.fairsharing_id for i in env.payload.items}
+    cited = {g.source_id for i in env.payload.items for g in i.grounded_on}
     assert {e.source_id for e in env.evidence} == cited
     evidenced = {(e.source_id, e.content_hash) for e in env.evidence}
+    for ev in env.evidence:
+        # What the reader is shown is what the hash covers (E1, ADR-0015).
+        assert ev.content is not None and verify(ev.content, ev.canonicalisation, ev.content_hash)
     for item in env.payload.items:
+        assert len(item.grounded_on) == 1
         assert {(g.source_id, g.content_hash) for g in item.grounded_on} <= evidenced
-        # The linter reads only grounded_on; that it names the resource shown is R3's obligation.
-        assert [g.source_id for g in item.grounded_on] == [item.resource.fairsharing_id]
+        assert fakes.cited_record(env, item)["fairsharing_id"] == item.grounded_on[0].source_id
     assert {(g.source_id, g.content_hash) for g in env.payload.grounded_on} == evidenced
     assert env.payload.searched is not None and env.payload.searched.candidates_retrieved
     assert conductor.grounding_reports[env.invocation_id].passed
@@ -65,7 +69,7 @@ def test_r3_recommends_across_kinds_with_evidence(runs_dir: Path) -> None:
 def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, crate=False).invoke(request("r3.standards-advisor"))
     assert env.payload is not None
-    assert "FAIRsharing.test-old" not in {i.resource.fairsharing_id for i in env.payload.items}
+    assert "FAIRsharing.test-old" not in {i.grounded_on[0].source_id for i in env.payload.items}
     # Emerging: an in_development record is kept and flagged.
     emerging = fakes.AGROVOC.model_copy(
         update={"status": "in_development", "fairsharing_id": "FAIRsharing.test-new"}
@@ -75,7 +79,9 @@ def test_deprecated_records_are_dropped_and_emerging_ones_kept(runs_dir: Path) -
         request("r3.standards-advisor")
     )
     assert env2.payload is not None
-    assert any(i.resource.status == "in_development" for i in env2.payload.items)
+    assert any(
+        fakes.cited_record(env2, i)["status"] == "in_development" for i in env2.payload.items
+    )
 
 
 @pytest.mark.requirement("R3.6", "DD-OUTCOME")
@@ -137,11 +143,9 @@ def test_ungrounded_identifier_in_output_is_withheld(runs_dir: Path) -> None:
             result = super().run(req, ctx)
             assert isinstance(result.payload, Recommendations)
             first = result.payload.items[0]
+            # grounded_on is the only place a recommendation names its record (ADR-0015).
             item = first.model_copy(
                 update={
-                    "resource": first.resource.model_copy(
-                        update={"fairsharing_id": "FAIRsharing.smuggled"}
-                    ),
                     "grounded_on": [
                         first.grounded_on[0].model_copy(
                             update={"source_id": "FAIRsharing.smuggled"}
@@ -159,6 +163,36 @@ def test_ungrounded_identifier_in_output_is_withheld(runs_dir: Path) -> None:
     assert env.payload is None
     assert any(
         v.startswith("G2") for v in conductor.grounding_reports[env.invocation_id].violations
+    )
+
+
+@pytest.mark.requirement("DD-GROUNDING", "DD-EVIDENCE")
+def test_a_relabelled_record_is_withheld(runs_dir: Path) -> None:
+    """Changing what the reader is shown about a cited record, and nothing else, fails E1.
+
+    Before ADR-0015 the reader's copy of a record sat in the payload, unchecked, and this passed.
+    """
+
+    class Relabeller(R3Agent):
+        def run(self, req: InvocationRequest, ctx):
+            result = super().run(req, ctx)
+            first = result.evidence[0]
+            assert first.content is not None
+            relabelled = first.model_copy(
+                update={"content": {**first.content, "name": "A standard never retrieved"}}
+            )
+            evidence = [relabelled, *result.evidence[1:]]
+            return type(result)(outcome=result.outcome, payload=result.payload, evidence=evidence)
+
+    conductor = make_conductor(
+        runs_dir, r3=Relabeller(retrieval=fakes.FakeRetrieval()), crate=False
+    )
+    env = conductor.invoke(request("r3.standards-advisor"))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/grounding-violation")
+    assert env.payload is None
+    assert any(
+        v.startswith("E1") for v in conductor.grounding_reports[env.invocation_id].violations
     )
 
 

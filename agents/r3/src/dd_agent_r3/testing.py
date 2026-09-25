@@ -11,7 +11,14 @@ from dd_agent_r3.explain import Explanation, Item, Rationale, Usage
 from dd_agent_r3.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
 from dd_agent_r3.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import DatasetProfile, Derivation, InvocationRequest
+from dd_sdk.contract.models import (
+    DatasetProfile,
+    Derivation,
+    Envelope,
+    InvocationRequest,
+    Recommendation,
+)
+from dd_sdk.evidence import resolve
 from dd_sdk.tracing import chat_span
 
 ISO8601 = Record(
@@ -157,3 +164,10 @@ def request(
     return InvocationRequest(
         agent_id=agent_id, policy_bundle_ref=bundle, input=profile or soil_profile()
     )
+
+
+def cited_record(envelope: Envelope, item: Recommendation) -> dict[str, Any]:
+    """The evidence content a recommendation names through `grounded_on` (ADR-0015)."""
+    content = resolve(envelope.to_document(), item.grounded_on[0].model_dump())
+    assert content is not None, f"no evidence content for {item.grounded_on[0].source_id}"
+    return content

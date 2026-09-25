@@ -4,9 +4,9 @@ Grounding invariant: retrieval precedes any model call, and the model never dete
 identity of a recommendation. The explainer sees already-ranked records and writes rationale;
 the workbench's linter checks the trace afterwards (mode `retrieval`: G1-G4).
 
-Every recommendation asserts its identity twice, in `resource` for the reader and in
-`grounded_on` for the linter. Both are built from the same retrieved `Record`, so they cannot
-disagree; the linter reads only `grounded_on`.
+A recommendation names its record once, in `grounded_on`. What the reader is shown about the
+record (name, status, DOI) is the evidence item's `content`: the projection its hash covers,
+which the linter re-hashes (E1, ADR-0015). There is no second copy to disagree with the first.
 """
 
 from __future__ import annotations
@@ -40,10 +40,9 @@ from dd_sdk.contract.models import (
     Recommendation,
     RecommendationKind,
     Recommendations,
-    ResourceRef,
     SearchedSummary,
 )
-from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM
+from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM, project
 from dd_sdk.tracing import retrieval_span
 
 UISCHEMA = Path(__file__).resolve().parent / "uischema.json"
@@ -209,14 +208,6 @@ class R3Agent:
                 Recommendation(
                     kind=r.kind,
                     target=target,
-                    resource=ResourceRef(
-                        fairsharing_id=rec.fairsharing_id,
-                        doi=rec.doi,
-                        name=rec.name,
-                        url=rec.url,
-                        record_type=rec.record_type,
-                        status=rec.status,
-                    ),
                     score=r.score,
                     rationale=rationale.text,
                     rationale_derivation=rationale.derivation,
@@ -224,7 +215,7 @@ class R3Agent:
                     grounded_on=[grounding],
                 )
             )
-        cited = {i.resource.fairsharing_id for i in items}
+        cited = {g.source_id for i in items for g in i.grounded_on}
         evidence = [
             EvidenceItem(
                 source_id=rec.fairsharing_id,
@@ -234,6 +225,7 @@ class R3Agent:
                 hash_algorithm=HASH_ALGORITHM,
                 canonicalisation=CANONICALISATION,
                 content_hash=rec.content_hash(),
+                content=project(rec.hash_projection()),
             )
             for rid, rec in sorted(retrieved.items())
             if rid in cited

@@ -21,10 +21,11 @@ An unknown value is a configuration error and stops the service at start-up.
 
 ## Grounding
 
-Each `Recommendation` carries one `GroundingRef` for the FAIRsharing record it recommends. The
-agent builds `resource` and `grounded_on` from the same retrieved record. The root
-`Recommendations.grounded_on` lists every cited record once. The linter reads only
-`grounded_on`, so it is R3's own tests that check `resource.fairsharing_id` agrees with it.
+Each `Recommendation` carries one `GroundingRef` for the FAIRsharing record it recommends, and
+names the record nowhere else. The record's name, status and DOI are in the matching evidence
+item's `content`, the `json-sorted-utf8-v1` projection its hash covers. The linter re-hashes
+that content (E1, ADR-0015), so what a reader is shown is what was retrieved. The root
+`Recommendations.grounded_on` lists every cited record once.
 
 ## Honest limits
 

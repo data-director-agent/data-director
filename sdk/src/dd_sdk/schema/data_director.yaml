@@ -193,8 +193,10 @@ classes:
   GroundingRef:
     description: >-
       The identity and content hash of one retrieved thing a payload rests on. The only way a
-      payload may name an external resource as a decided identity; the linter matches every
-      GroundingRef against a retrieval span on both fields.
+      payload may name an external resource as a decided identity, and the only place it names
+      it: what the reference identifies is read from the evidence item with the same source_id
+      and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval
+      span on both fields.
     slots:
       - source_id
       - content_hash
@@ -221,34 +223,18 @@ classes:
       - searched
 
   Recommendation:
-    description: One recommended resource for one target.
+    description: >-
+      One recommended resource for one target. The resource is named only in grounded_on; its
+      name, status and DOI are in the cited evidence item's content (ADR-0015).
     mixins:
       - Grounded
     slots:
       - kind
       - target
-      - resource
       - score
       - rationale
       - rationale_derivation
       - classification_derivation
-
-  ResourceRef:
-    description: A FAIRsharing record as it identified itself when retrieved.
-    slots:
-      - fairsharing_id
-      - doi
-      - name
-      - url
-      - record_type
-      - status
-    slot_usage:
-      name:
-        required: false
-      status:
-        description: The registry's curation status for the record (ready, in_development, deprecated, ...).
-        range: string
-        required: false
 
   SearchedSummary:
     description: >-
@@ -326,6 +312,7 @@ classes:
       - hash_algorithm
       - canonicalisation
       - content_hash
+      - content
 
   Telemetry:
     description: >-
@@ -612,10 +599,6 @@ slots:
   target:
     description: dataset, or field:<name> for a field-level recommendation.
     required: true
-  resource:
-    range: ResourceRef
-    required: true
-    inlined: true
   score:
     range: float
   rationale:
@@ -626,13 +609,6 @@ slots:
   classification_derivation:
     range: Derivation
 
-  fairsharing_id:
-    required: true
-  doi:
-    slot_uri: dcterms:identifier
-  url:
-    range: uri
-  record_type:
   queries:
     multivalued: true
   snapshot_ref:
@@ -655,6 +631,12 @@ slots:
   content_hash:
     required: true
     pattern: "^[0-9a-f]{64}$"
+  content:
+    description: >-
+      The document the named canonicalisation turns into bytes, already projected, so that a
+      reader or the linter (E1) can recompute content_hash from the envelope alone (ADR-0015).
+      Where a payload cites this item from grounded_on, this is what the citation identifies.
+    range: Any
 
   trace_id:
     description: OpenTelemetry trace identifier, 32 lowercase hex characters.

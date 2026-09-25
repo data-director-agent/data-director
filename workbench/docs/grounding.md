@@ -69,10 +69,10 @@ grounding mode, which says what its output may rest on. There is no default.
 
 | Mode | The agent… | May call a model? | Its result must cite… | Rules applied | Used by |
 |---|---|---|---|---|---|
-| `retrieval` | fetches records from outside sources, then reasons over them. | Yes, but only after it has fetched something. | only records it fetched in this run. | G0, G1–G4 | `fact.checker`, `r3.standards-advisor` |
-| `input_only` | works only on the input it was given. | Yes. | only the input. | G0, R1–R3 | `quality.reviewer` |
-| `none` | works only on its input, by fixed rules, with no model. The same input always gives the same result. | No. | only the input. | G0, R1–R3, N1 | `hello.world`, `stub.abstain` |
-| `delegation` | works on its input and on the envelopes of runs it delegated through the workbench. | Yes. | the input, and runs the conductor recorded as delegated. | G0, R1, D1–D3, G4 | `director.stub` |
+| `retrieval` | fetches records from outside sources, then reasons over them. | Yes, but only after it has fetched something. | only records it fetched in this run. | G0, E1, G1–G4 | `fact.checker`, `r3.standards-advisor` |
+| `input_only` | works only on the input it was given. | Yes. | only the input. | G0, E1, R1–R3 | `quality.reviewer` |
+| `none` | works only on its input, by fixed rules, with no model. The same input always gives the same result. | No. | only the input. | G0, E1, R1–R3, N1 | `hello.world`, `stub.abstain` |
+| `delegation` | works on its input and on the envelopes of runs it delegated through the workbench. | Yes. | the input, and runs the conductor recorded as delegated. | G0, E1, R1, D1–D3, G4 | `director.stub` |
 
 The modes run from least to most restricted: `input_only` forbids fetching, and `none` also
 forbids model calls. Every mode still requires a successful result to cite something, even if
@@ -88,6 +88,13 @@ is withheld.
 **G0** applies in every mode. The trace must have exactly one `invoke_agent` span, the one that
 covers the whole run. The envelope's grounding mode must match the mode recorded on that span. A payload must have a
 `schema_class` and a `grounded_on` list, and every entry in that list must be well formed.
+
+**E1** also applies in every mode. An evidence item may carry `content`, the projection its hash
+covers. If it does, the content must hash to the item's `content_hash`. A payload names a
+record only in `grounded_on`; what the reader is shown about that record (its name or status,
+say) is the `content` of the evidence item with the same id and hash. E1 therefore checks what
+the reader sees, without the linter knowing the payload class
+([ADR-0015](adr/0015-evidence-carries-content.md)).
 
 For `retrieval` agents:
 

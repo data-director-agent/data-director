@@ -65,9 +65,9 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   `grounded_on` is the only place identity is asserted. A payload without it fails the linter
   (G0) by design. Do not add a payload class without the mixin.
 - **The linter applies the agent's declared mode.** `retrieval`: G1–G4. `input_only`: R1–R3.
-  `none`: R1–R3 + N1. `delegation`: R1, D1–D3, G4 (ADR-0012). A violation downgrades
-  `succeeded` to `failed`. Do not weaken a rule to make a test pass; do not add a mode without an
-  ADR.
+  `none`: R1–R3 + N1. `delegation`: R1, D1–D3, G4 (ADR-0012). G0 and E1 apply in every mode.
+  A violation downgrades `succeeded` to `failed`. Do not weaken a rule to make a test pass; do
+  not add a mode without an ADR.
 - **A content problem is an outcome, not an exception.** Empty search → `abstained`; registry down
   → `abstained(registry_unavailable)`; policy refusal → `failed` with Problem Details or
   `referred`; wrong input class → `failed(input-not-accepted)`. Exceptions are for programmer and
@@ -89,9 +89,9 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 - **Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`**, and
   the ID must be in `docs/requirements.yaml`. Do not mark a test with an ID it does not actually
   exercise; a demonstration agent does not substantiate a Blueprint `R` it does not meet.
-- **R3 states each identity twice.** A `Recommendation` names its record in `resource` for
-  the reader and in `grounded_on` for the linter, which reads only `grounded_on`. Both are built
-  from the same retrieved record, and R3's own tests check that they agree.
+- **An identity is stated once, in `grounded_on` (ADR-0015).** What a reader is shown about a
+  cited record comes from the evidence item's `content`, which E1 re-hashes. Do not add a
+  descriptive copy of a grounded record to a payload class; that copy would be unchecked.
 - **`agents/r3/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
   with `agents/r3/scripts/build_snapshot.py`; do not hand-edit records.
 - **`viewer/icons.svg` is generated.** It is a sprite of Lucide icons (ISC, `viewer/icons.LICENCE`)
