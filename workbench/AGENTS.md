@@ -4,10 +4,10 @@ The Data Director Workbench: a harness (conductor, policy gate, input check, Ope
 per-mode grounding linter, JSONL store, Process Run Crate), a registry of agents reached over A2A,
 a read-only viewer, and a generated `CONFORMANCE.md`. The workbench contains no agent code. Agents
 are separate packages and services under `../agents/`, and what both sides share (the contract,
-evidence, span helpers, the A2A agent server) is `../sdk/` (ADR-0011). `docs/MVP_PLAN.md`
-is the plan; `docs/adr/` records the decisions; `docs/architecture.md` is the overview.
+evidence, span helpers, the A2A agent server) is `../sdk/` (ADR-0011). `docs/adr/` records
+the decisions; `docs/architecture.md` is the overview.
 
-Two rules from the plan govern everything here:
+Two rules govern everything here:
 
 1. **Formats are decided; components sit behind interfaces.** The LinkML schema, the owned
    `dd.*` trace attributes, the registered evidence canonicalisations and the outcome vocabulary

@@ -1,7 +1,7 @@
 # Architecture
 
-This page gives a short overview of how the workbench is put together. The full design is in
-[`MVP_PLAN.md`](MVP_PLAN.md) §3.
+This page gives a short overview of how the workbench is put together. The decisions behind it
+are recorded in [`adr/`](adr/).
 
 ## How a run works
 
@@ -70,7 +70,7 @@ each run as its own service. Paths below are relative to the repository root.
 
 ## Design principles
 
-Two principles from the plan guide what is fixed and what is written here.
+Two principles guide what is fixed and what is written here.
 
 **Fix the formats now; the components can change later.** The data formats are settled. These
 are the identifiers, the envelope, the trace attributes, the evidence canonicalisations and the
