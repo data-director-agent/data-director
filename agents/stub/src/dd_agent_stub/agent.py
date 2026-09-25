@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     INPUT_TYPES,
     GroundingMode,
@@ -27,9 +28,9 @@ class AbstainingStub:
         description="Abstains unconditionally; exercises the non-success path.",
         requirement_ids=("DD-OUTCOME",),
         action_class="advise",
-        accepts=tuple(INPUT_TYPES.values()),
+        accepts=tuple(ClassSchema.of(t) for t in INPUT_TYPES.values()),
         grounding_mode=GroundingMode.NONE,
-        payload_type=None,
+        payload=None,
     )
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:

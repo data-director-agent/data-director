@@ -7,6 +7,7 @@ import dataclasses
 import json
 import re
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -18,8 +19,18 @@ from dd_sdk.agent import (
     SpecError,
     describe,
     spec_from_description,
+    typed_request,
 )
-from dd_sdk.contract.models import DatasetProfile, Derivation, GroundingMode, Recommendations
+from dd_sdk.contract.classes import ClassSchema, ClassSchemaError, schema_digest
+from dd_sdk.contract.models import (
+    DatasetProfile,
+    Derivation,
+    Frozen,
+    GroundingMode,
+    InvocationRequest,
+    OpenInput,
+    Recommendations,
+)
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 
 SPEC = AgentSpec(
@@ -28,9 +39,9 @@ SPEC = AgentSpec(
     description="A spec for testing derivations.",
     requirement_ids=(),
     action_class="advise",
-    accepts=(DatasetProfile,),
+    accepts=(ClassSchema.of(DatasetProfile),),
     grounding_mode=GroundingMode.RETRIEVAL,
-    payload_type=Recommendations,
+    payload=ClassSchema.of(Recommendations),
     derivations={
         "items.kind": Derived(Derivation.LEXICAL, recorded_in="classification_derivation"),
         "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
@@ -66,7 +77,7 @@ def test_a_derivation_the_payload_class_does_not_support_is_refused(
 
 def test_derivations_without_a_payload_are_refused() -> None:
     with pytest.raises(SpecError, match="declares no payload"):
-        dataclasses.replace(SPEC, payload_type=None)
+        dataclasses.replace(SPEC, payload=None)
 
 
 def test_a_derivation_outside_the_contract_enum_is_refused_from_a_card() -> None:
@@ -117,3 +128,77 @@ def test_a_description_under_another_contract_is_a_contract_mismatch(
     entry["accepts"] = ["Horoscope"]  # under another contract the rest need not parse
     with pytest.raises(ContractVersionError, match=re.escape(CONTRACT_VERSION)):
         spec_from_description(entry)
+
+
+# --- Class schemas carried by the card (ADR-0019) --------------------------------------------
+
+
+def test_a_description_carries_each_class_schema_pinned_by_its_digest() -> None:
+    entry = json.loads(json.dumps(describe(SPEC)))
+    assert set(entry["schemas"]) == {"DatasetProfile", "Recommendations"}
+    for name, schema in entry["schemas"].items():
+        assert schema["digest"] == schema_digest(schema["json_schema"]), name
+    rebuilt = spec_from_description(entry)
+    assert rebuilt.accepts == SPEC.accepts and rebuilt.payload == SPEC.payload
+    assert rebuilt.payload is not None and rebuilt.payload.model is None  # schema only
+
+
+def test_a_class_the_workbench_has_never_seen_is_accepted_by_its_schema() -> None:
+    entry = json.loads(json.dumps(describe(SPEC)))
+    horoscope = entry["schemas"]["DatasetProfile"]["json_schema"]
+    horoscope["title"] = "Horoscope"
+    horoscope["properties"]["schema_class"]["enum"] = ["Horoscope"]
+    entry["accepts"] = ["Horoscope"]
+    entry["schemas"]["Horoscope"] = {"json_schema": horoscope, "digest": schema_digest(horoscope)}
+    spec = spec_from_description(entry)
+    assert spec.accepts_names() == ("Horoscope",)
+    accepted = spec.accepted("Horoscope")
+    assert accepted is not None and accepted.errors({"schema_class": "Horoscope"}) == []
+    assert accepted.errors({"schema_class": "Horoscope", "stars": 5}) != []  # closed
+
+
+def test_a_class_schema_that_is_missing_or_altered_is_refused() -> None:
+    entry = json.loads(json.dumps(describe(SPEC)))
+    del entry["schemas"]["DatasetProfile"]
+    with pytest.raises(SpecError, match="carries no schema"):
+        spec_from_description(entry)
+    entry = json.loads(json.dumps(describe(SPEC)))
+    entry["schemas"]["DatasetProfile"]["json_schema"]["title"] = "Other"
+    with pytest.raises(SpecError, match="does not match its digest"):
+        spec_from_description(entry)
+
+
+def test_a_class_schema_that_does_not_designate_its_class_is_refused() -> None:
+    entry = json.loads(json.dumps(describe(SPEC)))
+    entry["accepts"] = ["Horoscope"]
+    entry["schemas"]["Horoscope"] = entry["schemas"]["DatasetProfile"]  # says DatasetProfile
+    with pytest.raises(SpecError, match="does not require schema_class = 'Horoscope'"):
+        spec_from_description(entry)
+
+
+def test_a_payload_class_that_does_not_mix_in_grounded_is_refused() -> None:
+    entry = json.loads(json.dumps(describe(SPEC)))
+    entry["payload"] = "DatasetProfile"
+    entry["derivations"] = {}
+    with pytest.raises(SpecError, match="does not mix in Grounded"):
+        spec_from_description(entry)
+
+
+def test_a_model_that_disagrees_with_its_generated_schema_is_refused() -> None:
+    class DatasetProfile(Frozen):  # the generated class's name, most of its fields missing
+        schema_class: Literal["DatasetProfile"] = "DatasetProfile"
+        title: str | None = None
+
+    DatasetProfile.__module__ = "dd_sdk.contract.models"
+    with pytest.raises(ClassSchemaError, match="only in the schema"):
+        ClassSchema.of(DatasetProfile)
+
+
+def test_the_agent_sees_its_own_model_and_the_workbench_the_document() -> None:
+    request = InvocationRequest(
+        agent_id="test.spec", input=OpenInput(schema_class="DatasetProfile", title="t")
+    )
+    typed = typed_request(SPEC, request)
+    assert isinstance(typed.input, DatasetProfile) and typed.input.title == "t"
+    rebuilt = spec_from_description(describe(SPEC))
+    assert typed_request(rebuilt, request) is request  # no model on the workbench's side

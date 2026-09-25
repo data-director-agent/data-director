@@ -12,7 +12,7 @@ description: >-
   (ADR-0007); every payload mixes in Grounded so the grounding linter can check it without
   knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.6.0
+version: 0.7.0
 license: MIT
 
 prefixes:
@@ -233,6 +233,28 @@ classes:
     slots:
       - grounded_on
 
+  Input:
+    abstract: true
+    description: >-
+      Any input: an object that names its class in schema_class. The core checks nothing else;
+      the class schema of the agent's accepted input class does (ADR-0019).
+    annotations:
+      open: true
+    slots:
+      - schema_class
+
+  Payload:
+    abstract: true
+    description: >-
+      Any payload: an object that names its class in schema_class and mixes in Grounded. The core
+      checks nothing else; the class schema of the agent's payload class does (ADR-0019).
+    annotations:
+      open: true
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+
   # --- Payloads -------------------------------------------------------------------------------
   # Each payload class carries schema_class and mixes in Grounded.
 
@@ -404,15 +426,10 @@ slots:
     required: true
   input:
     description: >-
-      What the agent is asked to work on. One of the input classes, discriminated by
-      schema_class; an agent declares which it accepts.
-    range: Any
-    any_of:
-      - range: DatasetProfile
-      - range: MetadataRecord
-      - range: Claim
-      - range: Salutation
-      - range: Message
+      What the agent is asked to work on: an instance of one of the input classes the agent
+      accepts, named by schema_class. The class schema the agent's card carries checks the rest
+      (ADR-0019).
+    range: Input
     required: true
     inlined: true
   schema_class:
@@ -434,15 +451,10 @@ slots:
     inlined: true
   payload:
     description: >-
-      Agent-specific payload; absent unless the outcome is succeeded. One of the payload
-      classes, discriminated by schema_class; every one mixes in Grounded.
-    range: Any
-    any_of:
-      - range: Recommendations
-      - range: QualityReview
-      - range: FactCheck
-      - range: Greeting
-      - range: Reply
+      Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload
+      class the agent declares, named by schema_class; every payload class mixes in Grounded.
+      The class schema the agent's card carries checks the rest (ADR-0019).
+    range: Payload
     inlined: true
   grounded_on:
     description: >-

@@ -14,6 +14,7 @@ import pytest
 
 from dd_agent_hello.agent import HelloWorld
 from dd_sdk.agent import describe
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
     Greeting,
@@ -41,15 +42,13 @@ def test_greeting_is_grounded_on_the_input_and_passes_the_linter(runs_dir: Path)
     env = conductor.invoke(request("hello.world", sample_salutation()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.NONE
-    assert isinstance(env.payload, Greeting)
-    assert env.payload.greeting_text == "Hello, world!"
-    assert env.payload.greeting_derivation == Derivation.TEMPLATE
+    payload = env.payload_as(Greeting)
+    assert payload.greeting_text == "Hello, world!"
+    assert payload.greeting_derivation == Derivation.TEMPLATE
 
     ref = input_source_id(env.invocation_id)
     expected_hash = input_hash(conductor.store.get_request(env.invocation_id)["input"])  # type: ignore[index]
-    assert [(g.source_id, g.content_hash) for g in env.payload.grounded_on] == [
-        (ref, expected_hash)
-    ]
+    assert [(g.source_id, g.content_hash) for g in payload.grounded_on] == [(ref, expected_hash)]
     assert [(e.source_id, e.canonicalisation) for e in env.evidence] == [
         (ref, INPUT_CANONICALISATION)
     ]
@@ -96,8 +95,8 @@ def test_the_template_ships_everything_the_manifest_needs() -> None:
 
 def test_spec_declares_what_the_conductor_enforces() -> None:
     spec = HelloWorld.spec
-    assert spec.accepts == (Salutation,)
-    assert spec.payload_type is Greeting
+    assert spec.accepts == (ClassSchema.of(Salutation),)
+    assert spec.payload == ClassSchema.of(Greeting)
     assert spec.grounding_mode == GroundingMode.NONE
     # A template exercises the harness, not the Blueprint: every id it claims is a DD-* one.
     assert all(r.startswith("DD-") for r in spec.requirement_ids), spec.requirement_ids

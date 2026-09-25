@@ -14,7 +14,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from dd_sdk.contract.models import INPUT_TYPES, InvocationRequest, parse_input
+from dd_sdk.contract.models import InvocationRequest, OpenInput
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding, sources
 from workbench.conductor import UnknownAgent
@@ -37,24 +37,27 @@ ACTING_FOR_NAME_HELP = "name of the human the invocation acts for (default: DD_P
 
 def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
     """Resolve the input class: the document's schema_class, then --input-type, then the agent's
-    sole accepted class. Anything else is a usage error listing what the agent accepts."""
+    sole accepted class. Anything else is a usage error listing what the agent accepts.
+
+    Whether the document is a valid instance of its class is the conductor's input check, against
+    the class schema the agent's card carries (ADR-0019); a failure is an envelope, not an exit."""
     doc = json.loads(Path(args.input).read_text(encoding="utf-8"))
     agent = registry.get(args.agent)
-    accepts = agent.spec.accepts_names() if agent else tuple(INPUT_TYPES)
-    if "schema_class" not in doc:
+    accepts = agent.spec.accepts_names() if agent else ()
+    if isinstance(doc, dict) and "schema_class" not in doc:
         if args.input_type:
             doc["schema_class"] = args.input_type
         elif len(accepts) == 1:
             doc["schema_class"] = accepts[0]
         else:
             sys.exit(
-                f"{args.input} has no schema_class and {args.agent} accepts more than one input "
-                f"class ({', '.join(accepts)}); pass --input-type"
+                f"{args.input} has no schema_class and {args.agent} does not accept exactly one "
+                f"input class ({', '.join(accepts) or 'none known'}); pass --input-type"
             )
     try:
-        return parse_input(doc)
+        return OpenInput.model_validate(doc)
     except ValidationError as exc:
-        sys.exit(f"{args.input} is not a valid {doc.get('schema_class')}: {exc}")
+        sys.exit(f"{args.input} is not an input document: {exc}")
 
 
 def cmd_agents(args: argparse.Namespace) -> int:
@@ -174,7 +177,6 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--input", required=True, help="path to an input JSON document")
     p.add_argument(
         "--input-type",
-        choices=sorted(INPUT_TYPES),
         help="input class, if the document has no schema_class and the agent accepts several",
     )
     _add_settings_arguments(p)

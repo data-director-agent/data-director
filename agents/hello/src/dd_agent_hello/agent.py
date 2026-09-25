@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
@@ -45,7 +46,7 @@ DEFAULT_LANGUAGE = "en"
 
 class HelloWorld:
     # Step 4: an agent is this attribute plus `run`. The conductor holds it to every field —
-    # it refuses an input class not in `accepts`, refuses a payload that is not `payload_type`,
+    # it refuses an input class not in `accepts`, refuses a payload that is not `payload`,
     # writes `grounding_mode` onto the envelope itself, and matches `action_class` against the
     # institutional profile's `actions_requiring_approval`.
     spec = AgentSpec(
@@ -64,9 +65,9 @@ class HelloWorld:
             "DD-GROUNDED-PAYLOAD",
         ),
         action_class="advise",
-        accepts=(Salutation,),
+        accepts=(ClassSchema.of(Salutation),),
         grounding_mode=GroundingMode.NONE,
-        payload_type=Greeting,
+        payload=ClassSchema.of(Greeting),
         # Step 8 of the recipe: how each field that is not copied from the input comes about. The
         # viewer badges `greeting_text` from this, reading `greeting_derivation` per value.
         derivations={

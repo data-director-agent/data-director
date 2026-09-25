@@ -23,6 +23,7 @@ from typing import Any, Protocol
 
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Claim,
     Derivation,
@@ -115,9 +116,9 @@ class FactChecker:
         description="Gives a lexical verdict on a claim, grounded on the sources it retrieved.",
         requirement_ids=("DD-GROUNDING",),
         action_class="advise",
-        accepts=(Claim,),
+        accepts=(ClassSchema.of(Claim),),
         grounding_mode=GroundingMode.RETRIEVAL,
-        payload_type=FactCheck,
+        payload=ClassSchema.of(FactCheck),
         derivations={
             "verdict": Derived(Derivation.LEXICAL),
             "rationale": Derived(Derivation.TEMPLATE, recorded_in="rationale_derivation"),

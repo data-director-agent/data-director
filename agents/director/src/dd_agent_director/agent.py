@@ -34,6 +34,7 @@ import yaml
 
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
@@ -41,11 +42,11 @@ from dd_sdk.contract.models import (
     GroundingRef,
     InvocationRequest,
     Message,
+    OpenInput,
     Outcome,
     OutcomeStatus,
     ReasonCode,
     Reply,
-    parse_input,
 )
 from dd_sdk.delegate import Delegated
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
@@ -135,9 +136,9 @@ class DirectorStub:
             "DD-GROUNDED-PAYLOAD",
         ),
         action_class="advise",
-        accepts=(Message,),
+        accepts=(ClassSchema.of(Message),),
         grounding_mode=GroundingMode.DELEGATION,
-        payload_type=Reply,
+        payload=ClassSchema.of(Reply),
         derivations={"reply_text": Derived(Derivation.TEMPLATE, recorded_in="reply_derivation")},
     )
 
@@ -160,7 +161,9 @@ class DirectorStub:
 
         # A refused delegation (unknown agent, unreachable workbench) raises DelegationRefused;
         # the conductor records it as failed(agent-error), which is what a developer should see.
-        delegated = ctx.delegate(found.rule.agent_id, parse_input(found.input_document))
+        delegated = ctx.delegate(
+            found.rule.agent_id, OpenInput.model_validate(found.input_document)
+        )
         return self._relay(found.rule, delegated, ctx)
 
     def _relay(self, rule: Rule, delegated: Delegated, ctx: RunContext) -> AgentResult:

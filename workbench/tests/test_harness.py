@@ -12,12 +12,15 @@ import pytest
 
 from dd_agent_stub.agent import AbstainingStub
 from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Claim,
     DatasetProfile,
     GroundingMode,
     InvocationRequest,
     MetadataRecord,
+    OpenInput,
+    OpenPayload,
     Outcome,
     OutcomeStatus,
     QualityReview,
@@ -191,6 +194,20 @@ def test_input_of_an_unaccepted_class_is_a_failed_outcome_and_the_agent_is_not_r
 
 
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
+def test_input_that_breaks_its_class_schema_is_not_accepted_and_the_agent_is_not_run(
+    runs_dir: Path,
+) -> None:
+    agent = ScriptedAgent(GroundingMode.RETRIEVAL, fakes.fact_check_over(SOURCE_A))
+    conductor = make_conductor(runs_dir, agent)
+    bad = OpenInput(schema_class="Claim", subject_uri="https://example.org/x")  # no text
+    env = conductor.invoke(request(agent.spec.agent_id, bad), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")
+    assert "'text' is a required property" in (env.problem.detail or "")
+    assert agent.calls == 0
+
+
+@pytest.mark.requirement("DD-INPUT-ACCEPTS")
 def test_an_agent_may_accept_several_input_classes(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)  # MetadataRecord or Profile
     conductor = make_conductor(runs_dir, agent)
@@ -233,13 +250,34 @@ def test_payload_of_the_wrong_class_is_a_failed_outcome(runs_dir: Path) -> None:
         GroundingMode.RETRIEVAL,
         fakes.fact_check_over(SOURCE_A),
         steps=[SOURCE_A],
-        payload_type=QualityReview,
+        payload=ClassSchema.of(QualityReview),
     )
     env = make_conductor(runs_dir, agent).invoke(
         request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and "declared QualityReview" in (env.problem.detail or "")
+
+
+def test_payload_its_class_schema_does_not_admit_is_a_failed_outcome(runs_dir: Path) -> None:
+    """The payload check reads the class schema, not a Python type (ADR-0019)."""
+
+    def hollow(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        good = fakes.fact_check_over(SOURCE_A)
+        assert good.payload is not None
+        return AgentResult(
+            outcome=good.outcome,
+            payload=OpenPayload(schema_class="FactCheck", grounded_on=good.payload.grounded_on),
+            evidence=good.evidence,
+        )
+
+    agent = ScriptedAgent(GroundingMode.RETRIEVAL, hollow, steps=[SOURCE_A])
+    env = make_conductor(runs_dir, agent).invoke(
+        request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.FAILED and env.payload is None
+    assert env.problem is not None and env.problem.type.endswith("/agent-error")
+    assert "'verdict' is a required property" in (env.problem.detail or "")
 
 
 def _without_reason(request: InvocationRequest, ctx: RunContext) -> AgentResult:
@@ -482,8 +520,8 @@ def test_energy_footprint_slots_are_present_but_honestly_not_measured(runs_dir: 
 
 
 def test_scripted_specs_accept_what_their_tests_assume() -> None:
-    assert fakes.SPECS[GroundingMode.INPUT_ONLY].accepts == (MetadataRecord,)
-    assert fakes.SPECS[GroundingMode.RETRIEVAL].accepts == (Claim,)
+    assert fakes.SPECS[GroundingMode.INPUT_ONLY].accepts == (ClassSchema.of(MetadataRecord),)
+    assert fakes.SPECS[GroundingMode.RETRIEVAL].accepts == (ClassSchema.of(Claim),)
 
 
 def test_the_conductor_keeps_no_spans_after_a_run_and_caps_its_reports(

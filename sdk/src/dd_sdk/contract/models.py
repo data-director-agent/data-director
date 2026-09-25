@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, TypeAdapter
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
@@ -196,6 +196,25 @@ def parse_input(document: dict[str, Any]) -> AnyInput:
     return parsed
 
 
+class OpenInput(Frozen):
+    """An input held as the document it is, checked against its class schema, not a model.
+
+    What the workbench reads a request's input as: it knows an agent's classes only by their
+    schemas (ADR-0019). An agent's own run sees its own model instead (`ClassSchema.parse_input`).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+    schema_class: str
+
+
+def _open_input(value: Any) -> Any:
+    return OpenInput.model_validate(value) if isinstance(value, dict) else value
+
+
+# Any input: an agent's own model, or an `OpenInput`. Serialised as the instance it holds.
+AnyInputDocument = Annotated[SerializeAsAny[Frozen], BeforeValidator(_open_input)]
+
+
 class InvocationRequest(Frozen):
     invocation_id: str = Field(default_factory=new_invocation_id, pattern=UUID7_PATTERN)
     agent_id: str
@@ -204,7 +223,7 @@ class InvocationRequest(Frozen):
     conversation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     # Set only by the conductor, from a delegation grant (ADR-0012).
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
-    input: Input
+    input: AnyInputDocument
 
 
 # --- Outcome and problems -------------------------------------------------------------------
@@ -251,6 +270,21 @@ def input_source_id(invocation_id: str) -> str:
 def invocation_source_id(invocation_id: str) -> str:
     """The `source_id` a delegation agent cites for a child envelope it relays (ADR-0012)."""
     return f"invocation:{invocation_id}"
+
+
+class OpenPayload(Grounded):
+    """A payload held as the document it is, checked against its class schema (ADR-0019)."""
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+    schema_class: str
+
+
+def _open_payload(value: Any) -> Any:
+    return OpenPayload.model_validate(value) if isinstance(value, dict) else value
+
+
+# Any payload: an agent's own model, or an `OpenPayload`. Serialised as the instance it holds.
+AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_payload)]
 
 
 # --- Payloads -------------------------------------------------------------------------------
@@ -388,7 +422,7 @@ class Envelope(Frozen):
     # Named by the authentication boundary, never by the request (ADR-0018).
     acting_for: Principal
     outcome: Outcome
-    payload: Payload | None = None
+    payload: AnyPayloadDocument | None = None
     evidence: list[EvidenceItem] = Field(default_factory=list)
     telemetry: Telemetry
     requires_human_review: Literal[True] = True
@@ -396,6 +430,19 @@ class Envelope(Frozen):
     conversation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     delegations: list[Delegation] = Field(default_factory=list)
+
+    def payload_as[P: Grounded](self, model: type[P]) -> P:
+        """The payload as `model`, the reader's own model of its class (ADR-0019).
+
+        The workbench holds a payload as an `OpenPayload`; a reader that knows the class, such as
+        the agent's own tests or an orchestrator relaying a child, parses it here. Raises
+        `ValueError` if there is no payload or it is not of `model`'s class.
+        """
+        if self.payload is None:
+            raise ValueError(f"envelope {self.invocation_id} carries no payload")
+        if isinstance(self.payload, model):
+            return self.payload
+        return model.model_validate(to_document(self.payload))
 
     def to_document(self) -> dict[str, Any]:
         """JSON-ready dict in the shape the generated schema validates.

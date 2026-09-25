@@ -23,7 +23,7 @@ from dd_agent_r3.fairsharing.snapshot import (
 )
 from dd_agent_r3.retrieve import Query, RegistryUnavailable
 from dd_agent_r3.testing import make_conductor, request
-from dd_sdk.contract.models import OutcomeStatus, RecommendationKind
+from dd_sdk.contract.models import OutcomeStatus, RecommendationKind, Recommendations
 from workbench.testing import TEST_PRINCIPAL
 
 PUBLIC_SHAPE = {
@@ -125,20 +125,21 @@ def test_r3_over_the_real_snapshot_recommends_for_the_soil_sample(
     conductor = make_conductor(tmp_path / "runs", r3=R3Agent(retrieval=snapshot), crate=False)
     env = conductor.invoke(request("r3.standards-advisor"), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.payload is not None and env.payload.items
-    kinds = {i.kind for i in env.payload.items}
+    payload = env.payload_as(Recommendations)
+    assert payload.items
+    kinds = {i.kind for i in payload.items}
     assert kinds & {RecommendationKind.CONTROLLED_VOCABULARY, RecommendationKind.ONTOLOGY}
     assert RecommendationKind.DATA_FORMAT in kinds
     # R3.4: a field-level date/time recommendation is made only if the snapshot holds a standard
     # that is about dates and times by name (ISO 8601); otherwise none, rather than a guess.
     has_temporal_standard = any(rank.is_temporal_standard(r) for r in snapshot.records)
     assert (RecommendationKind.FIELD_FORMAT in kinds) == has_temporal_standard
-    for item in env.payload.items:
+    for item in payload.items:
         if item.kind == RecommendationKind.FIELD_FORMAT:
             assert item.target.startswith("field:")
     assert conductor.grounding_reports[env.invocation_id].passed
     # Every cited record is a real snapshot record with a DOI, so attribution holds (CC BY-SA).
-    for item in env.payload.items:
+    for item in payload.items:
         rec = snapshot.fetch(item.grounded_on[0].source_id)
         assert rec is not None and rec.doi
     # R3.6 on the same snapshot: an unrelated profile abstains rather than guessing.

@@ -39,6 +39,7 @@ CORE_DOCUMENTS = {
 }
 SHACL = "data_director.shacl.ttl"
 DESIGNATOR = "schema_class"
+OPEN = "open"  # a class annotation: any object naming its class in schema_class
 
 
 def class_schema_name(class_name: str) -> str:
@@ -73,9 +74,24 @@ def generate(source: Path = CORE) -> dict[Path, str]:
 
 
 def designated_classes(source: Path, view: Any) -> list[str]:
-    """The classes `source` itself defines that carry the `schema_class` designator."""
+    """The concrete classes `source` itself defines that carry the `schema_class` designator."""
     own = view.all_classes(imports=False)
-    return [c for c in own if DESIGNATOR in {s.name for s in view.class_induced_slots(c)}]
+    return [
+        c
+        for c in own
+        if not view.get_class(c).abstract
+        and DESIGNATOR in {s.name for s in view.class_induced_slots(c)}
+    ]
+
+
+def _open_classes(view: Any) -> set[str]:
+    """Classes annotated `open: true`: the core's `Input` and `Payload` (ADR-0019)."""
+    found = set()
+    for name, cls in view.all_classes().items():
+        note = cls.annotations.get(OPEN) if cls.annotations else None
+        if note is not None and str(note.value).lower() == "true":
+            found.add(name)
+    return found
 
 
 def _view(source: Path, importmap: Path) -> Any:
@@ -105,7 +121,7 @@ def _json_schema(source: Path, top_class: str, importmap: Path) -> dict[str, Any
 
 
 def _repair(schema: dict[str, Any], top_class: str, view: Any) -> dict[str, Any]:
-    """Three repairs to the generator's output, made in the one place generation happens.
+    """Four repairs to the generator's output, made in the one place generation happens.
 
     1. `requires_human_review` is emitted as `const: true`. LinkML's `equals_expression` is not
        carried into JSON Schema by gen-json-schema. C13/C15 make human review mandatory; a
@@ -117,11 +133,19 @@ def _repair(schema: dict[str, Any], top_class: str, view: Any) -> dict[str, Any]
     3. Properties are emitted in alphabetical order. They are put back in the order the LinkML
        source gives a class's slots, own slots before mixins, which is the order a reader meets
        them in the viewer (ADR-0016). Property order carries no meaning in JSON Schema.
+    4. A class annotated `open: true` is emitted closed, with its designator fixed to its own
+       name. LinkML cannot say "any object that names its class". It is opened: any further
+       property is allowed, and `schema_class` is any string. The agent's class schema checks
+       the rest (ADR-0019).
     """
     holders = [(top_class, schema), *schema.get("$defs", {}).items()]
     classes = view.all_classes()
+    opened = _open_classes(view)
     for class_name, holder in holders:
         properties = holder.get("properties", {})
+        if class_name in opened:
+            holder["additionalProperties"] = True
+            properties.get(DESIGNATOR, {}).pop("enum", None)
         for name, prop in properties.items():
             if name == "requires_human_review":
                 prop["const"] = True

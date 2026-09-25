@@ -46,7 +46,7 @@ from inspect_ai.scorer import (
 )
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 
-from dd_sdk.contract.models import InvocationRequest, Principal, parse_input
+from dd_sdk.contract.models import InvocationRequest, OpenInput, Principal
 from workbench.conductor import Conductor
 
 # The statuses in which an agent declined to answer. The source delivery plan counts them as
@@ -128,7 +128,7 @@ def invoke_agent(conductor_for: ConductorFor, agent_id: str, acting_for: Princip
         document: dict[str, Any], case: dict[str, Any]
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         conductor = conductor_for(case)
-        request = InvocationRequest(agent_id=agent_id, input=parse_input(document))
+        request = InvocationRequest(agent_id=agent_id, input=OpenInput.model_validate(document))
         envelope = conductor.invoke(request, acting_for=acting_for)
         report = conductor.grounding_reports.get(envelope.invocation_id)
         grounding = {

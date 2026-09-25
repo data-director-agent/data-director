@@ -18,16 +18,14 @@ presentation from its schema and the agent's `derivations` (ADR-0016).
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
-from types import NoneType, UnionType
-from typing import TYPE_CHECKING, Any, Protocol, Union, get_args, get_origin, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
+from dd_sdk.contract.classes import ClassSchema, ClassSchemaError
 from dd_sdk.contract.models import (
-    INPUT_TYPES,
-    PAYLOAD_TYPES,
     Derivation,
     EvidenceItem,
     Frozen,
@@ -70,9 +68,9 @@ class AgentSpec:
     description: str
     requirement_ids: tuple[str, ...]
     action_class: str  # what the policy gate matches against actions_requiring_approval
-    accepts: tuple[type[Frozen], ...]  # input classes; anything else is input-not-accepted
+    accepts: tuple[ClassSchema, ...]  # input classes; anything else is input-not-accepted
     grounding_mode: GroundingMode
-    payload_type: type[Grounded] | None  # None: the agent never succeeds with a payload
+    payload: ClassSchema | None  # None: the agent never succeeds with a payload
     # Payload field path ("score", "findings.severity"; list items are transparent) -> how the
     # agent produces it. An unlisted field is copied from input or evidence.
     derivations: Mapping[str, Derived] = field(default_factory=dict)
@@ -80,11 +78,26 @@ class AgentSpec:
     contract_version: str = CONTRACT_VERSION
 
     def __post_init__(self) -> None:
+        if self.payload is not None and not self.payload.grounded:
+            raise SpecError(
+                f"agent {self.agent_id!r}: payload class {self.payload.name} does not mix in "
+                "Grounded (its schema does not require grounded_on)"
+            )
         for path, derived in self.derivations.items():
             _check_derivation(self, path, derived)
 
     def accepts_names(self) -> tuple[str, ...]:
-        return tuple(t.__name__ for t in self.accepts)
+        return tuple(c.name for c in self.accepts)
+
+    def accepted(self, schema_class: str) -> ClassSchema | None:
+        """The accepted input class named `schema_class`, or None if the agent does not read it."""
+        return next((c for c in self.accepts if c.name == schema_class), None)
+
+    def schemas(self) -> Iterator[ClassSchema]:
+        """Every class the agent reads or returns: what its card carries."""
+        yield from self.accepts
+        if self.payload is not None:
+            yield self.payload
 
 
 DESCRIPTION_KEYS = frozenset(
@@ -99,49 +112,57 @@ DESCRIPTION_KEYS = frozenset(
         "payload",
         "derivations",
         "contract_version",
+        "schemas",
     }
 )
+DERIVATION_REF = "#/$defs/Derivation"
 
 
-def _field_model(annotation: Any) -> type[Frozen] | None:
-    """The model a field holds, directly, in a list or as an optional; None for a scalar."""
-    if isinstance(annotation, type) and issubclass(annotation, Frozen):
-        return annotation
-    if get_origin(annotation) in (list, Union, UnionType):
-        for arg in get_args(annotation):
-            if arg is not NoneType and (found := _field_model(arg)) is not None:
-                return found
-    return None
+def _resolve(schema: Mapping[str, Any], node: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Follow `$ref` into the class schema's `$defs`, a list into its items, and an optional
+    (`anyOf` with null) into the arm that is not null."""
+    while True:
+        ref = node.get("$ref")
+        arms = [a for a in node.get("anyOf", ()) if a.get("type") != "null"]
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            node = schema.get("$defs", {}).get(ref.removeprefix("#/$defs/"), {})
+        elif "items" in node:
+            node = node["items"]
+        elif len(arms) == 1:
+            node = arms[0]
+        else:
+            return node
 
 
-def _is_derivation(annotation: Any) -> bool:
-    if annotation is Derivation:
+def _is_derivation(node: Mapping[str, Any]) -> bool:
+    if node.get("$ref") == DERIVATION_REF:
         return True
-    return get_origin(annotation) in (Union, UnionType) and Derivation in get_args(annotation)
+    return any(_is_derivation(arm) for arm in node.get("anyOf", ()))
 
 
 def _check_derivation(spec: AgentSpec, path: str, derived: Derived) -> None:
+    """A derivation names a field of the payload class's schema; `recorded_in` a Derivation."""
     where = f"agent {spec.agent_id!r} derivation {path!r}"
-    if spec.payload_type is None:
+    if spec.payload is None:
         raise SpecError(f"{where}: the agent declares no payload")
     if not isinstance(derived.how, Derivation):
         raise SpecError(f"{where}: {derived.how!r} is not a Derivation")
+    schema = spec.payload.json_schema
     *parents, name = path.split(".")
-    model: type[Frozen] = spec.payload_type
+    node: Mapping[str, Any] = schema
+    holder = spec.payload.name
     for part in parents:
-        info = model.model_fields.get(part)
-        nested = _field_model(info.annotation) if info else None
-        if nested is None:
-            raise SpecError(f"{where}: {model.__name__} has no nested field {part!r}")
-        model = nested
-    if name not in model.model_fields:
-        raise SpecError(f"{where}: {model.__name__} has no field {name!r}")
+        nested = _resolve(schema, node.get("properties", {}).get(part, {}))
+        if "properties" not in nested:
+            raise SpecError(f"{where}: {holder} has no nested field {part!r}")
+        node, holder = nested, str(nested.get("title", part))
+    properties = node.get("properties", {})
+    if name not in properties:
+        raise SpecError(f"{where}: {holder} has no field {name!r}")
     if derived.recorded_in is not None:
-        recorder = model.model_fields.get(derived.recorded_in)
-        if recorder is None or not _is_derivation(recorder.annotation):
-            raise SpecError(
-                f"{where}: {model.__name__}.{derived.recorded_in} is not a Derivation field"
-            )
+        recorder = properties.get(derived.recorded_in)
+        if recorder is None or not _is_derivation(recorder):
+            raise SpecError(f"{where}: {holder}.{derived.recorded_in} is not a Derivation field")
 
 
 def describe(spec: AgentSpec) -> dict[str, Any]:
@@ -154,23 +175,24 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "action_class": spec.action_class,
         "accepts": list(spec.accepts_names()),
         "grounding_mode": spec.grounding_mode.value,
-        "payload": spec.payload_type.__name__ if spec.payload_type else None,
+        "payload": spec.payload.name if spec.payload else None,
         "derivations": {
             path: {"how": d.how.value, "recorded_in": d.recorded_in}
             for path, d in spec.derivations.items()
         },
         "contract_version": spec.contract_version,
+        "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
 
 def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
-    """Rebuild a spec from `describe` output, resolving class names against the contract.
-
-    A name the contract does not define is a `SpecError`: an agent cannot introduce an input or
-    payload class the workbench does not know (the contract is central, ADR-0007).
+    """Rebuild a spec from `describe` output, with its classes known only by their schemas.
 
     A description built against a contract this one cannot govern is a `ContractVersionError`,
-    checked first, since under another contract the rest of the description may not parse.
+    checked first, since under another contract the rest of the description may not parse. A
+    class without a schema, a schema that does not match its digest or does not designate its
+    class, and a payload class that does not mix in `Grounded` are each a `SpecError`
+    (ADR-0019). No class needs to be known in advance.
     """
     declared = entry.get("contract_version")
     if not isinstance(declared, str):
@@ -186,41 +208,59 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     missing = DESCRIPTION_KEYS - set(entry)
     if missing:
         raise SpecError(f"agent description lacks {sorted(missing)}")
-    unknown_inputs = [name for name in entry["accepts"] if name not in INPUT_TYPES]
-    if unknown_inputs or not entry["accepts"]:
-        raise SpecError(
-            f"agent {entry['agent_id']!r} accepts {unknown_inputs or 'nothing'}; the contract "
-            f"defines {sorted(INPUT_TYPES)}"
-        )
-    payload = entry["payload"]
-    if payload is not None and payload not in PAYLOAD_TYPES:
-        raise SpecError(
-            f"agent {entry['agent_id']!r} returns {payload!r}; the contract defines "
-            f"{sorted(PAYLOAD_TYPES)}"
-        )
+    agent_id = str(entry["agent_id"])
+    if not entry["accepts"]:
+        raise SpecError(f"agent {agent_id!r} accepts nothing")
+    schemas = entry["schemas"] if isinstance(entry["schemas"], Mapping) else {}
+
+    def rebuild(name: str) -> ClassSchema:
+        if name not in schemas:
+            raise SpecError(f"agent {agent_id!r} names class {name!r} but carries no schema for it")
+        try:
+            return ClassSchema.from_description(name, schemas[name])
+        except ClassSchemaError as exc:
+            raise SpecError(f"agent {agent_id!r}: {exc}") from exc
+
+    accepts = tuple(rebuild(str(name)) for name in entry["accepts"])
+    payload = rebuild(str(entry["payload"])) if entry["payload"] is not None else None
     try:
         mode = GroundingMode(entry["grounding_mode"])
     except ValueError as exc:
-        raise SpecError(f"agent {entry['agent_id']!r}: {exc}") from exc
+        raise SpecError(f"agent {agent_id!r}: {exc}") from exc
     try:
         derivations = {
             str(path): Derived(Derivation(d["how"]), d.get("recorded_in"))
             for path, d in entry["derivations"].items()
         }
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
-        raise SpecError(f"agent {entry['agent_id']!r}: malformed derivations: {exc}") from exc
+        raise SpecError(f"agent {agent_id!r}: malformed derivations: {exc}") from exc
     return AgentSpec(
-        agent_id=str(entry["agent_id"]),
+        agent_id=agent_id,
         version=str(entry["version"]),
         description=str(entry["description"]),
         requirement_ids=tuple(entry["requirement_ids"]),
         action_class=str(entry["action_class"]),
-        accepts=tuple(INPUT_TYPES[name] for name in entry["accepts"]),
+        accepts=accepts,
         grounding_mode=mode,
-        payload_type=PAYLOAD_TYPES[payload] if payload is not None else None,
+        payload=payload,
         derivations=derivations,
         contract_version=declared,
     )
+
+
+def typed_request(spec: AgentSpec, request: InvocationRequest) -> InvocationRequest:
+    """The request with its input parsed into the agent's own model, where the agent has one.
+
+    What an agent's `run` is given: `dd_sdk.serve` and the conductor's in-process path both call
+    it once the input has been checked against its class schema. An input of a class the agent
+    does not accept, or one it holds no model for, is left as it is.
+    """
+    schema_class = getattr(request.input, "schema_class", None)
+    accepted = spec.accepted(schema_class) if isinstance(schema_class, str) else None
+    if accepted is None or accepted.model is None or isinstance(request.input, accepted.model):
+        return request
+    document = request.input.model_dump(mode="json", exclude_none=True)
+    return request.model_copy(update={"input": accepted.parse_input(document)})
 
 
 @dataclass(frozen=True)

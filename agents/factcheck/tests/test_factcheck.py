@@ -41,26 +41,28 @@ def test_verdict_rests_only_on_retrieved_sources_and_passes_the_linter(runs_dir:
     conductor, env = run(runs_dir, "A DOI does not change when the object moves.")
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.RETRIEVAL
-    assert isinstance(env.payload, FactCheck)
-    assert env.payload.verdict == Verdict.SUPPORTED  # same negation in claim and source
-    assert {g.source_id for g in env.payload.grounded_on} == {"s:doi"}
+    payload = env.payload_as(FactCheck)
+    assert payload.verdict == Verdict.SUPPORTED  # same negation in claim and source
+    assert {g.source_id for g in payload.grounded_on} == {"s:doi"}
     assert [(e.source_id, e.canonicalisation) for e in env.evidence] == [
         ("s:doi", DOCUMENT_CANONICALISATION)
     ]
     report = conductor.grounding_reports[env.invocation_id]
     assert report.passed and report.retrieval_count == 1 and report.chat_count == 0
-    assert env.payload.rationale  # C14
+    assert payload.rationale  # C14
 
 
 def test_negation_mismatch_refutes(runs_dir: Path) -> None:
     _, env = run(runs_dir, "A DOI does change when the object moves.")
-    assert isinstance(env.payload, FactCheck) and env.payload.verdict == Verdict.REFUTED
+    payload = env.payload_as(FactCheck)
+    assert payload.verdict == Verdict.REFUTED
 
 
 def test_uncovered_claim_is_unverifiable_against_consulted_sources(runs_dir: Path) -> None:
     _, env = run(runs_dir, "A DOI is a persistent tabular format.")
-    assert isinstance(env.payload, FactCheck) and env.payload.verdict == Verdict.UNVERIFIABLE
-    assert {g.source_id for g in env.payload.grounded_on} == {"s:doi", "s:csv"}
+    payload = env.payload_as(FactCheck)
+    assert payload.verdict == Verdict.UNVERIFIABLE
+    assert {g.source_id for g in payload.grounded_on} == {"s:doi", "s:csv"}
 
 
 @pytest.mark.requirement("DD-OUTCOME")
@@ -76,4 +78,5 @@ def test_abstains_when_nothing_is_retrieved_or_the_claim_is_too_short(runs_dir: 
 
 def test_packaged_sources_load_and_the_sample_claim_is_supported(runs_dir: Path) -> None:
     _, env = run(runs_dir, "A DOI does not change when the object moves.", FactChecker())
-    assert isinstance(env.payload, FactCheck) and env.payload.verdict == Verdict.SUPPORTED
+    payload = env.payload_as(FactCheck)
+    assert payload.verdict == Verdict.SUPPORTED

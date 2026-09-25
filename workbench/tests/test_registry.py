@@ -127,7 +127,7 @@ def test_a_card_without_the_spec_extension_is_rejected(tmp_path: Path) -> None:
 
 
 @pytest.mark.requirement("DD-REGISTRY")
-def test_a_card_naming_a_class_the_contract_lacks_is_rejected(tmp_path: Path) -> None:
+def test_a_card_naming_a_class_it_carries_no_schema_for_is_rejected(tmp_path: Path) -> None:
     card = fetch_card(ScriptedAgent(GroundingMode.NONE, review_of_input), "http://odd.test")
     card["capabilities"]["extensions"][0]["params"]["accepts"] = ["Horoscope"]
     path = write_config(tmp_path, [{"name": "odd", "url": "http://odd.test"}])

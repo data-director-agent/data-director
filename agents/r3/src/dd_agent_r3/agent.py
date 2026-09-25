@@ -26,6 +26,7 @@ from dd_agent_r3.retrieve import (
     SnapshotRef,
 )
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     DatasetProfile,
     Derivation,
@@ -55,9 +56,9 @@ class R3Agent:
         ),
         requirement_ids=("R3", "R3.1", "R3.2", "R3.3", "R3.4", "R3.5", "R3.6"),
         action_class="advise",
-        accepts=(DatasetProfile,),
+        accepts=(ClassSchema.of(DatasetProfile),),
         grounding_mode=GroundingMode.RETRIEVAL,
-        payload_type=Recommendations,
+        payload=ClassSchema.of(Recommendations),
         derivations={
             "items.kind": Derived(Derivation.LEXICAL, recorded_in="classification_derivation"),
             "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),

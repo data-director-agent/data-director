@@ -73,17 +73,17 @@ def _derivation_fields(model: type[Any], prefix: str = "") -> set[tuple[str, str
     return out
 
 
-@pytest.mark.parametrize("spec", [s for s in SPECS if s.payload_type], ids=lambda s: s.agent_id)
+@pytest.mark.parametrize("spec", [s for s in SPECS if s.payload], ids=lambda s: s.agent_id)
 def test_every_derivation_field_is_what_some_declared_field_is_recorded_in(
     spec: AgentSpec,
 ) -> None:
-    assert spec.payload_type is not None
+    assert spec.payload is not None and spec.payload.model is not None
     recorders = {
         (path.rpartition(".")[0] + "." if "." in path else "", d.recorded_in)
         for path, d in spec.derivations.items()
         if d.recorded_in
     }
-    assert _derivation_fields(spec.payload_type) <= recorders, spec.agent_id
+    assert _derivation_fields(spec.payload.model) <= recorders, spec.agent_id
 
 
 def test_base_derivation_values_are_from_the_contract_enum_or_verified() -> None:
