@@ -22,10 +22,11 @@ dependencies = [
   "rocrate>=0.15",
   "pyyaml>=6.0",
   "uvicorn>=0.30",
+  "python-dotenv>=1.1",
 ]
 
 [project.scripts]
-workbench = "workbench.cli:main"
+workbench = "workbench.cli:entry"
 
 [project.optional-dependencies]
 # Evaluation on Inspect AI (ADR-0013): `workbench.evaluation` and each agent's `evals/`.

@@ -20,7 +20,13 @@ from workbench import grounding, sources
 from workbench.conductor import UnknownAgent
 from workbench.identity import IdentityError
 from workbench.registry import Registry
-from workbench.settings import Settings, build_authenticator, build_conductor, build_registry
+from workbench.settings import (
+    Settings,
+    build_authenticator,
+    build_conductor,
+    build_registry,
+    load_env_file,
+)
 
 PROFILE_HELP = "institutional profile file (default: DD_PROFILE, else profiles/default.yaml)"
 ACTING_FOR_ID_HELP = (
@@ -203,5 +209,13 @@ def main(argv: list[str] | None = None) -> int:
     return result
 
 
+def entry() -> int:
+    """Console-script entry: fill unset variables from workbench/.env, then run the CLI.
+
+    `main` itself reads only the real environment, so tests that call it see no `.env`."""
+    load_env_file()
+    return main()
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(entry())

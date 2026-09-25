@@ -36,12 +36,13 @@ the dependency is in the wrong tier.
 | `rocrate` | Runtime | `provenance.py` | write `ro-crate-metadata.json` directly |
 | `pyyaml` | Runtime | `policy.py` | JSON profiles |
 | `uvicorn` | Runtime | `cli.py serve` | any ASGI server |
+| `python-dotenv` | Runtime | `settings.py::load_env_file` | `uv run --env-file`, or export in the shell |
 | `anthropic` (optional extra) | Runtime | `agents/r3/explain.py::Explainer` | `TemplateExplainer`, or any HTTP client against the Messages API |
 | `pytest`, `pytest-recording`, `pytest-json-report`, `linkml`, `ruff`, `mypy` | Evaluation/CI | — | — |
 | `inspect-ai` (workbench `eval` extra; ADR-0013) | Evaluation/CI | `workbench/evaluation.py` | a loop over the case file calling `Conductor.invoke` |
 | OPA/Cedar; in-toto/Sigstore; LangChain/LangGraph and other agent frameworks; a bespoke cassette layer; a bespoke trace format; MCP and Signpost FAIRsharing backends | Rejected | — | — |
 
-The runtime tier has eleven members against the MVP plan's target of about eight. The three
+The runtime tier has twelve members against the MVP plan's target of about eight. The three
 most easily removed are `rocrate`, `anthropic` and `ag-ui-protocol`, each behind a single
 module. The overshoot is recorded here rather than hidden by vendoring.
 
