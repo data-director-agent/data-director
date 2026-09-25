@@ -109,7 +109,7 @@ itself: export them in the shell, or copy [`env.example`](env.example) to `.env`
 |---|---|---|
 | `DD_RUNS_DIR` | `runs` | Where each run's folder is written. |
 | `DD_WRITE_CRATE` | `1` | `0` stops the provenance record (Process Run Crate) being written. |
-| `DD_PROFILES_DIR` | `profiles` | The directory institutional profiles are read from. |
+| `DD_PROFILE` | `profiles/default.yaml` | The institutional profile applied to every invocation. A request cannot name one (ADR-0017). |
 | `DD_AGENTS_CONFIG` | `agents.yaml` | The agent registry file. |
 | `DD_WORKBENCH_URL` | the host and port of `serve` | The address the orchestrator uses to call the workbench back. Set it when agents reach the workbench by another name, such as a container network or a proxy. |
 
@@ -125,9 +125,10 @@ as unavailable and the rest still run; see [`docs/registry.md`](docs/registry.md
 
 ### Institutional profiles
 
-A profile says which agents may run and which actions need a person's approval. `invoke` uses
-`profile:default`, which is [`profiles/default.yaml`](profiles/default.yaml); pass
-`--profile profile:<id>` to use another, or a path to a profile file. The format is described in
+A profile says which agents may run, which action class each is assigned, and which classes need
+a person's approval. The deployment chooses one profile for every invocation; a request cannot
+name one. The default is [`profiles/default.yaml`](profiles/default.yaml). Set `DD_PROFILE`, or
+pass `--profile <path>` to `invoke` or `serve`, to use another. The format is described in
 [`profiles/README.md`](profiles/README.md).
 
 ### Command-line options
@@ -145,8 +146,11 @@ A profile says which agents may run and which actions need a person's approval. 
   it with `../scripts/run-agents.sh`, and check its URL in `agents.yaml`.
 - **`failed: input-not-accepted`.** The agent does not read that input class. `workbench agents`
   shows what each accepts.
-- **`failed: agent-not-permitted`.** The profile in use does not list the agent in
-  `agents_enabled`.
+- **`failed: agent-not-permitted`.** The profile in use does not list the agent under `agents`.
+- **`failed: action-class-mismatch`.** The agent declares a different action class from the one
+  the profile assigns it, usually because the agent changed. The steward updates the profile.
+- **The workbench will not start: `has keys nothing enforces`.** The profile uses a key outside
+  its vocabulary; see [`profiles/README.md`](profiles/README.md).
 - **`director.stub` cannot reach other agents from `invoke`.** `invoke` issues no delegation
   grant, so the orchestrator has no way to call them. Use `workbench serve`; see
   [The viewer](#the-viewer).

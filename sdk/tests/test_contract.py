@@ -123,6 +123,8 @@ def _envelope(**overrides: object) -> Envelope:
         "agent_version": "0.1.0",
         "completed_at": datetime.now(UTC),
         "grounding_mode": GroundingMode.NONE,
+        "policy_bundle_ref": "profile:default@v2",
+        "policy_digest": "0" * 64,
         "outcome": Outcome(
             status=OutcomeStatus.ABSTAINED,
             reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
@@ -350,9 +352,7 @@ def test_human_review_cannot_be_false() -> None:
 
 
 def test_request_validates_and_rejects_bad_id() -> None:
-    req = InvocationRequest(
-        agent_id="stub.abstain", policy_bundle_ref="profile:default", input=DatasetProfile()
-    )
+    req = InvocationRequest(agent_id="stub.abstain", input=DatasetProfile())
     validate.validate_request(to_document(req))
     doc = to_document(req)
     doc["invocation_id"] = "not-a-uuid"
@@ -369,9 +369,7 @@ def test_every_input_class_validates_and_is_discriminated_by_schema_class() -> N
         Salutation(greeted_name="world"),
         Message(message_text="hello"),
     ):
-        req = InvocationRequest(
-            agent_id="stub.abstain", policy_bundle_ref="profile:default", input=inp
-        )
+        req = InvocationRequest(agent_id="stub.abstain", input=inp)
         doc = to_document(req)
         validate.validate_request(doc)
         assert doc["input"]["schema_class"] == type(inp).__name__
@@ -385,9 +383,7 @@ def test_input_without_schema_class_is_rejected() -> None:
 
     with pytest.raises(ValidationError):
         parse_input({})
-    req = to_document(
-        InvocationRequest(agent_id="a", policy_bundle_ref="profile:default", input=Claim(text="x"))
-    )
+    req = to_document(InvocationRequest(agent_id="a", input=Claim(text="x")))
     del req["input"]["schema_class"]
     with pytest.raises(validate.ContractViolation):
         validate.validate_request(req)
@@ -450,7 +446,6 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
     )
     req = InvocationRequest(
         agent_id="director.stub",
-        policy_bundle_ref="profile:default",
         conversation_id=conv,
         input=message,
     )
@@ -482,11 +477,7 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
 
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_bad_conversation_id_is_rejected() -> None:
-    doc = to_document(
-        InvocationRequest(
-            agent_id="a", policy_bundle_ref="profile:default", input=Message(message_text="x")
-        )
-    )
+    doc = to_document(InvocationRequest(agent_id="a", input=Message(message_text="x")))
     doc["conversation_id"] = "not-a-uuid"
     with pytest.raises(validate.ContractViolation, match="conversation_id"):
         validate.validate_request(doc)

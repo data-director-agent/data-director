@@ -4,6 +4,7 @@ xfailed test_r3_harness.py for those."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -34,9 +35,10 @@ from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
 from workbench import testing as fakes
 from workbench.conductor import DuplicateInvocation
-from workbench.policy import PROFILES_DIR, PolicyError, gate, load_profile
+from workbench.policy import DEFAULT_PROFILE, PolicyError, gate, load_profile
 from workbench.store import RunStore
 from workbench.testing import (
+    RESTRICTIVE,
     SOURCE_A,
     SOURCE_B,
     Chat,
@@ -74,41 +76,79 @@ def test_unknown_canonicalisation_is_a_programmer_error() -> None:
 
 
 @pytest.mark.requirement("DD-POLICY")
-def test_gate_answers_only_two_questions() -> None:
-    default = load_profile("profile:default", PROFILES_DIR)
+def test_gate_matches_the_class_the_profile_assigns_not_the_one_the_agent_declares() -> None:
+    default = load_profile(DEFAULT_PROFILE)
     assert gate(default, "quality.reviewer", "advise").allowed
     assert not gate(default, "quality.reviewer", "advise").requires_approval
-    assert gate(default, "quality.reviewer", "deposit").requires_approval
     assert not gate(default, "unknown.agent", "advise").allowed
-    restrictive = load_profile("profile:test-restrictive", PROFILES_DIR)
-    assert not gate(restrictive, "quality.reviewer", "advise").allowed
+    # An agent that declares a class other than the one the steward assigned is refused, not
+    # gated on its own claim: here a reviewer that starts declaring writes.
+    upgraded = gate(default, "quality.reviewer", "metadata_write")
+    assert not upgraded.allowed and upgraded.refusal == "action-class-mismatch"
+    restrictive = load_profile(RESTRICTIVE)
     assert gate(restrictive, "stub.abstain", "advise").requires_approval
+    # The steward assigned `deposit`; the agent declaring `advise` cannot talk its way down.
+    downgraded = gate(restrictive, "quality.reviewer", "advise")
+    assert not downgraded.allowed and downgraded.refusal == "action-class-mismatch"
 
 
-def test_missing_profile_is_a_configuration_error() -> None:
+def test_missing_profile_is_a_configuration_error(tmp_path: Path) -> None:
     with pytest.raises(PolicyError):
-        load_profile("profile:does-not-exist", PROFILES_DIR)
+        load_profile(tmp_path / "does-not-exist.yaml")
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
+    stale = tmp_path / "stale.yaml"
+    stale.write_text(
+        DEFAULT_PROFILE.read_text(encoding="utf-8") + "approved_repositories: []\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(PolicyError, match="approved_repositories"):
+        load_profile(stale)
 
 
 @pytest.mark.requirement("DD-POLICY", "C13.2")
 def test_disabled_agent_fails_with_problem_details(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)
-    env = make_conductor(runs_dir, agent).invoke(
-        request(agent.spec.agent_id, bundle="profile:test-restrictive")
-    )
+    env = make_conductor(runs_dir, agent, profile=RESTRICTIVE).invoke(request(agent.spec.agent_id))
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/agent-not-permitted")
     assert env.payload is None and agent.calls == 0
 
 
+@pytest.mark.requirement("DD-POLICY")
+def test_an_agent_declaring_another_class_than_assigned_fails_and_is_not_run(
+    runs_dir: Path,
+) -> None:
+    agent = ScriptedAgent(
+        GroundingMode.INPUT_ONLY, fakes.review_of_input, agent_id="quality.reviewer"
+    )
+    env = make_conductor(runs_dir, agent, profile=RESTRICTIVE).invoke(request(agent.spec.agent_id))
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/action-class-mismatch")
+    assert env.problem.http_status == 403
+    assert "'deposit'" in (env.problem.detail or "") and agent.calls == 0
+
+
 @pytest.mark.requirement("DD-POLICY", "DD-OUTCOME", "C13.2")
 def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, AbstainingStub()).invoke(
-        request("stub.abstain", bundle="profile:test-restrictive")
+    env = make_conductor(runs_dir, AbstainingStub(), profile=RESTRICTIVE).invoke(
+        request("stub.abstain")
     )
     assert env.outcome.status == OutcomeStatus.REFERRED
     assert env.outcome.reason_code == ReasonCode.POLICY_REQUIRES_APPROVAL
     assert env.outcome.referred_to == "data_steward"
+
+
+@pytest.mark.requirement("DD-POLICY-OWNER")
+def test_the_envelope_records_the_profile_the_conductor_applied(runs_dir: Path) -> None:
+    conductor = make_conductor(runs_dir, AbstainingStub(), profile=RESTRICTIVE)
+    env = conductor.invoke(request("stub.abstain"))
+    assert env.policy_bundle_ref == "profile:test-restrictive@v2"
+    assert env.policy_digest == hashlib.sha256(RESTRICTIVE.read_bytes()).hexdigest()
+    stored = conductor.store.get(env.invocation_id)
+    assert stored is not None and stored["policy_digest"] == env.policy_digest
 
 
 # --- Input check ------------------------------------------------------------------------------

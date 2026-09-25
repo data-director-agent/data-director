@@ -1,24 +1,18 @@
 # Default institutional profile. See README.md in this directory for what each key means.
 profile_id: default
-version: 1
+version: 2
 description: Development profile for the workbench; enables every in-tree agent, requires approval for writes.
 
-agents_enabled:
-  - quality.reviewer
-  - fact.checker
-  - r3.standards-advisor
-  - stub.abstain
-  - hello.world
-  - director.stub
+# Each agent that may run, and the action class the steward assigns it. An agent whose card
+# declares a different class is refused until this file is updated.
+agents:
+  quality.reviewer: advise
+  fact.checker: advise
+  r3.standards-advisor: advise
+  stub.abstain: advise
+  hello.world: advise
+  director.stub: advise
 
 actions_requiring_approval:
   - deposit
   - metadata_write
-
-approved_repositories:
-  - https://orda.shef.ac.uk
-pid_systems:
-  - doi
-registries:
-  fairsharing:
-    allowed: true

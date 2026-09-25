@@ -13,10 +13,12 @@ An agent receives an `InvocationRequest`. Its main fields are:
 |---|---|
 | `invocation_id` | A UUIDv7 identifier for this run. UUIDv7 values sort by time ([ADR-0004](adr/0004-identifiers-and-problems.md)). |
 | `agent_id` | The agent to run, for example `quality.reviewer`. |
-| `policy_bundle_ref` | The institutional policy profile to apply, for example `profile:default`. |
 | `input` | The input document. |
 | `conversation_id` | Optional. The conversation this run is a turn of (see below). |
 | `parent_invocation_id` | Set only by the conductor, on a run another agent delegated. A caller that sets it is refused. |
+
+A request does not name an institutional profile. The deployment chooses one, and a request that
+carries `policy_bundle_ref` fails validation ([ADR-0017](adr/0017-policy-is-the-deployments.md)).
 
 The input is one of several input classes: `DatasetProfile`, `MetadataRecord`, `Claim`,
 `Salutation` or `Message`. Its `schema_class` field says which one it is
@@ -32,6 +34,7 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 | `payload` | The agent's result. Present only when the status is `succeeded`. |
 | `evidence` | The source records the result rests on. Each item carries a content hash and names the canonicalisation used to compute it ([ADR-0009](adr/0009-evidence-canonicalisations.md)). |
 | `grounding_mode` | The grounding mode the agent declared ([`grounding.md`](grounding.md)). |
+| `policy_bundle_ref`, `policy_digest` | The institutional profile the conductor applied, as `profile:<id>@v<version>`, and the SHA-256 of its file ([ADR-0017](adr/0017-policy-is-the-deployments.md)). |
 | `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields are always empty for now (`not_measured`). |
 | `requires_human_review` | Always `true`. The schema fixes it as a constant, so no envelope can claim otherwise. |
 | `problem` | Details of the problem, when the status is `failed` or `suspended`. |

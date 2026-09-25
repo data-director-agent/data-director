@@ -106,7 +106,7 @@ export function parseSse(text) {
 // conversation the thread is the conversation_id; `messages` mirrors the history for protocol
 // fidelity, but the agent reads its history from the Message input, not from here.
 export function newRequest(agentId, input, conversationId = null) {
-  const request = { agent_id: agentId, policy_bundle_ref: "profile:default", input,
+  const request = { agent_id: agentId, input,
     invocation_id: uuid7(), issued_at: new Date().toISOString(), requirement_ids: [] };
   if (conversationId) request.conversation_id = conversationId;
   return request;

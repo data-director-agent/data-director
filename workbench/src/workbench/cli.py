@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,8 @@ from workbench import grounding, sources
 from workbench.conductor import UnknownAgent
 from workbench.registry import Registry
 from workbench.settings import Settings, build_conductor, build_registry
+
+PROFILE_HELP = "institutional profile file (default: DD_PROFILE, else profiles/default.yaml)"
 
 
 def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
@@ -72,11 +75,17 @@ def cmd_agents(args: argparse.Namespace) -> int:
     return 0
 
 
+def _settings(args: argparse.Namespace) -> Settings:
+    """The environment's settings, with `--profile` in place of `DD_PROFILE` if given. Whoever
+    runs the CLI is the operator, so the profile is theirs to choose (ADR-0017)."""
+    settings = Settings.from_env()
+    return replace(settings, profile=Path(args.profile)) if args.profile else settings
+
+
 def cmd_invoke(args: argparse.Namespace) -> int:
-    conductor = build_conductor(Settings.from_env())
+    conductor = build_conductor(_settings(args))
     request = InvocationRequest(
         agent_id=args.agent,
-        policy_bundle_ref=args.profile,
         input=_load_input(args, conductor.registry),
         requirement_ids=args.requirement or [],
     )
@@ -118,7 +127,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     from workbench.transport.app import build_app
 
-    settings = Settings.from_env()
+    settings = _settings(args)
     base_url = f"http://{args.host}:{args.port}"
     conductor = build_conductor(settings)
     conductor.workbench_url = settings.workbench_url or base_url  # delegation callback (ADR-0012)
@@ -143,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=sorted(INPUT_TYPES),
         help="input class, if the document has no schema_class and the agent accepts several",
     )
-    p.add_argument("--profile", default="profile:default", help="policy bundle reference")
+    p.add_argument("--profile", help=PROFILE_HELP)
     p.add_argument(
         "--requirement", action="append", help="requirement id being exercised (repeatable)"
     )
@@ -164,6 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("serve", help="serve A2A, AG-UI and the viewer")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--profile", help=PROFILE_HELP)
     p.set_defaults(func=cmd_serve)
 
     args = parser.parse_args(argv)

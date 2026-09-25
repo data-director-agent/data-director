@@ -41,7 +41,7 @@ from workbench.evaluation import (
     outcome_matches,
     stopped_correctly,
 )
-from workbench.testing import PERMISSIVE, ScriptedAgent, make_conductor, record, review_of_input
+from workbench.testing import ScriptedAgent, make_conductor, record, review_of_input
 
 # Inspect AI leaves its sample-event stream unclosed (inspect_ai/hooks/_hooks.py, the sample
 # event emitter); with warnings as errors, its deallocator warning fails whichever test is
@@ -110,7 +110,7 @@ def run(tmp_path: Path) -> Any:
 
     task = Task(
         dataset=CASES,
-        solver=invoke_agent(conductor_for, agent.spec.agent_id, PERMISSIVE),
+        solver=invoke_agent(conductor_for, agent.spec.agent_id),
         scorer=[outcome_matches(), stopped_correctly(), grounding_passed()],
     )
     [log] = inspect_eval(task, model="none", log_dir=str(tmp_path / "logs"), display="none")

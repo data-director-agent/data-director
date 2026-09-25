@@ -213,7 +213,7 @@
       },
       "Envelope": {
          "additionalProperties": false,
-         "description": "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload.",
+         "description": "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload.",
          "properties": {
             "invocation_id": {
                "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
@@ -234,6 +234,16 @@
             "grounding_mode": {
                "$ref": "#/$defs/GroundingMode",
                "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
+            },
+            "policy_bundle_ref": {
+               "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017).",
+               "pattern": "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$",
+               "type": "string"
+            },
+            "policy_digest": {
+               "description": "SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
             },
             "outcome": {
                "$ref": "#/$defs/Outcome"
@@ -321,6 +331,8 @@
             "agent_version",
             "completed_at",
             "grounding_mode",
+            "policy_bundle_ref",
+            "policy_digest",
             "outcome",
             "telemetry",
             "requires_human_review"
@@ -573,10 +585,6 @@
                "format": "date-time",
                "type": "string"
             },
-            "policy_bundle_ref": {
-               "description": "Reference to the institutional profile the conductor applied (path or profile:<id>).",
-               "type": "string"
-            },
             "conversation_id": {
                "description": "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.",
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -618,7 +626,6 @@
             "invocation_id",
             "agent_id",
             "issued_at",
-            "policy_bundle_ref",
             "input"
          ],
          "title": "InvocationRequest",
@@ -1187,7 +1194,7 @@
    "$id": "https://w3id.org/data-director/schema/workbench",
    "$schema": "https://json-schema.org/draft/2019-09/schema",
    "additionalProperties": true,
-   "description": "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload.",
+   "description": "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload.",
    "metamodel_version": "1.11.0",
    "properties": {
       "invocation_id": {
@@ -1209,6 +1216,16 @@
       "grounding_mode": {
          "$ref": "#/$defs/GroundingMode",
          "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
+      },
+      "policy_bundle_ref": {
+         "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017).",
+         "pattern": "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$",
+         "type": "string"
+      },
+      "policy_digest": {
+         "description": "SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied.",
+         "pattern": "^[0-9a-f]{64}$",
+         "type": "string"
       },
       "outcome": {
          "$ref": "#/$defs/Outcome"
@@ -1296,11 +1313,13 @@
       "agent_version",
       "completed_at",
       "grounding_mode",
+      "policy_bundle_ref",
+      "policy_digest",
       "outcome",
       "telemetry",
       "requires_human_review"
    ],
    "title": "data_director_workbench",
    "type": "object",
-   "version": "0.4.0"
+   "version": "0.5.0"
 }

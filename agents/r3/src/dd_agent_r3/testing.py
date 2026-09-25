@@ -152,18 +152,15 @@ def make_conductor(runs_dir: Path, r3: Any = None, crate: bool = True) -> Any:
     from dd_agent_r3.agent import R3Agent
     from dd_agent_r3.explain import TemplateExplainer
     from dd_agent_stub.agent import AbstainingStub
+    from workbench.policy import DEFAULT_PROFILE
     from workbench.testing import make_conductor as workbench_conductor
 
     r3 = r3 or R3Agent(retrieval=FakeRetrieval(), explainer=TemplateExplainer())
-    return workbench_conductor(runs_dir, r3, AbstainingStub(), crate=crate)
+    return workbench_conductor(runs_dir, r3, AbstainingStub(), crate=crate, profile=DEFAULT_PROFILE)
 
 
-def request(
-    agent_id: str, profile: DatasetProfile | None = None, bundle: str = "profile:default"
-) -> InvocationRequest:
-    return InvocationRequest(
-        agent_id=agent_id, policy_bundle_ref=bundle, input=profile or soil_profile()
-    )
+def request(agent_id: str, profile: DatasetProfile | None = None) -> InvocationRequest:
+    return InvocationRequest(agent_id=agent_id, input=profile or soil_profile())
 
 
 def cited_record(envelope: Envelope, item: Recommendation) -> dict[str, Any]:

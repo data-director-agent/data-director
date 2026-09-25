@@ -18,7 +18,7 @@ from dd_sdk.contract.models import (
     input_source_id,
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
-from workbench.testing import PERMISSIVE, make_conductor, request
+from workbench.testing import make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
 
@@ -66,7 +66,7 @@ def test_complete_record_scores_one_and_every_finding_is_informational(runs_dir:
 @pytest.mark.requirement("DD-OUTCOME")
 def test_empty_record_abstains(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, QualityReviewer()).invoke(
-        request("quality.reviewer", MetadataRecord(), bundle=PERMISSIVE)
+        request("quality.reviewer", MetadataRecord())
     )
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.INSUFFICIENT_INPUT

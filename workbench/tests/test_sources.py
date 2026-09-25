@@ -18,6 +18,7 @@ from dd_sdk.contract.models import GroundingMode, OutcomeStatus, parse_input
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from workbench import cli
 from workbench import testing as fakes
+from workbench.policy import DEFAULT_PROFILE
 from workbench.settings import DEFAULT_SOURCES_CONFIG, ROOT
 from workbench.sources import RecordsFile, SourceConfigError, Sources, check
 
@@ -177,9 +178,9 @@ def _sample(name: str) -> Any:
 def test_real_agents_evidence_verifies_against_the_committed_copies(
     tmp_path: Path, agent: Any, sample: str
 ) -> None:
-    conductor = fakes.make_conductor(tmp_path / "runs", agent)
+    conductor = fakes.make_conductor(tmp_path / "runs", agent, profile=DEFAULT_PROFILE)
     conductor.sources = Sources.from_config(DEFAULT_SOURCES_CONFIG)
-    request = fakes.request(agent.spec.agent_id, _sample(sample), bundle="profile:default")
+    request = fakes.request(agent.spec.agent_id, _sample(sample))
     envelope = conductor.invoke(request)
     assert envelope.outcome.status == OutcomeStatus.SUCCEEDED, envelope.outcome.statement
     report = check(envelope.to_document(), conductor.sources)

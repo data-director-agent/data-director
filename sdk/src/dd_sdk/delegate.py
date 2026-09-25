@@ -108,7 +108,6 @@ class WorkbenchDelegate:
     def __call__(self, agent_id: str, input: Frozen) -> Delegated:
         request = InvocationRequest(
             agent_id=agent_id,
-            policy_bundle_ref=self.parent.policy_bundle_ref,  # the conductor applies the grant's
             conversation_id=self.parent.conversation_id,
             input=input,
         )

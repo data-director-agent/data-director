@@ -37,14 +37,17 @@ reviewer all see the same record.
 
 | Step | What it checks | If the check fails |
 |---|---|---|
-| 1. Policy gate | Is the agent enabled in the institution's profile? Does its action class need approval? | Not enabled: `failed`, problem `agent-not-permitted`. Needs approval: `referred` to a data steward. The agent does not run. |
+| 1. Policy gate | Is the agent enabled in the institution's profile? Does it declare the action class the profile assigns it? Does that class need approval? | Not enabled: `failed`, problem `agent-not-permitted`. Another class: `failed`, problem `action-class-mismatch`. Needs approval: `referred` to a data steward. The agent does not run. |
 | 2. Input check | Does the agent read this input class? | `failed`, problem `input-not-accepted`. The agent does not run. |
 | 3. Run the agent | The agent runs. The conductor checks it returned the payload class it declared. | An exception, or a payload of the wrong class: `failed`, problem `agent-error`. |
 | 4. Grounding linter | Is the output based only on what the agent's grounding mode allows? See [`grounding.md`](grounding.md). | A `succeeded` envelope becomes `failed`, problem `grounding-violation`. The payload and evidence are removed. |
 | 5. Validate and store | The envelope is validated against the JSON Schema, then stored. | An invalid envelope raises an exception; it is a bug in the workbench. |
 
-The policy profile is a YAML file in `profiles/`. The gate answers only the two questions in
-step 1 ([ADR-0003](adr/0003-policy-profiles.md)).
+The policy profile is a YAML file in `profiles/`. The deployment chooses it when the conductor is
+built (`DD_PROFILE`, or `--profile`), and the conductor records it on every envelope as
+`policy_bundle_ref` and `policy_digest`. A request cannot name one. The gate answers only the
+questions in step 1 ([ADR-0003](adr/0003-policy-profiles.md),
+[ADR-0017](adr/0017-policy-is-the-deployments.md)).
 
 ## Delegation
 
@@ -60,8 +63,8 @@ them directly.
    workbench's A2A endpoint with the token.
 3. `Conductor.invoke_delegated` checks the token and refuses an unknown or expired one, or an
    agent delegating to itself. It then runs the request through every step above, as a run of
-   its own, in a trace of its own linked to the parent's. It takes the conversation and policy
-   profile from the grant, and sets `parent_invocation_id`.
+   its own, in a trace of its own linked to the parent's. It takes the conversation from the grant,
+   is gated by the conductor's own profile, and sets `parent_invocation_id`.
 4. The conductor records the child's id, agent, version, status and envelope hash against the
    grant. When the parent finishes, the grant is revoked and those records become the parent
    envelope's `delegations`, even if the parent then fails.

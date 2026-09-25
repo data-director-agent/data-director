@@ -21,7 +21,19 @@ def agent_not_permitted(agent_id: str, profile_id: str) -> ProblemDetails:
     return problem(
         "agent-not-permitted",
         "Agent not enabled by the institutional profile",
-        f"Agent {agent_id!r} is not listed in agents_enabled of profile {profile_id!r}.",
+        f"Agent {agent_id!r} is not listed in agents of profile {profile_id!r}.",
+        http_status=403,
+    )
+
+
+def action_class_mismatch(
+    agent_id: str, declared: str, assigned: str, profile_id: str
+) -> ProblemDetails:
+    return problem(
+        "action-class-mismatch",
+        "Agent declares an action class the institutional profile does not assign it",
+        f"Agent {agent_id!r} declares {declared!r}; profile {profile_id!r} assigns it "
+        f"{assigned!r}. The steward must update the profile before this agent runs.",
         http_status=403,
     )
 

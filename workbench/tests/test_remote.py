@@ -27,10 +27,12 @@ from dd_sdk.contract.models import (
 from dd_sdk.tracing import ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, records_from_jsonl
 from dd_sdk.wire import WireError, reply_from_document, reply_to_document
 from workbench.conductor import Conductor
+from workbench.policy import load_profile
 from workbench.registry import Registry
 from workbench.remote import RemoteAgent
 from workbench.store import RunStore
 from workbench.testing import (
+    PERMISSIVE,
     SOURCE_A,
     ScriptedAgent,
     claim,
@@ -112,7 +114,10 @@ def test_an_agent_that_exceeds_its_timeout_is_a_failed_envelope(runs_dir: Path) 
 
     remote = in_process(ScriptedAgent(GroundingMode.NONE, slow), timeout_s=0.1)
     conductor = Conductor(
-        registry=Registry.from_agents([remote]), store=RunStore(runs_dir), write_crate=False
+        registry=Registry.from_agents([remote]),
+        store=RunStore(runs_dir),
+        profile=load_profile(PERMISSIVE),
+        write_crate=False,
     )
     env = conductor.invoke(request(remote.spec.agent_id))
     assert env.outcome.status == OutcomeStatus.FAILED
@@ -130,7 +135,10 @@ def test_an_agent_that_goes_away_after_registration_is_a_failed_envelope(runs_di
 
     gone = RemoteAgent(spec=registered.spec, url=registered.url, client_factory=refused)
     conductor = Conductor(
-        registry=Registry.from_agents([gone]), store=RunStore(runs_dir), write_crate=False
+        registry=Registry.from_agents([gone]),
+        store=RunStore(runs_dir),
+        profile=load_profile(PERMISSIVE),
+        write_crate=False,
     )
     env = conductor.invoke(request(gone.spec.agent_id))
     assert env.outcome.status == OutcomeStatus.FAILED

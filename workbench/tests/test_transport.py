@@ -195,15 +195,24 @@ def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: 
     assert status == 404
 
 
-def test_agui_reports_an_unknown_agent_or_policy_as_run_error(runs_dir: Path) -> None:
+def _naming_a_profile() -> dict[str, Any]:
+    """A request that tries to choose its own policy, as one could before ADR-0017."""
+    doc = to_document(request("quality.reviewer", record()))
+    doc["policy_bundle_ref"] = "profile:test-permissive"
+    return doc
+
+
+@pytest.mark.requirement("DD-POLICY-OWNER")
+def test_agui_reports_an_unknown_agent_or_a_request_naming_a_profile_as_run_error(
+    runs_dir: Path,
+) -> None:
     _, app = _app(runs_dir)
     unknown_agent = to_document(request("no.such.agent", record()))
-    unknown_policy = to_document(request("quality.reviewer", record(), bundle="no-such-profile"))
 
     async def go() -> list[tuple[int, list[dict[str, Any]]]]:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
             out = []
-            for doc in (unknown_agent, unknown_policy):
+            for doc in (unknown_agent, _naming_a_profile()):
                 r = await hc.post("/agui", json=_agui_body(doc, "t1"))
                 out.append((r.status_code, _sse_events(r.text)))
             return out
@@ -213,14 +222,15 @@ def test_agui_reports_an_unknown_agent_or_policy_as_run_error(runs_dir: Path) ->
     assert [e["type"] for e in agent_events] == ["RUN_ERROR"]
     assert "no.such.agent" in agent_events[0]["message"]
     assert [e["type"] for e in policy_events] == ["RUN_ERROR"]
-    assert "no-such-profile" in policy_events[0]["message"]
+    assert "policy_bundle_ref" in policy_events[0]["message"]
 
 
-def test_a2a_fails_an_unknown_policy(runs_dir: Path) -> None:
-    _, app = _app(runs_dir)
-    doc = to_document(request("quality.reviewer", record(), bundle="no-such-profile"))
-    resp = asyncio.run(_send_a2a(app, doc))
+@pytest.mark.requirement("DD-POLICY-OWNER")
+def test_a2a_fails_a_request_naming_a_profile_and_runs_nothing(runs_dir: Path) -> None:
+    conductor, app = _app(runs_dir)
+    resp = asyncio.run(_send_a2a(app, _naming_a_profile()))
     assert resp.task.status.state == TaskState.TASK_STATE_FAILED
+    assert list(conductor.store.iter_envelopes()) == []
 
 
 @pytest.mark.requirement("DD-REGISTRY")

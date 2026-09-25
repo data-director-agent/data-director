@@ -27,7 +27,6 @@ import secrets
 import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from opentelemetry.trace import SpanContext
@@ -96,7 +95,6 @@ class Grant:
     parent_invocation_id: str
     parent_agent_id: str
     conversation_id: str | None
-    policy_bundle_ref: str
     delegations: list[Delegation] = field(default_factory=list)
     # Children admitted under this grant and not yet finished; revocation waits for them.
     in_flight: int = 0
@@ -106,7 +104,9 @@ class Grant:
 class Conductor:
     registry: Registry
     store: RunStore
-    profiles_dir: Path = policy.PROFILES_DIR
+    # The deployment's institutional profile, loaded once by whoever builds the conductor. Every
+    # invocation, delegated or not, is gated by it; a request cannot name another (ADR-0017).
+    profile: policy.Profile
     tracing: Tracing = field(default_factory=make_tracing)
     write_crate: bool = True
     grounding_reports: dict[str, grounding.GroundingReport] = field(default_factory=dict)
@@ -136,7 +136,8 @@ class Conductor:
         """Run a request a delegation agent sent back under its grant, and record it.
 
         Raises `DelegationError` for an unknown or expired token or an agent delegating to
-        itself. The child's conversation and policy are the parent's, whatever the request says.
+        itself. The child's conversation is the parent's, whatever the request says; its policy is
+        the conductor's, as every invocation's is.
         """
         with self._grants_lock:
             grant = self._grants.get(token)
@@ -157,7 +158,6 @@ class Conductor:
             update={
                 "parent_invocation_id": grant.parent_invocation_id,
                 "conversation_id": grant.conversation_id,
-                "policy_bundle_ref": grant.policy_bundle_ref,
             }
         )
         envelope = self._invoke(child, link=_span_context(traceparent))
@@ -178,7 +178,6 @@ class Conductor:
             parent_invocation_id=request.invocation_id,
             parent_agent_id=request.agent_id,
             conversation_id=request.conversation_id,
-            policy_bundle_ref=request.policy_bundle_ref,
         )
         with self._grants_lock:
             self._grants[grant.token] = grant
@@ -240,16 +239,28 @@ class Conductor:
         ) as root:
             trace_id = format(root.get_span_context().trace_id, "032x")
 
-            # 1. Policy gate.
-            profile = policy.load_profile(request.policy_bundle_ref, self.profiles_dir)
+            # 1. Policy gate, against the deployment's profile.
+            profile = self.profile
             with policy_gate_span(tracer, spec.agent_id):
                 decision = policy.gate(profile, spec.agent_id, spec.action_class)
             result: AgentResult
             if not decision.allowed:
                 result = AgentResult(
-                    outcome=Outcome(status=OutcomeStatus.FAILED, statement=decision.reason),
+                    outcome=Outcome(
+                        status=OutcomeStatus.FAILED,
+                        statement=f"{decision.reason}. The agent was not run.",
+                    ),
                 )
-                prob = problems.agent_not_permitted(spec.agent_id, profile.profile_id)
+                prob = (
+                    problems.action_class_mismatch(
+                        spec.agent_id,
+                        spec.action_class,
+                        profile.agents[spec.agent_id],
+                        profile.profile_id,
+                    )
+                    if decision.refusal == "action-class-mismatch"
+                    else problems.agent_not_permitted(spec.agent_id, profile.profile_id)
+                )
             elif decision.requires_approval:
                 result = AgentResult(
                     outcome=Outcome(
@@ -338,6 +349,8 @@ class Conductor:
                 agent_version=spec.version,
                 completed_at=datetime.now(UTC),
                 grounding_mode=spec.grounding_mode,
+                policy_bundle_ref=profile.ref,
+                policy_digest=profile.digest,
                 outcome=result.outcome,
                 payload=result.payload,
                 evidence=result.evidence,

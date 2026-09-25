@@ -1,8 +1,8 @@
 """Environment-driven harness settings and the factory that assembles a Conductor.
 
-Only harness concerns live here (where runs go, which profiles directory, whether to write a
-crate, where the agent and source configurations are). Agents are separate services and read
-their own `DD_<AGENT>_*` variables in their own processes; see env.example.
+Only harness concerns live here (where runs go, which institutional profile governs them,
+whether to write a crate, where the agent and source configurations are). Agents are separate
+services and read their own `DD_<AGENT>_*` variables in their own processes; see env.example.
 Kept in one place so the CLI, the transports and the tests build the same object.
 """
 
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from workbench.conductor import Conductor
-from workbench.policy import PROFILES_DIR
+from workbench.policy import DEFAULT_PROFILE, load_profile
 from workbench.registry import Registry
 from workbench.sources import Sources
 from workbench.store import RunStore
@@ -27,7 +27,8 @@ DEFAULT_SOURCES_CONFIG = ROOT / "sources.yaml"
 @dataclass(frozen=True)
 class Settings:
     runs_dir: Path = DEFAULT_RUNS_DIR
-    profiles_dir: Path = PROFILES_DIR
+    # The one institutional profile this deployment applies to every invocation (ADR-0017).
+    profile: Path = DEFAULT_PROFILE
     write_crate: bool = True
     agents_config: Path = DEFAULT_AGENTS_CONFIG
     # The independent copies of sources the source check resolves evidence against (ADR-0016).
@@ -41,7 +42,7 @@ class Settings:
     def from_env(cls) -> Settings:
         return cls(
             runs_dir=Path(os.environ.get("DD_RUNS_DIR", str(DEFAULT_RUNS_DIR))),
-            profiles_dir=Path(os.environ.get("DD_PROFILES_DIR", str(PROFILES_DIR))),
+            profile=Path(os.environ.get("DD_PROFILE", str(DEFAULT_PROFILE))),
             write_crate=os.environ.get("DD_WRITE_CRATE", "1") != "0",
             agents_config=Path(os.environ.get("DD_AGENTS_CONFIG", str(DEFAULT_AGENTS_CONFIG))),
             sources_config=Path(os.environ.get("DD_SOURCES_CONFIG", str(DEFAULT_SOURCES_CONFIG))),
@@ -58,7 +59,7 @@ def build_conductor(settings: Settings | None = None) -> Conductor:
     return Conductor(
         registry=build_registry(settings),
         store=RunStore(settings.runs_dir),
-        profiles_dir=settings.profiles_dir,
+        profile=load_profile(settings.profile),  # a bad profile stops start-up, not a request
         write_crate=settings.write_crate,
         sources=Sources.from_config(settings.sources_config),
     )

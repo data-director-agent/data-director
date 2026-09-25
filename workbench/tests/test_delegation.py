@@ -186,7 +186,7 @@ def test_a_child_may_not_reuse_its_parents_invocation_id(tmp_path: Path) -> None
 
 
 @pytest.mark.requirement("DD-DELEGATION")
-@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.requirement("DD-POLICY", "DD-POLICY-OWNER")
 def test_a_child_refused_by_policy_is_recorded_and_relayed(tmp_path: Path) -> None:
     conductor = make_conductor(
         tmp_path, delegating("fake.disabled"), child_agent(agent_id="fake.disabled")
@@ -195,7 +195,10 @@ def test_a_child_refused_by_policy_is_recorded_and_relayed(tmp_path: Path) -> No
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     assert env.delegations[0].delegated_status == OutcomeStatus.FAILED
     child = conductor.store.get(env.delegations[0].delegated_invocation_id)
-    assert child is not None and "not in agents_enabled" in child["outcome"]["statement"]
+    assert child is not None and "not enabled" in child["outcome"]["statement"]
+    # The child is held to the conductor's profile, the one its parent was held to.
+    assert child["policy_bundle_ref"] == env.policy_bundle_ref == conductor.profile.ref
+    assert child["policy_digest"] == env.policy_digest
 
 
 @pytest.mark.requirement("DD-DELEGATION")

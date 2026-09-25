@@ -68,9 +68,7 @@ def test_an_input_class_it_did_not_declare_is_refused(runs_dir: Path) -> None:
     from workbench.testing import claim
 
     env = make_conductor(runs_dir, crate=False).invoke(
-        InvocationRequest(
-            agent_id="r3.standards-advisor", policy_bundle_ref="profile:default", input=claim()
-        )
+        InvocationRequest(agent_id="r3.standards-advisor", input=claim())
     )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")

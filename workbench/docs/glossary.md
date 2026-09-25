@@ -19,7 +19,7 @@ Terms used in the workbench, in alphabetical order.
 | OpenTelemetry | A widely used open standard for recording what software does while it runs. The workbench uses it for traces. |
 | Outcome | What happened in a run: `succeeded`, `abstained`, `referred`, `failed` or `suspended`. See [`contract.md`](contract.md). |
 | Payload | The agent's result, present only when the outcome is `succeeded`. |
-| Policy profile | A YAML file in `profiles/` that says which agents an institution enables and which actions need approval. |
+| Policy profile | A YAML file in `profiles/` that says which agents an institution enables, which action class each is assigned, and which classes need approval. The deployment chooses it; a request cannot. |
 | Problem Details | The RFC 9457 format used to describe a `failed` or `suspended` outcome. |
 | Process Run Crate | An RO-Crate provenance record of one run: which agent ran, on what input, and what it produced. |
 | Registry | The workbench's list of agents it can call, built at start-up from `agents.yaml` and each agent's card. See [`registry.md`](registry.md). |

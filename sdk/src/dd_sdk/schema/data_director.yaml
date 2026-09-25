@@ -8,7 +8,7 @@ description: >-
   (ADR-0007); every payload mixes in Grounded so the grounding linter can check it without
   knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.4.0
+version: 0.5.0
 license: MIT
 
 prefixes:
@@ -40,7 +40,6 @@ classes:
       - agent_id
       - requirement_ids
       - issued_at
-      - policy_bundle_ref
       - conversation_id
       - parent_invocation_id
       - input
@@ -48,7 +47,8 @@ classes:
   Envelope:
     description: >-
       The agent's response. Every field an agent did not decide (identifiers, timestamps,
-      telemetry) is filled by the conductor, so an agent cannot mislabel its own run.
+      telemetry, the policy applied) is filled by the conductor, so an agent cannot mislabel its
+      own run.
       Conditional rules not expressible in JSON Schema are enforced by contract.validate:
       failed or suspended requires problem; abstained or referred requires outcome.reason_code;
       succeeded requires payload.
@@ -58,6 +58,8 @@ classes:
       - agent_version
       - completed_at
       - grounding_mode
+      - policy_bundle_ref
+      - policy_digest
       - outcome
       - payload
       - evidence
@@ -349,8 +351,15 @@ slots:
     range: datetime
     required: true
   policy_bundle_ref:
-    description: Reference to the institutional profile the conductor applied (path or profile:<id>).
+    description: >-
+      The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The
+      deployment chooses the profile; a request cannot name one (ADR-0017).
     required: true
+    pattern: "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
+  policy_digest:
+    description: SHA-256 of the profile file's bytes, so a stored run names exactly the rules applied.
+    required: true
+    pattern: "^[0-9a-f]{64}$"
   input:
     description: >-
       What the agent is asked to work on. One of the input classes, discriminated by

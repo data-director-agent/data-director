@@ -104,6 +104,7 @@ def conductors(agents: str | None) -> Any:
         from dd_agent_r3.explain import TemplateExplainer
         from dd_agent_r3.factory import build
         from dd_agent_r3.testing import FakeRetrieval
+        from workbench.policy import DEFAULT_PROFILE
         from workbench.testing import make_conductor
 
         if backend == "snapshot":
@@ -114,16 +115,18 @@ def conductors(agents: str | None) -> Any:
             )
         else:
             raise ValueError(f"backend {backend!r}: expected snapshot or unavailable")
-        return make_conductor(runs / backend, agent)
+        return make_conductor(runs / backend, agent, profile=DEFAULT_PROFILE)
 
     def remote() -> Any:
         from workbench.conductor import Conductor
+        from workbench.policy import DEFAULT_PROFILE, load_profile
         from workbench.registry import Registry
         from workbench.store import RunStore
 
         return Conductor(
             registry=Registry.from_config(Path(str(agents))),
             store=RunStore(runs / "remote"),
+            profile=load_profile(DEFAULT_PROFILE),
             write_crate=False,
         )
 

@@ -111,11 +111,10 @@ def answered_needlessly() -> Metric:
 
 
 @solver
-def invoke_agent(
-    conductor_for: ConductorFor, agent_id: str, policy_bundle_ref: str = "profile:default"
-) -> Solver:
+def invoke_agent(conductor_for: ConductorFor, agent_id: str) -> Solver:
     """Invoke `agent_id` on the case's input through the conductor, and keep the envelope and
-    the linter's report in the sample's metadata. No model is called.
+    the linter's report in the sample's metadata. No model is called. The profile applied is
+    the one each conductor was built with (ADR-0017).
 
     The conductor is synchronous and opens its own event loop per call, so it runs off Inspect's
     loop, on one worker thread that `conductor_for` is also called on. Build the conductor
@@ -128,9 +127,7 @@ def invoke_agent(
         document: dict[str, Any], case: dict[str, Any]
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         conductor = conductor_for(case)
-        request = InvocationRequest(
-            agent_id=agent_id, policy_bundle_ref=policy_bundle_ref, input=parse_input(document)
-        )
+        request = InvocationRequest(agent_id=agent_id, input=parse_input(document))
         envelope = conductor.invoke(request)
         report = conductor.grounding_reports.get(envelope.invocation_id)
         grounding = {

@@ -55,11 +55,13 @@ from dd_sdk.evidence import (
 )
 from dd_sdk.tracing import chat_span, retrieval_span
 from workbench.conductor import Conductor
+from workbench.policy import PROFILES_DIR, load_profile
 from workbench.registry import Registry
 from workbench.remote import RemoteAgent
 from workbench.store import RunStore
 
-PERMISSIVE = "profile:test-permissive"
+PERMISSIVE = PROFILES_DIR / "test-permissive.yaml"
+RESTRICTIVE = PROFILES_DIR / "test-restrictive.yaml"
 
 Behaviour = AgentResult | Exception | Callable[[InvocationRequest, RunContext], AgentResult]
 
@@ -269,9 +271,14 @@ def in_process(
 
 
 def make_conductor(
-    runs_dir: Path, *agents: Agent, crate: bool = False, remote: bool = True
+    runs_dir: Path,
+    *agents: Agent,
+    crate: bool = False,
+    remote: bool = True,
+    profile: Path = PERMISSIVE,
 ) -> Conductor:
-    """A conductor over `agents`, each reached over in-process A2A unless `remote` is False.
+    """A conductor over `agents`, each reached over in-process A2A unless `remote` is False,
+    governed by the institutional profile at `profile`.
 
     A remote conductor also serves its own A2A app in memory at `WORKBENCH_URL` and sets it as
     the delegation callback, so delegation runs over the wire as it does in production.
@@ -286,7 +293,12 @@ def make_conductor(
     registry = Registry.from_agents(
         in_process(a, delegate_client_factory=workbench_client) if remote else a for a in agents
     )
-    conductor = Conductor(registry=registry, store=RunStore(runs_dir), write_crate=crate)
+    conductor = Conductor(
+        registry=registry,
+        store=RunStore(runs_dir),
+        profile=load_profile(profile),
+        write_crate=crate,
+    )
     if remote:
         workbench_app["app"] = build_app(conductor, base_url=WORKBENCH_URL)
         conductor.workbench_url = WORKBENCH_URL
@@ -310,7 +322,5 @@ def claim() -> Claim:
     return Claim(text="A DOI does not change when the object moves.")
 
 
-def request(
-    agent_id: str, input: Frozen | None = None, bundle: str = PERMISSIVE
-) -> InvocationRequest:
-    return InvocationRequest(agent_id=agent_id, policy_bundle_ref=bundle, input=input or record())
+def request(agent_id: str, input: Frozen | None = None) -> InvocationRequest:
+    return InvocationRequest(agent_id=agent_id, input=input or record())

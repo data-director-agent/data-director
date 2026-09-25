@@ -159,7 +159,7 @@ requirements:
   - id: C13.2
     source: project
     parent: C13
-    title: The policy gate refuses an agent the profile does not permit and refers an action requiring approval to a named human role; what happens after referral is not exercised
+    title: The policy gate refuses an agent the profile does not permit and refers an action requiring approval to a named human role; what happens after referral is not exercised (#16)
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions
@@ -216,4 +216,7 @@ requirements:
     title: An orchestrator delegates only through the workbench; each child is a governed, stored invocation and the parent records it
   - id: DD-POLICY
     source: project
-    title: Institutional profile gates which agents run and which actions need approval
+    title: Institutional profile gates which agents run, assigns each its action class, and says which classes need approval
+  - id: DD-POLICY-OWNER
+    source: project
+    title: The deployment chooses the institutional profile; a request cannot name one, and every envelope records the profile and digest the conductor applied
