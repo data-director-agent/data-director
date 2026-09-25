@@ -18,12 +18,27 @@ from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_stub.agent import AbstainingStub
-from dd_sdk.contract.models import new_invocation_id, to_document
+from dd_sdk.contract.models import Claim, MetadataRecord, new_invocation_id, to_document
 from workbench.identity import OperatorAssertion
-from workbench.testing import TEST_PRINCIPAL, claim, make_conductor, record, request
+from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 from workbench.transport.app import build_app
 
 BASE = "http://testserver"
+
+
+def record() -> MetadataRecord:
+    """An input for the real quality.reviewer, in its own class."""
+    return MetadataRecord(
+        identifier="https://doi.org/10.15131/shef.data.00000000",
+        title="Soil chemistry survey",
+        licence="https://creativecommons.org/licenses/by/4.0/",
+        creators=["Example Researcher"],
+    )
+
+
+def claim() -> Claim:
+    """An input for the real fact.checker, in its own class."""
+    return Claim(text="A DOI does not change when the object moves.")
 
 
 def _app(runs_dir: Path):

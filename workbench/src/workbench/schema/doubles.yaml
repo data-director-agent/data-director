@@ -1,0 +1,92 @@
+# Input and payload classes of the workbench's test doubles (workbench.testing), and nothing
+# else: no real agent reads or returns them. They exist so that the harness is tested against
+# classes it knows only from a card, as it will be for every real agent (ADR-0019, decision 10).
+# After an edit, run `uv run dd-gen-schema workbench/src/workbench/schema/doubles.yaml` and keep
+# the Probe* models in ../testing.py in step; ClassSchema.of refuses a model that has drifted.
+id: https://w3id.org/data-director/workbench/doubles
+name: workbench_doubles
+title: Workbench test double classes
+description: >-
+  Stand-ins, shaped like the classes of the demonstration agents, that the scripted agents in
+  workbench.testing accept and return.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  doubles: https://w3id.org/data-director/workbench/doubles/
+  linkml: https://w3id.org/linkml/
+default_prefix: doubles
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  ProbeRecord:
+    description: A metadata record for an input_only or none double to read.
+    slots:
+      - schema_class
+      - identifier
+      - title
+      - licence
+      - creators
+      - keywords
+
+  ProbeClaim:
+    description: A statement for a retrieval double to check.
+    slots:
+      - schema_class
+      - text
+
+  ProbeProfile:
+    description: A second input class, for a double that accepts more than one.
+    slots:
+      - schema_class
+      - title
+
+  ProbeReview:
+    description: What an input_only or none double returns.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - score
+
+  ProbeCheck:
+    description: What a retrieval double returns.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - rationale
+      - rationale_derivation
+
+slots:
+
+  identifier:
+    description: The record's identifier.
+  title:
+    description: A title.
+  licence:
+    description: The record's licence.
+  creators:
+    description: Who made the thing the record describes.
+    multivalued: true
+  keywords:
+    description: Keywords.
+    multivalued: true
+  text:
+    description: The statement to check.
+    required: true
+  score:
+    description: A score between 0 and 1, if one applies.
+    range: float
+  rationale:
+    description: Why the double answered as it did.
+    required: true
+  rationale_derivation:
+    description: How rationale came about.
+    range: Derivation
+    required: true

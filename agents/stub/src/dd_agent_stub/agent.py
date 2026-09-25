@@ -2,8 +2,8 @@
 
 It exists so the viewer, the outcome vocabulary and the conformance report are exercised
 against something other than a successful payload, and so the renderer does not grow features
-only one agent needs. It accepts every input class and declares grounding mode `none`: it
-retrieves nothing and calls no model.
+only one agent needs. It accepts the core's `Message`, the one input class every agent can share
+(ADR-0019), and declares grounding mode `none`: it retrieves nothing and calls no model.
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    INPUT_TYPES,
     GroundingMode,
     InvocationRequest,
+    Message,
     Outcome,
     OutcomeStatus,
     ReasonCode,
@@ -24,11 +24,11 @@ from dd_sdk.contract.models import (
 class AbstainingStub:
     spec = AgentSpec(
         agent_id="stub.abstain",
-        version="0.2.0",
+        version="0.3.0",
         description="Abstains unconditionally; exercises the non-success path.",
         requirement_ids=("DD-OUTCOME",),
         action_class="advise",
-        accepts=tuple(ClassSchema.of(t) for t in INPUT_TYPES.values()),
+        accepts=(ClassSchema.of(Message),),
         grounding_mode=GroundingMode.NONE,
         payload=None,
     )

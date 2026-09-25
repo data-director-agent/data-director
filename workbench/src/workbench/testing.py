@@ -14,6 +14,10 @@ crosses the real wire too.
 the spans a test asks for, then returns (or raises) what it was given, so harness and linter
 behaviour can be pinned for each grounding mode without a retrieval backend or a model. Nothing
 here knows about any real agent.
+
+The doubles read and return `Probe*` classes of their own, declared in `schema/doubles.yaml`.
+The conductor knows them only from the doubles' cards, as it knows every real agent's classes
+(ADR-0019).
 """
 
 from __future__ import annotations
@@ -22,31 +26,27 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
+from pydantic import Field
 
 from dd_sdk import serve
 from dd_sdk.agent import Agent, AgentResult, AgentSpec, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    Claim,
-    DatasetProfile,
     Derivation,
     EvidenceItem,
-    FactCheck,
     Frozen,
+    Grounded,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
     Message,
-    MetadataRecord,
     Outcome,
     OutcomeStatus,
     Principal,
-    QualityReview,
     Reply,
-    Verdict,
 )
 from dd_sdk.delegate import Delegated, WorkbenchDelegate
 from dd_sdk.evidence import (
@@ -71,6 +71,39 @@ RESTRICTIVE = PROFILES_DIR / "test-restrictive.yaml"
 TEST_PRINCIPAL = Principal(
     principal_id="https://orcid.org/0000-0002-1825-0097", name="Josiah Carberry"
 )
+
+# --- The doubles' own classes (schema/doubles.yaml) -----------------------------------------
+
+
+class ProbeRecord(Frozen):
+    schema_class: Literal["ProbeRecord"] = "ProbeRecord"
+    identifier: str | None = None
+    title: str | None = None
+    licence: str | None = None
+    creators: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
+
+
+class ProbeClaim(Frozen):
+    schema_class: Literal["ProbeClaim"] = "ProbeClaim"
+    text: str
+
+
+class ProbeProfile(Frozen):
+    schema_class: Literal["ProbeProfile"] = "ProbeProfile"
+    title: str | None = None
+
+
+class ProbeReview(Grounded):
+    schema_class: Literal["ProbeReview"] = "ProbeReview"
+    score: float | None = None
+
+
+class ProbeCheck(Grounded):
+    schema_class: Literal["ProbeCheck"] = "ProbeCheck"
+    rationale: str
+    rationale_derivation: Derivation
+
 
 Behaviour = AgentResult | Exception | Callable[[InvocationRequest, RunContext], AgentResult]
 
@@ -113,9 +146,9 @@ SPECS: dict[GroundingMode, AgentSpec] = {
         description="Scripted retrieval-mode agent.",
         requirement_ids=(),
         action_class="advise",
-        accepts=(ClassSchema.of(Claim),),
+        accepts=(ClassSchema.of(ProbeClaim),),
         grounding_mode=GroundingMode.RETRIEVAL,
-        payload=ClassSchema.of(FactCheck),
+        payload=ClassSchema.of(ProbeCheck),
     ),
     GroundingMode.INPUT_ONLY: AgentSpec(
         agent_id="fake.input-only",
@@ -123,9 +156,9 @@ SPECS: dict[GroundingMode, AgentSpec] = {
         description="Scripted input-only agent.",
         requirement_ids=(),
         action_class="advise",
-        accepts=(ClassSchema.of(MetadataRecord),),
+        accepts=(ClassSchema.of(ProbeRecord),),
         grounding_mode=GroundingMode.INPUT_ONLY,
-        payload=ClassSchema.of(QualityReview),
+        payload=ClassSchema.of(ProbeReview),
     ),
     GroundingMode.NONE: AgentSpec(
         agent_id="fake.none",
@@ -133,12 +166,9 @@ SPECS: dict[GroundingMode, AgentSpec] = {
         description="Scripted deterministic agent.",
         requirement_ids=(),
         action_class="advise",
-        accepts=(
-            ClassSchema.of(MetadataRecord),
-            ClassSchema.of(DatasetProfile),
-        ),
+        accepts=(ClassSchema.of(ProbeRecord), ClassSchema.of(ProbeProfile)),
         grounding_mode=GroundingMode.NONE,
-        payload=ClassSchema.of(QualityReview),
+        payload=ClassSchema.of(ProbeReview),
     ),
     GroundingMode.DELEGATION: AgentSpec(
         agent_id="fake.delegation",
@@ -199,20 +229,19 @@ def input_evidence(ctx: RunContext) -> EvidenceItem:
 
 
 def review_of_input(request: InvocationRequest, ctx: RunContext) -> AgentResult:
-    """A succeeded QualityReview grounded on the input, as an input_only/none agent should."""
+    """A succeeded ProbeReview grounded on the input, as an input_only/none agent should."""
     return AgentResult(
         outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Reviewed."),
-        payload=QualityReview(score=1.0, grounded_on=[input_ref(ctx)]),
+        payload=ProbeReview(score=1.0, grounded_on=[input_ref(ctx)]),
         evidence=[input_evidence(ctx)],
     )
 
 
 def fact_check_over(*sources: Retrieve) -> AgentResult:
-    """A succeeded FactCheck grounded on exactly the given sources."""
+    """A succeeded ProbeCheck grounded on exactly the given sources."""
     return AgentResult(
         outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Checked."),
-        payload=FactCheck(
-            verdict=Verdict.SUPPORTED,
+        payload=ProbeCheck(
             rationale="Scripted.",
             rationale_derivation=Derivation.TEMPLATE,
             grounded_on=[s.ref() for s in sources],
@@ -324,8 +353,8 @@ def message(text: str = "hello") -> Message:
     return Message(message_text=text)
 
 
-def record() -> MetadataRecord:
-    return MetadataRecord(
+def record() -> ProbeRecord:
+    return ProbeRecord(
         identifier="https://doi.org/10.15131/shef.data.00000000",
         title="Soil chemistry survey",
         licence="https://creativecommons.org/licenses/by/4.0/",
@@ -333,8 +362,12 @@ def record() -> MetadataRecord:
     )
 
 
-def claim() -> Claim:
-    return Claim(text="A DOI does not change when the object moves.")
+def claim() -> ProbeClaim:
+    return ProbeClaim(text="A DOI does not change when the object moves.")
+
+
+def profile() -> ProbeProfile:
+    return ProbeProfile(title="Soil chemistry survey")
 
 
 def request(agent_id: str, input: Frozen | None = None) -> InvocationRequest:
