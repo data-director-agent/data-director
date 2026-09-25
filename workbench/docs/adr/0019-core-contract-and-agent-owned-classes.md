@@ -50,15 +50,16 @@ Three further problems followed from that:
 
    The core schema checks nothing else about them. The class schema checks the rest.
 3. **An agent owns its input and payload classes.**
-   - It declares them in its own LinkML file, `agents/<name>/schema/<name>.yaml`, which imports
-     the core, uses its own `id` and prefix, and mixes `Grounded` into every payload class as
-     before.
+   - It declares them in its own LinkML file, `dd_agent_<name>/schema/<name>.yaml` in its
+     package, which imports the core, uses its own `id` and prefix, and mixes `Grounded` into
+     every payload class as before.
    - `dd-gen-schema` generates one self-contained JSON Schema per class. Its `$defs` are pruned to
      the definitions the class reaches. The generated file is committed in the agent's package,
      under `schema/generated/<Class>.schema.json`.
    - The agent's Pydantic model for a class stays in the agent's package.
-     `ClassSchema.load(model, package)` reads the generated file and refuses a model whose field
-     names differ from the schema's properties, so the two cannot drift silently.
+     `ClassSchema.of(model)` reads the generated file from the package defining the model, and
+     refuses a model whose field names differ from the schema's properties, so the two cannot
+     drift silently.
 4. **The card carries the schemas.** The extension's `params` (`describe(spec)`) gain two keys:
    - `contract_version`: the core version the agent was built against;
    - `schemas`: for each class it accepts or returns, `{digest, json_schema}`.

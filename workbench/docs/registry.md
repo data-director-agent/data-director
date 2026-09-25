@@ -32,8 +32,9 @@ The workbench builds the registry once, when it starts. For each entry in `agent
 1. fetches the agent card from `<url>/.well-known/agent-card.json`;
 2. finds the Data Director extension, `https://w3id.org/data-director/a2a/agent-spec/v0`, in the
    card's capabilities;
-3. rebuilds the agent's `AgentSpec` from the extension's parameters, resolving each class name
-   against the central contract;
+3. rebuilds the agent's `AgentSpec` from the extension's parameters: the class schemas the
+   card carries, each checked against its digest, and the contract version, checked for
+   compatibility (ADR-0019);
 4. registers the agent under the `agent_id` from the spec.
 
 The `agent_id` comes from the card, not from `name` in `agents.yaml`. Requests, profiles and

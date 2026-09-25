@@ -8,8 +8,8 @@ deliberately has no `Agent.run`, so there is no way to take the result and leave
 behind. Nothing here decides whether the result is acceptable; the conductor's input check,
 payload check and grounding linter do.
 
-`from_url` reads the agent card and rebuilds the `AgentSpec` from the Data Director extension,
-resolving class names against the central contract.
+`from_url` reads the agent card and rebuilds the `AgentSpec` from the Data Director extension:
+the class schemas it carries, pinned by digest, and the contract version (ADR-0019).
 
 Each call opens its own event loop (`asyncio.run`): the conductor is synchronous, and every
 transport already calls it from a worker thread. `client_factory` gives the httpx client for one

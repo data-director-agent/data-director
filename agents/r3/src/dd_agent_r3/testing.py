@@ -131,7 +131,7 @@ class ChatBeforeRetrievalExplainer(FakeModelExplainer):
 # --- Harness helpers --------------------------------------------------------------------------
 
 
-# The sample inputs are instances of the central contract, kept with the workbench.
+# The sample inputs, kept with the workbench, are instances of the agents' own classes.
 SAMPLES = Path(__file__).resolve().parents[4] / "workbench" / "samples"
 
 
