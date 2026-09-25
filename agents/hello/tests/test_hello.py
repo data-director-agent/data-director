@@ -12,22 +12,24 @@ from pathlib import Path
 
 import pytest
 
+import dd_agent_hello
 from dd_agent_hello.agent import HelloWorld
+from dd_agent_hello.classes import Greeting, Salutation
 from dd_sdk.agent import describe
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    Greeting,
     GroundingMode,
     OutcomeStatus,
     ReasonCode,
-    Salutation,
     input_source_id,
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
+from dd_sdk.schema import gen
 from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
+SCHEMA = Path(dd_agent_hello.__file__).parent / "schema" / "hello.yaml"
 
 
 def sample_salutation() -> Salutation:
@@ -100,3 +102,12 @@ def test_spec_declares_what_the_conductor_enforces() -> None:
     assert spec.grounding_mode == GroundingMode.NONE
     # A template exercises the harness, not the Blueprint: every id it claims is a DD-* one.
     assert all(r.startswith("DD-") for r in spec.requirement_ids), spec.requirement_ids
+
+
+def test_its_own_classes_are_generated_from_its_linkml_and_carried_by_its_card() -> None:
+    # Recipe step 1: the agent owns its classes (ADR-0019). The generated schemas are current...
+    assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+    # ...and the card carries them, so the workbench needs no copy of its own.
+    entry = describe(HelloWorld.spec)
+    assert set(entry["schemas"]) == {"Salutation", "Greeting"}
+    assert entry["schemas"]["Greeting"]["digest"] == ClassSchema.of(Greeting).digest

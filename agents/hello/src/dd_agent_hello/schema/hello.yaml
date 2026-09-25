@@ -1,0 +1,57 @@
+# The input and payload classes of the hello.world template agent, owned by this package
+# (ADR-0019). It imports the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/hello/src/dd_agent_hello/schema/hello.yaml` to regenerate
+# generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
+id: https://w3id.org/data-director/agents/hello
+name: dd_agent_hello
+title: hello.world classes
+description: >-
+  The smallest input and payload classes the contract admits, and the worked example for adding
+  classes of an agent's own (see agents/README.md).
+version: 0.1.0
+license: MIT
+
+prefixes:
+  hello: https://w3id.org/data-director/agents/hello/
+  linkml: https://w3id.org/linkml/
+default_prefix: hello
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  Salutation:
+    description: Whom to greet. The input of the hello.world template agent.
+    slots:
+      - schema_class
+      - greeted_name
+      - language
+
+  Greeting:
+    description: >-
+      The payload of the hello.world template agent: one greeting, grounded on the Salutation it
+      was derived from. Exists to demonstrate the payload contract, not to do anything.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - greeting_text
+      - greeting_derivation
+
+slots:
+
+  greeted_name:
+    description: Whom to greet.
+    required: true
+  language:
+    description: BCP 47 tag for the language to greet in. English if absent.
+  greeting_text:
+    description: The greeting, as a sentence.
+    required: true
+  greeting_derivation:
+    description: How greeting_text came about. Always template for this agent.
+    range: Derivation
+    required: true

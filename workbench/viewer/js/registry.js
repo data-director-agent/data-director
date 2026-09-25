@@ -15,6 +15,11 @@ export async function loadRegistry() {
   samples.push(...listing);
 }
 
+// The schema of class `cls` as agent `id`'s card carries it, or null (ADR-0019).
+export function classSchema(id, cls) {
+  return agents[id]?.schemas?.[cls]?.json_schema || null;
+}
+
 // One option per agent, grouped by the id prefix before the first dot, so the picker stays
 // one line tall however many agents the registry holds. Unavailable and incompatible agents stay
 // selectable so their reason can be read in the detail card; Run and Send stay disabled for them.

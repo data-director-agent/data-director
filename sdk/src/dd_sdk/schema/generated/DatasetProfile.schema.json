@@ -36,10 +36,9 @@
       }
    },
    "$id": "https://w3id.org/data-director/schema/workbench/DatasetProfile",
-   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
-   "metamodel_version": "1.11.0",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -102,6 +101,5 @@
       "schema_class"
    ],
    "title": "DatasetProfile",
-   "type": "object",
-   "version": "0.7.0"
+   "type": "object"
 }

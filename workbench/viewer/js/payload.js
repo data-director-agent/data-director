@@ -190,7 +190,7 @@ export function payloadUi(schema, derivations = {}) {
 }
 
 // Render into `node`: nothing, an unknown-class fallback, or the payload through RJSF. `ps` is
-// the payload class's schema from the envelope schema's $defs; `derivations` is the agent's,
+// the payload class's own schema, as its agent's card carries it; `derivations` is the agent's,
 // from its manifest; `evidence` is the envelope's, against which `groundedOn` resolves references.
 export function payloadView(node) {
   const root = createRoot(node);

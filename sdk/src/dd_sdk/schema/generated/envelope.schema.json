@@ -476,42 +476,6 @@
          "title": "Finding",
          "type": "object"
       },
-      "Greeting": {
-         "additionalProperties": false,
-         "description": "The payload of the hello.world template agent: one greeting, grounded on the Salutation it was derived from. Exists to demonstrate the payload contract, not to do anything.",
-         "properties": {
-            "schema_class": {
-               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
-               "enum": [
-                  "Greeting"
-               ],
-               "type": "string"
-            },
-            "greeting_text": {
-               "description": "The greeting, as a sentence.",
-               "type": "string"
-            },
-            "greeting_derivation": {
-               "$ref": "#/$defs/Derivation",
-               "description": "How greeting_text came about. Always template for this agent."
-            },
-            "grounded_on": {
-               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
-               "items": {
-                  "$ref": "#/$defs/GroundingRef"
-               },
-               "type": "array"
-            }
-         },
-         "required": [
-            "schema_class",
-            "greeting_text",
-            "greeting_derivation",
-            "grounded_on"
-         ],
-         "title": "Greeting",
-         "type": "object"
-      },
       "Grounded": {
          "additionalProperties": false,
          "description": "Mixed into every payload class and every item class that asserts an identity. The linter walks a payload document for grounded_on lists and never needs to know the payload class; a payload that lacks grounded_on at its root is a violation, not a pass.",
@@ -1080,36 +1044,6 @@
             "grounded_on"
          ],
          "title": "Reply",
-         "type": "object"
-      },
-      "Salutation": {
-         "additionalProperties": false,
-         "description": "Whom to greet. The input of the hello.world template agent: the smallest input class the contract admits, and the worked example for adding one (see agents/hello/).",
-         "properties": {
-            "schema_class": {
-               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
-               "enum": [
-                  "Salutation"
-               ],
-               "type": "string"
-            },
-            "greeted_name": {
-               "description": "Whom to greet.",
-               "type": "string"
-            },
-            "language": {
-               "description": "BCP 47 tag for the language to greet in. English if absent.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            }
-         },
-         "required": [
-            "schema_class",
-            "greeted_name"
-         ],
-         "title": "Salutation",
          "type": "object"
       },
       "SearchedSummary": {

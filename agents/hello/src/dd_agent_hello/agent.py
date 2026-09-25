@@ -21,20 +21,19 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from dd_agent_hello.classes import Greeting, Salutation
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
     EvidenceItem,
-    Greeting,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
-    Salutation,
 )
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 

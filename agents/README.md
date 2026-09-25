@@ -9,12 +9,22 @@ An agent is an `AgentSpec` plus one method, `run(request, ctx) -> AgentResult`
 runs the agent under a tracer parented to the workbench's span, and returns the result with the
 spans the agent recorded. The workbench's conductor then holds the agent to its spec:
 
-- it refuses inputs the agent did not declare;
-- it rejects a payload of a class other than the one declared;
+- it refuses an input of a class the agent did not declare, or one its class schema rejects;
+- it rejects a payload of a class other than the one declared, or one its class schema rejects;
 - it records the declared grounding mode on the envelope;
 - it runs the grounding linter's rules for that mode over the returned spans.
 
 An agent never sets identifiers, timestamps, telemetry or its grounding mode.
+
+An agent owns its input and payload classes
+([ADR-0019](../workbench/docs/adr/0019-core-contract-and-agent-owned-classes.md)). It declares
+them in a LinkML file of its own, which imports the core contract, and its card carries each
+class's JSON Schema pinned by a digest. The workbench checks inputs and payloads against those
+schemas, so it needs no copy of an agent's classes, and adding one needs no SDK release. What
+every agent shares is the core, `sdk/src/dd_sdk/schema/data_director.yaml`: the request, the
+envelope, outcomes, grounding, evidence, delegation, the principal, and the chat classes
+`Message` and `Reply`. Its `version` is the contract version each card declares; the workbench
+lists an agent built against an incompatible one as **incompatible**.
 
 | Package | Agent id | Accepts | Mode | Payload | Serve | Status |
 |---|---|---|---|---|---|---|
@@ -50,17 +60,23 @@ CLI, transports or viewer, this agent will show it.
 
 ## Adding an agent
 
-1. **Decide what it reads and returns.** If an existing input class (`DatasetProfile`,
-   `MetadataRecord`, `Claim`, `Salutation`, `Message`) or payload class (`Recommendations`,
-   `QualityReview`, `FactCheck`, `Greeting`, `Reply`) fits, use it. Otherwise add a class to the central
-   contract, `sdk/src/dd_sdk/schema/data_director.yaml` (ADR-0007). `Salutation` and `Greeting`
-   are the worked example:
-   - an input class carries `schema_class`;
-   - a payload class carries `schema_class` and `mixins: [Grounded]`.
+1. **Declare what it reads and returns.** A conversational agent can use the core's `Message`
+   and `Reply`. Any other class belongs to the agent. `hello/` is the worked example:
+   - `src/dd_agent_<name>/schema/<name>.yaml` declares the classes in LinkML. It imports
+     `linkml:types` and `data_director` (the core), and has its own `id` and prefix. An input
+     class carries the slot `schema_class`; a payload class carries `schema_class` and
+     `mixins: [Grounded]`.
+   - `uv run dd-gen-schema agents/<name>/src/dd_agent_<name>/schema/<name>.yaml` writes one JSON
+     Schema per class to `generated/` beside it. Commit them; never edit them by hand.
+   - `src/dd_agent_<name>/classes.py` holds a Pydantic model per class, subclassing
+     `dd_sdk.contract.models.Frozen` (input) or `Grounded` (payload), with
+     `schema_class: Literal["<Class>"]`.
+   - The spec names each class as `ClassSchema.of(Model)`. It reads the generated schema from
+     the model's package and refuses a model whose fields differ from it.
 
-   Add the class to the relevant `any_of`, run `uv run dd-gen-schema`, and
-   mirror it in `sdk/src/dd_sdk/contract/models.py` (`INPUT_TYPES` / `PAYLOAD_TYPES`). An agent
-   cannot bring a class of its own: the workbench rejects a card that names one.
+   A test calls `dd_sdk.schema.gen.stale(<path to the LinkML file>)` and expects `[]`, so a
+   stale generated schema fails the agent's own suite. Two agents may define classes of the same
+   name; the digest, not the name, identifies a class in a stored run.
 2. **Decide its grounding mode** (ADR-0008).
    - `retrieval` if it consults external records. Emit one
      `dd_sdk.tracing.retrieval_span(ctx.tracer, source_id, content_hash)` per record consulted,
@@ -95,7 +111,8 @@ CLI, transports or viewer, this agent will show it.
 7. **Enable it** in the profiles that should run it (`workbench/profiles/default.yaml`,
    `workbench/profiles/test-permissive.yaml`). Registration is not permission.
 8. **Ship a sample input and declare the payload's derivations.**
-   - Put a sample input, with `schema_class` set, in `workbench/samples/`.
+   - Put a sample input, with `schema_class` set, in `workbench/samples/`. The viewer builds its
+     input form from the class schema in the agent's card.
    - If the agent has a payload, declare in `spec.derivations` how it produces each field that
      it does not copy from input or evidence, for example
      `{"rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation")}`. A field a
@@ -112,4 +129,4 @@ CLI, transports or viewer, this agent will show it.
     and scorers beside it and a committed `baseline.json`. `dd_agent_r3.evals` is the worked
     example.
 
-Nothing in the conductor, linter, CLI, transports or viewer is edited.
+Nothing in the SDK, conductor, linter, CLI, transports or viewer is edited.

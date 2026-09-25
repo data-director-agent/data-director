@@ -22,7 +22,6 @@ from dd_sdk.contract.models import (
     EvidenceItem,
     FactCheck,
     Finding,
-    Greeting,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
@@ -39,7 +38,6 @@ from dd_sdk.contract.models import (
     RecommendationKind,
     Recommendations,
     Reply,
-    Salutation,
     Severity,
     Telemetry,
     TurnRole,
@@ -67,26 +65,14 @@ SCHEMA = ROOT / "src" / "dd_sdk" / "schema"
 
 
 def test_generated_schemas_are_current() -> None:
-    """Byte-compare schema/generated/ against a fresh generation, and find no file left over."""
-    outputs = gen.generate()
-    for path, content in outputs.items():
-        assert path.exists(), f"{path.name} is missing; run `uv run dd-gen-schema`"
-        current = path.read_text(encoding="utf-8")
-        if path.suffix == ".ttl":
-            # rdflib does not serialise blank nodes in a stable order, so the SHACL file is
-            # compared as a graph rather than as bytes.
-            assert _isomorphic(current, content), (
-                f"{path.name} is stale; run `uv run dd-gen-schema`"
-            )
-        else:
-            assert current == content, f"{path.name} is stale; run `uv run dd-gen-schema`"
-    stale = set((SCHEMA / "generated").iterdir()) - set(outputs)
-    assert not stale, f"{sorted(p.name for p in stale)} are no longer generated; delete them"
+    """generated/ matches a fresh generation, and holds no file that is no longer generated."""
+    assert gen.stale() == [], "run `uv run dd-gen-schema`"
 
 
 def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> None:
     schema = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
     assert schema["$comment"].endswith("Do not edit.")
+    assert schema["$schema"] == gen.DRAFT_7 and "metamodel_version" not in schema
     assert schema["title"] == "Reply" and schema["additionalProperties"] is False
     assert set(schema["$defs"]) == {"Derivation", "GroundingRef"}  # only what Reply reaches
     assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
@@ -94,28 +80,32 @@ def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> N
 
 
 def test_generated_properties_keep_the_linkml_slot_order() -> None:
-    """The viewer shows fields in schema order, so the generator's alphabetical order is undone."""
+    """The viewer shows fields in schema order, so the generator's alphabetical order is undone:
+    a class's own slots in source order, then its mixins'."""
     schema = json.loads((SCHEMA / "generated" / "envelope.schema.json").read_text(encoding="utf-8"))
     assert list(schema["properties"])[:3] == ["invocation_id", "agent_id", "agent_version"]
-    assert list(schema["$defs"]["Recommendation"]["properties"]) == [
-        "kind",
-        "target",
-        "score",
-        "rationale",
-        "rationale_derivation",
-        "classification_derivation",
+    reply = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
+    assert list(reply["properties"]) == [
+        "schema_class",
+        "reply_text",
+        "reply_derivation",
         "grounded_on",
     ]
 
 
-def _isomorphic(left: str, right: str) -> bool:
-    from rdflib import Graph
-    from rdflib.compare import to_isomorphic
-
-    same: bool = to_isomorphic(Graph().parse(data=left, format="turtle")) == to_isomorphic(
-        Graph().parse(data=right, format="turtle")
+def test_the_core_input_and_payload_are_open_but_name_their_class() -> None:
+    envelope = json.loads((SCHEMA / "generated" / "envelope.schema.json").read_text("utf-8"))
+    payload = envelope["$defs"]["Payload"]
+    assert (
+        payload["additionalProperties"] is True
+        and "enum" not in payload["properties"]["schema_class"]
     )
-    return same
+    assert set(payload["required"]) == {"schema_class", "grounded_on"}
+    request = json.loads(
+        (SCHEMA / "generated" / "invocation_request.schema.json").read_text("utf-8")
+    )
+    assert request["$defs"]["Input"]["required"] == ["schema_class"]
+    assert request["$defs"]["Input"]["additionalProperties"] is True
 
 
 def test_generated_schema_pins_human_review() -> None:
@@ -243,17 +233,6 @@ def test_each_payload_class_validates_with_grounded_on() -> None:
     ).to_document()
     validate.validate_envelope(doc)
     assert doc["payload"]["schema_class"] == "QualityReview"
-
-    greeting = Greeting(
-        greeting_text="Hello, world!",
-        greeting_derivation=Derivation.TEMPLATE,
-        grounded_on=[_input_ref()],
-    )
-    doc = _succeeded(
-        grounding_mode=GroundingMode.NONE, payload=greeting, evidence=[_input_evidence()]
-    ).to_document()
-    validate.validate_envelope(doc)
-    assert doc["payload"]["schema_class"] == "Greeting"
 
 
 @pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
@@ -433,7 +412,6 @@ def test_every_input_class_validates_and_is_discriminated_by_schema_class() -> N
         DatasetProfile(title="t"),
         MetadataRecord(identifier="doi:10.1/x", licence="CC-BY-4.0"),
         Claim(text="A DOI does not change."),
-        Salutation(greeted_name="world"),
         Message(message_text="hello"),
     ):
         req = InvocationRequest(agent_id="stub.abstain", input=inp)

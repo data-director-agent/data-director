@@ -1,7 +1,7 @@
 // Chat: hold a conversation with one agent, a turn at a time. ?conversation_id=… reopens one.
 import { $, el, icon, statusIcon, uuid7, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, newRequest, postRun } from "./common.js";
 import { help } from "./help.js";
-import { agents, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
+import { agents, classSchema, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
 import { inputForm } from "./inputform.js";
 
 // A conversation is a client-minted conversation_id plus whatever the store holds for it.
@@ -10,7 +10,7 @@ import { inputForm } from "./inputform.js";
 // conversation has turns, so every turn of one conversation addresses the same agent.
 const chat = { id: null, agentId: "", conversation: null, busy: false };
 const editor = inputForm($("chat-input-form"));
-let requestSchema, formFor = null, loading = 0;
+let formFor = null, loading = 0;
 const turns = () => chat.conversation?.turns || [];
 const acceptsMessage = (a) => a?.accepts.includes("Message");
 const defaultChatAgent = () =>
@@ -120,7 +120,7 @@ function refreshChatSamples() {
 async function loadChatSample() {
   const cls = $("chat-class-select").value, mine = ++loading;
   const doc = await fetchSample($("chat-sample-select").value);
-  if (mine === loading) editor.show(cls, requestSchema, doc);
+  if (mine === loading) editor.show(cls, classSchema(chat.agentId, cls), doc);
 }
 function transcriptNote(className, ...content) {
   const li = el("li", { className }, ...content);
@@ -182,10 +182,7 @@ function markCurrentConversation() {
 }
 
 async function main() {
-  [requestSchema] = await Promise.all([
-    fetch("/schema/invocation_request.schema.json").then((r) => r.json()),
-    loadRegistry(),
-  ]);
+  await loadRegistry();
   renderAgents($("chat-agent-select"));
   $("chat-agent-select").addEventListener("change", () => { newConversation($("chat-agent-select").value); });
   $("new-conversation").addEventListener("click", () => newConversation());
