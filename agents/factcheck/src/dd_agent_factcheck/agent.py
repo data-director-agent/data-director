@@ -21,21 +21,19 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from dd_agent_factcheck.classes import Claim, FactCheck, Verdict
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    Claim,
     Derivation,
     EvidenceItem,
-    FactCheck,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
-    Verdict,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_hash
 from dd_sdk.tracing import retrieval_span

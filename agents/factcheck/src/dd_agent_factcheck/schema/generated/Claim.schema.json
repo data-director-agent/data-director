@@ -1,6 +1,6 @@
 {
-   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
-   "$id": "https://w3id.org/data-director/schema/workbench/Claim",
+   "$comment": "Generated from factcheck.yaml by `uv run dd-gen-schema <path to factcheck.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/factcheck/Claim",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "A statement to be checked against sources. The input a fact-checking agent reads.",
