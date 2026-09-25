@@ -1,5 +1,5 @@
 {
-   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$comment": "Generated from quality.yaml by `uv run dd-gen-schema <path to quality.yaml>`. Do not edit.",
    "$defs": {
       "Derivation": {
          "description": "",
@@ -79,7 +79,7 @@
          "type": "string"
       }
    },
-   "$id": "https://w3id.org/data-director/schema/workbench/QualityReview",
+   "$id": "https://w3id.org/data-director/agents/quality/QualityReview",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "The payload of a quality or validation agent: a score over an existing record and the findings behind it. Grounded on the input itself (grounding mode input_only or none).",

@@ -7,21 +7,22 @@ from pathlib import Path
 
 import pytest
 
+import dd_agent_quality
 from dd_agent_quality.agent import QualityReviewer
+from dd_agent_quality.classes import MetadataRecord, QualityReview, Severity
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     GroundingMode,
-    MetadataRecord,
     OutcomeStatus,
-    QualityReview,
     ReasonCode,
-    Severity,
     input_source_id,
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
+from dd_sdk.schema import gen
 from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
+SCHEMA = Path(dd_agent_quality.__file__).parent / "schema" / "quality.yaml"
 
 
 def sample_record() -> MetadataRecord:
@@ -80,3 +81,7 @@ def test_spec_declares_what_the_conductor_enforces() -> None:
     assert spec.payload == ClassSchema.of(QualityReview)
     assert spec.grounding_mode == GroundingMode.INPUT_ONLY
     assert spec.derivations["findings.message"].recorded_in == "derivation"
+
+
+def test_its_classes_are_generated_from_its_own_linkml() -> None:
+    assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"

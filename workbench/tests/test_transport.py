@@ -17,8 +17,9 @@ from a2a.types import Role, SendMessageRequest, TaskState
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
+from dd_agent_quality.classes import MetadataRecord
 from dd_agent_stub.agent import AbstainingStub
-from dd_sdk.contract.models import Claim, MetadataRecord, new_invocation_id, to_document
+from dd_sdk.contract.models import Claim, new_invocation_id, to_document
 from workbench.identity import OperatorAssertion
 from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 from workbench.transport.app import build_app

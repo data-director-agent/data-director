@@ -1,6 +1,6 @@
 {
-   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
-   "$id": "https://w3id.org/data-director/schema/workbench/MetadataRecord",
+   "$comment": "Generated from quality.yaml by `uv run dd-gen-schema <path to quality.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/quality/MetadataRecord",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "An existing metadata record about a dataset, as a repository or catalogue holds it. The input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a minimal record carries; TODO widen when a real repository export is exercised.",

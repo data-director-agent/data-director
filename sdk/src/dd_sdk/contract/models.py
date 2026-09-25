@@ -103,12 +103,6 @@ class TurnRole(StrEnum):
     AGENT = "agent"
 
 
-class Severity(StrEnum):
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
-
-
 class Verdict(StrEnum):
     SUPPORTED = "supported"
     REFUTED = "refuted"
@@ -137,16 +131,6 @@ class DatasetProfile(Frozen):
     fields: list[TableField] = Field(default_factory=list)
 
 
-class MetadataRecord(Frozen):
-    schema_class: Literal["MetadataRecord"] = "MetadataRecord"
-    identifier: str | None = None
-    title: str | None = None
-    description: str | None = None
-    licence: str | None = None
-    creators: list[str] = Field(default_factory=list)
-    keywords: list[str] = Field(default_factory=list)
-
-
 class Claim(Frozen):
     schema_class: Literal["Claim"] = "Claim"
     text: str
@@ -170,11 +154,10 @@ class Message(Frozen):
     history: list[ConversationTurn] = Field(default_factory=list)
 
 
-AnyInput = DatasetProfile | MetadataRecord | Claim | Message
+AnyInput = DatasetProfile | Claim | Message
 Input = Annotated[AnyInput, Field(discriminator="schema_class")]
 INPUT_TYPES: dict[str, type[Frozen]] = {
     "DatasetProfile": DatasetProfile,
-    "MetadataRecord": MetadataRecord,
     "Claim": Claim,
     "Message": Message,
 }
@@ -306,19 +289,6 @@ class Recommendations(Grounded):
     searched: SearchedSummary | None = None
 
 
-class Finding(Grounded):
-    criterion: str
-    severity: Severity
-    message: str
-    derivation: Derivation
-
-
-class QualityReview(Grounded):
-    schema_class: Literal["QualityReview"] = "QualityReview"
-    score: float | None = None
-    findings: list[Finding] = Field(default_factory=list)
-
-
 class FactCheck(Grounded):
     schema_class: Literal["FactCheck"] = "FactCheck"
     verdict: Verdict
@@ -335,12 +305,11 @@ class Reply(Grounded):
 
 
 Payload = Annotated[
-    Recommendations | QualityReview | FactCheck | Reply,
+    Recommendations | FactCheck | Reply,
     Field(discriminator="schema_class"),
 ]
 PAYLOAD_TYPES: dict[str, type[Grounded]] = {
     "Recommendations": Recommendations,
-    "QualityReview": QualityReview,
     "FactCheck": FactCheck,
     "Reply": Reply,
 }

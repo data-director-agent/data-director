@@ -159,21 +159,6 @@ classes:
       - field_format
       - field_description
 
-  MetadataRecord:
-    class_uri: dcat:Dataset
-    description: >-
-      An existing metadata record about a dataset, as a repository or catalogue holds it. The
-      input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a
-      minimal record carries; TODO widen when a real repository export is exercised.
-    slots:
-      - schema_class
-      - identifier
-      - title
-      - description
-      - licence
-      - creators
-      - keywords
-
   Claim:
     description: A statement to be checked against sources. The input a fact-checking agent reads.
     slots:
@@ -280,27 +265,6 @@ classes:
       - snapshot_ref
       - candidates_retrieved
       - candidates_qualifying
-
-  QualityReview:
-    description: >-
-      The payload of a quality or validation agent: a score over an existing record and the
-      findings behind it. Grounded on the input itself (grounding mode input_only or none).
-    mixins:
-      - Grounded
-    slots:
-      - schema_class
-      - score
-      - findings
-
-  Finding:
-    description: One observation about one criterion.
-    mixins:
-      - Grounded
-    slots:
-      - criterion
-      - severity
-      - message
-      - derivation
 
   FactCheck:
     description: >-
@@ -533,16 +497,6 @@ slots:
     multivalued: true
     inlined_as_list: true
 
-  identifier:
-    description: The record's own identifier, e.g. a DOI or a catalogue URI.
-    slot_uri: dcterms:identifier
-  licence:
-    description: The licence the record declares, as an IRI or SPDX identifier.
-    slot_uri: dcterms:license
-  creators:
-    slot_uri: dcterms:creator
-    multivalued: true
-
   text:
     description: The claim, as a sentence.
     required: true
@@ -581,23 +535,6 @@ slots:
     range: Derivation
     required: true
 
-  findings:
-    range: Finding
-    multivalued: true
-    inlined_as_list: true
-  criterion:
-    description: The quality criterion assessed, e.g. licence_present.
-    required: true
-  severity:
-    range: Severity
-    required: true
-  message:
-    description: The finding, as a sentence a reviewer can act on.
-    required: true
-  derivation:
-    description: How the finding was produced.
-    range: Derivation
-    required: true
   verdict:
     range: Verdict
     required: true
@@ -801,12 +738,6 @@ enums:
         description: The person, or the caller, addressing the agent.
       agent:
         description: An agent's reply, named by turn_agent_id and turn_agent_version.
-
-  Severity:
-    permissible_values:
-      info:
-      warning:
-      error:
 
   Verdict:
     permissible_values:
