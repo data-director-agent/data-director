@@ -38,6 +38,13 @@ uv run workbench invoke --agent stub.abstain     --input samples/claim.json   # 
 uv run workbench serve                                 # then open http://127.0.0.1:8000/shell/
 ```
 
+The shell has two modes. Inspect runs one agent over a sample and shows the run. Chat
+(`http://127.0.0.1:8000/shell/?mode=chat`) holds a conversation with the orchestrator,
+`director.stub`, which hands each message to other agents and shows their replies inside its own
+([ADR-0012](docs/adr/0012-conversation-and-orchestration.md)). Only `serve` can run the
+orchestrator: `invoke` does not grant the permission it needs to call other agents, so
+`samples/director.message.json` has to go through the shell or the conversation API.
+
 `invoke` prints the agent's response and the result of the grounding check, which confirms that
 everything the response relies on can be traced to something the agent actually read during the
 run ([`docs/grounding.md`](docs/grounding.md)). It also writes a
@@ -84,8 +91,8 @@ themselves, and how to add one, are described in [`../agents/README.md`](../agen
   a URI.
 - The w3id namespace used for problem types and agent identifiers is not yet registered.
 - The shell is not tested in a browser in CI.
-- Each request produces one response. Conversation, orchestration and streaming are deferred
-  (`docs/MVP_PLAN.md` §6).
+- The orchestrator, `director.stub`, follows fixed rules. An orchestrator backed by a language
+  model, and streaming, are deferred (`docs/MVP_PLAN.md` §6).
 
 ## Environment
 

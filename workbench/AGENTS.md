@@ -75,9 +75,9 @@ uv run pytest --json-report --json-report-file=workbench/.report.json && uv run 
 - **Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`**, and
   the ID must be in `docs/requirements.yaml`. Do not mark a test with an ID it does not actually
   exercise; a demonstration agent does not substantiate a Blueprint `R` it does not meet.
-- **R3 is xfailed, not deleted.** `agents/r3/src/dd_agent_r3/factory.py` raises
-  `NotImplementedError`, so `dd-r3 serve` exits and the registry lists R3 as unavailable; the
-  port is a TODO there. Do not "fix" R3 tests by widening the harness.
+- **R3 states each identity twice.** A `Recommendation` names its record in `resource` for
+  the reader and in `grounded_on` for the linter, which reads only `grounded_on`. Both are built
+  from the same retrieved record, and R3's own tests check that they agree.
 - **`agents/r3/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
   with `agents/r3/scripts/build_snapshot.py`; do not hand-edit records.
 - **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
