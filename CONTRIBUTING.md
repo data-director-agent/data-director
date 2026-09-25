@@ -14,6 +14,7 @@ are also organisation-wide. This file covers what is specific to this repository
 This repository is organised as follow:
 
 * `docs/` contains documentation
+* `app/` contains the Data Director app that people use (alpha)
 * `workbench/` contains the development environment for building and testing sub-agents
 * `agents/` contains one package per agent, including alpha-versioned experimental ones
   (`agents/README.md`)

@@ -11,6 +11,7 @@ on:
       - "sdk/**"
       - "workbench/**"
       - "agents/**"
+      - "app/**"
       - "pyproject.toml"
       - "uv.lock"
       - "conftest.py"
