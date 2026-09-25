@@ -1,0 +1,35 @@
+{
+   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$id": "https://w3id.org/data-director/schema/workbench/Salutation",
+   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "additionalProperties": false,
+   "description": "Whom to greet. The input of the hello.world template agent: the smallest input class the contract admits, and the worked example for adding one (see agents/hello/).",
+   "metamodel_version": "1.11.0",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "Salutation"
+         ],
+         "type": "string"
+      },
+      "greeted_name": {
+         "description": "Whom to greet.",
+         "type": "string"
+      },
+      "language": {
+         "description": "BCP 47 tag for the language to greet in. English if absent.",
+         "type": [
+            "string",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class",
+      "greeted_name"
+   ],
+   "title": "Salutation",
+   "type": "object",
+   "version": "0.6.0"
+}

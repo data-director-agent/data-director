@@ -58,7 +58,7 @@ CLI, transports or viewer, this agent will show it.
    - an input class carries `schema_class`;
    - a payload class carries `schema_class` and `mixins: [Grounded]`.
 
-   Add the class to the relevant `any_of`, run `uv run python sdk/scripts/gen_schema.py`, and
+   Add the class to the relevant `any_of`, run `uv run dd-gen-schema`, and
    mirror it in `sdk/src/dd_sdk/contract/models.py` (`INPUT_TYPES` / `PAYLOAD_TYPES`). An agent
    cannot bring a class of its own: the workbench rejects a card that names one.
 2. **Decide its grounding mode** (ADR-0008).

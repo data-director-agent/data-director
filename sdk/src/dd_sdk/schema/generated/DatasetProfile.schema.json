@@ -1,0 +1,107 @@
+{
+   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$defs": {
+      "TableField": {
+         "additionalProperties": false,
+         "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO: revisit if Frictionless publishes term IRIs).",
+         "properties": {
+            "name": {
+               "type": "string"
+            },
+            "field_type": {
+               "description": "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_format": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_description": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "TableField",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/schema/workbench/DatasetProfile",
+   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "additionalProperties": false,
+   "description": "A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
+   "metamodel_version": "1.11.0",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "DatasetProfile"
+         ],
+         "type": "string"
+      },
+      "title": {
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "description": {
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "keywords": {
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "themes": {
+         "description": "Discipline or subject, as free text or an IRI.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "media_types": {
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "fields": {
+         "items": {
+            "$ref": "#/$defs/TableField"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "DatasetProfile",
+   "type": "object",
+   "version": "0.6.0"
+}

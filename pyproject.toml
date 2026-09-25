@@ -91,12 +91,12 @@ markers = [
 [tool.mypy]
 python_version = "3.14"
 files = [
-  "conftest.py", "sdk/src", "sdk/tests", "sdk/scripts", "workbench/src", "workbench/tests",
+  "conftest.py", "sdk/src", "sdk/tests", "workbench/src", "workbench/tests",
   "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
-  "sdk/src", "sdk/scripts", "workbench/src", "workbench/scripts", "agents/hello/src",
+  "sdk/src", "workbench/src", "workbench/scripts", "agents/hello/src",
   "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
   "agents/director/src",
 ]

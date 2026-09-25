@@ -1,0 +1,73 @@
+{
+   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$defs": {
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
+      "GroundingRef": {
+         "additionalProperties": false,
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "properties": {
+            "source_id": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "source_id",
+            "content_hash"
+         ],
+         "title": "GroundingRef",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/schema/workbench/Greeting",
+   "$schema": "https://json-schema.org/draft/2019-09/schema",
+   "additionalProperties": false,
+   "description": "The payload of the hello.world template agent: one greeting, grounded on the Salutation it was derived from. Exists to demonstrate the payload contract, not to do anything.",
+   "metamodel_version": "1.11.0",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "Greeting"
+         ],
+         "type": "string"
+      },
+      "greeting_text": {
+         "description": "The greeting, as a sentence.",
+         "type": "string"
+      },
+      "greeting_derivation": {
+         "$ref": "#/$defs/Derivation",
+         "description": "How greeting_text came about. Always template for this agent."
+      },
+      "grounded_on": {
+         "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+         "items": {
+            "$ref": "#/$defs/GroundingRef"
+         },
+         "type": "array"
+      }
+   },
+   "required": [
+      "schema_class",
+      "greeting_text",
+      "greeting_derivation",
+      "grounded_on"
+   ],
+   "title": "Greeting",
+   "type": "object",
+   "version": "0.6.0"
+}

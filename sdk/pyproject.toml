@@ -19,5 +19,9 @@ dependencies = [
   "uvicorn>=0.30",
 ]
 
+[project.scripts]
+# Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (ADR-0019).
+dd-gen-schema = "dd_sdk.schema.gen:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_sdk"]
