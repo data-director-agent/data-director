@@ -78,9 +78,7 @@ def build_app(
         return JSONResponse(json.loads(UISCHEMA.read_text(encoding="utf-8")))
 
     async def agents(request: Request) -> Response:
-        return JSONResponse(
-            {"agents": conductor.registry.manifest(), "unavailable": conductor.registry.unavailable}
-        )
+        return JSONResponse(conductor.registry.listing())
 
     async def samples(request: Request) -> Response:
         return JSONResponse(list_samples())

@@ -71,7 +71,7 @@ Three further problems followed from that:
 5. **Compatibility is checked, and reported as its own state.**
    - A card is compatible when its `contract_version` has the workbench's major version and, while
      the major version is 0, its minor version as well (the caret rule).
-   - An incompatible card raises `ContractMismatch`, which names both versions. The registry
+   - An incompatible card raises `ContractVersionError`, which names both versions. The registry
      records the agent as **incompatible**, not unavailable, and the CLI, `GET /agents` and the
      conductor's unknown-agent message show it that way.
 6. **The conductor checks against the card's schemas.**

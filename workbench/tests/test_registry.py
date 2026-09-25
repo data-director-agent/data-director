@@ -18,6 +18,7 @@ from dd_agent_stub.agent import AbstainingStub
 from dd_sdk import serve
 from dd_sdk.agent import Agent, describe
 from dd_sdk.contract.models import GroundingMode
+from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.wire import CARD_PATH, EXTENSION_URI
 from workbench import cli
 from workbench.registry import Registry, RegistryError, load_config
@@ -136,6 +137,22 @@ def test_a_card_naming_a_class_the_contract_lacks_is_rejected(tmp_path: Path) ->
     assert "Horoscope" in registry.unavailable["odd"]
 
 
+@pytest.mark.requirement("DD-REGISTRY")
+def test_a_card_built_against_another_contract_is_incompatible_not_unavailable(
+    tmp_path: Path,
+) -> None:
+    card = fetch_card(ScriptedAgent(GroundingMode.NONE, review_of_input), "http://old.test")
+    card["capabilities"]["extensions"][0]["params"]["contract_version"] = "0.1.0"
+    path = write_config(tmp_path, [{"name": "old", "url": "http://old.test"}])
+    registry = Registry.from_config(
+        path, client_factory=routed({"http://old.test": card_app(card)})
+    )
+    assert len(registry) == 0 and registry.unavailable == {}
+    assert "0.1.0" in registry.incompatible["old"]
+    assert CONTRACT_VERSION in registry.incompatible["old"]
+    assert "old incompatible: " in registry.not_registered()
+
+
 def test_a_missing_or_malformed_config_is_a_registry_error(tmp_path: Path) -> None:
     with pytest.raises(RegistryError, match="not found"):
         load_config(tmp_path / "absent.yaml")
@@ -182,3 +199,4 @@ def test_agents_command_lists_the_registry(
     assert cli.main(["agents", "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
     assert {m["agent_id"] for m in data["agents"]} == IDS and "r3" in data["unavailable"]
+    assert data["incompatible"] == {}

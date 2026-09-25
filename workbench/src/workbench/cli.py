@@ -60,11 +60,7 @@ def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
 def cmd_agents(args: argparse.Namespace) -> int:
     registry = build_registry(Settings.from_env())
     if args.json:
-        print(
-            json.dumps(
-                {"agents": registry.manifest(), "unavailable": registry.unavailable}, indent=2
-            )
-        )
+        print(json.dumps(registry.listing(), indent=2))
         return 0
     rows = [
         (
@@ -89,6 +85,8 @@ def cmd_agents(args: argparse.Namespace) -> int:
 def _settings(args: argparse.Namespace) -> Settings:
     """The environment's settings, with `--profile` and `--acting-for-*` in place of their
     variables if given. Whoever runs the CLI is the operator, so the profile is theirs to choose
+    for name, reason in registry.incompatible.items():
+        print(f"\n[{name}] incompatible: {reason}")
     (ADR-0017), and so is the principal they assert (ADR-0018)."""
     settings = Settings.from_env()
     if args.profile:
