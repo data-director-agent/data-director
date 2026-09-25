@@ -9,7 +9,7 @@ the decisions; `docs/architecture.md` is the overview.
 
 Two rules govern everything here:
 
-1. **Formats are decided; components sit behind interfaces.** The LinkML schema, the owned
+1. **Formats are decided; components sit behind interfaces.** The core LinkML schema, the owned
    `dd.*` trace attributes, the registered evidence canonicalisations and the outcome vocabulary
    are fixed. Changing any of them is an ADR. Agents, retrieval backends, explainers and
    transports are swappable.
@@ -37,9 +37,14 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 
 ## Load-bearing things
 
-- **`sdk/src/dd_sdk/schema/generated/` is generated.** Edit `data_director.yaml` beside it,
-  regenerate, and keep `dd_sdk/contract/models.py` in step; `sdk/tests/test_contract.py` checks
-  both.
+- **Every `schema/generated/` is generated.** Edit the LinkML file beside it (the core's
+  `data_director.yaml`, an agent's `<name>.yaml`, the doubles' `doubles.yaml`), run
+  `uv run dd-gen-schema [file]`, and keep the Pydantic models in step; each package's tests call
+  `dd_sdk.schema.gen.stale` and `ClassSchema.of` refuses a model that has drifted.
+- **The core holds no agent's classes (ADR-0019).** An agent declares its input and payload
+  classes in its own LinkML file, and its card carries their schemas pinned by digest. The
+  workbench knows a class only from a card. If you find yourself adding an agent's class to
+  `data_director.yaml`, or a list of class names to the SDK or the workbench, stop.
 - **The workbench imports no agent.** Agents are services reached through `RemoteAgent`
   (`remote.py`); `agents.yaml` lists their URLs. Tests may import agent packages to serve them in
   memory (`testing.in_process`), and `src/` must not. If you find yourself importing
@@ -69,7 +74,8 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   agent directly (ADR-0012).
 - **An input or payload class carries `schema_class`; a payload class mixes in `Grounded`.**
   `grounded_on` is the only place identity is asserted. A payload without it fails the linter
-  (G0) by design. Do not add a payload class without the mixin.
+  (G0) by design, and a card whose payload schema does not require it is refused. Do not add a
+  payload class without the mixin.
 - **The linter applies the agent's declared mode.** `retrieval`: G1–G4. `input_only`: R1–R3.
   `none`: R1–R3 + N1. `delegation`: R1, D1–D3, G4 (ADR-0012). G0 and E1 apply in every mode.
   A violation downgrades `succeeded` to `failed`. Do not weaken a rule to make a test pass; do

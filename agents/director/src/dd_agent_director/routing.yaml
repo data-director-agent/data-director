@@ -3,7 +3,9 @@
 #   name          identifies the rule in the reply and in tests
 #   agent_id      the agent the message is delegated to
 #   pattern       a Python regular expression; its named groups fill `input`
-#   input         the child input document; "{group}" placeholders are filled from the match
+#   input         the child input document; "{group}" placeholders are filled from the match;
+#                 it names a class of the target agent's own; the workbench checks it against
+#                 the class schema that agent's card carries (ADR-0019)
 #   mention_input the child input for "@<agent_id> <text>"; "{rest}" is the text
 #   relay_field   the child payload field quoted in the reply, if the child succeeded
 #   example       shown to the user when nothing matches
