@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chat · Data Director Workbench</title>
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+  <link rel="stylesheet" href="/shell/shell.css" />
+  <script type="module" src="/shell/js/chat.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="title-row">
+      <h1>Data Director Workbench</h1>
+      <p>Developer shell for the registered agents. Nothing here edits a stored run. Every output requires human review<span data-help="human-review"></span>.</p>
+      <button type="button" id="open-glossary" class="small" aria-haspopup="dialog">Glossary</button>
+    </div>
+    <nav class="modes" aria-label="Mode">
+      <a href="/shell/"><span class="mode-name">Inspect</span><span class="mode-sub">Run one agent on one input and examine the envelope it returns</span></a>
+      <a href="/shell/chat.html" aria-current="page"><span class="mode-name">Chat</span><span class="mode-sub">Hold a conversation with an agent, a turn at a time</span></a>
+    </nav>
+  </header>
+  <dialog class="glossary" id="glossary" aria-labelledby="glossary-heading">
+    <div class="dialog-head"><h2 id="glossary-heading">Glossary</h2><form method="dialog"><button class="small" type="submit">Close</button></form></div>
+    <p class="intro">The terms this page uses, from the workbench contract (<code>schema/data_director.yaml</code>). The same text appears behind each <kbd>?</kbd> button.</p>
+    <dl id="glossary-list"></dl>
+  </dialog>
+  <div class="layout" id="screen-chat">
+    <nav aria-label="Conversation controls">
+      <section class="panel" aria-labelledby="chat-heading">
+        <div class="head-row"><h2 id="chat-heading">Conversation</h2><span data-help="conversation"></span></div>
+        <div class="field-row">
+          <span class="label-row"><label for="chat-agent-select">Agent</label><span data-help="agent"></span></span>
+          <select id="chat-agent-select" aria-describedby="chat-agent-detail"></select>
+        </div>
+        <div class="agent-detail" id="chat-agent-detail" hidden></div>
+        <button id="new-conversation" type="button">New conversation</button>
+        <p class="legend" id="conversation-line"></p>
+      </section>
+      <section class="panel" aria-labelledby="conversations-heading">
+        <div class="head-row"><h2 id="conversations-heading">Conversations</h2><span data-help="conversation_id"></span></div>
+        <ul class="history" id="conversations"></ul>
+      </section>
+    </nav>
+    <main class="chat-main" aria-label="Chat">
+      <section class="panel" aria-labelledby="transcript-heading">
+        <div class="head-row"><h2 id="transcript-heading">Transcript</h2><span data-help="turn"></span></div>
+        <div class="empty" id="chat-empty">
+          <div class="guide">
+            <h3>Chatting with an agent</h3>
+            <ol>
+              <li>The picker starts on the <strong>orchestrator</strong><span data-help="orchestrator"></span>, if one is registered. Any other agent can be chosen instead.</li>
+              <li>An agent that accepts a Message<span data-help="message"></span> gets a text box. Any other agent gets its input as JSON, started from a sample.</li>
+              <li>Every reply names the agent and version that produced it. An orchestrator's reply lists the invocations it delegated<span data-help="delegation"></span>, each with its own agent and version.</li>
+            </ol>
+            <p>Each turn is one invocation with its own envelope; <strong>Inspect →</strong> on a reply opens it. Changing agent starts a new conversation.</p>
+          </div>
+        </div>
+        <ol class="transcript" id="transcript" aria-live="polite" aria-label="Transcript"></ol>
+      </section>
+      <form class="panel composer" id="composer">
+        <div class="to" id="composer-to"></div>
+        <div id="composer-text">
+          <label for="chat-text" class="visually-hidden">Message</label>
+          <textarea id="chat-text" placeholder="Write a message"></textarea>
+        </div>
+        <div id="composer-json" hidden>
+          <div class="field-row">
+            <span class="label-row"><label for="chat-sample-select">Start from sample</label><span data-help="sample"></span></span>
+            <select id="chat-sample-select"></select>
+          </div>
+          <div class="field-row">
+            <span class="label-row"><label for="chat-json">Input JSON</label><span data-help="input"></span></span>
+            <textarea id="chat-json" class="json" spellcheck="false"></textarea>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary" id="send" type="submit" disabled>Send</button>
+          <p class="legend"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> sends · <span id="chat-status" role="status" aria-live="polite"></span></p>
+        </div>
+      </form>
+    </main>
+  </div>
+</body>
+</html>

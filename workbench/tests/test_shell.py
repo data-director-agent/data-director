@@ -4,6 +4,9 @@ The base `shell/uischema.json` covers the envelope. Each agent ships an RJSF fra
 payload in `spec.uischema`; the shell composes the two per render. The convention a fragment must
 honour: a field a model may write points its badge at the sibling that records how the value
 actually came about, so a template fallback is not badged as AI-derived.
+
+The shell is two pages (Inspect, Chat) sharing one stylesheet and a set of ES modules; the
+string checks below read all of them together.
 """
 
 from __future__ import annotations
@@ -24,8 +27,12 @@ from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import Derivation, GroundingMode, OutcomeStatus
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = json.loads((ROOT / "shell" / "uischema.json").read_text(encoding="utf-8"))
-INDEX = (ROOT / "shell" / "index.html").read_text(encoding="utf-8")
+SHELL_DIR = ROOT / "shell"
+BASE = json.loads((SHELL_DIR / "uischema.json").read_text(encoding="utf-8"))
+PAGES = {n: (SHELL_DIR / n).read_text(encoding="utf-8") for n in ("index.html", "chat.html")}
+SOURCES = sorted([*SHELL_DIR.glob("*.html"), *SHELL_DIR.glob("*.css"), *SHELL_DIR.glob("js/*.js")])
+SHELL = "\n".join(p.read_text(encoding="utf-8") for p in SOURCES)
+GLOSSARY_JS = (SHELL_DIR / "js" / "glossary.js").read_text(encoding="utf-8")
 
 SPECS: list[AgentSpec] = [
     QualityReviewer.spec,
@@ -90,13 +97,13 @@ def test_base_uischema_covers_the_envelope_not_any_payload() -> None:
 
 def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     assert BASE["ui:readonly"] is True
-    assert "readonly: true" in INDEX
-    assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in INDEX
-    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in INDEX
-    assert 'lang="en-GB"' in INDEX and 'role="status"' in INDEX
-    assert '<label for="agent-select">' in INDEX
+    assert "readonly: true" in SHELL
+    assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in SHELL
+    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in SHELL
+    assert 'role="status"' in PAGES["index.html"] and 'role="status"' in PAGES["chat.html"]
+    assert '<label for="agent-select">' in SHELL
     # Driven by the manifest and the samples listing; no agent or sample is named.
-    assert 'fetch("/agents")' in INDEX and 'fetch("/samples")' in INDEX
+    assert 'fetch("/agents")' in SHELL and 'fetch("/samples")' in SHELL
     for name in (
         "r3.standards-advisor",
         "stub.abstain",
@@ -104,30 +111,30 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
         "soil-chemistry",
         "FAIRsharing",
     ):
-        assert name not in INDEX, name
+        assert name not in SHELL, name
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_chat_mode_is_driven_by_the_conversation_api_and_names_every_agent_version() -> None:
-    assert 'id="screen-inspect"' in INDEX and 'id="screen-chat"' in INDEX
-    assert '<label for="chat-agent-select">' in INDEX
-    assert 'fetch("/conversations")' in INDEX and "fetch(`/conversations/${" in INDEX
+    assert '<label for="chat-agent-select">' in PAGES["chat.html"]
+    assert 'fetch("/conversations")' in SHELL and "fetch(`/conversations/${" in SHELL
     # Every reply card, and every delegated card inside it, is labelled agent_id@agent_version.
-    assert "`${env.agent_id}@${env.agent_version}`" in INDEX
-    assert "version_changes" in INDEX
+    assert "`${env.agent_id}@${env.agent_version}`" in SHELL
+    assert "version_changes" in SHELL
     # The orchestrator is found by grounding mode, never by name.
-    assert 'grounding_mode === "delegation"' in INDEX
-    # Chat and Inspect both reload from the address bar.
-    assert "?mode=chat&conversation_id=" in INDEX and "?invocation_id=" in INDEX
+    assert 'grounding_mode === "delegation"' in SHELL
+    # Chat and Inspect both reload from the address bar; Inspect forwards the old Chat address.
+    assert "/shell/chat.html?conversation_id=" in SHELL and "/shell/?invocation_id=" in SHELL
+    assert 'p.get("mode") === "chat"' in PAGES["index.html"]
 
 
 def test_every_outcome_status_has_a_colour_rule() -> None:
     for status in OutcomeStatus:
-        assert f'[data-status="{status.value}"]' in INDEX, status
+        assert f'[data-status="{status.value}"]' in SHELL, status
 
 
 def _glossary_keys() -> set[str]:
-    block = INDEX.split("// --- Glossary: BEGIN", 1)[1].split("// --- Glossary: END", 1)[0]
+    block = GLOSSARY_JS.split("// --- Glossary: BEGIN", 1)[1].split("// --- Glossary: END", 1)[0]
     return set(re.findall(r'^\s*"([^"]+)": \{ term: ', block, re.MULTILINE))
 
 
@@ -141,6 +148,30 @@ def test_glossary_explains_every_contract_value_the_page_shows() -> None:
 
 
 def test_every_help_placeholder_names_a_glossary_entry() -> None:
-    placeholders = set(re.findall(r'data-help="([^"]+)"', INDEX))
+    placeholders = set(re.findall(r'data-help="([^"]+)"', SHELL))
     assert placeholders, "the markup carries no help placeholders"
     assert placeholders <= _glossary_keys(), sorted(placeholders - _glossary_keys())
+
+
+def _mode_nav(page: str) -> str:
+    return page.split('<nav class="modes"', 1)[1].split("</nav>", 1)[0]
+
+
+def test_both_pages_share_the_mode_tabs_and_mark_their_own() -> None:
+    nav = {name: _mode_nav(page) for name, page in PAGES.items()}
+    unmarked = {name: text.replace(' aria-current="page"', "") for name, text in nav.items()}
+    assert unmarked["index.html"] == unmarked["chat.html"]
+    assert re.search(r'href="/shell/" aria-current="page"', nav["index.html"])
+    assert re.search(r'href="/shell/chat.html" aria-current="page"', nav["chat.html"])
+    for name, page in PAGES.items():
+        assert nav[name].count('aria-current="page"') == 1, name
+        assert 'lang="en-GB"' in page, name
+        assert 'id="glossary"' in page, name
+
+
+def test_every_shell_path_a_page_or_module_references_exists() -> None:
+    paths = set(re.findall(r'(?:href|src)="/shell/([^"?#]+)"', SHELL))
+    paths |= {f"js/{m}" for m in re.findall(r'from "\./([^"]+)"', SHELL)}
+    assert paths, "no shell paths referenced"
+    for path in paths:
+        assert (SHELL_DIR / path).is_file(), path

@@ -38,8 +38,8 @@ uv run workbench invoke --agent stub.abstain     --input samples/claim.json   # 
 uv run workbench serve                                 # then open http://127.0.0.1:8000/shell/
 ```
 
-The shell has two modes. Inspect runs one agent over a sample and shows the run. Chat
-(`http://127.0.0.1:8000/shell/?mode=chat`) holds a conversation with the orchestrator,
+The shell has two pages, reached by the tabs under its header. Inspect runs one agent over a
+sample and shows the run. Chat (`http://127.0.0.1:8000/shell/chat.html`) holds a conversation with the orchestrator,
 `director.stub`, which hands each message to other agents and shows their replies inside its own
 ([ADR-0012](docs/adr/0012-conversation-and-orchestration.md)). Only `serve` can run the
 orchestrator: `invoke` does not grant the permission it needs to call other agents, so

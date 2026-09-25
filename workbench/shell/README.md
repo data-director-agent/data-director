@@ -4,16 +4,35 @@ A developer tool: run a registered agent on a sample and inspect the envelope it
 not an end-user interface; end users will reach the agents through a chat interface or apps built
 on them (TODO: not yet designed).
 
-One HTML page, no build step. It loads React and react-jsonschema-form (RJSF) from a CDN as ES
-modules and renders an `Envelope` against the contract's generated JSON Schema
-(`/schema/envelope.schema.json`). The agent and sample pickers are filled from `GET /agents` (the
-registry's manifest, ADR-0010) and `GET /samples`; the shell names no agent. A new agent's payload
-renders as soon as its class is in the LinkML schema and the agent ships a uischema fragment.
+Two HTML pages, no build step: **Inspect** (`index.html`) and **Chat** (`chat.html`), switched by
+the tabs under the header. Each is markup only; the behaviour is in native ES modules under `js/`
+and the styles in `shell.css`:
 
-Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/shell/>. The page needs
+| File | Holds |
+|---|---|
+| `js/common.js` | DOM and formatting helpers, the per-tab input cache, the AG-UI transport, cross-page links |
+| `js/glossary.js` | `GLOSSARY`, the text behind every `?` tip and the Glossary dialog |
+| `js/help.js` | the `?` tips and the Glossary dialog |
+| `js/registry.js` | the agent manifest and samples, the agent picker and its detail card |
+| `js/payload.js` | the RJSF payload view and the derivation badges (Inspect only) |
+| `js/inspect.js`, `js/chat.js` | each page's own behaviour |
+
+Paths are absolute under `/shell/`, because Inspect is also served at `/`. The pages load React and
+react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
+contract's generated JSON Schema (`/schema/envelope.schema.json`). The agent and sample pickers are
+filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the shell names
+no agent. A new agent's payload renders as soon as its class is in the LinkML schema and the agent
+ships a uischema fragment.
+
+Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/shell/>. The pages need
 network access to `esm.sh` for the libraries; everything else is local.
 
-## What it shows
+The two pages share only what the browser tab holds: an input sent from Chat is kept in
+`sessionStorage`, so **Inspect →** on a reply shows that turn's input, and Back returns to the same
+conversation. Addresses from before Chat had its own page (`?mode=chat&conversation_id=…`) are
+forwarded to `chat.html`.
+
+## What Inspect shows
 
 The left column holds the controls: an agent picker grouped by id prefix, with a card describing
 the chosen agent (description, grounding mode, accepted input classes, requirement ids;
@@ -41,13 +60,21 @@ the stored runs. The right column shows one run:
 - **Built-in help.** A `?` button beside each contract term (envelope, outcome status,
   `grounding_mode`, `canonicalisation`, `snapshot_ref`, the derivation badges, …) opens a short
   explanation: hover to read it, click to keep it open, `Esc` to close. The **Glossary** button in
-  the header lists every term. The text lives in one `GLOSSARY` object in `index.html`, written
+  the header lists every term. The text lives in one `GLOSSARY` object in `js/glossary.js`, written
   from the definitions in `sdk/src/dd_sdk/schema/data_director.yaml`; keep the two in step. A payload field's `?`
   shows the field's own schema description, so an agent documents its payload by describing its
   LinkML slots.
 
 Loads a run by `?invocation_id=` (AG-UI replay from the store), from the stored-runs list, or by
 running a chosen agent on a chosen sample.
+
+## What Chat shows
+
+An agent picker (the orchestrator by default, found by grounding mode `delegation`), the stored
+conversations, the transcript and a composer. An agent that accepts a `Message` gets a text box;
+any other agent gets its input as JSON, started from a sample. Every reply card names
+`agent_id@agent_version`, nests the invocations it delegated, and links to its envelope in
+Inspect. `?conversation_id=` reopens a conversation (`GET /conversations/{id}`).
 
 The envelope-level `uischema.json` is kept as the reference description of the envelope and is
 still served at `/schema/uischema.json`, but the page no longer renders the envelope through RJSF:
@@ -59,5 +86,6 @@ No editing, no feedback capture, no streaming, no `suspended` interrupt. Those a
 
 The browser is not exercised in CI. `tests/test_shell.py` checks that every agent's fragment badges
 its model-writable fields by their derivation sibling, that the base covers the envelope only,
-that the glossary explains every outcome status, grounding mode and derivation value, and that the
-page names no agent or sample.
+that the glossary explains every outcome status, grounding mode and derivation value, that the
+pages name no agent or sample, that both pages carry the same mode tabs, and that every file a page
+or module references exists.
