@@ -111,3 +111,4 @@ Each design decision has a record in [`adr/`](adr/):
 | [0014](adr/0014-assessment-lanes.md) | Assessment lanes: tests and recorded reviews |
 | [0015](adr/0015-evidence-carries-content.md) | Evidence carries the content its hash covers |
 | [0016](adr/0016-source-check.md) | The linter checks consistency; a source check verifies citations |
+| [0017](adr/0017-policy-is-the-deployments.md) | The institutional profile belongs to the deployment, and assigns each agent its class |

@@ -1,6 +1,6 @@
 # ADR-0003: Institutional policy as declarative YAML profiles; policy engines deferred
 
-**Status:** Accepted
+**Status:** Accepted; amended by ADR-0017 (who chooses the profile, the profile vocabulary)
 **Date:** 2026-09-04
 
 ## Context
