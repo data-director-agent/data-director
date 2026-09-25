@@ -103,12 +103,6 @@ class TurnRole(StrEnum):
     AGENT = "agent"
 
 
-class Verdict(StrEnum):
-    SUPPORTED = "supported"
-    REFUTED = "refuted"
-    UNVERIFIABLE = "unverifiable"
-
-
 # --- Inputs -----------------------------------------------------------------------------------
 # Every input class carries `schema_class` as a type designator with a single literal value, so
 # the union below is discriminated and `{}` cannot parse as a DatasetProfile.
@@ -131,13 +125,6 @@ class DatasetProfile(Frozen):
     fields: list[TableField] = Field(default_factory=list)
 
 
-class Claim(Frozen):
-    schema_class: Literal["Claim"] = "Claim"
-    text: str
-    subject_uri: str | None = None
-    context: str | None = None
-
-
 class ConversationTurn(Frozen):
     role: TurnRole
     turn_text: str
@@ -154,11 +141,10 @@ class Message(Frozen):
     history: list[ConversationTurn] = Field(default_factory=list)
 
 
-AnyInput = DatasetProfile | Claim | Message
+AnyInput = DatasetProfile | Message
 Input = Annotated[AnyInput, Field(discriminator="schema_class")]
 INPUT_TYPES: dict[str, type[Frozen]] = {
     "DatasetProfile": DatasetProfile,
-    "Claim": Claim,
     "Message": Message,
 }
 _input_adapter: TypeAdapter[Any] = TypeAdapter(Input)
@@ -289,13 +275,6 @@ class Recommendations(Grounded):
     searched: SearchedSummary | None = None
 
 
-class FactCheck(Grounded):
-    schema_class: Literal["FactCheck"] = "FactCheck"
-    verdict: Verdict
-    rationale: str
-    rationale_derivation: Derivation
-
-
 class Reply(Grounded):
     """The payload of a conversational agent (ADR-0012)."""
 
@@ -305,12 +284,11 @@ class Reply(Grounded):
 
 
 Payload = Annotated[
-    Recommendations | FactCheck | Reply,
+    Recommendations | Reply,
     Field(discriminator="schema_class"),
 ]
 PAYLOAD_TYPES: dict[str, type[Grounded]] = {
     "Recommendations": Recommendations,
-    "FactCheck": FactCheck,
     "Reply": Reply,
 }
 

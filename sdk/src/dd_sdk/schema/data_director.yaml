@@ -159,14 +159,6 @@ classes:
       - field_format
       - field_description
 
-  Claim:
-    description: A statement to be checked against sources. The input a fact-checking agent reads.
-    slots:
-      - schema_class
-      - text
-      - subject_uri
-      - context
-
   Message:
     description: >-
       One conversational turn addressed to an agent: the text of the turn and the conversation so
@@ -265,18 +257,6 @@ classes:
       - snapshot_ref
       - candidates_retrieved
       - candidates_qualifying
-
-  FactCheck:
-    description: >-
-      The payload of a fact-checking agent: a verdict on a Claim and the rationale for it,
-      grounded on the sources consulted.
-    mixins:
-      - Grounded
-    slots:
-      - schema_class
-      - verdict
-      - rationale
-      - rationale_derivation
 
   Reply:
     description: >-
@@ -497,15 +477,6 @@ slots:
     multivalued: true
     inlined_as_list: true
 
-  text:
-    description: The claim, as a sentence.
-    required: true
-  subject_uri:
-    description: What the claim is about, if it has an identifier.
-    range: uri
-  context:
-    description: Where the claim was made or why it is being checked.
-
   message_text:
     description: What the user said in this turn.
     required: true
@@ -533,10 +504,6 @@ slots:
   reply_derivation:
     description: How reply_text came about. template for a rule-based agent, model for a model.
     range: Derivation
-    required: true
-
-  verdict:
-    range: Verdict
     required: true
 
   name:
@@ -738,15 +705,6 @@ enums:
         description: The person, or the caller, addressing the agent.
       agent:
         description: An agent's reply, named by turn_agent_id and turn_agent_version.
-
-  Verdict:
-    permissible_values:
-      supported:
-        description: At least one consulted source supports the claim and none contradicts it.
-      refuted:
-        description: At least one consulted source contradicts the claim.
-      unverifiable:
-        description: The sources consulted neither support nor contradict the claim.
 
   EnergyMethod:
     permissible_values:

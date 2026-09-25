@@ -1,5 +1,5 @@
 {
-   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$comment": "Generated from factcheck.yaml by `uv run dd-gen-schema <path to factcheck.yaml>`. Do not edit.",
    "$defs": {
       "Derivation": {
          "description": "",
@@ -42,7 +42,7 @@
          "type": "string"
       }
    },
-   "$id": "https://w3id.org/data-director/schema/workbench/FactCheck",
+   "$id": "https://w3id.org/data-director/agents/factcheck/FactCheck",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "The payload of a fact-checking agent: a verdict on a Claim and the rationale for it, grounded on the sources consulted.",

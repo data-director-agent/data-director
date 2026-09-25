@@ -1,0 +1,73 @@
+# The input and payload classes of fact.checker, owned by this package (ADR-0019). It imports
+# the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/factcheck/src/dd_agent_factcheck/schema/factcheck.yaml` to
+# regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted.
+id: https://w3id.org/data-director/agents/factcheck
+name: dd_agent_factcheck
+title: fact.checker classes
+description: A statement to check against sources, and a verdict on it.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  factcheck: https://w3id.org/data-director/agents/factcheck/
+  linkml: https://w3id.org/linkml/
+default_prefix: factcheck
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  Claim:
+    description: A statement to be checked against sources. The input a fact-checking agent reads.
+    slots:
+      - schema_class
+      - text
+      - subject_uri
+      - context
+
+  FactCheck:
+    description: >-
+      The payload of a fact-checking agent: a verdict on a Claim and the rationale for it,
+      grounded on the sources consulted.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - verdict
+      - rationale
+      - rationale_derivation
+
+slots:
+
+  text:
+    description: The claim, as a sentence.
+    required: true
+  subject_uri:
+    description: What the claim is about, if it has an identifier.
+    range: uri
+  context:
+    description: Where the claim was made or why it is being checked.
+  verdict:
+    range: Verdict
+    required: true
+  rationale:
+    required: true
+  rationale_derivation:
+    range: Derivation
+    required: true
+
+enums:
+
+  Verdict:
+    permissible_values:
+      supported:
+        description: At least one consulted source supports the claim and none contradicts it.
+      refuted:
+        description: At least one consulted source contradicts the claim.
+      unverifiable:
+        description: The sources consulted neither support nor contradict the claim.

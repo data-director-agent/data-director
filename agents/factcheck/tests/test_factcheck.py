@@ -6,16 +6,16 @@ from pathlib import Path
 
 import pytest
 
+import dd_agent_factcheck
 from dd_agent_factcheck.agent import FactChecker, InMemorySources, Source
+from dd_agent_factcheck.classes import Claim, FactCheck, Verdict
 from dd_sdk.contract.models import (
-    Claim,
-    FactCheck,
     GroundingMode,
     OutcomeStatus,
     ReasonCode,
-    Verdict,
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION
+from dd_sdk.schema import gen
 from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SOURCES = InMemorySources(
@@ -80,3 +80,8 @@ def test_packaged_sources_load_and_the_sample_claim_is_supported(runs_dir: Path)
     _, env = run(runs_dir, "A DOI does not change when the object moves.", FactChecker())
     payload = env.payload_as(FactCheck)
     assert payload.verdict == Verdict.SUPPORTED
+
+
+def test_its_classes_are_generated_from_its_own_linkml() -> None:
+    source = Path(dd_agent_factcheck.__file__).parent / "schema" / "factcheck.yaml"
+    assert gen.stale(source) == [], f"run `uv run dd-gen-schema {source}`"
