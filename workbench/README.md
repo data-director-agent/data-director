@@ -67,9 +67,11 @@ themselves, and how to add one, are described in [`../agents/README.md`](../agen
   when one cannot be reached.
 - [The contract](docs/contract.md): the request an agent receives and the response it returns.
 - [Grounding](docs/grounding.md): the rules that tie an agent's output to its sources.
+- [The conformance report](docs/conformance.md): how requirements are assessed by test and by
+  human review, and how to record a review.
 - [Glossary](docs/glossary.md): the terms used in this directory.
-- [`CONFORMANCE.md`](CONFORMANCE.md): which Blueprint requirements the tests demonstrate. It is
-  generated from the test results. A requirement with no passing test is marked
+- [`CONFORMANCE.md`](CONFORMANCE.md): which requirements the tests and the recorded reviews
+  demonstrate. It is generated. A requirement with nothing behind it is marked
   *unsubstantiated*.
 - [`docs/MVP_PLAN.md`](docs/MVP_PLAN.md): the plan for this version.
 - [`docs/adr/`](docs/adr/): the design decisions, one record per decision.

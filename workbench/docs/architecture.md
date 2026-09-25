@@ -64,7 +64,7 @@ each run as its own service. Paths below are relative to the repository root.
 | Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the viewer uses. | `workbench/src/workbench/cli.py`, `transport/` |
 | Viewer | Two read-only browser pages, Inspect and Chat, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `workbench/src/workbench/testing.py` |
-| Conformance report | Maps passing tests to Blueprint requirements and generates `CONFORMANCE.md`. | `workbench/docs/requirements.yaml`, `workbench/scripts/conformance_report.py` |
+| Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](conformance.md). | `workbench/docs/requirements.yaml`, `workbench/docs/reviews.yaml`, `workbench/scripts/conformance_report.py` |
 | Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |
 | FAIRsharing snapshot | The committed copy of FAIRsharing records that R3 uses (CC BY-SA 4.0). | `agents/r3/data/fairsharing/` |
 

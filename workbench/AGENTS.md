@@ -80,6 +80,11 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   NOANSWER, not 0. `baseline.json` changes only in a commit of its own that says why, written by
   `workbench/scripts/eval_compare.py --write-baseline`; `test_r3_evals.py` fails on any drift from
   it, better or worse.
+- **A review is recorded, never invented (ADR-0014).** `docs/reviews.yaml` holds human reviews
+  of requirements whose `assessed_by` names `review`. Only the reviewer adds an entry, or someone
+  on their written instruction; an entry is never edited, and a new finding is a new entry. Do not
+  write a review entry yourself. The test and review verdicts stay in separate columns, never
+  combined.
 - **Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`**, and
   the ID must be in `docs/requirements.yaml`. Do not mark a test with an ID it does not actually
   exercise; a demonstration agent does not substantiate a Blueprint `R` it does not meet.

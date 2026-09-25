@@ -11,6 +11,15 @@
 # source: project    — a decomposition or obligation this project introduced; the Blueprint does
 #                      not use the identifier. R3.1–R3.6 come from experiments/standards-advisor.
 #
+# assessed_by      — how the requirement is assessed (ADR-0014): `test` (a marked test in a pytest
+#                    run), `review` (a named person's review recorded in reviews.yaml), or both.
+#                    Absent means [test]. A requirement names `review` when a passing test cannot
+#                    show what the Blueprint asks for: quality judged by a domain expert (R3,
+#                    C15), a legal or institutional obligation (C3, C12), how a deployment is run
+#                    (C1, C4), or what only people can check (C6 beyond automated WCAG checks,
+#                    C2's human-reviewer pause). The two verdicts are reported side by side and
+#                    never combined.
+#
 # Marker honesty: a test may carry an identifier only if it exercises the requirement as the
 # Blueprint states it. A test that checks the *shape* of a slot (the P14 energy slots exist and
 # say not_measured) does not substantiate the requirement (energy footprint captured), and is
@@ -30,6 +39,7 @@ requirements:
     source: blueprint
     priority: MUST
     title: Suggest appropriate vocabularies, ontologies and open data formats
+    assessed_by: [test, review]
   - id: R3.1
     source: project
     parent: R3
@@ -90,21 +100,26 @@ requirements:
   - id: C1
     source: blueprint
     title: Security
+    assessed_by: [review]
   - id: C2
     source: blueprint
     title: Privacy
+    assessed_by: [test, review]
   - id: C3
     source: blueprint
     title: Compliance
+    assessed_by: [review]
   - id: C4
     source: blueprint
     title: Sovereignty
+    assessed_by: [review]
   - id: C5
     source: blueprint
     title: Interoperability — open APIs and established metadata standards
   - id: C6
     source: blueprint
     title: Accessibility
+    assessed_by: [test, review]
   - id: C7
     source: blueprint
     title: Reliability
@@ -123,6 +138,7 @@ requirements:
   - id: C12
     source: blueprint
     title: Data Governance
+    assessed_by: [test, review]
   - id: C13
     source: blueprint
     title: AI Governance — actions logged, attributable to an agent identity, subject to human oversight
@@ -132,6 +148,7 @@ requirements:
   - id: C15
     source: blueprint
     title: Data and Metadata Quality — quality checks on outputs, human review mandatory
+    assessed_by: [test, review]
   - id: C16
     source: blueprint
     title: Measurability

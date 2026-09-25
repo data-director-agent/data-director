@@ -9,7 +9,7 @@ Terms used in the workbench, in alphabetical order.
 | Agent card | The JSON document an A2A service publishes at `/.well-known/agent-card.json`. A Data Director agent's card carries its `AgentSpec` in an extension. See [`registry.md`](registry.md). |
 | Canonicalisation | A fixed, named way of turning a record into bytes before hashing it, so the same record always gives the same hash. See [`grounding.md`](grounding.md). |
 | Conductor | The function that runs an agent and applies every check. See [`conductor.md`](conductor.md). |
-| Conformance report | `CONFORMANCE.md`, generated from the test results. It lists which Blueprint requirements the tests demonstrate. |
+| Conformance report | `CONFORMANCE.md`, generated from the test results and the review record. For each requirement it gives a test verdict and, where the requirement needs one, a review verdict. See [`conformance.md`](conformance.md). |
 | Content hash | A short fingerprint of a record's content when it was read. If the content changes, the hash changes. See [`grounding.md`](grounding.md#source-ids-and-content-hashes). |
 | Envelope | The response to one request: the outcome, the payload if any, the evidence and the telemetry. See [`contract.md`](contract.md). |
 | Evidence | The list of source records an envelope rests on, each with a content hash. |
@@ -23,6 +23,7 @@ Terms used in the workbench, in alphabetical order.
 | Problem Details | The RFC 9457 format used to describe a `failed` or `suspended` outcome. |
 | Process Run Crate | An RO-Crate provenance record of one run: which agent ran, on what input, and what it produced. |
 | Registry | The workbench's list of agents it can call, built at start-up from `agents.yaml` and each agent's card. See [`registry.md`](registry.md). |
+| Review record | `reviews.yaml`: the human reviews of requirements that a test cannot settle, one entry per review, each naming the reviewer and the commit reviewed. See [`conformance.md`](conformance.md#recording-a-review). |
 | Span, trace | A trace is a timed record of one run, in the OpenTelemetry format, written by the workbench rather than the agent. It is made of spans, one per step, such as fetching a record or calling a model. Spans nest inside one span for the whole run, forming a span tree. See [`grounding.md#traces-and-spans`](grounding.md#traces-and-spans). |
 | Unavailable agent | An agent listed in `agents.yaml` whose card could not be read or was rejected. It is shown with the reason and cannot be run. See [`registry.md`](registry.md#when-something-is-wrong). |
 | Viewer | The read-only browser pages in `viewer/` (Inspect and Chat) for trying agents and inspecting envelopes. Formerly called the shell. |
