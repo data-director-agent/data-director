@@ -1,0 +1,26 @@
+{
+   "$comment": "Generated from doubles.yaml by `uv run dd-gen-schema <path to doubles.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/workbench/doubles/ProbeClaim",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "A statement for a retrieval double to check.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "ProbeClaim"
+         ],
+         "type": "string"
+      },
+      "text": {
+         "description": "The statement to check.",
+         "type": "string"
+      }
+   },
+   "required": [
+      "schema_class",
+      "text"
+   ],
+   "title": "ProbeClaim",
+   "type": "object"
+}

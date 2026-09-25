@@ -1,0 +1,28 @@
+{
+   "$comment": "Generated from doubles.yaml by `uv run dd-gen-schema <path to doubles.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/workbench/doubles/ProbeProfile",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "A second input class, for a double that accepts more than one.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "ProbeProfile"
+         ],
+         "type": "string"
+      },
+      "title": {
+         "description": "A title.",
+         "type": [
+            "string",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "ProbeProfile",
+   "type": "object"
+}
