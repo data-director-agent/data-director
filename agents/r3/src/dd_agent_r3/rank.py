@@ -20,9 +20,10 @@ from typing import Any
 
 import yaml
 
+from dd_agent_r3.classes import DatasetProfile, RecommendationKind
 from dd_agent_r3.fairsharing.records import MODEL_AND_FORMAT, TERMINOLOGY, Record
 from dd_agent_r3.retrieve import Hit, Query
-from dd_sdk.contract.models import DatasetProfile, Derivation, RecommendationKind
+from dd_sdk.contract.models import Derivation
 
 RANKING_CONFIG = Path(__file__).with_name("ranking.yaml")
 

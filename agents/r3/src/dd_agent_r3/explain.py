@@ -16,9 +16,10 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+from dd_agent_r3.classes import DatasetProfile, RecommendationKind
 from dd_agent_r3.fairsharing.records import Record
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import DatasetProfile, Derivation, RecommendationKind
+from dd_sdk.contract.models import Derivation
 from dd_sdk.tracing import chat_span, record_tokens
 
 if TYPE_CHECKING:

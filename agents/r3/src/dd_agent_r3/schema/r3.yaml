@@ -1,0 +1,168 @@
+# The input and payload classes of r3.standards-advisor, owned by this package (ADR-0019). It
+# imports the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/r3/src/dd_agent_r3/schema/r3.yaml` to regenerate generated/, and
+# keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
+id: https://w3id.org/data-director/agents/r3
+name: dd_agent_r3
+title: r3.standards-advisor classes
+description: >-
+  A minimal description of a dataset being planned or prepared (ADR-0005), and the vocabularies,
+  ontologies and formats recommended for it.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  r3: https://w3id.org/data-director/agents/r3/
+  linkml: https://w3id.org/linkml/
+  dcterms: http://purl.org/dc/terms/
+  dcat: http://www.w3.org/ns/dcat#
+default_prefix: r3
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  DatasetProfile:
+    class_uri: dcat:Dataset
+    description: >-
+      A minimal description of a dataset being planned or prepared: what it is about and how it
+      is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.
+    slots:
+      - schema_class
+      - title
+      - description
+      - keywords
+      - themes
+      - media_types
+      - fields
+
+  TableField:
+    description: >-
+      One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
+      Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
+      slot_uri (TODO: revisit if Frictionless publishes term IRIs).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#field
+    slots:
+      - name
+      - field_type
+      - field_format
+      - field_description
+
+  Recommendations:
+    description: The R3 payload. Recommended vocabularies, ontologies and formats.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - items
+      - searched
+
+  Recommendation:
+    description: >-
+      One recommended resource for one target. The resource is named only in grounded_on; its
+      name, status and DOI are in the cited evidence item's content (ADR-0015).
+    mixins:
+      - Grounded
+    slots:
+      - kind
+      - target
+      - score
+      - rationale
+      - rationale_derivation
+      - classification_derivation
+
+  SearchedSummary:
+    description: >-
+      What was looked for, so a reader can judge an abstention as well as a recommendation.
+    slots:
+      - queries
+      - snapshot_ref
+      - candidates_retrieved
+      - candidates_qualifying
+
+slots:
+
+  title:
+    slot_uri: dcterms:title
+  description:
+    slot_uri: dcterms:description
+  keywords:
+    slot_uri: dcat:keyword
+    multivalued: true
+  themes:
+    description: Discipline or subject, as free text or an IRI.
+    slot_uri: dcat:theme
+    multivalued: true
+  media_types:
+    slot_uri: dcat:mediaType
+    multivalued: true
+  fields:
+    range: TableField
+    multivalued: true
+    inlined_as_list: true
+
+  name:
+    required: true
+  field_type:
+    description: >-
+      Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
+      geopoint, ...).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#type
+  field_format:
+    see_also:
+      - https://datapackage.org/standard/table-schema/#format
+  field_description:
+    slot_uri: dcterms:description
+
+  items:
+    range: Recommendation
+    multivalued: true
+    inlined_as_list: true
+  searched:
+    range: SearchedSummary
+    inlined: true
+  kind:
+    range: RecommendationKind
+    required: true
+  target:
+    description: dataset, or field:<name> for a field-level recommendation.
+    required: true
+  score:
+    range: float
+  rationale:
+    required: true
+  rationale_derivation:
+    range: Derivation
+    required: true
+  classification_derivation:
+    range: Derivation
+
+  queries:
+    multivalued: true
+  snapshot_ref:
+    description: Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.
+  candidates_retrieved:
+    range: integer
+  candidates_qualifying:
+    range: integer
+
+enums:
+
+  RecommendationKind:
+    permissible_values:
+      controlled_vocabulary:
+        description: Concept linkage of field values to terms.
+      ontology:
+        description: Schema or model alignment.
+      terminology_unclassified:
+        description: >-
+          A terminology resource the agent could not classify as vocabulary or ontology from
+          the fields available.
+      data_format:
+      field_format:
+        description: A field-level standard such as ISO 8601 for dates.

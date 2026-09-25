@@ -9,6 +9,7 @@ import pytest
 
 from dd_agent_r3 import rank
 from dd_agent_r3.agent import R3Agent
+from dd_agent_r3.classes import RecommendationKind, Recommendations
 from dd_agent_r3.fairsharing.live import LiveBackend
 from dd_agent_r3.fairsharing.records import (
     MODEL_AND_FORMAT,
@@ -23,7 +24,7 @@ from dd_agent_r3.fairsharing.snapshot import (
 )
 from dd_agent_r3.retrieve import Query, RegistryUnavailable
 from dd_agent_r3.testing import make_conductor, request
-from dd_sdk.contract.models import OutcomeStatus, RecommendationKind, Recommendations
+from dd_sdk.contract.models import OutcomeStatus
 from workbench.testing import TEST_PRINCIPAL
 
 PUBLIC_SHAPE = {
@@ -143,7 +144,7 @@ def test_r3_over_the_real_snapshot_recommends_for_the_soil_sample(
         rec = snapshot.fetch(item.grounded_on[0].source_id)
         assert rec is not None and rec.doi
     # R3.6 on the same snapshot: an unrelated profile abstains rather than guessing.
-    from dd_sdk.contract.models import DatasetProfile
+    from dd_agent_r3.classes import DatasetProfile
 
     unrelated = DatasetProfile(
         title="Mediaeval manuscript catalogue", keywords=["palaeography", "codicology"]

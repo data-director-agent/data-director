@@ -6,21 +6,18 @@ from pathlib import Path
 
 import pytest
 
+import dd_agent_r3
 from dd_agent_r3 import factory
 from dd_agent_r3.agent import R3Agent
+from dd_agent_r3.classes import DatasetProfile, Recommendations
 from dd_agent_r3.explain import AnthropicExplainer, TemplateExplainer
 from dd_agent_r3.fairsharing.live import LiveBackend
 from dd_agent_r3.fairsharing.snapshot import DEFAULT_SNAPSHOT, SnapshotBackend
 from dd_agent_r3.testing import make_conductor
 from dd_sdk.agent import describe, spec_from_description
 from dd_sdk.contract.classes import ClassSchema
-from dd_sdk.contract.models import (
-    DatasetProfile,
-    GroundingMode,
-    InvocationRequest,
-    OutcomeStatus,
-    Recommendations,
-)
+from dd_sdk.contract.models import GroundingMode, InvocationRequest, OutcomeStatus
+from dd_sdk.schema import gen
 
 
 def test_build_defaults_to_the_committed_snapshot_and_the_template_explainer() -> None:
@@ -73,3 +70,8 @@ def test_an_input_class_it_did_not_declare_is_refused(runs_dir: Path) -> None:
     )
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")
+
+
+def test_its_classes_are_generated_from_its_own_linkml() -> None:
+    source = Path(dd_agent_r3.__file__).parent / "schema" / "r3.yaml"
+    assert gen.stale(source) == [], f"run `uv run dd-gen-schema {source}`"
