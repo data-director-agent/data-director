@@ -114,3 +114,4 @@ Each design decision has a record in [`adr/`](adr/):
 | [0017](adr/0017-policy-is-the-deployments.md) | The institutional profile belongs to the deployment, and assigns each agent its class |
 | [0018](adr/0018-acting-for.md) | Every invocation records the human it acted for, named by the authentication boundary |
 | [0019](adr/0019-core-contract-and-agent-owned-classes.md) | A core contract, and input and payload classes owned by their agents |
+| [0020](adr/0020-linkml-as-contract-source.md) | LinkML is the source of the contract; JSON Schema is what runtime checks |

@@ -1,7 +1,8 @@
 """Regenerate src/dd_sdk/schema/generated/ from src/dd_sdk/schema/data_director.yaml.
 
-Run after any change to the LinkML source. tests/test_schema_current.py byte-compares the output,
-so a hand edit to a generated file fails the suite rather than taking effect.
+Run after any change to the LinkML source. test_generated_schemas_are_current in
+tests/test_contract.py byte-compares the output, so a hand edit to a generated file fails the
+suite rather than taking effect.
 """
 
 from __future__ import annotations
