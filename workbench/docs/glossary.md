@@ -21,7 +21,7 @@ Terms used in the workbench, in alphabetical order.
 | Payload | The agent's result, present only when the outcome is `succeeded`. |
 | Policy profile | A YAML file in `profiles/` that says which agents an institution enables, which action class each is assigned, and which classes need approval. The deployment chooses it; a request cannot. |
 | Problem Details | The RFC 9457 format used to describe a `failed` or `suspended` outcome. |
-| Process Run Crate | An RO-Crate provenance record of one run: which agent ran, on what input, and what it produced. |
+| Process Run Crate | An RO-Crate provenance record of one run: which agent ran, for whom, on what input, and what it produced. It is written after the run and is not passed between agents. See [`adr/0021-ro-crate-is-a-record-not-a-message.md`](adr/0021-ro-crate-is-a-record-not-a-message.md). |
 | Registry | The workbench's list of agents it can call, built at start-up from `agents.yaml` and each agent's card. See [`registry.md`](registry.md). |
 | Review record | `reviews.yaml`: the human reviews of requirements that a test cannot settle, one entry per review, each naming the reviewer and the commit reviewed. See [`conformance.md`](conformance.md#recording-a-review). |
 | Span, trace | A trace is a timed record of one run, in the OpenTelemetry format, written by the workbench rather than the agent. It is made of spans, one per step, such as fetching a record or calling a model. Spans nest inside one span for the whole run, forming a span tree. See [`grounding.md#traces-and-spans`](grounding.md#traces-and-spans). |
