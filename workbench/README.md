@@ -216,6 +216,8 @@ described in [`../agents/README.md`](../agents/README.md).
 
 ## Further reading
 
+- [One run, step by step](docs/walkthrough.md): a single request followed through every
+  check, with real output. Start here.
 - [Architecture](docs/architecture.md): the components, the order they run in, and where the
   code lives.
 - [The conductor](docs/conductor.md): the function that runs an agent and applies every check.

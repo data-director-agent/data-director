@@ -1,7 +1,8 @@
 # Architecture
 
 This page gives a short overview of how the workbench is put together. The decisions behind it
-are recorded in [`adr/`](adr/).
+are recorded in [`adr/`](adr/). For one request followed through every step, with real output,
+see [`walkthrough.md`](walkthrough.md).
 
 ## How a run works
 
