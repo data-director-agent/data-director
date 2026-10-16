@@ -93,7 +93,7 @@ line, written before its parent's.
 | `spans.jsonl` | The OpenTelemetry trace of the run. |
 | `grounding.txt` | The grounding linter's verdict and any violations. |
 | `sources.txt` | The source check's verdict: how many cited records were verified, which were unresolved, and any violations. |
-| `ro-crate-metadata.json` | A Process Run Crate: a standard provenance record naming the agent, the human it acted for, the request and the outputs. |
+| `crate/` | A Process Run Crate: `ro-crate-metadata.json`, a standard provenance record naming the agent, the human it acted for, the request and the outputs, beside copies of the files it names. It is written after the checks and never read back ([ADR-0021](adr/0021-ro-crate-is-a-record-not-a-message.md)). |
 
 `DD_RUNS_DIR` changes where runs are written. `DD_WRITE_CRATE=0` stops the Process Run Crate
 being written.
