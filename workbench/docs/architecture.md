@@ -1,7 +1,8 @@
 # Architecture
 
 This page gives a short overview of how the workbench is put together. The decisions behind it
-are recorded in [`adr/`](adr/).
+are recorded in [`adr/`](adr/). For one request followed through every step, with real output,
+see [`walkthrough.md`](walkthrough.md).
 
 ## How a run works
 
@@ -115,3 +116,4 @@ Each design decision has a record in [`adr/`](adr/):
 | [0018](adr/0018-acting-for.md) | Every invocation records the human it acted for, named by the authentication boundary |
 | [0019](adr/0019-core-contract-and-agent-owned-classes.md) | A core contract, and input and payload classes owned by their agents |
 | [0020](adr/0020-linkml-as-contract-source.md) | LinkML is the source of the contract; JSON Schema is what runtime checks |
+| [0021](adr/0021-ro-crate-is-a-record-not-a-message.md) | RO-Crate is a record written after a run, not a message format |
