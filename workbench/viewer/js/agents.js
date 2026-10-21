@@ -7,7 +7,9 @@ import { agents, unavailable, incompatible, notRunnable, loadRegistry, groupedAg
 let current = null;
 
 function statusChip(state) {
-  return el("span", { className: "chip", textContent: state });
+  const chip = el("span", { className: "chip", textContent: state });
+  chip.dataset.agentState = state.toLowerCase();
+  return chip;
 }
 
 function renderList() {
