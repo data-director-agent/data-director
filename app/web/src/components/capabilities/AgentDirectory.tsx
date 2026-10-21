@@ -1,13 +1,14 @@
 /**
- * Every registered agent, one selected at a time, with its capabilities and limits beside the
- * list. The list is a React Aria listbox: arrow keys move, and the selection follows focus.
+ * Every registered agent, one selected at a time, with its workspace (run, about, history)
+ * beside the list. The list is a React Aria listbox: arrow keys move, and the selection follows
+ * focus.
  */
 
 import { useState } from "react";
 import { ListBox, ListBoxItem, type Selection } from "react-aria-components";
 
 import type { Directory } from "../../manifest/normalise";
-import { CapabilitiesPanel } from "./CapabilitiesPanel";
+import { AgentWorkspace } from "../agent/AgentWorkspace";
 
 export function AgentDirectory({ directory }: { directory: Directory }) {
   const first = directory.agents[0]?.id;
@@ -41,7 +42,7 @@ export function AgentDirectory({ directory }: { directory: Directory }) {
               )}
             </ListBox>
           </div>
-          {agent && <CapabilitiesPanel agent={agent} />}
+          {agent && <AgentWorkspace key={agent.id} agent={agent} />}
         </div>
       )}
       {directory.unregistered.length > 0 && (
