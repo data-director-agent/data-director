@@ -11,6 +11,19 @@ coverage:
     patch:
       default:
         target: 80%
+# CI uploads one report carrying every flag; each flag keeps only the files under its package.
+flag_management:
+  individual_flags:
+    - name: sdk
+      paths: [sdk/]
+    - name: harness
+      paths: [harness/]
+    - name: workbench
+      paths: [workbench/]
+    - name: app
+      paths: [app/]
+    - name: agents
+      paths: [agents/]
 comment:
   layout: "condensed_header, diff, files"
   require_changes: true
