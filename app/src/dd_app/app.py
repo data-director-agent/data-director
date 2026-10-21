@@ -4,6 +4,9 @@
 agent through the conductor and answers when the run has ended, with its envelope and the
 checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples`
 lists example inputs. The run endpoint is a stopgap until runs stream over AG-UI (#68, #69).
+`POST /api/conversations` starts a conversation and `POST /api/conversations/{id}/turns` sends it
+one message, answered as a run is; `GET /api/conversations` and `GET /api/conversations/{id}`
+read them back as the harness derives them from the run store (ADR-0012, #130).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (ADR-0012, #129).
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
@@ -30,7 +33,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
-from dd_app.governance import Governance
+from dd_app.governance import Governance, UnknownConversationError
 from dd_harness.conductor import UnknownAgent
 from dd_harness.identity import IdentityError
 from dd_harness.policy import PolicyError
@@ -95,6 +98,52 @@ def build_app(
             return _problem(404, "run-not-found", "No such run", f"No run {invocation_id!r}.")
         return JSONResponse(run)
 
+    async def start_conversation(request: Request) -> Response:
+        conversation_id = governance.start_conversation()
+        return JSONResponse(
+            {"conversation_id": conversation_id},
+            status_code=201,
+            headers={"Location": f"/api/conversations/{conversation_id}"},
+        )
+
+    async def send_turn(request: Request) -> Response:
+        conversation_id = request.path_params["conversation_id"]
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.")
+        if not isinstance(body, dict):
+            return _refused("The body must be an object with `agent_id` and `message_text`.")
+        if "history" in body:
+            return _refused(
+                "A turn may not give a history: the server builds it from the stored turns."
+            )
+        if extra := sorted(set(body) - {"agent_id", "message_text"}):
+            return _refused(f"A turn takes only `agent_id` and `message_text`, not {extra}.")
+        agent_id, message_text = body.get("agent_id"), body.get("message_text")
+        if not isinstance(agent_id, str) or not isinstance(message_text, str):
+            return _refused("The body must name `agent_id` and give `message_text`, as strings.")
+        if not message_text.strip():
+            return _refused("The message is empty.")
+        if governance.conversation(conversation_id) is None:
+            return _no_conversation(conversation_id)
+        try:
+            return JSONResponse(await governance.turn(conversation_id, agent_id, message_text))
+        except UnknownConversationError:
+            return _no_conversation(conversation_id)
+        except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
+            return _refused(str(exc))
+
+    async def list_conversations(request: Request) -> Response:
+        return JSONResponse(governance.conversations())
+
+    async def get_conversation(request: Request) -> Response:
+        conversation_id = request.path_params["conversation_id"]
+        found = governance.conversation(conversation_id)
+        if found is None:
+            return _no_conversation(conversation_id)
+        return JSONResponse(found)
+
     async def list_examples(request: Request) -> Response:
         return JSONResponse(examples(examples_dir))
 
@@ -107,6 +156,10 @@ def build_app(
             Route("/api/runs", start_run, methods=["POST"]),
             Route("/api/runs", list_runs, methods=["GET"]),
             Route("/api/runs/{invocation_id}", get_run, methods=["GET"]),
+            Route("/api/conversations", start_conversation, methods=["POST"]),
+            Route("/api/conversations", list_conversations, methods=["GET"]),
+            Route("/api/conversations/{conversation_id}", get_conversation, methods=["GET"]),
+            Route("/api/conversations/{conversation_id}/turns", send_turn, methods=["POST"]),
             Route("/api/examples", list_examples, methods=["GET"]),
             *delegation,
             Mount("/", StaticFiles(directory=web_dist, html=True)),
@@ -130,6 +183,15 @@ def _problem(status: int, slug: str, title: str, detail: str) -> Response:
         {"type": PROBLEM_BASE + slug, "title": title, "status": status, "detail": detail},
         status_code=status,
         media_type="application/problem+json",
+    )
+
+
+def _no_conversation(conversation_id: str) -> Response:
+    return _problem(
+        404,
+        "conversation-not-found",
+        "No such conversation",
+        f"No conversation {conversation_id!r}.",
     )
 
 

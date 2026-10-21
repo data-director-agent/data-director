@@ -1,0 +1,342 @@
+{
+  "conversation_id": "01900000-0000-7000-8000-000000000001",
+  "history": [
+    {
+      "role": "user",
+      "turn_text": "hello world"
+    },
+    {
+      "role": "agent",
+      "turn_agent_id": "director.stub",
+      "turn_agent_version": "0.1.0",
+      "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
+      "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+    },
+    {
+      "role": "user",
+      "turn_text": "hello again"
+    },
+    {
+      "role": "agent",
+      "turn_agent_id": "director.stub",
+      "turn_agent_version": "0.1.0",
+      "turn_invocation_id": "01900000-0000-7000-8000-000000000003",
+      "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!"
+    }
+  ],
+  "inputs": {
+    "01900000-0000-7000-8000-000000000002": {
+      "history": [],
+      "message_text": "hello world",
+      "schema_class": "Message"
+    },
+    "01900000-0000-7000-8000-000000000003": {
+      "history": [
+        {
+          "role": "user",
+          "turn_text": "hello world"
+        },
+        {
+          "role": "agent",
+          "turn_agent_id": "director.stub",
+          "turn_agent_version": "0.1.0",
+          "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
+          "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+        }
+      ],
+      "message_text": "hello again",
+      "schema_class": "Message"
+    },
+    "01900000-0000-7000-8000-000000000004": {
+      "greeted_name": "world",
+      "schema_class": "Salutation"
+    },
+    "01900000-0000-7000-8000-000000000005": {
+      "greeted_name": "again",
+      "schema_class": "Salutation"
+    }
+  },
+  "turns": [
+    {
+      "agent_id": "director.stub",
+      "agent_version": "0.1.0",
+      "children": [
+        {
+          "acting_for": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "agent_id": "hello.world",
+          "agent_version": "0.1.0",
+          "completed_at": "2026-01-01T00:00:00Z",
+          "contract_version": "0.8.0",
+          "conversation_id": "01900000-0000-7000-8000-000000000001",
+          "evidence": [
+            {
+              "canonicalisation": "dd-input-json-v1",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000006",
+              "hash_algorithm": "sha256",
+              "retrieved_at": "2026-01-01T00:00:00Z",
+              "source_id": "input:01900000-0000-7000-8000-000000000004"
+            }
+          ],
+          "grounding_mode": "none",
+          "input_schema": "0000000000000000000000000000000000000000000000000000000000000007",
+          "invocation_id": "01900000-0000-7000-8000-000000000004",
+          "outcome": {
+            "statement": "Greeted the name given. Deterministic; human review is required.",
+            "status": "succeeded"
+          },
+          "parent_invocation_id": "01900000-0000-7000-8000-000000000002",
+          "payload": {
+            "greeting_derivation": "template",
+            "greeting_text": "Hello, world!",
+            "grounded_on": [
+              {
+                "content_hash": "0000000000000000000000000000000000000000000000000000000000000006",
+                "source_id": "input:01900000-0000-7000-8000-000000000004"
+              }
+            ],
+            "schema_class": "Greeting"
+          },
+          "payload_schema": "0000000000000000000000000000000000000000000000000000000000000008",
+          "policy_bundle_ref": "profile:data-director-app@v3",
+          "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+          "requires_human_review": true,
+          "telemetry": {
+            "energy_estimate_j": null,
+            "energy_method": "not_measured",
+            "trace_id": "00000000000000000000000000000000"
+          }
+        }
+      ],
+      "completed_at": "2026-01-01T00:00:00Z",
+      "envelope": {
+        "acting_for": {
+          "assurance": "asserted",
+          "name": "Josiah Carberry",
+          "principal_id": "https://orcid.org/0000-0002-1825-0097",
+          "principal_kind": "person"
+        },
+        "agent_id": "director.stub",
+        "agent_version": "0.1.0",
+        "completed_at": "2026-01-01T00:00:00Z",
+        "contract_version": "0.8.0",
+        "conversation_id": "01900000-0000-7000-8000-000000000001",
+        "delegations": [
+          {
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000010",
+            "delegated_agent_id": "hello.world",
+            "delegated_agent_version": "0.1.0",
+            "delegated_invocation_id": "01900000-0000-7000-8000-000000000004",
+            "delegated_status": "succeeded"
+          }
+        ],
+        "evidence": [
+          {
+            "canonicalisation": "dd-input-json-v1",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
+            "hash_algorithm": "sha256",
+            "retrieved_at": "2026-01-01T00:00:00Z",
+            "source_id": "input:01900000-0000-7000-8000-000000000002"
+          },
+          {
+            "canonicalisation": "dd-envelope-json-v1",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000010",
+            "hash_algorithm": "sha256",
+            "retrieved_at": "2026-01-01T00:00:00Z",
+            "source_id": "invocation:01900000-0000-7000-8000-000000000004"
+          }
+        ],
+        "grounding_mode": "delegation",
+        "input_schema": "0000000000000000000000000000000000000000000000000000000000000012",
+        "invocation_id": "01900000-0000-7000-8000-000000000002",
+        "outcome": {
+          "statement": "Delegated to hello.world@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+          "status": "succeeded"
+        },
+        "payload": {
+          "grounded_on": [
+            {
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
+              "source_id": "input:01900000-0000-7000-8000-000000000002"
+            },
+            {
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000010",
+              "source_id": "invocation:01900000-0000-7000-8000-000000000004"
+            }
+          ],
+          "reply_derivation": "template",
+          "reply_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!",
+          "schema_class": "Reply"
+        },
+        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
+        "policy_bundle_ref": "profile:data-director-app@v3",
+        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+        "requires_human_review": true,
+        "telemetry": {
+          "energy_estimate_j": null,
+          "energy_method": "not_measured",
+          "trace_id": "00000000000000000000000000000000"
+        }
+      },
+      "input": {
+        "history": [],
+        "message_text": "hello world",
+        "schema_class": "Message"
+      },
+      "invocation_id": "01900000-0000-7000-8000-000000000002",
+      "status": "succeeded",
+      "turn_index": 0
+    },
+    {
+      "agent_id": "director.stub",
+      "agent_version": "0.1.0",
+      "children": [
+        {
+          "acting_for": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "agent_id": "hello.world",
+          "agent_version": "0.1.0",
+          "completed_at": "2026-01-01T00:00:00Z",
+          "contract_version": "0.8.0",
+          "conversation_id": "01900000-0000-7000-8000-000000000001",
+          "evidence": [
+            {
+              "canonicalisation": "dd-input-json-v1",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000014",
+              "hash_algorithm": "sha256",
+              "retrieved_at": "2026-01-01T00:00:00Z",
+              "source_id": "input:01900000-0000-7000-8000-000000000005"
+            }
+          ],
+          "grounding_mode": "none",
+          "input_schema": "0000000000000000000000000000000000000000000000000000000000000007",
+          "invocation_id": "01900000-0000-7000-8000-000000000005",
+          "outcome": {
+            "statement": "Greeted the name given. Deterministic; human review is required.",
+            "status": "succeeded"
+          },
+          "parent_invocation_id": "01900000-0000-7000-8000-000000000003",
+          "payload": {
+            "greeting_derivation": "template",
+            "greeting_text": "Hello, again!",
+            "grounded_on": [
+              {
+                "content_hash": "0000000000000000000000000000000000000000000000000000000000000014",
+                "source_id": "input:01900000-0000-7000-8000-000000000005"
+              }
+            ],
+            "schema_class": "Greeting"
+          },
+          "payload_schema": "0000000000000000000000000000000000000000000000000000000000000008",
+          "policy_bundle_ref": "profile:data-director-app@v3",
+          "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+          "requires_human_review": true,
+          "telemetry": {
+            "energy_estimate_j": null,
+            "energy_method": "not_measured",
+            "trace_id": "00000000000000000000000000000000"
+          }
+        }
+      ],
+      "completed_at": "2026-01-01T00:00:00Z",
+      "envelope": {
+        "acting_for": {
+          "assurance": "asserted",
+          "name": "Josiah Carberry",
+          "principal_id": "https://orcid.org/0000-0002-1825-0097",
+          "principal_kind": "person"
+        },
+        "agent_id": "director.stub",
+        "agent_version": "0.1.0",
+        "completed_at": "2026-01-01T00:00:00Z",
+        "contract_version": "0.8.0",
+        "conversation_id": "01900000-0000-7000-8000-000000000001",
+        "delegations": [
+          {
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
+            "delegated_agent_id": "hello.world",
+            "delegated_agent_version": "0.1.0",
+            "delegated_invocation_id": "01900000-0000-7000-8000-000000000005",
+            "delegated_status": "succeeded"
+          }
+        ],
+        "evidence": [
+          {
+            "canonicalisation": "dd-input-json-v1",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
+            "hash_algorithm": "sha256",
+            "retrieved_at": "2026-01-01T00:00:00Z",
+            "source_id": "input:01900000-0000-7000-8000-000000000003"
+          },
+          {
+            "canonicalisation": "dd-envelope-json-v1",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
+            "hash_algorithm": "sha256",
+            "retrieved_at": "2026-01-01T00:00:00Z",
+            "source_id": "invocation:01900000-0000-7000-8000-000000000005"
+          }
+        ],
+        "grounding_mode": "delegation",
+        "input_schema": "0000000000000000000000000000000000000000000000000000000000000012",
+        "invocation_id": "01900000-0000-7000-8000-000000000003",
+        "outcome": {
+          "statement": "Delegated to hello.world@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+          "status": "succeeded"
+        },
+        "payload": {
+          "grounded_on": [
+            {
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
+              "source_id": "input:01900000-0000-7000-8000-000000000003"
+            },
+            {
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
+              "source_id": "invocation:01900000-0000-7000-8000-000000000005"
+            }
+          ],
+          "reply_derivation": "template",
+          "reply_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
+          "schema_class": "Reply"
+        },
+        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
+        "policy_bundle_ref": "profile:data-director-app@v3",
+        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+        "requires_human_review": true,
+        "telemetry": {
+          "energy_estimate_j": null,
+          "energy_method": "not_measured",
+          "trace_id": "00000000000000000000000000000000"
+        }
+      },
+      "input": {
+        "history": [
+          {
+            "role": "user",
+            "turn_text": "hello world"
+          },
+          {
+            "role": "agent",
+            "turn_agent_id": "director.stub",
+            "turn_agent_version": "0.1.0",
+            "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
+            "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+          }
+        ],
+        "message_text": "hello again",
+        "schema_class": "Message"
+      },
+      "invocation_id": "01900000-0000-7000-8000-000000000003",
+      "status": "succeeded",
+      "turn_index": 1
+    }
+  ],
+  "version_changes": []
+}

@@ -36,6 +36,13 @@ It is built from:
     a 400 with Problem Details;
   - `GET /api/runs` and `GET /api/runs/{id}`: the run store, newest first;
   - `GET /api/examples`: the example inputs in `config/examples/`;
+  - `POST /api/conversations`: starts a conversation and gives its `conversation_id`;
+  - `POST /api/conversations/{id}/turns` (`{agent_id, message_text}`): sends one `Message` to
+    the agent through the conductor and answers as `POST /api/runs` does. The server builds the
+    message's history from the stored turns; a request that gives one is refused (ADR-0024 §17);
+  - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
+    recently active first, and one conversation's turns, each with its delegated children, the
+    stored inputs, version changes per agent and the history;
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant (ADR-0012) and refuses every other
     request, so the app is no general A2A way in;
