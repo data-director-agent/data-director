@@ -1,7 +1,7 @@
 {
   "sdk": "0.1.0",
   "harness": "0.1.0",
-  "workbench": "0.1.0",
+  "workbench": "0.2.0",
   "app": "0.2.0-alpha.1",
   "agents/director": "0.1.0",
   "agents/factcheck": "0.1.0",
