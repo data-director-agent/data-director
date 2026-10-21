@@ -39,6 +39,10 @@ dev = [
   "pytest-cov>=7.1.0",
   "pytest-xdist>=3.8.0",
 ]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+]
 
 [tool.uv]
 package = false

@@ -1,0 +1,38 @@
+site_name: Data Director
+site_description: A reference implementation of the RDA Data Director Agentic AI Blueprint
+site_url: https://data-director-agent.github.io/data-director/
+repo_url: https://github.com/data-director-agent/data-director
+edit_uri: edit/main/docs/guide/
+docs_dir: docs/guide
+site_dir: site
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.action.edit
+    - content.code.copy
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - User guide:
+      - user-guide/index.md
+      - Getting started: user-guide/getting-started.md
+      - Running an agent: user-guide/running-an-agent.md
+      - Understanding outcomes: user-guide/outcomes.md
+  - Developer guide:
+      - developer-guide/index.md
+      - Setting up: developer-guide/setup.md
+      - Writing an agent: developer-guide/writing-an-agent.md
+      - Documentation: developer-guide/documentation.md
+  - Reference:
+      - reference/index.md

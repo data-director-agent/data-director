@@ -224,3 +224,6 @@ __marimo__/
 
 # Inspect AI evaluation logs (ADR-0013)
 logs/
+
+# MkDocs build output
+/site/

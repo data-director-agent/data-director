@@ -53,6 +53,25 @@ regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`
 Python, JavaScript and TypeScript code and the workflows, and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
 
+## Keeping `uv.lock` current
+
+`uv.lock` records every workspace package's version and dependencies, so any branch that changes
+a `pyproject.toml` changes it too, and two such branches conflict. The `uv-lock` pre-commit hook
+re-locks whenever a `pyproject.toml` changes, so the lock never lags behind and CI's locked check
+never fails for that reason. Install it once:
+
+```
+uv tool install pre-commit && pre-commit install
+```
+
+Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock again:
+
+```
+git checkout origin/main -- uv.lock && uv lock && git add uv.lock
+```
+
+then continue the rebase or merge. Release pull requests are re-locked by `release-please.yml`.
+
 ## Credit
 
 Please add your details to the [citation file](./CITATION.cff) to be acknowledged as a contributor.
