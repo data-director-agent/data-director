@@ -20,9 +20,11 @@ from dd_agent_hello.agent import build as build_hello
 from dd_agent_quality.agent import build as build_quality
 from dd_agent_standards import factory as standards
 from dd_app.app import ShellNotBuiltError, build_app
-from dd_app.config import settings_from_env
+from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import STANDARDS_AGENT_ID, Governance
 from dd_harness.identity import IdentityError
+from dd_harness.policy import load_profile
+from dd_harness.registry import load_config
 from dd_harness.testing import (
     PERMISSIVE,
     RESTRICTIVE,
@@ -42,9 +44,17 @@ FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
 
 @pytest.fixture
 def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    """The app's reference set, a principal, and runs written under `tmp_path`."""
+    """The app's reference set, a principal, and runs written under `tmp_path`.
+
+    The reference agent list names services these tests do not start, and whether one happens to
+    be running would change what the server says, so it is replaced by an empty list: the
+    standards advisor, in process, is then the only agent.
+    """
     for variable in PATH_VARIABLES:
         monkeypatch.delenv(variable, raising=False)
+    no_remote_agents = tmp_path / "agents.yaml"
+    no_remote_agents.write_text("agents: []\n", encoding="utf-8")
+    monkeypatch.setenv("DD_AGENTS_CONFIG", str(no_remote_agents))
     for variable in ("DD_STANDARDS_RETRIEVAL", "DD_STANDARDS_EXPLAINER", "DD_SNAPSHOT_PATH"):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
@@ -75,7 +85,24 @@ def agents_response(governance: Governance, dist: Path) -> dict[str, Any]:
     return body
 
 
-def test_the_reference_set_registers_standards_alone(governance: Governance):
+def test_the_reference_set_lists_and_enables_every_other_in_tree_agent():
+    # The standards advisor runs in process, so its port (8105) is not listed.
+    entries = load_config(DEFAULT_AGENTS_CONFIG)
+    assert [(e["name"], e["url"]) for e in entries] == [
+        ("hello", "http://127.0.0.1:8101"),
+        ("quality", "http://127.0.0.1:8102"),
+        ("director", "http://127.0.0.1:8106"),
+    ]
+    enabled = (
+        STANDARDS_AGENT_ID,
+        "hello.world",
+        "quality.reviewer",
+        "director.stub",
+    )
+    assert load_profile(DEFAULT_PROFILE).agents == dict.fromkeys(enabled, "advise")
+
+
+def test_without_remote_agents_the_standards_advisor_runs_alone(governance: Governance):
     conductor = governance.conductor
     assert conductor.registry.ids() == [STANDARDS_AGENT_ID]
     assert conductor.profile.profile_id == "data-director-app"
@@ -93,7 +120,7 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v1"
+    assert body["profile"]["ref"] == "profile:data-director-app@v3"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 
 
@@ -275,7 +302,10 @@ def test_a_run_that_is_not_stored_is_not_found(
 def test_the_examples_name_their_class(governance: Governance, dist: Path):
     found = TestClient(build_app(governance, dist)).get("/api/examples").json()
     assert [(e["name"], e["schema_class"]) for e in found] == [
+        ("director.message", "Message"),
         ("empty.profile", "DatasetProfile"),
+        ("hello.salutation", "Salutation"),
+        ("orda-record.metadata", "MetadataRecord"),
         ("soil-chemistry.profile", "DatasetProfile"),
     ]
-    assert found[1]["input"] == example("soil-chemistry.profile")
+    assert found[4]["input"] == example("soil-chemistry.profile")

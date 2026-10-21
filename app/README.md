@@ -51,6 +51,11 @@ export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."   # whom r
 uv run data-director               # opens http://127.0.0.1:7860
 ```
 
+The other agents are separate services. Start them with `scripts/run-agents.sh` from the
+repository root before the app, which reads their cards once at start-up; one that is not
+running is listed as unavailable. `director.stub` is listed but abstains, because the app has
+no A2A address to issue it a delegation grant from (TODO).
+
 `DD_APP_HOST` and `DD_APP_PORT` change the address. To work on the shell, run the server as
 above and `npm run dev` in `app/web`, which proxies `/api` to it (set `DD_APP_URL` if it is
 elsewhere).
@@ -62,8 +67,8 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 
 | File | What it is | Override |
 |---|---|---|
-| `config/profile.yaml` | The institutional profile. It enables the standards advisor only. | `DD_PROFILE` |
-| `config/agents.yaml` | Agents reached over A2A. Empty: the standards advisor runs in the app's process. | `DD_AGENTS_CONFIG` |
+| `config/profile.yaml` | The institutional profile. It enables every in-tree agent. | `DD_PROFILE` |
+| `config/agents.yaml` | Agents reached over A2A: every in-tree agent but the standards advisor, which runs in the app's process. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
 | `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own (#108). | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
