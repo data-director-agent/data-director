@@ -38,12 +38,17 @@ describe("normalise", () => {
     }
   });
 
-  it("lists derivations by field path", () => {
+  it("lists derivations by field path, with the field that records each value's", () => {
     const r3 = normalise(referenceSet).agents[0];
     expect(r3?.derivations).toEqual([
-      { path: "items.kind", how: "lexical" },
-      { path: "items.rationale", how: "model" },
+      { path: "items.kind", how: "lexical", recordedIn: "classification_derivation" },
+      { path: "items.rationale", how: "model", recordedIn: "rationale_derivation" },
     ]);
+  });
+
+  it("keeps each class's JSON Schema", () => {
+    const r3 = normalise(referenceSet).agents[0];
+    expect(Object.keys(r3?.schemas ?? {}).sort()).toEqual(["DatasetProfile", "Recommendations"]);
   });
 
   it("lists agents that could not be registered, with the reason", () => {

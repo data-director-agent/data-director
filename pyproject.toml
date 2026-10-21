@@ -34,7 +34,7 @@ dev = [
   "linkml>=1.11",
   "ruff>=0.9",
   "mypy>=1.15",
-  "types-jsonschema>=4.23",
+  "types-jsonschema>=4.26.0.20261006",
   "types-PyYAML>=6.0",
   "pytest-cov>=7.1.0",
 ]
