@@ -35,7 +35,23 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 | `DD_RUNS_DIR` | Where runs are written. |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for, until there is authentication. |
 
-The workbench's development set lives in `workbench/` and is supplied by `workbench.config`.
+A way in supplies a set by passing its files to `Settings.from_env` as defaults, then calls
+`build_conductor(settings)`. A variable wins over the default, so a deployment replaces one file
+without touching the others. Two sets are in the repository:
+
+- `app/config/` is the Data Director app's reference set (`profile.yaml`, `agents.yaml`,
+  `sources.yaml`), supplied by `dd_app.config`, with runs in `app/runs/`.
+- `workbench/` holds the workbench's development set, supplied by `workbench.config`.
+
+`build_conductor(settings, agents=[...])` also registers agent objects that the caller runs in
+its own process, beside the agents the agent list names. The app runs R3 this way. The profile
+still decides which may run.
+
+Not yet decided (#57):
+
+- TODO: one file (e.g. `harness.yaml`) naming the other three and the run directory.
+- TODO: how `sources.yaml` pins a source copy stored outside the repository.
+- TODO: how a steward edits and reviews the profile in a deployment (ADR-0017, #41).
 
 ## Test kit
 

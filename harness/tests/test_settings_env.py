@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from dd_harness.settings import Settings, SettingsError, load_env_file
+from dd_harness.settings import Settings, SettingsError, build_conductor, load_env_file
+from dd_harness.testing import PERMISSIVE, ScriptedAgent
+from dd_sdk.contract.models import GroundingMode
 
 PATH_VARIABLES = ("DD_RUNS_DIR", "DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 
@@ -80,3 +82,14 @@ def test_a_key_without_a_value_is_skipped(tmp_path: Path) -> None:
     environ: dict[str, str] = {}
     load_env_file(_env_file(tmp_path, "DD_PRINCIPAL_ID\nDD_RUNS_DIR=runs\n"), environ)
     assert environ == {"DD_RUNS_DIR": "runs"}
+
+
+def test_the_caller_registers_in_process_agents_beside_the_list(
+    no_paths: None, tmp_path: Path
+) -> None:
+    (tmp_path / "agents.yaml").write_text("agents: []\n", encoding="utf-8")
+    (tmp_path / "sources.yaml").write_text("sources: []\n", encoding="utf-8")
+    defaults = _defaults(tmp_path) | {"profile": PERMISSIVE}
+    agent = ScriptedAgent(GroundingMode.NONE, RuntimeError("not run"))
+    conductor = build_conductor(Settings.from_env(**defaults), agents=[agent])
+    assert conductor.registry.ids() == ["fake.none"]
