@@ -2,8 +2,8 @@
 
 An agent's output is *grounded* when everything it relies on can be traced to something the
 agent actually read during the run. The workbench checks this after every run with the grounding
-linter in [`harness/src/dd_harness/grounding.py`](../../harness/src/dd_harness/grounding.py)
-([ADR-0008](adr/0008-grounding-modes.md)).
+linter in [`harness/src/dd_harness/grounding.py`](../src/dd_harness/grounding.py)
+([ADR-0008](../../docs/adr/0008-grounding-modes.md)).
 
 ## Why it matters
 
@@ -18,7 +18,7 @@ withholds the result rather than passing it on.
 The check compares two accounts of the run.
 
 1. **What the agent says it relied on.** Each result lists its sources in a `grounded_on` list
-   ([`contract.md`](contract.md)). The envelope's evidence repeats those sources.
+   ([`contract.md`](../../docs/contract.md)). The envelope's evidence repeats those sources.
 2. **What the trace says the agent did.** The trace records each step of the run.
 
 A result passes only if the two agree.
@@ -28,16 +28,16 @@ grounding mode, the hash of the input, the `invoke_agent` span, and the runs it 
 delegating agent. The agent cannot change these. Other facts are declared by the agent: its
 `retrieval` and `chat` spans and their times, its `grounded_on` lists, its evidence and its
 derivation badges. An agent runs as a separate service and sends its spans back with its result
-([ADR-0011](adr/0011-remote-agents.md)), so a `retrieval` span is the agent's statement that it
+([ADR-0011](../../docs/adr/0011-remote-agents.md)), so a `retrieval` span is the agent's statement that it
 read a record, not the workbench's observation of it.
 
 The linter is therefore a **consistency check**
-([ADR-0016](adr/0016-source-check.md)). See [What a pass shows](#what-a-pass-shows-and-what-it-does-not).
+([ADR-0016](../../docs/adr/0016-source-check.md)). See [What a pass shows](#what-a-pass-shows-and-what-it-does-not).
 
 ## Traces and spans
 
 A *trace* is a timed record of one run, in the [OpenTelemetry](https://opentelemetry.io/) format
-([ADR-0002](adr/0002-opentelemetry.md)). OpenTelemetry is a widely used open standard for
+([ADR-0002](../../docs/adr/0002-opentelemetry.md)). OpenTelemetry is a widely used open standard for
 recording what software does while it runs.
 
 A trace is made of *spans*. A span is one step, such as fetching a record or calling a model. Each
@@ -70,7 +70,7 @@ hash, which is a short fingerprint of *what the record said* when it was read. C
 catches a result that names the right record but relies on a different version of it. The hash
 is computed with a registered canonicalisation, a fixed way of turning the record into bytes, so
 the same content always gives the same hash
-([ADR-0009](adr/0009-evidence-canonicalisations.md)).
+([ADR-0009](../../docs/adr/0009-evidence-canonicalisations.md)).
 
 ## Grounding modes
 
@@ -104,7 +104,7 @@ covers. If it does, the content must hash to the item's `content_hash`. A payloa
 record only in `grounded_on`; what the reader is shown about that record (its name or status,
 say) is the `content` of the evidence item with the same id and hash. E1 therefore checks what
 the reader sees, without the linter knowing the payload class
-([ADR-0015](adr/0015-evidence-carries-content.md)).
+([ADR-0015](../../docs/adr/0015-evidence-carries-content.md)).
 
 For `retrieval` agents:
 
@@ -125,7 +125,7 @@ For `none` agents only:
 
 - **N1**: the trace contains no model calls.
 
-For `delegation` agents ([ADR-0012](adr/0012-conversation-and-orchestration.md)), R1 and G4 apply,
+For `delegation` agents ([ADR-0012](../../docs/adr/0012-conversation-and-orchestration.md)), R1 and G4 apply,
 and:
 
 - **D1**: every source in `grounded_on` is either the input (as R2 defines it) or a run listed in
@@ -154,7 +154,7 @@ it.
 | Mode | A pass shows | A pass does not show |
 |---|---|---|
 | `retrieval` | The agent's citations, evidence and declared retrievals agree, and the agent declared a retrieval before any model call. | That the agent retrieved anything, or when. The source check covers part of this. |
-| `input_only`, `none` | The result cites only the input, by the hash the conductor computed, and the agent declared no retrieval (or no model call). | That a model's rationale is faithful to the input. That is for evaluation ([ADR-0013](adr/0013-evaluation.md)). |
+| `input_only`, `none` | The result cites only the input, by the hash the conductor computed, and the agent declared no retrieval (or no model call). | That a model's rationale is faithful to the input. That is for evaluation ([ADR-0013](../../docs/adr/0013-evaluation.md)). |
 | `delegation` | The result cites only the input and runs the conductor itself performed for the agent. | That a relayed reply is faithful to the runs it relays. |
 
 In every mode, a derivation badge such as `rationale_derivation` is the agent's declaration of
@@ -163,7 +163,7 @@ how a value was made. Neither check verifies it.
 ## The source check
 
 After the linter, the conductor re-hashes what the evidence cites against a copy of the source
-that the workbench holds ([ADR-0016](adr/0016-source-check.md)). `sources.yaml` lists each copy
+that the workbench holds ([ADR-0016](../../docs/adr/0016-source-check.md)). `sources.yaml` lists each copy
 by the evidence `snapshot_ref` it serves, and pins the file by its SHA-256 hash, so the copy
 does not depend on the agent.
 

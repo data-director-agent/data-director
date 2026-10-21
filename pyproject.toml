@@ -90,7 +90,7 @@ filterwarnings = [
   "ignore:label\\(\\) is deprecated:DeprecationWarning",
 ]
 markers = [
-  "requirement(*ids): the requirement identifiers this test substantiates (see workbench/docs/requirements.yaml)",
+  "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
 ]
 
 [tool.mypy]
@@ -98,11 +98,11 @@ python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
   "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts", "app/src",
-  "app/tests",
+  "app/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
-  "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
+  "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
   "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
   "agents/director/src", "app/src",
 ]

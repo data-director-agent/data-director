@@ -109,7 +109,7 @@ them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiat
 
 This report is not signed. What ties the table to the code is the commit that contains this file:
 CI regenerates the report at that commit and fails if it differs. To check a version, find its
-commit with `git log -- workbench/CONFORMANCE.md` and look at that commit's CI run, whose job
+commit with `git log --follow -- CONFORMANCE.md` and look at that commit's CI run, whose job
 summary names the commit tested, the Python version and the suite's counts. The intent is to
 attest the report with in-toto or Sigstore once the project has a release process; an attestation
 is made after the commit exists, so it can name that commit (see
@@ -119,8 +119,8 @@ docs/adr/0006-dependency-tiering.md, "Rejected for v0"). A review is attested on
 ## Regenerating
 
 ```sh
-uv run pytest --json-report --json-report-file=workbench/.report.json
-uv run python workbench/scripts/conformance_report.py
+uv run pytest --json-report --json-report-file=.report.json
+uv run python scripts/conformance_report.py
 ```
 
 CI runs the same two commands with `--check`, which fails if the output differs from the

@@ -4,12 +4,12 @@ The harness governs every invocation of a Data Director agent. It applies the in
 profile, checks the input, calls the agent over A2A, lints the agent's account of its run, checks
 cited records against pinned source copies, validates the envelope, and records the run with its
 trace and a Process Run Crate. The workbench describes each step in
-[`../workbench/docs/conductor.md`](../workbench/docs/conductor.md).
+[`docs/conductor.md`](docs/conductor.md).
 
 The harness is a library with one way in of its own, the A2A endpoint (`dd_harness.transport.a2a`),
 which `dd-harness serve` serves. Other ways in are built on it. The [workbench](../workbench/) is
 one of them, used for developing and testing agents
-([ADR-0022](../workbench/docs/adr/0022-harness-is-its-own-package.md)).
+([ADR-0022](../docs/adr/0022-harness-is-its-own-package.md)).
 
 | Module | What it does |
 |---|---|

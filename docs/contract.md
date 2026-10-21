@@ -1,7 +1,7 @@
 # The contract
 
 The contract defines what an agent receives and what it returns. It is written in LinkML in
-[`sdk/src/dd_sdk/schema/data_director.yaml`](../../sdk/src/dd_sdk/schema/data_director.yaml),
+[`sdk/src/dd_sdk/schema/data_director.yaml`](../sdk/src/dd_sdk/schema/data_director.yaml),
 which the workbench and every agent share through the SDK. The JSON Schema and SHACL shapes in
 `generated/` beside it are produced from that file and are never edited by hand.
 
@@ -66,7 +66,7 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 | `outcome` | What happened. Its `status` is one of the five values below. |
 | `payload` | The agent's result. Present only when the status is `succeeded`. |
 | `evidence` | The source records the result rests on. Each item carries a content hash and names the canonicalisation used to compute it ([ADR-0009](adr/0009-evidence-canonicalisations.md)). |
-| `grounding_mode` | The grounding mode the agent declared ([`grounding.md`](grounding.md)). |
+| `grounding_mode` | The grounding mode the agent declared ([`grounding.md`](../harness/docs/grounding.md)). |
 | `policy_bundle_ref`, `policy_digest` | The institutional profile the conductor applied, as `profile:<id>@v<version>`, and the SHA-256 of its file ([ADR-0017](adr/0017-policy-is-the-deployments.md)). |
 | `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields are always empty for now (`not_measured`). |
 | `requires_human_review` | Always `true`. The schema fixes it as a constant, so no envelope can claim otherwise. |
@@ -75,7 +75,7 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 | `delegations` | For an agent in grounding mode `delegation`: each run it delegated, with that run's agent, version, status and envelope hash. Omitted when empty. |
 
 The envelope also carries the invocation id, the agent id and version, and the completion time.
-The [conductor](conductor.md) fills these in, not the agent.
+The [conductor](../harness/docs/conductor.md) fills these in, not the agent.
 
 ## Outcomes
 
@@ -116,4 +116,4 @@ send with the next `Message`.
 
 An orchestrator hands work to other agents only through the workbench. Each hand-off is a run of
 its own, stored with `parent_invocation_id`, and listed in the parent envelope's `delegations`.
-[`conductor.md`](conductor.md) describes how.
+[`conductor.md`](../harness/docs/conductor.md) describes how.

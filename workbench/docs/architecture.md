@@ -1,21 +1,21 @@
 # Architecture
 
 This page gives a short overview of how the workbench is put together. The decisions behind it
-are recorded in [`adr/`](adr/). For one request followed through every step, with real output,
+are recorded in [`adr/`](../../docs/adr/). For one request followed through every step, with real output,
 see [`walkthrough.md`](walkthrough.md).
 
 ## How a run works
 
 A caller sends a request naming an agent and giving it an input. The harness returns one
 response, called an envelope. The harness is a package of its own, and every front end is a way
-in to it ([ADR-0022](adr/0022-harness-is-its-own-package.md)). The harness serves an A2A
+in to it ([ADR-0022](../../docs/adr/0022-harness-is-its-own-package.md)). The harness serves an A2A
 JSON-RPC endpoint for other systems. The workbench adds the command line and the web viewer for
 development. Every way in hands the request to the same function, the
-[conductor](conductor.md), so an agent behaves the same whichever front end is used.
+[conductor](../../harness/docs/conductor.md), so an agent behaves the same whichever front end is used.
 
 Agents are separate services. The conductor reaches each one over A2A and gets back the
 agent's result together with the trace spans the agent recorded
-([ADR-0011](adr/0011-remote-agents.md)). The conductor runs a fixed sequence of steps:
+([ADR-0011](../../docs/adr/0011-remote-agents.md)). The conductor runs a fixed sequence of steps:
 
 ```mermaid
 flowchart LR
@@ -37,17 +37,17 @@ flowchart LR
    grounding mode `delegation`, such as an orchestrator, may ask the workbench to run another
    agent through `ctx.delegate`. Each delegated run goes through every step here as a run of its
    own, and the conductor records it in the parent envelope's `delegations`
-   ([ADR-0012](adr/0012-conversation-and-orchestration.md)).
+   ([ADR-0012](../../docs/adr/0012-conversation-and-orchestration.md)).
 4. The **grounding linter** checks that the agent's account of its run is consistent: the
    output cites only what its grounding mode allows, and what the agent says it retrieved
-   ([`grounding.md`](grounding.md)). It is a consistency check, not proof of retrieval.
+   ([`grounding.md`](../../harness/docs/grounding.md)). It is a consistency check, not proof of retrieval.
 5. The **source check** re-hashes each cited record against a pinned copy of the source that
-   the workbench holds ([ADR-0016](adr/0016-source-check.md)).
+   the workbench holds ([ADR-0016](../../docs/adr/0016-source-check.md)).
 6. The envelope is **validated** against the JSON Schema.
 7. The run is **stored**, with its trace and a provenance record.
 
 If a step refuses, later steps still record the refusal. The caller always gets an envelope that
-says what happened. [`conductor.md`](conductor.md) describes each step in detail.
+says what happened. [`conductor.md`](../../harness/docs/conductor.md) describes each step in detail.
 
 ## Components
 
@@ -71,12 +71,12 @@ root.
 | Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `harness/src/dd_harness/grounding.py` |
 | Source check | Re-hashes cited records against the pinned source copies listed in `sources.yaml`. | `harness/src/dd_harness/sources.py`, `workbench/sources.yaml` |
 | Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `harness/src/dd_harness/store.py`, `provenance.py` |
-| Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](registry.md). | `workbench/agents.yaml`, `harness/src/dd_harness/registry.py`, `remote.py` |
+| Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](../../harness/docs/registry.md). | `workbench/agents.yaml`, `harness/src/dd_harness/registry.py`, `remote.py` |
 | Settings | Reads the deployment's configuration from `DD_*` variables, with defaults supplied by the caller, and builds a conductor. The workbench's development set is in `workbench.config`. | `harness/src/dd_harness/settings.py`, `workbench/src/workbench/config.py` |
 | Front ends | The A2A JSON-RPC endpoint (part of the harness), and the workbench's CLI and the AG-UI event stream the viewer uses. | `harness/src/dd_harness/transport/a2a.py`, `workbench/src/workbench/cli.py`, `workbench/src/workbench/transport/` |
 | Viewer | Two read-only browser pages, Inspect and Chat, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `harness/src/dd_harness/testing/` |
-| Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](conformance.md). | `workbench/docs/requirements.yaml`, `workbench/docs/reviews.yaml`, `workbench/scripts/conformance_report.py` |
+| Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](../../docs/conformance.md). | `docs/requirements.yaml`, `docs/reviews.yaml`, `scripts/conformance_report.py` |
 | Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |
 | FAIRsharing snapshot | The committed copy of FAIRsharing records that R3 uses (CC BY-SA 4.0). | `agents/r3/data/fairsharing/` |
 
@@ -94,33 +94,33 @@ explainers and front ends are all replaceable.
 its own code only where it makes a governance decision. These decisions are whether an action is
 permitted, whether the evidence is enough, and whether to decline. Everything else, such as
 tracing, schema validation and RO-Crate output, uses a maintained library behind a thin module
-([ADR-0006](adr/0006-dependency-tiering.md)).
+([ADR-0006](../../docs/adr/0006-dependency-tiering.md)).
 
 ## Decisions
 
-Each design decision has a record in [`adr/`](adr/):
+Each design decision has a record in [`adr/`](../../docs/adr/):
 
 | ADR | Subject |
 |---|---|
-| [0001](adr/0001-transport.md) | Transport |
-| [0002](adr/0002-opentelemetry.md) | OpenTelemetry |
-| [0003](adr/0003-policy-profiles.md) | Policy profiles |
-| [0004](adr/0004-identifiers-and-problems.md) | UUIDv7 identifiers and Problem Details |
-| [0005](adr/0005-dataset-profile-and-validation.md) | `DatasetProfile` and the validation format |
-| [0006](adr/0006-dependency-tiering.md) | Dependency tiering |
-| [0007](adr/0007-polymorphic-contract.md) | Polymorphic contract (amended by 0019) |
-| [0008](adr/0008-grounding-modes.md) | Grounding modes |
-| [0009](adr/0009-evidence-canonicalisations.md) | Evidence canonicalisations |
-| [0010](adr/0010-agent-registry.md) | Agent registry (superseded by 0011) |
-| [0011](adr/0011-remote-agents.md) | Agents as separate A2A services (amended by 0019) |
-| [0012](adr/0012-conversation-and-orchestration.md) | Conversations, and orchestration through the workbench |
-| [0013](adr/0013-evaluation.md) | Evaluation is not conformance |
-| [0014](adr/0014-assessment-lanes.md) | Assessment lanes: tests and recorded reviews |
-| [0015](adr/0015-evidence-carries-content.md) | Evidence carries the content its hash covers |
-| [0016](adr/0016-source-check.md) | The linter checks consistency; a source check verifies citations |
-| [0017](adr/0017-policy-is-the-deployments.md) | The institutional profile belongs to the deployment, and assigns each agent its class |
-| [0018](adr/0018-acting-for.md) | Every invocation records the human it acted for, named by the authentication boundary |
-| [0019](adr/0019-core-contract-and-agent-owned-classes.md) | A core contract, and input and payload classes owned by their agents |
-| [0020](adr/0020-linkml-as-contract-source.md) | LinkML is the source of the contract; JSON Schema is what runtime checks |
-| [0021](adr/0021-ro-crate-is-a-record-not-a-message.md) | RO-Crate is a record written after a run, not a message format |
-| [0022](adr/0022-harness-is-its-own-package.md) | The harness is a package of its own, and the workbench is one way in to it |
+| [0001](../../docs/adr/0001-transport.md) | Transport |
+| [0002](../../docs/adr/0002-opentelemetry.md) | OpenTelemetry |
+| [0003](../../docs/adr/0003-policy-profiles.md) | Policy profiles |
+| [0004](../../docs/adr/0004-identifiers-and-problems.md) | UUIDv7 identifiers and Problem Details |
+| [0005](../../docs/adr/0005-dataset-profile-and-validation.md) | `DatasetProfile` and the validation format |
+| [0006](../../docs/adr/0006-dependency-tiering.md) | Dependency tiering |
+| [0007](../../docs/adr/0007-polymorphic-contract.md) | Polymorphic contract (amended by 0019) |
+| [0008](../../docs/adr/0008-grounding-modes.md) | Grounding modes |
+| [0009](../../docs/adr/0009-evidence-canonicalisations.md) | Evidence canonicalisations |
+| [0010](../../docs/adr/0010-agent-registry.md) | Agent registry (superseded by 0011) |
+| [0011](../../docs/adr/0011-remote-agents.md) | Agents as separate A2A services (amended by 0019) |
+| [0012](../../docs/adr/0012-conversation-and-orchestration.md) | Conversations, and orchestration through the workbench |
+| [0013](../../docs/adr/0013-evaluation.md) | Evaluation is not conformance |
+| [0014](../../docs/adr/0014-assessment-lanes.md) | Assessment lanes: tests and recorded reviews |
+| [0015](../../docs/adr/0015-evidence-carries-content.md) | Evidence carries the content its hash covers |
+| [0016](../../docs/adr/0016-source-check.md) | The linter checks consistency; a source check verifies citations |
+| [0017](../../docs/adr/0017-policy-is-the-deployments.md) | The institutional profile belongs to the deployment, and assigns each agent its class |
+| [0018](../../docs/adr/0018-acting-for.md) | Every invocation records the human it acted for, named by the authentication boundary |
+| [0019](../../docs/adr/0019-core-contract-and-agent-owned-classes.md) | A core contract, and input and payload classes owned by their agents |
+| [0020](../../docs/adr/0020-linkml-as-contract-source.md) | LinkML is the source of the contract; JSON Schema is what runtime checks |
+| [0021](../../docs/adr/0021-ro-crate-is-a-record-not-a-message.md) | RO-Crate is a record written after a run, not a message format |
+| [0022](../../docs/adr/0022-harness-is-its-own-package.md) | The harness is a package of its own, and the workbench is one way in to it |

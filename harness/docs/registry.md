@@ -2,15 +2,15 @@
 
 The registry is the workbench's list of agents it can call. The conductor, the CLI, the
 transports and the viewer all read the agent list from it. None of them names an agent in code.
-The decision behind this design is [ADR-0011](adr/0011-remote-agents.md). It replaced the
-entry-point discovery of [ADR-0010](adr/0010-agent-registry.md).
+The decision behind this design is [ADR-0011](../../docs/adr/0011-remote-agents.md). It replaced the
+entry-point discovery of [ADR-0010](../../docs/adr/0010-agent-registry.md).
 
 The code is in `harness/src/dd_harness/registry.py`. The A2A client it uses is in `remote.py`.
 
 ## Where the list comes from
 
 Each agent is a separate service. The workbench finds them through one configuration file,
-[`../agents.yaml`](../agents.yaml):
+[`../agents.yaml`](../../workbench/agents.yaml):
 
 ```yaml
 agents:
@@ -53,8 +53,8 @@ Some problems stop the workbench from starting. Others affect only one agent.
 | `agents.yaml` is missing, has no top-level `agents:` list, or an entry has no `url` | `RegistryError`. The workbench does not start. |
 | Two cards declare the same `agent_id` | `RegistryError`. The workbench does not start. |
 | The card cannot be fetched (the service is down, the URL is wrong, or the request times out) | The agent is recorded as **unavailable**, with the reason. The other agents still load. |
-| The card has no Data Director extension; names a class it carries no schema for; carries a schema that does not match its digest; or declares a payload class that does not mix in `Grounded` | The agent is recorded as unavailable, with the reason. A class the workbench has not seen before is not a reason: the card carries its schema ([ADR-0019](adr/0019-core-contract-and-agent-owned-classes.md)). |
-| The card declares a `contract_version` this workbench cannot govern, or none | The agent is recorded as **incompatible**, with both versions. The other agents still load ([ADR-0019](adr/0019-core-contract-and-agent-owned-classes.md)). |
+| The card has no Data Director extension; names a class it carries no schema for; carries a schema that does not match its digest; or declares a payload class that does not mix in `Grounded` | The agent is recorded as unavailable, with the reason. A class the workbench has not seen before is not a reason: the card carries its schema ([ADR-0019](../../docs/adr/0019-core-contract-and-agent-owned-classes.md)). |
+| The card declares a `contract_version` this workbench cannot govern, or none | The agent is recorded as **incompatible**, with both versions. The other agents still load ([ADR-0019](../../docs/adr/0019-core-contract-and-agent-owned-classes.md)). |
 | A request names an agent that is not registered | The conductor raises `UnknownAgent`. The message lists the registered agents and the reason each unavailable or incompatible one is missing. No envelope is written, because no agent ran. |
 | A registered agent cannot be reached when a request is sent, times out, or answers outside the contract | The run ends `failed`, with problem type `agent-error`, and the envelope is stored as usual. |
 
@@ -69,7 +69,7 @@ the core schema, `sdk/src/dd_sdk/schema/data_director.yaml`.
 ## Registration is not permission
 
 The registry says which agents can be reached. The policy profile named in each request decides
-which of them may run ([ADR-0003](adr/0003-policy-profiles.md)). A registered agent that the
+which of them may run ([ADR-0003](../../docs/adr/0003-policy-profiles.md)). A registered agent that the
 profile does not enable is refused at the policy gate, and the refusal is recorded in an
 envelope. See [`conductor.md`](conductor.md).
 

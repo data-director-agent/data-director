@@ -110,8 +110,10 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   `dd_harness.transport.a2a.a2a_routes` alone, so a test conductor needs nothing from the
   workbench. Harness tests are in `harness/tests/`; the workbench keeps the tests of its CLI and
   its development configuration, and `workbench.testing` re-exports the kit.
-- TODO: whether the harness's documentation (`conductor.md`, `grounding.md`, `registry.md`, the
-  ADRs and the requirements register) moves out of `workbench/docs/`.
+- The harness's documentation has moved out of `workbench/docs/` (#58). `conductor.md`,
+  `grounding.md` and `registry.md` are in `harness/docs/`. The ADRs, the contract, the glossary,
+  the requirements register and the review record govern every package, so they are in the
+  repository-level `docs/`, with `CONFORMANCE.md` at the root and its generator in `scripts/`.
 - TODO: whether configuration may also come from one file (e.g. a `harness.yaml` naming the
   profile, agent list, source list and run directory), rather than four variables (#57).
 - TODO: how `sources.yaml` pins a source copy stored outside the repository. Today its paths

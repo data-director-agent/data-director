@@ -2,7 +2,7 @@
 
 Each directory here is one agent: its own package, its own tests, and its own service. The
 workbench does not import any of them. It reaches each agent over A2A at the URL listed in
-`workbench/agents.yaml` ([ADR-0011](../workbench/docs/adr/0011-remote-agents.md)).
+`workbench/agents.yaml` ([ADR-0011](../docs/adr/0011-remote-agents.md)).
 
 An agent is an `AgentSpec` plus one method, `run(request, ctx) -> AgentResult`
 (`dd_sdk.agent`). `dd_sdk.serve` puts it behind A2A: it publishes the agent card with the spec,
@@ -17,7 +17,7 @@ spans the agent recorded. The workbench's conductor then holds the agent to its 
 An agent never sets identifiers, timestamps, telemetry or its grounding mode.
 
 An agent owns its input and payload classes
-([ADR-0019](../workbench/docs/adr/0019-core-contract-and-agent-owned-classes.md)). It declares
+([ADR-0019](../docs/adr/0019-core-contract-and-agent-owned-classes.md)). It declares
 them in a LinkML file of its own, which imports the core contract, and its card carries each
 class's JSON Schema pinned by a digest. The workbench checks inputs and payloads against those
 schemas, so it needs no copy of an agent's classes, and adding one needs no SDK release. What
@@ -128,7 +128,7 @@ CLI, transports or viewer, this agent will show it.
 9. **Test it** in `<name>/tests/`, with a test module name no other package uses. Test the
    agent through a conductor with `dd_harness.testing.make_conductor(runs_dir, YourAgent())`,
    which serves it in memory over A2A exactly as the workbench calls it. Mark each test with the
-   requirement identifiers it actually exercises (`workbench/docs/requirements.yaml`). Do not
+   requirement identifiers it actually exercises (`docs/requirements.yaml`). Do not
    claim a Blueprint `R` a demonstration does not meet.
 10. **Optionally, evaluate it** (ADR-0013). Put an Inspect AI task in `<package>/evals/`, built
     on `workbench.evaluation.invoke_agent` and its generic scorers, with the agent's own cases
