@@ -3,6 +3,8 @@
 **Status:** Accepted (amends ADR-0003)
 **Date:** 2026-09-25
 
+Amended by [ADR-0028](0028-conversation-is-the-front-door.md) (the `orchestrator` key).
+
 ## Context
 
 ADR-0003 made the institutional profile a steward-readable YAML file and the policy gate a small
