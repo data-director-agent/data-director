@@ -1,6 +1,6 @@
 # Agents
 
-[![Tests](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=agents)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=agents)
+[![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=agents)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=agents)
 
 Each directory here is one agent: its own package, its own tests, and its own service. The
 workbench does not import any of them. It reaches each agent over A2A at the URL listed in

@@ -1,6 +1,6 @@
 # Data Director harness
 
-[![Tests](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=harness)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=harness)
+[![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=harness)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=harness)
 
 The harness governs every invocation of a Data Director agent. It applies the institutional
 profile, checks the input, calls the agent over A2A, lints the agent's account of its run, checks

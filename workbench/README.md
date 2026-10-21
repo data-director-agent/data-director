@@ -1,6 +1,6 @@
 # Data Director Workbench
 
-[![Tests](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=workbench)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=workbench)
+[![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=workbench)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=workbench)
 
 A test bed for building and testing Data Director sub-agents. It calls each agent, checks that the
 agent kept to a shared contract, and records every run so that a person can inspect what the agent
