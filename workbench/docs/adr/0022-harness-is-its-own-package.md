@@ -95,7 +95,13 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   `WorkbenchExecutor`, `dd_sdk.delegate.WorkbenchDelegate`, and the trace `service.name`
   `data-director-workbench`. Renaming them changes a configuration variable, the agent card and
   stored traces, so it is left for a separate change.
-- TODO: a harness server of its own: an A2A-only process for deployments that need no viewer.
+- **The harness has a server of its own (#55).** `dd-harness serve` (`dd_harness.server`) serves
+  the A2A routes and the agent card, and nothing else, for deployments that need no viewer. Its
+  settings come from the environment with no defaults. `uvicorn` is the optional extra
+  `data-director-harness[serve]`, so the app, which embeds the conductor, does not install it.
+  `workbench serve` builds its conductor with the same `serving` function and adds its own
+  routes. TODO: whether `/runs` and `/conversations` belong to the harness server; until callers
+  are authenticated (#17, #43), it must not be exposed beyond a trusted network.
 - **The test kit belongs to the harness (#56).** The scripted doubles, `in_process`,
   `make_conductor`, `TEST_PRINCIPAL` and the two test profiles are `dd_harness.testing`, in the
   deployable package beside the code they exercise, as `dd_agent_r3.testing` is for R3. The

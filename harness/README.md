@@ -6,9 +6,10 @@ cited records against pinned source copies, validates the envelope, and records 
 trace and a Process Run Crate. The workbench describes each step in
 [`../workbench/docs/conductor.md`](../workbench/docs/conductor.md).
 
-The harness is a library with one way in of its own, the A2A endpoint (`dd_harness.transport.a2a`).
-Other ways in are built on it. The [workbench](../workbench/) is one of them, used for developing
-and testing agents ([ADR-0022](../workbench/docs/adr/0022-harness-is-its-own-package.md)).
+The harness is a library with one way in of its own, the A2A endpoint (`dd_harness.transport.a2a`),
+which `dd-harness serve` serves. Other ways in are built on it. The [workbench](../workbench/) is
+one of them, used for developing and testing agents
+([ADR-0022](../workbench/docs/adr/0022-harness-is-its-own-package.md)).
 
 | Module | What it does |
 |---|---|
@@ -21,6 +22,7 @@ and testing agents ([ADR-0022](../workbench/docs/adr/0022-harness-is-its-own-pac
 | `identity.py` | The authentication boundary that names whom an invocation acts for (ADR-0018). |
 | `settings.py` | Settings from the environment, and the factory that builds a conductor. |
 | `transport/a2a.py` | The A2A JSON-RPC endpoint that serves the conductor to other systems. |
+| `server.py` | `dd-harness serve`: the A2A endpoint and the agent card in one process, for deployments. |
 
 ## Configuration belongs to the deployment
 
@@ -52,6 +54,37 @@ Not yet decided (#57):
 - TODO: one file (e.g. `harness.yaml`) naming the other three and the run directory.
 - TODO: how `sources.yaml` pins a source copy stored outside the repository.
 - TODO: how a steward edits and reviews the profile in a deployment (ADR-0017, #41).
+
+## Serving the harness
+
+`dd-harness serve` runs the conductor as a server of its own (#55). It serves the A2A endpoint at
+`/a2a` and the agent card at `/.well-known/agent-card.json`, and nothing else: no viewer, AG-UI,
+run index, test kit or Inspect AI. Other systems call it, such as an app, another Data Director
+instance, or a delegation agent calling back under its grant (ADR-0012).
+
+```sh
+pip install 'data-director-harness[serve]'   # uvicorn is an extra; in this workspace, uv sync installs it
+export DD_PROFILE=... DD_AGENTS_CONFIG=... DD_SOURCES_CONFIG=... DD_RUNS_DIR=...
+export DD_PRINCIPAL_ID=... DD_PRINCIPAL_NAME=...
+dd-harness serve --host 127.0.0.1 --port 8000
+```
+
+- Every setting comes from the environment. There are no defaults and no `.env` file: an unset
+  path or principal, or a missing or malformed file, stops start-up with a one-line message.
+- `DD_WORKBENCH_URL` is the address other systems reach the server by. The agent card advertises
+  it, and delegation agents call back on it. Set it when the server binds all interfaces, or sits
+  behind a proxy or a container network. Unset, it is `http://<host>:<port>`.
+- Callers are not authenticated yet (ADR-0018, #17, #43). Every invocation acts for the
+  configured principal, whoever sent it. **Do not expose this server beyond a trusted network.**
+  It prints a warning when bound to anything other than a loopback address.
+- `workbench serve` builds its conductor the same way (`dd_harness.server.serving`) and adds
+  AG-UI, the run and conversation index and the viewer to the same A2A routes.
+
+Not yet decided:
+
+- TODO: whether the run and conversation read endpoints (`/runs`, `/conversations`) belong to
+  the harness server or only to the workbench.
+- TODO: authentication of callers and of agents (#17, #43).
 
 ## Test kit
 

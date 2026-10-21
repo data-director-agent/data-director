@@ -19,6 +19,7 @@ from dd_harness.conductor import UnknownAgent
 from dd_harness.identity import IdentityError
 from dd_harness.policy import PolicyError
 from dd_harness.registry import Registry, RegistryError
+from dd_harness.server import serving
 from dd_harness.settings import (
     Settings,
     SettingsError,
@@ -157,11 +158,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     from workbench.transport.app import build_app
 
-    settings = _settings(args)
     base_url = f"http://{args.host}:{args.port}"
-    authenticator = build_authenticator(settings)  # an unset principal stops start-up here
-    conductor = build_conductor(settings)
-    conductor.workbench_url = settings.workbench_url or base_url  # delegation callback (ADR-0012)
+    # The harness's own server builds the same conductor (#55); the workbench adds its routes.
+    conductor, authenticator = serving(_settings(args), base_url)
     app = build_app(conductor, authenticator, base_url=base_url)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
