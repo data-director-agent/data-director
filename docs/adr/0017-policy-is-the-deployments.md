@@ -3,6 +3,8 @@
 **Status:** Accepted (amends ADR-0003)
 **Date:** 2026-09-25
 
+Amended by [ADR-0024](0024-app-shell.md) (the `orchestrator` key).
+
 ## Context
 
 ADR-0003 made the institutional profile a steward-readable YAML file and the policy gate a small
