@@ -6,9 +6,9 @@ agent writes a Pydantic model for it. `ClassSchema.of(model)` reads the generate
 model from the package that defines it and refuses a model whose fields differ from the schema's
 properties, so the two cannot drift silently.
 
-The agent's card carries every class schema with its digest. The workbench rebuilds each one with
+The agent's card carries every class schema with its digest. The harness rebuilds each one with
 `ClassSchema.from_description`, which refuses a schema that does not match its digest, and
-validates inputs and payloads against it. The workbench holds no model: what it reads it holds
+validates inputs and payloads against it. The harness holds no model: what it reads it holds
 as an `OpenInput` or an `OpenPayload`, and the class schema, not a Python type, decides what is
 valid.
 """
@@ -48,7 +48,7 @@ class ClassSchema:
     """One input or payload class: its name, its JSON Schema and that schema's digest.
 
     `model` is the agent's own Pydantic model for the class. It is set on the agent's side only;
-    a class schema the workbench rebuilt from a card has none.
+    a class schema the harness rebuilt from a card has none.
     """
 
     name: str

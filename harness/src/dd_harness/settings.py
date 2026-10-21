@@ -74,7 +74,7 @@ class Settings:
     # The address delegation agents call the harness back on (ADR-0012). `workbench serve`
     # uses its own host and port when this is unset; set it when agents reach the harness by
     # another name (a container network, a proxy).
-    workbench_url: str | None = None
+    harness_url: str | None = None
     # The human every invocation acts for until there is authentication (ADR-0018). No default:
     # an agent must not operate anonymously, so an unset principal stops start-up.
     principal_id: str | None = None
@@ -122,7 +122,7 @@ class Settings:
             agents_config=_path("DD_AGENTS_CONFIG", agents_config),
             sources_config=_path("DD_SOURCES_CONFIG", sources_config),
             write_crate=os.environ.get("DD_WRITE_CRATE", "1") != "0",
-            workbench_url=os.environ.get("DD_WORKBENCH_URL") or None,
+            harness_url=os.environ.get("DD_HARNESS_URL") or None,
             principal_id=os.environ.get("DD_PRINCIPAL_ID") or None,
             principal_name=os.environ.get("DD_PRINCIPAL_NAME") or None,
             principal_kind=os.environ.get("DD_PRINCIPAL_KIND") or PrincipalKind.PERSON.value,

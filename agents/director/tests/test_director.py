@@ -93,7 +93,7 @@ def test_without_a_callback_it_abstains_rather_than_calling_agents_directly(
     runs_dir: Path,
 ) -> None:
     c = conductor(runs_dir)
-    c.workbench_url = None
+    c.harness_url = None
     env = c.invoke(
         request("director.stub", Message(message_text="hello Joe")), acting_for=TEST_PRINCIPAL
     )

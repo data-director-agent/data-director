@@ -52,7 +52,7 @@
          "type": "string"
       }
    },
-   "$id": "https://w3id.org/data-director/schema/workbench/Message",
+   "$id": "https://w3id.org/data-director/schema/core/Message",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw.",

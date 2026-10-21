@@ -1,6 +1,6 @@
 # Data Director SDK
 
-What an agent and the workbench share. The workbench calls each agent over A2A
+What an agent and the harness share. The harness calls each agent over A2A
 ([ADR-0011](../docs/adr/0011-remote-agents.md)), so they share no code except this
 package.
 
@@ -20,7 +20,7 @@ package.
 
 The core contract is `src/dd_sdk/schema/data_director.yaml`
 ([ADR-0019](../docs/adr/0019-core-contract-and-agent-owned-classes.md)). It holds what
-the workbench governs every agent by:
+the harness governs every agent by:
 
 - the `InvocationRequest` and the `Envelope`;
 - outcomes and Problem Details;
@@ -32,10 +32,10 @@ the workbench governs every agent by:
 payload, mixes in `Grounded`). Every other input and payload class belongs to the agent that
 reads or returns it, declared in the agent's own LinkML file, which imports this one as
 `data_director`. The agent's card carries each such class's JSON Schema, pinned by its digest,
-and the workbench checks inputs and payloads against those. Changing the core is an ADR.
+and the harness checks inputs and payloads against those. Changing the core is an ADR.
 
 The core's `version` is the **contract version**. Each card declares the one its agent was built
-against. The workbench governs an agent whose version has the same major version and, while the
+against. The harness governs an agent whose version has the same major version and, while the
 major version is 0, the same minor version (the caret rule); any other is listed as
 incompatible.
 

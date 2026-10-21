@@ -62,11 +62,11 @@ other agents for it ([ADR-0012](../../docs/adr/0012-conversation-and-orchestrati
 them directly.
 
 1. When the conductor runs such an agent, it issues a grant: a random token, valid only while
-   that run is in progress. The token and the workbench's own A2A address travel to the agent
+   that run is in progress. The token and the harness's own A2A address travel to the agent
    with the request. `workbench serve` uses its own host and port as the address;
-   `DD_WORKBENCH_URL` overrides it. `workbench invoke` issues no grant.
+   `DD_HARNESS_URL` overrides it. `workbench invoke` issues no grant.
 2. The agent calls `ctx.delegate(agent_id, input)`. The SDK sends a new request back to the
-   workbench's A2A endpoint with the token.
+   harness's A2A endpoint with the token.
 3. `Conductor.invoke_delegated` checks the token and refuses an unknown or expired one, or an
    agent delegating to itself. It then runs the request through every step above, as a run of
    its own, in a trace of its own linked to the parent's. It takes the conversation and

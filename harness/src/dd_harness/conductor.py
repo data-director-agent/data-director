@@ -13,7 +13,7 @@ A violation of either withholds a succeeded result. Their verdicts are stored se
 `grounding.txt` and `sources.txt`.
 
 Delegation (ADR-0012). When the conductor runs a remote agent in grounding mode `delegation`,
-and it knows its own A2A address (`workbench_url`), it issues that invocation a grant: a random
+and it knows its own A2A address (`harness_url`), it issues that invocation a grant: a random
 token, sent with the request (never in `RunContext`), that the agent may present while the
 invocation runs to ask the harness to invoke another agent. `invoke_delegated` runs such a
 request as an ordinary invocation, sets its lineage from the grant, and records the child
@@ -125,7 +125,7 @@ class Conductor:
     sources: source_check.Sources = field(default_factory=source_check.Sources.none)
     # The harness's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
-    workbench_url: str | None = None
+    harness_url: str | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
@@ -315,11 +315,11 @@ class Conductor:
                 if (
                     spec.grounding_mode == GroundingMode.DELEGATION
                     and request.parent_invocation_id is None
-                    and self.workbench_url is not None
+                    and self.harness_url is not None
                     and isinstance(agent, RemoteAgent)
                 ):
                     grant = self._issue_grant(request, acting_for)
-                    sent_grant = DelegationGrant(url=self.workbench_url, token=grant.token)
+                    sent_grant = DelegationGrant(url=self.harness_url, token=grant.token)
                 ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
                 try:
                     # An in-process agent records its spans in this trace already.

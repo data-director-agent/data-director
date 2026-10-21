@@ -1,8 +1,8 @@
-"""The contract version, and which agents the workbench can govern under it (ADR-0019).
+"""The contract version, and which agents the harness can govern under it (ADR-0019).
 
 The contract version is the `version` of the core LinkML schema, `schema/data_director.yaml`,
 read from the generated envelope schema so that no YAML parser is needed at runtime. An agent
-card declares the version its agent was built against. The workbench governs an agent whose
+card declares the version its agent was built against. The harness governs an agent whose
 version has the same major version as its own and, while the major version is 0, the same minor
 version (the caret rule). Any other agent is incompatible, which is reported as such, not as
 unavailable.

@@ -295,6 +295,6 @@ def test_a_delegation_agent_run_without_a_callback_gets_no_delegate(tmp_path: Pa
         return abstain("No callback.")
 
     conductor = make_conductor(tmp_path, ScriptedAgent(GroundingMode.DELEGATION, behaviour))
-    conductor.workbench_url = None  # as under `workbench invoke`
+    conductor.harness_url = None  # as under `workbench invoke`
     conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert seen[0].delegate is None

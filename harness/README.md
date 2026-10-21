@@ -71,7 +71,7 @@ dd-harness serve --host 127.0.0.1 --port 8000
 
 - Every setting comes from the environment. There are no defaults and no `.env` file: an unset
   path or principal, or a missing or malformed file, stops start-up with a one-line message.
-- `DD_WORKBENCH_URL` is the address other systems reach the server by. The agent card advertises
+- `DD_HARNESS_URL` is the address other systems reach the server by. The agent card advertises
   it, and delegation agents call back on it. Set it when the server binds all interfaces, or sits
   behind a proxy or a container network. Unset, it is `http://<host>:<port>`.
 - Callers are not authenticated yet (ADR-0018, #17, #43). Every invocation acts for the

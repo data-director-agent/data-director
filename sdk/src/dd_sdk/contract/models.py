@@ -99,7 +99,7 @@ class TurnRole(StrEnum):
 # --- Inputs -----------------------------------------------------------------------------------
 # Every input class carries `schema_class` as a type designator with a single literal value. The
 # core defines only the conversation's Message; every other input class belongs to its agent
-# (ADR-0019), and the workbench holds such an input as an `OpenInput`.
+# (ADR-0019), and the harness holds such an input as an `OpenInput`.
 
 
 class ConversationTurn(Frozen):
@@ -121,7 +121,7 @@ class Message(Frozen):
 class OpenInput(Frozen):
     """An input held as the document it is, checked against its class schema, not a model.
 
-    What the workbench reads a request's input as: it knows an agent's classes only by their
+    What the harness reads a request's input as: it knows an agent's classes only by their
     schemas (ADR-0019). An agent's own run sees its own model instead (`ClassSchema.parse_input`).
     """
 
@@ -297,7 +297,7 @@ class Envelope(Frozen):
     def payload_as[P: Grounded](self, model: type[P]) -> P:
         """The payload as `model`, the reader's own model of its class (ADR-0019).
 
-        The workbench holds a payload as an `OpenPayload`; a reader that knows the class, such as
+        The harness holds a payload as an `OpenPayload`; a reader that knows the class, such as
         the agent's own tests or an orchestrator relaying a child, parses it here. Raises
         `ValueError` if there is no payload or it is not of `model`'s class.
         """

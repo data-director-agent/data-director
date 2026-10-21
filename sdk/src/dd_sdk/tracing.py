@@ -2,7 +2,7 @@
 
 This is the only module that imports the OpenTelemetry SDK. Everything else asks for a
 `Tracer` and uses the span helpers below, which fix the span names and attribute keys so an
-agent cannot misspell them. The workbench's grounding linter reads plain `SpanRecord`s produced
+agent cannot misspell them. The harness's grounding linter reads plain `SpanRecord`s produced
 by `records_from_spans` and `records_from_jsonl`, never SDK objects.
 
 An agent's spans are recorded in the agent's own process (`dd_sdk.serve`) and imported into the
@@ -38,7 +38,7 @@ POLICY_GATE = "policy_gate"
 RETRIEVAL = "retrieval"
 CHAT = "chat"
 EXECUTE_TOOL = "execute_tool"
-DELEGATE = "delegate"  # ADR-0012: an agent asks the workbench to invoke another agent
+DELEGATE = "delegate"  # ADR-0012: an agent asks the harness to invoke another agent
 
 # --- Owned attributes (the linter reads only these) -------------------------------------------
 
@@ -232,7 +232,7 @@ class Tracing:
 
 
 def make_tracing(
-    console: IO[str] | None = None, service_name: str = "data-director-workbench"
+    console: IO[str] | None = None, service_name: str = "data-director-harness"
 ) -> Tracing:
     """An isolated provider (not the global one) so tests and CLI runs never share state.
 

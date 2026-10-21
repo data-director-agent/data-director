@@ -39,11 +39,11 @@ UNTRUSTED_WARNING = (
 def serving(settings: Settings, base_url: str) -> tuple[Conductor, Authenticator]:
     """A conductor and authenticator for a server reached at `base_url`.
 
-    The conductor's delegation callback is `DD_WORKBENCH_URL` if set, else `base_url` (ADR-0012).
+    The conductor's delegation callback is `DD_HARNESS_URL` if set, else `base_url` (ADR-0012).
     An unset principal or a missing or malformed file raises here, before anything is served."""
     authenticator = build_authenticator(settings)
     conductor = build_conductor(settings)
-    conductor.workbench_url = settings.workbench_url or base_url
+    conductor.harness_url = settings.harness_url or base_url
     return conductor, authenticator
 
 
@@ -61,8 +61,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     settings = Settings.from_env()
     # The address other systems reach the harness by. Binding all interfaces is no such address,
-    # so a deployment behind a proxy or a container network sets DD_WORKBENCH_URL.
-    base_url = settings.workbench_url or f"http://{args.host}:{args.port}"
+    # so a deployment behind a proxy or a container network sets DD_HARNESS_URL.
+    base_url = settings.harness_url or f"http://{args.host}:{args.port}"
     conductor, authenticator = serving(settings, base_url)
     if args.host not in LOOPBACK:
         sys.stderr.write(UNTRUSTED_WARNING.format(host=args.host))

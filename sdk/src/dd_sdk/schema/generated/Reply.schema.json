@@ -32,7 +32,7 @@
          "type": "object"
       }
    },
-   "$id": "https://w3id.org/data-director/schema/workbench/Reply",
+   "$id": "https://w3id.org/data-director/schema/core/Reply",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to.",
