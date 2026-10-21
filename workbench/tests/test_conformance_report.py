@@ -133,7 +133,7 @@ def test_same_named_tests_in_different_modules_are_told_apart() -> None:
     report = _report([("test_a", "passed", ["R3"])])
     report["tests"].append(
         {
-            "nodeid": "agents/r3/tests/test_y.py::test_a",
+            "nodeid": "agents/standards/tests/test_y.py::test_a",
             "outcome": "passed",
             "metadata": {"requirements": ["R3"]},
         }

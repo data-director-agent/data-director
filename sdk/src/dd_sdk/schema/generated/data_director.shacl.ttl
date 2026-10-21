@@ -10,31 +10,31 @@ prov:Agent a sh:NodeShape ;
 	rdfs:comment "The human an invocation acted for (Blueprint §5.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n2 ;
-	sh:property _:c14n34 , _:c14n40 , _:c14n43 , _:c14n67 ;
+	sh:property _:c14n33 , _:c14n39 , _:c14n42 , _:c14n67 ;
 	sh:targetClass prov:Agent .
 dd:ConversationTurn a sh:NodeShape ;
 	rdfs:comment "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n25 ;
+	sh:ignoredProperties _:c14n26 ;
 	sh:property _:c14n0 , _:c14n5 , _:c14n71 , _:c14n9 , _:c14n93 ;
 	sh:targetClass dd:ConversationTurn .
 dd:Delegation a sh:NodeShape ;
 	rdfs:comment "One child invocation an agent in grounding mode delegation made through the harness (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n4 ;
-	sh:property _:c14n14 , _:c14n36 , _:c14n65 , _:c14n75 , _:c14n85 ;
+	sh:property _:c14n14 , _:c14n35 , _:c14n65 , _:c14n75 , _:c14n85 ;
 	sh:targetClass dd:Delegation .
 dd:Envelope a sh:NodeShape ;
 	rdfs:comment "The agent's response. Every field an agent did not decide (identifiers, timestamps, telemetry, the policy applied, the human it acted for) is filled by the conductor, so an agent cannot mislabel its own run. Conditional rules not expressible in JSON Schema are enforced by contract.validate: failed or suspended requires problem; abstained or referred requires outcome.reason_code; succeeded requires payload; a payload requires payload_schema, and payload_schema a payload." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n37 ;
-	sh:property _:c14n102 , _:c14n106 , _:c14n110 , _:c14n111 , _:c14n15 , _:c14n26 , _:c14n29 , _:c14n3 , _:c14n30 , _:c14n49 , _:c14n50 , _:c14n59 , _:c14n6 , _:c14n61 , _:c14n62 , _:c14n81 , _:c14n82 , _:c14n87 , _:c14n89 , _:c14n90 ;
+	sh:ignoredProperties _:c14n36 ;
+	sh:property _:c14n102 , _:c14n106 , _:c14n110 , _:c14n111 , _:c14n15 , _:c14n18 , _:c14n27 , _:c14n3 , _:c14n30 , _:c14n48 , _:c14n49 , _:c14n59 , _:c14n6 , _:c14n61 , _:c14n62 , _:c14n81 , _:c14n82 , _:c14n87 , _:c14n89 , _:c14n90 ;
 	sh:targetClass dd:Envelope .
 dd:EvidenceItem a sh:NodeShape ;
 	rdfs:comment "The retrieved content a grounding claim rests on, identified by a hash over its canonicalised projection (not the HTTP body)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n73 ;
-	sh:property _:c14n10 , _:c14n18 , _:c14n20 , _:c14n27 , _:c14n32 , _:c14n51 , _:c14n8 , _:c14n88 ;
+	sh:property _:c14n10 , _:c14n19 , _:c14n21 , _:c14n28 , _:c14n32 , _:c14n50 , _:c14n8 , _:c14n88 ;
 	sh:targetClass dd:EvidenceItem .
 dd:Grounded a sh:NodeShape ;
 	rdfs:comment "Mixed into every payload class and every item class that asserts an identity. The linter walks a payload document for grounded_on lists and never needs to know the payload class; a payload that lacks grounded_on at its root is a violation, not a pass." ;
@@ -51,26 +51,26 @@ dd:GroundingRef a sh:NodeShape ;
 dd:Input a sh:NodeShape ;
 	rdfs:comment "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (ADR-0019)." ;
 	sh:closed false ;
-	sh:ignoredProperties _:c14n19 ;
-	sh:property _:c14n23 ;
+	sh:ignoredProperties _:c14n20 ;
+	sh:property _:c14n24 ;
 	sh:targetClass dd:Input .
 dd:InvocationRequest a sh:NodeShape ;
 	rdfs:comment "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012)." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n56 ;
-	sh:property _:c14n101 , _:c14n11 , _:c14n113 , _:c14n21 , _:c14n33 , _:c14n39 , _:c14n80 ;
+	sh:ignoredProperties _:c14n55 ;
+	sh:property _:c14n101 , _:c14n11 , _:c14n113 , _:c14n22 , _:c14n38 , _:c14n56 , _:c14n80 ;
 	sh:targetClass dd:InvocationRequest .
 dd:Message a sh:NodeShape ;
 	rdfs:comment "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n112 ;
-	sh:property _:c14n115 , _:c14n22 , _:c14n45 ;
+	sh:property _:c14n115 , _:c14n23 , _:c14n44 ;
 	sh:targetClass dd:Message .
 dd:Outcome a sh:NodeShape ;
 	rdfs:comment "One class rather than a union of five. The status enum carries the vocabulary; reason_code is required when status is abstained or referred; problem (on the Envelope) is required when status is failed or suspended." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n95 ;
-	sh:property _:c14n104 , _:c14n108 , _:c14n44 , _:c14n97 ;
+	sh:property _:c14n104 , _:c14n108 , _:c14n43 , _:c14n97 ;
 	sh:targetClass dd:Outcome .
 dd:Payload a sh:NodeShape ;
 	rdfs:comment "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (ADR-0019)." ;
@@ -82,24 +82,24 @@ dd:ProblemDetails a sh:NodeShape ;
 	rdfs:comment "RFC 9457 Problem Details for HTTP APIs, used verbatim for failed and suspended outcomes. The two extension members carry the resumption condition for suspended." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n91 ;
-	sh:property _:c14n107 , _:c14n35 , _:c14n48 , _:c14n53 , _:c14n55 , _:c14n57 , _:c14n7 ;
+	sh:property _:c14n107 , _:c14n34 , _:c14n47 , _:c14n52 , _:c14n54 , _:c14n57 , _:c14n7 ;
 	sh:targetClass dd:ProblemDetails .
 dd:Reply a sh:NodeShape ;
 	rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n118 ;
-	sh:property _:c14n109 , _:c14n116 , _:c14n41 , _:c14n47 ;
+	sh:property _:c14n109 , _:c14n116 , _:c14n40 , _:c14n46 ;
 	sh:targetClass dd:Reply .
 dd:Telemetry a sh:NodeShape ;
 	rdfs:comment "Run measurements. The energy slots exist so P14 can be populated later without a schema change; at v0 they are null and not_measured." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n38 ;
-	sh:property _:c14n105 , _:c14n114 , _:c14n117 , _:c14n119 , _:c14n52 , _:c14n94 ;
+	sh:ignoredProperties _:c14n37 ;
+	sh:property _:c14n105 , _:c14n114 , _:c14n117 , _:c14n119 , _:c14n51 , _:c14n94 ;
 	sh:targetClass dd:Telemetry .
 linkml:Any a sh:NodeShape ;
 	rdfs:comment "Placeholder range for slots whose value type is enumerated in any_of." ;
 	sh:closed true ;
-	sh:ignoredProperties _:c14n46 ;
+	sh:ignoredProperties _:c14n45 ;
 	sh:targetClass linkml:Any .
 _:c14n0 sh:datatype xsd:string ;
 	sh:description "For an agent turn, the version of the agent that produced it." ;
@@ -226,7 +226,7 @@ _:c14n119 sh:datatype xsd:string ;
 	sh:order 1 ;
 	sh:path dd:model_id .
 _:c14n12 rdf:first "retrieval" ;
-	rdf:rest _:c14n54 .
+	rdf:rest _:c14n53 .
 _:c14n120 rdf:first "failed" ;
 	rdf:rest _:c14n124 .
 _:c14n121 rdf:first "referred" ;
@@ -271,35 +271,35 @@ _:c14n16 rdf:first "lexical" ;
 	rdf:rest _:c14n77 .
 _:c14n17 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n18 sh:datatype xsd:dateTime ;
+_:c14n18 sh:datatype xsd:string ;
+	sh:description "Stable identifier of the agent, e.g. standards.advisor or stub.abstain." ;
+	sh:maxCount 1 ;
+	sh:minCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 1 ;
+	sh:path prov:wasAssociatedWith .
+_:c14n19 sh:datatype xsd:dateTime ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:retrieved_at .
-_:c14n19 rdf:first rdf:type ;
-	rdf:rest rdf:nil .
 _:c14n2 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n20 sh:datatype xsd:string ;
+_:c14n20 rdf:first rdf:type ;
+	rdf:rest rdf:nil .
+_:c14n21 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 5 ;
 	sh:path dd:canonicalisation .
-_:c14n21 sh:class dd:Input ;
+_:c14n22 sh:class dd:Input ;
 	sh:description "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (ADR-0019)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 6 ;
 	sh:path dd:input .
-_:c14n22 sh:datatype xsd:string ;
-	sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
-	sh:maxCount 1 ;
-	sh:minCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 0 ;
-	sh:path dd:schema_class .
 _:c14n23 sh:datatype xsd:string ;
 	sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
 	sh:maxCount 1 ;
@@ -307,32 +307,32 @@ _:c14n23 sh:datatype xsd:string ;
 	sh:nodeKind sh:Literal ;
 	sh:order 0 ;
 	sh:path dd:schema_class .
-_:c14n24 rdf:first "template" ;
-	rdf:rest _:c14n42 .
-_:c14n25 rdf:first rdf:type ;
+_:c14n24 sh:datatype xsd:string ;
+	sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+	sh:maxCount 1 ;
+	sh:minCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 0 ;
+	sh:path dd:schema_class .
+_:c14n25 rdf:first "template" ;
+	rdf:rest _:c14n41 .
+_:c14n26 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n26 sh:datatype xsd:string ;
+_:c14n27 sh:datatype xsd:string ;
 	sh:description "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (ADR-0019)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 9 ;
 	sh:path dd:input_schema ;
 	sh:pattern "^[0-9a-f]{64}$" .
-_:c14n27 sh:datatype xsd:string ;
+_:c14n28 sh:datatype xsd:string ;
 	sh:description "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:snapshot_ref .
-_:c14n28 rdf:first "policy_requires_approval" ;
+_:c14n29 rdf:first "policy_requires_approval" ;
 	rdf:rest _:c14n70 .
-_:c14n29 sh:datatype xsd:string ;
-	sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
-	sh:maxCount 1 ;
-	sh:minCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 1 ;
-	sh:path prov:wasAssociatedWith .
 _:c14n3 sh:datatype xsd:string ;
 	sh:description "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index." ;
 	sh:maxCount 1 ;
@@ -354,46 +354,37 @@ _:c14n32 sh:datatype xsd:string ;
 	sh:nodeKind sh:Literal ;
 	sh:order 4 ;
 	sh:path dd:hash_algorithm .
-_:c14n33 sh:datatype xsd:string ;
-	sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
-	sh:maxCount 1 ;
-	sh:minCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 1 ;
-	sh:path prov:wasAssociatedWith .
-_:c14n34 sh:description "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5)." ;
+_:c14n33 sh:description "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:IRI ;
 	sh:order 0 ;
 	sh:path dd:principal_id ;
 	sh:pattern "^[a-z][a-z0-9+.-]*:\\S+$" .
-_:c14n35 sh:datatype xsd:string ;
+_:c14n34 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 3 ;
 	sh:path dd:detail .
-_:c14n36 sh:datatype xsd:string ;
+_:c14n35 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 0 ;
 	sh:path dd:delegated_invocation_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
+_:c14n36 rdf:first rdf:type ;
+	rdf:rest rdf:nil .
 _:c14n37 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n38 rdf:first rdf:type ;
-	rdf:rest rdf:nil .
-_:c14n39 sh:datatype xsd:string ;
+_:c14n38 sh:datatype xsd:string ;
 	sh:description "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 5 ;
 	sh:path dd:parent_invocation_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n4 rdf:first rdf:type ;
-	rdf:rest rdf:nil .
-_:c14n40 sh:datatype xsd:string ;
+_:c14n39 sh:datatype xsd:string ;
 	sh:description "How the person or role is named to a reader of the record." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -401,49 +392,58 @@ _:c14n40 sh:datatype xsd:string ;
 	sh:order 1 ;
 	sh:path dd:name ;
 	sh:pattern "\\S" .
-_:c14n41 sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
-	sh:in _:c14n24 ;
+_:c14n4 rdf:first rdf:type ;
+	rdf:rest rdf:nil .
+_:c14n40 sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
+	sh:in _:c14n25 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 2 ;
 	sh:path dd:reply_derivation .
-_:c14n42 rdf:first "model" ;
+_:c14n41 rdf:first "model" ;
 	rdf:rest _:c14n16 .
-_:c14n43 sh:in _:c14n72 ;
+_:c14n42 sh:in _:c14n72 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 2 ;
 	sh:path dd:principal_kind .
-_:c14n44 sh:in _:c14n92 ;
+_:c14n43 sh:in _:c14n92 ;
 	sh:maxCount 1 ;
 	sh:order 1 ;
 	sh:path dd:reason_code .
-_:c14n45 sh:class dd:ConversationTurn ;
+_:c14n44 sh:class dd:ConversationTurn ;
 	sh:description "The earlier turns of the conversation, oldest first." ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 2 ;
 	sh:path dd:history .
-_:c14n46 rdf:first rdf:type ;
+_:c14n45 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
-_:c14n47 sh:datatype xsd:string ;
+_:c14n46 sh:datatype xsd:string ;
 	sh:description "The reply, as prose." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dd:reply_text .
-_:c14n48 sh:datatype xsd:string ;
+_:c14n47 sh:datatype xsd:string ;
 	sh:description "What must happen for a suspended invocation to resume (extension member)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 5 ;
 	sh:path dd:resume_condition .
-_:c14n49 sh:datatype xsd:string ;
+_:c14n48 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 2 ;
 	sh:path dd:agent_version .
+_:c14n49 sh:datatype xsd:boolean ;
+	sh:description "Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope claiming otherwise." ;
+	sh:maxCount 1 ;
+	sh:minCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 15 ;
+	sh:path dd:requires_human_review .
 _:c14n5 sh:datatype xsd:string ;
 	sh:description "For an agent turn, the invocation it came from." ;
 	sh:maxCount 1 ;
@@ -451,39 +451,39 @@ _:c14n5 sh:datatype xsd:string ;
 	sh:order 4 ;
 	sh:path dd:turn_invocation_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
-_:c14n50 sh:datatype xsd:boolean ;
-	sh:description "Always true (C13, C15). Emitted as a constant so no consumer can produce an envelope claiming otherwise." ;
-	sh:maxCount 1 ;
-	sh:minCount 1 ;
-	sh:nodeKind sh:Literal ;
-	sh:order 15 ;
-	sh:path dd:requires_human_review .
-_:c14n51 sh:datatype xsd:string ;
+_:c14n50 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 0 ;
 	sh:path dd:source_id .
-_:c14n52 sh:in _:c14n100 ;
+_:c14n51 sh:in _:c14n100 ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:order 5 ;
 	sh:path dd:energy_method .
-_:c14n53 sh:datatype xsd:dateTime ;
+_:c14n52 sh:datatype xsd:dateTime ;
 	sh:description "Earliest time a suspended invocation may resume (extension member)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 6 ;
 	sh:path dd:resume_after .
-_:c14n54 rdf:first "input_only" ;
+_:c14n53 rdf:first "input_only" ;
 	rdf:rest _:c14n68 .
-_:c14n55 sh:datatype xsd:string ;
+_:c14n54 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 1 ;
 	sh:path dcterms:title .
-_:c14n56 rdf:first rdf:type ;
+_:c14n55 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
+_:c14n56 sh:datatype xsd:string ;
+	sh:description "Stable identifier of the agent, e.g. standards.advisor or stub.abstain." ;
+	sh:maxCount 1 ;
+	sh:minCount 1 ;
+	sh:nodeKind sh:Literal ;
+	sh:order 1 ;
+	sh:path prov:wasAssociatedWith .
 _:c14n57 sh:description "RFC 9457 problem type URI." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
@@ -525,7 +525,7 @@ _:c14n62 sh:class dd:Payload ;
 	sh:order 11 ;
 	sh:path dd:payload .
 _:c14n63 rdf:first "requires_human_judgement" ;
-	rdf:rest _:c14n28 .
+	rdf:rest _:c14n29 .
 _:c14n64 rdf:first "agent" ;
 	rdf:rest rdf:nil .
 _:c14n65 sh:datatype xsd:string ;

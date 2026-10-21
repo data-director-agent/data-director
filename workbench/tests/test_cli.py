@@ -70,7 +70,7 @@ IDS = {"fact.checker", "hello.world", "quality.reviewer", "stub.abstain"}
 
 
 def _registry(tmp_path: Path) -> Registry:
-    """The four agents above, served in memory, and an `r3` entry nothing answers."""
+    """The four agents above, served in memory, and an `standards` entry nothing answers."""
     apps = {url: serve.app(agent, base_url=url) for url, agent in AGENTS.items()}
 
     def factory(base_url: str, timeout_s: float) -> httpx.AsyncClient:
@@ -80,7 +80,9 @@ def _registry(tmp_path: Path) -> Registry:
             transport=httpx.ASGITransport(app=apps[base_url]), base_url=base_url, timeout=timeout_s
         )
 
-    entries = [{"url": url} for url in AGENTS] + [{"name": "r3", "url": "http://r3.test"}]
+    entries = [{"url": url} for url in AGENTS] + [
+        {"name": "standards", "url": "http://standards.test"}
+    ]
     config = tmp_path / "listed.yaml"
     config.write_text(json.dumps({"agents": entries}), encoding="utf-8")  # JSON is YAML
     return Registry.from_config(config, client_factory=factory)
@@ -96,10 +98,10 @@ def test_agents_command_lists_the_registry(
     out = capsys.readouterr().out
     for agent_id in IDS:
         assert agent_id in out
-    assert "input_only" in out and "[r3] unavailable" in out
+    assert "input_only" in out and "[standards] unavailable" in out
     assert cli.main(["agents", "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
-    assert {m["agent_id"] for m in data["agents"]} == IDS and "r3" in data["unavailable"]
+    assert {m["agent_id"] for m in data["agents"]} == IDS and "standards" in data["unavailable"]
     assert data["incompatible"] == {}
 
 

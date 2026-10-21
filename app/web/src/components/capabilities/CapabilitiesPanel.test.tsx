@@ -39,7 +39,7 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("tables each declared derivation", () => {
-    render(<CapabilitiesPanel agent={agent("r3.standards-advisor")} />);
+    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
     const table = screen.getByRole("table");
     expect(within(table).getByRole("row", { name: /items\.rationale Written by a language model/ }))
       .toBeVisible();
@@ -57,7 +57,7 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("says when the profile does not permit the agent", () => {
-    render(<CapabilitiesPanel agent={agent("r3.standards-advisor")} />);
+    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
     expect(screen.getByText("Not permitted")).toBeVisible();
   });
 
@@ -111,7 +111,7 @@ describe("App", () => {
     const { container } = render(
       <App load={() => Promise.resolve(normalise(reference as unknown as RawAgentsResponse))} />,
     );
-    expect(await screen.findByRole("heading", { name: "r3.standards-advisor" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "standards.advisor" })).toBeVisible();
     expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });

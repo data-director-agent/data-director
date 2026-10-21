@@ -7,5 +7,5 @@ examples (#108), and this directory should then go.
 
 | File | Class | Purpose |
 |---|---|---|
-| `soil-chemistry.profile.json` | `DatasetProfile` | R3's succeeded path, with field-level recommendations. |
-| `empty.profile.json` | `DatasetProfile` | No title, keywords, themes, media types or temporal fields. R3's `abstained(insufficient_input)` path. |
+| `soil-chemistry.profile.json` | `DatasetProfile` | The standards advisor's succeeded path, with field-level recommendations. |
+| `empty.profile.json` | `DatasetProfile` | No title, keywords, themes, media types or temporal fields. The standards advisor's `abstained(insufficient_input)` path. |

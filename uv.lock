@@ -17,7 +17,7 @@ members = [
     "data-director-agent-factcheck",
     "data-director-agent-hello",
     "data-director-agent-quality",
-    "data-director-agent-r3",
+    "data-director-agent-standards",
     "data-director-agent-stub",
     "data-director-app",
     "data-director-harness",
@@ -805,7 +805,7 @@ dependencies = [
     { name = "data-director-agent-factcheck" },
     { name = "data-director-agent-hello" },
     { name = "data-director-agent-quality" },
-    { name = "data-director-agent-r3" },
+    { name = "data-director-agent-standards" },
     { name = "data-director-agent-stub" },
     { name = "data-director-app" },
     { name = "data-director-harness", extra = ["serve"] },
@@ -838,7 +838,7 @@ requires-dist = [
     { name = "data-director-agent-factcheck", editable = "agents/factcheck" },
     { name = "data-director-agent-hello", editable = "agents/hello" },
     { name = "data-director-agent-quality", editable = "agents/quality" },
-    { name = "data-director-agent-r3", editable = "agents/r3" },
+    { name = "data-director-agent-standards", editable = "agents/standards" },
     { name = "data-director-agent-stub", editable = "agents/stub" },
     { name = "data-director-app", editable = "app" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
@@ -918,9 +918,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "data-director-agent-r3"
+name = "data-director-agent-standards"
 version = "0.1.0"
-source = { editable = "agents/r3" }
+source = { editable = "agents/standards" }
 dependencies = [
     { name = "data-director-sdk" },
     { name = "httpx" },
@@ -959,7 +959,7 @@ name = "data-director-app"
 version = "0.3.0a1"
 source = { editable = "app" }
 dependencies = [
-    { name = "data-director-agent-r3" },
+    { name = "data-director-agent-standards" },
     { name = "data-director-harness" },
     { name = "starlette" },
     { name = "uvicorn" },
@@ -967,7 +967,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "data-director-agent-r3", editable = "agents/r3" },
+    { name = "data-director-agent-standards", editable = "agents/standards" },
     { name = "data-director-harness", editable = "harness" },
     { name = "starlette", specifier = ">=0.47" },
     { name = "uvicorn", specifier = ">=0.54.0" },

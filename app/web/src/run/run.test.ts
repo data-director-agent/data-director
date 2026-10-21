@@ -13,8 +13,8 @@ function defined<T>(value: T | null | undefined, what: string): T {
   return value;
 }
 
-const r3 = defined(normalise(reference as unknown as RawAgentsResponse).agents[0], "agent");
-const profile = defined(r3.schemas.DatasetProfile, "DatasetProfile schema");
+const standards = defined(normalise(reference as unknown as RawAgentsResponse).agents[0], "agent");
+const profile = defined(standards.schemas.DatasetProfile, "DatasetProfile schema");
 
 describe("the run form's model", () => {
   const plan = defined(planFields(profile), "plan");

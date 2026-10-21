@@ -9,7 +9,7 @@
         "DatasetProfile"
       ],
       "action_class": "advise",
-      "agent_id": "r3.standards-advisor",
+      "agent_id": "standards.advisor",
       "assigned_action_class": "advise",
       "contract_version": "0.8.0",
       "derivations": {
@@ -28,9 +28,9 @@
       "requires_approval": false,
       "schemas": {
         "DatasetProfile": {
-          "digest": "8fd8e9a2c3a015a83594b7d2a05cdedae177e0adcc61a5ef65f75bba995de941",
+          "digest": "1e3f3abec2b8576f91ccd7643523ce39aa477774f36fb9ec5d62af089aeacdfd",
           "json_schema": {
-            "$comment": "Generated from r3.yaml by `uv run dd-gen-schema <path to r3.yaml>`. Do not edit.",
+            "$comment": "Generated from standards.yaml by `uv run dd-gen-schema <path to standards.yaml>`. Do not edit.",
             "$defs": {
               "TableField": {
                 "additionalProperties": false,
@@ -66,7 +66,7 @@
                 "type": "object"
               }
             },
-            "$id": "https://w3id.org/data-director/agents/r3/DatasetProfile",
+            "$id": "https://w3id.org/data-director/agents/standards/DatasetProfile",
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
             "description": "A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
@@ -136,9 +136,9 @@
           }
         },
         "Recommendations": {
-          "digest": "c22722f4b58c133e6f11a747c8c8e16460b36eb3c6c6e4b62585279b8b8e64e0",
+          "digest": "7b1bbd3ddcf6004b17b955641ed5bebb01cb35756ef4cae2fed19c74cb79c5cf",
           "json_schema": {
-            "$comment": "Generated from r3.yaml by `uv run dd-gen-schema <path to r3.yaml>`. Do not edit.",
+            "$comment": "Generated from standards.yaml by `uv run dd-gen-schema <path to standards.yaml>`. Do not edit.",
             "$defs": {
               "Derivation": {
                 "description": "",
@@ -270,10 +270,10 @@
                 "type": "object"
               }
             },
-            "$id": "https://w3id.org/data-director/agents/r3/Recommendations",
+            "$id": "https://w3id.org/data-director/agents/standards/Recommendations",
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
-            "description": "The R3 payload. Recommended vocabularies, ontologies and formats.",
+            "description": "The standards advisor payload. Recommended vocabularies, ontologies and formats.",
             "properties": {
               "grounded_on": {
                 "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
@@ -323,7 +323,7 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "6a5e2f3e37726ec0631def10e1c53e841ab5e9c38848ce3331fb8e28ba655f08",
+    "digest": "ec8e1edf993d5ee391fc5e0095ecb1a9d9d7788ecc2eee3d8f35c8fe62eb4d67",
     "ref": "profile:data-director-app@v1"
   },
   "unavailable": {}

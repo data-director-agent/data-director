@@ -1,4 +1,5 @@
-"""fact.checker through the conductor: a retrieval-mode agent that is not R3-shaped."""
+"""fact.checker through the conductor: a retrieval-mode agent that is not
+standards-advisor-shaped."""
 
 from __future__ import annotations
 

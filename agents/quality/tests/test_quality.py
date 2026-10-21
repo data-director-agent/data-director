@@ -1,4 +1,5 @@
-"""quality.reviewer through the conductor: an input_only agent that is not R3-shaped."""
+"""quality.reviewer through the conductor: an input_only agent that is not
+standards-advisor-shaped."""
 
 from __future__ import annotations
 

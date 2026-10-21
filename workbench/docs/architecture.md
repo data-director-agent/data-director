@@ -55,7 +55,7 @@ The repository is a uv workspace. `sdk/` holds everything an agent and the harne
 `harness/` governs every invocation and depends only on `sdk/`. `workbench/` is the development
 way in to the harness: the CLI, the viewer, evaluation and the conformance report.
 `agents/` holds one package per agent, each run as its own service. `app/` is the Data Director
-app (alpha), which calls R3 through the conductor. Paths below are relative to the repository
+app (alpha), which calls the standards advisor through the conductor. Paths below are relative to the repository
 root.
 
 | Component | What it does | Where |
@@ -78,7 +78,7 @@ root.
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `harness/src/dd_harness/testing/` |
 | Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](../../docs/conformance.md). | `docs/requirements.yaml`, `docs/reviews.yaml`, `scripts/conformance_report.py` |
 | Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |
-| FAIRsharing snapshot | The committed copy of FAIRsharing records that R3 uses (CC BY-SA 4.0). | `agents/r3/data/fairsharing/` |
+| FAIRsharing snapshot | The committed copy of FAIRsharing records that the standards advisor uses (CC BY-SA 4.0). | `agents/standards/data/fairsharing/` |
 
 ## Design principles
 

@@ -62,7 +62,7 @@ Mark the test with the identifier it exercises:
 
 ```python
 @pytest.mark.requirement("R3.6")
-def test_r3_abstention_reasons_are_distinct() -> None: ...
+def test_standards_abstention_reasons_are_distinct() -> None: ...
 ```
 
 Collection fails if the identifier is not in the register, or if the register assesses it by

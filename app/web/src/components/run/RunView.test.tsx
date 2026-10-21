@@ -22,7 +22,7 @@ function defined<T>(value: T | null | undefined, what: string): T {
   return value;
 }
 
-const r3 = defined(normalise(reference as unknown as RawAgentsResponse).agents[0], "agent");
+const standards = defined(normalise(reference as unknown as RawAgentsResponse).agents[0], "agent");
 const SUCCEEDED = succeeded as unknown as RunResult;
 const ABSTAINED = abstained as unknown as RunResult;
 const EXAMPLES = [
@@ -53,7 +53,7 @@ describe("RunView", () => {
   it("runs an example and moves focus to the outcome", async () => {
     const user = userEvent.setup();
     const api = fakeApi();
-    const { container } = render(withApi(api, <RunView agent={r3} />));
+    const { container } = render(withApi(api, <RunView agent={standards} />));
 
     await user.click(await screen.findByRole("button", { name: "Load example: soil chemistry profile" }));
     expect(screen.getByLabelText("Title")).toHaveValue(soil.title);
@@ -68,7 +68,7 @@ describe("RunView", () => {
 
   it("shows the result with derivation badges and links to the evidence it rests on", async () => {
     const user = userEvent.setup();
-    render(withApi(fakeApi(), <RunView agent={r3} />));
+    render(withApi(fakeApi(), <RunView agent={standards} />));
     await user.click(screen.getByRole("button", { name: "Run" }));
     const table = await screen.findByRole("table");
     expect(within(table).getAllByText("Keyword rules").length).toBeGreaterThan(0);
@@ -83,7 +83,7 @@ describe("RunView", () => {
 
   it("says what an abstention means and offers to edit the input", async () => {
     const user = userEvent.setup();
-    render(withApi(fakeApi({ start: () => Promise.resolve(ABSTAINED) }), <RunView agent={r3} />));
+    render(withApi(fakeApi({ start: () => Promise.resolve(ABSTAINED) }), <RunView agent={standards} />));
     await user.click(screen.getByRole("button", { name: "Run" }));
     expect(await screen.findByRole("heading", { name: "Outcome: Abstained" })).toHaveFocus();
     expect(screen.getByText(/does not give it enough to work with/)).toBeVisible();
@@ -98,7 +98,7 @@ describe("RunView", () => {
       title: "Data Director could not start this run",
       detail: "unknown agent",
     });
-    render(withApi(fakeApi({ start: () => Promise.reject(refused) }), <RunView agent={r3} />));
+    render(withApi(fakeApi({ start: () => Promise.reject(refused) }), <RunView agent={standards} />));
     await user.click(screen.getByRole("button", { name: "Run" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("unknown agent");
   });
@@ -106,7 +106,7 @@ describe("RunView", () => {
   it("checks the input before running, and links each error to its field", async () => {
     const user = userEvent.setup();
     const api = fakeApi();
-    render(withApi(api, <RunView agent={r3} />));
+    render(withApi(api, <RunView agent={standards} />));
     await user.click(screen.getByRole("button", { name: "Add field" }));
     await user.click(screen.getByRole("button", { name: "Run" }));
     const summary = await screen.findByRole("alert");
@@ -117,7 +117,7 @@ describe("RunView", () => {
 
   it("edits the input as JSON and back", async () => {
     const user = userEvent.setup();
-    render(withApi(fakeApi(), <RunView agent={r3} />));
+    render(withApi(fakeApi(), <RunView agent={standards} />));
     await user.type(screen.getByLabelText("Title"), "Peat");
     await user.click(screen.getByRole("button", { name: "Edit as JSON" }));
     expect(screen.getByLabelText("Input as JSON")).toHaveValue(
@@ -135,7 +135,7 @@ describe("Outcome", () => {
   ] as const)("draws a %s run with no axe violations", async (_name, outcome) => {
     const run = structuredClone(ABSTAINED);
     run.envelope.outcome = { ...outcome };
-    const { container } = render(<Outcome result={run} agent={r3} idPrefix="t" />);
+    const { container } = render(<Outcome result={run} agent={standards} idPrefix="t" />);
     expect(screen.getByRole("heading", { level: 3 })).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -148,7 +148,7 @@ describe("Outcome", () => {
       title: "Grounding violation",
       detail: "G2: cited an unretrieved record",
     };
-    render(<Outcome result={run} agent={r3} idPrefix="t" />);
+    render(<Outcome result={run} agent={standards} idPrefix="t" />);
     expect(screen.getByRole("heading", { name: "Outcome: Failed" })).toBeVisible();
     expect(screen.getByText("G2: cited an unretrieved record")).toBeVisible();
     expect(screen.getByText("grounding-violation")).toBeVisible();
@@ -160,7 +160,7 @@ describe("RunHistory", () => {
   const rows: RunRow[] = [
     {
       invocation_id: SUCCEEDED.envelope.invocation_id,
-      agent_id: r3.id,
+      agent_id: standards.id,
       status: "succeeded",
       completed_at: "2026-01-01T00:00:00Z",
       acting_for: "Josiah Carberry",
@@ -172,7 +172,7 @@ describe("RunHistory", () => {
   it("lists this agent's runs and reopens one", async () => {
     const user = userEvent.setup();
     const api = fakeApi({ list: () => Promise.resolve(rows) });
-    const { container } = render(withApi(api, <RunHistory agent={r3} />));
+    const { container } = render(withApi(api, <RunHistory agent={standards} />));
     const table = await screen.findByRole("table");
     expect(within(table).getAllByRole("row")).toHaveLength(3);
     expect(await axe(container)).toHaveNoViolations();
@@ -184,7 +184,7 @@ describe("RunHistory", () => {
   });
 
   it("says when there are no runs yet", async () => {
-    render(withApi(fakeApi(), <RunHistory agent={r3} />));
+    render(withApi(fakeApi(), <RunHistory agent={standards} />));
     expect(await screen.findByText("No runs yet. Start one from Run.")).toBeVisible();
   });
 });
@@ -192,7 +192,7 @@ describe("RunHistory", () => {
 describe("AgentWorkspace", () => {
   it("opens on Run, and keeps a run while About is shown", async () => {
     const user = userEvent.setup();
-    render(withApi(fakeApi(), <AgentWorkspace agent={r3} />));
+    render(withApi(fakeApi(), <AgentWorkspace agent={standards} />));
     expect(screen.getByRole("tab", { name: "Run" })).toHaveAttribute("aria-selected", "true");
     await user.click(screen.getByRole("button", { name: "Run" }));
     await screen.findByRole("heading", { name: "Outcome: Succeeded" });

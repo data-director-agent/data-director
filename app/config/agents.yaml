@@ -1,5 +1,5 @@
 # The agents the app reaches over A2A (ADR-0011), unless DD_AGENTS_CONFIG names another list.
-# The app runs R3 in its own process and adds it beside these, so this list is empty. An entry
+# The app runs the standards advisor in its own process and adds it beside these, so this list is empty. An entry
 # here adds an agent served elsewhere; the profile still decides whether it may run.
 # Format as in workbench/agents.yaml.
 agents: []

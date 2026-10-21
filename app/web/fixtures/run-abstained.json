@@ -16,13 +16,13 @@
       "principal_id": "https://orcid.org/0000-0002-1825-0097",
       "principal_kind": "person"
     },
-    "agent_id": "r3.standards-advisor",
+    "agent_id": "standards.advisor",
     "agent_version": "0.2.0",
     "completed_at": "2026-01-01T00:00:00Z",
     "contract_version": "0.8.0",
     "evidence": [],
     "grounding_mode": "retrieval",
-    "input_schema": "8fd8e9a2c3a015a83594b7d2a05cdedae177e0adcc61a5ef65f75bba995de941",
+    "input_schema": "1e3f3abec2b8576f91ccd7643523ce39aa477774f36fb9ec5d62af089aeacdfd",
     "invocation_id": "01900000-0000-7000-8000-000000000001",
     "outcome": {
       "reason_code": "insufficient_input",
@@ -30,7 +30,7 @@
       "status": "abstained"
     },
     "policy_bundle_ref": "profile:data-director-app@v1",
-    "policy_digest": "6a5e2f3e37726ec0631def10e1c53e841ab5e9c38848ce3331fb8e28ba655f08",
+    "policy_digest": "ec8e1edf993d5ee391fc5e0095ecb1a9d9d7788ecc2eee3d8f35c8fe62eb4d67",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

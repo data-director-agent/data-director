@@ -125,7 +125,7 @@
                "type": "string"
             },
             "agent_id": {
-               "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
+               "description": "Stable identifier of the agent, e.g. standards.advisor or stub.abstain.",
                "type": "string"
             },
             "agent_version": {
@@ -391,7 +391,7 @@
                "type": "string"
             },
             "agent_id": {
-               "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
+               "description": "Stable identifier of the agent, e.g. standards.advisor or stub.abstain.",
                "type": "string"
             },
             "requirement_ids": {
@@ -758,7 +758,7 @@
          "type": "string"
       },
       "agent_id": {
-         "description": "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain.",
+         "description": "Stable identifier of the agent, e.g. standards.advisor or stub.abstain.",
          "type": "string"
       },
       "requirement_ids": {
