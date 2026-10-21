@@ -1,6 +1,7 @@
 # Data Director
 
 [![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg)](https://codecov.io/gh/data-director-agent/data-director)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/data-director-agent/data-director)
 
 A proposed reference implementation for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/).
 
