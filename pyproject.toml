@@ -34,6 +34,7 @@ dev = [
   "mypy>=1.15",
   "types-jsonschema>=4.23",
   "types-PyYAML>=6.0",
+  "pytest-cov>=7.1.0",
 ]
 
 [tool.uv]
@@ -92,6 +93,21 @@ filterwarnings = [
 markers = [
   "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
 ]
+
+# Coverage of the packages under test, measured over the one workspace test session. The tests
+# and the generated schema are not what is being measured.
+[tool.coverage.run]
+branch = true
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_app"]
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\.$"]
+
+[tool.coverage.xml]
+output = "coverage.xml"
 
 [tool.mypy]
 python_version = "3.14"

@@ -1,5 +1,7 @@
 # Data Director app (alpha)
 
+[![Tests](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=app)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=app)
+
 **Alpha** (`0.2.0a1`). This is the Data Director that people use: a browser shell drawn from each
 agent's manifest, over the harness (ADR-0024). It is exploratory, and its shape will change.
 

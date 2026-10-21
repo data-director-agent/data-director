@@ -1,5 +1,7 @@
 # Data Director Workbench
 
+[![Tests](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/conformance.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=workbench)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=workbench)
+
 A test bed for building and testing Data Director sub-agents. It calls each agent, checks that the
 agent kept to a shared contract, and records every run so that a person can inspect what the agent
 did and why.
@@ -43,6 +45,7 @@ uv workspace:
 ```sh
 uv sync --all-packages --all-extras
 uv run pytest                                          # network blocked; everything offline
+uv run pytest --cov                                    # with line and branch coverage (term report; see [tool.coverage])
 ```
 
 The tests serve every agent in memory, so they need no agent running.

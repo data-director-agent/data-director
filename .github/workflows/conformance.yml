@@ -39,5 +39,64 @@ jobs:
           cache-dependency-glob: "uv.lock"
       - run: uv sync --all-packages --all-extras
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
-      - run: uv run pytest --json-report --json-report-file=.report.json
+      # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the term
+      # report goes to the job summary, and one XML per package goes to Codecov as a flag.
+      - run: uv run pytest --json-report --json-report-file=.report.json --cov --cov-report=
       - run: uv run python scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
+      - name: Coverage report
+        run: |
+          {
+            echo '## Coverage'
+            echo '```'
+            uv run coverage report --skip-covered
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Coverage XML per package
+        run: |
+          for pkg in sdk harness workbench app; do
+            uv run coverage xml --include="$pkg/*" -o "coverage-$pkg.xml"
+          done
+          uv run coverage xml --include="agents/*" -o coverage-agents.xml
+          uv run coverage xml -o coverage.xml
+      - uses: codecov/codecov-action@v5
+        # A fork's pull request has no secret; the report in the job summary still shows.
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
+      - uses: codecov/codecov-action@v5
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-sdk.xml
+          flags: sdk
+          fail_ci_if_error: false
+      - uses: codecov/codecov-action@v5
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-harness.xml
+          flags: harness
+          fail_ci_if_error: false
+      - uses: codecov/codecov-action@v5
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-workbench.xml
+          flags: workbench
+          fail_ci_if_error: false
+      - uses: codecov/codecov-action@v5
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-app.xml
+          flags: app
+          fail_ci_if_error: false
+      - uses: codecov/codecov-action@v5
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage-agents.xml
+          flags: agents
+          fail_ci_if_error: false
