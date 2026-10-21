@@ -34,7 +34,7 @@ dev = [
   "linkml>=1.11",
   "ruff>=0.9",
   "mypy>=1.15",
-  "types-jsonschema>=4.23",
+  "types-jsonschema>=4.26.0.20261006",
   "types-PyYAML>=6.0",
   "pytest-cov>=7.1.0",
 ]
@@ -105,6 +105,9 @@ source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_
 relative_files = true
 
 [tool.coverage.report]
+# A floor a few points under the measured total (92% when set), so ordinary variation does not
+# fail a run; Codecov holds the project figure from falling (codecov.yml).
+fail_under = 85
 show_missing = true
 skip_covered = true
 exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\.$"]

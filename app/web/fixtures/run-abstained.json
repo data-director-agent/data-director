@@ -1,0 +1,41 @@
+{
+  "checks": {
+    "grounding": {
+      "passed": true,
+      "summary": "grounding: passed [retrieval] (0 retrieval, 0 chat spans)"
+    },
+    "sources": {
+      "passed": true,
+      "summary": "sources: 0 verified, 0 unresolved"
+    }
+  },
+  "envelope": {
+    "acting_for": {
+      "assurance": "asserted",
+      "name": "Josiah Carberry",
+      "principal_id": "https://orcid.org/0000-0002-1825-0097",
+      "principal_kind": "person"
+    },
+    "agent_id": "standards.advisor",
+    "agent_version": "0.2.0",
+    "completed_at": "2026-01-01T00:00:00Z",
+    "contract_version": "0.8.0",
+    "evidence": [],
+    "grounding_mode": "retrieval",
+    "input_schema": "1e3f3abec2b8576f91ccd7643523ce39aa477774f36fb9ec5d62af089aeacdfd",
+    "invocation_id": "01900000-0000-7000-8000-000000000001",
+    "outcome": {
+      "reason_code": "insufficient_input",
+      "statement": "The dataset profile has no title, keywords, themes, media types or temporal fields to search on, so no registry query was possible.",
+      "status": "abstained"
+    },
+    "policy_bundle_ref": "profile:data-director-app@v1",
+    "policy_digest": "ec8e1edf993d5ee391fc5e0095ecb1a9d9d7788ecc2eee3d8f35c8fe62eb4d67",
+    "requires_human_review": true,
+    "telemetry": {
+      "energy_estimate_j": null,
+      "energy_method": "not_measured",
+      "trace_id": "00000000000000000000000000000000"
+    }
+  }
+}
