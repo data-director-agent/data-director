@@ -1,0 +1,12 @@
+# Run deploy.sh five minutes after the last run ended, and two minutes after boot.
+[Unit]
+Description=Check for a new Data Director commit every five minutes
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target
