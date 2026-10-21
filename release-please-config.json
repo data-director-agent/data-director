@@ -6,15 +6,25 @@
   "packages": {
     "sdk": {
       "component": "sdk",
-      "release-type": "python"
+      "release-type": "python",
+      "exclude-paths": [
+        "sdk/tests"
+      ]
     },
     "harness": {
       "component": "harness",
-      "release-type": "python"
+      "release-type": "python",
+      "exclude-paths": [
+        "harness/tests"
+      ]
     },
     "workbench": {
       "component": "workbench",
-      "release-type": "python"
+      "release-type": "python",
+      "exclude-paths": [
+        "workbench/tests",
+        "workbench/browser_tests"
+      ]
     },
     "app": {
       "component": "app",
@@ -25,23 +35,38 @@
           "path": "web/package.json",
           "jsonpath": "$.version"
         }
+      ],
+      "exclude-paths": [
+        "app/tests"
       ]
     },
     "agents/director": {
       "component": "agent-director",
-      "release-type": "python"
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/director/tests"
+      ]
     },
     "agents/hello": {
       "component": "agent-hello",
-      "release-type": "python"
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/hello/tests"
+      ]
     },
     "agents/quality": {
       "component": "agent-quality",
-      "release-type": "python"
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/quality/tests"
+      ]
     },
     "agents/standards": {
       "component": "agent-standards",
-      "release-type": "python"
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/standards/tests"
+      ]
     }
   }
 }

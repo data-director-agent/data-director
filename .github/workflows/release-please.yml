@@ -1,13 +1,17 @@
 name: release-please
 
 # Each package is versioned on its own (release-please-config.json). Conventional commits that
-# touch a package's directory decide its next version. release-please keeps one release PR open
-# for every package with a pending release, so that a release starts one CI run rather than one
-# per package, and tags each `<component>-v<version>` when that PR is merged. The PR's title
+# touch a package's directory decide its next version; a commit that touches only the package's
+# tests does not. release-please counts from the tag `<component>-v<version>` that matches the
+# version in .release-please-manifest.json, so every version there must have its tag. It keeps
+# one release PR open for every package with a pending release, so that a release starts one CI
+# run rather than one per package, and tags each `<component>-v<version>` when that PR is merged. The PR's title
 # starts `chore(main): release `, which the sign-off check in ci.yml exempts.
 on:
   push:
     branches: [main]
+  # To rebuild the release PR after a tag or a commit override changes what it should hold.
+  workflow_dispatch:
 
 permissions: {}
 
