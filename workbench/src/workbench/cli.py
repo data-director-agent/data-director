@@ -14,19 +14,21 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from dd_sdk.contract.models import InvocationRequest, OpenInput
-from dd_sdk.tracing import records_from_jsonl
-from workbench import grounding, sources
-from workbench.conductor import UnknownAgent
-from workbench.identity import IdentityError
-from workbench.registry import Registry
-from workbench.settings import (
+from dd_harness import grounding, sources
+from dd_harness.conductor import UnknownAgent
+from dd_harness.identity import IdentityError
+from dd_harness.registry import Registry
+from dd_harness.settings import (
     Settings,
+    SettingsError,
     build_authenticator,
     build_conductor,
     build_registry,
     load_env_file,
 )
+from dd_sdk.contract.models import InvocationRequest, OpenInput
+from dd_sdk.tracing import records_from_jsonl
+from workbench.config import DEFAULT_ENV_FILE, settings_from_env
 
 PROFILE_HELP = "institutional profile file (default: DD_PROFILE, else profiles/default.yaml)"
 ACTING_FOR_ID_HELP = (
@@ -61,7 +63,7 @@ def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
 
 
 def cmd_agents(args: argparse.Namespace) -> int:
-    registry = build_registry(Settings.from_env())
+    registry = build_registry(settings_from_env())
     if args.json:
         print(json.dumps(registry.listing(), indent=2))
         return 0
@@ -90,7 +92,7 @@ def _settings(args: argparse.Namespace) -> Settings:
     for name, reason in registry.incompatible.items():
         print(f"\n[{name}] incompatible: {reason}")
     (ADR-0017), and so is the principal they assert (ADR-0018)."""
-    settings = Settings.from_env()
+    settings = settings_from_env()
     if args.profile:
         settings = replace(settings, profile=Path(args.profile))
     if args.acting_for_id:
@@ -142,7 +144,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
 
 def cmd_verify(args: argparse.Namespace) -> int:
     envelope = json.loads(Path(args.envelope).read_text(encoding="utf-8"))
-    config = Path(args.sources) if args.sources else Settings.from_env().sources_config
+    config = Path(args.sources) if args.sources else settings_from_env().sources_config
     report = sources.check(envelope, sources.Sources.from_config(config))
     print(report.summary())
     return 0 if report.passed else 1
@@ -205,7 +207,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         result: int = args.func(args)
-    except IdentityError as exc:  # no principal configured: nothing may run (ADR-0018)
+    # No principal (ADR-0018), or a path the deployment must name (ADR-0022): nothing may run.
+    except (IdentityError, SettingsError) as exc:
         sys.exit(f"workbench: {exc}")
     return result
 
@@ -214,7 +217,7 @@ def entry() -> int:
     """Console-script entry: fill unset variables from workbench/.env, then run the CLI.
 
     `main` itself reads only the real environment, so tests that call it see no `.env`."""
-    load_env_file()
+    load_env_file(DEFAULT_ENV_FILE)
     return main()
 
 

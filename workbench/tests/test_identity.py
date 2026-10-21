@@ -4,18 +4,29 @@ without one."""
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from dd_harness.identity import IdentityError, OperatorAssertion
+from dd_harness.settings import Settings, build_authenticator
 from dd_sdk.contract.models import Assurance, PrincipalKind
 from workbench import cli
-from workbench.identity import IdentityError, OperatorAssertion
-from workbench.settings import Settings, build_authenticator
+from workbench.config import settings_from_env
 from workbench.testing import TEST_PRINCIPAL
 
 ORCID = TEST_PRINCIPAL.principal_id
 UNSET = ("DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME", "DD_PRINCIPAL_KIND")
+
+
+def principal_settings(
+    principal_id: str | None, name: str | None = None, kind: str = "person"
+) -> Settings:
+    """The workbench's settings with exactly this principal, whatever the environment says."""
+    return replace(
+        settings_from_env(), principal_id=principal_id, principal_name=name, principal_kind=kind
+    )
 
 
 @pytest.fixture
@@ -27,9 +38,9 @@ def no_principal(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.requirement("DD-ACTS-FOR")
 def test_an_unset_principal_stops_start_up(no_principal: None) -> None:
     with pytest.raises(IdentityError, match="DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset"):
-        build_authenticator(Settings.from_env())
+        build_authenticator(settings_from_env())
     with pytest.raises(IdentityError, match="DD_PRINCIPAL_NAME unset"):
-        Settings(principal_id=ORCID).principal()
+        principal_settings(ORCID).principal()
 
 
 @pytest.mark.requirement("DD-ACTS-FOR")
@@ -47,9 +58,9 @@ def test_the_cli_runs_nothing_without_a_principal(
 
 def test_a_malformed_principal_is_a_configuration_error() -> None:
     with pytest.raises(IdentityError, match="malformed"):
-        Settings(principal_id="0000-0002-1825-0097", principal_name="J. Carberry").principal()
+        principal_settings("0000-0002-1825-0097", "J. Carberry").principal()
     with pytest.raises(IdentityError, match="malformed"):
-        Settings(principal_id=ORCID, principal_name="J", principal_kind="robot").principal()
+        principal_settings(ORCID, "J", "robot").principal()
 
 
 @pytest.mark.requirement("DD-ACTS-FOR")
@@ -59,7 +70,7 @@ def test_the_stub_asserts_the_configured_principal_whoever_calls(
     monkeypatch.setenv("DD_PRINCIPAL_ID", "urn:example:role:data-steward")
     monkeypatch.setenv("DD_PRINCIPAL_NAME", "Data steward")
     monkeypatch.setenv("DD_PRINCIPAL_KIND", "accountable_role")
-    authenticator = build_authenticator(Settings.from_env())
+    authenticator = build_authenticator(settings_from_env())
     assert isinstance(authenticator, OperatorAssertion)
     named = authenticator.principal_for(None)
     assert named.principal_kind == PrincipalKind.ACCOUNTABLE_ROLE

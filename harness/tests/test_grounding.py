@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from dd_harness import grounding
 from dd_sdk.contract.models import input_source_id
 from dd_sdk.evidence import CANONICALISATION, content_hash, project
 from dd_sdk.tracing import (
@@ -22,7 +23,6 @@ from dd_sdk.tracing import (
     RETRIEVAL,
     SpanRecord,
 )
-from workbench import grounding
 
 INV = "01a06cdb-985f-7375-9aa2-37be29f0f2a8"
 INPUT_HASH = "1" * 64

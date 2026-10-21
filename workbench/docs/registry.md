@@ -5,7 +5,7 @@ transports and the viewer all read the agent list from it. None of them names an
 The decision behind this design is [ADR-0011](adr/0011-remote-agents.md). It replaced the
 entry-point discovery of [ADR-0010](adr/0010-agent-registry.md).
 
-The code is in `workbench/src/workbench/registry.py`. The A2A client it uses is in `remote.py`.
+The code is in `harness/src/dd_harness/registry.py`. The A2A client it uses is in `remote.py`.
 
 ## Where the list comes from
 

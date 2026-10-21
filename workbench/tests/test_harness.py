@@ -11,6 +11,10 @@ from pathlib import Path
 import pytest
 
 from dd_agent_stub.agent import AbstainingStub
+from dd_harness import grounding
+from dd_harness.conductor import DuplicateInvocation
+from dd_harness.policy import PolicyError, gate, load_profile
+from dd_harness.store import RunStore
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -34,11 +38,8 @@ from dd_sdk.evidence import (
 )
 from dd_sdk.schema import gen
 from dd_sdk.tracing import records_from_jsonl
-from workbench import grounding
 from workbench import testing as fakes
-from workbench.conductor import DuplicateInvocation
-from workbench.policy import DEFAULT_PROFILE, PolicyError, gate, load_profile
-from workbench.store import RunStore
+from workbench.config import DEFAULT_PROFILE
 from workbench.testing import (
     RESTRICTIVE,
     SOURCE_A,
@@ -347,7 +348,7 @@ def test_a_result_that_breaks_the_contract_is_a_stored_failed_outcome(
 
 
 def test_unknown_agent_is_a_caller_error(runs_dir: Path) -> None:
-    from workbench.conductor import UnknownAgent
+    from dd_harness.conductor import UnknownAgent
 
     with pytest.raises(UnknownAgent):
         make_conductor(runs_dir).invoke(request("nope"), acting_for=TEST_PRINCIPAL)
@@ -558,7 +559,7 @@ def test_the_conductor_keeps_no_spans_after_a_run_and_caps_its_reports(
     runs_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A long-running `workbench serve` must not grow with every invocation."""
-    monkeypatch.setattr("workbench.conductor.GROUNDING_REPORTS_KEPT", 1)
+    monkeypatch.setattr("dd_harness.conductor.GROUNDING_REPORTS_KEPT", 1)
     conductor = make_conductor(runs_dir, ScriptedAgent(GroundingMode.NONE, fakes.review_of_input))
     first = conductor.invoke(request("fake.none", fakes.record()), acting_for=TEST_PRINCIPAL)
     second = conductor.invoke(request("fake.none", fakes.record()), acting_for=TEST_PRINCIPAL)

@@ -147,7 +147,7 @@ def make_conductor(runs_dir: Path, r3: Any = None, crate: bool = True) -> Any:
     from dd_agent_r3.agent import R3Agent
     from dd_agent_r3.explain import TemplateExplainer
     from dd_agent_stub.agent import AbstainingStub
-    from workbench.policy import DEFAULT_PROFILE
+    from workbench.config import DEFAULT_PROFILE
     from workbench.testing import make_conductor as workbench_conductor
 
     r3 = r3 or R3Agent(retrieval=FakeRetrieval(), explainer=TemplateExplainer())

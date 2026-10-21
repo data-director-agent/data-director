@@ -24,11 +24,11 @@ from ag_ui.encoder import EventEncoder
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
+from dd_harness.conductor import Conductor, UnknownAgent
+from dd_harness.identity import Authenticator, IdentityError
+from dd_harness.policy import PolicyError
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
-from workbench.conductor import Conductor, UnknownAgent
-from workbench.identity import Authenticator, IdentityError
-from workbench.policy import PolicyError
 
 
 def _events_for(envelope: dict[str, Any], thread_id: str, run_id: str) -> list[Any]:

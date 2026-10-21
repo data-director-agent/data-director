@@ -10,10 +10,10 @@ import pytest
 from dd_agent_r3 import testing as fakes
 from dd_agent_r3.agent import R3Agent
 from dd_agent_r3.classes import DatasetProfile, RecommendationKind, Recommendations, TableField
+from dd_harness import grounding
 from dd_sdk.contract.models import InvocationRequest, OutcomeStatus, ReasonCode
 from dd_sdk.evidence import verify
 from dd_sdk.tracing import records_from_jsonl
-from workbench import grounding
 from workbench.testing import TEST_PRINCIPAL
 
 SAMPLES = fakes.SAMPLES

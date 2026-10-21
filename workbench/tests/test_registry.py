@@ -15,15 +15,15 @@ from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_stub.agent import AbstainingStub
+from dd_harness.registry import Registry, RegistryError, load_config
+from dd_harness.remote import RemoteAgent
 from dd_sdk import serve
 from dd_sdk.agent import Agent, describe
 from dd_sdk.contract.models import GroundingMode
 from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.wire import CARD_PATH, EXTENSION_URI
 from workbench import cli
-from workbench.registry import Registry, RegistryError, load_config
-from workbench.remote import RemoteAgent
-from workbench.settings import DEFAULT_AGENTS_CONFIG
+from workbench.config import DEFAULT_AGENTS_CONFIG
 from workbench.testing import ScriptedAgent, in_process, review_of_input
 
 AGENTS: dict[str, Agent] = {

@@ -1,13 +1,13 @@
 """Agent registry (ADR-0011, superseding the entry-point discovery of ADR-0010).
 
-Agents run as their own services. The workbench learns about them from a configuration file,
+Agents run as their own services. The harness learns about them from a configuration file,
 `agents.yaml`, that lists each agent's base URL; it reads each agent card and rebuilds the
-`AgentSpec` from the card's Data Director extension (`workbench.remote`). The conductor, CLI,
+`AgentSpec` from the card's Data Director extension (`dd_harness.remote`). The conductor, CLI,
 transports and viewer read the registry and never name an agent.
 
 An agent whose card cannot be read, or whose card does not describe an agent this contract
 admits, is recorded as unavailable with the reason, and the registry carries on: one agent being
-down does not stop the workbench. An agent built against a contract version this workbench cannot
+down does not stop the harness. An agent built against a contract version this harness cannot
 govern is recorded apart, as incompatible, with both versions (ADR-0019). The policy gate still
 decides, per profile, which registered agents may run. Registration is not permission.
 
@@ -31,14 +31,14 @@ from typing import Any
 
 import yaml
 
-from dd_sdk.agent import Agent, ContractVersionError, SpecError, describe
-from workbench.remote import (
+from dd_harness.remote import (
     DEFAULT_TIMEOUT_S,
     ClientFactory,
     RemoteAgent,
     RemoteAgentError,
     default_client,
 )
+from dd_sdk.agent import Agent, ContractVersionError, SpecError, describe
 
 
 class RegistryError(Exception):

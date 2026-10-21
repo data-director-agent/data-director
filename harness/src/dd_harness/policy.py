@@ -15,9 +15,6 @@ from typing import Any
 
 import yaml
 
-PROFILES_DIR = Path(__file__).resolve().parents[2] / "profiles"
-DEFAULT_PROFILE = PROFILES_DIR / "default.yaml"
-
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
 # a rule is in force when it is not (ADR-0017).
 PROFILE_KEYS = frozenset(

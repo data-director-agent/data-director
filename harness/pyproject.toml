@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-harness"
+version = "0.1.0"
+description = "Data Director harness: the conductor, policy gate, grounding linter, source check, run store and provenance, with an A2A way in (ADR-0022)"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+
+# The harness imports `dd_sdk` and these libraries only, never the workbench, the app or an
+# agent (ADR-0022; enforced by tests/test_harness_boundary.py).
+dependencies = [
+  "data-director-sdk",
+  "httpx>=0.28",
+  "opentelemetry-sdk>=1.44",
+  "a2a-sdk[http-server]>=1.1,<2",
+  "rocrate>=0.15",
+  "pyyaml>=6.0",
+  "python-dotenv>=1.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_harness"]

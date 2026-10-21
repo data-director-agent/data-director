@@ -4,21 +4,21 @@ The grounding linter (ADR-0008) compares an agent's account of its run with itse
 the conductor recorded. A `retrieval` span is written in the agent's process and sent back over
 A2A (ADR-0011), so G1-G3 show that the agent's claims agree with one another, not that it read
 anything. The source check closes part of that gap. For each evidence item, it looks up the
-cited `source_id` in a copy of the source the workbench holds, projects that record under the
+cited `source_id` in a copy of the source the harness holds, projects that record under the
 evidence's `canonicalisation` (ADR-0009), and compares the hash:
 
   S1 the source the evidence names holds a record with that `source_id`.
   S2 that record hashes to the evidence's `content_hash`. With E1 (ADR-0015), what a reader is
      shown about a cited record is then the source's own projection of it.
 
-An evidence item is resolved by its `snapshot_ref`. One the workbench holds no copy of is
+An evidence item is resolved by its `snapshot_ref`. One the harness holds no copy of is
 *unresolved*: that is not a violation, and it is never counted as verified. In the modes whose
 rules hold every citation to the input or a recorded delegation (R2, D1, D2), evidence citing
 `input:` or `invocation:` is skipped, because the linter has already checked it against hashes
 the conductor computed. In `retrieval` mode no rule does that, so such evidence is unresolved.
 
 What the check does not show: when, or whether, the agent read the record during the run. That
-would need retrieval to go through the workbench, as delegation does. TODO (ADR-0016).
+would need retrieval to go through the harness, as delegation does. TODO (ADR-0016).
 
 A copy is independent of the agent because its bytes are pinned by `sha256` in `sources.yaml`,
 not because of where the file lives. A file that does not match its pin is a configuration
@@ -115,7 +115,7 @@ class SourceReport:
 
 @dataclass(frozen=True)
 class Sources:
-    """The copies of sources the workbench holds, keyed by the `snapshot_ref` they serve."""
+    """The copies of sources the harness holds, keyed by the `snapshot_ref` they serve."""
 
     by_snapshot_ref: Mapping[str, Resolver] = field(default_factory=dict)
 
@@ -154,7 +154,7 @@ class Sources:
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:
-    """Re-hash every externally sourced evidence item against the workbench's copy."""
+    """Re-hash every externally sourced evidence item against the harness's copy."""
     verified = 0
     unresolved: list[str] = []
     violations: list[str] = []

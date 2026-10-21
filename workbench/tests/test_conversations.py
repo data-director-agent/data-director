@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from dd_harness import conversations
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     Frozen,
@@ -15,7 +16,6 @@ from dd_sdk.contract.models import (
     Message,
     new_invocation_id,
 )
-from workbench import conversations
 from workbench.testing import (
     TEST_PRINCIPAL,
     ScriptedAgent,

@@ -1,12 +1,14 @@
 name: workbench CI
 
-# Covers the uv workspace at the repository root (ADR-0011): sdk/, workbench/, agents/ and app/.
+# Covers the uv workspace at the repository root (ADR-0011): sdk/, harness/, workbench/, agents/
+# and app/.
 # Every step runs from the root, where the shared tooling config and the dev dependency group live.
 on:
   push:
     branches: [main]
     paths: &paths
       - "sdk/**"
+      - "harness/**"
       - "workbench/**"
       - "agents/**"
       - "app/**"

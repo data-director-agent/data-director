@@ -11,6 +11,8 @@ from typing import Any
 
 import pytest
 
+from dd_harness import grounding
+from dd_harness.conductor import DelegationError, DuplicateInvocation
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -25,8 +27,6 @@ from dd_sdk.contract.models import (
 from dd_sdk.delegate import DelegationRefused
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.tracing import records_from_jsonl
-from workbench import grounding
-from workbench.conductor import DelegationError, DuplicateInvocation
 from workbench.testing import (
     TEST_PRINCIPAL,
     ScriptedAgent,

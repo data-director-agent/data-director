@@ -19,8 +19,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from dd_harness.store import RunStore
 from dd_sdk.contract.models import ConversationTurn, TurnRole, to_document
-from workbench.store import RunStore
 
 
 def list_conversations(store: RunStore) -> list[dict[str, Any]]:
