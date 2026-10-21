@@ -36,6 +36,9 @@ It is built from:
     a 400 with Problem Details;
   - `GET /api/runs` and `GET /api/runs/{id}`: the run store, newest first;
   - `GET /api/examples`: the example inputs in `config/examples/`;
+  - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
+    takes a delegation agent's call back under its grant (ADR-0012) and refuses every other
+    request, so the app is no general A2A way in;
 - the harness (`harness/`, `dd_harness`), whose conductor governs every run. The standards advisor
   (`standards.advisor`) runs in the app's process.
 
@@ -56,10 +59,11 @@ uv run data-director               # opens http://127.0.0.1:7860
 
 The other agents are separate services. Start them with `scripts/run-agents.sh` from the
 repository root before the app, which reads their cards once at start-up; one that is not
-running is listed as unavailable. `director.stub` is listed but abstains, because the app has
-no A2A address to issue it a delegation grant from (TODO).
+running is listed as unavailable. `director.stub` runs the agents it delegates to through the
+app's own A2A endpoint, under a grant the conductor issues for that run.
 
-`DD_APP_HOST` and `DD_APP_PORT` change the address. To work on the shell, run the server as
+`DD_APP_HOST` and `DD_APP_PORT` change the address. The agents call the app back on
+`http://DD_APP_HOST:DD_APP_PORT`; set `DD_HARNESS_URL` if they reach it at another address. To work on the shell, run the server as
 above and `npm run dev` in `app/web`, which proxies `/api` to it (set `DD_APP_URL` if it is
 elsewhere).
 
@@ -80,6 +84,11 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 every run acts for this operator, not for the person using the page (ADR-0018), and the page
 says so. The app stops at start-up, with one line, if either is unset, a file is missing or
 malformed, or the shell has not been built.
+
+A delegation grant is a bearer token: whoever holds it may run agents for the operator while
+the run that issued it lasts. Until callers are authenticated (#17), keep the app's port, like
+the agents' ports, on the host or a private network (ADR-0011). The app warns at start-up if
+`DD_APP_HOST` is not a loopback address.
 
 ## Tests
 

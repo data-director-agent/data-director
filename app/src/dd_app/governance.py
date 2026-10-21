@@ -40,6 +40,12 @@ class Governance:
     (`workbench/evaluation.py`), so both are built on one worker thread and every invocation is
     submitted to it. `create` builds them at start-up, so a bad setting stops the app before it
     serves a page.
+
+    The conductor's delegation callback (`conductor.harness_url`, ADR-0012) is the app itself,
+    which serves the conductor's A2A routes for delegation callbacks only (#129). A delegated
+    child comes in over those routes and runs off the worker, as under `dd-harness serve`: its
+    parent holds the worker until the child has ended, so a child submitted to it would wait
+    for ever.
     """
 
     conductor: Conductor
@@ -47,14 +53,18 @@ class Governance:
     worker: ThreadPoolExecutor = field(repr=False)
 
     @classmethod
-    def create(cls, settings: Settings) -> Governance:
+    def create(cls, settings: Settings, base_url: str) -> Governance:
+        """`base_url` is where the app is reached; `DD_HARNESS_URL` (`settings.harness_url`)
+        overrides it as the delegation callback."""
         worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="dd-app")
 
         def build() -> tuple[Conductor, Principal]:
             # The stub authenticator: the operator's assertion until there is authentication
             # (ADR-0018, #17), not the person using the page.
             acting_for = build_authenticator(settings).principal_for(None)
-            return build_conductor(settings, agents=[standards.build()]), acting_for
+            conductor = build_conductor(settings, agents=[standards.build()])
+            conductor.harness_url = settings.harness_url or base_url
+            return conductor, acting_for
 
         try:
             conductor, acting_for = worker.submit(build).result()

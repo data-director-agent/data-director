@@ -8,31 +8,45 @@ from __future__ import annotations
 
 import json
 import os
+import webbrowser
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
+import uvicorn
+from a2a.helpers import get_data_parts
+from a2a.types import TaskState
 from starlette.testclient import TestClient
 
+from dd_agent_director.agent import build as build_director
 from dd_agent_hello.agent import build as build_hello
 from dd_agent_quality.agent import build as build_quality
 from dd_agent_standards import factory as standards
+from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import STANDARDS_AGENT_ID, Governance
+from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError
 from dd_harness.policy import load_profile
-from dd_harness.registry import load_config
+from dd_harness.registry import Registry, load_config
+from dd_harness.store import RunStore
 from dd_harness.testing import (
     PERMISSIVE,
     RESTRICTIVE,
     TEST_PRINCIPAL,
     AbstainingStub,
+    asgi_client_factory,
+    in_process,
     make_conductor,
+    send_to_harness,
 )
+from dd_harness.transport.a2a import DELEGATED_ONLY
 from dd_sdk.agent import Agent
+from dd_sdk.contract.models import InvocationRequest
 
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 # The shell's component and browser tests are drawn from these, so each must be what the server
@@ -40,6 +54,7 @@ PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 # reference set; `agents-several.json` is five agents of different grounding modes and payload
 # shapes under the permissive test profile, which does not list the standards advisor.
 FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
+APP_URL = "http://app.test"
 
 
 @pytest.fixture
@@ -65,7 +80,7 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
 
 @pytest.fixture
 def governance(env: Path) -> Iterator[Governance]:
-    governance = Governance.create(settings_from_env())
+    governance = Governance.create(settings_from_env(), APP_URL)
     yield governance
     governance.worker.shutdown()
 
@@ -128,7 +143,7 @@ def test_an_agent_the_profile_does_not_list_is_shown_unassigned(
     env: Path, dist: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("DD_PROFILE", str(RESTRICTIVE))
-    governance = Governance.create(settings_from_env())
+    governance = Governance.create(settings_from_env(), APP_URL)
     try:
         (standards,) = agents_response(governance, dist)["agents"]
     finally:
@@ -151,7 +166,7 @@ def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path)
 def test_no_principal_stops_start_up(env: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("DD_PRINCIPAL_ID")
     with pytest.raises(IdentityError, match="DD_PRINCIPAL_ID"):
-        Governance.create(settings_from_env())
+        Governance.create(settings_from_env(), APP_URL)
 
 
 def check_fixture(name: str, body: dict[str, Any]) -> None:
@@ -309,3 +324,87 @@ def test_the_examples_name_their_class(governance: Governance, dist: Path):
         ("soil-chemistry.profile", "DatasetProfile"),
     ]
     assert found[4]["input"] == example("soil-chemistry.profile")
+
+
+# Delegation (#129): the app is the conductor's callback, and its A2A routes take delegation
+# callbacks and nothing else.
+
+
+@pytest.fixture
+def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
+    """The app over the orchestrator and `hello.world`, each reached over in-process A2A, with
+    the orchestrator calling back to the app's own routes, under the app's reference profile."""
+    served: dict[str, Any] = {}
+
+    def app_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        return asgi_client_factory(served["app"])(base_url, timeout_s)
+
+    registry = Registry.from_agents(
+        [
+            in_process(build_director(), delegate_client_factory=app_client),
+            in_process(build_hello()),
+        ]
+    )
+    conductor = Conductor(
+        registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
+    )
+    conductor.harness_url = APP_URL
+    governance = Governance(conductor, TEST_PRINCIPAL, ThreadPoolExecutor(max_workers=1))
+    served["app"] = build_app(governance, dist)
+    yield governance, served["app"]
+    governance.worker.shutdown()
+
+
+def test_the_orchestrator_delegates_through_the_app(delegating: tuple[Governance, Any]):
+    _governance, app = delegating
+    response = run(TestClient(app), example("director.message"), agent_id="director.stub")
+    assert response.status_code == 200
+    envelope = response.json()["envelope"]
+    assert envelope["outcome"]["status"] == "succeeded"
+    assert [d["delegated_agent_id"] for d in envelope["delegations"]] == ["hello.world"]
+
+
+def test_the_app_takes_no_a2a_call_but_a_delegation_callback(delegating: tuple[Governance, Any]):
+    governance, app = delegating
+    card = TestClient(app).get("/.well-known/agent-card.json").json()
+    assert card["supportedInterfaces"][0]["url"] == f"{APP_URL}/a2a"
+    request = InvocationRequest(agent_id="hello.world", input=example("hello.salutation"))
+    task = send_to_harness(app, APP_URL, request)
+    assert task.status.state == TaskState.TASK_STATE_FAILED
+    assert get_data_parts(task.status.message.parts)[0]["error"] == DELEGATED_ONLY
+    assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+@pytest.fixture
+def started(env: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """What `main` built and served, in place of serving it or opening a browser."""
+    seen: dict[str, Any] = {}
+
+    def spy_build(governance: Governance) -> str:
+        seen["governance"] = governance
+        return "app"
+
+    def spy_run(app: Any, *, host: str, port: int) -> None:
+        seen.update(host=host, port=port)
+
+    for variable in ("DD_APP_HOST", "DD_APP_PORT", "DD_HARNESS_URL"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setattr(dd_app, "build_app", spy_build)
+    monkeypatch.setattr(uvicorn, "run", spy_run)
+    monkeypatch.setattr(webbrowser, "open", lambda url: True)
+    return seen
+
+
+def test_the_app_is_its_own_delegation_callback(started: dict[str, Any]):
+    assert dd_app.main() == 0
+    assert started["governance"].conductor.harness_url == "http://127.0.0.1:7860"
+
+
+def test_the_configured_url_is_the_callback(
+    started: dict[str, Any], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv("DD_HARNESS_URL", "http://app.internal:7860")
+    monkeypatch.setenv("DD_APP_HOST", "0.0.0.0")
+    dd_app.main()
+    assert started["governance"].conductor.harness_url == "http://app.internal:7860"
+    assert "private network only" in capsys.readouterr().err

@@ -10,8 +10,7 @@ agents:
   - name: quality
     url: http://127.0.0.1:8102
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
-  # theirs (ADR-0012). TODO: the app has no A2A address of its own, so the conductor issues it
-  # no delegation grant and it abstains (capability_not_implemented) until the app serves one.
+  # theirs (ADR-0012). It calls them back through the app's own A2A endpoint under its grant.
   - name: director
     url: http://127.0.0.1:8106
     timeout_s: 120
