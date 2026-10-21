@@ -39,7 +39,8 @@ second terminal in `workbench/`:
 
 ```sh
 scripts/run-agents.sh                 # first terminal; leave it running
-
+```
+```sh
 cd workbench
 uv run workbench agents               # what is registered, what each accepts
 uv run workbench invoke --agent hello.world --input samples/hello.salutation.json
