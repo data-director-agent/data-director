@@ -3,7 +3,7 @@
 **Status:** Accepted (amends ADR-0003)
 **Date:** 2026-09-25
 
-Amended by [ADR-0028](0028-conversation-is-the-front-door.md) (the `orchestrator` key).
+Amended by [ADR-0024](0024-app-shell.md) (the `orchestrator` key).
 
 ## Context
 

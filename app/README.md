@@ -17,8 +17,8 @@ The shell names no agent. It shows every agent the harness has registered, each 
   not declared is shown as "Not declared", never filled in.
 - **History**: its stored runs, each of which reopens in the same view.
 
-The app is to open on a conversation with the orchestrator, the agent whose grounding mode is
-`delegation`, with these pages one step away (ADR-0028). That is not built yet (#127, #131).
+The app is to open on a conversation with the orchestrator the profile names, with these pages
+one step away (ADR-0024). That is not built yet (#127, #131).
 
 What is not built yet is drawn in place, marked "Not built yet", with a link to the issue that
 builds it, rather than filled with invented data (#75). `docs/ui/best-practices.md` is the design
@@ -103,7 +103,7 @@ shapes, under a profile that does not list the standards advisor, so the shell i
 - There is no human review of proposed changes (#72, #73). The standards advisor only advises, so it proposes none.
 - The form checks only required fields and numbers; the conductor's input check decides.
 - There is no conversation yet. The Gradio chat this replaced is gone (ADR-0024); the
-  conversation with the orchestrator becomes the home page (ADR-0028, #127), first with the
+  conversation with the orchestrator becomes the home page (ADR-0024, #127), first with the
   rule-based `director.stub` and later a model-backed one (#21).
 - No agent declares its limits, reliability or data handling yet. That needs the oversight
   extension (ADR-0025, TODO).

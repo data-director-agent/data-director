@@ -67,7 +67,7 @@ These arrive with the agent that enforces them, and not before:
 - approved repositories, for repository recommendation (R1);
 - accepted persistent identifier systems (R7);
 - which external registries agents may consult;
-- `orchestrator`, the agent a person converses with first in the app (ADR-0028, #131).
+- `orchestrator`, the agent a person converses with first in the app (ADR-0024, #131).
 
 ## Rights and licensing
 

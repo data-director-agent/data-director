@@ -1,25 +1,36 @@
-# ADR-0024: The app is a React shell drawn from each agent's manifest
+# ADR-0024: The app is a React shell drawn from each agent's manifest, opening on the orchestrator conversation
 
 **Status:** Proposed
 **Date:** 2026-10-21
 
-Amended by [ADR-0028](0028-conversation-is-the-front-door.md) (the app's home page).
+Amends [ADR-0017](0017-policy-is-the-deployments.md) (a new profile key, `orchestrator`).
 
 ## Context
 
 The alpha app (`app/`) was a Gradio chat around one language model whose one tool called R3.
 Its page was built around that agent: a new agent meant new tool code and new page code. The UI
-best-practice synthesis (`docs/ui/best-practices.md`, §9) asks for a structured surface for the
-work rather than chat alone: capabilities and limits declared upfront, a plan and activity log,
-review gated by risk, evidence on every suggestion, and abstain and refer as real screens. That
-document marks its own evidence as weak, so its items are design hypotheses to test, not
+best-practice synthesis (`docs/ui/best-practices.md`, §1, §9) asks for chat for intent and a
+structured surface for the work: capabilities and limits declared upfront, a plan and activity
+log, review gated by risk, evidence on every suggestion, and abstain and refer as real screens.
+That document marks its own evidence as weak, so its items are design hypotheses to test, not
 findings.
 
-Three earlier decisions constrain the answer. ADR-0016: the manifest says what an agent does,
-never how to draw it. ADR-0017: the deployment's profile, not the agent, decides what may run.
-ADR-0001: AG-UI carries run events to a browser.
+A directory of agents, each with Run, About and History pages, is close to the workbench's
+Inspect page, a test bed for the engineers who write agents. The Blueprint describes something
+else. Its presentation layer is a "web app providing a chat interface and feedback mechanism"
+(§9.2, Table 5), over an application layer that orchestrates user requests and coordinates the
+agents (§9.3, Table 6, "AI Model Orchestration"). A person talks to one Data Director; the
+specialist agents support it.
+
+Earlier decisions constrain the answer. ADR-0016: the manifest says what an agent does, never
+how to draw it. ADR-0017: the deployment's profile, not the agent, decides what may run.
+ADR-0001: AG-UI carries run events to a browser. ADR-0012 §5, §12: an orchestrator delegates
+only through the conductor, under a grant; it is found by grounding mode, never by name; and
+every delegated child is labelled `agent_id@agent_version`.
 
 ## Decision
+
+### The shell
 
 1. **The app is a shell, not an agent's page.** `app/web` is a React and TypeScript application
    built with Vite. It names no agent. It draws each agent from the manifest the harness already
@@ -30,8 +41,8 @@ ADR-0001: AG-UI carries run events to a browser.
    returns the registry's listing beside what the profile assigns each agent (its action class,
    and whether that class needs approval), and every other path serves the built shell from
    `app/web/dist`. The app stops at start-up, with one line, if the shell is not built. The
-   language-model chat is not replaced in this decision; it returns as an orchestrator under
-   `delegation` grounding (ADR-0012, #21).
+   language-model chat is replaced by the conversation with the orchestrator (9–16), not by a
+   model of the app's own.
 3. **What an agent has not declared is shown as not declared.** The shell never fills a missing
    limit, reliability or data-handling statement with a default. A reliability nobody has
    evaluated is shown as unsubstantiated.
@@ -52,6 +63,59 @@ ADR-0001: AG-UI carries run events to a browser.
 8. **ADR-0016 still holds.** A later per-class renderer in the shell may lay out a payload, but
    the shell keeps ownership of grounding, derivation badges and evidence links, and nothing
    about presentation is added to the manifest.
+
+### The front door
+
+9. **The app opens on a conversation with the orchestrator.** The orchestrator is an agent
+   whose grounding mode is `delegation`. The shell is told which agent it is by the harness and
+   never names it.
+10. **The profile names the orchestrator.** A new optional profile key, `orchestrator`, holds one
+    `agent_id`. When the app starts, that agent must also be listed under `agents`; otherwise the
+    profile is refused, with one line, like any other malformed profile. A change to the key
+    raises the profile's `version`, so stored runs say which orchestrator the rules named.
+11. **The default is written in the reference profile, not in code.** The app's reference profile
+    (`app/config/profile.yaml`) names the orchestrator released in this repository, at present
+    `director.stub`. A deployment that wants another names it in its own profile. Neither the
+    harness nor the shell holds a fallback agent identifier.
+12. **Without a usable orchestrator there is no conversation.** The grounding mode is on the
+    agent's card, which can be read only while its service is running, so it is checked when the
+    agent is reached, not at start-up. When the profile has no `orchestrator` key, when the named
+    agent is not available, or when its card does not declare `delegation` grounding, the home
+    page says which and links to the agent directory. The app does not fall back to another agent
+    or pick one itself in any of these cases.
+13. **The per-agent pages remain.** Run, About and History stay, one step away from the
+    conversation, so a person can see what each agent does and inspect its runs. A person may
+    still run an agent directly from its Run page. That run goes through the conductor under the
+    profile's permission for that agent, like any other; the profile has no separate setting for
+    direct runs.
+14. **Every delegated child is named and linked.** The conversation shows each child as
+    `agent_id@agent_version` and links it to its own run.
+15. **A turn is a governed invocation.** Each message is one invocation of the orchestrator
+    through the conductor (ADR-0012 §1), and each hand-off is a child invocation under the grant
+    the conductor issues (ADR-0012 §5). The app must issue that grant (#129).
+16. **What the conversation is not.** It does not bypass the conductor, and the shell does not
+    route, classify or forward a person's message to a sub-agent itself. Routing is the
+    orchestrator's, and every hand-off is stored.
+
+Rejected:
+
+- **Keeping the directory as the home page, with the conversation as one more page.** The
+  Blueprint puts the chat interface first, and a person should not have to choose an agent before
+  saying what they need.
+- **The shell routing messages to sub-agents.** That would put routing, a policy decision, in the
+  shell, and its hand-offs would not be recorded as delegations on any envelope.
+- **Falling back to a named or first-listed agent in code.** A person would be talking to an
+  agent they did not know had been chosen for them, and a steward reading the profile could not
+  see the choice.
+- **Choosing the only `delegation` agent when the profile names none.** For the same reason: the
+  choice would depend on which agents happen to be registered, not on anything a steward reads.
+- **Choosing the orchestrator in the app's own configuration (`agents.yaml`, an environment
+  variable).** Which agent a person talks to first is a policy choice, and ADR-0017 puts policy
+  in the profile, which a steward reviews and every run cites.
+- **Refusing to start unless the orchestrator is running.** One stopped service would stop the
+  whole app, including the per-agent pages that still work.
+- **Letting the profile switch off direct runs.** Nothing yet needs it, and a key nothing
+  enforces would be refused by the loader. A deployment that wants it can propose it later.
 
 ## Dependencies introduced
 
@@ -74,10 +138,22 @@ Every dependency's licence is compatible with the repository's MIT licence.
 - The repository now has a Node toolchain (Node 22 or later, npm, `app/web/package-lock.json`).
   A contributor who only works on Python is unaffected unless they run the app, which needs
   `npm ci && npm run build` once.
-- The app's entry point is a conversation with the orchestrator (ADR-0028), not free-text
-  questions to a model of its own. The per-agent directory stays, one step away.
+- The app's entry point is a conversation with the orchestrator, not free-text questions to a
+  model of its own. The home page and navigation change (#131, #132), and the directory becomes
+  its own page.
+- The home page needs the app to issue delegation grants (#129) and a conversation API over the
+  conductor (#130) before it works. Until then `director.stub` abstains in the app.
+- The profile loader refuses keys nothing enforces, so `orchestrator` is added to the loader,
+  the profile vocabulary (`workbench/profiles/README.md`) and the reference profile with the home
+  page that reads it (#131), not before. The workbench's profiles may leave it out.
+- When a model-backed orchestrator is released, the reference profile is changed to name it, in
+  an ordinary profile change with a new `version`.
+- Until a model-backed orchestrator exists (#21), the conversation is with the rule-based
+  `director.stub`: replies are templates, and routing follows its `routing.yaml`.
 - The JavaScript tests carry no requirement marker and do not feed `CONFORMANCE.md`. TODO:
   decide whether to bridge them (for example from Playwright's JSON report) or leave C6 to
   review.
-- A future contributor must not name an agent in `app/web/src`, put a policy decision in the
-  shell, or add a presentation hint to the manifest without revisiting this decision.
+- A future contributor must not name an agent (the orchestrator included) in `app/web/src`, put
+  a policy decision in the shell, route messages in the shell, call a sub-agent from the
+  conversation outside the conductor, or add a presentation hint to the manifest without
+  revisiting this decision.
