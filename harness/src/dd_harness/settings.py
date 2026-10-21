@@ -2,11 +2,15 @@
 
 Only harness concerns live here (where runs go, which institutional profile governs them, whom
 the invocations act for, whether to write a crate, where the agent and source configurations
-are). Agents are separate
-services and read their own `DD_<AGENT>_*` variables in their own processes; see env.example.
-Kept in one place so the CLI, the transports and the tests build the same object.
+are). Agents are separate services and read their own `DD_<AGENT>_*` variables in their own
+processes. Kept in one place so every way in (the workbench, the app, an A2A server) builds the
+same object.
 
-`load_env_file` fills unset variables from `workbench/.env` for local development. Only the
+The configuration belongs to the deployment, not to the harness (ADR-0022): no path here has a
+default inside a source tree. Each comes from its `DD_*` variable or from a default the caller
+supplies, such as the workbench's development set in `workbench.config`.
+
+`load_env_file` fills unset variables from a local `.env` file for development. Only a
 console-script entry calls it; `Settings.from_env()` reads the real environment alone.
 """
 
@@ -19,24 +23,20 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
+from dd_harness.conductor import Conductor
+from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.policy import load_profile
+from dd_harness.registry import Registry
+from dd_harness.sources import Sources
+from dd_harness.store import RunStore
 from dd_sdk.contract.models import Principal, PrincipalKind
-from workbench.conductor import Conductor
-from workbench.identity import Authenticator, IdentityError, OperatorAssertion
-from workbench.policy import DEFAULT_PROFILE, load_profile
-from workbench.registry import Registry
-from workbench.sources import Sources
-from workbench.store import RunStore
-
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_RUNS_DIR = ROOT / "runs"
-DEFAULT_AGENTS_CONFIG = ROOT / "agents.yaml"
-DEFAULT_SOURCES_CONFIG = ROOT / "sources.yaml"
-DEFAULT_ENV_FILE = ROOT / ".env"
 
 
-def load_env_file(
-    path: Path = DEFAULT_ENV_FILE, environ: MutableMapping[str, str] = os.environ
-) -> bool:
+class SettingsError(ValueError):
+    """A required setting is unset, and the caller supplied no default for it."""
+
+
+def load_env_file(path: Path, environ: MutableMapping[str, str] = os.environ) -> bool:
     """Fill unset variables from a local `.env` file; a variable already set is never replaced.
 
     A convenience for development: the real environment (a shell `export`, CI, a deployment)
@@ -50,17 +50,29 @@ def load_env_file(
     return True
 
 
+def _path(variable: str, default: Path | None) -> Path:
+    """The path `variable` names, else the caller's default. With neither, start-up stops."""
+    value = os.environ.get(variable)
+    if value:
+        return Path(value)
+    if default is None:
+        raise SettingsError(
+            f"{variable} unset: the deployment names this file or directory (ADR-0022)"
+        )
+    return default
+
+
 @dataclass(frozen=True)
 class Settings:
-    runs_dir: Path = DEFAULT_RUNS_DIR
+    runs_dir: Path
     # The one institutional profile this deployment applies to every invocation (ADR-0017).
-    profile: Path = DEFAULT_PROFILE
-    write_crate: bool = True
-    agents_config: Path = DEFAULT_AGENTS_CONFIG
+    profile: Path
+    agents_config: Path
     # The independent copies of sources the source check resolves evidence against (ADR-0016).
-    sources_config: Path = DEFAULT_SOURCES_CONFIG
-    # The address delegation agents call the workbench back on (ADR-0012). `workbench serve`
-    # uses its own host and port when this is unset; set it when agents reach the workbench by
+    sources_config: Path
+    write_crate: bool = True
+    # The address delegation agents call the harness back on (ADR-0012). `workbench serve`
+    # uses its own host and port when this is unset; set it when agents reach the harness by
     # another name (a container network, a proxy).
     workbench_url: str | None = None
     # The human every invocation acts for until there is authentication (ADR-0018). No default:
@@ -94,13 +106,22 @@ class Settings:
             raise IdentityError(f"the configured principal is malformed: {exc}") from exc
 
     @classmethod
-    def from_env(cls) -> Settings:
+    def from_env(
+        cls,
+        *,
+        runs_dir: Path | None = None,
+        profile: Path | None = None,
+        agents_config: Path | None = None,
+        sources_config: Path | None = None,
+    ) -> Settings:
+        """The settings the environment names. A `DD_*` variable wins over the caller's default
+        for that path; a path with neither raises `SettingsError`."""
         return cls(
-            runs_dir=Path(os.environ.get("DD_RUNS_DIR", str(DEFAULT_RUNS_DIR))),
-            profile=Path(os.environ.get("DD_PROFILE", str(DEFAULT_PROFILE))),
+            runs_dir=_path("DD_RUNS_DIR", runs_dir),
+            profile=_path("DD_PROFILE", profile),
+            agents_config=_path("DD_AGENTS_CONFIG", agents_config),
+            sources_config=_path("DD_SOURCES_CONFIG", sources_config),
             write_crate=os.environ.get("DD_WRITE_CRATE", "1") != "0",
-            agents_config=Path(os.environ.get("DD_AGENTS_CONFIG", str(DEFAULT_AGENTS_CONFIG))),
-            sources_config=Path(os.environ.get("DD_SOURCES_CONFIG", str(DEFAULT_SOURCES_CONFIG))),
             workbench_url=os.environ.get("DD_WORKBENCH_URL") or None,
             principal_id=os.environ.get("DD_PRINCIPAL_ID") or None,
             principal_name=os.environ.get("DD_PRINCIPAL_NAME") or None,
@@ -108,12 +129,11 @@ class Settings:
         )
 
 
-def build_registry(settings: Settings | None = None) -> Registry:
-    return Registry.from_config((settings or Settings.from_env()).agents_config)
+def build_registry(settings: Settings) -> Registry:
+    return Registry.from_config(settings.agents_config)
 
 
-def build_conductor(settings: Settings | None = None) -> Conductor:
-    settings = settings or Settings.from_env()
+def build_conductor(settings: Settings) -> Conductor:
     return Conductor(
         registry=build_registry(settings),
         store=RunStore(settings.runs_dir),
@@ -123,6 +143,6 @@ def build_conductor(settings: Settings | None = None) -> Conductor:
     )
 
 
-def build_authenticator(settings: Settings | None = None) -> Authenticator:
+def build_authenticator(settings: Settings) -> Authenticator:
     """The stub authenticator (ADR-0018). An unset principal stops start-up, not a request."""
-    return OperatorAssertion((settings or Settings.from_env()).principal())
+    return OperatorAssertion(settings.principal())

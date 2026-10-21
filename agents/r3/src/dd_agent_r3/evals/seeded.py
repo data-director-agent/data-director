@@ -107,7 +107,7 @@ def conductors(agents: str | None) -> Any:
         from dd_agent_r3.explain import TemplateExplainer
         from dd_agent_r3.factory import build
         from dd_agent_r3.testing import FakeRetrieval
-        from workbench.policy import DEFAULT_PROFILE
+        from workbench.config import DEFAULT_PROFILE
         from workbench.testing import make_conductor
 
         if backend == "snapshot":
@@ -121,10 +121,11 @@ def conductors(agents: str | None) -> Any:
         return make_conductor(runs / backend, agent, profile=DEFAULT_PROFILE)
 
     def remote() -> Any:
-        from workbench.conductor import Conductor
-        from workbench.policy import DEFAULT_PROFILE, load_profile
-        from workbench.registry import Registry
-        from workbench.store import RunStore
+        from dd_harness.conductor import Conductor
+        from dd_harness.policy import load_profile
+        from dd_harness.registry import Registry
+        from dd_harness.store import RunStore
+        from workbench.config import DEFAULT_PROFILE
 
         return Conductor(
             registry=Registry.from_config(Path(str(agents))),
@@ -144,20 +145,20 @@ def conductors(agents: str | None) -> Any:
 
 @task
 def r3_seeded(agents: str | None = None) -> Task:
+    from workbench.config import settings_from_env
     from workbench.evaluation import (
         grounding_passed,
         invoke_agent,
         outcome_matches,
         stopped_correctly,
     )
-    from workbench.settings import Settings
 
     cases = load_cases()
     if agents:
         cases = [c for c in cases if c["backend"] == "snapshot"]
     return Task(
         dataset=dataset(cases),
-        solver=invoke_agent(conductors(agents), AGENT_ID, Settings.from_env().principal()),
+        solver=invoke_agent(conductors(agents), AGENT_ID, settings_from_env().principal()),
         scorer=[
             outcome_matches(),
             stopped_correctly(),

@@ -8,14 +8,14 @@ and whether the output passed the grounding check and the source check. It knows
 any payload class.
 
 The grounding linter checks the agent's account of its run for consistency; the source check
-re-hashes what the evidence cites against a copy of the source the workbench holds (ADR-0016).
+re-hashes what the evidence cites against a copy of the source the harness holds (ADR-0016).
 A violation of either withholds a succeeded result. Their verdicts are stored separately, in
 `grounding.txt` and `sources.txt`.
 
 Delegation (ADR-0012). When the conductor runs a remote agent in grounding mode `delegation`,
 and it knows its own A2A address (`workbench_url`), it issues that invocation a grant: a random
 token, sent with the request (never in `RunContext`), that the agent may present while the
-invocation runs to ask the workbench to invoke another agent. `invoke_delegated` runs such a
+invocation runs to ask the harness to invoke another agent. `invoke_delegated` runs such a
 request as an ordinary invocation, sets its lineage from the grant, and records the child
 against the parent. The parent's envelope lists those records in `delegations`, which is what
 the linter checks a relayed reply against. Delegation is one level deep: a child is never issued
@@ -39,6 +39,12 @@ from typing import Any
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from dd_harness import grounding, policy
+from dd_harness import sources as source_check
+from dd_harness.provenance import write_process_run_crate
+from dd_harness.registry import Registry
+from dd_harness.remote import Received, RemoteAgent
+from dd_harness.store import RunStore
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
@@ -66,12 +72,6 @@ from dd_sdk.tracing import (
     make_tracing,
     policy_gate_span,
 )
-from workbench import grounding, policy
-from workbench import sources as source_check
-from workbench.provenance import write_process_run_crate
-from workbench.registry import Registry
-from workbench.remote import Received, RemoteAgent
-from workbench.store import RunStore
 
 DATA_STEWARD = "data_steward"
 
@@ -123,7 +123,7 @@ class Conductor:
     # The copies of sources the source check resolves evidence against (ADR-0016). None held
     # means every externally sourced evidence item is reported as unresolved.
     sources: source_check.Sources = field(default_factory=source_check.Sources.none)
-    # The workbench's own A2A address, sent to delegation agents as their callback. None (the
+    # The harness's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
     workbench_url: str | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)

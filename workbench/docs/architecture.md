@@ -6,9 +6,11 @@ see [`walkthrough.md`](walkthrough.md).
 
 ## How a run works
 
-A caller sends a request naming an agent and giving it an input. The workbench returns one
-response, called an envelope. Three front ends can send requests: the command line, an A2A
-JSON-RPC endpoint, and the web viewer. All three hand the request to the same function, the
+A caller sends a request naming an agent and giving it an input. The harness returns one
+response, called an envelope. The harness is a package of its own, and every front end is a way
+in to it ([ADR-0022](adr/0022-harness-is-its-own-package.md)). The harness serves an A2A
+JSON-RPC endpoint for other systems. The workbench adds the command line and the web viewer for
+development. Every way in hands the request to the same function, the
 [conductor](conductor.md), so an agent behaves the same whichever front end is used.
 
 Agents are separate services. The conductor reaches each one over A2A and gets back the
@@ -49,9 +51,12 @@ says what happened. [`conductor.md`](conductor.md) describes each step in detail
 
 ## Components
 
-The repository is a uv workspace with three kinds of package. `sdk/` holds everything an agent
-and the workbench share. `workbench/` is the harness. `agents/` holds one package per agent,
-each run as its own service. Paths below are relative to the repository root.
+The repository is a uv workspace. `sdk/` holds everything an agent and the harness share.
+`harness/` governs every invocation and depends only on `sdk/`. `workbench/` is the development
+way in to the harness: the CLI, the viewer, the test kit, evaluation and the conformance report.
+`agents/` holds one package per agent, each run as its own service. `app/` is the Data Director
+app (alpha), which does not yet call the harness. Paths below are relative to the repository
+root.
 
 | Component | What it does | Where |
 |---|---|---|
@@ -61,13 +66,14 @@ each run as its own service. Paths below are relative to the repository root.
 | Agent server | Serves one agent over A2A. It publishes the agent card with the spec extension, runs the agent under a tracer parented to the caller's span, and returns the result and spans. | `sdk/src/dd_sdk/serve.py`, `wire.py` |
 | Tracing | Records each run as an OpenTelemetry span tree with the workbench's own `dd.*` attributes. | `sdk/src/dd_sdk/tracing.py` |
 | Evidence | Hashes each source record in a fixed, named way (a canonicalisation). | `sdk/src/dd_sdk/evidence.py` |
-| Conductor | Runs the steps above. Every front end calls it. | `workbench/src/workbench/conductor.py` |
-| Policy gate | Reads an institutional profile in YAML and decides whether an agent may run. | `workbench/src/workbench/policy.py`, `workbench/profiles/` |
-| Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `workbench/src/workbench/grounding.py` |
-| Source check | Re-hashes cited records against the pinned source copies listed in `sources.yaml`. | `workbench/src/workbench/sources.py`, `workbench/sources.yaml` |
-| Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `workbench/src/workbench/store.py`, `provenance.py` |
-| Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](registry.md). | `workbench/agents.yaml`, `workbench/src/workbench/registry.py`, `remote.py` |
-| Front ends | The CLI, the A2A JSON-RPC endpoint, and the AG-UI event stream the viewer uses. | `workbench/src/workbench/cli.py`, `transport/` |
+| Conductor | Runs the steps above. Every front end calls it. | `harness/src/dd_harness/conductor.py` |
+| Policy gate | Reads an institutional profile in YAML and decides whether an agent may run. | `harness/src/dd_harness/policy.py`, `workbench/profiles/` |
+| Grounding linter | Checks the trace and the envelope against the rules for the agent's grounding mode. | `harness/src/dd_harness/grounding.py` |
+| Source check | Re-hashes cited records against the pinned source copies listed in `sources.yaml`. | `harness/src/dd_harness/sources.py`, `workbench/sources.yaml` |
+| Store and provenance | Appends each envelope to a JSONL file, writes a folder per run, and writes a Process Run Crate. | `harness/src/dd_harness/store.py`, `provenance.py` |
+| Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](registry.md). | `workbench/agents.yaml`, `harness/src/dd_harness/registry.py`, `remote.py` |
+| Settings | Reads the deployment's configuration from `DD_*` variables, with defaults supplied by the caller, and builds a conductor. The workbench's development set is in `workbench.config`. | `harness/src/dd_harness/settings.py`, `workbench/src/workbench/config.py` |
+| Front ends | The A2A JSON-RPC endpoint (part of the harness), and the workbench's CLI and the AG-UI event stream the viewer uses. | `harness/src/dd_harness/transport/a2a.py`, `workbench/src/workbench/cli.py`, `workbench/src/workbench/transport/` |
 | Viewer | Two read-only browser pages, Inspect and Chat, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `workbench/src/workbench/testing.py` |
 | Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](conformance.md). | `workbench/docs/requirements.yaml`, `workbench/docs/reviews.yaml`, `workbench/scripts/conformance_report.py` |
@@ -117,3 +123,4 @@ Each design decision has a record in [`adr/`](adr/):
 | [0019](adr/0019-core-contract-and-agent-owned-classes.md) | A core contract, and input and payload classes owned by their agents |
 | [0020](adr/0020-linkml-as-contract-source.md) | LinkML is the source of the contract; JSON Schema is what runtime checks |
 | [0021](adr/0021-ro-crate-is-a-record-not-a-message.md) | RO-Crate is a record written after a run, not a message format |
+| [0022](adr/0022-harness-is-its-own-package.md) | The harness is a package of its own, and the workbench is one way in to it |

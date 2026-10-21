@@ -28,12 +28,12 @@ from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill
 from google.protobuf.json_format import MessageToDict
 from starlette.routing import BaseRoute
 
+from dd_harness.conductor import Conductor, UnknownAgent
+from dd_harness.identity import Authenticator, IdentityError
+from dd_harness.policy import PolicyError
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.wire import ENVELOPE_JSON_ARTIFACT, META_DELEGATION_TOKEN, META_TRACEPARENT
-from workbench.conductor import Conductor, UnknownAgent
-from workbench.identity import Authenticator, IdentityError
-from workbench.policy import PolicyError
 
 PROTOCOL_VERSION = "1.0"
 

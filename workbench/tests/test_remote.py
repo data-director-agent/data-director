@@ -16,6 +16,11 @@ import httpx
 import pytest
 from opentelemetry import context as otel_context
 
+from dd_harness.conductor import Conductor
+from dd_harness.policy import load_profile
+from dd_harness.registry import Registry
+from dd_harness.remote import RemoteAgent
+from dd_harness.store import RunStore
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -26,11 +31,6 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.tracing import ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, records_from_jsonl
 from dd_sdk.wire import WireError, reply_from_document, reply_to_document
-from workbench.conductor import Conductor
-from workbench.policy import load_profile
-from workbench.registry import Registry
-from workbench.remote import RemoteAgent
-from workbench.store import RunStore
 from workbench.testing import (
     PERMISSIVE,
     SOURCE_A,

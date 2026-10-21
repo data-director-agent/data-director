@@ -1,8 +1,8 @@
 """The alpha Data Director: one tool-using model over the FAIRsharing snapshot.
 
-This is an alpha. It does not use the workbench, which is a development tool, so none of the
-contract applies: there is no policy gate, input check, grounding linter,
-evidence hashing or run record. What the model says is unchecked; the tools only make it
+This is an alpha. It does not yet call the harness (`dd_harness`, issue #47), so none of the
+contract applies: there is no policy gate, input check, grounding linter, evidence hashing or
+run record. What the model says is unchecked; the tools only make it
 possible for the model to cite real FAIRsharing records rather than recall them.
 
 The agent loop and model selection are pydantic-ai's; FAIRsharing search is R3's

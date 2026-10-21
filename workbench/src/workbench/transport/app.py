@@ -13,14 +13,14 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from dd_harness import conversations
+from dd_harness.conductor import Conductor
+from dd_harness.identity import Authenticator
+from dd_harness.remote import RemoteAgent
+from dd_harness.transport.a2a import a2a_routes
 from dd_sdk.agent import describe
 from dd_sdk.contract.validate import SCHEMA_DIR
-from workbench import conversations
-from workbench.conductor import Conductor
-from workbench.identity import Authenticator
-from workbench.remote import RemoteAgent
 from workbench.transport import agui
-from workbench.transport.a2a import a2a_routes
 
 ROOT = Path(__file__).resolve().parents[3]
 VIEWER_DIR = ROOT / "viewer"

@@ -1,0 +1,94 @@
+# ADR-0022: The harness is a package of its own, and the workbench is one way in to it
+
+**Status:** Proposed
+**Date:** 2026-10-21
+
+## Context
+
+The harness is the code that governs an invocation: the conductor, the policy gate, the input
+check, the grounding linter, the source check, the run store and the provenance record. Until
+now it was packaged inside `workbench/`, beside the CLI, the viewer, the test kit and the
+evaluation code.
+
+The workbench is a development tool for people who write sub-agents. The Data Director app
+(`app/`) is what researchers use, and it must not depend on the workbench. So the app could not
+reach the harness at all. It called R3's retrieval code in-process, and it had to warn that
+nothing it said was checked or recorded. "Every front end calls the conductor" held for the
+development test bed and not for the product.
+
+The harness modules did not import the workbench-side modules, so they could be separated
+without redesign (issue #47). One thing did tie the harness to the workbench tree: its default
+configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`,
+`sources.yaml`, the run directory and the `.env` file from their own location in `workbench/`.
+
+## Decision
+
+- **The harness is the workspace package `harness/`** (distribution `data-director-harness`,
+  import `dd_harness`). It holds the modules below and depends only on `sdk/` and third-party
+  libraries.
+
+  | Harness (`harness/`, deployable) | Workbench (`workbench/`, development only) |
+  |---|---|
+  | `conductor.py`, `policy.py`, `grounding.py`, `sources.py`, `store.py`, `provenance.py`, `identity.py`, `registry.py`, `remote.py`, `conversations.py`, `settings.py` | `cli.py`, `config.py`, `transport/agui.py`, `transport/app.py`, `viewer/` |
+  | `transport/a2a.py`, the way in for other systems | `evaluation.py` (Inspect AI), `testing.py` and the doubles' schema |
+  | | `profiles/`, `agents.yaml`, `sources.yaml`, `samples/`, the conformance report |
+
+- **The harness imports no way in to it, and no agent.** Nothing under `harness/src/` imports
+  `workbench`, `dd_app`, a `dd_agent_*` package or `inspect_ai`.
+  `harness/tests/test_harness_boundary.py` enforces this. The workbench, the app and an A2A
+  server are ways in. Each one builds a conductor and calls `Conductor.invoke`.
+- **Configuration belongs to the deployment, not to the harness.** This extends ADR-0017 (the
+  profile is the deployment's) to everything else a deployment supplies:
+  - The harness ships no profile, agent list or source list, and has no default run directory.
+  - `Settings.from_env` takes each path from its `DD_*` variable (`DD_PROFILE`,
+    `DD_AGENTS_CONFIG`, `DD_SOURCES_CONFIG`, `DD_RUNS_DIR`). If the variable is unset, it uses a
+    default passed by the caller. If there is neither, it raises `SettingsError`, and start-up
+    stops.
+  - `load_env_file` takes the file it reads as an argument.
+  - The workbench supplies its development set from `workbench.config`. The paths are the same
+    as before this decision.
+- **The CLI stays with the workbench.** The harness is a library with one way in of its own,
+  the A2A endpoint. `workbench serve` adds AG-UI and the viewer on top of it.
+
+## Dependencies introduced
+
+| Dependency | Tier | Fallback if this dependency is abandoned |
+|---|---|---|
+| None | n/a | The harness's existing runtime dependencies (`a2a-sdk`, `httpx`, `opentelemetry-sdk`, `rocrate`, `pyyaml`, `python-dotenv`) move with the modules that import them. Their tiers are unchanged (ADR-0006). |
+
+## Consequences
+
+- A deployment can install the SDK and the harness without the viewer, Inspect AI or the test
+  kit.
+- The app can call the conductor without depending on the workbench, so its runs can be checked,
+  recorded and attributed (`acting_for`, ADR-0018) like those from any other way in.
+- The workbench holds neither agent code nor governance code. It is a test bed for sub-agent
+  authors.
+- Code that called `Settings.from_env()`, `build_conductor()` or `load_env_file()` with no
+  arguments, relying on the workbench's files, must now name them. Inside the workbench, that is
+  `workbench.config.settings_from_env()`.
+- Accepted ADRs before this one name modules at `workbench/src/workbench/`. Those paths record
+  the layout when each ADR was written. The modules are now under `harness/src/dd_harness/`
+  with the same file names.
+- Do not add a workbench, app, agent or evaluation import to `harness/src/`. Do not compute a
+  configuration default from a harness module's location.
+
+## Not yet decided
+
+- TODO: routing `app/` through the conductor. The app's model calls R3 as an in-process tool.
+  To be governed, R3 would run as a service called through the conductor, or the app's model
+  would become an orchestrator under `delegation` grounding (ADR-0012). Only an agent reached
+  over A2A can be granted delegation today.
+- TODO: names that still say "workbench" where they mean the harness. These are
+  `Conductor.workbench_url` and `DD_WORKBENCH_URL`, the A2A card's name and description,
+  `WorkbenchExecutor`, `dd_sdk.delegate.WorkbenchDelegate`, and the trace `service.name`
+  `data-director-workbench`. Renaming them changes a configuration variable, the agent card and
+  stored traces, so it is left for a separate change.
+- TODO: a harness server of its own: an A2A-only process for deployments that need no viewer.
+- TODO: a test kit for the harness. The scripted doubles and `make_conductor` stay in
+  `workbench.testing`, and `make_conductor` serves the delegation callback with the workbench's
+  application. So most harness tests remain in `workbench/tests/`, and a way in that wants
+  doubles (such as the app's tests) depends on the workbench at test time.
+- TODO: whether the harness's documentation (`conductor.md`, `grounding.md`, `registry.md`, the
+  ADRs and the requirements register) moves out of `workbench/docs/`.
+- TODO: where a deployment's configuration lives, beyond the workbench's development set.

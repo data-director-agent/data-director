@@ -16,7 +16,9 @@ The workbench is not the reference implementation itself, and it contains no age
 agent states what input it reads, what output it returns, and what that output is based on.
 Agents are separate services in [`../agents/`](../agents/). The workbench calls each one over
 A2A, the [Agent2Agent protocol](https://a2a-protocol.org/), then checks that it kept to those
-statements ([ADR-0011](docs/adr/0011-remote-agents.md)).
+statements ([ADR-0011](docs/adr/0011-remote-agents.md)). The calls and checks are made by the
+harness, a package of its own in [`../harness/`](../harness/) that the workbench is one way in
+to ([ADR-0022](docs/adr/0022-harness-is-its-own-package.md)).
 [`docs/architecture.md`](docs/architecture.md) explains how the pieces fit together.
 
 ## Who it is for
@@ -141,9 +143,12 @@ over the file. `scripts/run-agents.sh` passes the same file to the agents.
 | `DD_WRITE_CRATE` | `1` | `0` stops the provenance record (Process Run Crate) being written. |
 | `DD_PROFILE` | `profiles/default.yaml` | The institutional profile applied to every invocation. A request cannot name one (ADR-0017). |
 | `DD_AGENTS_CONFIG` | `agents.yaml` | The agent registry file. |
+| `DD_SOURCES_CONFIG` | `sources.yaml` | The pinned source copies the source check resolves evidence against (ADR-0016). |
 | `DD_WORKBENCH_URL` | the host and port of `serve` | The address the orchestrator uses to call the workbench back. Set it when agents reach the workbench by another name, such as a container network or a proxy. |
 
-Relative defaults are resolved against `workbench/`. Each agent is a separate process and reads
+These defaults are the workbench's development set (`src/workbench/config.py`), resolved against
+`workbench/`. The harness has no defaults of its own, so another way in names these files itself
+(ADR-0022). Each agent is a separate process and reads
 its own variables, such as the R3 retrieval backend or a model API key, where it runs;
 [`env.example`](env.example) lists them.
 
@@ -204,7 +209,9 @@ described in [`../agents/README.md`](../agents/README.md).
 
 | Path | Contents |
 |---|---|
-| `src/workbench/` | The harness: the conductor, policy gate, input check, grounding linter, run store, provenance and the `workbench` CLI. |
+| `src/workbench/` | The `workbench` CLI, the AG-UI transport, the test kit, evaluation, and the development configuration it supplies to the harness. |
+| `../harness/` | The harness itself: the conductor, policy gate, input check, grounding linter, source check, run store, provenance and the A2A endpoint. |
+| `sources.yaml` | The pinned source copies for the source check. |
 | `viewer/` | The browser UI served by `workbench serve`. |
 | `agents.yaml` | The agent registry. |
 | `profiles/` | Institutional profiles. |

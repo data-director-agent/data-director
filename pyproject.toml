@@ -2,7 +2,8 @@
 # development tooling, and runs one test session so the conformance report sees every test.
 #
 #   sdk/         data-director-sdk        the contract, evidence, trace helpers, A2A agent server
-#   workbench/   data-director-workbench  the harness that calls agents over A2A
+#   harness/     data-director-harness    the conductor and its checks, run store and provenance
+#   workbench/   data-director-workbench  the development way in: CLI, viewer, test kit, evaluation
 #   agents/*/    data-director-agent-*    one package and one service per agent
 #   app/         data-director-app        the Data Director app (alpha)
 
@@ -12,6 +13,7 @@ version = "0.0.0"
 requires-python = ">=3.14"
 dependencies = [
   "data-director-sdk",
+  "data-director-harness",
   "data-director-workbench",
   "data-director-agent-hello",
   "data-director-agent-quality",
@@ -38,10 +40,11 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["sdk", "workbench", "agents/*", "app"]
+members = ["sdk", "harness", "workbench", "agents/*", "app"]
 
 [tool.uv.sources]
 data-director-sdk = { workspace = true }
+data-director-harness = { workspace = true }
 data-director-workbench = { workspace = true }
 data-director-agent-hello = { workspace = true }
 data-director-agent-quality = { workspace = true }
@@ -60,7 +63,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_app"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -68,14 +71,14 @@ known-first-party = ["dd_sdk", "workbench", "dd_agent_hello", "dd_agent_quality"
 "**/scripts/*" = ["T20", "E501"]  # report scripts embed Markdown prose
 "workbench/src/workbench/cli.py" = ["T20"]
 # The domain reads better without an Error suffix; these names appear in messages people read.
-"workbench/src/workbench/conductor.py" = ["N818"]
+"harness/src/dd_harness/conductor.py" = ["N818"]
 "sdk/src/dd_sdk/contract/validate.py" = ["N818"]
 "sdk/src/dd_sdk/delegate.py" = ["N818"]
 "agents/r3/src/dd_agent_r3/retrieve.py" = ["N818"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["sdk/tests", "workbench/tests", "agents", "app/tests"]
+testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `workbench.testing` and
 # `dd_agent_r3.testing`, not in a test directory.
@@ -93,13 +96,13 @@ markers = [
 [tool.mypy]
 python_version = "3.14"
 files = [
-  "conftest.py", "sdk/src", "sdk/tests", "workbench/src", "workbench/tests",
+  "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
   "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts", "app/src",
   "app/tests",
 ]
 explicit_package_bases = true
 mypy_path = [
-  "sdk/src", "workbench/src", "workbench/scripts", "agents/hello/src",
+  "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
   "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
   "agents/director/src", "app/src",
 ]
@@ -112,6 +115,6 @@ module = ["a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "go
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["conftest", "sdk.tests.*", "workbench.tests.*", "agents.*", "app.*"]
+module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "agents.*", "app.*"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

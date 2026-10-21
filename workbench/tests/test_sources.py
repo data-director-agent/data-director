@@ -14,13 +14,12 @@ from dd_agent_factcheck.agent import FactChecker
 from dd_agent_r3.agent import R3Agent
 from dd_agent_r3.explain import TemplateExplainer
 from dd_agent_r3.fairsharing.snapshot import SnapshotBackend
+from dd_harness.sources import RecordsFile, SourceConfigError, Sources, check
 from dd_sdk.contract.models import GroundingMode, OpenInput, OutcomeStatus
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from workbench import cli
 from workbench import testing as fakes
-from workbench.policy import DEFAULT_PROFILE
-from workbench.settings import DEFAULT_SOURCES_CONFIG, ROOT
-from workbench.sources import RecordsFile, SourceConfigError, Sources, check
+from workbench.config import DEFAULT_PROFILE, DEFAULT_SOURCES_CONFIG, WORKBENCH_ROOT
 
 pytestmark = pytest.mark.requirement("DD-EVIDENCE")
 
@@ -164,7 +163,7 @@ def test_conductor_records_a_verified_result(tmp_path: Path) -> None:
 
 def _sample(name: str) -> Any:
     return OpenInput.model_validate(
-        json.loads((ROOT / "samples" / name).read_text(encoding="utf-8"))
+        json.loads((WORKBENCH_ROOT / "samples" / name).read_text(encoding="utf-8"))
     )
 
 

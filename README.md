@@ -19,4 +19,5 @@ This is a community-driven, open-source project. See:
 - [Code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md) — expected standards of behaviour
 - [Software management plan](docs/SOFTWARE_MANAGEMENT_PLAN.md) — the software management plan
 - [App](app/) — the Data Director itself (alpha): a browser chat with a tool-using model over a FAIRsharing snapshot
+- [Harness](harness/) — the governance every agent invocation goes through: the policy gate, input check, grounding linter, source check, run store and provenance
 - [Workbench](workbench/) — development environment for building and testing sub-agents: the invocation contract (LinkML), an R3 agent over FAIRsharing, an abstaining stub, a read-only viewer, and a generated `CONFORMANCE.md`

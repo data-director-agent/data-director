@@ -5,7 +5,7 @@ itself and with what the conductor recorded. The conductor records the root span
 (mode, input hash, outcome) and `delegations`. The agent declares its `retrieval` and `chat`
 spans, their timing, `grounded_on` and evidence. The spans are written in the agent's process
 and sent back over A2A (ADR-0011). So G1-G3 show that the agent's declared retrievals agree with
-what it cites, not that it retrieved anything; `workbench.sources` re-hashes what it cites
+what it cites, not that it retrieved anything; `dd_harness.sources` re-hashes what it cites
 against the source. R2 and D1-D2 check citations against hashes the conductor computed.
 
 The linter reads the span tree of one `invoke_agent` and the envelope it produced, and applies
@@ -48,7 +48,7 @@ Evidence, every mode (E1, ADR-0015):
   N1 no `chat` span exists.
 
 `delegation` — the agent works over its input and the envelopes of the invocations it delegated
-through the workbench (ADR-0012); it may call a model. R1, G4 and
+through the harness (ADR-0012); it may call a model. R1, G4 and
   D1 every `grounded_on` entry cites the input (as R2) or a delegation the conductor recorded in
      the envelope's `delegations`: `source_id` `invocation:<child_id>` and `content_hash` that
      child's `dd-envelope-json-v1` hash. The agent's own account of what it delegated is not

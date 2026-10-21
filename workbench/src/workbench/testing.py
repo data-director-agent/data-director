@@ -31,6 +31,12 @@ from typing import Any, Literal
 import httpx
 from pydantic import Field
 
+from dd_harness.conductor import Conductor
+from dd_harness.identity import OperatorAssertion
+from dd_harness.policy import load_profile
+from dd_harness.registry import Registry
+from dd_harness.remote import RemoteAgent
+from dd_harness.store import RunStore
 from dd_sdk import serve
 from dd_sdk.agent import Agent, AgentResult, AgentSpec, RunContext
 from dd_sdk.contract.classes import ClassSchema
@@ -56,12 +62,7 @@ from dd_sdk.evidence import (
     content_hash,
 )
 from dd_sdk.tracing import chat_span, retrieval_span
-from workbench.conductor import Conductor
-from workbench.identity import OperatorAssertion
-from workbench.policy import PROFILES_DIR, load_profile
-from workbench.registry import Registry
-from workbench.remote import RemoteAgent
-from workbench.store import RunStore
+from workbench.config import PROFILES_DIR
 
 PERMISSIVE = PROFILES_DIR / "test-permissive.yaml"
 RESTRICTIVE = PROFILES_DIR / "test-restrictive.yaml"

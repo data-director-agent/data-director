@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-workbench"
 version = "0.1.0"
-description = "Data Director Workbench: harness, agent registry, transports, viewer and conformance report"
+description = "Data Director Workbench: a development way in to the harness, with the CLI, the viewer, the test kit, evaluation and the conformance report"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
@@ -13,16 +13,11 @@ authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 
 dependencies = [
   "data-director-sdk",
+  "data-director-harness",
   "pydantic>=2.11,<3",
-  "jsonschema>=4.23",
   "httpx>=0.28",
-  "opentelemetry-sdk>=1.44",
-  "a2a-sdk[http-server]>=1.1,<2",
   "ag-ui-protocol>=0.1.22,<0.2",
-  "rocrate>=0.15",
-  "pyyaml>=6.0",
   "uvicorn>=0.30",
-  "python-dotenv>=1.1",
 ]
 
 [project.scripts]

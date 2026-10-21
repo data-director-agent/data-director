@@ -2,7 +2,7 @@
 
 An agent's output is *grounded* when everything it relies on can be traced to something the
 agent actually read during the run. The workbench checks this after every run with the grounding
-linter in [`src/workbench/grounding.py`](../src/workbench/grounding.py)
+linter in [`harness/src/dd_harness/grounding.py`](../../harness/src/dd_harness/grounding.py)
 ([ADR-0008](adr/0008-grounding-modes.md)).
 
 ## Why it matters
