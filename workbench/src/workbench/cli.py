@@ -17,7 +17,8 @@ from pydantic import ValidationError
 from dd_harness import grounding, sources
 from dd_harness.conductor import UnknownAgent
 from dd_harness.identity import IdentityError
-from dd_harness.registry import Registry
+from dd_harness.policy import PolicyError
+from dd_harness.registry import Registry, RegistryError
 from dd_harness.settings import (
     Settings,
     SettingsError,
@@ -26,6 +27,7 @@ from dd_harness.settings import (
     build_registry,
     load_env_file,
 )
+from dd_harness.sources import SourceConfigError
 from dd_sdk.contract.models import InvocationRequest, OpenInput
 from dd_sdk.tracing import records_from_jsonl
 from workbench.config import DEFAULT_ENV_FILE, settings_from_env
@@ -207,8 +209,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         result: int = args.func(args)
-    # No principal (ADR-0018), or a path the deployment must name (ADR-0022): nothing may run.
-    except (IdentityError, SettingsError) as exc:
+    # No principal (ADR-0018), a path the deployment must name (ADR-0022), or a profile, agent
+    # list or source list that is missing or malformed: nothing may run.
+    except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
         sys.exit(f"workbench: {exc}")
     return result
 
