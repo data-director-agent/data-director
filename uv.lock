@@ -783,7 +783,7 @@ dependencies = [
     { name = "data-director-agent-r3" },
     { name = "data-director-agent-stub" },
     { name = "data-director-app" },
-    { name = "data-director-harness" },
+    { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-sdk" },
     { name = "data-director-workbench" },
 ]
@@ -809,7 +809,7 @@ requires-dist = [
     { name = "data-director-agent-r3", editable = "agents/r3" },
     { name = "data-director-agent-stub", editable = "agents/stub" },
     { name = "data-director-app", editable = "app" },
-    { name = "data-director-harness", editable = "harness" },
+    { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-workbench", editable = "workbench" },
 ]
@@ -949,6 +949,11 @@ dependencies = [
     { name = "rocrate" },
 ]
 
+[package.optional-dependencies]
+serve = [
+    { name = "uvicorn" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.1,<2" },
@@ -959,7 +964,9 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rocrate", specifier = ">=0.15" },
+    { name = "uvicorn", marker = "extra == 'serve'", specifier = ">=0.30" },
 ]
+provides-extras = ["serve"]
 
 [[package]]
 name = "data-director-sdk"
