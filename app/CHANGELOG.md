@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0-alpha.1](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.1...app-v0.4.0-alpha.1) (2026-10-21)
+
+
+### Features
+
+* **app:** register every in-tree agent ([#117](https://github.com/data-director-agent/data-director/issues/117)) ([8ab7c63](https://github.com/data-director-agent/data-director/commit/8ab7c6347a15c8c28ab2af68e85c400fc29fac71))
+
 ## [0.3.0-alpha.1](https://github.com/data-director-agent/data-director/compare/app-v0.2.0-alpha.1...app-v0.3.0-alpha.1) (2026-10-21)
 
 
