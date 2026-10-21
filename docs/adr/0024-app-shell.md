@@ -96,6 +96,12 @@ every delegated child is labelled `agent_id@agent_version`.
 16. **What the conversation is not.** It does not bypass the conductor, and the shell does not
     route, classify or forward a person's message to a sub-agent itself. Routing is the
     orchestrator's, and every hand-off is stored.
+17. **The server holds the conversation's history.** The app's server mints each
+    `conversation_id` and builds each turn's `Message.history` from the turns already stored
+    (`dd_harness.conversations`). A turn gives only the agent and the message text; a request
+    that gives a history is refused. The input hash then covers what the agent was really shown,
+    and a browser cannot put words in an earlier turn (#130). This settles, for the app,
+    ADR-0012's open question of checking a caller's history against the store.
 
 Rejected:
 

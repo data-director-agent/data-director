@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import webbrowser
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
@@ -46,7 +47,7 @@ from dd_harness.testing import (
 )
 from dd_harness.transport.a2a import DELEGATED_ONLY
 from dd_sdk.agent import Agent
-from dd_sdk.contract.models import InvocationRequest
+from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
 
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 # The shell's component and browser tests are drawn from these, so each must be what the server
@@ -408,3 +409,154 @@ def test_the_configured_url_is_the_callback(
     dd_app.main()
     assert started["governance"].conductor.harness_url == "http://app.internal:7860"
     assert "private network only" in capsys.readouterr().err
+
+
+# Conversations (#130): a turn is one invocation of the orchestrator with a `conversation_id`,
+# and the server, not the caller, builds its history from the stored turns (ADR-0024 §17).
+
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+SHA256 = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
+TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})")
+TRACE_ID = re.compile(r'"trace_id": "[0-9a-f]{32}"')
+
+
+def normalised_conversation(body: Any) -> Any:
+    """`body` with each identifier and hash that changes between two runs of the same
+    conversation replaced by a fixed one, numbered in order of first appearance, so the same
+    value stays the same throughout. A turn's input hash covers the history, which names the
+    earlier turns' runs, and a delegation's content hash covers the child's envelope, so the
+    hashes change with the identifiers."""
+    text = json.dumps(body, sort_keys=True)
+    seen: dict[str, str] = {}
+
+    def fixed(template: str) -> Any:
+        def replace(match: re.Match[str]) -> str:
+            value = match.group(0)
+            if value not in seen:
+                seen[value] = template.format(len(seen) + 1)
+            return seen[value]
+
+        return replace
+
+    text = UUID.sub(fixed("01900000-0000-7000-8000-{:012d}"), text)
+    text = SHA256.sub(fixed("{:064d}"), text)
+    text = TIMESTAMP.sub(FIXED_TIME, text)
+    text = TRACE_ID.sub(f'"trace_id": "{"0" * 32}"', text)
+    return json.loads(text)
+
+
+def start(client: TestClient) -> str:
+    response = client.post("/api/conversations")
+    assert response.status_code == 201
+    conversation_id: str = response.json()["conversation_id"]
+    assert response.headers["location"] == f"/api/conversations/{conversation_id}"
+    return conversation_id
+
+
+def turn(client: TestClient, conversation_id: str, text: str, **extra: Any) -> Any:
+    return client.post(
+        f"/api/conversations/{conversation_id}/turns",
+        json={"agent_id": "director.stub", "message_text": text, **extra},
+    )
+
+
+def test_a_conversation_is_started_with_no_turns(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    conversation_id = start(client)
+    assert re.fullmatch(UUID7_PATTERN, conversation_id)
+    found = client.get(f"/api/conversations/{conversation_id}").json()
+    assert found["turns"] == [] and found["history"] == []
+    # Listed once it has a turn, since the store is what holds a conversation.
+    assert client.get("/api/conversations").json() == []
+
+
+@pytest.mark.parametrize(
+    "conversation_id",
+    ["01900000-0000-7000-8000-000000000001", "not-an-id", "01900000-0000-4000-8000-000000000001"],
+)
+def test_a_conversation_the_app_did_not_start_is_not_found(
+    governance: Governance, dist: Path, conversation_id: str
+):
+    client = TestClient(build_app(governance, dist))
+    for response in (
+        client.get(f"/api/conversations/{conversation_id}"),
+        turn(client, conversation_id, "hello world"),
+    ):
+        assert response.status_code == 404
+        assert response.headers["content-type"] == "application/problem+json"
+        assert response.json()["type"].endswith("conversation-not-found")
+
+
+def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, Any]):
+    governance, app = delegating
+    client = TestClient(app)
+    conversation_id = start(client)
+    first = turn(client, conversation_id, "hello world")
+    assert first.status_code == 200
+    second = turn(client, conversation_id, "hello again")
+    assert second.status_code == 200
+    envelopes = [first.json()["envelope"], second.json()["envelope"]]
+    for envelope in envelopes:
+        assert envelope["conversation_id"] == conversation_id
+        assert envelope["outcome"]["status"] == "succeeded"
+        assert [d["delegated_agent_id"] for d in envelope["delegations"]] == ["hello.world"]
+
+    store = governance.conductor.store
+    shown = [(store.get_request(e["invocation_id"]) or {})["input"] for e in envelopes]
+    assert shown[0] == {"schema_class": "Message", "message_text": "hello world", "history": []}
+    assert shown[1]["message_text"] == "hello again"
+    user, agent = shown[1]["history"]
+    assert (user["role"], user["turn_text"]) == ("user", "hello world")
+    assert agent["role"] == "agent"
+    assert agent["turn_text"] == envelopes[0]["payload"]["reply_text"]
+    assert agent["turn_invocation_id"] == envelopes[0]["invocation_id"]
+
+    found = client.get(f"/api/conversations/{conversation_id}").json()
+    assert [t["invocation_id"] for t in found["turns"]] == [e["invocation_id"] for e in envelopes]
+    for t, envelope in zip(found["turns"], envelopes, strict=True):
+        assert [c["invocation_id"] for c in t["children"]] == [
+            d["delegated_invocation_id"] for d in envelope["delegations"]
+        ]
+    (listed,) = client.get("/api/conversations").json()
+    assert (listed["conversation_id"], listed["turns"]) == (conversation_id, 2)
+    check_fixture("conversation-turn.json", normalised_conversation(second.json()))
+    check_fixture("conversation.json", normalised_conversation(found))
+
+
+@pytest.mark.parametrize(
+    ("body", "detail"),
+    [
+        ({"history": []}, "history"),
+        ({"input": {}}, "only `agent_id` and `message_text`"),
+        ({"message_text": 3}, "as strings"),
+        ({"message_text": "  "}, "empty"),
+    ],
+)
+def test_a_malformed_turn_is_refused_and_nothing_runs(
+    delegating: tuple[Governance, Any], body: dict[str, Any], detail: str
+):
+    governance, app = delegating
+    client = TestClient(app)
+    conversation_id = start(client)
+    response = turn(client, conversation_id, "hello world", **body)
+    assert response.status_code == 400
+    assert response.headers["content-type"] == "application/problem+json"
+    assert detail in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+def test_a_turn_that_is_not_json_is_refused(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    response = client.post(f"/api/conversations/{start(client)}/turns", content=b"{")
+    assert response.status_code == 400
+
+
+def test_a_turn_to_an_unknown_agent_is_refused_before_it_runs(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    response = client.post(
+        f"/api/conversations/{start(client)}/turns",
+        json={"agent_id": "no.such.agent", "message_text": "hello"},
+    )
+    assert response.status_code == 400
+    assert response.json()["type"].endswith("request-refused")
+    assert list(governance.conductor.store.iter_envelopes()) == []

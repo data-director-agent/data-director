@@ -123,5 +123,6 @@ Rejected:
 - TODO, not decided here: mapping A2A `context_id` to `conversation_id`; delegation more than
   one level deep; delegation from the CLI; whether children inherit `requirement_ids`; the
   parent's Process Run Crate referencing its children's crates; checking a caller's history
-  against the store; whether an orchestrator should mirror a failed child's status; streaming
+  against the store (the app takes none and builds it from the store, ADR-0024 §17; other
+  transports still accept one); whether an orchestrator should mirror a failed child's status; streaming
   replies (`TEXT_MESSAGE_*`).

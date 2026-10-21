@@ -15,12 +15,24 @@ from pathlib import Path
 from typing import Any
 
 from dd_agent_standards import factory as standards
+from dd_harness import conversations
 from dd_harness.conductor import Conductor
 from dd_harness.settings import Settings, build_authenticator, build_conductor
-from dd_sdk.contract.models import Envelope, InvocationRequest, Principal
+from dd_sdk.contract.models import (
+    UUID7_PATTERN,
+    Envelope,
+    InvocationRequest,
+    Principal,
+    new_invocation_id,
+)
 
 STANDARDS_AGENT_ID = "standards.advisor"
 RUN_ID = re.compile(r"[0-9A-Za-z-]{1,64}")
+CONVERSATION_ID = re.compile(UUID7_PATTERN)
+
+
+class UnknownConversationError(LookupError):
+    """No conversation has this identifier: it was neither started here nor has a stored turn."""
 
 
 def _report(path: Path) -> dict[str, Any] | None:
@@ -51,6 +63,10 @@ class Governance:
     conductor: Conductor
     acting_for: Principal
     worker: ThreadPoolExecutor = field(repr=False)
+    # Conversations started in this process that have no turn yet. There is no conversation
+    # store (ADR-0012 §4): once a turn is stored the store holds the conversation, and an id
+    # never used is forgotten when the app stops.
+    _started: set[str] = field(default_factory=set, repr=False)
 
     @classmethod
     def create(cls, settings: Settings, base_url: str) -> Governance:
@@ -87,6 +103,66 @@ class Governance:
         envelope = await self.invoke(InvocationRequest(agent_id=agent_id, input=input))
         document = envelope.to_document()
         return {"envelope": document, "checks": self.checks(envelope.invocation_id)}
+
+    def start_conversation(self) -> str:
+        """A new conversation's identifier (`POST /api/conversations`). The server mints it, so a
+        turn can be sent only to a conversation the app started or has stored."""
+        conversation_id = new_invocation_id()
+        self._started.add(conversation_id)
+        return conversation_id
+
+    async def turn(self, conversation_id: str, agent_id: str, message_text: str) -> dict[str, Any]:
+        """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
+        `Message` to `agent_id`, answered as `run` answers.
+
+        The history is built here from the stored turns, never taken from the caller, so the
+        input hash covers what the agent was really shown (ADR-0024 §17). It is read on the
+        worker, in the same call as the invocation, so two turns sent at once are run one after
+        the other and the second is shown the first. Raises `UnknownConversationError`, or what
+        `Conductor.invoke` raises for a request it refuses before running.
+        """
+
+        def invoke() -> Envelope:
+            found = self._conversation(conversation_id)
+            if found is None:
+                raise UnknownConversationError(conversation_id)
+            message = {
+                "schema_class": "Message",
+                "message_text": message_text,
+                "history": found["history"],
+            }
+            request = InvocationRequest(
+                agent_id=agent_id, conversation_id=conversation_id, input=message
+            )
+            return self.conductor.invoke(request, acting_for=self.acting_for)
+
+        envelope = await asyncio.wrap_future(self.worker.submit(invoke))
+        self._started.discard(conversation_id)
+        return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
+
+    def conversations(self) -> list[dict[str, Any]]:
+        """Every stored conversation, most recently active first (`GET /api/conversations`). One
+        started but given no turn yet is not listed."""
+        return conversations.list_conversations(self.conductor.store)
+
+    def conversation(self, conversation_id: str) -> dict[str, Any] | None:
+        """A conversation as `dd_harness.conversations` derives it (`GET /api/conversations/{id}`),
+        or None. One started but given no turn yet has no turns."""
+        if not CONVERSATION_ID.fullmatch(conversation_id):
+            return None
+        return self._conversation(conversation_id)
+
+    def _conversation(self, conversation_id: str) -> dict[str, Any] | None:
+        found = conversations.get_conversation(self.conductor.store, conversation_id)
+        if found is None and conversation_id in self._started:
+            found = {
+                "conversation_id": conversation_id,
+                "turns": [],
+                "inputs": {},
+                "version_changes": [],
+                "history": [],
+            }
+        return found
 
     def runs(self) -> list[dict[str, Any]]:
         """Every stored run, newest first (`GET /api/runs`)."""
