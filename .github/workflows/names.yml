@@ -1,0 +1,39 @@
+name: Names
+
+# Checks a pull request's title and branch name (scripts/check_names.py, CONTRIBUTING.md). The
+# title becomes the squash-merged commit subject that release-please reads, so it must be a
+# Conventional Commit. This is a workflow of its own, not a job in ci.yml, because it must run
+# again when the title is edited, and editing a title should not re-run the whole of CI. Require
+# its check, "PR title and branch name", in the ruleset beside "CI passed".
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  names:
+    name: PR title and branch name
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/check_names.py
+          sparse-checkout-cone-mode: false
+      # The title and branch are untrusted input, so they reach the script through the
+      # environment, never interpolated into the shell.
+      - name: Check the names
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          python3 scripts/check_names.py --title "$TITLE" --branch "$BRANCH" \
+            | while IFS= read -r line; do echo "::error::$line"; done
+          exit "${PIPESTATUS[0]}"

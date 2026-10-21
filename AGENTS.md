@@ -56,6 +56,13 @@ Read `workbench/AGENTS.md` before changing anything here or in `harness/`.
 Every commit must be signed off under the Developer Certificate of Origin — `git commit -s`.
 Unsigned commits are rejected at review.
 
+Pull requests are squash-merged and release-please reads the title as the commit subject, so a
+PR title is a Conventional Commit: `type(scope)!: summary`, with a lower-case summary and no
+closing full stop (`feat(app): register every in-tree agent`). A branch name is lower-case words
+joined by hyphens, optionally grouped with slashes (`ci-faster`). `.github/workflows/names.yml`
+checks both; check locally with
+`python3 scripts/check_names.py --title "…" --branch "$(git branch --show-current)"`.
+
 ## Workflows
 
 CI runs `zizmor` and `actionlint` over `.github/` (blanket policy, no unpinned actions). Pin every
