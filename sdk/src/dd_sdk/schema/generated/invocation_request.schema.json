@@ -479,7 +479,14 @@
                "$ref": "#/$defs/OutcomeStatus"
             },
             "reason_code": {
-               "$ref": "#/$defs/ReasonCode"
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ReasonCode"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ]
             },
             "referred_to": {
                "description": "The human role a referred outcome hands to, e.g. data_steward.",
@@ -741,9 +748,9 @@
    },
    "$id": "https://w3id.org/data-director/schema/core",
    "$schema": "https://json-schema.org/draft/2019-09/schema",
-   "additionalProperties": true,
+   "additionalProperties": false,
    "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012).",
-   "metamodel_version": "1.11.0",
+   "metamodel_version": "1.12.0",
    "properties": {
       "invocation_id": {
          "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",

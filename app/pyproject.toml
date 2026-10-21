@@ -14,7 +14,7 @@ dependencies = [
   "data-director-agent-standards",
   "data-director-harness",
   "starlette>=0.47",
-  "uvicorn>=0.30",
+  "uvicorn>=0.54.0",
 ]
 
 [project.scripts]

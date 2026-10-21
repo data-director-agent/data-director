@@ -737,7 +737,7 @@
         "snapshot_ref": "snapshot:2026-09-04"
       }
     },
-    "payload_schema": "41460855c75028983e6eecbfde7d82c227bf615c35fa15426c2773866d0240c3",
+    "payload_schema": "7b1bbd3ddcf6004b17b955641ed5bebb01cb35756ef4cae2fed19c74cb79c5cf",
     "policy_bundle_ref": "profile:data-director-app@v1",
     "policy_digest": "ec8e1edf993d5ee391fc5e0095ecb1a9d9d7788ecc2eee3d8f35c8fe62eb4d67",
     "requires_human_review": true,
