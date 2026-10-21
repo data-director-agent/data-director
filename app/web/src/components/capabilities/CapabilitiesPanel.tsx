@@ -8,6 +8,7 @@
 
 import type { AgentView, Declared, GateStatus } from "../../manifest/normalise";
 import { DERIVATION, GROUNDING, className } from "../../manifest/wording";
+import { IssueLinks } from "../NotBuilt";
 
 const OVERSIGHT_FIELDS: { key: keyof AgentView["oversight"]; label: string }[] = [
   { key: "actions", label: "What it may change" },
@@ -17,14 +18,23 @@ const OVERSIGHT_FIELDS: { key: keyof AgentView["oversight"]; label: string }[] =
   { key: "dataSensitivity", label: "How it handles sensitive data" },
 ];
 
-export function CapabilitiesPanel({ agent }: { agent: AgentView }) {
+/**
+ * `embedded` is for a page that already names the agent and gives its description in a heading
+ * of its own (the agent workspace), so the panel does not repeat them.
+ */
+export function CapabilitiesPanel({ agent, embedded = false }: { agent: AgentView; embedded?: boolean }) {
   const headingId = `agent-${agent.id}-heading`;
+  const Wrapper = embedded ? "div" : "section";
   return (
-    <section className="panel" aria-labelledby={headingId}>
-      <h2 id={headingId}>
-        <code>{agent.id}</code>
-      </h2>
-      <p>{agent.description}</p>
+    <Wrapper className="panel" {...(embedded ? {} : { "aria-labelledby": headingId })}>
+      {!embedded && (
+        <>
+          <h2 id={headingId}>
+            <code>{agent.id}</code>
+          </h2>
+          <p>{agent.description}</p>
+        </>
+      )}
       <dl className="facts">
         <dt>Takes</dt>
         <dd>{agent.accepts.map(className).join(", ")}</dd>
@@ -92,7 +102,12 @@ export function CapabilitiesPanel({ agent }: { agent: AgentView }) {
           <OversightFact key={key} label={label} value={agent.oversight[key]} />
         ))}
       </dl>
-    </section>
+      <p className="hint">
+        Agents cannot declare these yet: that needs the oversight extension (
+        <IssueLinks issues={[67]} />
+        ).
+      </p>
+    </Wrapper>
   );
 }
 
