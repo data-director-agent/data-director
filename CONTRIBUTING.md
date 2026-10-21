@@ -16,7 +16,8 @@ This repository is organised as follow:
 * `docs/` contains what governs every package: the Blueprint, the decision records (`docs/adr/`),
   the contract, the glossary, the requirements register and the review record. A package's own
   documents are in its own `docs/` (`harness/docs/`, `workbench/docs/`)
-* `app/` contains the Data Director app that people use (alpha)
+* `app/` contains the Data Director app that people use (alpha); its browser shell in `app/web`
+  needs Node 22 or later and npm (`app/README.md`)
 * `sdk/` contains what agents and the harness share: the contract, evidence and the agent server
 * `harness/` contains the governance every agent invocation goes through (ADR-0022)
 * `workbench/` contains the development environment for building and testing sub-agents

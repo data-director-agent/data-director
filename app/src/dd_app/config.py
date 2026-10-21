@@ -17,6 +17,8 @@ DEFAULT_PROFILE = CONFIG_DIR / "profile.yaml"
 DEFAULT_AGENTS_CONFIG = CONFIG_DIR / "agents.yaml"
 DEFAULT_SOURCES_CONFIG = CONFIG_DIR / "sources.yaml"
 DEFAULT_RUNS_DIR = APP_ROOT / "runs"
+# Where `npm run build` in app/web writes the shell (ADR-0024).
+WEB_DIST = APP_ROOT / "web" / "dist"
 
 
 def settings_from_env() -> Settings:

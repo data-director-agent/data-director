@@ -1,0 +1,323 @@
+{
+  "acting_for": {
+    "assurance": "asserted",
+    "name": "Josiah Carberry"
+  },
+  "agents": [
+    {
+      "accepts": [
+        "DatasetProfile"
+      ],
+      "action_class": "advise",
+      "agent_id": "r3.standards-advisor",
+      "assigned_action_class": "advise",
+      "contract_version": "0.8.0",
+      "derivations": {
+        "items.kind": {
+          "how": "lexical",
+          "recorded_in": "classification_derivation"
+        },
+        "items.rationale": {
+          "how": "model",
+          "recorded_in": "rationale_derivation"
+        }
+      },
+      "description": "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing for a dataset profile, grounded on the registry records it retrieved.",
+      "grounding_mode": "retrieval",
+      "payload": "Recommendations",
+      "requires_approval": false,
+      "schemas": {
+        "DatasetProfile": {
+          "digest": "8fd8e9a2c3a015a83594b7d2a05cdedae177e0adcc61a5ef65f75bba995de941",
+          "json_schema": {
+            "$comment": "Generated from r3.yaml by `uv run dd-gen-schema <path to r3.yaml>`. Do not edit.",
+            "$defs": {
+              "TableField": {
+                "additionalProperties": false,
+                "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO: revisit if Frictionless publishes term IRIs).",
+                "properties": {
+                  "field_description": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field_format": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "field_type": {
+                    "description": "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...).",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "title": "TableField",
+                "type": "object"
+              }
+            },
+            "$id": "https://w3id.org/data-director/agents/r3/DatasetProfile",
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "additionalProperties": false,
+            "description": "A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.",
+            "properties": {
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fields": {
+                "items": {
+                  "$ref": "#/$defs/TableField"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "keywords": {
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "media_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "schema_class": {
+                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+                "enum": [
+                  "DatasetProfile"
+                ],
+                "type": "string"
+              },
+              "themes": {
+                "description": "Discipline or subject, as free text or an IRI.",
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "schema_class"
+            ],
+            "title": "DatasetProfile",
+            "type": "object"
+          }
+        },
+        "Recommendations": {
+          "digest": "37d5235cbdf787c0bfd234c312914219b7826e8b1b715ff52e8daa97548e7d31",
+          "json_schema": {
+            "$comment": "Generated from r3.yaml by `uv run dd-gen-schema <path to r3.yaml>`. Do not edit.",
+            "$defs": {
+              "Derivation": {
+                "description": "",
+                "enum": [
+                  "template",
+                  "model",
+                  "lexical",
+                  "registry"
+                ],
+                "title": "Derivation",
+                "type": "string"
+              },
+              "GroundingRef": {
+                "additionalProperties": false,
+                "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+                "properties": {
+                  "content_hash": {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "source_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "source_id",
+                  "content_hash"
+                ],
+                "title": "GroundingRef",
+                "type": "object"
+              },
+              "Recommendation": {
+                "additionalProperties": false,
+                "description": "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (ADR-0015).",
+                "properties": {
+                  "classification_derivation": {
+                    "$ref": "#/$defs/Derivation"
+                  },
+                  "grounded_on": {
+                    "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+                    "items": {
+                      "$ref": "#/$defs/GroundingRef"
+                    },
+                    "type": "array"
+                  },
+                  "kind": {
+                    "$ref": "#/$defs/RecommendationKind"
+                  },
+                  "rationale": {
+                    "type": "string"
+                  },
+                  "rationale_derivation": {
+                    "$ref": "#/$defs/Derivation"
+                  },
+                  "score": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "target": {
+                    "description": "dataset, or field:<name> for a field-level recommendation.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "target",
+                  "rationale",
+                  "rationale_derivation",
+                  "grounded_on"
+                ],
+                "title": "Recommendation",
+                "type": "object"
+              },
+              "RecommendationKind": {
+                "description": "",
+                "enum": [
+                  "controlled_vocabulary",
+                  "ontology",
+                  "terminology_unclassified",
+                  "data_format",
+                  "field_format"
+                ],
+                "title": "RecommendationKind",
+                "type": "string"
+              },
+              "SearchedSummary": {
+                "additionalProperties": false,
+                "description": "What was looked for, so a reader can judge an abstention as well as a recommendation.",
+                "properties": {
+                  "candidates_qualifying": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "candidates_retrieved": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "queries": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "snapshot_ref": {
+                    "description": "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "title": "SearchedSummary",
+                "type": "object"
+              }
+            },
+            "$id": "https://w3id.org/data-director/agents/r3/Recommendations",
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "additionalProperties": false,
+            "description": "The R3 payload. Recommended vocabularies, ontologies and formats.",
+            "properties": {
+              "grounded_on": {
+                "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+                "items": {
+                  "$ref": "#/$defs/GroundingRef"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/Recommendation"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "schema_class": {
+                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+                "enum": [
+                  "Recommendations"
+                ],
+                "type": "string"
+              },
+              "searched": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/SearchedSummary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "schema_class",
+              "grounded_on"
+            ],
+            "title": "Recommendations",
+            "type": "object"
+          }
+        }
+      },
+      "version": "0.2.0"
+    }
+  ],
+  "incompatible": {},
+  "profile": {
+    "digest": "6a5e2f3e37726ec0631def10e1c53e841ab5e9c38848ce3331fb8e28ba655f08",
+    "ref": "profile:data-director-app@v1"
+  },
+  "unavailable": {}
+}

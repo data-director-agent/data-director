@@ -1,38 +1,39 @@
-"""The Data Director app against a scripted model: its reference configuration, one governed
-tool call to R3 through the conductor, history, and start-up.
+"""The Data Director app's server: its reference configuration, what `GET /api/agents` tells the
+shell, start-up, and the fixture the shell's tests are drawn from.
 
 An alpha substantiates no requirement, so these tests carry no requirement marker.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
+import os
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic_ai import models
-from pydantic_ai.messages import (
-    ModelMessage,
-    ModelRequest,
-    ModelResponse,
-    TextPart,
-    ToolCallPart,
-    ToolReturnPart,
-)
-from pydantic_ai.models.function import AgentInfo, FunctionModel
+from starlette.testclient import TestClient
 
-from dd_app.agent import R3_AGENT_ID, TOOL_NAME, Governance, build_agent, respond, to_history
+from dd_agent_factcheck.agent import build as build_factcheck
+from dd_agent_hello.agent import build as build_hello
+from dd_agent_quality.agent import build as build_quality
+from dd_agent_r3 import factory as r3
+from dd_agent_stub.agent import build as build_stub
+from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import settings_from_env
+from dd_app.governance import R3_AGENT_ID, Governance
 from dd_harness.identity import IdentityError
-from dd_harness.testing import RESTRICTIVE, TEST_PRINCIPAL
+from dd_harness.testing import PERMISSIVE, RESTRICTIVE, TEST_PRINCIPAL, make_conductor
+from dd_sdk.agent import Agent
 
-models.ALLOW_MODEL_REQUESTS = False
-
-SAMPLE = Path(__file__).resolve().parents[2] / "workbench/samples/soil-chemistry.profile.json"
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
+# The shell's component and browser tests are drawn from these, so each must be what the server
+# says. `DD_WRITE_FIXTURES=1 uv run pytest app/tests` rewrites them. `agents.json` is the
+# reference set; `agents-several.json` is five agents of different grounding modes and payload
+# shapes under the permissive test profile, which does not list R3.
+FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
 
 
 @pytest.fixture
@@ -55,25 +56,19 @@ def governance(env: Path) -> Iterator[Governance]:
     governance.worker.shutdown()
 
 
-def recommending(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
-    """Describe the sample dataset to the tool once, then cite the first record it returned."""
-    returns = [
-        p
-        for m in messages
-        if isinstance(m, ModelRequest)
-        for p in m.parts
-        if isinstance(p, ToolReturnPart)
-    ]
-    if not returns:
-        profile = json.loads(SAMPLE.read_text(encoding="utf-8"))
-        del profile["schema_class"]
-        return ModelResponse(parts=[ToolCallPart(TOOL_NAME, profile)])
-    result = returns[0].content
-    assert isinstance(result, dict)
-    if result["status"] != "succeeded":
-        return ModelResponse(parts=[TextPart(f"Not available: {result['statement']}")])
-    record = result["recommendations"][0]["records"][0]
-    return ModelResponse(parts=[TextPart(f"See {record['name']}, {record['url']}")])
+@pytest.fixture
+def dist(tmp_path: Path) -> Path:
+    built = tmp_path / "dist"
+    built.mkdir()
+    (built / "index.html").write_text("<!doctype html><title>shell</title>", encoding="utf-8")
+    return built
+
+
+def agents_response(governance: Governance, dist: Path) -> dict[str, Any]:
+    response = TestClient(build_app(governance, dist)).get("/api/agents")
+    assert response.status_code == 200
+    body: dict[str, Any] = response.json()
+    return body
 
 
 def test_the_reference_set_registers_r3_alone(governance: Governance):
@@ -83,38 +78,43 @@ def test_the_reference_set_registers_r3_alone(governance: Governance):
     assert governance.acting_for == TEST_PRINCIPAL
 
 
-def test_a_turn_calls_r3_through_the_conductor_and_records_the_run(
-    governance: Governance, env: Path
+def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
+    governance: Governance, dist: Path
 ):
-    agent = build_agent(governance, FunctionModel(recommending))
-    turn = asyncio.run(respond(agent, "Standards for my soil survey?", []))
-
-    assert [c.tool_name for c in turn.tool_calls] == [TOOL_NAME]
-    assert turn.answer.startswith("See ") and "https://fairsharing.org/" in turn.answer
-    (invocation_id,) = turn.runs.values()
-    stored = governance.conductor.store.get(invocation_id)
-    assert stored is not None
-    assert stored["agent_id"] == R3_AGENT_ID
-    assert stored["outcome"]["status"] == "succeeded"
-    assert stored["acting_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
-    assert governance.conductor.grounding_reports[invocation_id].passed
-    assert (env / invocation_id).is_dir()
+    body = agents_response(governance, dist)
+    (r3,) = body["agents"]
+    assert r3["agent_id"] == R3_AGENT_ID
+    assert r3["action_class"] == "advise"  # what the card declares
+    assert r3["assigned_action_class"] == "advise"  # what the steward assigns
+    assert r3["requires_approval"] is False
+    assert r3["grounding_mode"] == "retrieval"
+    assert body["unavailable"] == {} and body["incompatible"] == {}
+    assert body["profile"]["ref"] == "profile:data-director-app@v1"
+    assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 
 
-def test_a_profile_without_r3_refuses_and_the_model_is_told(
-    env: Path, monkeypatch: pytest.MonkeyPatch
+def test_an_agent_the_profile_does_not_list_is_shown_unassigned(
+    env: Path, dist: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("DD_PROFILE", str(RESTRICTIVE))
     governance = Governance.create(settings_from_env())
     try:
-        agent = build_agent(governance, FunctionModel(recommending))
-        turn = asyncio.run(respond(agent, "Standards for my soil survey?", []))
+        (r3,) = agents_response(governance, dist)["agents"]
     finally:
         governance.worker.shutdown()
-    assert turn.answer.startswith("Not available: ")
-    (invocation_id,) = turn.runs.values()
-    stored: dict[str, Any] | None = governance.conductor.store.get(invocation_id)
-    assert stored is not None and stored["outcome"]["status"] != "succeeded"
+    assert r3["assigned_action_class"] is None
+    assert r3["requires_approval"] is False
+
+
+def test_every_other_path_serves_the_built_shell(governance: Governance, dist: Path):
+    response = TestClient(build_app(governance, dist)).get("/")
+    assert response.status_code == 200
+    assert "<title>shell</title>" in response.text
+
+
+def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path):
+    with pytest.raises(ShellNotBuiltError, match="npm ci && npm run build"):
+        build_app(governance, tmp_path / "missing")
 
 
 def test_no_principal_stops_start_up(env: Path, monkeypatch: pytest.MonkeyPatch):
@@ -123,22 +123,34 @@ def test_no_principal_stops_start_up(env: Path, monkeypatch: pytest.MonkeyPatch)
         Governance.create(settings_from_env())
 
 
-def test_history_keeps_turns_and_drops_tool_notes():
-    history = to_history(
-        [
-            {"role": "user", "content": "Hello"},
-            {"role": "assistant", "content": "`{}`", "metadata": {"title": "Tool: x"}},
-            {"role": "assistant", "content": [{"type": "text", "text": "Hi"}]},
-        ]
+def check_fixture(name: str, body: dict[str, Any]) -> None:
+    path = FIXTURES / name
+    text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    if os.environ.get("DD_WRITE_FIXTURES") == "1":
+        path.write_text(text, encoding="utf-8")
+    assert path.read_text(encoding="utf-8") == text, (
+        f"{path} is stale; rerun with DD_WRITE_FIXTURES=1"
     )
-    assert [type(m) for m in history] == [ModelRequest, ModelResponse]
-    assert history[1].parts == [TextPart(content="Hi")]
 
 
-def test_default_model_needs_a_key(governance: Governance, monkeypatch: pytest.MonkeyPatch):
-    from pydantic_ai.exceptions import UserError
+def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):
+    check_fixture("agents.json", agents_response(governance, dist))
 
-    monkeypatch.delenv("DD_CHAT_MODEL", raising=False)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    with pytest.raises(UserError):
-        build_agent(governance)
+
+def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Path):
+    agents: list[Agent] = [
+        build_hello(),
+        build_quality(),
+        build_factcheck(),
+        build_stub(),
+        r3.build(),
+    ]
+    governance = Governance(
+        make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
+        TEST_PRINCIPAL,
+        ThreadPoolExecutor(max_workers=1),
+    )
+    try:
+        check_fixture("agents-several.json", agents_response(governance, dist))
+    finally:
+        governance.worker.shutdown()

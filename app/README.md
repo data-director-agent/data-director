@@ -1,39 +1,42 @@
 # Data Director app (alpha)
 
-**Alpha** (`0.1.0a1`). This is the simplest possible Data Director: a chat page in a local
-browser, and one language model that can ask R3 (`r3.standards-advisor`) for standards through
-the harness. It is exploratory, and its shape will change.
+**Alpha** (`0.2.0a1`). This is the Data Director that people use: a browser shell drawn from each
+agent's manifest, over the harness (ADR-0024). It is exploratory, and its shape will change.
 
-It is built from off-the-shelf parts:
+The shell names no agent. It shows every agent the harness has registered: what it takes and
+returns, how it grounds its results, how each field is produced, and whether this deployment's
+policy profile permits it. A limit or a reliability an agent has not declared is shown as "Not
+declared", never filled in. Later increments add runs, progress, evidence, abstain and refer
+screens, and a review gate (`docs/ui/best-practices.md` is the design input).
 
-- [Gradio](https://www.gradio.app/) `ChatInterface` provides the page;
-- [pydantic-ai](https://ai.pydantic.dev/) runs the agent loop, the tool calls and model
-  selection;
-- the harness (`harness/`, `dd_harness`) runs R3 through its conductor;
-- R3 recommends standards from the committed FAIRsharing snapshot
-  (`agents/r3/data/fairsharing/snapshot.jsonl`, CC BY-SA 4.0).
+It is built from:
+
+- `app/web`: React and TypeScript, built with [Vite](https://vite.dev/), with widgets from
+  [React Aria Components](https://react-spectrum.adobe.com/react-aria/) and neutral design tokens
+  (`app/web/src/tokens/neutral.css`);
+- `dd_app`: a [Starlette](https://www.starlette.io/) server with `GET /api/agents`, which also
+  serves the built shell;
+- the harness (`harness/`, `dd_harness`), whose conductor governs every run. R3
+  (`r3.standards-advisor`) runs in the app's process.
 
 ## Run it
 
-From the repository root:
+Node 22 or later, once, from `app/web`:
 
 ```bash
-export ANTHROPIC_API_KEY=...        # or copy app/env.example to app/.env and add --env-file app/.env
+npm ci && npm run build            # writes app/web/dist
+```
+
+Then from the repository root:
+
+```bash
 export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."   # whom runs act for
-uv run data-director                # opens http://127.0.0.1:7860
+uv run data-director               # opens http://127.0.0.1:7860
 ```
 
-`DD_CHAT_MODEL` takes any [pydantic-ai model
-string](https://ai.pydantic.dev/models/overview/). The default is `anthropic:claude-sonnet-5`.
-To use a local model through Ollama:
-
-```bash
-OLLAMA_BASE_URL=http://localhost:11434/v1 DD_CHAT_MODEL=ollama:llama3.1 uv run data-director
-```
-
-`DD_CHAT_MODEL=test` selects pydantic-ai's offline test model. It calls every tool and returns
-nonsense, which is enough to check the page works without a key. Gradio's `GRADIO_SERVER_PORT`
-and `GRADIO_SERVER_NAME` change the address.
+`DD_APP_HOST` and `DD_APP_PORT` change the address. To work on the shell, run the server as
+above and `npm run dev` in `app/web`, which proxies `/api` to it (set `DD_APP_URL` if it is
+elsewhere).
 
 ## Configuration
 
@@ -48,35 +51,30 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 
 `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are required. Until there is authentication (#17),
-every run acts for this operator, not for the person using the page (ADR-0018). The app stops
-at start-up, with one line, if either is unset or a file is missing or malformed. R3 reads its
-own `DD_R3_*` variables (`agents/r3`).
+every run acts for this operator, not for the person using the page (ADR-0018), and the page
+says so. The app stops at start-up, with one line, if either is unset, a file is missing or
+malformed, or the shell has not been built.
 
-## What it does
+## Tests
 
-The model is told the Data Director's scope (Blueprint §2.4). It has one tool:
+```bash
+uv run pytest app/tests            # the server; keeps app/web/fixtures current
+cd app/web
+npm run lint && npm run typecheck && npm test      # ESLint (with jsx-a11y), tsc, Vitest + axe
+npx playwright install chromium && npm run e2e      # axe light and dark, keyboard, 400% reflow
+```
 
-- `recommend_standards(title?, description?, keywords?, themes?, media_types?, fields?)` builds a
-  `DatasetProfile` and calls R3 through `Conductor.invoke`. The model is given the outcome, the
-  run's `invocation_id`, and each recommendation with the FAIRsharing record it is grounded on.
-
-Each R3 run passes the policy gate, the input check, the grounding linter and the source check,
-and is stored in `runs/` with its trace and a Process Run Crate. The workbench viewer
-(`uv run workbench serve`) shows it when `DD_RUNS_DIR` names the same directory. The page shows each tool call as a collapsible
-note above the answer, with the run it recorded.
-
-The model is told to cite a FAIRsharing record only if the tool returned it, and to say so when
-it falls back on general knowledge.
+The shell's tests draw manifests from `app/web/fixtures/`. `app/tests/test_app.py` builds them
+from the real server and fails if they drift; `DD_WRITE_FIXTURES=1 uv run pytest app/tests`
+rewrites them. `agents-several.json` holds five agents of different grounding modes and payload
+shapes, under a profile that does not list R3, so the shell is tested on more than one agent.
 
 ## What it does not do
 
-- The app's own model turn and its final answer are not governed. Nothing checks that the
-  answer cites only what R3 returned. TODO: make the app a front end to an orchestrator under
-  `delegation` grounding (ADR-0012, #21).
-- R3 takes a structured profile, so the model cannot search the snapshot by free text, filter
-  by record type or fetch a record by its identifier. R3 recommends vocabularies, ontologies and
-  formats, not reporting guidelines.
-- The snapshot holds 169 standards records and no repositories or policies. Conversation
-  history lives in the browser page only, and is lost on reload.
+- It does not run agents yet. Runs, progress, evidence and review come in the next increments.
+- There is no language-model chat. The Gradio chat this replaced is gone (ADR-0024); chat for
+  intent returns as an orchestrator under `delegation` grounding (ADR-0012, #21).
+- No agent declares its limits, reliability or data handling yet. That needs the oversight
+  extension (ADR-0025, TODO).
 
 This package substantiates no Blueprint requirement, and its tests carry no requirement marker.
