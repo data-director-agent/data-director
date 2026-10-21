@@ -11,6 +11,8 @@ import empty from "../../config/examples/empty.profile.json" with { type: "json"
 import soil from "../../config/examples/soil-chemistry.profile.json" with { type: "json" };
 import reference from "../fixtures/agents.json" with { type: "json" };
 import several from "../fixtures/agents-several.json" with { type: "json" };
+import conversation from "../fixtures/conversation.json" with { type: "json" };
+import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
 
@@ -40,6 +42,36 @@ async function serve(page: Page, body: unknown, run: unknown = succeeded) {
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
 }
 
+/** The home page is the conversation. These agent sets have no orchestrator, so open the directory. */
+async function gotoDirectory(page: Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open the agent directory" }).click();
+}
+
+/** The several-agents set plus an orchestrator, found by its grounding mode. */
+const withOrchestrator = {
+  ...several,
+  agents: [
+    ...several.agents,
+    { ...several.agents[0], agent_id: "director.stub", grounding_mode: "delegation" },
+  ],
+};
+
+async function serveConversation(page: Page) {
+  await serve(page, withOrchestrator);
+  await page.route("/api/conversations", (route) =>
+    route.fulfill(
+      route.request().method() === "POST"
+        ? { status: 201, json: { conversation_id: conversation.conversation_id } }
+        : { json: [] },
+    ),
+  );
+  await page.route("/api/conversations/*/turns", (route) =>
+    route.fulfill({ status: 201, json: turn }),
+  );
+  await page.route("/api/conversations/*", (route) => route.fulfill({ json: conversation }));
+}
+
 async function axeViolations(page: Page) {
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -61,7 +93,7 @@ for (const [name, body] of [
     test(`${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await serve(page, body);
-      await page.goto("/");
+      await gotoDirectory(page);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
       const results = await new AxeBuilder({ page })
@@ -74,9 +106,10 @@ for (const [name, body] of [
 
 test("keyboard only: skip link, then the agent list, then the selected agent", async ({ page }) => {
   await serve(page, several);
-  await page.goto("/");
+  await gotoDirectory(page);
   await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
-
+  // The skip link is the first stop on the home page, whichever view it shows.
+  await page.goto("/");
   await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "Skip to main content" });
   await expect(skip).toBeFocused();
@@ -84,7 +117,9 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
 
-  await page.keyboard.press("Tab");
+  // The directory is one click away; its list is one stop for the keyboard.
+  await page.getByRole("button", { name: "Open the agent directory" }).click();
+  await page.getByRole("option", { name: "hello.world" }).focus();
   await expect(page.getByRole("option", { name: "hello.world" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("option", { name: "quality.reviewer" })).toBeFocused();
@@ -101,7 +136,7 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
 test("reflows at 320 CSS pixels (400% of 1280) without horizontal scrolling", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await serve(page, several);
-  await page.goto("/");
+  await gotoDirectory(page);
   await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
   for (const option of ["quality.reviewer", "standards.advisor", "stub.abstain"]) {
     await page.getByRole("option", { name: option }).click();
@@ -120,7 +155,7 @@ test("a server failure is announced as an alert", async ({ page }) => {
 
 test("keyboard only: load an example, run it, and land on the outcome", async ({ page }) => {
   await serve(page, reference);
-  await page.goto("/");
+  await gotoDirectory(page);
   await expect(page.getByRole("tab", { name: "Run" })).toHaveAttribute("aria-selected", "true");
 
   const load = page.getByRole("button", { name: "Load example: soil chemistry profile" });
@@ -148,7 +183,7 @@ for (const [name, run] of [
     test(`run outcome ${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await serve(page, reference, run);
-      await page.goto("/");
+      await gotoDirectory(page);
       await page.getByRole("button", { name: "Run", exact: true }).click();
       await expect(page.getByRole("heading", { name: /^Outcome:/ })).toBeVisible();
       expect(await axeViolations(page)).toEqual([]);
@@ -159,7 +194,7 @@ for (const [name, run] of [
 test("a run and the history reflow at 320 CSS pixels", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await serve(page, reference);
-  await page.goto("/");
+  await gotoDirectory(page);
   await page.getByRole("button", { name: "Load example: soil chemistry profile" }).click();
   expect(await overflow(page), "horizontal overflow on the form").toBeLessThanOrEqual(0);
   await page.getByRole("button", { name: "Run", exact: true }).click();
@@ -170,4 +205,33 @@ test("a run and the history reflow at 320 CSS pixels", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Runs of this agent" })).toBeVisible();
   expect(await overflow(page), "horizontal overflow on the history").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
+});
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`conversation home, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    await serveConversation(page);
+    await page.goto("/");
+    await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+}
+
+test("conversation: keyboard only, focus returns to the message box, reflows at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.goto("/");
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await box.focus();
+  await page.keyboard.type("hello world");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Send" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+  await expect(box).toBeFocused();
+  expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
