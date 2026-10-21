@@ -7,9 +7,7 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
   group: release-please
@@ -18,11 +16,14 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to tag releases and push the release branches
+      pull-requests: write # to open and update the release PRs
     outputs:
       prs: ${{ steps.release.outputs.prs }}
     steps:
       # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -35,16 +36,19 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # the push uses RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN
     strategy:
       fail-fast: false
       matrix:
         pr: ${{ fromJSON(needs.release-please.outputs.prs) }}
     steps:
-      - uses: actions/checkout@v4
+      # The credentials are kept: the step below pushes the lock file with them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked]
         with:
           ref: ${{ matrix.pr.headBranchName }}
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - run: uv lock
       - name: Commit the lock file
         run: |
