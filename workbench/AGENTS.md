@@ -33,6 +33,8 @@ uv run ruff check . && uv run ruff format .
 uv run mypy
 uv run dd-gen-schema [agents/<x>/.../<x>.yaml]   # after editing a LinkML schema (core by default)
 scripts/run-agents.sh                           # every agent on the port agents.yaml expects
+uv run python scripts/smoke_agents.py           # every agent as a service, end to end (CI: smoke)
+uv run pytest workbench/browser_tests           # the viewer in Chromium; `playwright install chromium` once
 uv run pytest --json-report --json-report-file=.report.json && uv run python scripts/conformance_report.py
 uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013); needs DD_PRINCIPAL_*
 uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # what changed between runs
@@ -124,6 +126,11 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   built by `scripts/build_icons.py` from a pinned, hash-checked `lucide-static`; add an icon to
   `ICONS` there and rerun, never by hand. Icons are decorative (`aria-hidden`), sit beside visible
   text or inside a labelled control, and each outcome status has exactly one (`STATUS_ICONS`).
+- **The viewer's CDN modules are pinned and recorded.** Each `esm.sh` import in `viewer/js/`
+  names an exact version, and `browser_tests/esm.sh.har.zip` holds their responses so the browser
+  tests run without the network. Re-record it with `--update-har`, never by hand;
+  `test_viewer.py` fails if an import is missing from it. A browser test fails on any console
+  error; a test that expects one removes it from `page_errors`.
 - **The manifest says what an agent does, not how to draw it (ADR-0016).** An agent declares how
   it produces each payload field in `AgentSpec.derivations`; the viewer works out the rest of the
   payload's presentation from the schema, whose property order `dd-gen-schema` keeps as the

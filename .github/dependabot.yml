@@ -1,0 +1,40 @@
+# Weekly version updates, grouped so that one pull request carries each ecosystem's minor and
+# patch updates, and only for releases at least a week old, so a compromised release has time to
+# be noticed and withdrawn. Security updates are separate and immediate (repository settings).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      python-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build(deps)
+
+  - package-ecosystem: npm
+    directory: /app/web
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      web-minor-and-patch:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: build(deps)

@@ -1,0 +1,58 @@
+name: Dependency audit
+
+# Every locked dependency, Python and npm, against the advisory databases. This runs on a schedule
+# and when a lock file changes on main, not on every pull request: a newly published advisory
+# should be fixed promptly, but it should not fail a pull request that did not cause it. A pull
+# request that adds a vulnerable dependency is refused by the dependency review job in ci.yml.
+on:
+  push:
+    branches: [main]
+    paths:
+      - uv.lock
+      - app/web/package-lock.json
+      - .github/workflows/audit.yml
+  schedule:
+    - cron: "29 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: pip-audit (uv.lock)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false
+      # The workspace's own packages are not on PyPI, so they are left out of the export.
+      - run: >-
+          uv export --frozen --all-packages --all-extras --all-groups --no-emit-workspace
+          --output-file requirements-audit.txt
+      - run: >-
+          uvx pip-audit --requirement requirements-audit.txt --require-hashes --disable-pip
+          --progress-spinner off
+
+  npm:
+    name: npm audit (app/web)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=moderate
+      # The registry signatures and provenance attestations of what was installed.
+      - run: npm audit signatures

@@ -1,0 +1,311 @@
+name: CI
+
+# One workflow for the whole repository, ending in one job, "CI passed", that a ruleset can
+# require. Every job runs on every pull request: the jobs are short and run in parallel, and a
+# path filter would leave a required check waiting for a job that never starts.
+#
+#   Python workspace (ADR-0011): Ruff, mypy, pytest with CONFORMANCE.md, generated schemas,
+#     packages, the agents as real services, the workbench viewer in a browser (#9)
+#   app/web (ADR-0024): ESLint, tsc, Vitest, Vite build, Playwright
+#   Repository: links, citation file, workflows, sign-off, dependency review
+#
+# The weekly run catches what changes without a commit: the latest uv and Python 3.14 patch
+# release, the runner image, a browser build, a newly published advisory (see audit.yml).
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  FORCE_COLOR: "1"
+  UV_LOCKED: "1"  # every uv command refuses a uv.lock that pyproject.toml has moved past
+
+jobs:
+  # --- Python workspace: every step runs from the root, where the tooling config lives. ---------
+
+  lint:
+    name: Ruff (lint + format)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      - run: uv run ruff check --output-format=github .
+      - run: uv run ruff format --check .
+
+  typecheck:
+    name: mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      - run: uv run mypy
+
+  test:
+    name: pytest and CONFORMANCE.md
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
+      # CONFORMANCE.md is decided by the register, the review record, the report script and the
+      # outcome of every requirement-marked test, so one session serves both steps.
+      - run: uv run pytest --json-report --json-report-file=.report.json
+      - run: uv run python scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
+
+  schemas:
+    name: Generated schemas up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      - run: uv run dd-gen-schema
+      # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
+      # a graph by sdk/tests/test_contract.py instead.
+      - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'
+
+  packages:
+    name: Packages build and install alone
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv build --all-packages --out-dir dist
+      # Metadata errors only: --strict would also refuse a package without a readme, which
+      # matters only once the packages are published.
+      - run: uvx twine check dist/*
+      # The workspace installs every member together; this installs each wheel on its own, with
+      # the workspace's Python.
+      - run: uv run python scripts/check_wheels.py dist
+
+  smoke:
+    name: Agents as services (smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      - run: uv run python scripts/smoke_agents.py
+
+  viewer:
+    name: Workbench viewer in a browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: viewer-traces
+          path: test-results
+          retention-days: 14
+
+  # --- app/web: the browser shell (ADR-0024). --------------------------------------------------
+
+  web:
+    name: App shell (lint, types, unit, build, browser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      # ESLint (with jsx-a11y), tsc, Vitest with axe, and Playwright (axe in light and dark,
+      # keyboard-only use, reflow at 320 CSS pixels). The fixtures it reads are kept current by
+      # app/tests/test_app.py, which the test job runs.
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: app/web/playwright-report
+          retention-days: 14
+
+  # --- Repository ------------------------------------------------------------------------------
+
+  docs:
+    name: Links and citation file
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Relative links and their #fragments only: an external link that goes down is not a
+      # defect in a pull request. docs/BLUEPRINT.md is external material, reproduced verbatim.
+      - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: >-
+            --offline --include-fragments --no-progress
+            --exclude-path docs/BLUEPRINT.md --exclude-path node_modules
+            '**/*.md'
+          fail: true
+          jobSummary: true
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false
+      - run: uvx cffconvert --validate --infile CITATION.cff
+
+  workflows:
+    name: Workflows (actionlint, zizmor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # actionlint (with shellcheck) from its image; the tag is updated by hand.
+      - run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
+      - uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          advanced-security: false
+          persona: regular
+
+  dco:
+    name: Developer Certificate of Origin
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      # Every commit in the pull request carries a Signed-off-by trailer naming its author
+      # (`git commit -s`; CONTRIBUTING.md). A bot's commits are exempt: Dependabot signs off
+      # with an address other than the one it commits from.
+      - name: Every commit is signed off by its author
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          status=0
+          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
+            author=$(git log -1 --format='%an <%ae>' "$sha")
+            case "$author" in *"[bot] <"*) continue ;; esac
+            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
+                | grep -qxF "$author"; then
+              echo "::error::$(git log -1 --format='%h %s' "$sha"): no 'Signed-off-by: $author'"
+              status=1
+            fi
+          done
+          if [ "$status" -ne 0 ]; then
+            echo "Sign off with 'git commit -s'; amend earlier commits with 'git rebase --signoff $BASE_SHA'."
+          fi
+          exit "$status"
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Refuses a pull request that adds a dependency with a known advisory of moderate severity
+      # or worse. TODO: decide which dependency licences the project accepts, then deny the rest.
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: never
+
+  # --- The one check to require ----------------------------------------------------------------
+
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs:
+      - lint
+      - typecheck
+      - test
+      - schemas
+      - packages
+      - smoke
+      - viewer
+      - web
+      - docs
+      - workflows
+      - dco
+      - dependency-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # A job skipped by its own `if` (dco and dependency-review outside pull requests) passes;
+      # a job that failed or was cancelled does not.
+      - name: Every job passed or was skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success|skipped) ;; *) exit 1 ;; esac
+          done

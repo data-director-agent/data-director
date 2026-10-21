@@ -26,7 +26,9 @@ no agent. A new agent's payload renders as soon as its class is in the LinkML sc
 the agent's `derivations` in the manifest (ADR-0016).
 
 Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/viewer/>. The pages need
-network access to `esm.sh` for the libraries; everything else is local.
+network access to `esm.sh` for the libraries; everything else is local. Each library is pinned to
+an exact version, React's included in RJSF's `?deps=`, so the page loads the same code every time
+and the browser tests can replay it (see below).
 
 The two pages share only what the browser tab holds: an input sent from Chat is kept in
 `sessionStorage`, so **Inspect →** on a reply shows that turn's input, and Back returns to the same
@@ -98,8 +100,27 @@ the summary, evidence and telemetry are laid out directly. TODO: decide whether 
 
 No editing of a stored run (composing a new input is not editing one), no feedback capture, no streaming, no `suspended` interrupt. Those arrive with the AG-UI events that need them.
 
-The browser is not exercised in CI. `tests/test_viewer.py` checks that every agent's derivations
-name each of its payload's derivation fields as some field's `recorded_in`, that the base covers
-the envelope only, that the glossary explains every outcome status, grounding mode and derivation value, that the
-pages name no agent or sample, that both pages carry the same mode tabs, and that every file a page
-or module references exists.
+## Tests
+
+`tests/test_viewer.py` checks that every agent's derivations name each of its payload's
+derivation fields as some field's `recorded_in`, that the base covers the envelope only, that the
+glossary explains every outcome status, grounding mode and derivation value, that the pages name
+no agent or sample, that both pages carry the same mode tabs, that every file a page or module
+references exists, and that every `esm.sh` module is pinned and recorded for the browser tests.
+
+`browser_tests/` loads the pages in Chromium with Playwright (#9) against the workbench app over
+in-memory agents: a run on Inspect with its outcome, derivation badges and cited evidence; an
+abstention; a replay by `?invocation_id=` from the run store; an unknown run; a delegated Chat
+turn; the Glossary from the keyboard; and the Agents page. A test fails on any script error,
+console error or request that leaves the machine. The `esm.sh` modules are replayed from
+`browser_tests/esm.sh.har.zip`, so the tests need no network; after changing a pinned version,
+re-record it, which does reach `esm.sh`:
+
+```sh
+uv run playwright install chromium                    # once
+uv run pytest workbench/browser_tests                 # replays the HAR
+uv run pytest workbench/browser_tests --update-har    # re-records it first
+```
+
+The browser tests carry no requirement marker: the viewer is a development tool, so what it shows
+substantiates no requirement. They are not collected by `uv run pytest`, which needs no browser.

@@ -62,8 +62,8 @@ export function renderAgentDetail(id, box) {
     el("div", { className: "meta" },
       el("span", {}, el("span", { className: "chip", textContent: a.grounding_mode }), help(["grounding_mode", `mode:${a.grounding_mode}`])),
       el("span", {}, `accepts ${a.accepts.join(", ")}`, help("accepts")),
-      ...a.requirement_ids.map((r) => el("span", { className: "chip", textContent: r })),
-      a.requirement_ids.length ? help("requirement") : null));
+      ...(a.requirement_ids || []).map((r) => el("span", { className: "chip", textContent: r })),
+      a.requirement_ids?.length ? help("requirement") : null));
   else box.replaceChildren(el("p", { className: "desc" }, down ? `${down.state}: ${down.reason}` : "", down ? help(down.term) : null));
 }
 
