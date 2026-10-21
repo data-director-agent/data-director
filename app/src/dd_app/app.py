@@ -18,7 +18,7 @@ from dd_app.agent import build_agent, respond
 TITLE = "Data Director (alpha)"
 DESCRIPTION = (
     "An alpha assistant for documenting, publishing and sharing research data. It is not "
-    "governed by the workbench: nothing it says is checked or recorded, and its advice needs "
+    "yet governed: nothing it says is checked or recorded, and its advice needs "
     "human review. Standards are looked up in a small offline FAIRsharing snapshot "
     "(CC BY-SA 4.0, https://fairsharing.org)."
 )

@@ -46,7 +46,7 @@ answer.
 
 ## What it does not do
 
-It does not use the workbench, which is a development tool for sub-agents, so none of the
+It does not yet call the harness (`harness/`), which governs the sub-agents, so none of the
 contract applies:
 
 - there is no policy gate, input check, grounding linter or evidence hashing;
@@ -58,5 +58,7 @@ lives in the browser page only, and is lost on reload.
 
 This package substantiates no Blueprint requirement, and its tests carry no requirement marker.
 
-TODO: decide whether the app should delegate to the sub-agents in `agents/` over A2A (through
-`sdk/`), and if so how those calls are governed outside the workbench.
+The harness that governs agents is now a package of its own, `harness/`, which the app may
+depend on (ADR-0022). TODO: route the app through the conductor, so that its runs are checked,
+recorded and attributed (issue #47). This means either calling R3 as a service through the
+conductor, or making the app's model an orchestrator under `delegation` grounding (ADR-0012).

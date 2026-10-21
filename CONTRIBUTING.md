@@ -15,6 +15,8 @@ This repository is organised as follow:
 
 * `docs/` contains documentation
 * `app/` contains the Data Director app that people use (alpha)
+* `sdk/` contains what agents and the harness share: the contract, evidence and the agent server
+* `harness/` contains the governance every agent invocation goes through (ADR-0022)
 * `workbench/` contains the development environment for building and testing sub-agents
 * `agents/` contains one package per agent, including alpha-versioned experimental ones
   (`agents/README.md`)

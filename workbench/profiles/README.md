@@ -79,6 +79,6 @@ advisory.
 
 | File | Purpose |
 |---|---|
-| `default.yaml` | The profile applied when `DD_PROFILE` is unset. Enables every in-tree agent. |
+| `default.yaml` | The profile the workbench applies when `DD_PROFILE` is unset. Enables every in-tree agent. |
 | `test-permissive.yaml` | Used by tests: enables the in-tree agents and the test doubles. |
 | `test-restrictive.yaml` | Used by tests: enables only the stub, assigns `quality.reviewer` a class it does not declare, and requires approval for advice, to exercise the refused, mismatched and referred paths. |

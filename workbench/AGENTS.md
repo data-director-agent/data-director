@@ -1,11 +1,13 @@
 # workbench
 
-The Data Director Workbench: a harness (conductor, policy gate, input check, OpenTelemetry trace,
-per-mode grounding linter, source check, JSONL store, Process Run Crate), a registry of agents reached over A2A,
-a read-only viewer, and a generated `CONFORMANCE.md`. The workbench contains no agent code. Agents
-are separate packages and services under `../agents/`, and what both sides share (the contract,
-evidence, span helpers, the A2A agent server) is `../sdk/` (ADR-0011). `docs/adr/` records
-the decisions; `docs/architecture.md` is the overview.
+The Data Director Workbench: the development way in to the harness, with the CLI, a read-only
+viewer, the test kit, evaluation, and a generated `CONFORMANCE.md`. The harness itself (conductor,
+policy gate, input check, OpenTelemetry trace, per-mode grounding linter, source check, JSONL
+store, Process Run Crate, the registry of agents reached over A2A) is the package `../harness/`
+(`dd_harness`, ADR-0022). These rules govern both. The workbench contains no agent code and no
+governance code. Agents are separate packages and services under `../agents/`, and what agents
+and the harness share (the contract, evidence, span helpers, the A2A agent server) is `../sdk/`
+(ADR-0011). `docs/adr/` records the decisions; `docs/architecture.md` is the overview.
 
 Two rules govern everything here:
 
@@ -20,7 +22,7 @@ Two rules govern everything here:
 
 ## Working on the code
 
-Python 3.14, `uv`. The repository root is a uv workspace (`sdk/`, `workbench/`, `agents/*`).
+Python 3.14, `uv`. The repository root is a uv workspace (`sdk/`, `harness/`, `workbench/`, `agents/*`, `app/`).
 Tooling config (pytest, ruff, mypy) is in the root `pyproject.toml`; run these from the root.
 
 ```bash
@@ -45,10 +47,16 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   classes in its own LinkML file, and its card carries their schemas pinned by digest. The
   workbench knows a class only from a card. If you find yourself adding an agent's class to
   `data_director.yaml`, or a list of class names to the SDK or the workbench, stop.
-- **The workbench imports no agent.** Agents are services reached through `RemoteAgent`
-  (`remote.py`); `agents.yaml` lists their URLs. Tests may import agent packages to serve them in
-  memory (`testing.in_process`), and `src/` must not. If you find yourself importing
-  `dd_agent_*` from `src/workbench/`, stop.
+- **The harness and the workbench import no agent.** Agents are services reached through
+  `RemoteAgent` (`dd_harness.remote`); `agents.yaml` lists their URLs. Tests may import agent
+  packages to serve them in memory (`testing.in_process`), and `src/` must not. If you find
+  yourself importing `dd_agent_*` from `src/workbench/` or `../harness/src/`, stop.
+- **The harness stands on its own (ADR-0022).** `../harness/src/` imports `dd_sdk` and
+  third-party libraries only, never `workbench`, `dd_app`, an agent or `inspect_ai`;
+  `harness/tests/test_harness_boundary.py` enforces it. The harness has no configuration of its
+  own: each path comes from a `DD_*` variable or the caller's default, and the workbench's
+  defaults are in `workbench.config`. If you find yourself computing a default from a harness
+  module's `__file__`, stop.
 - **Adding an agent touches nothing central.** A package under `../agents/` with `AgentSpec` +
   `run` + `build` + `main`, one line in `agents.yaml`, a sample, the payload's `derivations`,
   marked tests, a profile entry. Recipe: `../agents/README.md`; `../agents/hello/` is the worked
@@ -85,7 +93,7 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   `referred`; wrong input class → `failed(input-not-accepted)`. Exceptions are for programmer and
   configuration errors (`ContractViolation`, `PolicyError`, `UnknownAgent`, `RegistryError`).
 - **The linter checks consistency, not retrieval (ADR-0016).** An agent's `retrieval` spans are
-  its own declarations. `sources.py` re-hashes cited records against the pinned copies in
+  its own declarations. `dd_harness.sources` re-hashes cited records against the pinned copies in
   `sources.yaml`. An unresolved item is never counted as verified, and a source file is never
   read without its `sha256` pin. Do not describe `grounding: passed` as proof that an agent
   retrieved anything.
