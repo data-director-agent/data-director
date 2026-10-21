@@ -4,6 +4,10 @@ Data Director is a reference implementation of the RDA
 [Data Director Agentic AI Blueprint](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/outputs/data-director-agentic-ai-tool-blueprint/),
 published at <https://doi.org/10.15497/RDA00157>.
 
+The Blueprint followed an RDA community consultation, reported in
+[Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151)
+(<https://doi.org/10.15497/RDA00151>).
+
 !!! note "Alpha"
     The app and several agents are alpha software. Their shape will change.
 
