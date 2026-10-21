@@ -3,6 +3,8 @@
 **Status:** Proposed
 **Date:** 2026-10-21
 
+Amended by [ADR-0028](0028-conversation-is-the-front-door.md) (the app's home page).
+
 ## Context
 
 The alpha app (`app/`) was a Gradio chat around one language model whose one tool called R3.
@@ -72,8 +74,8 @@ Every dependency's licence is compatible with the repository's MIT licence.
 - The repository now has a Node toolchain (Node 22 or later, npm, `app/web/package-lock.json`).
   A contributor who only works on Python is unaffected unless they run the app, which needs
   `npm ci && npm run build` once.
-- The app no longer answers free-text questions. Until the orchestrator arrives, it shows what
-  each agent can do and, from later increments, runs them.
+- The app's entry point is a conversation with the orchestrator (ADR-0028), not free-text
+  questions to a model of its own. The per-agent directory stays, one step away.
 - The JavaScript tests carry no requirement marker and do not feed `CONFORMANCE.md`. TODO:
   decide whether to bridge them (for example from Playwright's JSON report) or leave C6 to
   review.
