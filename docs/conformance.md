@@ -106,8 +106,8 @@ is still to be decided (TODO in ADR-0014).
 From the repository root:
 
 ```sh
-uv run pytest --json-report --json-report-file=workbench/.report.json
-uv run python workbench/scripts/conformance_report.py
+uv run pytest --json-report --json-report-file=.report.json
+uv run python scripts/conformance_report.py
 ```
 
 CI runs the same commands with `--check`. The check compares the whole file, so a change that

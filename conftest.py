@@ -2,11 +2,11 @@
 
 Two things happen here that the conformance report depends on:
 
-- the `requirement` marker is checked against workbench/docs/requirements.yaml at collection
+- the `requirement` marker is checked against docs/requirements.yaml at collection
   time, so a test cannot claim to substantiate an identifier nobody has registered, or one the
   register assesses by human review only (ADR-0014);
 - `pytest_json_runtest_metadata` copies the marker's identifiers into the pytest-json-report
-  record, which is what workbench/scripts/conformance_report.py reads.
+  record, which is what scripts/conformance_report.py reads.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent
-REGISTER = ROOT / "workbench" / "docs" / "requirements.yaml"
+REGISTER = ROOT / "docs" / "requirements.yaml"
 
 
 def _registered_requirements() -> dict[str, list[str]]:
@@ -35,13 +35,13 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             if unknown:
                 raise pytest.UsageError(
                     f"{item.nodeid}: requirement marker names unregistered identifiers {unknown}; "
-                    "add them to workbench/docs/requirements.yaml first"
+                    "add them to docs/requirements.yaml first"
                 )
             untestable = [rid for rid in marker.args if "test" not in known[rid]]
             if untestable:
                 raise pytest.UsageError(
                     f"{item.nodeid}: requirement marker names {untestable}, which the register "
-                    "assesses by review only; see workbench/docs/adr/0014-assessment-lanes.md"
+                    "assesses by review only; see docs/adr/0014-assessment-lanes.md"
                 )
 
 

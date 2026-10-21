@@ -16,9 +16,9 @@ The workbench is not the reference implementation itself, and it contains no age
 agent states what input it reads, what output it returns, and what that output is based on.
 Agents are separate services in [`../agents/`](../agents/). The workbench calls each one over
 A2A, the [Agent2Agent protocol](https://a2a-protocol.org/), then checks that it kept to those
-statements ([ADR-0011](docs/adr/0011-remote-agents.md)). The calls and checks are made by the
+statements ([ADR-0011](../docs/adr/0011-remote-agents.md)). The calls and checks are made by the
 harness, a package of its own in [`../harness/`](../harness/) that the workbench is one way in
-to ([ADR-0022](docs/adr/0022-harness-is-its-own-package.md)).
+to ([ADR-0022](../docs/adr/0022-harness-is-its-own-package.md)).
 [`docs/architecture.md`](docs/architecture.md) explains how the pieces fit together.
 
 ## Who it is for
@@ -76,7 +76,7 @@ The viewer has two pages, reached by the tabs under its header.
 - **Inspect** runs one agent over a sample and shows the run.
 - **Chat** (`http://127.0.0.1:8000/viewer/chat.html`) holds a conversation with the orchestrator,
   `director.stub`, which hands each message to other agents and shows their replies inside its
-  own ([ADR-0012](docs/adr/0012-conversation-and-orchestration.md)).
+  own ([ADR-0012](../docs/adr/0012-conversation-and-orchestration.md)).
 
 Only `serve` can run the orchestrator: `invoke` does not grant the permission it needs to call
 other agents, so `samples/director.message.json` has to go through the viewer or the conversation
@@ -86,18 +86,18 @@ API.
 
 An input is a JSON document whose `schema_class` names its input class; the samples and what each
 exercises are listed in [`samples/README.md`](samples/README.md). The request and response formats
-are described in [`docs/contract.md`](docs/contract.md).
+are described in [`docs/contract.md`](../docs/contract.md).
 
 `invoke` prints the agent's response and the result of the grounding check, which confirms that
 everything the response relies on can be traced to something the agent actually read during the
-run ([`docs/grounding.md`](docs/grounding.md)). It also writes a folder, `runs/<invocation_id>/`,
+run ([`docs/grounding.md`](../harness/docs/grounding.md)). It also writes a folder, `runs/<invocation_id>/`,
 holding the request, the response, the trace of the run and a provenance record (a
 [Process Run Crate](https://www.researchobject.org/workflow-run-crate/profiles/process_run_crate/)).
 To re-run the grounding check on a finished run, use
 `workbench lint <spans.jsonl> <envelope.json>`.
 
 Every response has one of five outcomes: `succeeded`, `abstained`, `referred`, `failed` or
-`suspended`; see [`docs/contract.md`](docs/contract.md).
+`suspended`; see [`docs/contract.md`](../docs/contract.md).
 
 ## Configuration
 
@@ -156,7 +156,7 @@ its own variables, such as the R3 retrieval backend or a model API key, where it
 
 [`agents.yaml`](agents.yaml) lists the base URL of each agent, with an optional `timeout_s`. The
 ports match those started by `../scripts/run-agents.sh`. An agent that cannot be reached is listed
-as unavailable and the rest still run; see [`docs/registry.md`](docs/registry.md).
+as unavailable and the rest still run; see [`docs/registry.md`](../harness/docs/registry.md).
 
 ### Institutional profiles
 
@@ -217,9 +217,8 @@ described in [`../agents/README.md`](../agents/README.md).
 | `profiles/` | Institutional profiles. |
 | `samples/` | Example inputs. |
 | `tests/` | The test suite. |
-| `scripts/` | Maintenance scripts, including the conformance report generator. |
-| `docs/` | Design documentation and decision records. |
-| `CONFORMANCE.md` | Generated report of which requirements the tests and reviews demonstrate. |
+| `scripts/` | Maintenance scripts. |
+| `docs/` | The architecture overview and the walkthrough. The decisions, the register and the conformance report are at the repository level (`../docs/`, `../CONFORMANCE.md`). |
 
 ## Further reading
 
@@ -227,18 +226,18 @@ described in [`../agents/README.md`](../agents/README.md).
   check, with real output. Start here.
 - [Architecture](docs/architecture.md): the components, the order they run in, and where the
   code lives.
-- [The conductor](docs/conductor.md): the function that runs an agent and applies every check.
-- [The agent registry](docs/registry.md): how the workbench finds its agents, and what happens
+- [The conductor](../harness/docs/conductor.md): the function that runs an agent and applies every check.
+- [The agent registry](../harness/docs/registry.md): how the workbench finds its agents, and what happens
   when one cannot be reached.
-- [The contract](docs/contract.md): the request an agent receives and the response it returns.
-- [Grounding](docs/grounding.md): the rules that tie an agent's output to its sources.
-- [The conformance report](docs/conformance.md): how requirements are assessed by test and by
+- [The contract](../docs/contract.md): the request an agent receives and the response it returns.
+- [Grounding](../harness/docs/grounding.md): the rules that tie an agent's output to its sources.
+- [The conformance report](../docs/conformance.md): how requirements are assessed by test and by
   human review, and how to record a review.
-- [Glossary](docs/glossary.md): the terms used in this directory.
-- [`CONFORMANCE.md`](CONFORMANCE.md): which requirements the tests and the recorded reviews
+- [Glossary](../docs/glossary.md): the terms used in this directory.
+- [`CONFORMANCE.md`](../CONFORMANCE.md): which requirements the tests and the recorded reviews
   demonstrate. It is generated. A requirement with nothing behind it is marked
   *unsubstantiated*.
-- [`docs/adr/`](docs/adr/): the Architectural Decision Records (ADRs), one record per design
+- [`docs/adr/`](../docs/adr/): the Architectural Decision Records (ADRs), one record per design
   decision.
 
 ## Contributing, contact and licence

@@ -13,7 +13,9 @@ are also organisation-wide. This file covers what is specific to this repository
 
 This repository is organised as follow:
 
-* `docs/` contains documentation
+* `docs/` contains what governs every package: the Blueprint, the decision records (`docs/adr/`),
+  the contract, the glossary, the requirements register and the review record. A package's own
+  documents are in its own `docs/` (`harness/docs/`, `workbench/docs/`)
 * `app/` contains the Data Director app that people use (alpha)
 * `sdk/` contains what agents and the harness share: the contract, evidence and the agent server
 * `harness/` contains the governance every agent invocation goes through (ADR-0022)

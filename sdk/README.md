@@ -1,7 +1,7 @@
 # Data Director SDK
 
 What an agent and the workbench share. The workbench calls each agent over A2A
-([ADR-0011](../workbench/docs/adr/0011-remote-agents.md)), so they share no code except this
+([ADR-0011](../docs/adr/0011-remote-agents.md)), so they share no code except this
 package.
 
 | Module | What it holds |
@@ -19,7 +19,7 @@ package.
 ## Contract
 
 The core contract is `src/dd_sdk/schema/data_director.yaml`
-([ADR-0019](../workbench/docs/adr/0019-core-contract-and-agent-owned-classes.md)). It holds what
+([ADR-0019](../docs/adr/0019-core-contract-and-agent-owned-classes.md)). It holds what
 the workbench governs every agent by:
 
 - the `InvocationRequest` and the `Envelope`;
