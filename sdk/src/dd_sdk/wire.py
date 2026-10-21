@@ -23,10 +23,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from pydantic import TypeAdapter
-
 from dd_sdk.agent import AgentResult
-from dd_sdk.contract.models import EvidenceItem, Grounded, Outcome, Payload, to_document
+from dd_sdk.contract.models import EvidenceItem, Grounded, OpenPayload, Outcome, to_document
 
 # TODO: a persistent identifier for the extension. The w3id namespace the problem types use is
 # not yet registered either (contract/problem.py).
@@ -48,8 +46,6 @@ ENVELOPE_JSON_ARTIFACT = "envelope-json"
 JSONRPC_PATH = "/a2a"
 CARD_PATH = "/.well-known/agent-card.json"
 
-_payload_adapter: TypeAdapter[Any] = TypeAdapter(Payload)
-
 
 class WireError(Exception):
     """A document on the wire does not have the shape this module writes."""
@@ -63,8 +59,9 @@ def reply_to_document(result: AgentResult, spans: list[str]) -> dict[str, Any]:
 def reply_from_document(body: dict[str, Any]) -> tuple[AgentResult, tuple[dict[str, Any], ...]]:
     """Rebuild the `AgentResult` and the span documents from the `agent-result` data part.
 
-    The payload is parsed by its `schema_class` against the contract. Raises `WireError` for a
-    body the contract does not admit.
+    The payload is held as an `OpenPayload`: whether it conforms to its class is the conductor's
+    payload check, against the class schema the agent's card carries (ADR-0019). Raises
+    `WireError` for a body the core contract does not admit.
     """
     spans = body.get("spans", [])
     if not isinstance(spans, list) or not all(isinstance(s, str) for s in spans):
@@ -91,7 +88,7 @@ def _result_to_document(result: AgentResult) -> dict[str, Any]:
 
 def _result_from_document(doc: dict[str, Any]) -> AgentResult:
     payload: Grounded | None = (
-        _payload_adapter.validate_python(doc["payload"]) if "payload" in doc else None
+        OpenPayload.model_validate(doc["payload"]) if "payload" in doc else None
     )
     return AgentResult(
         outcome=Outcome.model_validate(doc["outcome"]),

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from dd_agent_r3 import testing as fakes
+from dd_agent_r3.classes import DatasetProfile, RecommendationKind
 from dd_agent_r3.explain import (
     SYSTEM_PROMPT,
     AnthropicExplainer,
@@ -14,7 +15,7 @@ from dd_agent_r3.explain import (
     template_rationale,
 )
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import DatasetProfile, Derivation, RecommendationKind
+from dd_sdk.contract.models import Derivation
 from dd_sdk.tracing import make_tracing
 
 

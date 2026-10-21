@@ -15,6 +15,13 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from dd_agent_r3 import rank as ranking
+from dd_agent_r3.classes import (
+    DatasetProfile,
+    Recommendation,
+    RecommendationKind,
+    Recommendations,
+    SearchedSummary,
+)
 from dd_agent_r3.explain import Explainer, TemplateExplainer
 from dd_agent_r3.fairsharing.records import Record
 from dd_agent_r3.fairsharing.snapshot import SnapshotBackend
@@ -26,8 +33,8 @@ from dd_agent_r3.retrieve import (
     SnapshotRef,
 )
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    DatasetProfile,
     Derivation,
     EvidenceItem,
     GroundingMode,
@@ -36,10 +43,6 @@ from dd_sdk.contract.models import (
     Outcome,
     OutcomeStatus,
     ReasonCode,
-    Recommendation,
-    RecommendationKind,
-    Recommendations,
-    SearchedSummary,
 )
 from dd_sdk.evidence import CANONICALISATION, HASH_ALGORITHM, project
 from dd_sdk.tracing import retrieval_span
@@ -54,9 +57,9 @@ class R3Agent:
             "for a dataset profile, grounded on the registry records it retrieved."
         ),
         action_class="advise",
-        accepts=(DatasetProfile,),
+        accepts=(ClassSchema.of(DatasetProfile),),
         grounding_mode=GroundingMode.RETRIEVAL,
-        payload_type=Recommendations,
+        payload=ClassSchema.of(Recommendations),
         derivations={
             "items.kind": Derived(Derivation.LEXICAL, recorded_in="classification_derivation"),
             "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),

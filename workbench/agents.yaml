@@ -2,7 +2,9 @@
 # `uv run dd-<agent> serve --port N` from the repository root, or all at once with
 # `scripts/run-agents.sh`.
 # The workbench reads each agent's card at start-up. One that cannot be reached is listed as
-# unavailable by `workbench agents`; the rest still run. Override the path with DD_AGENTS_CONFIG.
+# unavailable by `workbench agents`, and one built against another contract version as
+# incompatible (ADR-0019); the rest still run. Each card carries its agent's class schemas, so
+# adding an agent is one entry here. Override the path with DD_AGENTS_CONFIG.
 # See docs/registry.md.
 agents:
   - url: http://127.0.0.1:8101

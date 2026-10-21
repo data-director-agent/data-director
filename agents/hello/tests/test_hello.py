@@ -12,21 +12,24 @@ from pathlib import Path
 
 import pytest
 
+import dd_agent_hello
 from dd_agent_hello.agent import HelloWorld
+from dd_agent_hello.classes import Greeting, Salutation
 from dd_sdk.agent import describe
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
-    Greeting,
     GroundingMode,
     OutcomeStatus,
     ReasonCode,
-    Salutation,
     input_source_id,
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
+from dd_sdk.schema import gen
 from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
+SCHEMA = Path(dd_agent_hello.__file__).parent / "schema" / "hello.yaml"
 
 
 def sample_salutation() -> Salutation:
@@ -41,15 +44,13 @@ def test_greeting_is_grounded_on_the_input_and_passes_the_linter(runs_dir: Path)
     env = conductor.invoke(request("hello.world", sample_salutation()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert env.grounding_mode == GroundingMode.NONE
-    assert isinstance(env.payload, Greeting)
-    assert env.payload.greeting_text == "Hello, world!"
-    assert env.payload.greeting_derivation == Derivation.TEMPLATE
+    payload = env.payload_as(Greeting)
+    assert payload.greeting_text == "Hello, world!"
+    assert payload.greeting_derivation == Derivation.TEMPLATE
 
     ref = input_source_id(env.invocation_id)
     expected_hash = input_hash(conductor.store.get_request(env.invocation_id)["input"])  # type: ignore[index]
-    assert [(g.source_id, g.content_hash) for g in env.payload.grounded_on] == [
-        (ref, expected_hash)
-    ]
+    assert [(g.source_id, g.content_hash) for g in payload.grounded_on] == [(ref, expected_hash)]
     assert [(e.source_id, e.canonicalisation) for e in env.evidence] == [
         (ref, INPUT_CANONICALISATION)
     ]
@@ -96,6 +97,15 @@ def test_the_template_ships_everything_the_manifest_needs() -> None:
 
 def test_spec_declares_what_the_conductor_enforces() -> None:
     spec = HelloWorld.spec
-    assert spec.accepts == (Salutation,)
-    assert spec.payload_type is Greeting
+    assert spec.accepts == (ClassSchema.of(Salutation),)
+    assert spec.payload == ClassSchema.of(Greeting)
     assert spec.grounding_mode == GroundingMode.NONE
+
+
+def test_its_own_classes_are_generated_from_its_linkml_and_carried_by_its_card() -> None:
+    # Recipe step 1: the agent owns its classes (ADR-0019). The generated schemas are current...
+    assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+    # ...and the card carries them, so the workbench needs no copy of its own.
+    entry = describe(HelloWorld.spec)
+    assert set(entry["schemas"]) == {"Salutation", "Greeting"}
+    assert entry["schemas"]["Greeting"]["digest"] == ClassSchema.of(Greeting).digest

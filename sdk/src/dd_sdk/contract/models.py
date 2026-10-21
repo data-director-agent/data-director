@@ -13,12 +13,13 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
 IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
+VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 
 
 class Frozen(BaseModel):
@@ -59,14 +60,6 @@ class ReasonCode(StrEnum):
     OUTSIDE_AGENT_SCOPE = "outside_agent_scope"
 
 
-class RecommendationKind(StrEnum):
-    CONTROLLED_VOCABULARY = "controlled_vocabulary"
-    ONTOLOGY = "ontology"
-    TERMINOLOGY_UNCLASSIFIED = "terminology_unclassified"
-    DATA_FORMAT = "data_format"
-    FIELD_FORMAT = "field_format"
-
-
 class Derivation(StrEnum):
     TEMPLATE = "template"
     MODEL = "model"
@@ -103,63 +96,10 @@ class TurnRole(StrEnum):
     AGENT = "agent"
 
 
-class Severity(StrEnum):
-    INFO = "info"
-    WARNING = "warning"
-    ERROR = "error"
-
-
-class Verdict(StrEnum):
-    SUPPORTED = "supported"
-    REFUTED = "refuted"
-    UNVERIFIABLE = "unverifiable"
-
-
 # --- Inputs -----------------------------------------------------------------------------------
-# Every input class carries `schema_class` as a type designator with a single literal value, so
-# the union below is discriminated and `{}` cannot parse as a DatasetProfile.
-
-
-class TableField(Frozen):
-    name: str
-    field_type: str | None = None
-    field_format: str | None = None
-    field_description: str | None = None
-
-
-class DatasetProfile(Frozen):
-    schema_class: Literal["DatasetProfile"] = "DatasetProfile"
-    title: str | None = None
-    description: str | None = None
-    keywords: list[str] = Field(default_factory=list)
-    themes: list[str] = Field(default_factory=list)
-    media_types: list[str] = Field(default_factory=list)
-    fields: list[TableField] = Field(default_factory=list)
-
-
-class MetadataRecord(Frozen):
-    schema_class: Literal["MetadataRecord"] = "MetadataRecord"
-    identifier: str | None = None
-    title: str | None = None
-    description: str | None = None
-    licence: str | None = None
-    creators: list[str] = Field(default_factory=list)
-    keywords: list[str] = Field(default_factory=list)
-
-
-class Claim(Frozen):
-    schema_class: Literal["Claim"] = "Claim"
-    text: str
-    subject_uri: str | None = None
-    context: str | None = None
-
-
-class Salutation(Frozen):
-    """The input of the `hello.world` template agent. See `agents/hello/`."""
-
-    schema_class: Literal["Salutation"] = "Salutation"
-    greeted_name: str
-    language: str | None = None
+# Every input class carries `schema_class` as a type designator with a single literal value. The
+# core defines only the conversation's Message; every other input class belongs to its agent
+# (ADR-0019), and the workbench holds such an input as an `OpenInput`.
 
 
 class ConversationTurn(Frozen):
@@ -178,22 +118,23 @@ class Message(Frozen):
     history: list[ConversationTurn] = Field(default_factory=list)
 
 
-AnyInput = DatasetProfile | MetadataRecord | Claim | Salutation | Message
-Input = Annotated[AnyInput, Field(discriminator="schema_class")]
-INPUT_TYPES: dict[str, type[Frozen]] = {
-    "DatasetProfile": DatasetProfile,
-    "MetadataRecord": MetadataRecord,
-    "Claim": Claim,
-    "Salutation": Salutation,
-    "Message": Message,
-}
-_input_adapter: TypeAdapter[Any] = TypeAdapter(Input)
+class OpenInput(Frozen):
+    """An input held as the document it is, checked against its class schema, not a model.
+
+    What the workbench reads a request's input as: it knows an agent's classes only by their
+    schemas (ADR-0019). An agent's own run sees its own model instead (`ClassSchema.parse_input`).
+    """
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+    schema_class: str
 
 
-def parse_input(document: dict[str, Any]) -> AnyInput:
-    """Parse an input document by its `schema_class` designator. Raises pydantic.ValidationError."""
-    parsed: AnyInput = _input_adapter.validate_python(document)
-    return parsed
+def _open_input(value: Any) -> Any:
+    return OpenInput.model_validate(value) if isinstance(value, dict) else value
+
+
+# Any input: an agent's own model, or an `OpenInput`. Serialised as the instance it holds.
+AnyInputDocument = Annotated[SerializeAsAny[Frozen], BeforeValidator(_open_input)]
 
 
 class InvocationRequest(Frozen):
@@ -204,7 +145,7 @@ class InvocationRequest(Frozen):
     conversation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     # Set only by the conductor, from a delegation grant (ADR-0012).
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
-    input: Input
+    input: AnyInputDocument
 
 
 # --- Outcome and problems -------------------------------------------------------------------
@@ -253,60 +194,24 @@ def invocation_source_id(invocation_id: str) -> str:
     return f"invocation:{invocation_id}"
 
 
+class OpenPayload(Grounded):
+    """A payload held as the document it is, checked against its class schema (ADR-0019)."""
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+    schema_class: str
+
+
+def _open_payload(value: Any) -> Any:
+    return OpenPayload.model_validate(value) if isinstance(value, dict) else value
+
+
+# Any payload: an agent's own model, or an `OpenPayload`. Serialised as the instance it holds.
+AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_payload)]
+
+
 # --- Payloads -------------------------------------------------------------------------------
-# Every payload class carries `schema_class` and mixes in Grounded.
-
-
-class Recommendation(Grounded):
-    """Names its resource only in `grounded_on`; the description is in evidence (ADR-0015)."""
-
-    kind: RecommendationKind
-    target: str
-    score: float | None = None
-    rationale: str
-    rationale_derivation: Derivation
-    classification_derivation: Derivation | None = None
-
-
-class SearchedSummary(Frozen):
-    queries: list[str] = Field(default_factory=list)
-    snapshot_ref: str | None = None
-    candidates_retrieved: int | None = None
-    candidates_qualifying: int | None = None
-
-
-class Recommendations(Grounded):
-    schema_class: Literal["Recommendations"] = "Recommendations"
-    items: list[Recommendation] = Field(default_factory=list)
-    searched: SearchedSummary | None = None
-
-
-class Finding(Grounded):
-    criterion: str
-    severity: Severity
-    message: str
-    derivation: Derivation
-
-
-class QualityReview(Grounded):
-    schema_class: Literal["QualityReview"] = "QualityReview"
-    score: float | None = None
-    findings: list[Finding] = Field(default_factory=list)
-
-
-class FactCheck(Grounded):
-    schema_class: Literal["FactCheck"] = "FactCheck"
-    verdict: Verdict
-    rationale: str
-    rationale_derivation: Derivation
-
-
-class Greeting(Grounded):
-    """The payload of the `hello.world` template agent. See `agents/hello/`."""
-
-    schema_class: Literal["Greeting"] = "Greeting"
-    greeting_text: str
-    greeting_derivation: Derivation
+# Every payload class carries `schema_class` and mixes in Grounded. The core defines only the
+# conversation's Reply; every other payload class belongs to its agent (ADR-0019).
 
 
 class Reply(Grounded):
@@ -315,19 +220,6 @@ class Reply(Grounded):
     schema_class: Literal["Reply"] = "Reply"
     reply_text: str
     reply_derivation: Derivation
-
-
-Payload = Annotated[
-    Recommendations | QualityReview | FactCheck | Greeting | Reply,
-    Field(discriminator="schema_class"),
-]
-PAYLOAD_TYPES: dict[str, type[Grounded]] = {
-    "Recommendations": Recommendations,
-    "QualityReview": QualityReview,
-    "FactCheck": FactCheck,
-    "Greeting": Greeting,
-    "Reply": Reply,
-}
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------
@@ -387,8 +279,13 @@ class Envelope(Frozen):
     policy_digest: str = Field(pattern=SHA256_PATTERN)
     # Named by the authentication boundary, never by the request (ADR-0018).
     acting_for: Principal
+    # The core contract, and the class schemas the card carried, that the run was checked
+    # against (ADR-0019). The digests name schemas the run store keeps.
+    contract_version: str = Field(pattern=VERSION_PATTERN)
+    input_schema: str | None = Field(default=None, pattern=SHA256_PATTERN)
     outcome: Outcome
-    payload: Payload | None = None
+    payload: AnyPayloadDocument | None = None
+    payload_schema: str | None = Field(default=None, pattern=SHA256_PATTERN)
     evidence: list[EvidenceItem] = Field(default_factory=list)
     telemetry: Telemetry
     requires_human_review: Literal[True] = True
@@ -396,6 +293,19 @@ class Envelope(Frozen):
     conversation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     delegations: list[Delegation] = Field(default_factory=list)
+
+    def payload_as[P: Grounded](self, model: type[P]) -> P:
+        """The payload as `model`, the reader's own model of its class (ADR-0019).
+
+        The workbench holds a payload as an `OpenPayload`; a reader that knows the class, such as
+        the agent's own tests or an orchestrator relaying a child, parses it here. Raises
+        `ValueError` if there is no payload or it is not of `model`'s class.
+        """
+        if self.payload is None:
+            raise ValueError(f"envelope {self.invocation_id} carries no payload")
+        if isinstance(self.payload, model):
+            return self.payload
+        return model.model_validate(to_document(self.payload))
 
     def to_document(self) -> dict[str, Any]:
         """JSON-ready dict in the shape the generated schema validates.

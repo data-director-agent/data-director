@@ -1,0 +1,33 @@
+{
+   "$comment": "Generated from hello.yaml by `uv run dd-gen-schema <path to hello.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/hello/Salutation",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "Whom to greet. The input of the hello.world template agent.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "Salutation"
+         ],
+         "type": "string"
+      },
+      "greeted_name": {
+         "description": "Whom to greet.",
+         "type": "string"
+      },
+      "language": {
+         "description": "BCP 47 tag for the language to greet in. English if absent.",
+         "type": [
+            "string",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class",
+      "greeted_name"
+   ],
+   "title": "Salutation",
+   "type": "object"
+}

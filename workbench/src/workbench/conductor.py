@@ -39,7 +39,7 @@ from typing import Any
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
@@ -55,6 +55,7 @@ from dd_sdk.contract.models import (
     input_source_id,
     to_document,
 )
+from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.evidence import input_hash as compute_input_hash
@@ -242,6 +243,8 @@ class Conductor:
         started = datetime.now(UTC)
         tracer = self.tracing.tracer
         input_hash = compute_input_hash(request_doc["input"])
+        # The class schema the card carries for the input, if the agent accepts its class.
+        accepted = spec.accepted(str(request_doc["input"].get("schema_class")))
         input_ref = input_source_id(request.invocation_id)
 
         delegations: list[Delegation] = []
@@ -284,21 +287,26 @@ class Conductor:
                     )
                 )
                 prob = None
-            elif not isinstance(request.input, spec.accepts):
-                # 2. Input check. A valid request addressed to an agent that does not read this
-                # input class is an outcome, not an exception: the caller, the store and a
-                # reviewer all see the refusal as an envelope, as they do a policy refusal.
-                got = type(request.input).__name__
+            elif refused := _input_refusal(spec, request_doc["input"]):
+                # 2. Input check, against the class schema the agent's card carries (ADR-0019).
+                # A valid request addressed to an agent that does not read this input is an
+                # outcome, not an exception: the caller, the store and a reviewer all see the
+                # refusal as an envelope, as they do a policy refusal.
+                got, errors = refused
+                statement = (
+                    f"The input is not a valid {got}: {'; '.join(errors)}."
+                    if errors
+                    else f"{spec.agent_id} accepts {', '.join(spec.accepts_names())}, not {got}."
+                )
                 result = AgentResult(
                     outcome=Outcome(
                         status=OutcomeStatus.FAILED,
-                        statement=(
-                            f"{spec.agent_id} accepts {', '.join(spec.accepts_names())}, "
-                            f"not {got}. The agent was not run."
-                        ),
+                        statement=f"{statement} The agent was not run.",
                     )
                 )
-                prob = problems.input_not_accepted(spec.agent_id, got, spec.accepts_names())
+                prob = problems.input_not_accepted(
+                    spec.agent_id, got, spec.accepts_names(), tuple(errors)
+                )
             else:
                 # 3. Run the agent. An exception becomes a failed outcome; never a crash.
                 prob = None
@@ -318,7 +326,7 @@ class Conductor:
                     received = (
                         agent.call(request, ctx, sent_grant)
                         if isinstance(agent, RemoteAgent)
-                        else Received(agent.run(request, ctx))
+                        else Received(agent.run(typed_request(spec, request), ctx))
                     )
                 except Exception as exc:  # noqa: BLE001 — converted to a failed outcome by design
                     result = AgentResult(
@@ -333,17 +341,12 @@ class Conductor:
                     # this trace so the linter reads one tree (ADR-0011).
                     self.tracing.import_spans(trace_id, received.spans)
                     result = received.result
-                    # An agent that returns a payload other than the class it declared is
-                    # contradicting its own specification: a programmer error, handled the same
-                    # way as an exception.
+                    # An agent that returns a payload other than the class it declared, or one
+                    # its own class schema does not admit, is contradicting its specification: a
+                    # programmer error, handled the same way as an exception.
                     if result.payload is not None and (
-                        spec.payload_type is None
-                        or not isinstance(result.payload, spec.payload_type)
+                        mismatch := _payload_mismatch(spec, to_document(result.payload))
                     ):
-                        declared = spec.payload_type.__name__ if spec.payload_type else "none"
-                        mismatch = TypeError(
-                            f"returned {type(result.payload).__name__}, declared {declared}"
-                        )
                         result = AgentResult(
                             outcome=Outcome(
                                 status=OutcomeStatus.FAILED,
@@ -365,8 +368,13 @@ class Conductor:
                 policy_bundle_ref=profile.ref,
                 policy_digest=profile.digest,
                 acting_for=acting_for,
+                contract_version=CONTRACT_VERSION,
+                input_schema=accepted.digest if accepted else None,
                 outcome=result.outcome,
                 payload=result.payload,
+                payload_schema=(
+                    spec.payload.digest if result.payload is not None and spec.payload else None
+                ),
                 evidence=result.evidence,
                 telemetry=Telemetry(
                     trace_id=trace_id,
@@ -410,6 +418,7 @@ class Conductor:
                             + "; ".join(violations),
                         ),
                         "payload": None,
+                        "payload_schema": None,
                         "evidence": [],
                         "problem": problems.grounding_violation(violations),
                     }
@@ -432,13 +441,18 @@ class Conductor:
                                 + "; ".join(exc.messages),
                             ),
                             "payload": None,
+                            "payload_schema": None,
                             "evidence": [],
                             "problem": problems.agent_error(spec.agent_id, exc),
                         }
                     )
                     doc = envelope.to_document()
             validate.validate_envelope(doc)
-            run_dir = self.store.append(doc, request_doc)
+            # The schemas the run was checked against, kept by digest for the viewer (ADR-0019).
+            checked = [accepted] if accepted else []
+            if envelope.payload is not None and spec.payload is not None:
+                checked.append(spec.payload)
+            run_dir = self.store.append(doc, request_doc, checked)
             spans_path = run_dir / "spans.jsonl"
             self.tracing.write_jsonl(spans_path, trace_id)
             (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")
@@ -456,6 +470,29 @@ class Conductor:
             # spans.jsonl is the durable copy; a long-running server must not keep them all.
             self.tracing.discard(trace_id)
         return envelope
+
+
+def _input_refusal(spec: AgentSpec, document: dict[str, Any]) -> tuple[str, list[str]] | None:
+    """Why the agent will not read this input: the class it names, and how the input fails that
+    class's schema (no errors: the agent does not accept the class at all). None if it will."""
+    got = str(document.get("schema_class"))
+    accepted = spec.accepted(got)
+    if accepted is None:
+        return got, []
+    errors = accepted.errors(document)
+    return (got, errors) if errors else None
+
+
+def _payload_mismatch(spec: AgentSpec, document: dict[str, Any]) -> TypeError | None:
+    """How a returned payload contradicts the agent's declared payload class, or None."""
+    got = document.get("schema_class")
+    if spec.payload is None or got != spec.payload.name:
+        declared = spec.payload.name if spec.payload else "none"
+        return TypeError(f"returned {got}, declared {declared}")
+    errors = spec.payload.errors(document)
+    if errors:
+        return TypeError(f"returned a {got} its class schema does not admit: {'; '.join(errors)}")
+    return None
 
 
 def _span_context(traceparent: str) -> SpanContext | None:

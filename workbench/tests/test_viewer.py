@@ -76,17 +76,17 @@ def _derivation_fields(model: type[Any], prefix: str = "") -> set[tuple[str, str
     return out
 
 
-@pytest.mark.parametrize("spec", [s for s in SPECS if s.payload_type], ids=lambda s: s.agent_id)
+@pytest.mark.parametrize("spec", [s for s in SPECS if s.payload], ids=lambda s: s.agent_id)
 def test_every_derivation_field_is_what_some_declared_field_is_recorded_in(
     spec: AgentSpec,
 ) -> None:
-    assert spec.payload_type is not None
+    assert spec.payload is not None and spec.payload.model is not None
     recorders = {
         (path.rpartition(".")[0] + "." if "." in path else "", d.recorded_in)
         for path, d in spec.derivations.items()
         if d.recorded_in
     }
-    assert _derivation_fields(spec.payload_type) <= recorders, spec.agent_id
+    assert _derivation_fields(spec.payload.model) <= recorders, spec.agent_id
 
 
 def test_base_derivation_values_are_from_the_contract_enum_or_verified() -> None:
@@ -126,14 +126,14 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
         assert name not in VIEWER, name
 
 
-def test_input_form_is_built_from_the_input_schema_and_names_no_class() -> None:
+def test_input_form_is_built_from_the_cards_class_schema_and_names_no_class() -> None:
     form = (VIEWER_DIR / "js" / "inputform.js").read_text(encoding="utf-8")
     assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in form
     assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in form
     assert 'tagName: "div"' in form  # Chat's composer is a <form>; forms do not nest
     for page in ("inspect.js", "chat.js"):
         module = (VIEWER_DIR / "js" / page).read_text(encoding="utf-8")
-        assert 'fetch("/schema/invocation_request.schema.json")' in module, page
+        assert "editor.show(cls, classSchema(" in module, page  # the card's schema (ADR-0019)
         assert 'from "./inputform.js"' in module, page
     # Chat names Message for its text box; no other input class is named anywhere.
     for name in ("Salutation", "Claim", "MetadataRecord", "DatasetProfile"):

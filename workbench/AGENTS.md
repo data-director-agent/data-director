@@ -9,7 +9,7 @@ the decisions; `docs/architecture.md` is the overview.
 
 Two rules govern everything here:
 
-1. **Formats are decided; components sit behind interfaces.** The LinkML schema, the owned
+1. **Formats are decided; components sit behind interfaces.** The core LinkML schema, the owned
    `dd.*` trace attributes, the registered evidence canonicalisations and the outcome vocabulary
    are fixed. Changing any of them is an ADR. Agents, retrieval backends, explainers and
    transports are swappable.
@@ -28,7 +28,7 @@ uv sync --all-packages --all-extras             # after adding a workspace membe
 uv run pytest                                   # network blocked; no credentials needed
 uv run ruff check . && uv run ruff format .
 uv run mypy
-uv run python sdk/scripts/gen_schema.py         # after editing the LinkML schema
+uv run dd-gen-schema [agents/<x>/.../<x>.yaml]   # after editing a LinkML schema (core by default)
 scripts/run-agents.sh                           # every agent on the port agents.yaml expects
 uv run pytest --json-report --json-report-file=workbench/.report.json && uv run python workbench/scripts/conformance_report.py
 uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013); needs DD_PRINCIPAL_*
@@ -37,9 +37,14 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 
 ## Load-bearing things
 
-- **`sdk/src/dd_sdk/schema/generated/` is generated.** Edit `data_director.yaml` beside it,
-  regenerate, and keep `dd_sdk/contract/models.py` in step; `sdk/tests/test_contract.py` checks
-  both.
+- **Every `schema/generated/` is generated.** Edit the LinkML file beside it (the core's
+  `data_director.yaml`, an agent's `<name>.yaml`, the doubles' `doubles.yaml`), run
+  `uv run dd-gen-schema [file]`, and keep the Pydantic models in step; each package's tests call
+  `dd_sdk.schema.gen.stale` and `ClassSchema.of` refuses a model that has drifted.
+- **The core holds no agent's classes (ADR-0019).** An agent declares its input and payload
+  classes in its own LinkML file, and its card carries their schemas pinned by digest. The
+  workbench knows a class only from a card. If you find yourself adding an agent's class to
+  `data_director.yaml`, or a list of class names to the SDK or the workbench, stop.
 - **The workbench imports no agent.** Agents are services reached through `RemoteAgent`
   (`remote.py`); `agents.yaml` lists their URLs. Tests may import agent packages to serve them in
   memory (`testing.in_process`), and `src/` must not. If you find yourself importing
@@ -69,7 +74,8 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   agent directly (ADR-0012).
 - **An input or payload class carries `schema_class`; a payload class mixes in `Grounded`.**
   `grounded_on` is the only place identity is asserted. A payload without it fails the linter
-  (G0) by design. Do not add a payload class without the mixin.
+  (G0) by design, and a card whose payload schema does not require it is refused. Do not add a
+  payload class without the mixin.
 - **The linter applies the agent's declared mode.** `retrieval`: G1–G4. `input_only`: R1–R3.
   `none`: R1–R3 + N1. `delegation`: R1, D1–D3, G4 (ADR-0012). G0 and E1 apply in every mode.
   A violation downgrades `succeeded` to `failed`. Do not weaken a rule to make a test pass; do
@@ -111,7 +117,7 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   text or inside a labelled control, and each outcome status has exactly one (`STATUS_ICONS`).
 - **The manifest says what an agent does, not how to draw it (ADR-0016).** An agent declares how
   it produces each payload field in `AgentSpec.derivations`; the viewer works out the rest of the
-  payload's presentation from the schema, whose property order `gen_schema.py` keeps as the
+  payload's presentation from the schema, whose property order `dd-gen-schema` keeps as the
   LinkML slot order. Do not add an RJSF fragment, widget name or layout hint to `AgentSpec`.
 - **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
   the sign-in password; check a new cassette before committing it.

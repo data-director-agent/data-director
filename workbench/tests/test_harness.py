@@ -12,19 +12,19 @@ import pytest
 
 from dd_agent_stub.agent import AbstainingStub
 from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    Claim,
-    DatasetProfile,
     GroundingMode,
     InvocationRequest,
-    MetadataRecord,
+    OpenInput,
+    OpenPayload,
     Outcome,
     OutcomeStatus,
-    QualityReview,
     ReasonCode,
     to_document,
 )
 from dd_sdk.contract.validate import validate_envelope
+from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.evidence import (
     CANONICALISATION,
     INPUT_CANONICALISATION,
@@ -32,6 +32,7 @@ from dd_sdk.evidence import (
     content_hash,
     input_hash,
 )
+from dd_sdk.schema import gen
 from dd_sdk.tracing import records_from_jsonl
 from workbench import grounding
 from workbench import testing as fakes
@@ -140,7 +141,7 @@ def test_an_agent_declaring_another_class_than_assigned_fails_and_is_not_run(
 @pytest.mark.requirement("DD-POLICY", "DD-OUTCOME", "C13.2")
 def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, AbstainingStub(), profile=RESTRICTIVE).invoke(
-        request("stub.abstain"), acting_for=TEST_PRINCIPAL
+        request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.status == OutcomeStatus.REFERRED
     assert env.outcome.reason_code == ReasonCode.POLICY_REQUIRES_APPROVAL
@@ -150,7 +151,7 @@ def test_action_requiring_approval_is_referred(runs_dir: Path) -> None:
 @pytest.mark.requirement("DD-POLICY-OWNER")
 def test_the_envelope_records_the_profile_the_conductor_applied(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub(), profile=RESTRICTIVE)
-    env = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
+    env = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL)
     assert env.policy_bundle_ref == "profile:test-restrictive@v2"
     assert env.policy_digest == hashlib.sha256(RESTRICTIVE.read_bytes()).hexdigest()
     stored = conductor.store.get(env.invocation_id)
@@ -161,7 +162,7 @@ def test_the_envelope_records_the_profile_the_conductor_applied(runs_dir: Path) 
 def test_the_envelope_records_whom_the_invocation_acted_for(runs_dir: Path) -> None:
     disabled = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input, agent_id="fake.disabled")
     conductor = make_conductor(runs_dir, AbstainingStub(), disabled)
-    ran = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
+    ran = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL)
     refused = conductor.invoke(request("fake.disabled"), acting_for=TEST_PRINCIPAL)
     # A refused action was still attempted on someone's behalf.
     assert refused.outcome.status == OutcomeStatus.FAILED
@@ -172,6 +173,31 @@ def test_the_envelope_records_whom_the_invocation_acted_for(runs_dir: Path) -> N
         assert stored["acting_for"]["assurance"] == "asserted"
 
 
+# --- The schemas a run was checked against (ADR-0019) -----------------------------------------
+
+
+@pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
+def test_a_run_names_the_contract_and_the_class_schemas_it_was_checked_against(
+    runs_dir: Path,
+) -> None:
+    agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
+    conductor = make_conductor(runs_dir, agent)
+    env = conductor.invoke(request(agent.spec.agent_id, fakes.record()), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    record, review = ClassSchema.of(fakes.ProbeRecord), ClassSchema.of(fakes.ProbeReview)
+    assert env.contract_version == CONTRACT_VERSION
+    assert (env.input_schema, env.payload_schema) == (record.digest, review.digest)
+    # The store keeps both, by digest, whatever the agent's card says later.
+    assert conductor.store.get_schema(record.digest) == dict(record.json_schema)
+    assert conductor.store.get_schema(review.digest) == dict(review.json_schema)
+    assert conductor.store.get_schema("../invocations.jsonl") is None
+    # A refused input names no input schema; a withheld payload no payload schema.
+    refused = conductor.invoke(
+        request(agent.spec.agent_id, fakes.message()), acting_for=TEST_PRINCIPAL
+    )
+    assert refused.input_schema is None and refused.payload_schema is None
+
+
 # --- Input check ------------------------------------------------------------------------------
 
 
@@ -179,39 +205,54 @@ def test_the_envelope_records_whom_the_invocation_acted_for(runs_dir: Path) -> N
 def test_input_of_an_unaccepted_class_is_a_failed_outcome_and_the_agent_is_not_run(
     runs_dir: Path,
 ) -> None:
-    agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)  # accepts MetadataRecord
+    agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)  # accepts ProbeRecord
     conductor = make_conductor(runs_dir, agent)
     env = conductor.invoke(request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.FAILED
     assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")
     assert env.problem.http_status == 422
-    assert "MetadataRecord" in (env.problem.detail or "") and "Claim" in (env.problem.detail or "")
+    assert "ProbeRecord" in (env.problem.detail or "") and "ProbeClaim" in (
+        env.problem.detail or ""
+    )
     assert agent.calls == 0
     assert conductor.store.get(env.invocation_id) is not None  # refusals are stored too
 
 
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
-def test_an_agent_may_accept_several_input_classes(runs_dir: Path) -> None:
-    agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)  # MetadataRecord or Profile
+def test_input_that_breaks_its_class_schema_is_not_accepted_and_the_agent_is_not_run(
+    runs_dir: Path,
+) -> None:
+    agent = ScriptedAgent(GroundingMode.RETRIEVAL, fakes.fact_check_over(SOURCE_A))
     conductor = make_conductor(runs_dir, agent)
-    for inp in (fakes.record(), DatasetProfile(title="t")):
+    bad = OpenInput(schema_class="ProbeClaim", subject_uri="https://example.org/x")  # no text
+    env = conductor.invoke(request(agent.spec.agent_id, bad), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert env.problem is not None and env.problem.type.endswith("/input-not-accepted")
+    assert "'text' is a required property" in (env.problem.detail or "")
+    assert agent.calls == 0
+
+
+@pytest.mark.requirement("DD-INPUT-ACCEPTS")
+def test_an_agent_may_accept_several_input_classes(runs_dir: Path) -> None:
+    agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)  # ProbeRecord or -Profile
+    conductor = make_conductor(runs_dir, agent)
+    for inp in (fakes.record(), fakes.profile()):
         assert conductor.invoke(
             request(agent.spec.agent_id, inp), acting_for=TEST_PRINCIPAL
         ).outcome.status == (OutcomeStatus.SUCCEEDED)
     assert conductor.invoke(
-        request(agent.spec.agent_id, Claim(text="x")), acting_for=TEST_PRINCIPAL
+        request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL
     ).outcome.status == (OutcomeStatus.FAILED)
 
 
 @pytest.mark.requirement("DD-OUTCOME")
-def test_stub_accepts_every_input_class_and_abstains(runs_dir: Path) -> None:
+def test_stub_abstains_on_a_message(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub())
-    for inp in (fakes.record(), fakes.claim(), DatasetProfile()):
-        env = conductor.invoke(request("stub.abstain", inp), acting_for=TEST_PRINCIPAL)
-        assert env.outcome.status == OutcomeStatus.ABSTAINED
-        assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
-        assert env.grounding_mode == GroundingMode.NONE
-        assert env.requires_human_review is True
+    env = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
+    assert env.grounding_mode == GroundingMode.NONE
+    assert env.requires_human_review is True
 
 
 # --- Agent contract ---------------------------------------------------------------------------
@@ -233,13 +274,34 @@ def test_payload_of_the_wrong_class_is_a_failed_outcome(runs_dir: Path) -> None:
         GroundingMode.RETRIEVAL,
         fakes.fact_check_over(SOURCE_A),
         steps=[SOURCE_A],
-        payload_type=QualityReview,
+        payload=ClassSchema.of(fakes.ProbeReview),
     )
     env = make_conductor(runs_dir, agent).invoke(
         request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL
     )
     assert env.outcome.status == OutcomeStatus.FAILED
-    assert env.problem is not None and "declared QualityReview" in (env.problem.detail or "")
+    assert env.problem is not None and "declared ProbeReview" in (env.problem.detail or "")
+
+
+def test_payload_its_class_schema_does_not_admit_is_a_failed_outcome(runs_dir: Path) -> None:
+    """The payload check reads the class schema, not a Python type (ADR-0019)."""
+
+    def hollow(request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        good = fakes.fact_check_over(SOURCE_A)
+        assert good.payload is not None
+        return AgentResult(
+            outcome=good.outcome,
+            payload=OpenPayload(schema_class="ProbeCheck", grounded_on=good.payload.grounded_on),
+            evidence=good.evidence,
+        )
+
+    agent = ScriptedAgent(GroundingMode.RETRIEVAL, hollow, steps=[SOURCE_A])
+    env = make_conductor(runs_dir, agent).invoke(
+        request(agent.spec.agent_id, fakes.claim()), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.FAILED and env.payload is None
+    assert env.problem is not None and env.problem.type.endswith("/agent-error")
+    assert "'rationale' is a required property" in (env.problem.detail or "")
 
 
 def _without_reason(request: InvocationRequest, ctx: RunContext) -> AgentResult:
@@ -416,7 +478,7 @@ def test_linter_runs_offline_over_written_spans(runs_dir: Path) -> None:
 def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.NONE, fakes.review_of_input)
     conductor = make_conductor(runs_dir, agent, AbstainingStub(), crate=True)
-    a = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
+    a = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL)
     b = conductor.invoke(request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL)
     ids = [e["invocation_id"] for e in conductor.store.iter_envelopes()]
     assert ids == sorted(ids) == [a.invocation_id, b.invocation_id]  # UUIDv7 sorts chronologically
@@ -435,7 +497,7 @@ def test_every_invocation_is_stored_traced_and_crated(runs_dir: Path) -> None:
 @pytest.mark.requirement("DD-ACTS-FOR", "R10.1")
 def test_the_crate_names_the_human_beside_the_agent(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub(), crate=True)
-    env = conductor.invoke(request("stub.abstain"), acting_for=TEST_PRINCIPAL)
+    env = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL)
     meta = json.loads(
         (runs_dir / env.invocation_id / "crate" / "ro-crate-metadata.json").read_text()
     )
@@ -450,7 +512,7 @@ def test_the_crate_names_the_human_beside_the_agent(runs_dir: Path) -> None:
 @pytest.mark.requirement("R10.1")
 def test_a_reused_invocation_id_is_refused_and_the_stored_run_kept(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub())
-    req = request("stub.abstain")
+    req = request("stub.abstain", fakes.message())
     first = conductor.invoke(req, acting_for=TEST_PRINCIPAL)
     envelope_path = runs_dir / first.invocation_id / "envelope.json"
     stored = envelope_path.read_bytes()
@@ -465,7 +527,7 @@ def test_a_reused_invocation_id_is_refused_and_the_stored_run_kept(runs_dir: Pat
 
 def test_the_store_never_overwrites_a_run(tmp_path: Path) -> None:
     env = make_conductor(tmp_path, AbstainingStub()).invoke(
-        request("stub.abstain"), acting_for=TEST_PRINCIPAL
+        request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL
     )
     with pytest.raises(FileExistsError):
         RunStore(tmp_path).append(env.to_document())
@@ -474,7 +536,7 @@ def test_the_store_never_overwrites_a_run(tmp_path: Path) -> None:
 # Deliberately not marked P14: the slots exist and say not_measured; the footprint is not captured.
 def test_energy_footprint_slots_are_present_but_honestly_not_measured(runs_dir: Path) -> None:
     env = make_conductor(runs_dir, AbstainingStub()).invoke(
-        request("stub.abstain"), acting_for=TEST_PRINCIPAL
+        request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL
     )
     doc = env.to_document()
     assert doc["telemetry"]["energy_method"] == "not_measured"
@@ -482,8 +544,14 @@ def test_energy_footprint_slots_are_present_but_honestly_not_measured(runs_dir: 
 
 
 def test_scripted_specs_accept_what_their_tests_assume() -> None:
-    assert fakes.SPECS[GroundingMode.INPUT_ONLY].accepts == (MetadataRecord,)
-    assert fakes.SPECS[GroundingMode.RETRIEVAL].accepts == (Claim,)
+    assert fakes.SPECS[GroundingMode.INPUT_ONLY].accepts == (ClassSchema.of(fakes.ProbeRecord),)
+    assert fakes.SPECS[GroundingMode.RETRIEVAL].accepts == (ClassSchema.of(fakes.ProbeClaim),)
+
+
+def test_the_doubles_classes_are_generated_from_their_own_linkml() -> None:
+    """The doubles bring their classes as any agent does (ADR-0019); the core has none of them."""
+    source = Path(fakes.__file__).parent / "schema" / "doubles.yaml"
+    assert gen.stale(source) == [], f"run `uv run dd-gen-schema {source}`"
 
 
 def test_the_conductor_keeps_no_spans_after_a_run_and_caps_its_reports(

@@ -23,10 +23,8 @@ from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
     InvocationRequest,
-    MetadataRecord,
     Outcome,
     OutcomeStatus,
-    QualityReview,
     ReasonCode,
 )
 from workbench.evaluation import (
@@ -43,6 +41,8 @@ from workbench.evaluation import (
 )
 from workbench.testing import (
     TEST_PRINCIPAL,
+    ProbeRecord,
+    ProbeReview,
     ScriptedAgent,
     make_conductor,
     record,
@@ -67,7 +67,7 @@ def collect_inspect_streams() -> Iterator[None]:
 
 def behaviour(request: InvocationRequest, ctx: RunContext) -> AgentResult:
     """What the scripted agent does is named by the record's title."""
-    assert isinstance(request.input, MetadataRecord)
+    assert isinstance(request.input, ProbeRecord)
     title = request.input.title
     if title == "abstain":
         return AgentResult(
@@ -80,7 +80,7 @@ def behaviour(request: InvocationRequest, ctx: RunContext) -> AgentResult:
     if title == "ungrounded":
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Reviewed."),
-            payload=QualityReview(score=1.0, grounded_on=[]),
+            payload=ProbeReview(score=1.0, grounded_on=[]),
         )
     return review_of_input(request, ctx)
 

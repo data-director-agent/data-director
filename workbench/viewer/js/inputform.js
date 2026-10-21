@@ -1,18 +1,12 @@
-// The input form: an editable react-jsonschema-form (RJSF) built from an input class's schema in
-// the contract's generated invocation-request schema. It names no class and no agent; a sample,
-// when chosen, is only the form's starting data. Inspect and Chat import it.
+// The input form: an editable react-jsonschema-form (RJSF) built from an input class's schema, as
+// the agent's card carries it in the manifest (ADR-0019). It names no class and no agent; a
+// sample, when chosen, is only the form's starting data. Inspect and Chat import it.
 import React from "https://esm.sh/react@19";
 import { createRoot } from "https://esm.sh/react-dom@19/client";
 import Form from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19,react-dom@19";
 import validator from "https://esm.sh/@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19";
 
 const h = React.createElement;
-
-// One input class's schema, with the shared $defs so nested classes ($ref) resolve.
-export function inputSchema(schema, cls) {
-  const def = cls && schema?.$defs?.[cls];
-  return def ? { ...def, $defs: schema.$defs } : null;
-}
 
 // RJSF's default buttons are Bootstrap glyphs with no visible text; these carry their label.
 function textButton(label) {
@@ -39,8 +33,9 @@ export function inputForm(node) {
   let props = null, data = null, generation = 0;
   const render = () => root.render(props ? h(Form, { ...props, formData: data, ref }) : null);
   return {
+    // `schema` is the class's own schema, self-contained: its $defs resolve nested classes.
     show(cls, schema, formData) {
-      const s = inputSchema(schema, cls);
+      const s = cls && schema ? schema : null;
       data = s ? { ...(formData || {}), schema_class: cls } : null;
       props = s && {
         key: ++generation, schema: s, uiSchema: UISCHEMA, validator, templates,

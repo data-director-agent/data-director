@@ -2,19 +2,26 @@
 // ?invocation_id=… reloads a run.
 import { $, el, icon, statusIcon, wireCopy, inputs, rememberInput, copyButton, fmtTime, shortId, statusPill, kvList, inspectLink, chatLink, parseSse, newRequest, postRun } from "./common.js";
 import { closeTip, help } from "./help.js";
-import { agents, notRunnable, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
+import { agents, classSchema, notRunnable, loadRegistry, renderAgents, renderAgentDetail, renderClasses, renderSamples, fetchSample } from "./registry.js";
 import { payloadView } from "./payload.js";
 import { inputForm } from "./inputform.js";
 
-// The payload fragment comes from the agent's manifest entry, so a new payload class renders
-// as soon as its agent ships a fragment. A replayed run uses its own agent's fragment.
-let schema, requestSchema, current = null;
+// A payload renders from the class schema it was checked against: the envelope names its digest
+// and the run store keeps it (ADR-0019), so a new payload class renders as soon as its agent is
+// registered, and a stored run still renders after its agent's card has changed. A run stored
+// before digests were recorded has none and is shown as JSON.
+let current = null;
 const showPayload = payloadView($("form"));
 const editor = inputForm($("input-form"));
+const schemas = new Map();  // digest -> Promise of the schema, or of null
 
-function payloadSchema(payload) {
-  const def = payload && schema.$defs?.[payload.schema_class];
-  return def ? { ...def, $defs: schema.$defs } : null;
+function payloadSchema(envelope) {
+  const digest = envelope.payload_schema;
+  if (!digest) return Promise.resolve(null);
+  if (!schemas.has(digest)) {
+    schemas.set(digest, fetch(`/schema/sha256/${digest}`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  }
+  return schemas.get(digest);
 }
 
 // A link to another run that loads it in place, and still works opened in a new tab.
@@ -91,7 +98,10 @@ function render(envelope) {
   // Payload: schema-driven through RJSF, badged from the agent's declared derivations.
   const payload = envelope.payload;
   $("payload-class").textContent = payload?.schema_class || "";
-  showPayload(payload, payloadSchema(payload), agents[envelope.agent_id]?.derivations || {}, envelope.evidence || []);
+  const derivations = agents[envelope.agent_id]?.derivations || {};
+  payloadSchema(envelope).then((ps) => {
+    if (current === envelope) showPayload(payload, ps, derivations, envelope.evidence || []);
+  });
 
   // Evidence, with a cross-check against the payload's grounded_on hashes.
   const cited = collectCited(payload);
@@ -225,7 +235,7 @@ async function loadSample() {
   const cls = $("class-select").value, mine = ++loading;
   const doc = await fetchSample($("sample-select").value);
   if (mine !== loading) return;  // a later choice has superseded this one
-  formReady = editor.show(cls, requestSchema, doc);
+  formReady = editor.show(cls, classSchema(selectedAgent(), cls), doc);
   $("input-fieldset").hidden = !cls;
   refreshRunButton();
 }
@@ -234,11 +244,7 @@ function refreshRunButton() {
 }
 
 async function main() {
-  [schema, requestSchema] = await Promise.all([
-    fetch("/schema/envelope.schema.json").then((r) => r.json()),
-    fetch("/schema/invocation_request.schema.json").then((r) => r.json()),
-    loadRegistry(),
-  ]);
+  await loadRegistry();
   renderAgents($("agent-select"));
   $("agent-select").addEventListener("change", () => { renderAgentDetail(selectedAgent(), $("agent-detail")); refreshClasses(); });
   refreshClasses();

@@ -14,7 +14,7 @@ from dd_agent_factcheck.agent import FactChecker
 from dd_agent_r3.agent import R3Agent
 from dd_agent_r3.explain import TemplateExplainer
 from dd_agent_r3.fairsharing.snapshot import SnapshotBackend
-from dd_sdk.contract.models import GroundingMode, OutcomeStatus, parse_input
+from dd_sdk.contract.models import GroundingMode, OpenInput, OutcomeStatus
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from workbench import cli
 from workbench import testing as fakes
@@ -163,7 +163,9 @@ def test_conductor_records_a_verified_result(tmp_path: Path) -> None:
 
 
 def _sample(name: str) -> Any:
-    return parse_input(json.loads((ROOT / "samples" / name).read_text(encoding="utf-8")))
+    return OpenInput.model_validate(
+        json.loads((ROOT / "samples" / name).read_text(encoding="utf-8"))
+    )
 
 
 @pytest.mark.parametrize(
