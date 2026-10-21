@@ -33,15 +33,20 @@ and from every front end.
 
 ## The example
 
-`fact.checker` checks a short claim against a few packaged reference documents. It is a
-`retrieval` agent: it fetches records, then reasons over them. The input is
-[`samples/claim.json`](../samples/claim.json):
+`standards.advisor` recommends vocabularies, ontologies and formats for a dataset from a
+snapshot of the FAIRsharing registry. It is a `retrieval` agent: it fetches records, then
+reasons over them. The input is
+[`samples/soil-chemistry.profile.json`](../samples/soil-chemistry.profile.json), a description of
+a planned dataset. Abridged:
 
 ```json
 {
-  "schema_class": "Claim",
-  "text": "A DOI does not change when the object moves.",
-  "context": "Asserted in a draft data management plan."
+  "schema_class": "DatasetProfile",
+  "title": "Soil chemistry survey of upland grassland plots, Peak District, 2024",
+  "keywords": ["soil chemistry", "upland grassland", "organic carbon", "soil horizon", "Peak District"],
+  "themes": ["Soil science", "Environmental science", "Agriculture"],
+  "media_types": ["text/csv"],
+  "fields": [{ "name": "sample_id", "field_type": "string" }, "…"]
 }
 ```
 
@@ -49,7 +54,7 @@ With the agents running (`scripts/run-agents.sh`) and `DD_PRINCIPAL_ID` and `DD_
 set (see the [README](../README.md#who-an-invocation-acts-for)), from `workbench/`:
 
 ```sh
-uv run workbench invoke --agent fact.checker --input samples/claim.json
+uv run workbench invoke --agent standards.advisor --input samples/soil-chemistry.profile.json
 ```
 
 The CLI wraps the input in a request, giving it a new `invocation_id`, and hands it to the
@@ -77,7 +82,7 @@ recorded inside it.
 ## 1. Policy gate
 
 The conductor asks the deployment's institutional profile (`profiles/default.yaml` unless
-another is configured) whether `fact.checker` is enabled, whether it declares the action class
+another is configured) whether `standards.advisor` is enabled, whether it declares the action class
 the profile assigns it, and whether that class needs a data steward's approval.
 
 Here it is enabled and needs no approval, so the run continues. Had it not been enabled, the
@@ -87,22 +92,23 @@ digest are recorded on every envelope, so a reader can see which rules applied.
 
 ## 2. Input check
 
-`fact.checker` declares that it reads `Claim`. The input is a `Claim`, so the run continues.
+`standards.advisor` declares that it reads `DatasetProfile`. The input is a `DatasetProfile`, so
+the run continues.
 
 Sending it the wrong kind of input shows what a refusal looks like:
 
 ```sh
-uv run workbench invoke --agent fact.checker --input samples/hello.salutation.json
+uv run workbench invoke --agent standards.advisor --input samples/hello.salutation.json
 ```
 
 ```json
 "outcome": {
   "status": "failed",
-  "statement": "fact.checker accepts Claim, not Salutation. The agent was not run."
+  "statement": "standards.advisor accepts DatasetProfile, not Salutation. The agent was not run."
 },
 "problem": {
   "type": "https://w3id.org/data-director/problems/input-not-accepted",
-  "detail": "Agent 'fact.checker' accepts Claim; the request carried 'Salutation'."
+  "detail": "Agent 'standards.advisor' accepts DatasetProfile; the request carried 'Salutation'."
 }
 ```
 
@@ -114,35 +120,47 @@ caller, the run store and a reviewer all see the same record.
 The conductor calls the agent over A2A. The agent runs in its own process and sends back three
 things:
 
-- **an outcome and a payload**: the answer, here the verdict `supported` with a rationale;
+- **an outcome and a payload**: the answer, here 16 recommendations, each with a rationale;
 - **evidence**: the agent's bibliography, one item per record it relied on, each with the
   record's id, where it came from, and a hash of its content;
 - **spans**: the agent's diary of what it did, in OpenTelemetry format.
 
-The payload names its sources in `grounded_on`:
+The payload names its sources in `grounded_on`, once for the whole payload and once for each
+recommendation. One recommendation, abridged:
 
 ```json
 "payload": {
-  "schema_class": "FactCheck",
-  "verdict": "supported",
-  "rationale": "Supported by lexical match against wb:doi-handbook (2 source(s) consulted). …",
-  "rationale_derivation": "template",
+  "schema_class": "Recommendations",
+  "items": [
+    {
+      "kind": "ontology",
+      "target": "dataset",
+      "score": 0.7375,
+      "rationale": "Chemistry vocabulary (FAIRsharing.TrcBD2) is recommended as an ontology … Identity was decided by retrieval and ranking, not by a model.",
+      "rationale_derivation": "template",
+      "classification_derivation": "lexical",
+      "grounded_on": [{ "source_id": "FAIRsharing.TrcBD2", "content_hash": "60d47253…" }]
+    },
+    "…"
+  ],
   "grounded_on": [
-    { "source_id": "wb:doi-handbook", "content_hash": "e5e32e7d…" },
-    { "source_id": "wb:cc-by-4",      "content_hash": "d65e06f6…" }
+    { "source_id": "FAIRsharing.082881", "content_hash": "cdb45788…" },
+    "…"
   ]
 }
 ```
 
-The conductor adds the agent's spans to the run's trace. The finished tree is:
+The conductor adds the agent's spans to the run's trace. The finished tree, abridged:
 
 ```text
-invoke_agent   fact.checker, mode retrieval, input hash 07445efc…   (conductor)
-├── policy_gate                                                      (conductor)
-├── retrieval  wb:doi-handbook, hash e5e32e7d…                       (agent)
-└── retrieval  wb:cc-by-4,      hash d65e06f6…                       (agent)
+invoke_agent   standards.advisor, mode retrieval, input hash 8cda4f3c…   (conductor)
+├── policy_gate                                                           (conductor)
+├── retrieval  FAIRsharing.TrcBD2, hash 60d47253…                         (agent)
+├── retrieval  FAIRsharing.OsiqlF, hash c9b3d4ff…                         (agent)
+└── …          25 more retrievals                                         (agent)
 ```
 
+The agent retrieved 27 candidate records and cites the 14 its recommendations rest on.
 An agent that called a language model would also have a `chat` span, recording the model and
 the token counts.
 
@@ -162,7 +180,7 @@ and what it did (its spans). The linter checks that they agree. For a `retrieval
 Here they agree:
 
 ```text
-grounding: passed [retrieval] (2 retrieval, 0 chat spans)
+grounding: passed [retrieval] (27 retrieval, 0 chat spans)
 ```
 
 To see what a failure looks like, take the stored envelope and add a citation the agent never
@@ -174,8 +192,8 @@ uv run workbench lint runs/<invocation_id>/spans.jsonl tampered.json
 
 ```text
 grounding: FAILED [retrieval]
-  - G2: payload rests on 'wb:made-up' (000000000000…) which was not retrieved in this invocation
-  - G4: payload rests on 'wb:made-up' (000000000000…) absent from evidence
+  - G2: payload rests on 'FAIRsharing.made-up' (000000000000…) which was not retrieved in this invocation
+  - G4: payload rests on 'FAIRsharing.made-up' (000000000000…) absent from evidence
 ```
 
 In a live run, a violation turns a `succeeded` outcome into `failed`, with problem
@@ -197,21 +215,21 @@ looks up the record in the copy named by the item's `snapshot_ref` and hashes it
   changed.
 
 ```text
-sources: 2 verified, 0 unresolved
+sources: 14 verified, 0 unresolved
 ```
 
 The hash is what makes this possible. It is computed in a fixed, registered way (a
 canonicalisation, [ADR-0009](../../docs/adr/0009-evidence-canonicalisations.md)), so the same record
 always gives the same hash, and a single changed character gives a different one. Changing the
-hash an envelope claims for `wb:doi-handbook`:
+hash an envelope claims for `FAIRsharing.082881`:
 
 ```sh
 uv run workbench verify tampered.json
 ```
 
 ```text
-sources: 1 verified, 0 unresolved; FAILED
-  - S2: evidence 'wb:doi-handbook' hash 111111111111… does not match 'packaged:sources.json', where the record hashes to e5e32e7d…
+sources: 13 verified, 0 unresolved; FAILED
+  - S2: evidence 'FAIRsharing.082881' hash 111111111111… does not match 'snapshot:2026-09-04', where the record hashes to cdb45788b725…
 ```
 
 A violation withholds the result in the same way as a linter violation. An item whose source
@@ -244,27 +262,28 @@ The envelope returned to the caller brings the pieces together. Abridged:
 
 ```json
 {
-  "invocation_id": "01a14011-d50a-72ad-b07f-5eadabedcfc9",
-  "agent_id": "fact.checker",
-  "agent_version": "0.1.0",
+  "invocation_id": "01a15ee0-4e05-769d-926e-a918903e19ea",
+  "agent_id": "standards.advisor",
+  "agent_version": "0.2.0",
   "grounding_mode": "retrieval",
   "policy_bundle_ref": "profile:default@v2",
   "acting_for": { "name": "Josiah Carberry", "assurance": "asserted", "…": "…" },
   "outcome": {
     "status": "succeeded",
-    "statement": "Verdict supported, grounded in 2 retrieved source(s). Human review is required."
+    "statement": "16 recommendation(s) across controlled_vocabulary, data_format, field_format, ontology, terminology_unclassified, grounded in 14 FAIRsharing record(s) (snapshot:2026-09-04). Human review is required."
   },
-  "payload": { "verdict": "supported", "grounded_on": ["…"], "…": "…" },
+  "payload": { "items": ["…"], "grounded_on": ["…"], "…": "…" },
   "evidence": [
     {
-      "source_id": "wb:doi-handbook",
-      "source_uri": "https://www.doi.org/the-identifier/resources/handbook",
-      "snapshot_ref": "packaged:sources.json",
-      "canonicalisation": "dd-json-document-v1",
-      "content_hash": "e5e32e7d…"
+      "source_id": "FAIRsharing.082881",
+      "source_uri": "https://fairsharing.org/713",
+      "snapshot_ref": "snapshot:2026-09-04",
+      "canonicalisation": "json-sorted-utf8-v1",
+      "content_hash": "cdb45788…",
+      "content": { "name": "Tabular Data Package", "…": "…" }
     }
   ],
-  "telemetry": { "trace_id": "511a8dfc7269b29841f499efd7788967" },
+  "telemetry": { "trace_id": "390dea2e7aab2aa1ca8d5f00f415ec08" },
   "requires_human_review": true
 }
 ```

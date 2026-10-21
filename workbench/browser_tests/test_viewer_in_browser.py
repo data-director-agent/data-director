@@ -64,13 +64,13 @@ def test_inspect_shows_an_abstention_without_a_payload(viewer: Page, server_url:
 
 
 def test_inspect_marks_the_evidence_the_payload_cites(viewer: Page, server_url: str) -> None:
-    open_inspect(viewer, server_url, "fact.checker", "claim.json")
+    open_inspect(viewer, server_url, "standards.advisor", "soil-chemistry.profile.json")
     viewer.locator("#run").click()
     outcome(viewer, "succeeded")
     rows = viewer.locator("#evidence tbody tr")
     expect(rows.first).to_be_visible(timeout=TIMEOUT_MS)
     expect(rows.filter(has_text="cited").first).to_be_visible()
-    expect(viewer.locator("#form .badge.lexical")).to_have_count(1, timeout=TIMEOUT_MS)
+    expect(viewer.locator("#form .badge.lexical").first).to_be_visible(timeout=TIMEOUT_MS)
     expect(viewer.locator("#telemetry")).to_contain_text("trace_id")
 
 
@@ -145,9 +145,9 @@ def test_the_agents_page_lists_every_registered_agent(viewer: Page, server_url: 
     viewer.goto(f"{server_url}/viewer/agents.html")
     for agent_id in (
         "director.stub",
-        "fact.checker",
         "hello.world",
         "quality.reviewer",
+        "standards.advisor",
         "stub.abstain",
     ):
         row = viewer.locator(f'#agent-list button[data-id="{agent_id}"]')

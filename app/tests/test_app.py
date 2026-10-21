@@ -16,18 +16,22 @@ from typing import Any
 import pytest
 from starlette.testclient import TestClient
 
-from dd_agent_factcheck.agent import build as build_factcheck
 from dd_agent_hello.agent import build as build_hello
 from dd_agent_quality.agent import build as build_quality
 from dd_agent_standards import factory as standards
-from dd_agent_stub.agent import build as build_stub
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import STANDARDS_AGENT_ID, Governance
 from dd_harness.identity import IdentityError
 from dd_harness.policy import load_profile
 from dd_harness.registry import load_config
-from dd_harness.testing import PERMISSIVE, RESTRICTIVE, TEST_PRINCIPAL, make_conductor
+from dd_harness.testing import (
+    PERMISSIVE,
+    RESTRICTIVE,
+    TEST_PRINCIPAL,
+    AbstainingStub,
+    make_conductor,
+)
 from dd_sdk.agent import Agent
 
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
@@ -87,16 +91,12 @@ def test_the_reference_set_lists_and_enables_every_other_in_tree_agent():
     assert [(e["name"], e["url"]) for e in entries] == [
         ("hello", "http://127.0.0.1:8101"),
         ("quality", "http://127.0.0.1:8102"),
-        ("factcheck", "http://127.0.0.1:8103"),
-        ("stub", "http://127.0.0.1:8104"),
         ("director", "http://127.0.0.1:8106"),
     ]
     enabled = (
         STANDARDS_AGENT_ID,
         "hello.world",
         "quality.reviewer",
-        "fact.checker",
-        "stub.abstain",
         "director.stub",
     )
     assert load_profile(DEFAULT_PROFILE).agents == dict.fromkeys(enabled, "advise")
@@ -120,7 +120,7 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v2"
+    assert body["profile"]["ref"] == "profile:data-director-app@v3"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 
 
@@ -172,8 +172,7 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
     agents: list[Agent] = [
         build_hello(),
         build_quality(),
-        build_factcheck(),
-        build_stub(),
+        AbstainingStub(),
         standards.build(),
     ]
     governance = Governance(
@@ -303,11 +302,10 @@ def test_a_run_that_is_not_stored_is_not_found(
 def test_the_examples_name_their_class(governance: Governance, dist: Path):
     found = TestClient(build_app(governance, dist)).get("/api/examples").json()
     assert [(e["name"], e["schema_class"]) for e in found] == [
-        ("claim", "Claim"),
         ("director.message", "Message"),
         ("empty.profile", "DatasetProfile"),
         ("hello.salutation", "Salutation"),
         ("orda-record.metadata", "MetadataRecord"),
         ("soil-chemistry.profile", "DatasetProfile"),
     ]
-    assert found[5]["input"] == example("soil-chemistry.profile")
+    assert found[4]["input"] == example("soil-chemistry.profile")

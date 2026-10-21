@@ -1,6 +1,6 @@
 """Conductor, policy gate, input check, tracing, evidence and grounding linter, using scripted
-agents. Nothing here depends on a real agent; see test_quality.py, test_factcheck.py and the
-xfailed test_standards_harness.py for those."""
+agents. Nothing here depends on a real agent; see test_quality.py and the xfailed
+test_standards_harness.py for those."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 
-from dd_agent_stub.agent import AbstainingStub
 from dd_harness import grounding
 from dd_harness import testing as fakes
 from dd_harness.conductor import DuplicateInvocation
@@ -22,6 +21,7 @@ from dd_harness.testing import (
     SOURCE_A,
     SOURCE_B,
     TEST_PRINCIPAL,
+    AbstainingStub,
     Chat,
     ScriptedAgent,
     make_conductor,

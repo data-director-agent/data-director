@@ -9,10 +9,6 @@ agents:
     url: http://127.0.0.1:8101
   - name: quality
     url: http://127.0.0.1:8102
-  - name: factcheck
-    url: http://127.0.0.1:8103
-  - name: stub
-    url: http://127.0.0.1:8104
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
   # theirs (ADR-0012). TODO: the app has no A2A address of its own, so the conductor issues it
   # no delegation grant and it abstains (capability_not_implemented) until the app serves one.

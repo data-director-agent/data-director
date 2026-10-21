@@ -21,10 +21,9 @@ rules:
     relay_field: greeting_text
     example: hello Ada
 
-  - name: check
-    agent_id: fact.checker
-    pattern: '^(?:check(?: that)?|is it true that)\s+(?P<text>.+?)\??$'
-    input: { schema_class: Claim, text: "{text}" }
-    mention_input: { schema_class: Claim, text: "{rest}" }
-    relay_field: rationale
-    example: check A DOI does not change when the object moves.
+  - name: standards
+    agent_id: standards.advisor
+    pattern: '^(?:recommend\s+)?standards\s+for\s+(?P<topic>.+?)[.?!]*$'
+    input: { schema_class: DatasetProfile, title: "{topic}", keywords: ["{topic}"] }
+    mention_input: { schema_class: DatasetProfile, title: "{rest}", keywords: ["{rest}"] }
+    example: standards for soil chemistry

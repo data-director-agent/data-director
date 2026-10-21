@@ -1,8 +1,8 @@
 """hello.world through the conductor: the template agent, and the `none` mode success path.
 
-`stub.abstain` is the workbench's other `none`-mode agent and it never succeeds, so this module
-is where mode `none` is exercised with a grounded payload: R1 (no retrieval), R2 and R3 (cites
-the input, and only the input), N1 (no chat span).
+The harness test kit's `stub.abstain` is the other `none`-mode agent and it never succeeds, so this
+module is where mode `none` is exercised with a grounded payload: R1 (no retrieval), R2 and R3
+(cites the input, and only the input), N1 (no chat span).
 """
 
 from __future__ import annotations

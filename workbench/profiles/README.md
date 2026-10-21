@@ -26,7 +26,7 @@ description: One sentence saying who this profile is for.
 
 agents:                      # only these agents may run, each with the action class you assign it
   standards.advisor: advise
-  stub.abstain: advise
+  hello.world: advise
 
 actions_requiring_approval:  # action classes a human must approve before an agent performs them
   - deposit                  # writing a dataset or metadata record to a repository

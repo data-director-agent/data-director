@@ -85,8 +85,7 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
   await expect(page.locator("main")).toBeFocused();
 
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("option", { name: "fact.checker" })).toBeFocused();
-  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("option", { name: "hello.world" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("option", { name: "quality.reviewer" })).toBeFocused();
   await expect(page.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
@@ -104,7 +103,7 @@ test("reflows at 320 CSS pixels (400% of 1280) without horizontal scrolling", as
   await serve(page, several);
   await page.goto("/");
   await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
-  for (const option of ["fact.checker", "standards.advisor", "stub.abstain"]) {
+  for (const option of ["quality.reviewer", "standards.advisor", "stub.abstain"]) {
     await page.getByRole("option", { name: option }).click();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

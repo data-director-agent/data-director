@@ -7,9 +7,7 @@ description: Development profile for the workbench; enables every in-tree agent,
 # declares a different class is refused until this file is updated.
 agents:
   quality.reviewer: advise
-  fact.checker: advise
   standards.advisor: advise
-  stub.abstain: advise
   hello.world: advise
   director.stub: advise
 

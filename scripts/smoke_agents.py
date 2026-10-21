@@ -46,10 +46,9 @@ PRINCIPAL = {"DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097", "DD_PRI
 CASES = [
     ("hello.world", "hello.salutation.json", "succeeded"),
     ("quality.reviewer", "orda-record.metadata.json", "succeeded"),
-    ("fact.checker", "claim.json", "succeeded"),
     ("standards.advisor", "soil-chemistry.profile.json", "succeeded"),
     ("standards.advisor", "empty.profile.json", "abstained"),
-    ("quality.reviewer", "claim.json", "failed"),
+    ("quality.reviewer", "hello.salutation.json", "failed"),
 ]
 
 

@@ -24,12 +24,11 @@ import uvicorn
 from playwright.sync_api import Browser, ConsoleMessage, Error, Page, Route
 
 from dd_agent_director.agent import build as build_director
-from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
-from dd_agent_stub.agent import AbstainingStub
+from dd_agent_standards.factory import build as build_standards
 from dd_harness.identity import OperatorAssertion
-from dd_harness.testing import TEST_PRINCIPAL, make_conductor
+from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub, make_conductor
 from workbench.transport.app import build_app
 
 HAR = Path(__file__).with_name("esm.sh.har.zip")
@@ -67,7 +66,7 @@ def server_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
             HelloWorld(),
             AbstainingStub(),
             QualityReviewer(),
-            FactChecker(),
+            build_standards({}),
             build_director(),
         )
         app = build_app(conductor, OperatorAssertion(TEST_PRINCIPAL), base_url=url)

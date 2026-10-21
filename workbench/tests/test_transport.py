@@ -14,14 +14,13 @@ from a2a.client import ClientConfig, create_client
 from a2a.helpers import get_data_parts, new_data_part, new_message
 from a2a.types import Role, SendMessageRequest, TaskState
 
-from dd_agent_factcheck.agent import FactChecker
-from dd_agent_factcheck.classes import Claim
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_quality.classes import MetadataRecord, QualityReview
-from dd_agent_stub.agent import AbstainingStub
+from dd_agent_standards.factory import build as build_standards
+from dd_agent_standards.testing import soil_profile
 from dd_harness.identity import OperatorAssertion
-from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub, make_conductor, request
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import new_invocation_id, to_document
 from workbench.transport.app import build_app
@@ -39,14 +38,9 @@ def record() -> MetadataRecord:
     )
 
 
-def claim() -> Claim:
-    """An input for the real fact.checker, in its own class."""
-    return Claim(text="A DOI does not change when the object moves.")
-
-
 def _app(runs_dir: Path):
     conductor = make_conductor(
-        runs_dir, QualityReviewer(), FactChecker(), HelloWorld(), AbstainingStub()
+        runs_dir, QualityReviewer(), build_standards({}), HelloWorld(), AbstainingStub()
     )
     return conductor, build_app(conductor, OperatorAssertion(TEST_PRINCIPAL), base_url=BASE)
 
@@ -81,7 +75,7 @@ def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) 
     _, app = _app(runs_dir)
     _, card = _get(app, "/.well-known/agent-card.json")
     skills = {s["id"]: s for s in card["skills"]}
-    assert set(skills) == {"quality.reviewer", "fact.checker", "hello.world", "stub.abstain"}
+    assert set(skills) == {"quality.reviewer", "standards.advisor", "hello.world", "stub.abstain"}
     assert {"grounding:input_only", "accepts:MetadataRecord"} <= set(
         skills["quality.reviewer"]["tags"]
     )
@@ -91,7 +85,7 @@ def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) 
 @pytest.mark.requirement("C5.1")
 def test_a2a_message_send_returns_envelope_artifact(runs_dir: Path) -> None:
     conductor, app = _app(runs_dir)
-    resp = asyncio.run(_send_a2a(app, to_document(request("fact.checker", claim()))))
+    resp = asyncio.run(_send_a2a(app, to_document(request("standards.advisor", soil_profile()))))
     task = resp.task
     assert task.status.state == TaskState.TASK_STATE_COMPLETED
     (envelope,) = get_data_parts(task.artifacts[0].parts)
@@ -104,7 +98,7 @@ def test_a2a_message_send_returns_envelope_artifact(runs_dir: Path) -> None:
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
 def test_a2a_input_mismatch_is_an_envelope_not_a_transport_failure(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
-    resp = asyncio.run(_send_a2a(app, to_document(request("fact.checker", record()))))
+    resp = asyncio.run(_send_a2a(app, to_document(request("standards.advisor", record()))))
     assert resp.task.status.state == TaskState.TASK_STATE_COMPLETED
     (envelope,) = get_data_parts(resp.task.artifacts[0].parts)
     assert envelope["outcome"]["status"] == "failed"
@@ -287,12 +281,12 @@ def test_a_request_saying_whom_it_acts_for_is_refused_by_both_transports(runs_di
 @pytest.mark.requirement("DD-ACTS-FOR")
 def test_each_transport_records_the_principal_its_authenticator_names(runs_dir: Path) -> None:
     conductor, app = _app(runs_dir)
-    resp = asyncio.run(_send_a2a(app, to_document(request("fact.checker", claim()))))
+    resp = asyncio.run(_send_a2a(app, to_document(request("standards.advisor", soil_profile()))))
     assert resp.task.status.state == TaskState.TASK_STATE_COMPLETED
 
     async def agui() -> None:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
-            doc = to_document(request("fact.checker", claim()))
+            doc = to_document(request("standards.advisor", soil_profile()))
             await hc.post("/agui", json=_agui_body(doc, "t1"))
 
     asyncio.run(agui())
@@ -317,11 +311,11 @@ def test_manifest_samples_and_schema_are_served(runs_dir: Path) -> None:
     assert status == 200
     classes = {s["name"]: s["schema_class"] for s in samples}
     assert (
-        classes["claim.json"] == "Claim"
+        classes["soil-chemistry.profile.json"] == "DatasetProfile"
         and classes["orda-record.metadata.json"] == "MetadataRecord"
     )
-    status, doc = _get(app, "/samples/claim.json")
-    assert status == 200 and doc["schema_class"] == "Claim"
+    status, doc = _get(app, "/samples/soil-chemistry.profile.json")
+    assert status == 200 and doc["schema_class"] == "DatasetProfile"
     status, _ = _get(app, "/samples/..%2Fpyproject.toml")
     assert status == 404
     status, _ = _get(app, "/samples/nope.json")

@@ -4,9 +4,7 @@
   "workbench": "0.1.0",
   "app": "0.3.0-alpha.1",
   "agents/director": "0.1.0",
-  "agents/factcheck": "0.1.0",
   "agents/hello": "0.1.0",
   "agents/quality": "0.1.0",
-  "agents/standards": "0.1.0",
-  "agents/stub": "0.1.0"
+  "agents/standards": "0.1.0"
 }

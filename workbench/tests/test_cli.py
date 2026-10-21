@@ -13,12 +13,10 @@ from typing import Any
 import httpx
 import pytest
 
-from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
-from dd_agent_stub.agent import AbstainingStub
 from dd_harness.registry import Registry
-from dd_harness.testing import TEST_PRINCIPAL
+from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub
 from dd_sdk import serve
 from dd_sdk.agent import Agent
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
@@ -63,14 +61,13 @@ def test_a_missing_configuration_file_is_a_one_line_error(
 AGENTS: dict[str, Agent] = {
     "http://hello.test": HelloWorld(),
     "http://quality.test": QualityReviewer(),
-    "http://factcheck.test": FactChecker(),
     "http://stub.test": AbstainingStub(),
 }
-IDS = {"fact.checker", "hello.world", "quality.reviewer", "stub.abstain"}
+IDS = {"hello.world", "quality.reviewer", "stub.abstain"}
 
 
 def _registry(tmp_path: Path) -> Registry:
-    """The four agents above, served in memory, and an `standards` entry nothing answers."""
+    """The three agents above, served in memory, and an `standards` entry nothing answers."""
     apps = {url: serve.app(agent, base_url=url) for url, agent in AGENTS.items()}
 
     def factory(base_url: str, timeout_s: float) -> httpx.AsyncClient:
@@ -153,7 +150,8 @@ def no_principal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.requirement("DD-ACTS-FOR")
 @pytest.mark.parametrize(
-    "command", [["invoke", "--agent", "hello.world", "--input", "samples/claim.json"], ["serve"]]
+    "command",
+    [["invoke", "--agent", "hello.world", "--input", "samples/hello.salutation.json"], ["serve"]],
 )
 def test_the_cli_runs_nothing_without_a_principal(
     no_principal: None, command: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch

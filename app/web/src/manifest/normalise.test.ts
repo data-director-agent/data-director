@@ -17,14 +17,13 @@ describe("normalise", () => {
     const directory = normalise(referenceSet);
     expect(directory.agents.map((a) => a.id)).toEqual(["standards.advisor"]);
     expect(directory.agents[0]?.gate).toEqual({ kind: "permitted", actionClass: "advise" });
-    expect(directory.profileRef).toBe("profile:data-director-app@v2");
+    expect(directory.profileRef).toBe("profile:data-director-app@v3");
     expect(directory.actingFor.assurance).toBe("asserted");
   });
 
   it("keeps every agent of different shapes and names none specially", () => {
     const directory = normalise(severalAgents);
     expect(directory.agents.map((a) => [a.id, a.groundingMode, a.payload])).toEqual([
-      ["fact.checker", "retrieval", "FactCheck"],
       ["hello.world", "none", "Greeting"],
       ["quality.reviewer", "input_only", "QualityReview"],
       ["standards.advisor", "retrieval", "Recommendations"],
@@ -66,8 +65,7 @@ describe("normalise", () => {
 
 describe("gateStatus", () => {
   it("is not-permitted when the profile does not list the agent", () => {
-    const standards = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
-    expect(standards && gateStatus(standards)).toEqual({ kind: "not-permitted" });
+    expect(gateStatus(entry({ assigned_action_class: null }))).toEqual({ kind: "not-permitted" });
   });
 
   it("is a mismatch when the card declares another class than the profile assigns", () => {
