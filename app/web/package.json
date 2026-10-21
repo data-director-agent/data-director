@@ -1,7 +1,7 @@
 {
   "name": "data-director-shell",
   "private": true,
-  "version": "0.2.0-alpha.1",
+  "version": "0.3.0-alpha.1",
   "description": "The Data Director app shell: drawn from each agent's manifest and the AG-UI event stream (ADR-0024)",
   "license": "MIT",
   "type": "module",
