@@ -27,9 +27,8 @@ from dd_agent_director.agent import build as build_director
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
-from dd_agent_stub.agent import AbstainingStub
 from dd_harness.identity import OperatorAssertion
-from dd_harness.testing import TEST_PRINCIPAL, make_conductor
+from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub, make_conductor
 from workbench.transport.app import build_app
 
 HAR = Path(__file__).with_name("esm.sh.har.zip")

@@ -45,10 +45,6 @@
     "agents/standards": {
       "component": "agent-standards",
       "release-type": "python"
-    },
-    "agents/stub": {
-      "component": "agent-stub",
-      "release-type": "python"
     }
   }
 }

@@ -18,7 +18,6 @@ members = [
     "data-director-agent-hello",
     "data-director-agent-quality",
     "data-director-agent-standards",
-    "data-director-agent-stub",
     "data-director-app",
     "data-director-harness",
     "data-director-sdk",
@@ -806,7 +805,6 @@ dependencies = [
     { name = "data-director-agent-hello" },
     { name = "data-director-agent-quality" },
     { name = "data-director-agent-standards" },
-    { name = "data-director-agent-stub" },
     { name = "data-director-app" },
     { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-sdk" },
@@ -839,7 +837,6 @@ requires-dist = [
     { name = "data-director-agent-hello", editable = "agents/hello" },
     { name = "data-director-agent-quality", editable = "agents/quality" },
     { name = "data-director-agent-standards", editable = "agents/standards" },
-    { name = "data-director-agent-stub", editable = "agents/stub" },
     { name = "data-director-app", editable = "app" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-sdk", editable = "sdk" },
@@ -942,17 +939,6 @@ requires-dist = [
     { name = "rank-bm25", specifier = ">=0.2.2" },
 ]
 provides-extras = ["anthropic"]
-
-[[package]]
-name = "data-director-agent-stub"
-version = "0.1.0"
-source = { editable = "agents/stub" }
-dependencies = [
-    { name = "data-director-sdk" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "data-director-sdk", editable = "sdk" }]
 
 [[package]]
 name = "data-director-app"

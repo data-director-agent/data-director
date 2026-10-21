@@ -146,7 +146,7 @@ def make_conductor(runs_dir: Path, standards: Any = None, crate: bool = True) ->
     lazily: it is a development dependency of the workspace, not a dependency of this agent."""
     from dd_agent_standards.agent import StandardsAgent
     from dd_agent_standards.explain import TemplateExplainer
-    from dd_agent_stub.agent import AbstainingStub
+    from dd_harness.testing import AbstainingStub
     from workbench.config import DEFAULT_PROFILE
     from workbench.testing import make_conductor as workbench_conductor
 

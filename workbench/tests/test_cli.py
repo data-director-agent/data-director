@@ -16,9 +16,8 @@ import pytest
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
-from dd_agent_stub.agent import AbstainingStub
 from dd_harness.registry import Registry
-from dd_harness.testing import TEST_PRINCIPAL
+from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub
 from dd_sdk import serve
 from dd_sdk.agent import Agent
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash

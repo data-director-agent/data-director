@@ -9,7 +9,6 @@ agents:
   quality.reviewer: advise
   fact.checker: advise
   standards.advisor: advise
-  stub.abstain: advise
   hello.world: advise
   director.stub: advise
 

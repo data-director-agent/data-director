@@ -68,7 +68,7 @@ uv run workbench invoke --agent quality.reviewer --input samples/orda-record.met
 uv run workbench invoke --agent fact.checker     --input samples/claim.json
 uv run workbench invoke --agent hello.world      --input samples/hello.salutation.json
 uv run workbench invoke --agent quality.reviewer --input samples/claim.json   # failed: input-not-accepted
-uv run workbench invoke --agent stub.abstain     --input samples/claim.json   # abstained
+uv run workbench invoke --agent standards.advisor --input samples/empty.profile.json   # abstained
 uv run workbench serve                                 # then open http://127.0.0.1:8000/viewer/
 ```
 

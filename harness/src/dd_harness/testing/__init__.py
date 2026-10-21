@@ -12,8 +12,10 @@ The conductor `make_conductor` builds also serves its own A2A routes
 delegation agent's call back to the conductor (ADR-0012) crosses the real wire too. Nothing here
 needs the workbench (ADR-0022).
 
-`ScriptedAgent` is a generic double whose specification and behaviour are set per test. It emits
-the spans a test asks for, then returns (or raises) what it was given, so harness and linter
+`AbstainingStub` abstains unconditionally under the fixed id `stub.abstain`, which the test profiles
+name, so a test can exercise the gate, the store and the non-success path without scripting
+anything. `ScriptedAgent` is a generic double whose specification and behaviour are set per test. It
+emits the spans a test asks for, then returns (or raises) what it was given, so harness and linter
 behaviour can be pinned for each grounding mode without a retrieval backend or a model. Nothing
 here knows about any real agent.
 
@@ -56,6 +58,7 @@ from dd_sdk.contract.models import (
     Outcome,
     OutcomeStatus,
     Principal,
+    ReasonCode,
     Reply,
 )
 from dd_sdk.delegate import Delegated, HarnessDelegate
@@ -76,6 +79,7 @@ __all__ = [
     "SOURCE_B",
     "SPECS",
     "TEST_PRINCIPAL",
+    "AbstainingStub",
     "Behaviour",
     "Chat",
     "ProbeCheck",
@@ -245,6 +249,33 @@ class ScriptedAgent:
         if isinstance(self.behaviour, AgentResult):
             return self.behaviour
         return self.behaviour(request, ctx)
+
+
+class AbstainingStub:
+    """Abstains unconditionally with `capability_not_implemented`. It accepts the core's
+    `Message` (ADR-0019) and declares grounding mode `none`."""
+
+    spec = AgentSpec(
+        agent_id="stub.abstain",
+        version="0.3.0",
+        description="Abstains unconditionally; exercises the non-success path.",
+        action_class="advise",
+        accepts=(ClassSchema.of(Message),),
+        grounding_mode=GroundingMode.NONE,
+        payload=None,
+    )
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        return AgentResult(
+            outcome=Outcome(
+                status=OutcomeStatus.ABSTAINED,
+                reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+                statement=(
+                    "This agent is a stub and abstains unconditionally. No registry was searched "
+                    "and no model was called."
+                ),
+            )
+        )
 
 
 # --- Results a scripted agent can return ------------------------------------------------------

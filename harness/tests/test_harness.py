@@ -10,7 +10,6 @@ from pathlib import Path
 
 import pytest
 
-from dd_agent_stub.agent import AbstainingStub
 from dd_harness import grounding
 from dd_harness import testing as fakes
 from dd_harness.conductor import DuplicateInvocation
@@ -22,6 +21,7 @@ from dd_harness.testing import (
     SOURCE_A,
     SOURCE_B,
     TEST_PRINCIPAL,
+    AbstainingStub,
     Chat,
     ScriptedAgent,
     make_conductor,

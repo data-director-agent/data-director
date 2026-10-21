@@ -20,12 +20,17 @@ from dd_agent_factcheck.agent import build as build_factcheck
 from dd_agent_hello.agent import build as build_hello
 from dd_agent_quality.agent import build as build_quality
 from dd_agent_standards import factory as standards
-from dd_agent_stub.agent import build as build_stub
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import settings_from_env
 from dd_app.governance import STANDARDS_AGENT_ID, Governance
 from dd_harness.identity import IdentityError
-from dd_harness.testing import PERMISSIVE, RESTRICTIVE, TEST_PRINCIPAL, make_conductor
+from dd_harness.testing import (
+    PERMISSIVE,
+    RESTRICTIVE,
+    TEST_PRINCIPAL,
+    AbstainingStub,
+    make_conductor,
+)
 from dd_sdk.agent import Agent
 
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
@@ -142,7 +147,7 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         build_hello(),
         build_quality(),
         build_factcheck(),
-        build_stub(),
+        AbstainingStub(),
         standards.build(),
     ]
     governance = Governance(

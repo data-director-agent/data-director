@@ -81,7 +81,7 @@ grounding mode, which says what its output may rest on. There is no default.
 |---|---|---|---|---|---|
 | `retrieval` | fetches records from outside sources, then reasons over them. | Yes, but only after it has fetched something. | only records it fetched in this run. | G0, E1, G1–G4 | `fact.checker`, `standards.advisor` |
 | `input_only` | works only on the input it was given. | Yes. | only the input. | G0, E1, R1–R3 | `quality.reviewer` |
-| `none` | works only on its input, by fixed rules, with no model. The same input always gives the same result. | No. | only the input. | G0, E1, R1–R3, N1 | `hello.world`, `stub.abstain` |
+| `none` | works only on its input, by fixed rules, with no model. The same input always gives the same result. | No. | only the input. | G0, E1, R1–R3, N1 | `hello.world` |
 | `delegation` | works on its input and on the envelopes of runs it delegated through the workbench. | Yes. | the input, and runs the conductor recorded as delegated. | G0, E1, R1, D1–D3, G4 | `director.stub` |
 
 The modes run from least to most restricted: `input_only` forbids fetching, and `none` also

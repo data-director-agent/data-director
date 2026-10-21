@@ -26,7 +26,7 @@ from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_standards.agent import StandardsAgent
-from dd_agent_stub.agent import AbstainingStub
+from dd_harness.testing import AbstainingStub
 from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import Assurance, Derivation, GroundingMode, OutcomeStatus
 

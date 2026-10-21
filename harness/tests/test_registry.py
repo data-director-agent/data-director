@@ -13,10 +13,9 @@ import pytest
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
-from dd_agent_stub.agent import AbstainingStub
 from dd_harness.registry import Registry, RegistryError, load_config
 from dd_harness.remote import RemoteAgent
-from dd_harness.testing import ScriptedAgent, in_process, review_of_input
+from dd_harness.testing import AbstainingStub, ScriptedAgent, in_process, review_of_input
 from dd_sdk import serve
 from dd_sdk.agent import Agent, describe
 from dd_sdk.contract.models import GroundingMode

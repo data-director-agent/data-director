@@ -19,9 +19,8 @@ from dd_agent_factcheck.classes import Claim
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_quality.classes import MetadataRecord, QualityReview
-from dd_agent_stub.agent import AbstainingStub
 from dd_harness.identity import OperatorAssertion
-from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub, make_conductor, request
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import new_invocation_id, to_document
 from workbench.transport.app import build_app

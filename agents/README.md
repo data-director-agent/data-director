@@ -33,7 +33,6 @@ lists an agent built against an incompatible one as **incompatible**.
 | `quality/` | `quality.reviewer` | `MetadataRecord` | `input_only` | `QualityReview` | `dd-quality`, port 8102 | Demonstration: weighted completeness from `checks.yaml`. |
 | `factcheck/` | `fact.checker` | `Claim` | `retrieval` | `FactCheck` | `dd-factcheck`, port 8103 | Demonstration: lexical verdict over packaged `sources.json`. |
 | `hello/` | `hello.world` | `Salutation` | `none` | `Greeting` | `dd-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
-| `stub/` | `stub.abstain` | `Message` | `none` | — | `dd-stub`, port 8104 | Abstains unconditionally. |
 | `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012). |
 | `standards/` | `standards.advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`r3/src/dd_agent_standards/README.md`). |
 
