@@ -648,7 +648,7 @@
           }
         },
         "Recommendations": {
-          "digest": "37d5235cbdf787c0bfd234c312914219b7826e8b1b715ff52e8daa97548e7d31",
+          "digest": "c22722f4b58c133e6f11a747c8c8e16460b36eb3c6c6e4b62585279b8b8e64e0",
           "json_schema": {
             "$comment": "Generated from r3.yaml by `uv run dd-gen-schema <path to r3.yaml>`. Do not edit.",
             "$defs": {
@@ -687,7 +687,14 @@
                 "description": "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (ADR-0015).",
                 "properties": {
                   "classification_derivation": {
-                    "$ref": "#/$defs/Derivation"
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/Derivation"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "grounded_on": {
                     "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",

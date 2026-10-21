@@ -27,13 +27,13 @@ dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=8.3",
-  "pytest-recording>=0.13",
+  "pytest-recording>=0.14.0",
   "pytest-json-report>=1.5",
   # The viewer's browser tests (workbench/browser_tests/); browsers come from `playwright install`.
   "pytest-playwright>=0.7",
-  "linkml>=1.11",
-  "ruff>=0.9",
-  "mypy>=1.15",
+  "linkml>=1.12.1",
+  "ruff>=0.17.0",
+  "mypy>=2.4.0",
   "types-jsonschema>=4.26.0.20261006",
   "types-PyYAML>=6.0",
   "pytest-cov>=7.1.0",
