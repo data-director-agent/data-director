@@ -53,6 +53,27 @@ regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`
 Python, JavaScript and TypeScript code and the workflows, and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
 
+## Pull request titles and branch names
+
+A pull request is squash-merged, so its title becomes the commit subject on `main`, and
+release-please reads that subject as a [Conventional Commit](https://www.conventionalcommits.org/)
+to decide each package's next version and its changelog. `names.yml` checks every pull request
+and runs again when the title is edited:
+
+* the title is `type(scope)!: summary`. `type` is one of `build`, `chore`, `ci`, `docs`, `feat`,
+  `fix`, `perf`, `refactor`, `revert`, `style` or `test`; `(scope)`, usually the package
+  (`app`, `harness`, `sdk`), and `!`, for a breaking change, are optional. The summary starts in
+  lower case unless its first word is a name or acronym, has no closing full stop, and the whole
+  title is at most 90 characters: `feat(app): register every in-tree agent`
+* the branch is lower-case words joined by hyphens, optionally grouped with slashes, in at most
+  60 characters: `ci-faster`, `harness/run-store`
+
+Dependabot's and release-please's pull requests are exempt. Check a title and branch locally:
+
+```
+python3 scripts/check_names.py --title "feat(app): history tab" --branch "$(git branch --show-current)"
+```
+
 ## Keeping `uv.lock` current
 
 `uv.lock` records every workspace package's version and dependencies, so any branch that changes
