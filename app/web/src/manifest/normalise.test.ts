@@ -7,15 +7,15 @@ const referenceSet = reference as unknown as RawAgentsResponse;
 const severalAgents = several as unknown as RawAgentsResponse;
 
 function entry(overrides: Partial<RawManifestEntry>): RawManifestEntry {
-  const r3 = referenceSet.agents[0];
-  if (!r3) throw new Error("the reference fixture lists no agent");
-  return { ...r3, ...overrides };
+  const standards = referenceSet.agents[0];
+  if (!standards) throw new Error("the reference fixture lists no agent");
+  return { ...standards, ...overrides };
 }
 
 describe("normalise", () => {
-  it("draws the reference set: R3, permitted, as the profile assigns it", () => {
+  it("draws the reference set: the standards advisor, permitted, as the profile assigns it", () => {
     const directory = normalise(referenceSet);
-    expect(directory.agents.map((a) => a.id)).toEqual(["r3.standards-advisor"]);
+    expect(directory.agents.map((a) => a.id)).toEqual(["standards.advisor"]);
     expect(directory.agents[0]?.gate).toEqual({ kind: "permitted", actionClass: "advise" });
     expect(directory.profileRef).toBe("profile:data-director-app@v1");
     expect(directory.actingFor.assurance).toBe("asserted");
@@ -27,7 +27,7 @@ describe("normalise", () => {
       ["fact.checker", "retrieval", "FactCheck"],
       ["hello.world", "none", "Greeting"],
       ["quality.reviewer", "input_only", "QualityReview"],
-      ["r3.standards-advisor", "retrieval", "Recommendations"],
+      ["standards.advisor", "retrieval", "Recommendations"],
       ["stub.abstain", "none", null],
     ]);
   });
@@ -39,8 +39,8 @@ describe("normalise", () => {
   });
 
   it("lists derivations by field path", () => {
-    const r3 = normalise(referenceSet).agents[0];
-    expect(r3?.derivations).toEqual([
+    const standards = normalise(referenceSet).agents[0];
+    expect(standards?.derivations).toEqual([
       { path: "items.kind", how: "lexical" },
       { path: "items.rationale", how: "model" },
     ]);
@@ -61,8 +61,8 @@ describe("normalise", () => {
 
 describe("gateStatus", () => {
   it("is not-permitted when the profile does not list the agent", () => {
-    const r3 = severalAgents.agents.find((a) => a.agent_id === "r3.standards-advisor");
-    expect(r3 && gateStatus(r3)).toEqual({ kind: "not-permitted" });
+    const standards = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
+    expect(standards && gateStatus(standards)).toEqual({ kind: "not-permitted" });
   });
 
   it("is a mismatch when the card declares another class than the profile assigns", () => {

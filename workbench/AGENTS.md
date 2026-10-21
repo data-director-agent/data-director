@@ -36,7 +36,7 @@ scripts/run-agents.sh                           # every agent on the port agents
 uv run python scripts/smoke_agents.py           # every agent as a service, end to end (CI: smoke)
 uv run pytest workbench/browser_tests           # the viewer in Chromium; `playwright install chromium` once
 uv run pytest --json-report --json-report-file=.report.json && uv run python scripts/conformance_report.py
-uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013); needs DD_PRINCIPAL_*
+uv run inspect eval agents/standards/src/dd_agent_standards/evals/seeded.py --model none   # the standards advisor evaluation (ADR-0013); needs DD_PRINCIPAL_*
 uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # what changed between runs
 ```
 
@@ -102,12 +102,12 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   retrieved anything.
 - **A canonicalisation is registered, never invented.** `dd_sdk.evidence.CANONICALISATIONS`; a new
   projection is a new name, and an existing name's bytes never change.
-- **A rule with missing inputs returns `None`, never `0.0`** (`agents/r3/src/dd_agent_r3/rank.py`).
+- **A rule with missing inputs returns `None`, never `0.0`** (`agents/standards/src/dd_agent_standards/rank.py`).
 - **Evaluation is not conformance (ADR-0013).** An evaluation test carries no requirement marker.
-  A defect (`dd_agent_r3.evals.defects.DEFECTS`) is registered and never edited: a new mutation
+  A defect (`dd_agent_standards.evals.defects.DEFECTS`) is registered and never edited: a new mutation
   is a new name. Scores stay separate, never blended, and a scorer that does not apply returns
   NOANSWER, not 0. `baseline.json` changes only in a commit of its own that says why, written by
-  `workbench/scripts/eval_compare.py --write-baseline`; `test_r3_evals.py` fails on any drift from
+  `workbench/scripts/eval_compare.py --write-baseline`; `test_standards_evals.py` fails on any drift from
   it, better or worse.
 - **A review is recorded, never invented (ADR-0014).** `../docs/reviews.yaml` holds human reviews
   of requirements whose `assessed_by` names `review`. Only the reviewer adds an entry, or someone
@@ -120,8 +120,8 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 - **An identity is stated once, in `grounded_on` (ADR-0015).** What a reader is shown about a
   cited record comes from the evidence item's `content`, which E1 re-hashes. Do not add a
   descriptive copy of a grounded record to a payload class; that copy would be unchecked.
-- **`agents/r3/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
-  with `agents/r3/scripts/build_snapshot.py`; do not hand-edit records.
+- **`agents/standards/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
+  with `agents/standards/scripts/build_snapshot.py`; do not hand-edit records.
 - **`viewer/icons.svg` is generated.** It is a sprite of Lucide icons (ISC, `viewer/icons.LICENCE`)
   built by `scripts/build_icons.py` from a pinned, hash-checked `lucide-static`; add an icon to
   `ICONS` there and rerun, never by hand. Icons are decorative (`aria-hidden`), sit beside visible
@@ -138,6 +138,6 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 - **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
   the sign-in password; check a new cassette before committing it.
 - **Test module basenames are unique across the workspace.** Test directories are not packages;
-  shared doubles live in `dd_harness.testing` and `dd_agent_r3.testing`.
+  shared doubles live in `dd_harness.testing` and `dd_agent_standards.testing`.
 
 British English, declarative prose, `TODO` rather than a plausible guess (root `CLAUDE.md`).

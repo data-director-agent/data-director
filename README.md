@@ -70,5 +70,5 @@ This is a community-driven, open-source project. See:
 - [Software management plan](docs/SOFTWARE_MANAGEMENT_PLAN.md) — the software management plan
 - [App](app/) — the Data Director itself (alpha): a browser shell drawn from each agent's manifest (ADR-0024)
 - [Harness](harness/) — the governance every agent invocation goes through: the policy gate, input check, grounding linter, source check, run store and provenance
-- [Workbench](workbench/) — development environment for building and testing sub-agents: the invocation contract (LinkML), an R3 agent over FAIRsharing, an abstaining stub, and a read-only viewer
+- [Workbench](workbench/) — development environment for building and testing sub-agents: the invocation contract (LinkML), a standards advisor over FAIRsharing, an abstaining stub, and a read-only viewer
 - [Decision records](docs/adr/) — the architecture decisions that govern every package, with the requirements register and the generated [`CONFORMANCE.md`](CONFORMANCE.md)

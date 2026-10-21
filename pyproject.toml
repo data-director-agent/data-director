@@ -19,7 +19,7 @@ dependencies = [
   "data-director-agent-quality",
   "data-director-agent-factcheck",
   "data-director-agent-stub",
-  "data-director-agent-r3",
+  "data-director-agent-standards",
   "data-director-agent-director",
   "data-director-app",
 ]
@@ -53,7 +53,7 @@ data-director-agent-hello = { workspace = true }
 data-director-agent-quality = { workspace = true }
 data-director-agent-factcheck = { workspace = true }
 data-director-agent-stub = { workspace = true }
-data-director-agent-r3 = { workspace = true }
+data-director-agent-standards = { workspace = true }
 data-director-agent-director = { workspace = true }
 data-director-app = { workspace = true }
 
@@ -66,7 +66,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_app"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_standards", "dd_agent_director", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -78,14 +78,14 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_
 "harness/src/dd_harness/conductor.py" = ["N818"]
 "sdk/src/dd_sdk/contract/validate.py" = ["N818"]
 "sdk/src/dd_sdk/delegate.py" = ["N818"]
-"agents/r3/src/dd_agent_r3/retrieve.py" = ["N818"]
+"agents/standards/src/dd_agent_standards/retrieve.py" = ["N818"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
-# `dd_agent_r3.testing`, not in a test directory.
+# `dd_agent_standards.testing`, not in a test directory.
 addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network"
 filterwarnings = [
   "error",
@@ -101,7 +101,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_app"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_standards", "dd_agent_director", "dd_app"]
 relative_files = true
 
 [tool.coverage.report]
@@ -116,13 +116,13 @@ output = "coverage.xml"
 python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
-  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts",
+  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/standards/scripts",
   "app/src", "app/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
-  "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
+  "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/standards/src",
   "agents/director/src", "app/src",
 ]
 strict = true

@@ -19,11 +19,11 @@ from starlette.testclient import TestClient
 from dd_agent_factcheck.agent import build as build_factcheck
 from dd_agent_hello.agent import build as build_hello
 from dd_agent_quality.agent import build as build_quality
-from dd_agent_r3 import factory as r3
+from dd_agent_standards import factory as standards
 from dd_agent_stub.agent import build as build_stub
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import settings_from_env
-from dd_app.governance import R3_AGENT_ID, Governance
+from dd_app.governance import STANDARDS_AGENT_ID, Governance
 from dd_harness.identity import IdentityError
 from dd_harness.testing import PERMISSIVE, RESTRICTIVE, TEST_PRINCIPAL, make_conductor
 from dd_sdk.agent import Agent
@@ -41,7 +41,7 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """The app's reference set, a principal, and runs written under `tmp_path`."""
     for variable in PATH_VARIABLES:
         monkeypatch.delenv(variable, raising=False)
-    for variable in ("DD_R3_RETRIEVAL", "DD_R3_EXPLAINER", "DD_SNAPSHOT_PATH"):
+    for variable in ("DD_STANDARDS_RETRIEVAL", "DD_STANDARDS_EXPLAINER", "DD_SNAPSHOT_PATH"):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
     monkeypatch.setenv("DD_PRINCIPAL_NAME", TEST_PRINCIPAL.name)
@@ -71,9 +71,9 @@ def agents_response(governance: Governance, dist: Path) -> dict[str, Any]:
     return body
 
 
-def test_the_reference_set_registers_r3_alone(governance: Governance):
+def test_the_reference_set_registers_standards_alone(governance: Governance):
     conductor = governance.conductor
-    assert conductor.registry.ids() == [R3_AGENT_ID]
+    assert conductor.registry.ids() == [STANDARDS_AGENT_ID]
     assert conductor.profile.profile_id == "data-director-app"
     assert governance.acting_for == TEST_PRINCIPAL
 
@@ -82,12 +82,12 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     governance: Governance, dist: Path
 ):
     body = agents_response(governance, dist)
-    (r3,) = body["agents"]
-    assert r3["agent_id"] == R3_AGENT_ID
-    assert r3["action_class"] == "advise"  # what the card declares
-    assert r3["assigned_action_class"] == "advise"  # what the steward assigns
-    assert r3["requires_approval"] is False
-    assert r3["grounding_mode"] == "retrieval"
+    (standards,) = body["agents"]
+    assert standards["agent_id"] == STANDARDS_AGENT_ID
+    assert standards["action_class"] == "advise"  # what the card declares
+    assert standards["assigned_action_class"] == "advise"  # what the steward assigns
+    assert standards["requires_approval"] is False
+    assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
     assert body["profile"]["ref"] == "profile:data-director-app@v1"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
@@ -99,11 +99,11 @@ def test_an_agent_the_profile_does_not_list_is_shown_unassigned(
     monkeypatch.setenv("DD_PROFILE", str(RESTRICTIVE))
     governance = Governance.create(settings_from_env())
     try:
-        (r3,) = agents_response(governance, dist)["agents"]
+        (standards,) = agents_response(governance, dist)["agents"]
     finally:
         governance.worker.shutdown()
-    assert r3["assigned_action_class"] is None
-    assert r3["requires_approval"] is False
+    assert standards["assigned_action_class"] is None
+    assert standards["requires_approval"] is False
 
 
 def test_every_other_path_serves_the_built_shell(governance: Governance, dist: Path):
@@ -143,7 +143,7 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         build_quality(),
         build_factcheck(),
         build_stub(),
-        r3.build(),
+        standards.build(),
     ]
     governance = Governance(
         make_conductor(env, *agents, remote=False, profile=PERMISSIVE),

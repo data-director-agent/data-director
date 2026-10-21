@@ -18,8 +18,8 @@ It is built from:
   (`app/web/src/tokens/neutral.css`);
 - `dd_app`: a [Starlette](https://www.starlette.io/) server with `GET /api/agents`, which also
   serves the built shell;
-- the harness (`harness/`, `dd_harness`), whose conductor governs every run. R3
-  (`r3.standards-advisor`) runs in the app's process.
+- the harness (`harness/`, `dd_harness`), whose conductor governs every run. The standards advisor
+  (`standards.advisor`) runs in the app's process.
 
 ## Run it
 
@@ -47,8 +47,8 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 
 | File | What it is | Override |
 |---|---|---|
-| `config/profile.yaml` | The institutional profile. It enables R3 only. | `DD_PROFILE` |
-| `config/agents.yaml` | Agents reached over A2A. Empty: R3 runs in the app's process. | `DD_AGENTS_CONFIG` |
+| `config/profile.yaml` | The institutional profile. It enables the standards advisor only. | `DD_PROFILE` |
+| `config/agents.yaml` | Agents reached over A2A. Empty: the standards advisor runs in the app's process. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 
@@ -69,7 +69,7 @@ npx playwright install chromium && npm run e2e      # axe light and dark, keyboa
 The shell's tests draw manifests from `app/web/fixtures/`. `app/tests/test_app.py` builds them
 from the real server and fails if they drift; `DD_WRITE_FIXTURES=1 uv run pytest app/tests`
 rewrites them. `agents-several.json` holds five agents of different grounding modes and payload
-shapes, under a profile that does not list R3, so the shell is tested on more than one agent.
+shapes, under a profile that does not list the standards advisor, so the shell is tested on more than one agent.
 
 ## What it does not do
 

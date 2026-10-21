@@ -3,10 +3,10 @@
 # TODO: how a steward edits and reviews this profile in a deployment (#41, #57).
 profile_id: data-director-app
 version: 1
-description: Reference profile for the Data Director app; enables R3 only, requires approval for writes.
+description: Reference profile for the Data Director app; enables the standards advisor only, requires approval for writes.
 
 agents:
-  r3.standards-advisor: advise
+  standards.advisor: advise
 
 actions_requiring_approval:
   - deposit

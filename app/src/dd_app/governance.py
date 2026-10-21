@@ -1,8 +1,8 @@
 """The conductor the app runs agents through, and the principal every run acts for.
 
-R3 (`r3.standards-advisor`) runs in this process, registered beside the app's agent list, so
-each run passes the policy gate, the input check, the grounding linter and the source check, and
-is stored with whom it acted for (ADR-0018, issue #60).
+The standards advisor (`standards.advisor`) runs in this process, registered beside the app's agent
+list, so each run passes the policy gate, the input check, the grounding linter and the source
+check, and is stored with whom it acted for (ADR-0018, issue #60).
 """
 
 from __future__ import annotations
@@ -12,12 +12,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
-from dd_agent_r3 import factory as r3
+from dd_agent_standards import factory as standards
 from dd_harness.conductor import Conductor
 from dd_harness.settings import Settings, build_authenticator, build_conductor
 from dd_sdk.contract.models import Envelope, InvocationRequest, Principal
 
-R3_AGENT_ID = "r3.standards-advisor"
+STANDARDS_AGENT_ID = "standards.advisor"
 
 
 @dataclass
@@ -42,7 +42,7 @@ class Governance:
             # The stub authenticator: the operator's assertion until there is authentication
             # (ADR-0018, #17), not the person using the page.
             acting_for = build_authenticator(settings).principal_for(None)
-            return build_conductor(settings, agents=[r3.build()]), acting_for
+            return build_conductor(settings, agents=[standards.build()]), acting_for
 
         try:
             conductor, acting_for = worker.submit(build).result()

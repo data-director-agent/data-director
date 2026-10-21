@@ -25,7 +25,7 @@ from dd_agent_director.agent import DirectorStub
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
-from dd_agent_r3.agent import R3Agent
+from dd_agent_standards.agent import StandardsAgent
 from dd_agent_stub.agent import AbstainingStub
 from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import Assurance, Derivation, GroundingMode, OutcomeStatus
@@ -44,7 +44,7 @@ VIEWER = "\n".join(p.read_text(encoding="utf-8") for p in SOURCES)
 GLOSSARY_JS = (VIEWER_DIR / "js" / "glossary.js").read_text(encoding="utf-8")
 
 SPECS: list[AgentSpec] = [
-    R3Agent.spec,
+    StandardsAgent.spec,
     QualityReviewer.spec,
     FactChecker.spec,
     HelloWorld.spec,
@@ -119,7 +119,7 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     # Driven by the manifest and the samples listing; no agent or sample is named.
     assert 'fetch("/agents")' in VIEWER and 'fetch("/samples")' in VIEWER
     for name in (
-        "r3.standards-advisor",
+        "standards.advisor",
         "stub.abstain",
         "director.stub",
         "soil-chemistry",

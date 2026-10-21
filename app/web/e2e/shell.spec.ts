@@ -65,7 +65,7 @@ test("reflows at 320 CSS pixels (400% of 1280) without horizontal scrolling", as
   await serve(page, several);
   await page.goto("/");
   await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
-  for (const option of ["fact.checker", "r3.standards-advisor", "stub.abstain"]) {
+  for (const option of ["fact.checker", "standards.advisor", "stub.abstain"]) {
     await page.getByRole("option", { name: option }).click();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

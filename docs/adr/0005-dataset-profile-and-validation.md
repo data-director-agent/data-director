@@ -5,7 +5,7 @@
 
 ## Context
 
-R3 reads a small amount of information about a dataset: what it is about, what formats it uses,
+The standards advisor reads a small amount of information about a dataset: what it is about, what formats it uses,
 and what its tabular fields are. A rich profile would tempt every agent to read the input
 directly. Inventing a Data Director vocabulary for those slots would create one more mapping
 problem for every repository that already speaks DCAT.
@@ -38,5 +38,5 @@ a bespoke `ValidationReport` type would be a second thing to maintain.
 ## Consequences
 
 - A DCAT-speaking repository can populate a profile without a mapping table.
-- The profile cannot describe anything R3 does not read; that is the point.
+- The profile cannot describe anything the standards advisor does not read; that is the point.
 - When runtime SHACL validation arrives, the report format is already decided.

@@ -42,8 +42,8 @@
       "component": "agent-quality",
       "release-type": "python"
     },
-    "agents/r3": {
-      "component": "agent-r3",
+    "agents/standards": {
+      "component": "agent-standards",
       "release-type": "python"
     },
     "agents/stub": {

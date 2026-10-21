@@ -5,7 +5,7 @@
 
 ## Context
 
-An R3 `Recommendation` named its record twice: in `resource`, a `ResourceRef` carrying
+A standards advisor `Recommendation` named its record twice: in `resource`, a `ResourceRef` carrying
 `fairsharing_id`, `doi`, `name`, `url`, `record_type` and `status`, for the reader; and in
 `grounded_on`, a `GroundingRef` carrying `source_id` and `content_hash`, for the linter. The
 linter reads only `grounded_on` (ADR-0008), so the identity the reader saw was never checked. An
@@ -55,7 +55,7 @@ None.
 - `content` is optional. An agent that omits it still passes E1, but the viewer can show only
   the bare `source_id` for what it cites. TODO: decide whether `retrieval`-mode evidence must
   carry `content`.
-- Envelopes grow by one projected record per cited source. For R3 that is at most a few
+- Envelopes grow by one projected record per cited source. For the standards advisor that is at most a few
   kilobytes.
 - The re-hash described in ADR-0009 becomes possible offline, from the envelope alone.
 - A future contributor must not add a descriptive copy of a grounded record to a payload class,

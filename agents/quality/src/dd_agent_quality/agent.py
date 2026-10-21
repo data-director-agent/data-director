@@ -1,8 +1,8 @@
 """quality.reviewer: a completeness review of an existing metadata record.
 
-The first agent that is not R3-shaped. It reads a `MetadataRecord`, retrieves nothing and calls
-no model, and returns a `QualityReview` grounded on the input alone (grounding mode
-`input_only`: a model *may* be called under this mode; this agent does not). Every finding is
+The first agent that is not standards-advisor-shaped. It reads a `MetadataRecord`, retrieves
+nothing and calls no model, and returns a `QualityReview` grounded on the input alone (grounding
+mode `input_only`: a model *may* be called under this mode; this agent does not). Every finding is
 produced by a rule in `checks.yaml` and is badged `lexical`.
 
 This is a demonstration of the harness, not a quality framework. The criteria and weights are

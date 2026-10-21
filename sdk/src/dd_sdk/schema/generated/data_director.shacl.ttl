@@ -44,7 +44,7 @@ dd:Envelope a sh:NodeShape ;
             sh:path dd:policy_digest ;
             sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:datatype xsd:string ;
-            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
+            sh:description "Stable identifier of the agent, e.g. standards.advisor or stub.abstain." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -194,7 +194,7 @@ dd:InvocationRequest a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:issued_at ],
         [ sh:datatype xsd:string ;
-            sh:description "Stable identifier of the agent, e.g. r3.standards-advisor or stub.abstain." ;
+            sh:description "Stable identifier of the agent, e.g. standards.advisor or stub.abstain." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;

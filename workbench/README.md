@@ -152,7 +152,7 @@ over the file. `scripts/run-agents.sh` passes the same file to the agents.
 These defaults are the workbench's development set (`src/workbench/config.py`), resolved against
 `workbench/`. The harness has no defaults of its own, so another way in names these files itself
 (ADR-0022). Each agent is a separate process and reads
-its own variables, such as the R3 retrieval backend or a model API key, where it runs;
+its own variables, such as the standards advisor retrieval backend or a model API key, where it runs;
 [`env.example`](env.example) lists them.
 
 ### Agent registry

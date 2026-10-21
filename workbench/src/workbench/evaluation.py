@@ -13,7 +13,7 @@ This module holds what is common to every agent's evaluation:
 
 A case is an Inspect `Sample`: `input` is the input document as JSON, and `metadata["expect"]`
 is what the case expects. What an agent should recommend is agent-specific and is scored beside
-that agent (for R3, `dd_agent_r3.evals`).
+that agent (for the standards advisor, `dd_agent_standards.evals`).
 
 Needs the `eval` extra (`inspect-ai`). Like the rest of `src/`, it imports no agent.
 """

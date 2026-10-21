@@ -7,6 +7,6 @@
   "agents/factcheck": "0.1.0",
   "agents/hello": "0.1.0",
   "agents/quality": "0.1.0",
-  "agents/r3": "0.1.0",
+  "agents/standards": "0.1.0",
   "agents/stub": "0.1.0"
 }

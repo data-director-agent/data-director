@@ -12,9 +12,9 @@ from typing import Any
 import pytest
 
 from dd_agent_factcheck.agent import FactChecker
-from dd_agent_r3.agent import R3Agent
-from dd_agent_r3.explain import TemplateExplainer
-from dd_agent_r3.fairsharing.snapshot import SnapshotBackend
+from dd_agent_standards.agent import StandardsAgent
+from dd_agent_standards.explain import TemplateExplainer
+from dd_agent_standards.fairsharing.snapshot import SnapshotBackend
 from dd_harness import testing as fakes
 from dd_harness.registry import load_config
 from dd_harness.sources import Sources, check
@@ -34,7 +34,11 @@ def test_the_shipped_config_lists_every_agent_package() -> None:
     script = (root / "scripts" / "run-agents.sh").read_text()
     served = {m[0]: int(m[1]) for m in re.findall(r"\[dd-([a-z0-9]+)\]=(\d+)", script)}
     packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
-    assert set(served) == packages == {"hello", "quality", "factcheck", "stub", "r3", "director"}
+    assert (
+        set(served)
+        == packages
+        == {"hello", "quality", "factcheck", "stub", "standards", "director"}
+    )
     assert set(served.values()) == ports
 
 
@@ -54,12 +58,12 @@ def _sample(name: str) -> Any:
     ("agent", "sample"),
     [
         (
-            R3Agent(retrieval=SnapshotBackend(), explainer=TemplateExplainer()),
+            StandardsAgent(retrieval=SnapshotBackend(), explainer=TemplateExplainer()),
             "soil-chemistry.profile.json",
         ),
         (FactChecker(), "claim.json"),
     ],
-    ids=["r3", "fact.checker"],
+    ids=["standards", "fact.checker"],
 )
 def test_real_agents_evidence_verifies_against_the_committed_copies(
     tmp_path: Path, agent: Any, sample: str

@@ -48,7 +48,7 @@ without touching the others. Two sets are in the repository:
 - `workbench/` holds the workbench's development set, supplied by `workbench.config`.
 
 `build_conductor(settings, agents=[...])` also registers agent objects that the caller runs in
-its own process, beside the agents the agent list names. The app runs R3 this way. The profile
+its own process, beside the agents the agent list names. The app runs the standards advisor this way. The profile
 still decides which may run.
 
 Not yet decided (#57):
