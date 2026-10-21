@@ -1,5 +1,7 @@
 # Data Director harness
 
+[![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=harness)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=harness)
+
 The harness governs every invocation of a Data Director agent. It applies the institutional
 profile, checks the input, calls the agent over A2A, lints the agent's account of its run, checks
 cited records against pinned source copies, validates the envelope, and records the run with its
@@ -46,7 +48,7 @@ without touching the others. Two sets are in the repository:
 - `workbench/` holds the workbench's development set, supplied by `workbench.config`.
 
 `build_conductor(settings, agents=[...])` also registers agent objects that the caller runs in
-its own process, beside the agents the agent list names. The app runs R3 this way. The profile
+its own process, beside the agents the agent list names. The app runs the standards advisor this way. The profile
 still decides which may run.
 
 Not yet decided (#57):

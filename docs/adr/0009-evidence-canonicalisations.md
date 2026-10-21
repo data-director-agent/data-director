@@ -18,7 +18,7 @@ had to start doing the work its name implied: identify a projection a reader can
    `canonicalise` and `content_hash` take the name; an unknown name raises (programmer error), and
    `contract.validate` rejects an envelope whose evidence cites one.
 2. Three names are registered:
-   - `json-sorted-utf8-v1` — the FAIRsharing projection R3 uses. Name and bytes unchanged from
+   - `json-sorted-utf8-v1` — the FAIRsharing projection the standards advisor uses. Name and bytes unchanged from
      v0, so hashes in stored runs still verify.
    - `dd-input-json-v1` — the whole `input` document of an invocation as `to_document` emits it
      (sorted keys, no whitespace, UTF-8, lists in document order because order is meaningful
@@ -39,6 +39,6 @@ without a difference in output.
 
 - An agent whose source records need their own projection registers one (a name and a
   function) in `evidence.py`; it does not invent a name in its own package.
-- `PROJECTED_FIELDS` remains a module constant for `agents/r3/fairsharing/records.py` but now
+- `PROJECTED_FIELDS` remains a module constant for `agents/standards/fairsharing/records.py` but now
   belongs to the `json-sorted-utf8-v1` entry.
 - A future contributor must not change the bytes a registered name produces.

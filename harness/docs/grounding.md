@@ -79,7 +79,7 @@ grounding mode, which says what its output may rest on. There is no default.
 
 | Mode | The agent… | May call a model? | Its result must cite… | Rules applied | Used by |
 |---|---|---|---|---|---|
-| `retrieval` | fetches records from outside sources, then reasons over them. | Yes, but only after it has fetched something. | only records it fetched in this run. | G0, E1, G1–G4 | `fact.checker`, `r3.standards-advisor` |
+| `retrieval` | fetches records from outside sources, then reasons over them. | Yes, but only after it has fetched something. | only records it fetched in this run. | G0, E1, G1–G4 | `fact.checker`, `standards.advisor` |
 | `input_only` | works only on the input it was given. | Yes. | only the input. | G0, E1, R1–R3 | `quality.reviewer` |
 | `none` | works only on its input, by fixed rules, with no model. The same input always gives the same result. | No. | only the input. | G0, E1, R1–R3, N1 | `hello.world`, `stub.abstain` |
 | `delegation` | works on its input and on the envelopes of runs it delegated through the workbench. | Yes. | the input, and runs the conductor recorded as delegated. | G0, E1, R1, D1–D3, G4 | `director.stub` |
@@ -173,7 +173,7 @@ does not depend on the agent.
   `content_hash`. A record the agent altered and re-hashed passes E1 and breaks S2.
 
 An item whose `snapshot_ref` has no listed copy is *unresolved*: it is reported, and it is never
-counted as verified. R3's `live` route is unresolved for now. A violation withholds the result
+counted as verified. The standards advisor's `live` route is unresolved for now. A violation withholds the result
 in the same way as a linter violation. The verdict is written to `sources.txt` in the run
 folder, separately from `grounding.txt`.
 

@@ -65,7 +65,7 @@ Rejected:
   `derivations`. A new payload class is laid out by its LinkML slot order.
 - A derivation that names a missing field fails when the spec is built, both in the agent and
   when the workbench rebuilds the spec from a card.
-- Two visible changes: R3's resource column is headed `grounded_on`, not `resource`. The
+- Two visible changes: The standards advisor's resource column is headed `grounded_on`, not `resource`. The
   quality reviewer's per-finding `grounded_on` is shown, as the input reference.
 - TODO: decide whether an item's `grounded_on` column should take a per-class title. If it
   should, that is a schema-level `title`, not an agent-level hint.

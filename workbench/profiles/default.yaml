@@ -8,7 +8,7 @@ description: Development profile for the workbench; enables every in-tree agent,
 agents:
   quality.reviewer: advise
   fact.checker: advise
-  r3.standards-advisor: advise
+  standards.advisor: advise
   stub.abstain: advise
   hello.world: advise
   director.stub: advise

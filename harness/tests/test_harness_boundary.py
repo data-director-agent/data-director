@@ -39,5 +39,5 @@ def test_the_harness_imports_no_way_in_and_no_agent() -> None:
 
 def test_the_check_sees_a_forbidden_import() -> None:
     assert _forbidden("workbench.testing")
-    assert _forbidden("dd_agent_r3.agent")
+    assert _forbidden("dd_agent_standards.agent")
     assert not _forbidden("dd_sdk.agent")

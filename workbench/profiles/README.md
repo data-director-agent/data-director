@@ -25,13 +25,13 @@ version: 2                   # raise it on every change, so stored runs say whic
 description: One sentence saying who this profile is for.
 
 agents:                      # only these agents may run, each with the action class you assign it
-  r3.standards-advisor: advise
+  standards.advisor: advise
   stub.abstain: advise
 
 actions_requiring_approval:  # action classes a human must approve before an agent performs them
   - deposit                  # writing a dataset or metadata record to a repository
   - metadata_write           # changing an existing metadata record
-  # "advise" (read-only recommendations, which is all R3 does) is not listed, so R3 runs freely
+  # "advise" (read-only recommendations, which is all the standards advisor does) is not listed, so the standards advisor runs freely
 ```
 
 Those five keys are the whole vocabulary. A profile with any other key is refused when the
@@ -72,7 +72,7 @@ These arrive with the agent that enforces them, and not before:
 
 When repository selection or deposit arrives, the rights and licensing part of a profile
 (which licences may be applied, embargo rules) will be expressed in ODRL, the W3C Open Digital
-Rights Language, rather than in ad hoc keys. Nothing in v0 needs it because R3 is read-only and
+Rights Language, rather than in ad hoc keys. Nothing in v0 needs it because the standards advisor is read-only and
 advisory.
 
 ## Files

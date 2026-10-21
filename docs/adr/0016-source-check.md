@@ -6,7 +6,7 @@
 ## Context
 
 Under `retrieval`, G1–G3 compare a payload's `grounded_on` and evidence with `retrieval` spans.
-Since ADR-0011 an agent writes those spans in its own process and sends them back over A2A. R3
+Since ADR-0011 an agent writes those spans in its own process and sends them back over A2A. The standards advisor
 and fact.checker open each span after the search has finished and close it at once
 (`with retrieval_span(...): pass`). The span does not time a retrieval. It is a statement the
 agent makes about itself, stored in a telemetry format. G1's "retrieval before chat" compares
@@ -70,7 +70,7 @@ Not decided here:
 
 - TODO: route retrieval through the workbench, so that the conductor, not the agent, records
   when each record was read. Until then, G1 is a consistency check of the agent's own timeline.
-- TODO: a resolver for R3's `live` route. The FAIRsharing API needs credentials and network
+- TODO: a resolver for the standards advisor's `live` route. The FAIRsharing API needs credentials and network
   access. Live runs are unresolved.
 - TODO: whether an unresolved item in `retrieval` mode should be a violation for some profiles.
 - TODO: show the source-check verdict in the viewer.

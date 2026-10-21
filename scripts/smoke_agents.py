@@ -47,8 +47,8 @@ CASES = [
     ("hello.world", "hello.salutation.json", "succeeded"),
     ("quality.reviewer", "orda-record.metadata.json", "succeeded"),
     ("fact.checker", "claim.json", "succeeded"),
-    ("r3.standards-advisor", "soil-chemistry.profile.json", "succeeded"),
-    ("r3.standards-advisor", "empty.profile.json", "abstained"),
+    ("standards.advisor", "soil-chemistry.profile.json", "succeeded"),
+    ("standards.advisor", "empty.profile.json", "abstained"),
     ("quality.reviewer", "claim.json", "failed"),
 ]
 

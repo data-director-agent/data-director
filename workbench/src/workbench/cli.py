@@ -1,7 +1,7 @@
 """Command line: list agents, invoke one, lint a run, check its sources, serve the transports.
 
-R3's FAIRsharing snapshot is rebuilt by the agent's own script,
-`agents/r3/scripts/build_snapshot.py`; the workbench names no agent."""
+The standards advisor's FAIRsharing snapshot is rebuilt by the agent's own script,
+`agents/standards/scripts/build_snapshot.py`; the workbench names no agent."""
 
 from __future__ import annotations
 

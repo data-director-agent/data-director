@@ -11,6 +11,10 @@ name: CI
 #
 # The weekly run catches what changes without a commit: the latest uv and Python 3.14 patch
 # release, the runner image, a browser build, a newly published advisory (see audit.yml).
+#
+# .python-version holds uv to Python 3.14. Without it uv takes the newest CPython that
+# requires-python allows, and on a release that few dependencies publish wheels for yet, every
+# job spends more than a minute compiling them from source.
 on:
   pull_request:
   push:
@@ -45,7 +49,8 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           cache-dependency-glob: uv.lock
-      - run: uv sync --all-packages --all-extras
+      # Ruff reads source, not imports: the development tools are enough, without the workspace.
+      - run: uv sync --only-dev
       - run: uv run ruff check --output-format=github .
       - run: uv run ruff format --check .
 
@@ -78,8 +83,33 @@ jobs:
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
       # CONFORMANCE.md is decided by the register, the review record, the report script and the
       # outcome of every requirement-marked test, so one session serves both steps.
-      - run: uv run pytest --json-report --json-report-file=.report.json
+      # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report
+      # goes to the job summary, and one XML goes to Codecov, which splits it into a flag per
+      # package (codecov.yml).
+      # pytest-xdist spreads the session over the runner's cores. --dist loadfile keeps each test
+      # module on one worker, so a module's fixtures and teardown run as they do serially; the
+      # JSON report and coverage are merged from the workers into the one session.
+      - run: >-
+          uv run pytest -n auto --dist loadfile
+          --json-report --json-report-file=.report.json --cov --cov-report=
       - run: uv run python scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
+      - name: Coverage report
+        run: |
+          {
+            echo '## Coverage'
+            echo '```'
+            uv run coverage report --skip-covered
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: uv run coverage xml -o coverage.xml
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        # A fork's pull request has no secret; the report in the job summary still shows.
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          flags: sdk,harness,workbench,app,agents
+          fail_ci_if_error: false
 
   schemas:
     name: Generated schemas up to date
@@ -241,7 +271,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       # Every commit in the pull request carries a Signed-off-by trailer naming its author
       # (`git commit -s`; CONTRIBUTING.md). A bot's commits are exempt: Dependabot signs off
-      # with an address other than the one it commits from.
+      # with an address other than the one it commits from. So are release-please's release
+      # commits, which it makes with a personal access token and cannot sign off.
       - name: Every commit is signed off by its author
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -251,6 +282,7 @@ jobs:
           for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
             author=$(git log -1 --format='%an <%ae>' "$sha")
             case "$author" in *"[bot] <"*) continue ;; esac
+            case "$(git log -1 --format=%s "$sha")" in "chore(main): release "*) continue ;; esac
             if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
                 | grep -qxF "$author"; then
               echo "::error::$(git log -1 --format='%h %s' "$sha"): no 'Signed-off-by: $author'"

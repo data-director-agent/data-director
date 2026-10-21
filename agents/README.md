@@ -1,5 +1,7 @@
 # Agents
 
+[![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=agents)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=agents)
+
 Each directory here is one agent: its own package, its own tests, and its own service. The
 workbench does not import any of them. It reaches each agent over A2A at the URL listed in
 `workbench/agents.yaml` ([ADR-0011](../docs/adr/0011-remote-agents.md)).
@@ -33,7 +35,7 @@ lists an agent built against an incompatible one as **incompatible**.
 | `hello/` | `hello.world` | `Salutation` | `none` | `Greeting` | `dd-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
 | `stub/` | `stub.abstain` | `Message` | `none` | — | `dd-stub`, port 8104 | Abstains unconditionally. |
 | `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012). |
-| `r3/` | `r3.standards-advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-r3`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_R3_*` (`r3/src/dd_agent_r3/README.md`). |
+| `standards/` | `standards.advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`r3/src/dd_agent_standards/README.md`). |
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
 `uv run dd-hello serve --port 8101`.
@@ -132,7 +134,7 @@ CLI, transports or viewer, this agent will show it.
    claim a Blueprint `R` a demonstration does not meet.
 10. **Optionally, evaluate it** (ADR-0013). Put an Inspect AI task in `<package>/evals/`, built
     on `workbench.evaluation.invoke_agent` and its generic scorers, with the agent's own cases
-    and scorers beside it and a committed `baseline.json`. `dd_agent_r3.evals` is the worked
+    and scorers beside it and a committed `baseline.json`. `dd_agent_standards.evals` is the worked
     example.
 
 Nothing in the SDK, conductor, linter, CLI, transports or viewer is edited.

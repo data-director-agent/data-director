@@ -19,7 +19,7 @@ dependencies = [
   "data-director-agent-quality",
   "data-director-agent-factcheck",
   "data-director-agent-stub",
-  "data-director-agent-r3",
+  "data-director-agent-standards",
   "data-director-agent-director",
   "data-director-app",
 ]
@@ -27,15 +27,21 @@ dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=8.3",
-  "pytest-recording>=0.13",
+  "pytest-recording>=0.14.0",
   "pytest-json-report>=1.5",
   # The viewer's browser tests (workbench/browser_tests/); browsers come from `playwright install`.
   "pytest-playwright>=0.7",
-  "linkml>=1.11",
-  "ruff>=0.9",
-  "mypy>=1.15",
-  "types-jsonschema>=4.23",
+  "linkml>=1.12.1",
+  "ruff>=0.17.0",
+  "mypy>=2.4.0",
+  "types-jsonschema>=4.26.0.20261006",
   "types-PyYAML>=6.0",
+  "pytest-cov>=7.1.0",
+  "pytest-xdist>=3.8.0",
+]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
 ]
 
 [tool.uv]
@@ -52,7 +58,7 @@ data-director-agent-hello = { workspace = true }
 data-director-agent-quality = { workspace = true }
 data-director-agent-factcheck = { workspace = true }
 data-director-agent-stub = { workspace = true }
-data-director-agent-r3 = { workspace = true }
+data-director-agent-standards = { workspace = true }
 data-director-agent-director = { workspace = true }
 data-director-app = { workspace = true }
 
@@ -65,7 +71,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_r3", "dd_agent_director", "dd_app"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_standards", "dd_agent_director", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -77,14 +83,14 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_
 "harness/src/dd_harness/conductor.py" = ["N818"]
 "sdk/src/dd_sdk/contract/validate.py" = ["N818"]
 "sdk/src/dd_sdk/delegate.py" = ["N818"]
-"agents/r3/src/dd_agent_r3/retrieve.py" = ["N818"]
+"agents/standards/src/dd_agent_standards/retrieve.py" = ["N818"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
-# `dd_agent_r3.testing`, not in a test directory.
+# `dd_agent_standards.testing`, not in a test directory.
 addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network"
 filterwarnings = [
   "error",
@@ -96,17 +102,35 @@ markers = [
   "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
 ]
 
+# Coverage of the packages under test, measured over the one workspace test session. The tests
+# and the generated schema are not what is being measured.
+[tool.coverage.run]
+branch = true
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_factcheck", "dd_agent_stub", "dd_agent_standards", "dd_agent_director", "dd_app"]
+relative_files = true
+
+[tool.coverage.report]
+# A floor a few points under the measured total (92% when set), so ordinary variation does not
+# fail a run; Codecov holds the project figure from falling (codecov.yml).
+fail_under = 85
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\.$"]
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
 [tool.mypy]
 python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
-  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/r3/scripts",
+  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/standards/scripts",
   "app/src", "app/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
-  "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/r3/src",
+  "agents/quality/src", "agents/factcheck/src", "agents/stub/src", "agents/standards/src",
   "agents/director/src", "app/src",
 ]
 strict = true

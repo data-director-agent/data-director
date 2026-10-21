@@ -1,9 +1,9 @@
 """fact.checker: a verdict on a Claim, grounded on the sources it consulted.
 
-A retrieval-mode agent that is not R3: it retrieves records from a `SourceIndex` (by default a
-small packaged `sources.json`), emits one `retrieval` span per source consulted, and returns a
-`FactCheck` whose `grounded_on` names exactly those sources. It calls no model; the verdict is a
-lexical rule and says so (`rationale_derivation: template`).
+A retrieval-mode agent that is not the standards advisor: it retrieves records from a `SourceIndex`
+(by default a small packaged `sources.json`), emits one `retrieval` span per source consulted, and
+returns a `FactCheck` whose `grounded_on` names exactly those sources. It calls no model; the
+verdict is a lexical rule and says so (`rationale_derivation: template`).
 
 The rule is naive by design — it exists to exercise the harness, not to check facts. A source
 sentence that contains every content word of the claim *supports* it when both or neither

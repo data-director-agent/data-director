@@ -10,7 +10,7 @@ declare -A PORTS=(
   [dd-quality]=8102
   [dd-factcheck]=8103
   [dd-stub]=8104
-  [dd-r3]=8105
+  [dd-standards]=8105
   [dd-director]=8106
 )
 

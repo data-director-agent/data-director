@@ -5,9 +5,9 @@
 
 ## Context
 
-At v0 `settings.build_conductor` constructed R3 and the stub by name, `cli invoke --agent` listed
+At v0 `settings.build_conductor` constructed the standards advisor and the stub by name, `cli invoke --agent` listed
 them in its help text, the A2A card derived skills from the agents dict, the viewer hard-coded two
-buttons and one sample, and `viewer/uischema.json` described R3's payload. Adding an agent meant
+buttons and one sample, and `viewer/uischema.json` described the standards advisor's payload. Adding an agent meant
 editing five places, three of which had nothing to do with the agent.
 
 The workbench should let a new agent kind be added by creating one package and one registration,
@@ -22,7 +22,7 @@ viewer.
 2. `workbench.registry.Registry` loads them (`from_entry_points`) or takes a list
    (`from_agents`, for tests). A duplicate `agent_id` or an object that does not satisfy the
    `Agent` protocol is a `RegistryError`. A factory that raises `NotImplementedError` marks an
-   agent that is registered but not usable; the registry records the reason and continues (R3,
+   agent that is registered but not usable; the registry records the reason and continues (the standards advisor,
    until ported). Any other exception from a factory is a configuration error and propagates.
 3. An agent is an `AgentSpec` plus `run`. The spec carries identity, version, description,
    requirement identifiers, action class, accepted input classes, grounding mode, payload class

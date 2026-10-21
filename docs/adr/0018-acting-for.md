@@ -61,7 +61,7 @@ principal enters, fill it with an honest stub, and record the stub for what it i
     `workbench serve`, every run is recorded as the operator's, whoever started it. `asserted`
     exists so that no record claims otherwise.
 - **An unset principal stops start-up.** If no principal is configured, `workbench invoke`,
-  `workbench serve` and the R3 evaluation refuse to start (`IdentityError`). There is no
+  `workbench serve` and the standards advisor evaluation refuse to start (`IdentityError`). There is no
   anonymous fallback. Tests act for `workbench.testing.TEST_PRINCIPAL`, the ORCID documentation's
   example researcher, so the suite needs no configuration and no stored test run names a real
   person.

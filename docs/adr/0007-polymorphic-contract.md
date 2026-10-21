@@ -6,7 +6,7 @@
 ## Context
 
 At v0 the contract had one input class (`DatasetProfile`) and one payload class
-(`Recommendations`, with a required `fairsharing_id`). Both were R3's shape. The workbench is
+(`Recommendations`, with a required `fairsharing_id`). Both were the standards advisor's shape. The workbench is
 meant to be a test-bed for many kinds of Data Director sub-agent — a quality reviewer reads an
 existing metadata record and returns a score; a fact checker reads a claim and returns a
 verdict — and none of those fit either class. `Envelope.payload` was already `range: Any` with
@@ -28,7 +28,7 @@ would mean editing the linter, and an unedited linter would silently pass an unf
    Schema emits it as a one-value `enum`; the Pydantic mirrors use it as the discriminator of
    `Input` and `Payload` unions.
 3. Every payload class, and every item class within a payload that asserts an identity (an
-   R3 `Recommendation`, a quality `Finding`), mixes in `Grounded`, which contributes one
+   The standards advisor `Recommendation`, a quality `Finding`), mixes in `Grounded`, which contributes one
    required slot: `grounded_on: list[GroundingRef]`. A `GroundingRef` is a `source_id` and a
    `content_hash`. It is the only way a payload may name an external thing as decided identity;
    descriptive strings (`ResourceRef.name`, a URL) are not verified and reviewers read identity
@@ -62,8 +62,8 @@ profile).
 - A new agent kind that needs a new input or payload class edits `schema/data_director.yaml`
   (class + `any_of` arm), regenerates, and adds the Pydantic mirror to `contract/models.py`
   (`INPUT_TYPES` / `PAYLOAD_TYPES`). Nothing else changes.
-- `Recommendations` and `Recommendation` now carry `grounded_on`; R3's `evidence_hashes` slot is
-  redundant and should be removed when R3 is ported. It was removed with the port, in contract
+- `Recommendations` and `Recommendation` now carry `grounded_on`; the standards advisor's `evidence_hashes` slot is
+  redundant and should be removed when the standards advisor is ported. It was removed with the port, in contract
   0.4.0.
 - The `DatasetProfile` description no longer says "the only view of the input an agent gets".
 - The contract version moves to 0.2.0. Stored v0 envelopes lack `grounding_mode` and

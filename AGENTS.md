@@ -56,6 +56,12 @@ Read `workbench/AGENTS.md` before changing anything here or in `harness/`.
 Every commit must be signed off under the Developer Certificate of Origin — `git commit -s`.
 Unsigned commits are rejected at review.
 
+## Workflows
+
+CI runs `zizmor` and `actionlint` over `.github/` (blanket policy, no unpinned actions). Pin every
+`uses:` to a full commit SHA with the version as a trailing comment (`# v1.2.3`), and run
+`uvx zizmor .github` before pushing any change to a workflow.
+
 ## Writing conventions
 
 British English (`organisation`, `behaviour`, `licence` as noun). Declarative prose for a mixed

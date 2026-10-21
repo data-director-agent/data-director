@@ -34,19 +34,19 @@ four) is the case for this design.
 3. **What is common lives in the workbench; what an agent should recommend lives with the
    agent.** `workbench.evaluation` holds the solver, the scorers that apply to every agent
    (`outcome_matches`, `stopped_correctly`, `grounding_passed`) and the run comparison. An
-   agent's own cases, defects and scorers are in its package (for R3, `dd_agent_r3.evals`),
-   which imports the workbench lazily, as `dd_agent_r3.testing` does. `src/workbench/` still
+   agent's own cases, defects and scorers are in its package (for the standards advisor, `dd_agent_standards.evals`),
+   which imports the workbench lazily, as `dd_agent_standards.testing` does. `src/workbench/` still
    imports no agent.
 4. **Stopping is scored as its own answer.** `stopped_correctly` asks whether the agent stopped
    exactly when the case expects it to. Stopping when it should have answered and answering when
    it should have stopped are counted separately. A `failed` run is neither.
-5. **Scores stay separate.** There is no blended figure. For R3, recall of the expected
+5. **Scores stay separate.** There is no blended figure. For the standards advisor, recall of the expected
    recommendations and "no wrong recommendation" are two scores: a missed standard and a
    confidently wrong one are different failures. A scorer that does not apply to a case returns
    NOANSWER, and `mean_applicable` leaves that case out. Inspect's own `mean` would count it as
    zero, contrary to the rule that a missing input is `None`, never `0.0`.
 6. **A defect is registered and never changes.** Defects are named functions in a registry
-   (`dd_agent_r3.evals.defects.DEFECTS`), under the rule `CANONICALISATIONS` follows. A new
+   (`dd_agent_standards.evals.defects.DEFECTS`), under the rule `CANONICALISATIONS` follows. A new
    mutation is a new name.
 7. **A run records what produced it.** `AgentSpec.version` is set by hand and does not change
    when ranking rules, a snapshot or an explainer change. The task's `metadata["identity"]`
@@ -73,7 +73,7 @@ four) is the case for this design.
 
 - An agent change that makes any seeded case worse fails CI. So does one that makes a case
   better without rewriting the baseline. Either way the change in behaviour is visible in review.
-- The labels in R3's case file are provisional. They follow the Metadata Librarian's guidance in
+- The labels in the standards advisor's case file are provisional. They follow the Metadata Librarian's guidance in
   Uzwyshyn, *The Research Data Director* v0.8.2, and no domain expert has reviewed them. The
   labelled ORDA corpus is to replace them
   ([#22](https://github.com/data-director-agent/data-director/issues/22)). It plugs in as a

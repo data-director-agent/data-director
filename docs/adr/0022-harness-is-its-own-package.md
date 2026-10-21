@@ -12,7 +12,7 @@ evaluation code.
 
 The workbench is a development tool for people who write sub-agents. The Data Director app
 (`app/`) is what researchers use, and it must not depend on the workbench. So the app could not
-reach the harness at all. It called R3's retrieval code in-process, and it had to warn that
+reach the harness at all. It called the standards advisor's retrieval code in-process, and it had to warn that
 nothing it said was checked or recorded. "Every front end calls the conductor" held for the
 development test bed and not for the product.
 
@@ -53,11 +53,11 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   The app's reference set is `app/config/` (`profile.yaml`, `agents.yaml`, `sources.yaml`), and
   its runs go to `app/runs/`. A `DD_*` variable still wins over each file, so a deployment can
   replace any of them without changing the repository.
-- **The app reaches R3 through the conductor (#60, option 1).** The app's one tool builds a
-  `DatasetProfile` and calls `Conductor.invoke("r3.standards-advisor", ...)` for the operator's
-  principal (`OperatorAssertion`, ADR-0018). R3 does not delegate, so the app runs it in its own
+- **The app reaches the standards advisor through the conductor (#60, option 1).** The app's one tool builds a
+  `DatasetProfile` and calls `Conductor.invoke("standards.advisor", ...)` for the operator's
+  principal (`OperatorAssertion`, ADR-0018). The standards advisor does not delegate, so the app runs it in its own
   process: `build_conductor(settings, agents=[...])` registers agent objects beside those its
-  agent list names. Each R3 run is gated, checked and stored. The app's own model turn and its
+  agent list names. Each standards advisor run is gated, checked and stored. The app's own model turn and its
   final answer are not.
 - **The CLI stays with the workbench.** The harness is a library with one way in of its own,
   the A2A endpoint. `workbench serve` adds AG-UI and the viewer on top of it.
@@ -100,7 +100,7 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   are authenticated (#17, #43), it must not be exposed beyond a trusted network.
 - **The test kit belongs to the harness (#56).** The scripted doubles, `in_process`,
   `make_conductor`, `TEST_PRINCIPAL` and the two test profiles are `dd_harness.testing`, in the
-  deployable package beside the code they exercise, as `dd_agent_r3.testing` is for R3. The
+  deployable package beside the code they exercise, as `dd_agent_standards.testing` is for R3. The
   doubles' classes are `dd_harness/schema/doubles.yaml`, because `ClassSchema.of` looks for a
   class's schema in its top-level package. `make_conductor` serves the delegation callback with
   `dd_harness.transport.a2a.a2a_routes` alone, so a test conductor needs nothing from the

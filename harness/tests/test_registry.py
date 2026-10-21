@@ -115,9 +115,9 @@ def test_manifest_rebuilt_from_cards_equals_each_agents_own_description(tmp_path
 
 @pytest.mark.requirement("DD-REGISTRY")
 def test_an_unreachable_agent_is_unavailable_and_the_rest_still_load(tmp_path: Path) -> None:
-    registry = registry_of(tmp_path, [{"name": "r3", "url": "http://r3.test"}])
+    registry = registry_of(tmp_path, [{"name": "standards", "url": "http://standards.test"}])
     assert set(registry.ids()) == IDS
-    assert "cannot read the agent card" in registry.unavailable["r3"]
+    assert "cannot read the agent card" in registry.unavailable["standards"]
 
 
 @pytest.mark.requirement("DD-REGISTRY")

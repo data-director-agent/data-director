@@ -1,0 +1,750 @@
+{
+  "checks": {
+    "grounding": {
+      "passed": true,
+      "summary": "grounding: passed [retrieval] (27 retrieval, 0 chat spans)"
+    },
+    "sources": {
+      "passed": true,
+      "summary": "sources: 14 verified, 0 unresolved"
+    }
+  },
+  "envelope": {
+    "acting_for": {
+      "assurance": "asserted",
+      "name": "Josiah Carberry",
+      "principal_id": "https://orcid.org/0000-0002-1825-0097",
+      "principal_kind": "person"
+    },
+    "agent_id": "standards.advisor",
+    "agent_version": "0.2.0",
+    "completed_at": "2026-01-01T00:00:00Z",
+    "contract_version": "0.8.0",
+    "evidence": [
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": null,
+          "description": "Tabular Data Package is a simple container format used for publishing and sharing tabular-style data. The format's focus is on simplicity and ease of use, especially online. In addition, the format is focused on data that can be presented in a tabular structure and in making it easy to produce (and consume) tabular data packages from spreadsheets and relational databases. The key features of this format are the following: CSV (comma separated variables) for data files; single JSON file (datapackage.json) to describe the dataset including a schema for data files; and reuse of existing work including other Frictionless Data specifications. As suggested by the name, Tabular Data Package extends and specializes the Data Package spec for the specific case where the data is tabular. In a Tabular Data Package, each CSV must have a schema defined using Table Schema and, optionally, a dialect defined using CSV-DDF. An application or library that consumes Tabular Data Packages therefore must be able to understand not only the full Data Package specification, but also Table Schema and CSV-DDF.",
+          "doi": "10.25504/FAIRsharing.082881",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.082881",
+          "name": "Tabular Data Package",
+          "record_type": "model_and_format",
+          "status": "ready",
+          "subjects": [
+            "Data Management",
+            "Subject Agnostic"
+          ]
+        },
+        "content_hash": "cdb45788b725c551453e3ccb856fcad59bd7d2098bb919c421847100d34b3596",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.082881",
+        "source_uri": "https://fairsharing.org/713"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "CSV-DDF",
+          "description": "CSV Dialect defines a simple format to describe the various dialects of CSV files in a language agnostic manner. It aims to deal with a reasonably large subset of the features which differ between dialects, such as terminator strings, quoting rules, escape rules and so on. The specification has been modeled around the union of the csv modules in Python and Ruby, and the bulk load capabilities of MySQL and PostgresQL. CSV Dialect has nothing to do with the names, contents or types of the headers or data within the CSV file, only how it is formatted. However, CSV Dialect does allow the presence or absence of a header to be specified, similarly to RFC4180. CSV Dialect is also orthogonal to the character encoding used in the CSV file. Note that it is possible for files in CSV format to contain data in more than one encoding.",
+          "doi": "10.25504/FAIRsharing.10bab4",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.10bab4",
+          "name": "CSV Dialect Description Format",
+          "record_type": "model_and_format",
+          "status": "ready",
+          "subjects": [
+            "Subject Agnostic"
+          ]
+        },
+        "content_hash": "c7bb6ab896d100b55ac0e21dc79c42c75f439b0a4b4de63160ddcd1b064cd56c",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.10bab4",
+        "source_uri": "https://fairsharing.org/1358"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "CSV",
+          "description": "A comma-separated values (CSV) file is a delimited text file that uses a comma to separate values. Each line of the file is a data record. Each record consists of one or more fields, separated by commas. The use of the comma as a field separator is the source of the name for this file format. A CSV file typically stores tabular data (numbers and text) in plain text, in which case each line will have the same number of fields.",
+          "doi": "10.25504/FAIRsharing.1943d4",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.1943d4",
+          "name": "Comma-separated Values",
+          "record_type": "model_and_format",
+          "status": "ready",
+          "subjects": [
+            "Computer Science",
+            "Subject Agnostic"
+          ]
+        },
+        "content_hash": "7389e3bc327c4059ad8405f92e20e469db6294449e4e8774d522490e56f2cf0c",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.1943d4",
+        "source_uri": "https://fairsharing.org/1398"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "USGS Thesaurus",
+          "description": "The United States Geological Survey Thesaurus (USGS Thesaurus) is a controlled vocabulary providing category terms for scientific information products generated by the U.S. Geological Survey. It is designed as a formal thesaurus conforming to ANSI/NISO Z39.19. The thesaurus is limited in depth and specificity of coverage. It does not attempt to replicate existing controlled vocabularies. The intention is to provide sufficient contextual cues for the information seeker to determine the relevance of a resource, not to precisely locate the answer to a specific user question.",
+          "doi": "10.25504/FAIRsharing.5bd3ef",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.5bd3ef",
+          "name": "United States Geological Survey Thesaurus",
+          "record_type": "terminology_artefact",
+          "status": "ready",
+          "subjects": [
+            "Data Management",
+            "Engineering Science",
+            "Natural Science"
+          ]
+        },
+        "content_hash": "37ac755d62a0468e14ecbc5e1cfd3f41d5fa392edf0262e1d9f74afea1946b7a",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.5bd3ef",
+        "source_uri": "https://fairsharing.org/612"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "NALT",
+          "description": "The National Agricultural Library Thesaurus (NALT) is an online vocabulary of agricultural terms in English and Spanish. The Agricultural Thesaurus and Glossary were first released by the National Agricultural Library in 2002. In 2007, NAL and the Inter-American Institute for Cooperation on Agriculture (IICA) collaborated to develop the Spanish version of the NAL Agricultural Thesaurus and Glossary, named Tesauro Agricola y Glosario. The thesaurus is primarily used for indexing and for improving retrieval of agricultural information. The subject scope of agriculture is broadly defined in the thesaurus, and includes terminology in the supporting biological, physical and social sciences. Biological nomenclature comprises a majority of the terms in the thesaurus, with political geography mainly described at the country level.",
+          "doi": "10.25504/FAIRsharing.95n1ns",
+          "domains": [
+            "Geographic location",
+            "Taxonomic classification",
+            "food"
+          ],
+          "fairsharing_id": "FAIRsharing.95n1ns",
+          "name": "National Agricultural Library Thesaurus",
+          "record_type": "terminology_artefact",
+          "status": "ready",
+          "subjects": [
+            "Agricultural Engineering",
+            "Agriculture",
+            "Animal Genetics",
+            "Animal Husbandry",
+            "Biology",
+            "Botany",
+            "Earth Science",
+            "Economics",
+            "Engineering Science",
+            "Entomology",
+            "Environmental Science",
+            "Farming Systems Research",
+            "Health Science",
+            "Jurisprudence",
+            "Life Science",
+            "Nutritional Science",
+            "Pathology",
+            "Plant Breeding",
+            "Social Science"
+          ]
+        },
+        "content_hash": "b49d9e0b445aff6be245995d7272f31582aaded2a80db87e390d166f530a723c",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.95n1ns",
+        "source_uri": "https://fairsharing.org/548"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "ISO 8601-1:2019",
+          "description": "The ISO 8601 Representations for information interchange – Part 1: Basic rules is an internationally standardized way of presenting: date, time of day, Coordinated Universal Time (UTC), local time with offset to UTC, date and time, time intervals, and recurring time intervals.The order of the elements used to express date and time in ISO 8601 is as follows: year, month, day, hour, minutes, seconds, and milliseconds (EX: 2022-09-27 18:00:00.000). ",
+          "doi": "10.25504/FAIRsharing.987d5a",
+          "domains": [
+            "Resource metadata",
+            "documenting",
+            "patent"
+          ],
+          "fairsharing_id": "FAIRsharing.987d5a",
+          "name": "ISO 8601 Date and time format",
+          "record_type": "model_and_format",
+          "status": "ready",
+          "subjects": [
+            "Subject Agnostic"
+          ]
+        },
+        "content_hash": "dd85b07c05871d567ed59af097dbfbd252ef599a469cd8368b82cbb6773a1070",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.987d5a",
+        "source_uri": "https://fairsharing.org/4998"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "DRAO",
+          "description": "The Domain Resource Application Ontology (DRAO) is an application ontology describing cross-discipline research domains used within FAIRsharing records by curators and the user community (see also the DRAO FAIRsharing record). It is built in conjunction with the Subject Resource Application Ontology (SRAO), which describes higher-level subject areas / disciplines. All classes within DRAO come from publicly-available terminologies. The full list of terminologies used to develop DRAO is available in the relationship graph of this record, with further information available on our github pages.",
+          "doi": "10.25504/FAIRsharing.FSIfv8",
+          "domains": [
+            "Classification",
+            "FAIR",
+            "Resource metadata"
+          ],
+          "fairsharing_id": "FAIRsharing.FSIfv8",
+          "name": "Domain Resource Application Ontology",
+          "record_type": "terminology_artefact",
+          "status": "ready",
+          "subjects": [
+            "Agriculture",
+            "Biomedical Science",
+            "Computer Science",
+            "Earth Science",
+            "Environmental Science",
+            "Humanities",
+            "Life Science",
+            "Natural Science"
+          ]
+        },
+        "content_hash": "fc9b905390d77a09312d3f7354d8f68eb7204f1ec3b8f8635df6abe561b5f64d",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.FSIfv8",
+        "source_uri": "https://fairsharing.org/604"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "IUPAC Gold Book",
+          "description": "The IUPAC Gold Book is a database of ~12000 chemical concepts derived from IUPAC's Recommendations published in Pure and Applied Chemistry.",
+          "doi": "10.25504/FAIRsharing.OsiqlF",
+          "domains": [
+            "small molecule"
+          ],
+          "fairsharing_id": "FAIRsharing.OsiqlF",
+          "name": "IUPAC Compendium of Chemical Terminology",
+          "record_type": "terminology_artefact",
+          "status": "ready",
+          "subjects": [
+            "Analytical Chemistry",
+            "Biochemistry",
+            "Chemistry",
+            "Clinical Chemistry",
+            "Computational Chemistry",
+            "Food Chemistry",
+            "Lipidomics",
+            "Medicinal Chemistry",
+            "Metabolomics",
+            "Molecular Physical Chemistry",
+            "Organic Chemistry",
+            "Physical Chemistry",
+            "Polymer Chemistry",
+            "Solid-State Chemistry",
+            "Synthesis Chemistry",
+            "Synthetic Chemistry",
+            "Theoretical Chemistry"
+          ]
+        },
+        "content_hash": "c9b3d4ff0372fe60c4f98ea6e49cf990a0575655de0f601f575dc8ab82340d81",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.OsiqlF",
+        "source_uri": "https://fairsharing.org/46"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": null,
+          "description": "Controlled vocabulary used for indexing bibliographical records dealing with chemistry in the PASCAL database (1972-2015). It is aligned with the terms of the ChEBI (Chemical Entities of Biological Interest), RXNO (name reaction ontology), MOP (molecular process ontology), REX (Physico-chemical process), FIX (Physico-chemical methods and properties), ontologies and the terms of the IUPAC Gold Book. This resource contains 9577 entries in 2 languages (English and French) grouped under 25 collections.",
+          "doi": "10.25504/FAIRsharing.TrcBD2",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.TrcBD2",
+          "name": "Chemistry vocabulary",
+          "record_type": "terminology_artefact",
+          "status": "ready",
+          "subjects": [
+            "Analytical Chemistry",
+            "Chemistry",
+            "Computational Chemistry",
+            "Inorganic Molecular Chemistry",
+            "Molecular Chemistry",
+            "Molecular Physical Chemistry",
+            "Organic Chemistry",
+            "Organic Molecular Chemistry",
+            "Physical Chemistry",
+            "Solid-State Chemistry",
+            "Theoretical Chemistry"
+          ]
+        },
+        "content_hash": "60d472531b2f5e219bda84a453f9d53c6159a6addb4a558deac62fbb77987c5c",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.TrcBD2",
+        "source_uri": "https://fairsharing.org/101"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "EuroVoc",
+          "description": "EuroVoc is a multilingual, multidisciplinary thesaurus covering the activities of the EU, the European Parliament in particular. It contains terms in 23 official EU languages, plus in three languages of countries which are candidates for EU accession. The aim of the thesaurus is to provide the information management and dissemination services with a coherent indexing tool for the effective management of their documentary resources and to enable users to carry out documentary searches using a controlled vocabulary.",
+          "doi": "10.25504/FAIRsharing.d0a681",
+          "domains": [
+            "food",
+            "transport"
+          ],
+          "fairsharing_id": "FAIRsharing.d0a681",
+          "name": "EuroVoc",
+          "record_type": "terminology_artefact",
+          "status": "ready",
+          "subjects": [
+            "Agriculture",
+            "Business Administration",
+            "Economics",
+            "Energy Engineering",
+            "Environmental Science",
+            "Fisheries Science",
+            "Forest Management",
+            "Geography",
+            "Linguistics",
+            "Political Science",
+            "Public Finance",
+            "Social Policy",
+            "Social Science",
+            "Transportation Planning"
+          ]
+        },
+        "content_hash": "85ae7963cd156605299e52927fd10d25eca1b8c1a8a5aba8a76c9b2d07674362",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.d0a681",
+        "source_uri": "https://fairsharing.org/618"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "ODM2",
+          "description": "Observations Data Model 2 (ODM2) is an information model for feature-based earth observations, designed to facilitate interoperability across scientific disciplines and domains. ODM2's metadata is structured around sampling, sensing, and analysis workflows. It also provides a supporting software ecosystem. Implementing the ODM2 data model as a database allows the integration of hydrological time series, soil and sediment geochemistry, biodiversity surveys, oceanographic sensor profiles, and multi-dimensional spectra.",
+          "doi": "10.25504/FAIRsharing.de40c7",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.de40c7",
+          "name": "Observations Data Model 2",
+          "record_type": "model_and_format",
+          "status": "ready",
+          "subjects": [
+            "Biodiversity",
+            "Geochemistry",
+            "Geology",
+            "Hydrogeology",
+            "Hydrology",
+            "Oceanography"
+          ]
+        },
+        "content_hash": "922fe72e98bfb074f7eca2a4097e1f9b358dc5092dbc7cb48796f1fd94627fe1",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.de40c7",
+        "source_uri": "https://fairsharing.org/1438"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "FOODON",
+          "description": "The need to represent knowledge about food is central to many human activities including agriculture, medicine, food safety inspection, shopping patterns, and sustainable development. FoodOn is built to interoperate with the OBO Library and to represent entities which bear a food role. Initially the ontology will focus on the human-centric categorization and handling of food, but in the future it will also encompass materials in natural ecosystems and food webs. We aim to develop semantics for food safety, food security, the agricultural and animal husbandry practices linked to food production, culinary, nutritional and chemical ingredients and processes.",
+          "doi": "10.25504/FAIRsharing.dzxae",
+          "domains": [
+            "Sustainability",
+            "disease",
+            "food"
+          ],
+          "fairsharing_id": "FAIRsharing.dzxae",
+          "name": "Food Ontology",
+          "record_type": "terminology_artefact",
+          "status": "ready",
+          "subjects": [
+            "Agriculture",
+            "Botany",
+            "Environmental Science",
+            "Medicine"
+          ]
+        },
+        "content_hash": "9006a95c2947db40d22bc807a2c34757bc12b098e3485c747b0af79c53622001",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.dzxae",
+        "source_uri": "https://fairsharing.org/638"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "ABCDEFG",
+          "description": "Access to Biological Collection Databases Extended for Geosciences (ABCDEFG) is an XML Schema developed for use with palaeontological, mineralogical and geological digitalized collection data. It extends the ABCD XML Schema used by GBIF (Global Biodiversity Information Facility).",
+          "doi": "10.25504/FAIRsharing.edfd85",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.edfd85",
+          "name": "Access to Biological Collection Databases Extended for Geosciences",
+          "record_type": "model_and_format",
+          "status": "ready",
+          "subjects": [
+            "Earth Science",
+            "Geology",
+            "Paleontology",
+            "Soil Science"
+          ]
+        },
+        "content_hash": "e334b5f843a3cb4cc5b569995a17bb65764981faaf3efc5bda8cdf5c83bc4e78",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.edfd85",
+        "source_uri": "https://fairsharing.org/1396"
+      },
+      {
+        "canonicalisation": "json-sorted-utf8-v1",
+        "content": {
+          "abbreviation": "INSPIRE",
+          "description": "The INSPIRE Directive aims to create a European Union spatial data infrastructure for the purposes of EU environmental policies and policies or activities which may have an impact on the environment. This European Spatial Data Infrastructure will enable the sharing of environmental spatial information among public sector organisations, facilitate public access to spatial information across Europe and assist in policy-making across boundaries.",
+          "doi": "10.25504/FAIRsharing.nrx5kk",
+          "domains": [],
+          "fairsharing_id": "FAIRsharing.nrx5kk",
+          "name": "Infrastructure for Spatial Information in Europe Data Specifications",
+          "record_type": "model_and_format",
+          "status": "ready",
+          "subjects": [
+            "Agriculture",
+            "Atmospheric Science",
+            "Energy Engineering",
+            "Environmental Science",
+            "Geography",
+            "Geology",
+            "Health Science",
+            "Hydrography",
+            "Mineralogy",
+            "Oceanography",
+            "Soil Science",
+            "Transportation Planning"
+          ]
+        },
+        "content_hash": "f82c0ace77d5bb9c7f226cbe555619e4304717cad989253a17913b2a60ee088e",
+        "hash_algorithm": "sha256",
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "snapshot_ref": "snapshot:2026-09-04",
+        "source_id": "FAIRsharing.nrx5kk",
+        "source_uri": "https://fairsharing.org/169"
+      }
+    ],
+    "grounding_mode": "retrieval",
+    "input_schema": "1e3f3abec2b8576f91ccd7643523ce39aa477774f36fb9ec5d62af089aeacdfd",
+    "invocation_id": "01900000-0000-7000-8000-000000000001",
+    "outcome": {
+      "statement": "16 recommendation(s) across controlled_vocabulary, data_format, field_format, ontology, terminology_unclassified, grounded in 14 FAIRsharing record(s) (snapshot:2026-09-04). Human review is required.",
+      "status": "succeeded"
+    },
+    "payload": {
+      "grounded_on": [
+        {
+          "content_hash": "cdb45788b725c551453e3ccb856fcad59bd7d2098bb919c421847100d34b3596",
+          "source_id": "FAIRsharing.082881"
+        },
+        {
+          "content_hash": "c7bb6ab896d100b55ac0e21dc79c42c75f439b0a4b4de63160ddcd1b064cd56c",
+          "source_id": "FAIRsharing.10bab4"
+        },
+        {
+          "content_hash": "7389e3bc327c4059ad8405f92e20e469db6294449e4e8774d522490e56f2cf0c",
+          "source_id": "FAIRsharing.1943d4"
+        },
+        {
+          "content_hash": "37ac755d62a0468e14ecbc5e1cfd3f41d5fa392edf0262e1d9f74afea1946b7a",
+          "source_id": "FAIRsharing.5bd3ef"
+        },
+        {
+          "content_hash": "b49d9e0b445aff6be245995d7272f31582aaded2a80db87e390d166f530a723c",
+          "source_id": "FAIRsharing.95n1ns"
+        },
+        {
+          "content_hash": "dd85b07c05871d567ed59af097dbfbd252ef599a469cd8368b82cbb6773a1070",
+          "source_id": "FAIRsharing.987d5a"
+        },
+        {
+          "content_hash": "fc9b905390d77a09312d3f7354d8f68eb7204f1ec3b8f8635df6abe561b5f64d",
+          "source_id": "FAIRsharing.FSIfv8"
+        },
+        {
+          "content_hash": "c9b3d4ff0372fe60c4f98ea6e49cf990a0575655de0f601f575dc8ab82340d81",
+          "source_id": "FAIRsharing.OsiqlF"
+        },
+        {
+          "content_hash": "60d472531b2f5e219bda84a453f9d53c6159a6addb4a558deac62fbb77987c5c",
+          "source_id": "FAIRsharing.TrcBD2"
+        },
+        {
+          "content_hash": "85ae7963cd156605299e52927fd10d25eca1b8c1a8a5aba8a76c9b2d07674362",
+          "source_id": "FAIRsharing.d0a681"
+        },
+        {
+          "content_hash": "922fe72e98bfb074f7eca2a4097e1f9b358dc5092dbc7cb48796f1fd94627fe1",
+          "source_id": "FAIRsharing.de40c7"
+        },
+        {
+          "content_hash": "9006a95c2947db40d22bc807a2c34757bc12b098e3485c747b0af79c53622001",
+          "source_id": "FAIRsharing.dzxae"
+        },
+        {
+          "content_hash": "e334b5f843a3cb4cc5b569995a17bb65764981faaf3efc5bda8cdf5c83bc4e78",
+          "source_id": "FAIRsharing.edfd85"
+        },
+        {
+          "content_hash": "f82c0ace77d5bb9c7f226cbe555619e4304717cad989253a17913b2a60ee088e",
+          "source_id": "FAIRsharing.nrx5kk"
+        }
+      ],
+      "items": [
+        {
+          "classification_derivation": "lexical",
+          "grounded_on": [
+            {
+              "content_hash": "60d472531b2f5e219bda84a453f9d53c6159a6addb4a558deac62fbb77987c5c",
+              "source_id": "FAIRsharing.TrcBD2"
+            }
+          ],
+          "kind": "ontology",
+          "rationale": "Chemistry vocabulary (FAIRsharing.TrcBD2) is recommended as an ontology for aligning the dataset's structure with a shared model for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Analytical Chemistry, Chemistry, Organic Chemistry, Physical Chemistry. Ranking signals: lexical=1.00, subject_overlap=0.12, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.7375,
+          "target": "dataset"
+        },
+        {
+          "classification_derivation": "lexical",
+          "grounded_on": [
+            {
+              "content_hash": "c9b3d4ff0372fe60c4f98ea6e49cf990a0575655de0f601f575dc8ab82340d81",
+              "source_id": "FAIRsharing.OsiqlF"
+            }
+          ],
+          "kind": "terminology_unclassified",
+          "rationale": "IUPAC Compendium of Chemical Terminology (FAIRsharing.OsiqlF) is recommended as a terminology resource (the registry record does not say whether it is a vocabulary or an ontology) for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Lipidomics, Medicinal Chemistry, Metabolomics, Biochemistry. Ranking signals: lexical=0.96, subject_overlap=0.12, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.7179,
+          "target": "dataset"
+        },
+        {
+          "classification_derivation": "lexical",
+          "grounded_on": [
+            {
+              "content_hash": "b49d9e0b445aff6be245995d7272f31582aaded2a80db87e390d166f530a723c",
+              "source_id": "FAIRsharing.95n1ns"
+            }
+          ],
+          "kind": "controlled_vocabulary",
+          "rationale": "National Agricultural Library Thesaurus (FAIRsharing.95n1ns) is recommended as a controlled vocabulary for linking field values to shared concepts for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Farming Systems Research, Agriculture, Economics, Environmental Science. Ranking signals: lexical=0.53, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.5416,
+          "target": "dataset"
+        },
+        {
+          "classification_derivation": "lexical",
+          "grounded_on": [
+            {
+              "content_hash": "fc9b905390d77a09312d3f7354d8f68eb7204f1ec3b8f8635df6abe561b5f64d",
+              "source_id": "FAIRsharing.FSIfv8"
+            }
+          ],
+          "kind": "ontology",
+          "rationale": "Domain Resource Application Ontology (FAIRsharing.FSIfv8) is recommended as an ontology for aligning the dataset's structure with a shared model for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Agriculture, Environmental Science, Life Science, Computer Science. Ranking signals: lexical=0.47, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.5101,
+          "target": "dataset"
+        },
+        {
+          "classification_derivation": "lexical",
+          "grounded_on": [
+            {
+              "content_hash": "85ae7963cd156605299e52927fd10d25eca1b8c1a8a5aba8a76c9b2d07674362",
+              "source_id": "FAIRsharing.d0a681"
+            }
+          ],
+          "kind": "controlled_vocabulary",
+          "rationale": "EuroVoc (FAIRsharing.d0a681) is recommended as a controlled vocabulary for linking field values to shared concepts for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Linguistics, Forest Management, Agriculture, Economics. Ranking signals: lexical=0.46, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.5066,
+          "target": "dataset"
+        },
+        {
+          "classification_derivation": "lexical",
+          "grounded_on": [
+            {
+              "content_hash": "37ac755d62a0468e14ecbc5e1cfd3f41d5fa392edf0262e1d9f74afea1946b7a",
+              "source_id": "FAIRsharing.5bd3ef"
+            }
+          ],
+          "kind": "controlled_vocabulary",
+          "rationale": "United States Geological Survey Thesaurus (FAIRsharing.5bd3ef) is recommended as a controlled vocabulary for linking field values to shared concepts for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Data Management, Engineering Science, Natural Science. Ranking signals: lexical=0.60, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.5017,
+          "target": "dataset"
+        },
+        {
+          "classification_derivation": "lexical",
+          "grounded_on": [
+            {
+              "content_hash": "9006a95c2947db40d22bc807a2c34757bc12b098e3485c747b0af79c53622001",
+              "source_id": "FAIRsharing.dzxae"
+            }
+          ],
+          "kind": "ontology",
+          "rationale": "Food Ontology (FAIRsharing.dzxae) is recommended as an ontology for aligning the dataset's structure with a shared model for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Agriculture, Environmental Science, Botany, Medicine. Ranking signals: lexical=0.41, subject_overlap=0.25, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.4823,
+          "target": "dataset"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "f82c0ace77d5bb9c7f226cbe555619e4304717cad989253a17913b2a60ee088e",
+              "source_id": "FAIRsharing.nrx5kk"
+            }
+          ],
+          "kind": "data_format",
+          "rationale": "Infrastructure for Spatial Information in Europe Data Specifications (FAIRsharing.nrx5kk) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Agriculture, Environmental Science, Mineralogy, Atmospheric Science. Ranking signals: lexical=1.00, subject_overlap=0.38, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.8125,
+          "target": "dataset"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "e334b5f843a3cb4cc5b569995a17bb65764981faaf3efc5bda8cdf5c83bc4e78",
+              "source_id": "FAIRsharing.edfd85"
+            }
+          ],
+          "kind": "data_format",
+          "rationale": "Access to Biological Collection Databases Extended for Geosciences (FAIRsharing.edfd85) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Soil Science, Geology, Paleontology, Earth Science. Ranking signals: lexical=0.94, subject_overlap=0.12, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.7054,
+          "target": "dataset"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "922fe72e98bfb074f7eca2a4097e1f9b358dc5092dbc7cb48796f1fd94627fe1",
+              "source_id": "FAIRsharing.de40c7"
+            }
+          ],
+          "kind": "data_format",
+          "rationale": "Observations Data Model 2 (FAIRsharing.de40c7) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Hydrogeology, Geochemistry, Hydrology, Biodiversity. Ranking signals: lexical=0.67, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.5353,
+          "target": "dataset"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "c7bb6ab896d100b55ac0e21dc79c42c75f439b0a4b4de63160ddcd1b064cd56c",
+              "source_id": "FAIRsharing.10bab4"
+            }
+          ],
+          "kind": "data_format",
+          "rationale": "CSV Dialect Description Format (FAIRsharing.10bab4) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.7,
+          "target": "dataset"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "7389e3bc327c4059ad8405f92e20e469db6294449e4e8774d522490e56f2cf0c",
+              "source_id": "FAIRsharing.1943d4"
+            }
+          ],
+          "kind": "data_format",
+          "rationale": "Comma-separated Values (FAIRsharing.1943d4) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Computer Science, Subject Agnostic. Ranking signals: lexical=0.81, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.605,
+          "target": "dataset"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "cdb45788b725c551453e3ccb856fcad59bd7d2098bb919c421847100d34b3596",
+              "source_id": "FAIRsharing.082881"
+            }
+          ],
+          "kind": "data_format",
+          "rationale": "Tabular Data Package (FAIRsharing.082881) is recommended as an open data format for the dataset for the dataset. Its FAIRsharing status is 'ready'. Registered subjects: Data Management, Subject Agnostic. Ranking signals: lexical=0.72, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.5613,
+          "target": "dataset"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "dd85b07c05871d567ed59af097dbfbd252ef599a469cd8368b82cbb6773a1070",
+              "source_id": "FAIRsharing.987d5a"
+            }
+          ],
+          "kind": "field_format",
+          "rationale": "ISO 8601 Date and time format (FAIRsharing.987d5a) is recommended as a field-level format standard for the field 'collection_date'. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.7,
+          "target": "field:collection_date"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "dd85b07c05871d567ed59af097dbfbd252ef599a469cd8368b82cbb6773a1070",
+              "source_id": "FAIRsharing.987d5a"
+            }
+          ],
+          "kind": "field_format",
+          "rationale": "ISO 8601 Date and time format (FAIRsharing.987d5a) is recommended as a field-level format standard for the field 'sampled_at'. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.7,
+          "target": "field:sampled_at"
+        },
+        {
+          "grounded_on": [
+            {
+              "content_hash": "dd85b07c05871d567ed59af097dbfbd252ef599a469cd8368b82cbb6773a1070",
+              "source_id": "FAIRsharing.987d5a"
+            }
+          ],
+          "kind": "field_format",
+          "rationale": "ISO 8601 Date and time format (FAIRsharing.987d5a) is recommended as a field-level format standard for the field 'survey_date_uk'. Its FAIRsharing status is 'ready'. Registered subjects: Subject Agnostic. Ranking signals: lexical=1.00, subject_overlap=0.00, status=1.00. Identity was decided by retrieval and ranking, not by a model.",
+          "rationale_derivation": "template",
+          "score": 0.7,
+          "target": "field:survey_date_uk"
+        }
+      ],
+      "schema_class": "Recommendations",
+      "searched": {
+        "candidates_qualifying": 14,
+        "candidates_retrieved": 27,
+        "queries": [
+          "terminologies: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [terminology_artefact]",
+          "formats: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [model_and_format]",
+          "format:text/csv: 'csv' [model_and_format]",
+          "field-format:temporal: 'ISO 8601 date time format' [model_and_format]"
+        ],
+        "snapshot_ref": "snapshot:2026-09-04"
+      }
+    },
+    "payload_schema": "7b1bbd3ddcf6004b17b955641ed5bebb01cb35756ef4cae2fed19c74cb79c5cf",
+    "policy_bundle_ref": "profile:data-director-app@v2",
+    "policy_digest": "53319b418a571bc7a603386dd25250187379b2b7437305c9034b02857303f4f2",
+    "requires_human_review": true,
+    "telemetry": {
+      "energy_estimate_j": null,
+      "energy_method": "not_measured",
+      "trace_id": "00000000000000000000000000000000"
+    }
+  }
+}

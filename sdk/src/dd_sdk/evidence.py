@@ -9,8 +9,8 @@ cites one.
 
 Four canonicalisations exist:
 
-- `json-sorted-utf8-v1` — the FAIRsharing record projection R3 uses. Name and bytes are
-  unchanged from v0 so hashes in stored runs still verify.
+- `json-sorted-utf8-v1` — the FAIRsharing record projection the standards advisor uses. Name and
+bytes are unchanged from v0 so hashes in stored runs still verify.
 - `dd-input-json-v1` — the whole input document of an invocation, as `to_document` emits it.
   What an `input_only` or `none` agent cites: it rests on nothing but what it was given.
 - `dd-json-document-v1` — a whole retrieved record, as the source handed it over, with no
@@ -49,7 +49,7 @@ class Canonicalisation:
 
 CANONICALISATION = "json-sorted-utf8-v1"
 
-# The fields an R3 recommendation's grounding rests on.
+# The fields a standards advisor recommendation's grounding rests on.
 PROJECTED_FIELDS = (
     "fairsharing_id",
     "doi",
