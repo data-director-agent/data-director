@@ -63,8 +63,10 @@ them directly.
 
 1. When the conductor runs such an agent, it issues a grant: a random token, valid only while
    that run is in progress. The token and the harness's own A2A address travel to the agent
-   with the request. `workbench serve` uses its own host and port as the address;
-   `DD_HARNESS_URL` overrides it. `workbench invoke` issues no grant.
+   with the request. `workbench serve`, `dd-harness serve` and the app (`data-director`) use
+   their own host and port as the address; `DD_HARNESS_URL` overrides it. `workbench invoke`
+   issues no grant. The app serves the A2A routes without an authenticator, so they accept a
+   callback under a live grant and refuse every other request.
 2. The agent calls `ctx.delegate(agent_id, input)`. The SDK sends a new request back to the
    harness's A2A endpoint with the token.
 3. `Conductor.invoke_delegated` checks the token and refuses an unknown or expired one, or an

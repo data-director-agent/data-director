@@ -4,10 +4,13 @@
 agent through the conductor and answers when the run has ended, with its envelope and the
 checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples`
 lists example inputs. The run endpoint is a stopgap until runs stream over AG-UI (#68, #69).
+`POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
+delegation agent's callback under a live grant and nothing else (ADR-0012, #129).
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
 
-Serves on http://127.0.0.1:7860 by default; `DD_APP_HOST` and `DD_APP_PORT` change the address.
+Serves on http://127.0.0.1:7860 by default; `DD_APP_HOST` and `DD_APP_PORT` change the address,
+and `DD_HARNESS_URL` the address the agents call back on, if they reach the app by another.
 """
 
 from __future__ import annotations
@@ -32,13 +35,19 @@ from dd_harness.conductor import UnknownAgent
 from dd_harness.identity import IdentityError
 from dd_harness.policy import PolicyError
 from dd_harness.registry import RegistryError
+from dd_harness.server import LOOPBACK
 from dd_harness.settings import SettingsError
 from dd_harness.sources import SourceConfigError
+from dd_harness.transport.a2a import a2a_routes
 from dd_sdk.contract.problem import PROBLEM_BASE
 from dd_sdk.contract.validate import ContractViolation
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
+UNTRUSTED_WARNING = (
+    "data-director: warning: serving on {host}. A delegation grant is a bearer token and callers "
+    "are not authenticated; expose the app to the host or a private network only (ADR-0011).\n"
+)
 
 
 class ShellNotBuiltError(FileNotFoundError):
@@ -89,6 +98,9 @@ def build_app(
     async def list_examples(request: Request) -> Response:
         return JSONResponse(examples(examples_dir))
 
+    callback = governance.conductor.harness_url
+    # No authenticator: delegation callbacks only, so the app is no other way in (ADR-0012).
+    delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
     return Starlette(
         routes=[
             Route("/api/agents", agents, methods=["GET"]),
@@ -96,6 +108,7 @@ def build_app(
             Route("/api/runs", list_runs, methods=["GET"]),
             Route("/api/runs/{invocation_id}", get_run, methods=["GET"]),
             Route("/api/examples", list_examples, methods=["GET"]),
+            *delegation,
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ]
     )
@@ -126,16 +139,18 @@ def _refused(detail: str) -> Response:
 
 def main() -> int:
     """The `data-director` console script."""
+    host = os.environ.get("DD_APP_HOST", DEFAULT_HOST)
+    port = int(os.environ.get("DD_APP_PORT", DEFAULT_PORT))
     try:
-        governance = Governance.create(settings_from_env())
+        governance = Governance.create(settings_from_env(), f"http://{host}:{port}")
     # No principal (ADR-0018), or a profile, agent list or source list that is unset, missing
     # or malformed (ADR-0022): nothing may run.
     except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
         sys.exit(f"data-director: {exc}")
     try:
         app = build_app(governance)
-        host = os.environ.get("DD_APP_HOST", DEFAULT_HOST)
-        port = int(os.environ.get("DD_APP_PORT", DEFAULT_PORT))
+        if host not in LOOPBACK:
+            sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
         webbrowser.open(f"http://{host}:{port}/")
         uvicorn.run(app, host=host, port=port)
     except ShellNotBuiltError as exc:

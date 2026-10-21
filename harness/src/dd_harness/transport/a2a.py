@@ -3,8 +3,10 @@
 The request is an `InvocationRequest` carried as a data part of the user message; the response
 is the `Envelope` carried as a data part of the task's single artifact. Whom the invocation acts
 for comes from the `Authenticator`, given the HTTP request's headers, never from the message
-(ADR-0018); a delegation callback acts for its parent's principal, whoever sent it. `a2a-sdk` 1.x is
-protobuf-based, so documents cross as `google.protobuf.Struct` values via the SDK helpers.
+(ADR-0018); a delegation callback acts for its parent's principal, whoever sent it. Routes built
+without an authenticator accept delegation callbacks only, so a server that exists to receive them
+(the app's, #129) is not also a way in for anyone else. `a2a-sdk` 1.x is protobuf-based, so
+documents cross as `google.protobuf.Struct` values via the SDK helpers.
 """
 
 from __future__ import annotations
@@ -75,8 +77,16 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
     )
 
 
+DELEGATED_ONLY = (
+    "this endpoint accepts only a delegation agent's callback under a live grant (ADR-0012)"
+)
+
+
 class ConductorExecutor(AgentExecutor):
-    def __init__(self, conductor: Conductor, authenticator: Authenticator) -> None:
+    """Runs one A2A request through the conductor. With no `authenticator`, a request that
+    carries no delegation token is refused before the conductor sees it."""
+
+    def __init__(self, conductor: Conductor, authenticator: Authenticator | None) -> None:
         self.conductor = conductor
         self.authenticator = authenticator
 
@@ -110,6 +120,8 @@ class ConductorExecutor(AgentExecutor):
                     str(token),
                     str(metadata.get(META_TRACEPARENT, "")),
                 )
+            elif self.authenticator is None:
+                raise ValueError(DELEGATED_ONLY)
             else:
                 headers = (
                     context.call_context.state.get("headers") if context.call_context else None
@@ -137,8 +149,12 @@ class ConductorExecutor(AgentExecutor):
 
 
 def a2a_routes(
-    conductor: Conductor, authenticator: Authenticator, base_url: str
+    conductor: Conductor, authenticator: Authenticator | None, base_url: str
 ) -> tuple[AgentCard, list[BaseRoute]]:
+    """The agent card at `/.well-known/agent-card.json` and the JSON-RPC endpoint at `/a2a`.
+
+    With `authenticator` None the endpoint accepts delegation callbacks only (`DELEGATED_ONLY`).
+    """
     card = agent_card(conductor, base_url)
     handler = DefaultRequestHandler(
         agent_executor=ConductorExecutor(conductor, authenticator),

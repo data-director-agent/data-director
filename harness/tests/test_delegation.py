@@ -10,6 +10,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from a2a.helpers import get_data_parts
+from a2a.types import TaskState
+from starlette.applications import Starlette
 
 from dd_harness import grounding
 from dd_harness.conductor import DelegationError, DuplicateInvocation
@@ -23,7 +26,9 @@ from dd_harness.testing import (
     reply_over,
     request,
     review_of_input,
+    send_to_harness,
 )
+from dd_harness.transport.a2a import DELEGATED_ONLY, a2a_routes
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -38,6 +43,7 @@ from dd_sdk.contract.models import (
 from dd_sdk.delegate import DelegationRefused
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.tracing import records_from_jsonl
+from dd_sdk.wire import META_DELEGATION_TOKEN
 
 
 def child_agent(**overrides: Any) -> ScriptedAgent:
@@ -62,6 +68,11 @@ def abstain(statement: str) -> AgentResult:
             statement=statement,
         )
     )
+
+
+def error_of(task: Any) -> str:
+    """The error a failed A2A task reports."""
+    return str(get_data_parts(task.status.message.parts)[0]["error"])
 
 
 def lint_stored(runs: Path, invocation_id: str) -> grounding.GroundingReport:
@@ -298,3 +309,32 @@ def test_a_delegation_agent_run_without_a_callback_gets_no_delegate(tmp_path: Pa
     conductor.harness_url = None  # as under `workbench invoke`
     conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert seen[0].delegate is None
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_routes_without_an_authenticator_accept_only_a_live_grant(tmp_path: Path) -> None:
+    url = "http://callback.test"
+    served: dict[str, Any] = {}
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        token = {META_DELEGATION_TOKEN: grant_token(ctx)}
+        served["task"] = send_to_harness(served["app"], url, request("fake.none"), token)
+        return abstain("Called back by hand.")
+
+    conductor = make_conductor(
+        tmp_path, ScriptedAgent(GroundingMode.DELEGATION, behaviour), child_agent()
+    )
+    served["app"] = Starlette(routes=a2a_routes(conductor, None, url)[1])
+
+    refused = send_to_harness(served["app"], url, request("fake.none"))
+    assert refused.status.state == TaskState.TASK_STATE_FAILED
+    assert error_of(refused) == DELEGATED_ONLY
+    forged = send_to_harness(
+        served["app"], url, request("fake.none"), {META_DELEGATION_TOKEN: "not-a-token"}
+    )
+    assert "unknown or expired" in error_of(forged)
+    assert list(conductor.store.iter_envelopes()) == []
+
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
+    assert served["task"].status.state == TaskState.TASK_STATE_COMPLETED
+    assert [d.delegated_agent_id for d in env.delegations] == ["fake.none"]

@@ -26,6 +26,7 @@ The conductor knows them only from the doubles' cards, as it knows every real ag
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -33,6 +34,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 import httpx
+from a2a.client import ClientConfig, create_client
+from a2a.helpers import new_data_part
+from a2a.types import Message as A2AMessage
+from a2a.types import Role, SendMessageRequest
 from pydantic import Field
 from starlette.applications import Starlette
 
@@ -60,6 +65,8 @@ from dd_sdk.contract.models import (
     Principal,
     ReasonCode,
     Reply,
+    new_invocation_id,
+    to_document,
 )
 from dd_sdk.delegate import Delegated, HarnessDelegate
 from dd_sdk.evidence import (
@@ -356,6 +363,31 @@ def asgi_client_factory(app: Any) -> Callable[[str, float], httpx.AsyncClient]:
 
 
 HARNESS_URL = "http://harness.test"
+
+
+def send_to_harness(
+    app: Any, base_url: str, request: InvocationRequest, metadata: dict[str, str] | None = None
+) -> Any:
+    """Send `request` to the conductor's A2A routes served by `app` at `base_url`, with the
+    message metadata given, and return the task that came back."""
+
+    async def send() -> Any:
+        async with asgi_client_factory(app)(base_url, 30.0) as hc:
+            client = await create_client(
+                agent=base_url, client_config=ClientConfig(streaming=False, httpx_client=hc)
+            )
+            message = A2AMessage(
+                role=Role.ROLE_USER,
+                parts=[new_data_part(to_document(request))],
+                message_id=new_invocation_id(),
+                metadata=metadata or {},
+            )
+            last = None
+            async for response in client.send_message(SendMessageRequest(message=message)):
+                last = response
+            return getattr(last, "task", None)
+
+    return asyncio.run(send())
 
 
 def in_process(
