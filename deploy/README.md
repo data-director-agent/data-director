@@ -85,6 +85,20 @@ You need Ubuntu 22.04 or later, sudo, and a DNS name for the VM if it is to have
 
 The clone from step 1 is only needed for `install.sh`; the VM deploys from its own bare clone.
 
+### Why it fetches over HTTPS
+
+The repository is public, so the VM fetches it, and reads its checks, over HTTPS with no
+credential at all. Nothing on the VM can push, and there is no key to rotate or revoke. HTTPS on
+port 443 also passes firewalls that block outbound SSH.
+
+If the repository becomes private, give the VM a read-only
+[deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys):
+generate it as `datadirector` (`sudo -u datadirector ssh-keygen -t ed25519`), add the public half
+to the repository without write access, add GitHub's host key to
+`/var/lib/data-director/.ssh/known_hosts`, and set `DD_DEPLOY_REPO=git@github.com:data-director-agent/data-director.git`
+in `deploy.env`. The checks API then needs `GITHUB_TOKEN` too, since a deploy key does not
+reach the API.
+
 ## Day to day
 
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
@@ -137,7 +151,6 @@ release, stop the timer: `sudo systemctl disable --now data-director-deploy.time
 ## Not done yet
 
 - TODO: no notice reaches anyone when a deployment fails; the journal and `systemctl --failed`
-  are the record. A `OnFailure=` unit that mails or posts to a channel would close this.
-- TODO: GitHub does not show what is deployed. Recording each pass as a GitHub deployment would
-  need a token on the VM with write access.
+  are the record (#144).
+- TODO: GitHub does not show what is deployed (#145).
 - The site's password is the only access control until the app authenticates people (#17).
