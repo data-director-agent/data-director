@@ -1,0 +1,13 @@
+# Changelog
+
+## [0.2.0](https://github.com/data-director-agent/data-director/compare/agent-r3-v0.1.0...agent-r3-v0.2.0) (2026-10-21)
+
+
+### Features
+
+* **harness:** a test kit of its own, so harness tests leave workbench/tests ([#62](https://github.com/data-director-agent/data-director/issues/62)) ([bf72812](https://github.com/data-director-agent/data-director/commit/bf728125bd42d20865eaff903daa0370f7b94e48)), closes [#56](https://github.com/data-director-agent/data-director/issues/56)
+
+
+### Documentation
+
+* separate the docs by what they describe ([#58](https://github.com/data-director-agent/data-director/issues/58)) ([#64](https://github.com/data-director-agent/data-director/issues/64)) ([b55f849](https://github.com/data-director-agent/data-director/commit/b55f849b14e0566e3fdf2ffdf7def2a0c570afb0))
