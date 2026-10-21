@@ -34,8 +34,6 @@ jobs:
   # workspace members' versions. Refresh it on every release PR branch.
   refresh-lock:
     needs: release-please
-    permissions:
-      contents: write
     if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
     runs-on: ubuntu-latest
     permissions:
