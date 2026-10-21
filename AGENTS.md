@@ -56,6 +56,21 @@ Read `workbench/AGENTS.md` before changing anything here or in `harness/`.
 Every commit must be signed off under the Developer Certificate of Origin — `git commit -s`.
 Unsigned commits are rejected at review.
 
+## Issues and labels
+
+The kind of an issue is its GitHub issue type (Task, Bug or Feature), not a label; an umbrella
+issue is a parent with sub-issues. Labels say where and what about:
+
+- `area: …` — the part touched: `sdk`, `harness`, `workbench`, `app`, `agents`, `docs`, `ci`.
+  One or more per issue.
+- Themes: `blueprint` (review or conformance against the Blueprint), `security`, `evaluation`,
+  `accessibility`, and `needs ADR` for a change to a fixed format.
+- `good first issue`, `help wanted` and `blocked` (waiting on something outside the project).
+
+Pull requests carry their kind and scope in the Conventional Commit title, so they take no labels
+by hand. `dependencies`, `python:uv`, `javascript` and `autorelease: …` are applied by Dependabot
+and release-please; leave them alone.
+
 Pull requests are squash-merged and release-please reads the title as the commit subject, so a
 PR title is a Conventional Commit: `type(scope)!: summary`, with a lower-case summary and no
 closing full stop (`feat(app): register every in-tree agent`). A branch name is lower-case words
