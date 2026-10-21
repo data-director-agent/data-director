@@ -63,7 +63,7 @@ jobs:
         with:
           cache-dependency-glob: "uv.lock"
       - run: uv sync --all-packages --all-extras
-      - run: uv run python sdk/scripts/gen_schema.py
+      - run: uv run dd-gen-schema
       # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
       # a graph by sdk/tests/test_contract.py instead.
       - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'

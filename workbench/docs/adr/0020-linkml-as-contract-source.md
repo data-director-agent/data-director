@@ -36,15 +36,15 @@ The contract had to meet these constraints:
 2. **Slots and classes reuse external vocabularies where a term exists.** A slot that means
    `dcterms:title` says so with `slot_uri`. A slot without an external term carries `see_also` to
    its specification rather than an invented URI (ADR-0005).
-3. **The JSON Schema and SHACL shapes are generated and committed.** `sdk/scripts/gen_schema.py`
+3. **The JSON Schema and SHACL shapes are generated and committed.** `dd-gen-schema`
    produces `schema/generated/`. Nobody edits that directory by hand, and
    `test_generated_schemas_are_current` fails if it differs from a fresh generation.
 4. **Generator gaps are repaired in one place.** Where `gen-json-schema` cannot express part of
-   the source, `gen_schema.py` repairs its output and its docstring names each repair. There are
-   currently three: pinning `requires_human_review` to `const: true`, dropping the `$ref` that
-   would mask a polymorphic `anyOf` (ADR-0007), and restoring slot order (ADR-0016). Rules that
-   JSON Schema cannot state, such as "a `succeeded` outcome carries a payload", are written as
-   prose in the LinkML source and enforced in `dd_sdk/contract/validate.py`.
+   the source, `dd_sdk/schema/gen.py` repairs its output and its docstring names each repair.
+   There are currently three: pinning `requires_human_review` to `const: true`, dropping the
+   `$ref` that would mask a polymorphic `anyOf` (ADR-0007), and restoring slot order (ADR-0016).
+   Rules that JSON Schema cannot state, such as "a `succeeded` outcome carries a payload", are
+   written as prose in the LinkML source and enforced in `dd_sdk/contract/validate.py`.
 5. **Runtime validation uses the generated JSON Schema, not LinkML.** `validate.py` is the
    single call site. LinkML stays in the evaluation/CI tier (ADR-0006). It is needed to
    regenerate the schemas, not to load or check a document.
@@ -69,7 +69,7 @@ The contract had to meet these constraints:
 
 | Dependency | Tier | Fallback if this dependency is abandoned |
 |---|---|---|
-| `linkml` (generators, and `linkml_runtime.SchemaView` in `gen_schema.py`) | Evaluation/CI path | The committed JSON Schema files become the hand-maintained source. The LinkML YAML is kept as documentation of slot URIs. Runtime code reads only `schema/generated/` through `contract/validate.py`, so nothing outside the SDK changes. |
+| `linkml` (generators, and `linkml_runtime.SchemaView` in `dd_sdk/schema/gen.py`) | Evaluation/CI path | The committed JSON Schema files become the hand-maintained source. The LinkML YAML is kept as documentation of slot URIs. Runtime code reads only `schema/generated/` through `contract/validate.py`, so nothing outside the SDK changes. |
 
 ## Consequences
 
@@ -80,6 +80,6 @@ The contract had to meet these constraints:
   LinkML metamodel: `slots`, `range`, `any_of`, `mixin`/`mixins`, `designates_type`, `slot_uri`
   and `imports`.
 - Upgrading LinkML can change the generated output. The currency test makes that visible in the
-  diff, and any new gap in the generator is repaired in `gen_schema.py` under point 4.
+  diff, and any new gap in the generator is repaired in `dd_sdk/schema/gen.py` under point 4.
 - Do not make runtime code import `linkml` or `linkml_runtime`, and do not edit
   `schema/generated/` by hand. Either change needs this ADR revisited.
