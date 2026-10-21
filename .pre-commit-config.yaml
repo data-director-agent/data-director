@@ -1,0 +1,8 @@
+# Install once with `uv tool install pre-commit && pre-commit install` (CONTRIBUTING.md).
+repos:
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.4
+    hooks:
+      # Re-lock whenever a pyproject.toml changes, so uv.lock never lags behind it (CI runs with
+      # UV_LOCKED). Locking from the current state keeps lock diffs small, and so conflicts rare.
+      - id: uv-lock
