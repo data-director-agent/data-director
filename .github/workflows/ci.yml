@@ -1,10 +1,13 @@
 name: CI
 
 # One workflow for the whole repository, ending in one job, "CI passed", that a ruleset can
-# require. Every job runs on every pull request: the jobs are short and run in parallel, and a
-# path filter would leave a required check waiting for a job that never starts.
+# require. A workflow-level path filter would leave that required check waiting for a run that
+# never starts, so the filter is per job instead: the "changes" job reads which files a pull
+# request touches, the Python and app/web jobs run only when their side changed, and "CI passed"
+# counts a skipped job as passed. Pushes to main, the merge queue and the weekly run always run
+# every job. The cheap repository-wide jobs run on every pull request.
 #
-#   Python workspace (ADR-0011): Ruff, mypy, pytest with CONFORMANCE.md, generated schemas,
+#   Python workspace (ADR-0011): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
 #     packages, the agents as real services, the workbench viewer in a browser (#9)
 #   app/web (ADR-0024): ESLint, tsc, Vitest, Vite build, Playwright
 #   Repository: links, citation file, workflows, sign-off, dependency review
@@ -36,6 +39,38 @@ env:
   UV_LOCKED: "1"  # every uv command refuses a uv.lock that pyproject.toml has moved past
 
 jobs:
+  # --- Which side of the repository a pull request touches ------------------------------------
+
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      python: ${{ steps.paths.outputs.python }}
+      web: ${{ steps.paths.outputs.web }}
+    steps:
+      # A pull request is checked out as GitHub's merge commit, whose first parent is the base
+      # branch, so HEAD^1..HEAD is exactly what the pull request changes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      # The rules err towards running a job. Anything under .github/ or in the Python toolchain
+      # runs everything; app/ outside app/web runs both sides (app/tests writes
+      # app/web/fixtures); prose (Markdown other than CONFORMANCE.md and the readmes that twine
+      # checks, and the documentation site) runs neither; any other path is the Python
+      # workspace's. scripts/ci_changes.sh holds the rules so that they can be tried locally.
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+          else
+            printf 'python=true\nweb=true\n' >> "$GITHUB_OUTPUT"
+          fi
+
   # --- Python workspace: every step runs from the root, where the tooling config lives. ---------
 
   lint:
@@ -55,7 +90,9 @@ jobs:
       - run: uv run ruff format --check .
 
   typecheck:
-    name: mypy
+    name: mypy and generated schemas
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -67,9 +104,15 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
       - run: uv run mypy
+      - run: uv run dd-gen-schema
+      # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
+      # a graph by sdk/tests/test_contract.py instead.
+      - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'
 
   test:
     name: pytest and CONFORMANCE.md
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -111,25 +154,10 @@ jobs:
           flags: sdk,harness,workbench,app,agents
           fail_ci_if_error: false
 
-  schemas:
-    name: Generated schemas up to date
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          cache-dependency-glob: uv.lock
-      - run: uv sync --all-packages --all-extras
-      - run: uv run dd-gen-schema
-      # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
-      # a graph by sdk/tests/test_contract.py instead.
-      - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'
-
   packages:
-    name: Packages build and install alone
+    name: Packages and agents as services
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -146,23 +174,14 @@ jobs:
       # The workspace installs every member together; this installs each wheel on its own, with
       # the workspace's Python.
       - run: uv run python scripts/check_wheels.py dist
-
-  smoke:
-    name: Agents as services (smoke)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          cache-dependency-glob: uv.lock
+      # Then the agents as real services, from the workspace.
       - run: uv sync --all-packages --all-extras
       - run: uv run python scripts/smoke_agents.py
 
   viewer:
     name: Workbench viewer in a browser
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -174,7 +193,8 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
       # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
-      - run: uv run playwright install --with-deps chromium
+      # Headless runs need only chromium-headless-shell, not the full browser.
+      - run: uv run playwright install --with-deps --only-shell chromium
       - run: uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -187,6 +207,8 @@ jobs:
 
   web:
     name: App shell (lint, types, unit, build, browser)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -209,7 +231,8 @@ jobs:
       # app/tests/test_app.py, which the test job runs.
       - run: npm test
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      # Headless runs need only chromium-headless-shell, not the full browser.
+      - run: npx playwright install --with-deps --only-shell chromium
       - run: npm run e2e
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -316,12 +339,11 @@ jobs:
     name: CI passed
     if: always()
     needs:
+      - changes
       - lint
       - typecheck
       - test
-      - schemas
       - packages
-      - smoke
       - viewer
       - web
       - docs
@@ -331,8 +353,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # A job skipped by its own `if` (dco and dependency-review outside pull requests) passes;
-      # a job that failed or was cancelled does not.
+      # A job skipped by its own `if` (dco and dependency-review outside pull requests, a side
+      # of the repository that a pull request does not touch) passes; a job that failed or was
+      # cancelled does not.
       - name: Every job passed or was skipped
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
