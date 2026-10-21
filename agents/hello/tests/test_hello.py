@@ -15,6 +15,7 @@ import pytest
 import dd_agent_hello
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_hello.classes import Greeting, Salutation
+from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -26,7 +27,6 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
 from dd_sdk.schema import gen
-from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
 SCHEMA = Path(dd_agent_hello.__file__).parent / "schema" / "hello.yaml"
@@ -71,7 +71,7 @@ def test_unknown_language_abstains_rather_than_raising(runs_dir: Path) -> None:
 
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
 def test_an_input_class_it_did_not_declare_is_refused(runs_dir: Path) -> None:
-    from workbench.testing import claim
+    from dd_harness.testing import claim
 
     env = make_conductor(runs_dir, HelloWorld()).invoke(
         request("hello.world", claim()), acting_for=TEST_PRINCIPAL

@@ -126,7 +126,7 @@ CLI, transports or viewer, this agent will show it.
      spec refuses a path or a sibling that the payload class does not have. Ship no presentation:
      the viewer lays the payload out from its schema, in LinkML slot order (ADR-0016).
 9. **Test it** in `<name>/tests/`, with a test module name no other package uses. Test the
-   agent through a conductor with `workbench.testing.make_conductor(runs_dir, YourAgent())`,
+   agent through a conductor with `dd_harness.testing.make_conductor(runs_dir, YourAgent())`,
    which serves it in memory over A2A exactly as the workbench calls it. Mark each test with the
    requirement identifiers it actually exercises (`workbench/docs/requirements.yaml`). Do not
    claim a Blueprint `R` a demonstration does not meet.

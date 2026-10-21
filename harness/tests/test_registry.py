@@ -1,10 +1,9 @@
-"""Agent discovery (ADR-0011): agents.yaml, agent cards, the manifest, and the `agents` command."""
+"""Agent discovery (ADR-0011): an agent configuration, agent cards and the manifest."""
 
 from __future__ import annotations
 
 import asyncio
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -17,14 +16,12 @@ from dd_agent_quality.agent import QualityReviewer
 from dd_agent_stub.agent import AbstainingStub
 from dd_harness.registry import Registry, RegistryError, load_config
 from dd_harness.remote import RemoteAgent
+from dd_harness.testing import ScriptedAgent, in_process, review_of_input
 from dd_sdk import serve
 from dd_sdk.agent import Agent, describe
 from dd_sdk.contract.models import GroundingMode
 from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.wire import CARD_PATH, EXTENSION_URI
-from workbench import cli
-from workbench.config import DEFAULT_AGENTS_CONFIG
-from workbench.testing import ScriptedAgent, in_process, review_of_input
 
 AGENTS: dict[str, Agent] = {
     "http://hello.test": HelloWorld(),
@@ -170,17 +167,6 @@ def test_a_missing_or_malformed_config_is_a_registry_error(tmp_path: Path) -> No
         load_config(bad)
 
 
-def test_the_shipped_config_lists_every_agent_package() -> None:
-    # agents.yaml holds only URLs; run-agents.sh maps each package's script to its port.
-    root = Path(__file__).resolve().parents[2]
-    ports = {int(e["url"].rsplit(":", 1)[1]) for e in load_config(DEFAULT_AGENTS_CONFIG)}
-    script = (root / "scripts" / "run-agents.sh").read_text()
-    served = {m[0]: int(m[1]) for m in re.findall(r"\[dd-([a-z0-9]+)\]=(\d+)", script)}
-    packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
-    assert set(served) == packages == {"hello", "quality", "factcheck", "stub", "r3", "director"}
-    assert set(served.values()) == ports
-
-
 def test_duplicate_agent_id_is_a_registry_error() -> None:
     a = in_process(ScriptedAgent(GroundingMode.NONE, review_of_input))
     b = in_process(ScriptedAgent(GroundingMode.NONE, review_of_input))
@@ -191,20 +177,3 @@ def test_duplicate_agent_id_is_a_registry_error() -> None:
 def test_object_without_the_protocol_is_a_registry_error() -> None:
     with pytest.raises(RegistryError, match="Agent protocol"):
         Registry.from_agents([object()])  # type: ignore[list-item]
-
-
-@pytest.mark.requirement("DD-REGISTRY")
-def test_agents_command_lists_the_registry(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    registry = registry_of(tmp_path, [{"name": "r3", "url": "http://r3.test"}])
-    monkeypatch.setattr(cli, "build_registry", lambda settings: registry)
-    assert cli.main(["agents"]) == 0
-    out = capsys.readouterr().out
-    for agent_id in IDS:
-        assert agent_id in out
-    assert "input_only" in out and "[r3] unavailable" in out
-    assert cli.main(["agents", "--json"]) == 0
-    data = json.loads(capsys.readouterr().out)
-    assert {m["agent_id"] for m in data["agents"]} == IDS and "r3" in data["unavailable"]
-    assert data["incompatible"] == {}

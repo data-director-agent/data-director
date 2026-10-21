@@ -1,19 +1,20 @@
-# Input and payload classes of the workbench's test doubles (workbench.testing), and nothing
+# Input and payload classes of the harness's test doubles (dd_harness.testing), and nothing
 # else: no real agent reads or returns them. They exist so that the harness is tested against
 # classes it knows only from a card, as it will be for every real agent (ADR-0019, decision 10).
-# After an edit, run `uv run dd-gen-schema workbench/src/workbench/schema/doubles.yaml` and keep
-# the Probe* models in ../testing.py in step; ClassSchema.of refuses a model that has drifted.
-id: https://w3id.org/data-director/workbench/doubles
-name: workbench_doubles
-title: Workbench test double classes
+# After an edit, run `uv run dd-gen-schema harness/src/dd_harness/schema/doubles.yaml` and keep
+# the Probe* models in ../testing/__init__.py in step; ClassSchema.of refuses a model that has
+# drifted.
+id: https://w3id.org/data-director/harness/doubles
+name: harness_doubles
+title: Harness test double classes
 description: >-
   Stand-ins, shaped like the classes of the demonstration agents, that the scripted agents in
-  workbench.testing accept and return.
+  dd_harness.testing accept and return.
 version: 0.1.0
 license: MIT
 
 prefixes:
-  doubles: https://w3id.org/data-director/workbench/doubles/
+  doubles: https://w3id.org/data-director/harness/doubles/
   linkml: https://w3id.org/linkml/
 default_prefix: doubles
 default_range: string

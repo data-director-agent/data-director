@@ -19,8 +19,8 @@ from dd_agent_r3.classes import DatasetProfile
 from dd_agent_r3.evals.defects import DEFECTS, apply_defect
 from dd_agent_r3.evals.seeded import load_cases, r3_seeded
 from dd_agent_r3.testing import SAMPLES
+from dd_harness.testing import TEST_PRINCIPAL
 from workbench.evaluation import baseline_of, differences
-from workbench.testing import TEST_PRINCIPAL
 
 # Inspect AI leaves its sample-event stream unclosed (inspect_ai/hooks/_hooks.py, the sample
 # event emitter); with warnings as errors, its deallocator warning fails whichever test is

@@ -1,6 +1,6 @@
 {
    "$comment": "Generated from doubles.yaml by `uv run dd-gen-schema <path to doubles.yaml>`. Do not edit.",
-   "$id": "https://w3id.org/data-director/workbench/doubles/ProbeRecord",
+   "$id": "https://w3id.org/data-director/harness/doubles/ProbeRecord",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "A metadata record for an input_only or none double to read.",

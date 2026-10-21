@@ -8,15 +8,7 @@ from pathlib import Path
 import pytest
 
 from dd_harness import conversations
-from dd_sdk.agent import AgentResult, RunContext
-from dd_sdk.contract.models import (
-    Frozen,
-    GroundingMode,
-    InvocationRequest,
-    Message,
-    new_invocation_id,
-)
-from workbench.testing import (
+from dd_harness.testing import (
     TEST_PRINCIPAL,
     ScriptedAgent,
     make_conductor,
@@ -25,6 +17,14 @@ from workbench.testing import (
     reply_over,
     request,
     review_of_input,
+)
+from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.contract.models import (
+    Frozen,
+    GroundingMode,
+    InvocationRequest,
+    Message,
+    new_invocation_id,
 )
 
 

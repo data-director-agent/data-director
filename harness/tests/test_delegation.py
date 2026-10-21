@@ -13,6 +13,17 @@ import pytest
 
 from dd_harness import grounding
 from dd_harness.conductor import DelegationError, DuplicateInvocation
+from dd_harness.testing import (
+    TEST_PRINCIPAL,
+    ScriptedAgent,
+    grant_token,
+    make_conductor,
+    message,
+    record,
+    reply_over,
+    request,
+    review_of_input,
+)
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -27,17 +38,6 @@ from dd_sdk.contract.models import (
 from dd_sdk.delegate import DelegationRefused
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.tracing import records_from_jsonl
-from workbench.testing import (
-    TEST_PRINCIPAL,
-    ScriptedAgent,
-    grant_token,
-    make_conductor,
-    message,
-    record,
-    reply_over,
-    request,
-    review_of_input,
-)
 
 
 def child_agent(**overrides: Any) -> ScriptedAgent:
@@ -190,7 +190,8 @@ def test_a_child_may_not_reuse_its_parents_invocation_id(tmp_path: Path) -> None
 
 @pytest.mark.requirement("DD-DELEGATION", "DD-ACTS-FOR")
 def test_a_child_acts_for_its_parents_principal_not_its_callers(tmp_path: Path) -> None:
-    # The callback reaches the workbench's own app, which asserts TEST_PRINCIPAL for any caller.
+    # The callback reaches the conductor's own A2A routes, which assert TEST_PRINCIPAL for any
+    # caller.
     # The parent acts for someone else; the child must act for them too.
     other = Principal(principal_id="mailto:steward@example.org", name="A. Steward")
     conductor = make_conductor(tmp_path, delegating("fake.none"), child_agent())
