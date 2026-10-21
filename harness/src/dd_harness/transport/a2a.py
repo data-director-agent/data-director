@@ -53,9 +53,10 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
         for entry in conductor.registry.manifest()
     ]
     return AgentCard(
-        name="Data Director Workbench",
+        name="Data Director Harness",
         description=(
-            "Reference workbench for the RDA Data Director Blueprint. Send an InvocationRequest "
+            "The harness of the reference implementation of the RDA Data Director Blueprint. "
+            "Send an InvocationRequest "
             "as a data part; receive an Envelope as a data artifact. Every envelope requires "
             "human review."
         ),
@@ -74,7 +75,7 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
     )
 
 
-class WorkbenchExecutor(AgentExecutor):
+class ConductorExecutor(AgentExecutor):
     def __init__(self, conductor: Conductor, authenticator: Authenticator) -> None:
         self.conductor = conductor
         self.authenticator = authenticator
@@ -140,7 +141,7 @@ def a2a_routes(
 ) -> tuple[AgentCard, list[BaseRoute]]:
     card = agent_card(conductor, base_url)
     handler = DefaultRequestHandler(
-        agent_executor=WorkbenchExecutor(conductor, authenticator),
+        agent_executor=ConductorExecutor(conductor, authenticator),
         task_store=InMemoryTaskStore(),
         agent_card=card,
     )

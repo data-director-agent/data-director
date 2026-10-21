@@ -58,7 +58,7 @@ from dd_sdk.contract.models import (
     Principal,
     Reply,
 )
-from dd_sdk.delegate import Delegated, WorkbenchDelegate
+from dd_sdk.delegate import Delegated, HarnessDelegate
 from dd_sdk.evidence import (
     DOCUMENT_CANONICALISATION,
     HASH_ALGORITHM,
@@ -68,6 +68,7 @@ from dd_sdk.evidence import (
 from dd_sdk.tracing import chat_span, retrieval_span
 
 __all__ = [
+    "HARNESS_URL",
     "PERMISSIVE",
     "PROFILES_DIR",
     "RESTRICTIVE",
@@ -75,7 +76,6 @@ __all__ = [
     "SOURCE_B",
     "SPECS",
     "TEST_PRINCIPAL",
-    "WORKBENCH_URL",
     "Behaviour",
     "Chat",
     "ProbeCheck",
@@ -288,7 +288,7 @@ def fact_check_over(*sources: Retrieve) -> AgentResult:
 def grant_token(ctx: RunContext) -> str:
     """The grant token behind a delegation agent's `delegate`, for a test that presents it to
     the conductor directly instead of through `delegate`."""
-    assert isinstance(ctx.delegate, WorkbenchDelegate), "the agent was not issued a grant"
+    assert isinstance(ctx.delegate, HarnessDelegate), "the agent was not issued a grant"
     return ctx.delegate.grant.token
 
 
@@ -324,7 +324,7 @@ def asgi_client_factory(app: Any) -> Callable[[str, float], httpx.AsyncClient]:
     return factory
 
 
-WORKBENCH_URL = "http://workbench.test"
+HARNESS_URL = "http://harness.test"
 
 
 def in_process(
@@ -334,7 +334,7 @@ def in_process(
 ) -> RemoteAgent:
     """Serve `agent` in memory and return the `RemoteAgent` built from its card.
 
-    `delegate_client_factory` is the client a delegation agent calls the workbench back with.
+    `delegate_client_factory` is the client a delegation agent calls the harness back with.
     """
     base_url = f"http://{agent.spec.agent_id}.agents.test"
     kwargs: dict[str, Any] = {}
@@ -356,17 +356,17 @@ def make_conductor(
     """A conductor over `agents`, each reached over in-process A2A unless `remote` is False,
     governed by the institutional profile at `profile`.
 
-    A remote conductor also serves its own A2A routes in memory at `WORKBENCH_URL` and sets them
+    A remote conductor also serves its own A2A routes in memory at `HARNESS_URL` and sets them
     as the delegation callback, so delegation runs over the wire as it does in production. Those
     routes act for `TEST_PRINCIPAL`; a test invokes the conductor with `acting_for=TEST_PRINCIPAL`.
     """
-    workbench_app: dict[str, Any] = {}
+    harness_app: dict[str, Any] = {}
 
-    def workbench_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
-        return asgi_client_factory(workbench_app["app"])(base_url, timeout_s)
+    def harness_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        return asgi_client_factory(harness_app["app"])(base_url, timeout_s)
 
     registry = Registry.from_agents(
-        in_process(a, delegate_client_factory=workbench_client) if remote else a for a in agents
+        in_process(a, delegate_client_factory=harness_client) if remote else a for a in agents
     )
     conductor = Conductor(
         registry=registry,
@@ -375,9 +375,9 @@ def make_conductor(
         write_crate=crate,
     )
     if remote:
-        _card, routes = a2a_routes(conductor, OperatorAssertion(TEST_PRINCIPAL), WORKBENCH_URL)
-        workbench_app["app"] = Starlette(routes=routes)
-        conductor.workbench_url = WORKBENCH_URL
+        _card, routes = a2a_routes(conductor, OperatorAssertion(TEST_PRINCIPAL), HARNESS_URL)
+        harness_app["app"] = Starlette(routes=routes)
+        conductor.harness_url = HARNESS_URL
     return conductor
 
 

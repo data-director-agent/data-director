@@ -19,7 +19,7 @@ from dd_sdk.contract.models import GroundingMode
 
 BASE = "http://testserver"
 PATH_VARIABLES = ("DD_RUNS_DIR", "DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
-OTHER_VARIABLES = ("DD_WORKBENCH_URL", "DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME", "DD_PRINCIPAL_KIND")
+OTHER_VARIABLES = ("DD_HARNESS_URL", "DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME", "DD_PRINCIPAL_KIND")
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ def test_serve_runs_the_a2a_app_on_the_given_address(
 def test_the_configured_url_names_the_card_and_the_callback(
     deployment: pytest.MonkeyPatch, ran: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    deployment.setenv("DD_WORKBENCH_URL", "https://harness.example.org")
+    deployment.setenv("DD_HARNESS_URL", "https://harness.example.org")
     built: dict[str, Any] = {}
     serving = server.serving
 
@@ -109,7 +109,7 @@ def test_the_configured_url_names_the_card_and_the_callback(
 
     monkeypatch.setattr(server, "serving", spy)
     server.main(["serve", "--host", "0.0.0.0"])
-    assert built["conductor"].workbench_url == "https://harness.example.org"
+    assert built["conductor"].harness_url == "https://harness.example.org"
     card = _get(ran["app"], "/.well-known/agent-card.json").json()
     assert card["supportedInterfaces"][0]["url"] == "https://harness.example.org/a2a"
 
@@ -125,7 +125,7 @@ def test_a_host_beyond_loopback_is_warned_about(
 
 def test_serving_sets_the_callback_to_the_base_url(deployment: pytest.MonkeyPatch) -> None:
     conductor, authenticator = server.serving(Settings.from_env(), "http://127.0.0.1:9000")
-    assert conductor.workbench_url == "http://127.0.0.1:9000"
+    assert conductor.harness_url == "http://127.0.0.1:9000"
     assert authenticator.principal_for(None) == TEST_PRINCIPAL
 
 

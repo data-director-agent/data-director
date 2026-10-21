@@ -5,9 +5,9 @@
 `/.well-known/agent-card.json` and the JSON-RPC binding at `/a2a`. `main(build)` is the console
 script every agent package exposes (`<agent> serve --port N`).
 
-Per request the server starts an isolated tracer, parents it to the `traceparent` the workbench
+Per request the server starts an isolated tracer, parents it to the `traceparent` the harness
 sent, runs the agent in a worker thread, and returns the result with the spans the agent emitted.
-It does no governance: the workbench's conductor applies the policy gate, the input check and the
+It does no governance: the harness's conductor applies the policy gate, the input check and the
 grounding linter to whatever comes back.
 """
 
@@ -97,7 +97,7 @@ def run_traced(
 ) -> dict[str, Any]:
     """Run the agent under a tracer parented to the caller's span; return the artifact body.
 
-    If the workbench sent a delegation grant (ADR-0012), the agent's context carries a
+    If the harness sent a delegation grant (ADR-0012), the agent's context carries a
     `delegate` bound to it. An exception from the agent propagates; the executor turns it into a
     failed task.
     """
@@ -115,7 +115,7 @@ def run_traced(
                 input_ref=str(metadata.get(META_INPUT_REF, "")),
                 input_hash=str(metadata.get(META_INPUT_HASH, "")),
                 delegate=(
-                    delegation.WorkbenchDelegate(
+                    delegation.HarnessDelegate(
                         grant=grant,
                         parent=request,
                         tracer=tracing.tracer,
@@ -188,7 +188,7 @@ def app(
     delegate_client_factory: delegation.ClientFactory = delegation.default_client,
 ) -> Starlette:
     """`delegate_client_factory` gives the httpx client a delegation agent uses to call the
-    workbench back; tests bind it to the workbench's in-process app."""
+    harness back; tests bind it to the harness's in-process app."""
     card = agent_card(agent, base_url)
     handler = DefaultRequestHandler(
         agent_executor=AgentServerExecutor(agent, delegate_client_factory),

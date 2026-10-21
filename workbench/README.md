@@ -144,7 +144,7 @@ over the file. `scripts/run-agents.sh` passes the same file to the agents.
 | `DD_PROFILE` | `profiles/default.yaml` | The institutional profile applied to every invocation. A request cannot name one (ADR-0017). |
 | `DD_AGENTS_CONFIG` | `agents.yaml` | The agent registry file. |
 | `DD_SOURCES_CONFIG` | `sources.yaml` | The pinned source copies the source check resolves evidence against (ADR-0016). |
-| `DD_WORKBENCH_URL` | the host and port of `serve` | The address the orchestrator uses to call the workbench back. Set it when agents reach the workbench by another name, such as a container network or a proxy. |
+| `DD_HARNESS_URL` | the host and port of `serve` | The address the orchestrator uses to call the harness back. Set it when agents reach the harness by another name, such as a container network or a proxy. |
 
 These defaults are the workbench's development set (`src/workbench/config.py`), resolved against
 `workbench/`. The harness has no defaults of its own, so another way in names these files itself

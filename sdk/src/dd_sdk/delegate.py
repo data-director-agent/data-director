@@ -1,8 +1,8 @@
-"""Delegation: an agent asks the workbench to invoke another agent (ADR-0012).
+"""Delegation: an agent asks the harness to invoke another agent (ADR-0012).
 
 An agent in grounding mode `delegation` never calls another agent directly. It calls
-`ctx.delegate(agent_id, input)`, which sends an `InvocationRequest` back to the workbench's A2A
-endpoint with the grant token the conductor issued for this invocation. The workbench runs the
+`ctx.delegate(agent_id, input)`, which sends an `InvocationRequest` back to the harness's A2A
+endpoint with the grant token the conductor issued for this invocation. The harness runs the
 child as an ordinary governed invocation (policy gate, input check, linter, store), records it
 against the parent, and answers with the child envelope as the JSON the conductor stored.
 
@@ -10,7 +10,7 @@ against the parent, and answers with the child envelope as the JSON the conducto
 reference and evidence item that cite it (`invocation:<child_id>`, `dd-envelope-json-v1`), so
 a relayed reply cannot mis-cite what it relays.
 
-A `DelegationGrant` is transport, not agent context: the workbench's `RemoteAgent` writes it into
+A `DelegationGrant` is transport, not agent context: the harness's `RemoteAgent` writes it into
 the request metadata and `dd_sdk.serve` reads it back to bind the agent's `delegate`. The agent
 itself never sees it.
 """
@@ -57,7 +57,7 @@ ClientFactory = Callable[[str, float], httpx.AsyncClient]
 
 @dataclass(frozen=True)
 class DelegationGrant:
-    """Where and with what token an agent may ask the workbench to invoke another.
+    """Where and with what token an agent may ask the harness to invoke another.
 
     Issued by the conductor to an agent in grounding mode delegation, for one invocation only.
     """
@@ -77,7 +77,7 @@ class DelegationGrant:
 
 
 class DelegationRefused(Exception):
-    """The workbench would not run the delegated invocation, or could not be reached.
+    """The harness would not run the delegated invocation, or could not be reached.
 
     A refusal is not a child outcome: a child that ran and failed comes back as a `Delegated`
     whose envelope says so. This is raised when no child envelope exists at all.
@@ -96,7 +96,7 @@ def default_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
 
 
 @dataclass
-class WorkbenchDelegate:
+class HarnessDelegate:
     """The `Delegate` `dd_sdk.serve` hands a delegation agent, bound to one grant."""
 
     grant: DelegationGrant
@@ -121,7 +121,7 @@ class WorkbenchDelegate:
             try:
                 response = asyncio.run(self._send(to_document(request), metadata))
             except (httpx.HTTPError, TimeoutError) as exc:
-                raise DelegationRefused(f"workbench at {self.grant.url}: {exc!r}") from exc
+                raise DelegationRefused(f"harness at {self.grant.url}: {exc!r}") from exc
             document = _envelope_document(response)
             content_hash = envelope_hash(document)
             source_id = invocation_source_id(str(document.get("invocation_id")))
@@ -130,7 +130,7 @@ class WorkbenchDelegate:
         try:
             envelope = Envelope.model_validate(document)
         except ValueError as exc:
-            raise DelegationRefused(f"the workbench returned a malformed envelope: {exc}") from exc
+            raise DelegationRefused(f"the harness returned a malformed envelope: {exc}") from exc
         return Delegated(
             envelope=envelope,
             ref=GroundingRef(source_id=source_id, content_hash=content_hash),
@@ -165,17 +165,17 @@ class WorkbenchDelegate:
 def _envelope_document(response: Any) -> dict[str, Any]:
     task = getattr(response, "task", None)
     if task is None:
-        raise DelegationRefused("the workbench returned no task")
+        raise DelegationRefused("the harness returned no task")
     if task.status.state != TaskState.TASK_STATE_COMPLETED:
         detail = _failure_detail(task) or TaskState.Name(task.status.state)
-        raise DelegationRefused(f"the workbench refused the delegation: {detail}")
+        raise DelegationRefused(f"the harness refused the delegation: {detail}")
     for artifact in task.artifacts:
         if artifact.name == ENVELOPE_JSON_ARTIFACT:
             texts = get_text_parts(artifact.parts)
             if len(texts) == 1:
                 document: dict[str, Any] = json.loads(texts[0])
                 return document
-    raise DelegationRefused(f"the workbench returned no {ENVELOPE_JSON_ARTIFACT} artifact")
+    raise DelegationRefused(f"the harness returned no {ENVELOPE_JSON_ARTIFACT} artifact")
 
 
 def _failure_detail(task: Any) -> str | None:

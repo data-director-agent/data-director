@@ -124,3 +124,4 @@ Each design decision has a record in [`adr/`](../../docs/adr/):
 | [0020](../../docs/adr/0020-linkml-as-contract-source.md) | LinkML is the source of the contract; JSON Schema is what runtime checks |
 | [0021](../../docs/adr/0021-ro-crate-is-a-record-not-a-message.md) | RO-Crate is a record written after a run, not a message format |
 | [0022](../../docs/adr/0022-harness-is-its-own-package.md) | The harness is a package of its own, and the workbench is one way in to it |
+| [0023](../../docs/adr/0023-harness-names.md) | Names that mean the harness say "harness" |

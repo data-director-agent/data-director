@@ -2,16 +2,16 @@
 
 An agent is a specification plus one method. The specification (`AgentSpec`) says what the agent
 is, which input classes it accepts, what payload class it returns and which grounding contract it
-declares; the workbench's conductor and linter hold it to that. `run` decides an outcome, a
+declares; the harness's conductor and linter hold it to that. `run` decides an outcome, a
 payload and the evidence it rests on. It does not fill in identifiers, timestamps or telemetry;
 the conductor does, so an agent cannot mislabel its own run.
 
-An agent runs in its own process behind `dd_sdk.serve` (ADR-0011). The workbench reaches it over
+An agent runs in its own process behind `dd_sdk.serve` (ADR-0011). The harness reaches it over
 A2A and sees the same `Agent` protocol through its `RemoteAgent`.
 
 `describe(spec)` is the one manifest every consumer reads: the agent's A2A card extension, the
-workbench's own agent card, `workbench agents`, `GET /agents` and the viewer's agent picker.
-`spec_from_description` is its inverse, used by the workbench to rebuild a spec from a card.
+harness's own agent card, `workbench agents`, `GET /agents` and the viewer's agent picker.
+`spec_from_description` is its inverse, used by the harness to rebuild a spec from a card.
 The manifest says what an agent does, never how to draw it: the viewer works out a payload's
 presentation from its schema and the agent's `derivations` (ADR-0016).
 """
@@ -194,13 +194,13 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     declared = entry.get("contract_version")
     if not isinstance(declared, str):
         raise ContractVersionError(
-            f"agent {entry.get('agent_id')!r} declares no contract version; this workbench "
+            f"agent {entry.get('agent_id')!r} declares no contract version; this harness "
             f"governs contract {CONTRACT_VERSION}"
         )
     if not compatible(declared):
         raise ContractVersionError(
             f"agent {entry.get('agent_id')!r} was built against contract {declared}; this "
-            f"workbench governs contract {CONTRACT_VERSION}"
+            f"harness governs contract {CONTRACT_VERSION}"
         )
     missing = DESCRIPTION_KEYS - set(entry)
     if missing:
@@ -270,7 +270,7 @@ class AgentResult:
 
 
 class Delegate(Protocol):
-    """Invoke another agent through the workbench and return its envelope (`dd_sdk.delegate`)."""
+    """Invoke another agent through the harness and return its envelope (`dd_sdk.delegate`)."""
 
     def __call__(self, agent_id: str, input: Frozen) -> Delegated: ...
 
@@ -283,8 +283,8 @@ class RunContext:
     cites; they are computed by the conductor so the agent cannot get them wrong.
 
     `delegate` is what an agent in grounding mode delegation calls to invoke another agent.
-    `dd_sdk.serve` binds it to the grant the workbench sent with the request (ADR-0012). It is
-    None for every other agent, and for a delegation agent run where the workbench has no
+    `dd_sdk.serve` binds it to the grant the harness sent with the request (ADR-0012). It is
+    None for every other agent, and for a delegation agent run where the harness has no
     callback address (the CLI).
     """
 

@@ -14,7 +14,7 @@
          ]
       },
       "Assurance": {
-         "description": "How the workbench came to know the principal. TODO: authenticated arrives with authentication, under its own ADR.",
+         "description": "How the harness came to know the principal. TODO: authenticated arrives with authentication, under its own ADR.",
          "enum": [
             "asserted"
          ],
@@ -64,7 +64,7 @@
       },
       "Delegation": {
          "additionalProperties": false,
-         "description": "One child invocation an agent in grounding mode delegation made through the workbench (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
+         "description": "One child invocation an agent in grounding mode delegation made through the harness (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
          "properties": {
             "delegated_invocation_id": {
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -501,7 +501,7 @@
          "type": "object"
       },
       "OutcomeStatus": {
-         "description": "The outcome vocabulary. The Blueprint does not define one; this is the workbench's specification contribution.",
+         "description": "The outcome vocabulary. The Blueprint does not define one; this is the harness's specification contribution.",
          "enum": [
             "succeeded",
             "abstained",
@@ -555,7 +555,7 @@
             },
             "assurance": {
                "$ref": "#/$defs/Assurance",
-               "description": "How the workbench came to know the principal."
+               "description": "How the harness came to know the principal."
             }
          },
          "required": [
@@ -739,7 +739,7 @@
          "type": "string"
       }
    },
-   "$id": "https://w3id.org/data-director/schema/workbench",
+   "$id": "https://w3id.org/data-director/schema/core",
    "$schema": "https://json-schema.org/draft/2019-09/schema",
    "additionalProperties": true,
    "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012).",
@@ -795,7 +795,7 @@
       "issued_at",
       "input"
    ],
-   "title": "data_director_workbench",
+   "title": "data_director_core",
    "type": "object",
-   "version": "0.7.0"
+   "version": "0.8.0"
 }

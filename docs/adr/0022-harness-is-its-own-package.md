@@ -90,11 +90,7 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
 - TODO: governing the app's own model turn and answer, by making the app a front end to an
   orchestrator under `delegation` grounding (ADR-0012, #21). Only an agent reached over A2A can
   be granted delegation today.
-- TODO: names that still say "workbench" where they mean the harness. These are
-  `Conductor.workbench_url` and `DD_WORKBENCH_URL`, the A2A card's name and description,
-  `WorkbenchExecutor`, `dd_sdk.delegate.WorkbenchDelegate`, and the trace `service.name`
-  `data-director-workbench`. Renaming them changes a configuration variable, the agent card and
-  stored traces, so it is left for a separate change.
+- Names that still said "workbench" where they meant the harness are renamed by ADR-0023 (#54).
 - **The harness has a server of its own (#55).** `dd-harness serve` (`dd_harness.server`) serves
   the A2A routes and the agent card, and nothing else, for deployments that need no viewer. Its
   settings come from the environment with no defaults. `uvicorn` is the optional extra
