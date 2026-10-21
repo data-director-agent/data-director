@@ -1,0 +1,10 @@
+# Independent copies of the sources the app's agents cite (ADR-0016), unless DD_SOURCES_CONFIG
+# names another list. Paths are relative to this file; each copy is pinned by sha256, and a
+# file that no longer matches its pin stops the app from starting. Format as in
+# workbench/sources.yaml.
+# TODO: how to pin a copy that is not in the repository (#57).
+sources:
+  - snapshot_refs: ["snapshot:2026-09-04", "snapshot:2026-09-04 (stale)"]
+    path: ../../agents/r3/data/fairsharing/snapshot.jsonl
+    id_field: fairsharing_id
+    sha256: 969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1

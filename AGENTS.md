@@ -10,8 +10,8 @@ A reference implementation of the RDA [Data Director Agentic AI Blueprint](https
   by their `pyproject.toml` version (`agents/README.md`) rather than kept in a separate
   non-authoritative tree.
 - `app/` is the Data Director app that people use (alpha, `app/README.md`). It must not depend on
-  `workbench/`, which is for development only. It may depend on `harness/`; routing it through
-  the conductor is still TODO (issue #47).
+  `workbench/`, which is for development only. It calls R3 through the harness's conductor, with
+  its own configuration in `app/config/`.
 - The repository root is a uv workspace. `harness/` (`dd_harness`) governs agents against one
   contract: the conductor, policy gate, input check, grounding linter, source check, run store and
   provenance, with an A2A way in (`harness/README.md`, ADR-0022), and its test kit

@@ -55,7 +55,7 @@ The repository is a uv workspace. `sdk/` holds everything an agent and the harne
 `harness/` governs every invocation and depends only on `sdk/`. `workbench/` is the development
 way in to the harness: the CLI, the viewer, evaluation and the conformance report.
 `agents/` holds one package per agent, each run as its own service. `app/` is the Data Director
-app (alpha), which does not yet call the harness. Paths below are relative to the repository
+app (alpha), which calls R3 through the conductor. Paths below are relative to the repository
 root.
 
 | Component | What it does | Where |

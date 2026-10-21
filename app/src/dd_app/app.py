@@ -13,14 +13,20 @@ from typing import Any
 import gradio as gr
 from pydantic_ai.exceptions import UserError
 
-from dd_app.agent import build_agent, respond
+from dd_app.agent import Governance, build_agent, respond
+from dd_app.config import settings_from_env
+from dd_harness.identity import IdentityError
+from dd_harness.policy import PolicyError
+from dd_harness.registry import RegistryError
+from dd_harness.settings import SettingsError
+from dd_harness.sources import SourceConfigError
 
 TITLE = "Data Director (alpha)"
 DESCRIPTION = (
-    "An alpha assistant for documenting, publishing and sharing research data. It is not "
-    "yet governed: nothing it says is checked or recorded, and its advice needs "
-    "human review. Standards are looked up in a small offline FAIRsharing snapshot "
-    "(CC BY-SA 4.0, https://fairsharing.org)."
+    "An alpha assistant for documenting, publishing and sharing research data. Standards "
+    "are recommended from a small offline FAIRsharing snapshot (CC BY-SA 4.0, "
+    "https://fairsharing.org); each recommendation run is checked and recorded. The "
+    "assistant's own wording is not checked, and its advice needs human review."
 )
 EXAMPLES = [
     "Which metadata standards suit a single-cell RNA-seq dataset?",
@@ -31,7 +37,13 @@ EXAMPLES = [
 
 def build_app() -> gr.ChatInterface:
     try:
-        agent = build_agent()
+        governance = Governance.create(settings_from_env())
+    # No principal (ADR-0018), or a profile, agent list or source list that is unset, missing
+    # or malformed (ADR-0022): nothing may run.
+    except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
+        sys.exit(f"data-director: {exc}")
+    try:
+        agent = build_agent(governance)
     except UserError as exc:
         sys.exit(f"Cannot start the model: {exc}\nSet DD_CHAT_MODEL or the provider's API key.")
 
@@ -39,7 +51,12 @@ def build_app() -> gr.ChatInterface:
         turn = await respond(agent, message, history)
         notes = [
             gr.ChatMessage(
-                content=f"`{call.args_as_json_str()}`",
+                content=f"`{call.args_as_json_str()}`"
+                + (
+                    f"\n\nRecorded as run `{run}`."
+                    if (run := turn.runs.get(call.tool_call_id))
+                    else ""
+                ),
                 metadata={"title": f"Tool: {call.tool_name}", "status": "done"},
             )
             for call in turn.tool_calls

@@ -17,7 +17,7 @@ console-script entry calls it; `Settings.from_env()` reads the real environment 
 from __future__ import annotations
 
 import os
-from collections.abc import MutableMapping
+from collections.abc import Iterable, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,7 +26,7 @@ from dotenv import dotenv_values
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
-from dd_harness.registry import Registry
+from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
 from dd_harness.store import RunStore
 from dd_sdk.contract.models import Principal, PrincipalKind
@@ -129,13 +129,18 @@ class Settings:
         )
 
 
-def build_registry(settings: Settings) -> Registry:
-    return Registry.from_config(settings.agents_config)
+def build_registry(settings: Settings, agents: Iterable[Registered] = ()) -> Registry:
+    """The agents `agents_config` lists, and beside them `agents`: agent objects the caller runs
+    in its own process, such as the app's R3. The profile still decides which may run."""
+    registry = Registry.from_config(settings.agents_config)
+    for agent in agents:
+        registry.add(agent)
+    return registry
 
 
-def build_conductor(settings: Settings) -> Conductor:
+def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) -> Conductor:
     return Conductor(
-        registry=build_registry(settings),
+        registry=build_registry(settings, agents),
         store=RunStore(settings.runs_dir),
         profile=load_profile(settings.profile),  # a bad profile stops start-up, not a request
         write_crate=settings.write_crate,

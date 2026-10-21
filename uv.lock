@@ -921,6 +921,7 @@ version = "0.1.0a1"
 source = { editable = "app" }
 dependencies = [
     { name = "data-director-agent-r3" },
+    { name = "data-director-harness" },
     { name = "gradio" },
     { name = "pydantic-ai-slim", extra = ["anthropic", "openai"] },
 ]
@@ -928,6 +929,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "data-director-agent-r3", editable = "agents/r3" },
+    { name = "data-director-harness", editable = "harness" },
     { name = "gradio", specifier = ">=5.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic", "openai"], specifier = ">=1.0" },
 ]

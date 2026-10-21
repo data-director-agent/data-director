@@ -48,6 +48,17 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   - `load_env_file` takes the file it reads as an argument.
   - The workbench supplies its development set from `workbench.config`. The paths are the same
     as before this decision.
+- **Where a deployment's configuration lives (#57).** Each way in brings its own set and passes
+  it to `Settings.from_env` as defaults. The workbench's development set stays in `workbench/`.
+  The app's reference set is `app/config/` (`profile.yaml`, `agents.yaml`, `sources.yaml`), and
+  its runs go to `app/runs/`. A `DD_*` variable still wins over each file, so a deployment can
+  replace any of them without changing the repository.
+- **The app reaches R3 through the conductor (#60, option 1).** The app's one tool builds a
+  `DatasetProfile` and calls `Conductor.invoke("r3.standards-advisor", ...)` for the operator's
+  principal (`OperatorAssertion`, ADR-0018). R3 does not delegate, so the app runs it in its own
+  process: `build_conductor(settings, agents=[...])` registers agent objects beside those its
+  agent list names. Each R3 run is gated, checked and stored. The app's own model turn and its
+  final answer are not.
 - **The CLI stays with the workbench.** The harness is a library with one way in of its own,
   the A2A endpoint. `workbench serve` adds AG-UI and the viewer on top of it.
 
@@ -76,10 +87,9 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
 
 ## Not yet decided
 
-- TODO: routing `app/` through the conductor. The app's model calls R3 as an in-process tool.
-  To be governed, R3 would run as a service called through the conductor, or the app's model
-  would become an orchestrator under `delegation` grounding (ADR-0012). Only an agent reached
-  over A2A can be granted delegation today.
+- TODO: governing the app's own model turn and answer, by making the app a front end to an
+  orchestrator under `delegation` grounding (ADR-0012, #21). Only an agent reached over A2A can
+  be granted delegation today.
 - TODO: names that still say "workbench" where they mean the harness. These are
   `Conductor.workbench_url` and `DD_WORKBENCH_URL`, the A2A card's name and description,
   `WorkbenchExecutor`, `dd_sdk.delegate.WorkbenchDelegate`, and the trace `service.name`
@@ -96,4 +106,8 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   its development configuration, and `workbench.testing` re-exports the kit.
 - TODO: whether the harness's documentation (`conductor.md`, `grounding.md`, `registry.md`, the
   ADRs and the requirements register) moves out of `workbench/docs/`.
-- TODO: where a deployment's configuration lives, beyond the workbench's development set.
+- TODO: whether configuration may also come from one file (e.g. a `harness.yaml` naming the
+  profile, agent list, source list and run directory), rather than four variables (#57).
+- TODO: how `sources.yaml` pins a source copy stored outside the repository. Today its paths
+  are relative to the file, and its copies are the committed snapshots under `agents/` (#57).
+- TODO: how a steward edits and reviews the profile in a deployment (ADR-0017, #41, #57).
