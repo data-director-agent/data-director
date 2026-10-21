@@ -9,6 +9,7 @@ import pytest
 import dd_agent_factcheck
 from dd_agent_factcheck.agent import FactChecker, InMemorySources, Source
 from dd_agent_factcheck.classes import Claim, FactCheck, Verdict
+from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
     GroundingMode,
     OutcomeStatus,
@@ -16,7 +17,6 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION
 from dd_sdk.schema import gen
-from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SOURCES = InMemorySources(
     [

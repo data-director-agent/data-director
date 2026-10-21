@@ -24,8 +24,8 @@ from dd_agent_r3.fairsharing.snapshot import (
 )
 from dd_agent_r3.retrieve import Query, RegistryUnavailable
 from dd_agent_r3.testing import make_conductor, request
+from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import OutcomeStatus
-from workbench.testing import TEST_PRINCIPAL
 
 PUBLIC_SHAPE = {
     "fairsharing_data_licence": "https://creativecommons.org/licenses/by-sa/4.0/ ...",

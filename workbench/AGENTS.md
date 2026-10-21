@@ -1,10 +1,10 @@
 # workbench
 
 The Data Director Workbench: the development way in to the harness, with the CLI, a read-only
-viewer, the test kit, evaluation, and a generated `CONFORMANCE.md`. The harness itself (conductor,
+viewer, evaluation, and a generated `CONFORMANCE.md`. The harness itself (conductor,
 policy gate, input check, OpenTelemetry trace, per-mode grounding linter, source check, JSONL
 store, Process Run Crate, the registry of agents reached over A2A) is the package `../harness/`
-(`dd_harness`, ADR-0022). These rules govern both. The workbench contains no agent code and no
+(`dd_harness`, ADR-0022), with its test kit `dd_harness.testing`. These rules govern both. The workbench contains no agent code and no
 governance code. Agents are separate packages and services under `../agents/`, and what agents
 and the harness share (the contract, evidence, span helpers, the A2A agent server) is `../sdk/`
 (ADR-0011). `docs/adr/` records the decisions; `docs/architecture.md` is the overview.
@@ -40,7 +40,7 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 ## Load-bearing things
 
 - **Every `schema/generated/` is generated.** Edit the LinkML file beside it (the core's
-  `data_director.yaml`, an agent's `<name>.yaml`, the doubles' `doubles.yaml`), run
+  `data_director.yaml`, an agent's `<name>.yaml`, the doubles' `../harness/src/dd_harness/schema/doubles.yaml`), run
   `uv run dd-gen-schema [file]`, and keep the Pydantic models in step; each package's tests call
   `dd_sdk.schema.gen.stale` and `ClassSchema.of` refuses a model that has drifted.
 - **The core holds no agent's classes (ADR-0019).** An agent declares its input and payload
@@ -49,7 +49,7 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   `data_director.yaml`, or a list of class names to the SDK or the workbench, stop.
 - **The harness and the workbench import no agent.** Agents are services reached through
   `RemoteAgent` (`dd_harness.remote`); `agents.yaml` lists their URLs. Tests may import agent
-  packages to serve them in memory (`testing.in_process`), and `src/` must not. If you find
+  packages to serve them in memory (`dd_harness.testing.in_process`), and `src/` must not. If you find
   yourself importing `dd_agent_*` from `src/workbench/` or `../harness/src/`, stop.
 - **The harness stands on its own (ADR-0022).** `../harness/src/` imports `dd_sdk` and
   third-party libraries only, never `workbench`, `dd_app`, an agent or `inspect_ai`;
@@ -75,7 +75,7 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   and a delegated child acts for the grant's principal. The stub (`OperatorAssertion`) records
   `assurance: asserted`; do not describe that as authenticated. If you find yourself reading
   `acting_for` from a request body, sending it to an agent, or giving the conductor a default,
-  stop. Tests act for `workbench.testing.TEST_PRINCIPAL`.
+  stop. Tests act for `dd_harness.testing.TEST_PRINCIPAL`.
 - **Only the conductor sets lineage.** `parent_invocation_id` and `delegations` come from a
   delegation grant the conductor issued; `invoke` refuses a request that carries
   `parent_invocation_id`. An orchestrator delegates through `ctx.delegate`, never by calling an
@@ -130,6 +130,6 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 - **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
   the sign-in password; check a new cassette before committing it.
 - **Test module basenames are unique across the workspace.** Test directories are not packages;
-  shared doubles live in `workbench.testing` and `dd_agent_r3.testing`.
+  shared doubles live in `dd_harness.testing` and `dd_agent_r3.testing`.
 
 British English, declarative prose, `TODO` rather than a plausible guess (root `CLAUDE.md`).

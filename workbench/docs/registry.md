@@ -97,7 +97,7 @@ port `agents.yaml` expects.
 ## In tests
 
 Tests do not read `agents.yaml`. `Registry.from_agents` takes agent objects directly, and
-`workbench.testing.make_conductor` passes each agent through `in_process` unless called with
+`dd_harness.testing.make_conductor` passes each agent through `in_process` unless called with
 `remote=False`. This serves the agent
 with `dd_sdk.serve` on an in-memory ASGI transport and builds a `RemoteAgent` from its card.
 Tests therefore use the same card, the same extension and the same A2A messages as a deployed

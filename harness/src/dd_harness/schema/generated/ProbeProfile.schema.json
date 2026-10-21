@@ -1,6 +1,6 @@
 {
    "$comment": "Generated from doubles.yaml by `uv run dd-gen-schema <path to doubles.yaml>`. Do not edit.",
-   "$id": "https://w3id.org/data-director/workbench/doubles/ProbeProfile",
+   "$id": "https://w3id.org/data-director/harness/doubles/ProbeProfile",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
    "description": "A second input class, for a double that accepts more than one.",

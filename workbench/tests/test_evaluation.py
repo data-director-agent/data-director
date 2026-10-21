@@ -19,6 +19,15 @@ from inspect_ai import eval as inspect_eval
 from inspect_ai.dataset import Sample
 from inspect_ai.scorer import NOANSWER, SampleScore, Score
 
+from dd_harness.testing import (
+    TEST_PRINCIPAL,
+    ProbeRecord,
+    ProbeReview,
+    ScriptedAgent,
+    make_conductor,
+    record,
+    review_of_input,
+)
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -38,15 +47,6 @@ from workbench.evaluation import (
     mean_applicable,
     outcome_matches,
     stopped_correctly,
-)
-from workbench.testing import (
-    TEST_PRINCIPAL,
-    ProbeRecord,
-    ProbeReview,
-    ScriptedAgent,
-    make_conductor,
-    record,
-    review_of_input,
 )
 
 # Inspect AI leaves its sample-event stream unclosed (inspect_ai/hooks/_hooks.py, the sample

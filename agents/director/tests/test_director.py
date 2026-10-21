@@ -11,6 +11,7 @@ import pytest
 from dd_agent_director.agent import DirectorStub, load_rules, route
 from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
+from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
     ConversationTurn,
     Derivation,
@@ -23,7 +24,6 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.evidence import input_hash
 from dd_sdk.tracing import CHAT, DELEGATE, RETRIEVAL, records_from_jsonl
-from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 
 def conductor(runs_dir: Path):

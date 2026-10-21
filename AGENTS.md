@@ -14,8 +14,9 @@ A reference implementation of the RDA [Data Director Agentic AI Blueprint](https
   the conductor is still TODO (issue #47).
 - The repository root is a uv workspace. `harness/` (`dd_harness`) governs agents against one
   contract: the conductor, policy gate, input check, grounding linter, source check, run store and
-  provenance, with an A2A way in (`harness/README.md`, ADR-0022). It depends only on `sdk/` and
-  must not import the workbench, the app or an agent. `workbench/` is the development way in to
+  provenance, with an A2A way in (`harness/README.md`, ADR-0022), and its test kit
+  `dd_harness.testing`. It depends only on `sdk/` and must not import the workbench, the app or an
+  agent. `workbench/` is the development way in to
   the harness (see below). `agents/` holds one package and one A2A service per agent
   (`agents/README.md`). `sdk/` is what agents and the harness share: the contract, evidence, span
   helpers and the agent server. Tooling config is in the root `pyproject.toml`.
@@ -31,10 +32,9 @@ is not the reference implementation itself, and it contains neither agent code n
 code. Through the harness, it calls each agent over A2A, checks that the agent kept to the
 contract, and records every run so that a person can inspect what the agent did and why.
 
-- `src/workbench/`: the `workbench` CLI, the AG-UI transport, the test kit (`testing.py`),
-  evaluation (`evaluation.py`) and `config.py`, the development configuration it supplies to the
-  harness. The conductor itself, which alone fills identifiers, timestamps and lineage, is in
-  `harness/src/dd_harness/`.
+- `src/workbench/`: the `workbench` CLI, the AG-UI transport, evaluation (`evaluation.py`) and
+  `config.py`, the development configuration it supplies to the harness. The conductor itself,
+  which alone fills identifiers, timestamps and lineage, is in `harness/src/dd_harness/`.
 - `agents.yaml`: the registry of agent URLs. `profiles/` holds institutional profiles (what an
   instance may do), `sources.yaml` the pinned source copies, and `samples/` example inputs.
 - `viewer/`: the browser UI served by `workbench serve`, with an Inspect page and a Chat page.

@@ -12,9 +12,21 @@ import pytest
 
 from dd_agent_stub.agent import AbstainingStub
 from dd_harness import grounding
+from dd_harness import testing as fakes
 from dd_harness.conductor import DuplicateInvocation
 from dd_harness.policy import PolicyError, gate, load_profile
 from dd_harness.store import RunStore
+from dd_harness.testing import (
+    PERMISSIVE,
+    RESTRICTIVE,
+    SOURCE_A,
+    SOURCE_B,
+    TEST_PRINCIPAL,
+    Chat,
+    ScriptedAgent,
+    make_conductor,
+    request,
+)
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -38,18 +50,6 @@ from dd_sdk.evidence import (
 )
 from dd_sdk.schema import gen
 from dd_sdk.tracing import records_from_jsonl
-from workbench import testing as fakes
-from workbench.config import DEFAULT_PROFILE
-from workbench.testing import (
-    RESTRICTIVE,
-    SOURCE_A,
-    SOURCE_B,
-    TEST_PRINCIPAL,
-    Chat,
-    ScriptedAgent,
-    make_conductor,
-    request,
-)
 
 # --- Evidence ---------------------------------------------------------------------------------
 
@@ -81,13 +81,13 @@ def test_unknown_canonicalisation_is_a_programmer_error() -> None:
 
 @pytest.mark.requirement("DD-POLICY")
 def test_gate_matches_the_class_the_profile_assigns_not_the_one_the_agent_declares() -> None:
-    default = load_profile(DEFAULT_PROFILE)
-    assert gate(default, "quality.reviewer", "advise").allowed
-    assert not gate(default, "quality.reviewer", "advise").requires_approval
-    assert not gate(default, "unknown.agent", "advise").allowed
+    permissive = load_profile(PERMISSIVE)
+    assert gate(permissive, "quality.reviewer", "advise").allowed
+    assert not gate(permissive, "quality.reviewer", "advise").requires_approval
+    assert not gate(permissive, "unknown.agent", "advise").allowed
     # An agent that declares a class other than the one the steward assigned is refused, not
     # gated on its own claim: here a reviewer that starts declaring writes.
-    upgraded = gate(default, "quality.reviewer", "metadata_write")
+    upgraded = gate(permissive, "quality.reviewer", "metadata_write")
     assert not upgraded.allowed and upgraded.refusal == "action-class-mismatch"
     restrictive = load_profile(RESTRICTIVE)
     assert gate(restrictive, "stub.abstain", "advise").requires_approval
@@ -105,7 +105,7 @@ def test_missing_profile_is_a_configuration_error(tmp_path: Path) -> None:
 def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
     stale = tmp_path / "stale.yaml"
     stale.write_text(
-        DEFAULT_PROFILE.read_text(encoding="utf-8") + "approved_repositories: []\n",
+        PERMISSIVE.read_text(encoding="utf-8") + "approved_repositories: []\n",
         encoding="utf-8",
     )
     with pytest.raises(PolicyError, match="approved_repositories"):
@@ -551,7 +551,7 @@ def test_scripted_specs_accept_what_their_tests_assume() -> None:
 
 def test_the_doubles_classes_are_generated_from_their_own_linkml() -> None:
     """The doubles bring their classes as any agent does (ADR-0019); the core has none of them."""
-    source = Path(fakes.__file__).parent / "schema" / "doubles.yaml"
+    source = Path(fakes.__file__).parents[1] / "schema" / "doubles.yaml"
     assert gen.stale(source) == [], f"run `uv run dd-gen-schema {source}`"
 
 

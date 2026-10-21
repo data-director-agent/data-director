@@ -10,6 +10,7 @@ import pytest
 import dd_agent_quality
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_quality.classes import MetadataRecord, QualityReview, Severity
+from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     GroundingMode,
@@ -19,7 +20,6 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, input_hash
 from dd_sdk.schema import gen
-from workbench.testing import TEST_PRINCIPAL, make_conductor, request
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
 SCHEMA = Path(dd_agent_quality.__file__).parent / "schema" / "quality.yaml"

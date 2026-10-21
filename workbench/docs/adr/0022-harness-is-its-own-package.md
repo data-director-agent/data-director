@@ -30,7 +30,8 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   | Harness (`harness/`, deployable) | Workbench (`workbench/`, development only) |
   |---|---|
   | `conductor.py`, `policy.py`, `grounding.py`, `sources.py`, `store.py`, `provenance.py`, `identity.py`, `registry.py`, `remote.py`, `conversations.py`, `settings.py` | `cli.py`, `config.py`, `transport/agui.py`, `transport/app.py`, `viewer/` |
-  | `transport/a2a.py`, the way in for other systems | `evaluation.py` (Inspect AI), `testing.py` and the doubles' schema |
+  | `transport/a2a.py`, the way in for other systems | `evaluation.py` (Inspect AI) |
+  | `testing/` (the test kit and its profiles) and `schema/doubles.yaml` | |
   | | `profiles/`, `agents.yaml`, `sources.yaml`, `samples/`, the conformance report |
 
 - **The harness imports no way in to it, and no agent.** Nothing under `harness/src/` imports
@@ -85,10 +86,14 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   `data-director-workbench`. Renaming them changes a configuration variable, the agent card and
   stored traces, so it is left for a separate change.
 - TODO: a harness server of its own: an A2A-only process for deployments that need no viewer.
-- TODO: a test kit for the harness. The scripted doubles and `make_conductor` stay in
-  `workbench.testing`, and `make_conductor` serves the delegation callback with the workbench's
-  application. So most harness tests remain in `workbench/tests/`, and a way in that wants
-  doubles (such as the app's tests) depends on the workbench at test time.
+- **The test kit belongs to the harness (#56).** The scripted doubles, `in_process`,
+  `make_conductor`, `TEST_PRINCIPAL` and the two test profiles are `dd_harness.testing`, in the
+  deployable package beside the code they exercise, as `dd_agent_r3.testing` is for R3. The
+  doubles' classes are `dd_harness/schema/doubles.yaml`, because `ClassSchema.of` looks for a
+  class's schema in its top-level package. `make_conductor` serves the delegation callback with
+  `dd_harness.transport.a2a.a2a_routes` alone, so a test conductor needs nothing from the
+  workbench. Harness tests are in `harness/tests/`; the workbench keeps the tests of its CLI and
+  its development configuration, and `workbench.testing` re-exports the kit.
 - TODO: whether the harness's documentation (`conductor.md`, `grounding.md`, `registry.md`, the
   ADRs and the requirements register) moves out of `workbench/docs/`.
 - TODO: where a deployment's configuration lives, beyond the workbench's development set.

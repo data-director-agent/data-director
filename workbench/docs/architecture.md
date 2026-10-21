@@ -53,7 +53,7 @@ says what happened. [`conductor.md`](conductor.md) describes each step in detail
 
 The repository is a uv workspace. `sdk/` holds everything an agent and the harness share.
 `harness/` governs every invocation and depends only on `sdk/`. `workbench/` is the development
-way in to the harness: the CLI, the viewer, the test kit, evaluation and the conformance report.
+way in to the harness: the CLI, the viewer, evaluation and the conformance report.
 `agents/` holds one package per agent, each run as its own service. `app/` is the Data Director
 app (alpha), which does not yet call the harness. Paths below are relative to the repository
 root.
@@ -75,7 +75,7 @@ root.
 | Settings | Reads the deployment's configuration from `DD_*` variables, with defaults supplied by the caller, and builds a conductor. The workbench's development set is in `workbench.config`. | `harness/src/dd_harness/settings.py`, `workbench/src/workbench/config.py` |
 | Front ends | The A2A JSON-RPC endpoint (part of the harness), and the workbench's CLI and the AG-UI event stream the viewer uses. | `harness/src/dd_harness/transport/a2a.py`, `workbench/src/workbench/cli.py`, `workbench/src/workbench/transport/` |
 | Viewer | Two read-only browser pages, Inspect and Chat, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
-| Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `workbench/src/workbench/testing.py` |
+| Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `harness/src/dd_harness/testing/` |
 | Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](conformance.md). | `workbench/docs/requirements.yaml`, `workbench/docs/reviews.yaml`, `workbench/scripts/conformance_report.py` |
 | Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |
 | FAIRsharing snapshot | The committed copy of FAIRsharing records that R3 uses (CC BY-SA 4.0). | `agents/r3/data/fairsharing/` |

@@ -12,7 +12,7 @@ govern is recorded apart, as incompatible, with both versions (ADR-0019). The po
 decides, per profile, which registered agents may run. Registration is not permission.
 
 `from_agents` takes agent objects directly: `RemoteAgent`s, which tests bind to in-process ASGI
-apps (`workbench.testing`), or in-process `Agent`s, which the conductor runs in its own trace.
+apps (`dd_harness.testing`), or in-process `Agent`s, which the conductor runs in its own trace.
 
 Configuration shape:
 

@@ -3,7 +3,7 @@
 #
 #   sdk/         data-director-sdk        the contract, evidence, trace helpers, A2A agent server
 #   harness/     data-director-harness    the conductor and its checks, run store and provenance
-#   workbench/   data-director-workbench  the development way in: CLI, viewer, test kit, evaluation
+#   workbench/   data-director-workbench  the development way in: CLI, viewer, evaluation
 #   agents/*/    data-director-agent-*    one package and one service per agent
 #   app/         data-director-app        the Data Director app (alpha)
 
@@ -80,7 +80,7 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_
 minversion = "8.0"
 testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
-# basenames unique across the workspace. Shared doubles live in `workbench.testing` and
+# basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
 # `dd_agent_r3.testing`, not in a test directory.
 addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network"
 filterwarnings = [

@@ -10,16 +10,10 @@ from typing import Any
 
 import pytest
 
-from dd_agent_factcheck.agent import FactChecker
-from dd_agent_r3.agent import R3Agent
-from dd_agent_r3.explain import TemplateExplainer
-from dd_agent_r3.fairsharing.snapshot import SnapshotBackend
+from dd_harness import testing as fakes
 from dd_harness.sources import RecordsFile, SourceConfigError, Sources, check
-from dd_sdk.contract.models import GroundingMode, OpenInput, OutcomeStatus
+from dd_sdk.contract.models import GroundingMode, OutcomeStatus
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
-from workbench import cli
-from workbench import testing as fakes
-from workbench.config import DEFAULT_PROFILE, DEFAULT_SOURCES_CONFIG, WORKBENCH_ROOT
 
 pytestmark = pytest.mark.requirement("DD-EVIDENCE")
 
@@ -74,10 +68,6 @@ def test_config_resolves_paths_beside_the_file(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert Sources.from_config(config).by_snapshot_ref[SNAPSHOT_REF].record("src:a") == RECORD
-
-
-def test_the_committed_source_copies_match_their_pins() -> None:
-    assert Sources.from_config(DEFAULT_SOURCES_CONFIG).by_snapshot_ref
 
 
 # --- Rules ------------------------------------------------------------------------------------
@@ -156,55 +146,3 @@ def test_conductor_records_a_verified_result(tmp_path: Path) -> None:
     envelope, run_dir = _fact_check(tmp_path, source, _sources(tmp_path))
     assert envelope.outcome.status == OutcomeStatus.SUCCEEDED
     assert (run_dir / "sources.txt").read_text() == "sources: 1 verified, 0 unresolved\n"
-
-
-# --- Real agents against the committed copies -------------------------------------------------
-
-
-def _sample(name: str) -> Any:
-    return OpenInput.model_validate(
-        json.loads((WORKBENCH_ROOT / "samples" / name).read_text(encoding="utf-8"))
-    )
-
-
-@pytest.mark.parametrize(
-    ("agent", "sample"),
-    [
-        (
-            R3Agent(retrieval=SnapshotBackend(), explainer=TemplateExplainer()),
-            "soil-chemistry.profile.json",
-        ),
-        (FactChecker(), "claim.json"),
-    ],
-    ids=["r3", "fact.checker"],
-)
-def test_real_agents_evidence_verifies_against_the_committed_copies(
-    tmp_path: Path, agent: Any, sample: str
-) -> None:
-    conductor = fakes.make_conductor(tmp_path / "runs", agent, profile=DEFAULT_PROFILE)
-    conductor.sources = Sources.from_config(DEFAULT_SOURCES_CONFIG)
-    request = fakes.request(agent.spec.agent_id, _sample(sample))
-    envelope = conductor.invoke(request, acting_for=fakes.TEST_PRINCIPAL)
-    assert envelope.outcome.status == OutcomeStatus.SUCCEEDED, envelope.outcome.statement
-    report = check(envelope.to_document(), conductor.sources)
-    assert report.passed and report.verified > 0 and not report.unresolved
-
-
-# --- CLI --------------------------------------------------------------------------------------
-
-
-def test_verify_exits_non_zero_on_a_violation(tmp_path: Path, capsys: Any) -> None:
-    path, pin = _pinned(tmp_path, [RECORD])
-    config = tmp_path / "sources.yaml"
-    config.write_text(
-        f"sources:\n  - snapshot_refs: [{SNAPSHOT_REF}]\n    path: {path.name}\n"
-        f"    id_field: source_id\n    sha256: {pin}\n",
-        encoding="utf-8",
-    )
-    good, bad = tmp_path / "good.json", tmp_path / "bad.json"
-    good.write_text(json.dumps(_envelope(_evidence())), encoding="utf-8")
-    altered = {"source_id": "src:a", "text": "Alpha, revised."}
-    bad.write_text(json.dumps(_envelope(_evidence("src:a", altered))), encoding="utf-8")
-    assert cli.main(["verify", str(good), "--sources", str(config)]) == 0
-    assert cli.main(["verify", str(bad), "--sources", str(config)]) == 1
-    assert "S2:" in capsys.readouterr().out

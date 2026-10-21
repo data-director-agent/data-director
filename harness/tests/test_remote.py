@@ -1,6 +1,6 @@
 """Agents behind A2A (ADR-0011): what crosses the wire, and what the conductor does with it.
 
-Every harness test already reaches its agent through `workbench.testing.in_process`, so the wire
+Every harness test already reaches its agent through `dd_harness.testing.in_process`, so the wire
 is exercised throughout. The tests here pin what is specific to an agent running elsewhere: its
 spans join the conductor's trace, a span outside the invocation or carrying a conductor
 attribute is a grounding violation, and a slow or unreachable agent is a failed envelope.
@@ -21,17 +21,7 @@ from dd_harness.policy import load_profile
 from dd_harness.registry import Registry
 from dd_harness.remote import RemoteAgent
 from dd_harness.store import RunStore
-from dd_sdk.agent import AgentResult, RunContext
-from dd_sdk.contract.models import (
-    GroundingMode,
-    InvocationRequest,
-    Outcome,
-    OutcomeStatus,
-    ReasonCode,
-)
-from dd_sdk.tracing import ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, records_from_jsonl
-from dd_sdk.wire import WireError, reply_from_document, reply_to_document
-from workbench.testing import (
+from dd_harness.testing import (
     PERMISSIVE,
     SOURCE_A,
     TEST_PRINCIPAL,
@@ -43,6 +33,16 @@ from workbench.testing import (
     request,
     review_of_input,
 )
+from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.contract.models import (
+    GroundingMode,
+    InvocationRequest,
+    Outcome,
+    OutcomeStatus,
+    ReasonCode,
+)
+from dd_sdk.tracing import ATTR_GROUNDING_MODE, ATTR_INPUT_HASH, records_from_jsonl
+from dd_sdk.wire import WireError, reply_from_document, reply_to_document
 
 
 def spans_of(runs_dir: Path, invocation_id: str) -> list[dict[str, object]]:

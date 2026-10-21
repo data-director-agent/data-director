@@ -37,6 +37,16 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 
 The workbench's development set lives in `workbench/` and is supplied by `workbench.config`.
 
+## Test kit
+
+`dd_harness.testing` is the harness's test kit, for the harness's own tests, for agent packages
+and for any way in to the harness. `in_process(agent)` serves an agent in memory over A2A,
+`make_conductor(runs_dir, *agents)` builds a conductor over agents served that way (with its own
+delegation callback, also in memory), and `ScriptedAgent` is a double whose behaviour each test
+sets. The doubles' classes are declared in `src/dd_harness/schema/doubles.yaml`, and the test
+profiles `PERMISSIVE` and `RESTRICTIVE` are in `src/dd_harness/testing/profiles/`. Tests act for
+`TEST_PRINCIPAL`. Nothing in the kit needs the workbench.
+
 ## Rules
 
 - The harness imports `dd_sdk` and third-party libraries only. It never imports the workbench,
