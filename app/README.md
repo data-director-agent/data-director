@@ -63,7 +63,7 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 | `config/profile.yaml` | The institutional profile. It enables R3 only. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A. Empty: R3 runs in the app's process. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
-| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own. | — |
+| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own (#108). | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 
 `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are required. Until there is authentication (#17),

@@ -3,7 +3,7 @@
  * the same outcome view (`GET /api/runs`, `GET /api/runs/{id}`).
  *
  * Every run is listed, whoever it acted for: until there is authentication (#17) there is one
- * operator. Paging, filtering and the run's spans are a follow-up (see #75).
+ * operator. Paging, filtering, the run's own schema and its spans are #107.
  */
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
