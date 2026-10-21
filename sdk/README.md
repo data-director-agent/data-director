@@ -1,5 +1,7 @@
 # Data Director SDK
 
+[![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=sdk)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=sdk)
+
 What an agent and the harness share. The harness calls each agent over A2A
 ([ADR-0011](../docs/adr/0011-remote-agents.md)), so they share no code except this
 package.
