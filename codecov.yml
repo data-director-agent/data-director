@@ -1,0 +1,13 @@
+# Coverage is reported, not enforced: the badges show where the tests stand, and a drop does not
+# fail a pull request. TODO: set a threshold once the project has decided what it should be.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+comment:
+  layout: "condensed_header, diff, files"
+  require_changes: true
