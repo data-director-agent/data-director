@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-factcheck"
-version = "0.1.0"
+version = "0.2.0"
 description = "fact.checker: a demonstration retrieval-mode agent over packaged sources"
 requires-python = ">=3.14"
 license = "MIT"
