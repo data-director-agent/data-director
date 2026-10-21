@@ -207,7 +207,12 @@ def test_a_profile_with_nothing_to_search_on_abstains(governance: Governance, di
 
 @pytest.mark.parametrize(
     "body",
-    [{"input": {}}, {"agent_id": STANDARDS_AGENT_ID}, {"agent_id": STANDARDS_AGENT_ID, "input": []}, []],
+    [
+        {"input": {}},
+        {"agent_id": STANDARDS_AGENT_ID},
+        {"agent_id": STANDARDS_AGENT_ID, "input": []},
+        [],
+    ],
 )
 def test_a_malformed_body_is_refused_as_a_problem(governance: Governance, dist: Path, body: Any):
     response = TestClient(build_app(governance, dist)).post("/api/runs", json=body)
