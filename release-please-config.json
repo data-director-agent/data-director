@@ -1,0 +1,54 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "separate-pull-requests": true,
+  "include-v-in-tag": true,
+  "packages": {
+    "sdk": {
+      "component": "sdk",
+      "release-type": "python"
+    },
+    "harness": {
+      "component": "harness",
+      "release-type": "python"
+    },
+    "workbench": {
+      "component": "workbench",
+      "release-type": "python"
+    },
+    "app": {
+      "component": "app",
+      "release-type": "python",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "web/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    },
+    "agents/director": {
+      "component": "agent-director",
+      "release-type": "python"
+    },
+    "agents/factcheck": {
+      "component": "agent-factcheck",
+      "release-type": "python"
+    },
+    "agents/hello": {
+      "component": "agent-hello",
+      "release-type": "python"
+    },
+    "agents/quality": {
+      "component": "agent-quality",
+      "release-type": "python"
+    },
+    "agents/r3": {
+      "component": "agent-r3",
+      "release-type": "python"
+    },
+    "agents/stub": {
+      "component": "agent-stub",
+      "release-type": "python"
+    }
+  }
+}
