@@ -5,7 +5,7 @@
 # unavailable by `workbench agents`, and one built against another contract version as
 # incompatible (ADR-0019); the rest still run. Each card carries its agent's class schemas, so
 # adding an agent is one entry here. Override the path with DD_AGENTS_CONFIG.
-# See docs/registry.md.
+# See ../harness/docs/registry.md.
 agents:
   - url: http://127.0.0.1:8101
   - url: http://127.0.0.1:8102

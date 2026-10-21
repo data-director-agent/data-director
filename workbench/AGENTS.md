@@ -7,7 +7,8 @@ store, Process Run Crate, the registry of agents reached over A2A) is the packag
 (`dd_harness`, ADR-0022), with its test kit `dd_harness.testing`. These rules govern both. The workbench contains no agent code and no
 governance code. Agents are separate packages and services under `../agents/`, and what agents
 and the harness share (the contract, evidence, span helpers, the A2A agent server) is `../sdk/`
-(ADR-0011). `docs/adr/` records the decisions; `docs/architecture.md` is the overview.
+(ADR-0011). `../docs/adr/` records the decisions; `docs/architecture.md` is the overview. The
+harness's own documents are in `../harness/docs/`.
 
 Two rules govern everything here:
 
@@ -32,7 +33,7 @@ uv run ruff check . && uv run ruff format .
 uv run mypy
 uv run dd-gen-schema [agents/<x>/.../<x>.yaml]   # after editing a LinkML schema (core by default)
 scripts/run-agents.sh                           # every agent on the port agents.yaml expects
-uv run pytest --json-report --json-report-file=workbench/.report.json && uv run python workbench/scripts/conformance_report.py
+uv run pytest --json-report --json-report-file=.report.json && uv run python scripts/conformance_report.py
 uv run inspect eval agents/r3/src/dd_agent_r3/evals/seeded.py --model none   # R3 evaluation (ADR-0013); needs DD_PRINCIPAL_*
 uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # what changed between runs
 ```
@@ -106,13 +107,13 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
   NOANSWER, not 0. `baseline.json` changes only in a commit of its own that says why, written by
   `workbench/scripts/eval_compare.py --write-baseline`; `test_r3_evals.py` fails on any drift from
   it, better or worse.
-- **A review is recorded, never invented (ADR-0014).** `docs/reviews.yaml` holds human reviews
+- **A review is recorded, never invented (ADR-0014).** `../docs/reviews.yaml` holds human reviews
   of requirements whose `assessed_by` names `review`. Only the reviewer adds an entry, or someone
   on their written instruction; an entry is never edited, and a new finding is a new entry. Do not
   write a review entry yourself. The test and review verdicts stay in separate columns, never
   combined.
 - **Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`**, and
-  the ID must be in `docs/requirements.yaml`. Do not mark a test with an ID it does not actually
+  the ID must be in `../docs/requirements.yaml`. Do not mark a test with an ID it does not actually
   exercise; a demonstration agent does not substantiate a Blueprint `R` it does not meet.
 - **An identity is stated once, in `grounded_on` (ADR-0015).** What a reader is shown about a
   cited record comes from the evidence item's `content`, which E1 re-hashes. Do not add a

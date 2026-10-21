@@ -1,4 +1,4 @@
-// Agents: browse the registry the workbench built at start-up (docs/registry.md). Read-only;
+// Agents: browse the registry the workbench built at start-up (harness/docs/registry.md). Read-only;
 // no run or send lives here. ?agent_id=… selects an entry.
 import { $, el, wireCopy, kvList } from "./common.js";
 import { help } from "./help.js";
