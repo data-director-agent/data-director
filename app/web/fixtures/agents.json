@@ -323,8 +323,8 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "ec8e1edf993d5ee391fc5e0095ecb1a9d9d7788ecc2eee3d8f35c8fe62eb4d67",
-    "ref": "profile:data-director-app@v1"
+    "digest": "53319b418a571bc7a603386dd25250187379b2b7437305c9034b02857303f4f2",
+    "ref": "profile:data-director-app@v2"
   },
   "unavailable": {}
 }

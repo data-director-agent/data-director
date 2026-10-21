@@ -1,0 +1,8 @@
+{
+  "schema_class": "MetadataRecord",
+  "identifier": "https://doi.org/10.15131/shef.data.00000000",
+  "title": "Soil chemistry survey of upland grassland plots, Peak District, 2024",
+  "description": "Topsoil and subsoil samples from 40 upland grassland plots across three land-use classes in the Peak District National Park.",
+  "creators": ["Example Researcher"],
+  "keywords": ["soil chemistry", "upland grassland"]
+}
