@@ -17,8 +17,8 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # to tag releases and push the release branches
+      pull-requests: write # to open and update the release PRs
     outputs:
       prs: ${{ steps.release.outputs.prs }}
     steps:
@@ -38,6 +38,8 @@ jobs:
       contents: write
     if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # the push uses RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN
     strategy:
       fail-fast: false
       matrix:
