@@ -5,6 +5,7 @@
  * page can say "Not declared" rather than imply a limit or a reliability nobody claimed.
  */
 
+import type { JsonSchema } from "../run/schema";
 import type { DerivationHow, GroundingMode, RawAgentsResponse, RawManifestEntry } from "./types";
 
 export type Declared<T> = { state: "declared"; value: T } | { state: "undeclared" };
@@ -19,6 +20,8 @@ export type GateStatus =
 export interface Derivation {
   path: string;
   how: DerivationHow;
+  /** The sibling field that records how each value was produced, if it varies by value. */
+  recordedIn?: string;
 }
 
 /** The oversight declaration (ADR-0025). Its fields are undeclared until an agent sends one. */
@@ -37,6 +40,8 @@ export interface AgentView {
   contractVersion: string;
   accepts: string[];
   payload: string | null;
+  /** Each input and payload class's JSON Schema, by class name. */
+  schemas: Record<string, JsonSchema>;
   groundingMode: GroundingMode;
   derivations: Derivation[];
   declaredActionClass: string;
@@ -78,9 +83,14 @@ export function normaliseAgent(entry: RawManifestEntry): AgentView {
     contractVersion: entry.contract_version,
     accepts: [...entry.accepts],
     payload: entry.payload,
+    schemas: Object.fromEntries(
+      Object.entries(entry.schemas ?? {}).map(([name, s]) => [name, s.json_schema as JsonSchema]),
+    ),
     groundingMode: entry.grounding_mode,
     derivations: Object.entries(entry.derivations ?? {})
-      .map(([path, d]) => ({ path, how: d.how }))
+      .map(([path, d]): Derivation =>
+        d.recorded_in ? { path, how: d.how, recordedIn: d.recorded_in } : { path, how: d.how },
+      )
       .sort((a, b) => a.path.localeCompare(b.path)),
     declaredActionClass: entry.action_class,
     gate: gateStatus(entry),

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.27"]
+requires = ["hatchling>=1.32.4"]
 build-backend = "hatchling.build"
 
 [project]
@@ -15,7 +15,7 @@ dependencies = [
   "pydantic>=2.11,<3",
   "jsonschema>=4.23",
   "opentelemetry-sdk>=1.44",
-  "a2a-sdk[http-server]>=1.1,<2",
+  "a2a-sdk[http-server]>=1.2.2,<2",
   "uvicorn>=0.30",
 ]
 
