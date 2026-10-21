@@ -1,0 +1,9 @@
+# The Data Director app and the agents it reaches over A2A. `systemctl restart
+# data-director.target` restarts them all, which is what deploy.sh does after a release.
+[Unit]
+Description=Data Director (app and agents)
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
+Wants=data-director-app.service data-director-agent@hello.service data-director-agent@quality.service data-director-agent@director.service
+
+[Install]
+WantedBy=multi-user.target

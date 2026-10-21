@@ -62,6 +62,8 @@ repository root before the app, which reads their cards once at start-up; one th
 running is listed as unavailable. `director.stub` runs the agents it delegates to through the
 app's own A2A endpoint, under a grant the conductor issues for that run.
 
+To run it on a server that keeps itself up to date with `main`, see `deploy/README.md`.
+
 `DD_APP_HOST` and `DD_APP_PORT` change the address. The agents call the app back on
 `http://DD_APP_HOST:DD_APP_PORT`; set `DD_HARNESS_URL` if they reach it at another address. To work on the shell, run the server as
 above and `npm run dev` in `app/web`, which proxies `/api` to it (set `DD_APP_URL` if it is

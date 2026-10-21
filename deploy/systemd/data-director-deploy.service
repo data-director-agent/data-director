@@ -1,0 +1,25 @@
+# One pass of the deployment: deploy the tip of the branch if CI passed on it (deploy.sh).
+# It runs the deploy.sh of the release now live, so a change to deploy.sh takes effect from the
+# deployment after the one that ships it. Run it by hand with
+# `sudo systemctl start data-director-deploy.service`.
+[Unit]
+Description=Deploy the latest Data Director commit that passed CI
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=datadirector
+Group=datadirector
+EnvironmentFile=-/etc/data-director/deploy.env
+ExecStart=/opt/data-director/current/deploy/deploy.sh
+# A first build downloads Python, the locked packages and the shell's npm packages.
+TimeoutStartSec=30min
+SyslogIdentifier=data-director-deploy
+# Not NoNewPrivileges: deploy.sh restarts the services through the sudo rule install.sh writes
+# (/etc/sudoers.d/data-director), which allows that one command and no other.
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0022
