@@ -113,6 +113,8 @@ describe("App", () => {
     const { container } = render(
       <App load={() => Promise.resolve(normalise(reference as unknown as RawAgentsResponse))} />,
     );
+    // The reference set has no orchestrator, so the home page points to the directory.
+    await userEvent.click(await screen.findByRole("button", { name: "Open the agent directory" }));
     expect(await screen.findByRole("heading", { name: "standards.advisor" })).toBeVisible();
     expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
