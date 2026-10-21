@@ -1,0 +1,123 @@
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { axe } from "jest-axe";
+
+import { App } from "../../App";
+import reference from "../../../fixtures/agents.json";
+import several from "../../../fixtures/agents-several.json";
+import { type Directory, normalise, normaliseAgent } from "../../manifest/normalise";
+import type { RawAgentsResponse } from "../../manifest/types";
+import { AgentDirectory } from "./AgentDirectory";
+import { CapabilitiesPanel } from "./CapabilitiesPanel";
+
+const severalAgents = several as unknown as RawAgentsResponse;
+const directory = normalise(severalAgents);
+
+function agent(id: string) {
+  const found = directory.agents.find((a) => a.id === id);
+  if (!found) throw new Error(`no ${id} in the fixture`);
+  return found;
+}
+
+describe("CapabilitiesPanel", () => {
+  it.each(directory.agents.map((a) => a.id))("%s has no axe violations", async (id) => {
+    const { container } = render(<CapabilitiesPanel agent={agent(id)} />);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("names the agent in a heading and shows what it takes and returns", () => {
+    render(<CapabilitiesPanel agent={agent("quality.reviewer")} />);
+    expect(screen.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
+    expect(screen.getByText("metadata record")).toBeVisible();
+    expect(screen.getByText("quality review")).toBeVisible();
+  });
+
+  it("says when an agent returns no result", () => {
+    render(<CapabilitiesPanel agent={agent("stub.abstain")} />);
+    expect(screen.getByText("No result: it only reports an outcome")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "How each field is produced" })).toBeNull();
+  });
+
+  it("tables each declared derivation", () => {
+    render(<CapabilitiesPanel agent={agent("r3.standards-advisor")} />);
+    const table = screen.getByRole("table");
+    expect(within(table).getByRole("row", { name: /items\.rationale Written by a language model/ }))
+      .toBeVisible();
+  });
+
+  it("says the grounding check is not proof of retrieval", () => {
+    render(<CapabilitiesPanel agent={agent("fact.checker")} />);
+    expect(screen.getByText(/does not prove the agent retrieved them/)).toBeVisible();
+  });
+
+  it("shows each undeclared oversight field as Not declared, and reliability as unsubstantiated", () => {
+    render(<CapabilitiesPanel agent={agent("hello.world")} />);
+    expect(screen.getAllByText("Not declared")).toHaveLength(5);
+    expect(screen.getByText(/Treat its reliability as unsubstantiated/)).toBeVisible();
+  });
+
+  it("says when the profile does not permit the agent", () => {
+    render(<CapabilitiesPanel agent={agent("r3.standards-advisor")} />);
+    expect(screen.getByText("Not permitted")).toBeVisible();
+  });
+
+  it("says when the declared and assigned action classes differ", () => {
+    const raw = severalAgents.agents.find((a) => a.agent_id === "hello.world");
+    if (!raw) throw new Error("no hello.world");
+    render(
+      <CapabilitiesPanel agent={normaliseAgent({ ...raw, assigned_action_class: "deposit" })} />,
+    );
+    expect(screen.getByText("Refused")).toBeVisible();
+    expect(screen.getByText("deposit")).toBeVisible();
+  });
+});
+
+describe("AgentDirectory", () => {
+  it("selects an agent from the keyboard and shows its panel", async () => {
+    const user = userEvent.setup();
+    render(<AgentDirectory directory={directory} />);
+    expect(screen.getByRole("heading", { level: 2, name: "fact.checker" })).toBeVisible();
+
+    await user.tab();
+    expect(screen.getByRole("option", { name: "fact.checker" })).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("option", { name: "hello.world" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("heading", { level: 2, name: "hello.world" })).toBeVisible();
+  });
+
+  it("lists agents that could not be registered", async () => {
+    const withMissing: Directory = {
+      ...directory,
+      unregistered: [{ name: "http://127.0.0.1:8101", state: "unavailable", reason: "refused" }],
+    };
+    const { container } = render(<AgentDirectory directory={withMissing} />);
+    expect(screen.getByRole("heading", { name: "Agents that could not be registered" }))
+      .toBeVisible();
+    expect(screen.getByText("Unavailable")).toBeVisible();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says when no agent is registered", () => {
+    render(<AgentDirectory directory={{ ...directory, agents: [] }} />);
+    expect(screen.getByText("No agents are registered with this deployment.")).toBeVisible();
+  });
+});
+
+describe("App", () => {
+  it("loads the directory and names whom runs act for", async () => {
+    const { container } = render(
+      <App load={() => Promise.resolve(normalise(reference as unknown as RawAgentsResponse))} />,
+    );
+    expect(await screen.findByRole("heading", { name: "r3.standards-advisor" })).toBeVisible();
+    expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("reports a failure to load as an alert", async () => {
+    render(<App load={() => Promise.reject(new Error("the server answered 500"))} />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("the server answered 500");
+  });
+});

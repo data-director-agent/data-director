@@ -1,0 +1,212 @@
+/*
+ * Layout and element styles. Every value comes from a token (tokens/neutral.css).
+ *
+ * The layout reflows to one column at narrow widths, so the page works at 400% zoom (a 320 CSS
+ * pixel viewport) without horizontal scrolling (WCAG 2.2 SC 1.4.10). Long identifiers wrap.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height);
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  margin: 0 0 var(--space-3);
+}
+h1 {
+  font-size: var(--font-size-h1);
+}
+h2 {
+  font-size: var(--font-size-h2);
+}
+h3 {
+  font-size: var(--font-size-h3);
+  margin-top: var(--space-5);
+}
+p {
+  margin: 0 0 var(--space-3);
+  max-width: var(--measure);
+}
+a {
+  color: var(--color-link);
+}
+code {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+:focus-visible,
+[data-focus-visible] {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: -10rem;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  color: var(--color-link);
+  border: var(--border-width) solid var(--color-border);
+  z-index: 1;
+}
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.site-name {
+  font-weight: 700;
+  font-size: var(--font-size-h3);
+  margin: 0;
+}
+.site-context {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+main {
+  padding: var(--space-4);
+}
+
+.agents-layout {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+  align-items: start;
+}
+@media (max-width: 48rem) {
+  .agents-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.agent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius);
+}
+.agent-option {
+  padding: var(--space-2) var(--space-3);
+  cursor: default;
+  border-bottom: var(--border-width) solid var(--color-surface);
+}
+.agent-option[data-hovered] {
+  background: var(--color-surface);
+}
+.agent-option[data-selected] {
+  background: var(--color-surface-selected);
+  font-weight: 600;
+}
+.agent-option[data-focus-visible] {
+  outline-offset: -3px;
+}
+.agent-option-id {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-small);
+}
+
+.panel {
+  min-width: 0;
+}
+
+dl.facts {
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+dl.facts dt {
+  font-weight: 600;
+}
+dl.facts dd {
+  margin: 0;
+}
+@media (max-width: 30rem) {
+  dl.facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  dl.facts dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+.status {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  border: var(--border-width) solid currentColor;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+.status-ok {
+  color: var(--color-ok-fg);
+  background: var(--color-ok-bg);
+}
+.status-warn {
+  color: var(--color-warn-fg);
+  background: var(--color-warn-bg);
+}
+.status-danger {
+  color: var(--color-danger-fg);
+  background: var(--color-danger-bg);
+}
+.status-undeclared {
+  color: var(--color-undeclared-fg);
+  background: var(--color-undeclared-bg);
+  border-style: dashed;
+}
+
+.callout {
+  padding: var(--space-3) var(--space-4);
+  border-left: var(--focus-width) solid currentColor;
+  margin: 0 0 var(--space-4);
+  max-width: var(--measure);
+}
+.callout p:last-child {
+  margin-bottom: 0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+table.derivations {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: var(--measure);
+}
+table.derivations th,
+table.derivations td {
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: var(--border-width) solid var(--color-border);
+  vertical-align: top;
+}

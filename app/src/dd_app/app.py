@@ -1,41 +1,63 @@
-"""The browser chat: a Gradio `ChatInterface` around the agent in `agent.py`.
+"""The app's web server: the shell's API beside the built shell (ADR-0024).
 
-Serves on http://127.0.0.1:7860 by default and opens a browser. Gradio's own
-`GRADIO_SERVER_NAME` and `GRADIO_SERVER_PORT` change the address.
+`GET /api/agents` is what the shell draws its capabilities panel from. Every other path serves
+the shell built from `app/web` (`npm run build` writes `app/web/dist`). The app stops at
+start-up, with one line, if a setting is wrong or the shell has not been built.
+
+Serves on http://127.0.0.1:7860 by default; `DD_APP_HOST` and `DD_APP_PORT` change the address.
 """
 
 from __future__ import annotations
 
 import os
 import sys
-from typing import Any
+import webbrowser
+from pathlib import Path
 
-import gradio as gr
-from pydantic_ai.exceptions import UserError
+import uvicorn
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.routing import Mount, Route
+from starlette.staticfiles import StaticFiles
 
-from dd_app.agent import Governance, build_agent, respond
-from dd_app.config import settings_from_env
+from dd_app.config import WEB_DIST, settings_from_env
+from dd_app.governance import Governance
 from dd_harness.identity import IdentityError
 from dd_harness.policy import PolicyError
 from dd_harness.registry import RegistryError
 from dd_harness.settings import SettingsError
 from dd_harness.sources import SourceConfigError
 
-TITLE = "Data Director (alpha)"
-DESCRIPTION = (
-    "An alpha assistant for documenting, publishing and sharing research data. Standards "
-    "are recommended from a small offline FAIRsharing snapshot (CC BY-SA 4.0, "
-    "https://fairsharing.org); each recommendation run is checked and recorded. The "
-    "assistant's own wording is not checked, and its advice needs human review."
-)
-EXAMPLES = [
-    "Which metadata standards suit a single-cell RNA-seq dataset?",
-    "I have gridded climate model output. What open formats and vocabularies should I use?",
-    "What should a README for a survey dataset contain?",
-]
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 7860
 
 
-def build_app() -> gr.ChatInterface:
+class ShellNotBuiltError(FileNotFoundError):
+    """`app/web/dist` holds no built shell."""
+
+
+def build_app(governance: Governance, web_dist: Path = WEB_DIST) -> Starlette:
+    """The server. `web_dist` must hold a built shell (its `index.html`)."""
+    if not (web_dist / "index.html").is_file():
+        raise ShellNotBuiltError(
+            f"the shell is not built ({web_dist / 'index.html'} is missing); "
+            "run `npm ci && npm run build` in app/web"
+        )
+
+    async def agents(request: Request) -> Response:
+        return JSONResponse(governance.agents())
+
+    return Starlette(
+        routes=[
+            Route("/api/agents", agents, methods=["GET"]),
+            Mount("/", StaticFiles(directory=web_dist, html=True)),
+        ]
+    )
+
+
+def main() -> int:
+    """The `data-director` console script."""
     try:
         governance = Governance.create(settings_from_env())
     # No principal (ADR-0018), or a profile, agent list or source list that is unset, missing
@@ -43,38 +65,13 @@ def build_app() -> gr.ChatInterface:
     except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
         sys.exit(f"data-director: {exc}")
     try:
-        agent = build_agent(governance)
-    except UserError as exc:
-        sys.exit(f"Cannot start the model: {exc}\nSet DD_CHAT_MODEL or the provider's API key.")
-
-    async def chat(message: str, history: list[dict[str, Any]]) -> list[gr.ChatMessage]:
-        turn = await respond(agent, message, history)
-        notes = [
-            gr.ChatMessage(
-                content=f"`{call.args_as_json_str()}`"
-                + (
-                    f"\n\nRecorded as run `{run}`."
-                    if (run := turn.runs.get(call.tool_call_id))
-                    else ""
-                ),
-                metadata={"title": f"Tool: {call.tool_name}", "status": "done"},
-            )
-            for call in turn.tool_calls
-        ]
-        return [*notes, gr.ChatMessage(content=turn.answer)]
-
-    return gr.ChatInterface(
-        chat,
-        title=TITLE,
-        description=DESCRIPTION,
-        examples=EXAMPLES,
-        cache_examples=False,
-        analytics_enabled=False,
-    )
-
-
-def main() -> int:
-    """The `data-director` console script."""
-    os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")  # pydantic-ai's advertising banner
-    build_app().launch(inbrowser=True)
+        app = build_app(governance)
+        host = os.environ.get("DD_APP_HOST", DEFAULT_HOST)
+        port = int(os.environ.get("DD_APP_PORT", DEFAULT_PORT))
+        webbrowser.open(f"http://{host}:{port}/")
+        uvicorn.run(app, host=host, port=port)
+    except ShellNotBuiltError as exc:
+        sys.exit(f"data-director: {exc}")
+    finally:
+        governance.worker.shutdown()
     return 0
