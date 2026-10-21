@@ -1,0 +1,81 @@
+{
+  "schema_class": "DatasetProfile",
+  "title": "Soil chemistry survey of upland grassland plots, Peak District, 2024",
+  "description": "Topsoil and subsoil samples from 40 upland grassland plots across three land-use classes in the Peak District National Park. Each sample was analysed for pH, organic carbon, total nitrogen and bulk density. Sampling followed a stratified random design; horizons were identified in the field.",
+  "keywords": [
+    "soil chemistry",
+    "upland grassland",
+    "organic carbon",
+    "soil horizon",
+    "Peak District"
+  ],
+  "themes": [
+    "Soil science",
+    "Environmental science",
+    "Agriculture"
+  ],
+  "media_types": [
+    "text/csv"
+  ],
+  "fields": [
+    {
+      "name": "sample_id",
+      "field_type": "string",
+      "field_description": "Sample identifier"
+    },
+    {
+      "name": "collection_date",
+      "field_type": "date"
+    },
+    {
+      "name": "sampled_at",
+      "field_type": "datetime"
+    },
+    {
+      "name": "survey_date_uk",
+      "field_type": "date",
+      "field_format": "%d/%m/%Y"
+    },
+    {
+      "name": "latitude",
+      "field_type": "number"
+    },
+    {
+      "name": "longitude",
+      "field_type": "number"
+    },
+    {
+      "name": "soil_horizon",
+      "field_type": "string",
+      "field_description": "Field-identified horizon (O, A, B)"
+    },
+    {
+      "name": "land_use",
+      "field_type": "string"
+    },
+    {
+      "name": "ph",
+      "field_type": "number"
+    },
+    {
+      "name": "organic_carbon_pct",
+      "field_type": "number"
+    },
+    {
+      "name": "bulk_density_g_cm3",
+      "field_type": "number"
+    },
+    {
+      "name": "total_nitrogen",
+      "field_type": "number"
+    },
+    {
+      "name": "notes",
+      "field_type": "string"
+    },
+    {
+      "name": "analyst_orcid",
+      "field_type": "string"
+    }
+  ]
+}
