@@ -1,13 +1,16 @@
-# Coverage is reported, not enforced: the badges show where the tests stand, and a drop does not
-# fail a pull request. TODO: set a threshold once the project has decided what it should be.
+# Coverage is enforced loosely: the project figure may not fall by more than a point against the
+# base commit, and new or changed lines need 80%. The absolute floor is `fail_under` in
+# pyproject.toml. The per-package flags are reported but do not fail a pull request; TODO: set a
+# floor for each package once a few weeks of figures show where they sit.
 coverage:
   status:
     project:
       default:
-        informational: true
+        target: auto
+        threshold: 1%
     patch:
       default:
-        informational: true
+        target: 80%
 comment:
   layout: "condensed_header, diff, files"
   require_changes: true
