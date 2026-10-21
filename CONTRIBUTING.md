@@ -24,6 +24,46 @@ This repository is organised as follow:
 * `agents/` contains one package per agent, including alpha-versioned experimental ones
   (`agents/README.md`)
 
+## Developer quick-start
+
+You need [uv](https://docs.astral.sh/uv/) (it installs Python 3.14), Node 22 or later with npm, and
+git. From a clone of the repository:
+
+```
+uv sync --all-packages --all-extras      # Python environment for every workspace package
+uv tool install pre-commit && pre-commit install
+(cd app/web && npm ci)                 # the shell's dependencies
+```
+
+Check the setup with `uv run pytest`, which is offline and needs no credentials.
+
+### Run the app with hot reload
+
+The app has two parts: a Python server (`dd_app`) that serves `/api`, and the React shell in
+`app/web`. Run both, in two terminals:
+
+```
+# Terminal 1, repository root: the API on http://127.0.0.1:7860
+export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."
+(cd app/web && npm run build)          # once: the server refuses to start without app/web/dist
+uv run data-director
+
+# Terminal 2, in app/web: the shell with hot module replacement
+npm run dev
+```
+
+Open the address Vite prints (usually <http://localhost:5173>), not port 7860. Port 7860 serves
+the built `app/web/dist`, which is stale until `npm run build`. Vite proxies `/api` to the server;
+set `DD_APP_URL` if the server is elsewhere. The Python server does not reload on change: restart
+it after editing `app/src`, `harness/` or `sdk/`. `app/README.md` describes the configuration.
+
+### Develop and test an agent
+
+`workbench/` is the development way in for agent authors: `uv run workbench agents` lists the
+registered agents, `uv run workbench invoke --agent <id> --input <file>` runs one, and
+`uv run workbench serve` opens the Inspect and Chat pages at <http://127.0.0.1:8000/viewer/>
+(`workbench/README.md`). Read `workbench/AGENTS.md` before changing `workbench/` or `harness/`.
+
 ## Code style and testing
 
 The Python packages use Python 3.14 and [uv](https://docs.astral.sh/uv/); `app/web` uses Node 22
