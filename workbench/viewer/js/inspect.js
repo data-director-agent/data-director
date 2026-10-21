@@ -233,6 +233,8 @@ function refreshSamples() {
 // Fill the form from the chosen sample, or blank; either way the user edits it from there.
 async function loadSample() {
   const cls = $("class-select").value, mine = ++loading;
+  // Not runnable until this sample is in the form, or Run would send the one it replaces.
+  formReady = false; refreshRunButton();
   const doc = await fetchSample($("sample-select").value);
   if (mine !== loading) return;  // a later choice has superseded this one
   formReady = editor.show(cls, classSchema(selectedAgent(), cls), doc);
