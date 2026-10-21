@@ -4,7 +4,7 @@ This package exists to be copied. It is the smallest agent that walks the whole 
 `agents/README.md` — a new input class, a new payload class, a grounding mode, the payload's
 derivations, a console script, a profile entry, a sample and marked tests — with no domain logic
 in the way. It runs as its own service (`dd-hello serve`); the workbench reaches it over A2A.
-`quality.reviewer` and `fact.checker` show what a real agent does; this one shows only what the
+`quality.reviewer` and `standards.advisor` show what a real agent does; this one shows only what the
 harness requires. Read it top to bottom, then delete the greeting.
 
 It also keeps the workbench's modularity claim honest: if adding an agent ever starts to require

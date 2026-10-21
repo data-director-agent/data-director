@@ -46,7 +46,7 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("says the grounding check is not proof of retrieval", () => {
-    render(<CapabilitiesPanel agent={agent("fact.checker")} />);
+    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
     expect(screen.getByText(/does not prove the agent retrieved them/)).toBeVisible();
   });
 
@@ -57,7 +57,9 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("says when the profile does not permit the agent", () => {
-    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
+    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
+    if (!raw) throw new Error("no standards.advisor");
+    render(<CapabilitiesPanel agent={normaliseAgent({ ...raw, assigned_action_class: null })} />);
     expect(screen.getByText("Not permitted")).toBeVisible();
   });
 
@@ -76,16 +78,16 @@ describe("AgentDirectory", () => {
   it("selects an agent from the keyboard and shows its panel", async () => {
     const user = userEvent.setup();
     render(<AgentDirectory directory={directory} />);
-    expect(screen.getByRole("heading", { level: 2, name: "fact.checker" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "hello.world" })).toBeVisible();
 
     await user.tab();
-    expect(screen.getByRole("option", { name: "fact.checker" })).toHaveFocus();
+    expect(screen.getByRole("option", { name: "hello.world" })).toHaveFocus();
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("option", { name: "hello.world" })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: "quality.reviewer" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { level: 2, name: "hello.world" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
   });
 
   it("lists agents that could not be registered", async () => {

@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 
 from dd_agent_director.agent import DirectorStub, load_rules, route
-from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
+from dd_agent_standards.factory import build as build_standards
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
     ConversationTurn,
@@ -27,7 +27,7 @@ from dd_sdk.tracing import CHAT, DELEGATE, RETRIEVAL, records_from_jsonl
 
 
 def conductor(runs_dir: Path):
-    return make_conductor(runs_dir, DirectorStub(), HelloWorld(), FactChecker())
+    return make_conductor(runs_dir, DirectorStub(), HelloWorld(), build_standards({}))
 
 
 @pytest.mark.requirement("DD-DELEGATION", "DD-CONVERSATION")
@@ -54,16 +54,14 @@ def test_a_greeting_is_routed_to_hello_world_and_relayed(runs_dir: Path) -> None
 
 
 @pytest.mark.requirement("DD-DELEGATION")
-def test_a_claim_is_routed_to_the_fact_checker(runs_dir: Path) -> None:
+def test_a_request_for_standards_is_routed_to_the_standards_advisor(runs_dir: Path) -> None:
     env = conductor(runs_dir).invoke(
-        request(
-            "director.stub",
-            Message(message_text="check A DOI does not change when the object moves."),
-        ),
+        request("director.stub", Message(message_text="standards for soil chemistry")),
         acting_for=TEST_PRINCIPAL,
     )
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.delegations[0].delegated_agent_id == "fact.checker"
+    assert env.delegations[0].delegated_agent_id == "standards.advisor"
+    assert "It succeeded" in env.payload_as(Reply).reply_text
 
 
 def test_a_mention_picks_the_agent_and_no_match_abstains() -> None:
@@ -72,8 +70,10 @@ def test_a_mention_picks_the_agent_and_no_match_abstains() -> None:
     assert not isinstance(found, str)
     assert found.rule.agent_id == "hello.world"
     assert found.input_document["greeted_name"] == "Grace Hopper"
-    found = route("@fact.checker is it true that DOIs persist?", rules)
-    assert not isinstance(found, str) and found.input_document["text"] == "DOIs persist"
+    found = route("@standards.advisor recommend standards for soil chemistry", rules)
+    assert not isinstance(found, str) and found.input_document["keywords"] == ["soil chemistry"]
+    found = route("@standards.advisor soil chemistry", rules)
+    assert not isinstance(found, str) and found.input_document["title"] == "soil chemistry"
     assert isinstance(route("@nobody hi", rules), str)
     assert isinstance(route("what is the weather", rules), str)
 
@@ -102,9 +102,9 @@ def test_without_a_callback_it_abstains_rather_than_calling_agents_directly(
 
 
 def test_an_unregistered_target_fails_with_an_agent_error(runs_dir: Path) -> None:
-    c = make_conductor(runs_dir, DirectorStub(), HelloWorld())  # no fact.checker
+    c = make_conductor(runs_dir, DirectorStub(), HelloWorld())  # no standards.advisor
     env = c.invoke(
-        request("director.stub", Message(message_text="check DOIs persist")),
+        request("director.stub", Message(message_text="standards for soil chemistry")),
         acting_for=TEST_PRINCIPAL,
     )
     assert env.outcome.status == OutcomeStatus.FAILED

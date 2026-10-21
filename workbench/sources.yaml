@@ -11,7 +11,3 @@ sources:
     path: ../agents/standards/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: 969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1
-  - snapshot_refs: ["packaged:sources.json"]
-    path: ../agents/factcheck/src/dd_agent_factcheck/sources.json
-    id_field: source_id
-    sha256: 1fe1c40533c803ff032b8d42e9c81ca13a926be70c4f7a14a4c2563334b4cf27

@@ -11,7 +11,6 @@ from typing import Any
 
 import pytest
 
-from dd_agent_factcheck.agent import FactChecker
 from dd_agent_standards.agent import StandardsAgent
 from dd_agent_standards.explain import TemplateExplainer
 from dd_agent_standards.fairsharing.snapshot import SnapshotBackend
@@ -34,7 +33,7 @@ def test_the_shipped_config_lists_every_agent_package() -> None:
     script = (root / "scripts" / "run-agents.sh").read_text()
     served = {m[0]: int(m[1]) for m in re.findall(r"\[dd-([a-z0-9]+)\]=(\d+)", script)}
     packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
-    assert set(served) == packages == {"hello", "quality", "factcheck", "standards", "director"}
+    assert set(served) == packages == {"hello", "quality", "standards", "director"}
     assert set(served.values()) == ports
 
 
@@ -50,23 +49,11 @@ def _sample(name: str) -> Any:
 
 
 @pytest.mark.requirement("DD-EVIDENCE")
-@pytest.mark.parametrize(
-    ("agent", "sample"),
-    [
-        (
-            StandardsAgent(retrieval=SnapshotBackend(), explainer=TemplateExplainer()),
-            "soil-chemistry.profile.json",
-        ),
-        (FactChecker(), "claim.json"),
-    ],
-    ids=["standards", "fact.checker"],
-)
-def test_real_agents_evidence_verifies_against_the_committed_copies(
-    tmp_path: Path, agent: Any, sample: str
-) -> None:
+def test_real_agents_evidence_verifies_against_the_committed_copies(tmp_path: Path) -> None:
+    agent = StandardsAgent(retrieval=SnapshotBackend(), explainer=TemplateExplainer())
     conductor = fakes.make_conductor(tmp_path / "runs", agent, profile=DEFAULT_PROFILE)
     conductor.sources = Sources.from_config(DEFAULT_SOURCES_CONFIG)
-    request = fakes.request(agent.spec.agent_id, _sample(sample))
+    request = fakes.request(agent.spec.agent_id, _sample("soil-chemistry.profile.json"))
     envelope = conductor.invoke(request, acting_for=fakes.TEST_PRINCIPAL)
     assert envelope.outcome.status == OutcomeStatus.SUCCEEDED, envelope.outcome.statement
     report = check(envelope.to_document(), conductor.sources)

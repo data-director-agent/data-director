@@ -6,162 +6,6 @@
   "agents": [
     {
       "accepts": [
-        "Claim"
-      ],
-      "action_class": "advise",
-      "agent_id": "fact.checker",
-      "assigned_action_class": "advise",
-      "contract_version": "0.8.0",
-      "derivations": {
-        "rationale": {
-          "how": "template",
-          "recorded_in": "rationale_derivation"
-        },
-        "verdict": {
-          "how": "lexical",
-          "recorded_in": null
-        }
-      },
-      "description": "Gives a lexical verdict on a claim, grounded on the sources it retrieved.",
-      "grounding_mode": "retrieval",
-      "payload": "FactCheck",
-      "requires_approval": false,
-      "schemas": {
-        "Claim": {
-          "digest": "d45981657ffedca510ae4233a4a78b0fde90d61f389c09717292dae1ff5d80f9",
-          "json_schema": {
-            "$comment": "Generated from factcheck.yaml by `uv run dd-gen-schema <path to factcheck.yaml>`. Do not edit.",
-            "$id": "https://w3id.org/data-director/agents/factcheck/Claim",
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "additionalProperties": false,
-            "description": "A statement to be checked against sources. The input a fact-checking agent reads.",
-            "properties": {
-              "context": {
-                "description": "Where the claim was made or why it is being checked.",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "schema_class": {
-                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
-                "enum": [
-                  "Claim"
-                ],
-                "type": "string"
-              },
-              "subject_uri": {
-                "description": "What the claim is about, if it has an identifier.",
-                "format": "uri",
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "text": {
-                "description": "The claim, as a sentence.",
-                "type": "string"
-              }
-            },
-            "required": [
-              "schema_class",
-              "text"
-            ],
-            "title": "Claim",
-            "type": "object"
-          }
-        },
-        "FactCheck": {
-          "digest": "c714cea0d43fb08c78599eff3516385b2fba7e4b84f4e0a7616779527800e8b4",
-          "json_schema": {
-            "$comment": "Generated from factcheck.yaml by `uv run dd-gen-schema <path to factcheck.yaml>`. Do not edit.",
-            "$defs": {
-              "Derivation": {
-                "description": "",
-                "enum": [
-                  "template",
-                  "model",
-                  "lexical",
-                  "registry"
-                ],
-                "title": "Derivation",
-                "type": "string"
-              },
-              "GroundingRef": {
-                "additionalProperties": false,
-                "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
-                "properties": {
-                  "content_hash": {
-                    "pattern": "^[0-9a-f]{64}$",
-                    "type": "string"
-                  },
-                  "source_id": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "source_id",
-                  "content_hash"
-                ],
-                "title": "GroundingRef",
-                "type": "object"
-              },
-              "Verdict": {
-                "description": "",
-                "enum": [
-                  "supported",
-                  "refuted",
-                  "unverifiable"
-                ],
-                "title": "Verdict",
-                "type": "string"
-              }
-            },
-            "$id": "https://w3id.org/data-director/agents/factcheck/FactCheck",
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "additionalProperties": false,
-            "description": "The payload of a fact-checking agent: a verdict on a Claim and the rationale for it, grounded on the sources consulted.",
-            "properties": {
-              "grounded_on": {
-                "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
-                "items": {
-                  "$ref": "#/$defs/GroundingRef"
-                },
-                "type": "array"
-              },
-              "rationale": {
-                "type": "string"
-              },
-              "rationale_derivation": {
-                "$ref": "#/$defs/Derivation"
-              },
-              "schema_class": {
-                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
-                "enum": [
-                  "FactCheck"
-                ],
-                "type": "string"
-              },
-              "verdict": {
-                "$ref": "#/$defs/Verdict"
-              }
-            },
-            "required": [
-              "schema_class",
-              "verdict",
-              "rationale",
-              "rationale_derivation",
-              "grounded_on"
-            ],
-            "title": "FactCheck",
-            "type": "object"
-          }
-        }
-      },
-      "version": "0.1.0"
-    },
-    {
-      "accepts": [
         "Salutation"
       ],
       "action_class": "advise",
@@ -522,7 +366,7 @@
       ],
       "action_class": "advise",
       "agent_id": "standards.advisor",
-      "assigned_action_class": null,
+      "assigned_action_class": "advise",
       "contract_version": "0.8.0",
       "derivations": {
         "items.kind": {
@@ -943,8 +787,8 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "dd77706a3534130b6d6b4981057995ad3b63896d25d4571b2d7f55516717f11c",
-    "ref": "profile:test-permissive@v2"
+    "digest": "6eb06e6bc8c391961d2093caae317869266b1a9198b22e9f1648c5765be51858",
+    "ref": "profile:test-permissive@v3"
   },
   "unavailable": {}
 }

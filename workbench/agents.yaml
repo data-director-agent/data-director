@@ -9,7 +9,6 @@
 agents:
   - url: http://127.0.0.1:8101
   - url: http://127.0.0.1:8102
-  - url: http://127.0.0.1:8103
   - url: http://127.0.0.1:8105
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
   # theirs (ADR-0012).

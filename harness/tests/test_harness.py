@@ -1,6 +1,6 @@
 """Conductor, policy gate, input check, tracing, evidence and grounding linter, using scripted
-agents. Nothing here depends on a real agent; see test_quality.py, test_factcheck.py and the
-xfailed test_standards_harness.py for those."""
+agents. Nothing here depends on a real agent; see test_quality.py and the xfailed
+test_standards_harness.py for those."""
 
 from __future__ import annotations
 

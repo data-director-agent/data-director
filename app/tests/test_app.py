@@ -16,7 +16,6 @@ from typing import Any
 import pytest
 from starlette.testclient import TestClient
 
-from dd_agent_factcheck.agent import build as build_factcheck
 from dd_agent_hello.agent import build as build_hello
 from dd_agent_quality.agent import build as build_quality
 from dd_agent_standards import factory as standards
@@ -146,7 +145,6 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
     agents: list[Agent] = [
         build_hello(),
         build_quality(),
-        build_factcheck(),
         AbstainingStub(),
         standards.build(),
     ]

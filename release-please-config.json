@@ -30,10 +30,6 @@
       "component": "agent-director",
       "release-type": "python"
     },
-    "agents/factcheck": {
-      "component": "agent-factcheck",
-      "release-type": "python"
-    },
     "agents/hello": {
       "component": "agent-hello",
       "release-type": "python"

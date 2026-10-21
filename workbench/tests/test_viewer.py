@@ -22,7 +22,6 @@ from typing import Any, get_args
 import pytest
 
 from dd_agent_director.agent import DirectorStub
-from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_agent_standards.agent import StandardsAgent
@@ -46,7 +45,6 @@ GLOSSARY_JS = (VIEWER_DIR / "js" / "glossary.js").read_text(encoding="utf-8")
 SPECS: list[AgentSpec] = [
     StandardsAgent.spec,
     QualityReviewer.spec,
-    FactChecker.spec,
     HelloWorld.spec,
     AbstainingStub.spec,
     DirectorStub.spec,

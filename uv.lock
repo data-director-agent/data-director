@@ -14,7 +14,6 @@ resolution-markers = [
 members = [
     "data-director",
     "data-director-agent-director",
-    "data-director-agent-factcheck",
     "data-director-agent-hello",
     "data-director-agent-quality",
     "data-director-agent-standards",
@@ -801,7 +800,6 @@ version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "data-director-agent-director" },
-    { name = "data-director-agent-factcheck" },
     { name = "data-director-agent-hello" },
     { name = "data-director-agent-quality" },
     { name = "data-director-agent-standards" },
@@ -833,7 +831,6 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "data-director-agent-director", editable = "agents/director" },
-    { name = "data-director-agent-factcheck", editable = "agents/factcheck" },
     { name = "data-director-agent-hello", editable = "agents/hello" },
     { name = "data-director-agent-quality", editable = "agents/quality" },
     { name = "data-director-agent-standards", editable = "agents/standards" },
@@ -876,17 +873,6 @@ requires-dist = [
     { name = "data-director-sdk", editable = "sdk" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
-
-[[package]]
-name = "data-director-agent-factcheck"
-version = "0.1.0"
-source = { editable = "agents/factcheck" }
-dependencies = [
-    { name = "data-director-sdk" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "data-director-sdk", editable = "sdk" }]
 
 [[package]]
 name = "data-director-agent-hello"

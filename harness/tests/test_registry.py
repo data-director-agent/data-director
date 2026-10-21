@@ -10,7 +10,6 @@ from typing import Any
 import httpx
 import pytest
 
-from dd_agent_factcheck.agent import FactChecker
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
 from dd_harness.registry import Registry, RegistryError, load_config
@@ -25,10 +24,9 @@ from dd_sdk.wire import CARD_PATH, EXTENSION_URI
 AGENTS: dict[str, Agent] = {
     "http://hello.test": HelloWorld(),
     "http://quality.test": QualityReviewer(),
-    "http://factcheck.test": FactChecker(),
     "http://stub.test": AbstainingStub(),
 }
-IDS = {"fact.checker", "hello.world", "quality.reviewer", "stub.abstain"}
+IDS = {"hello.world", "quality.reviewer", "stub.abstain"}
 
 
 def routed(apps: dict[str, Any]) -> Any:

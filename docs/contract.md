@@ -92,7 +92,7 @@ proposal.
 
 ## Payloads
 
-Each payload class is specific to an agent: `Recommendations`, `QualityReview`, `FactCheck`,
+Each payload class is specific to an agent: `Recommendations`, `QualityReview`,
 `Greeting` or `Reply`. Every payload class includes the `Grounded` mixin, which adds a `grounded_on` list.
 Each entry in that list names a source by its identifier and content hash. This is the only
 place a payload may assert which sources it relies on. The grounding linter checks each entry.
