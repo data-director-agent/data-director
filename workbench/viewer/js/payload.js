@@ -1,9 +1,9 @@
 // The payload view: react-jsonschema-form (RJSF) with templates that present a payload as a
 // read-only document, and the derivation badges. Only Inspect imports it.
-import React from "https://esm.sh/react@19";
-import { createRoot } from "https://esm.sh/react-dom@19/client";
-import Form from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19,react-dom@19";
-import validator from "https://esm.sh/@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19";
+import React from "https://esm.sh/react@19.3.1";
+import { createRoot } from "https://esm.sh/react-dom@19.3.1/client";
+import Form from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1";
+import validator from "https://esm.sh/@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1";
 
 import { isEmpty } from "./common.js";
 import { wireTip } from "./help.js";

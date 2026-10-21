@@ -51,6 +51,10 @@ coverage.xml
 .pytest_cache/
 cover/
 .report.json
+# Playwright traces from workbench/browser_tests (pytest-playwright --output)
+test-results/
+# The lock export the dependency audit reads (.github/workflows/audit.yml)
+requirements-audit.txt
 
 # Translations
 *.mo

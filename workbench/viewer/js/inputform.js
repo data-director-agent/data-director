@@ -1,10 +1,10 @@
 // The input form: an editable react-jsonschema-form (RJSF) built from an input class's schema, as
 // the agent's card carries it in the manifest (ADR-0019). It names no class and no agent; a
 // sample, when chosen, is only the form's starting data. Inspect and Chat import it.
-import React from "https://esm.sh/react@19";
-import { createRoot } from "https://esm.sh/react-dom@19/client";
-import Form from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19,react-dom@19";
-import validator from "https://esm.sh/@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19";
+import React from "https://esm.sh/react@19.3.1";
+import { createRoot } from "https://esm.sh/react-dom@19.3.1/client";
+import Form from "https://esm.sh/@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1";
+import validator from "https://esm.sh/@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1";
 
 const h = React.createElement;
 

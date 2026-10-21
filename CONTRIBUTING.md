@@ -26,10 +26,32 @@ This repository is organised as follow:
 
 ## Code style and testing
 
-The project's tooling (language, linting, test framework) is still being established. Guidance on
-code style and how to run tests will be added here once that tooling is in place — for now, follow
-the conventions of the surrounding code and describe how you tested your change in the pull
-request description.
+The Python packages use Python 3.14 and [uv](https://docs.astral.sh/uv/); `app/web` uses Node 22
+and npm. Follow the conventions of the surrounding code, and describe how you tested your change
+in the pull request description.
+
+Every pull request runs `.github/workflows/ci.yml`, which ends in one check, **CI passed**, that
+passes only when every other job has. Each job can be run locally from the repository root:
+
+| Job | Locally |
+|---|---|
+| Ruff (lint + format) | `uv run ruff check . && uv run ruff format --check .` |
+| mypy | `uv run mypy` |
+| pytest and CONFORMANCE.md | `uv run pytest --json-report --json-report-file=.report.json && uv run python scripts/conformance_report.py --check` |
+| Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
+| Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |
+| Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
+| Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
+| App shell | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e` |
+| Links and citation file | `lychee --offline --include-fragments --exclude-path docs/BLUEPRINT.md '**/*.md'` and `uvx cffconvert --validate` |
+| Workflows | `uvx zizmor .github` and [actionlint](https://github.com/rhysd/actionlint) |
+| Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
+| Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
+
+The pytest suite blocks the network and needs no credentials. `CONFORMANCE.md` is generated;
+regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
+Python, JavaScript and TypeScript code and the workflows, and `audit.yml` checks every locked
+dependency against the advisory databases each day. Dependabot proposes updates weekly.
 
 ## Credit
 

@@ -1,4 +1,5 @@
-"""The viewer is not run in CI; these tests check what can be checked without a browser.
+"""What can be checked about the viewer without a browser. `../browser_tests/` loads the pages in
+Chromium (#9).
 
 The base `viewer/uischema.json` covers the envelope. A payload's uiSchema is worked out in the
 viewer from the payload class's schema and the agent's `spec.derivations` (ADR-0016); no agent
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import zipfile
 from pathlib import Path
 from typing import Any, get_args
 
@@ -110,8 +112,8 @@ def test_base_uischema_covers_the_envelope_not_any_payload() -> None:
 def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     assert BASE["ui:readonly"] is True
     assert "readonly: true" in VIEWER
-    assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in VIEWER
-    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in VIEWER
+    assert "@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in VIEWER
+    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in VIEWER
     assert 'role="status"' in PAGES["index.html"] and 'role="status"' in PAGES["chat.html"]
     assert '<label for="agent-select">' in VIEWER
     # Driven by the manifest and the samples listing; no agent or sample is named.
@@ -128,8 +130,8 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
 
 def test_input_form_is_built_from_the_cards_class_schema_and_names_no_class() -> None:
     form = (VIEWER_DIR / "js" / "inputform.js").read_text(encoding="utf-8")
-    assert "@rjsf/core@6.8.0?deps=react@19,react-dom@19" in form
-    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19,react-dom@19" in form
+    assert "@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in form
+    assert "@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in form
     assert 'tagName: "div"' in form  # Chat's composer is a <form>; forms do not nest
     for page in ("inspect.js", "chat.js"):
         module = (VIEWER_DIR / "js" / page).read_text(encoding="utf-8")
@@ -251,3 +253,36 @@ def test_icons_are_hidden_from_assistive_technology() -> None:
 def test_icon_sprite_ships_its_licence() -> None:
     assert "ISC License" in (VIEWER_DIR / "icons.LICENCE").read_text(encoding="utf-8")
     assert "see icons.LICENCE" in SPRITE
+
+
+CDN_IMPORT = re.compile(r'from "(https://esm\.sh/[^"]+)"')
+
+
+def test_every_cdn_module_is_pinned_and_recorded_for_the_browser_tests() -> None:
+    """A module from esm.sh names an exact version, so the page loads the same code each time,
+    and the browser tests replay it from their HAR without the network."""
+    imported = {
+        m for path in VIEWER_DIR.glob("js/*.js") for m in CDN_IMPORT.findall(path.read_text())
+    }
+    assert imported
+    loose = sorted(u for u in imported if not re.search(r"@\d+\.\d+\.\d+(?=[/?]|$)", u))
+    assert not loose, f"pin an exact version: {loose}"
+    with zipfile.ZipFile(ROOT / "browser_tests" / "esm.sh.har.zip") as har:
+        recorded = {e["request"]["url"] for e in json.loads(har.read("har.har"))["log"]["entries"]}
+    missing = sorted(imported - recorded)
+    assert not missing, (
+        f"not in esm.sh.har.zip: {missing}; re-record it with "
+        "`uv run pytest workbench/browser_tests --update-har`"
+    )
+
+
+def test_el_sets_aria_through_reflected_properties() -> None:
+    """`el` assigns properties, so a quoted `"aria-…"` key would be a plain JS property that no
+    assistive technology reads; the reflected `ariaLabel` sets the attribute (#9 found two)."""
+    quoted = re.compile(r'\bel\("[a-z0-9]+", \{[^}]*"aria-')
+    found = [
+        f"{path.name}: {m.group(0)}"
+        for path in VIEWER_DIR.glob("js/*.js")
+        for m in quoted.finditer(path.read_text(encoding="utf-8"))
+    ]
+    assert not found, found

@@ -78,11 +78,11 @@ function envelopeCard(env, children = [], delegated = false) {
     o.reason_code ? el("code", { textContent: o.reason_code, title: "reason_code" }) : null,
     el("span", { className: "inspect" }, inspectLink(env.invocation_id)));
   const reply = env.payload?.schema_class === "Reply" ? el("p", { className: "reply", textContent: env.payload.reply_text }) : null;
-  const card = el("article", { className: "card", "aria-label": `${env.agent_id}@${env.agent_version} ${o.status}` },
+  const card = el("article", { className: "card", ariaLabel: `${env.agent_id}@${env.agent_version} ${o.status}` },
     head, reply, el("p", { className: "statement", textContent: o.statement }));
   if (env.payload && !reply) card.append(payloadSummary(env.payload));
   if (children.length) {
-    card.append(el("ol", { className: "children", "aria-label": "Delegated invocations" },
+    card.append(el("ol", { className: "children", ariaLabel: "Delegated invocations" },
       ...children.map((c) => el("li", {}, envelopeCard(c, [], true)))));
   }
   return card;
