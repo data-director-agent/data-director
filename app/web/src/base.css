@@ -606,3 +606,23 @@ button[aria-disabled="true"] {
   padding: var(--space-3);
   border-radius: var(--radius);
 }
+
+/* The conversation, with the selected delegated run beside it (#135). On a narrow screen the
+   run is its own view, reached from the card. */
+.conversation-layout.has-run {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  align-items: start;
+}
+@media (max-width: 48rem) {
+  .conversation-layout.has-run {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .conversation-layout.has-run .conversation-main {
+    display: none;
+  }
+}
+.transcript [aria-current="true"] {
+  border-inline-start: var(--focus-width) solid var(--color-border);
+}

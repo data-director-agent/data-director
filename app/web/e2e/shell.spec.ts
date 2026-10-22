@@ -237,6 +237,25 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
 
+test("a delegated run is its own view at 320px, reached from the card, and Back returns to it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
+  await page.getByRole("button", { name: "Send" }).click();
+  const open = page.getByRole("button", { name: /Open run/ }).first();
+  await open.click();
+  await expect(page).toHaveURL(/\?run=/);
+  await expect(page.getByRole("heading", { name: /^Run of / })).toBeFocused();
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeHidden();
+  expect(await overflow(page), "horizontal overflow on the run view").toBeLessThanOrEqual(0);
+  await page.getByRole("button", { name: "Back to the conversation" }).click();
+  await expect(open).toBeFocused();
+});
+
 test("the directory is a page: reachable from the navigation, survives a reload, and Back leaves it", async ({
   page,
 }) => {
