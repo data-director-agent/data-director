@@ -159,6 +159,12 @@ def test_every_other_path_serves_the_built_shell(governance: Governance, dist: P
     assert "<title>shell</title>" in response.text
 
 
+def test_the_agents_page_serves_the_built_shell(governance: Governance, dist: Path):
+    response = TestClient(build_app(governance, dist)).get("/agents")
+    assert response.status_code == 200
+    assert "<title>shell</title>" in response.text
+
+
 def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path):
     with pytest.raises(ShellNotBuiltError, match="npm ci && npm run build"):
         build_app(governance, tmp_path / "missing")

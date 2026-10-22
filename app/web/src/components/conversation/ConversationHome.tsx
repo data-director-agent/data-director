@@ -15,6 +15,7 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import { useConversationApi } from "../../conversation/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { Directory } from "../../manifest/normalise";
+import { Link } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
 import { RunRefused, errorMessage, useRunApi } from "../../run/api";
 import { inferStages } from "../../run/stages";
@@ -25,13 +26,7 @@ import { Transcript } from "./Transcript";
 
 type OpenRun = { envelope: Envelope; result: RunResult | null; error?: string };
 
-export function ConversationHome({
-  directory,
-  onOpenDirectory,
-}: {
-  directory: Directory;
-  onOpenDirectory: () => void;
-}) {
+export function ConversationHome({ directory }: { directory: Directory }) {
   const api = useConversationApi();
   const runs = useRunApi();
   const orchestrator = directory.agents.find((a) => a.groundingMode === "delegation");
@@ -72,9 +67,7 @@ export function ConversationHome({
           You can still use each agent on its own.
         </p>
         <p>
-          <button type="button" onClick={onOpenDirectory}>
-            Open the agent directory
-          </button>
+<Link to="/agents">Open the agent directory</Link>
         </p>
       </section>
     );
@@ -193,9 +186,7 @@ export function ConversationHome({
         <button type="button" onClick={reset}>
           New conversation
         </button>{" "}
-        <button type="button" onClick={onOpenDirectory}>
-          Agent directory
-        </button>
+        <Link to="/agents">Agent directory</Link>
       </p>
       {conversation && conversation.turns.length > 0 && (
         <Transcript conversation={conversation} onOpenRun={openRun} />

@@ -28,7 +28,7 @@ from typing import Any
 import uvicorn
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -147,6 +147,10 @@ def build_app(
     async def list_examples(request: Request) -> Response:
         return JSONResponse(examples(examples_dir))
 
+    async def shell(request: Request) -> Response:
+        # A page of the shell's own, so a reload or a link lands on it rather than a 404.
+        return FileResponse(web_dist / "index.html")
+
     callback = governance.conductor.harness_url
     # No authenticator: delegation callbacks only, so the app is no other way in (ADR-0012).
     delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
@@ -162,6 +166,7 @@ def build_app(
             Route("/api/conversations/{conversation_id}/turns", send_turn, methods=["POST"]),
             Route("/api/examples", list_examples, methods=["GET"]),
             *delegation,
+            Route("/agents", shell, methods=["GET"]),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ]
     )

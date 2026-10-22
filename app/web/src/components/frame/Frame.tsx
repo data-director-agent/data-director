@@ -7,12 +7,22 @@
 
 import type { ReactNode } from "react";
 
+import { Link } from "../../route";
+
 export interface FrameContext {
   actingFor: { name: string; assurance: string };
   profileRef: string;
 }
 
-export function Frame({ context, children }: { context?: FrameContext; children: ReactNode }) {
+export function Frame({
+  context,
+  onAgents = false,
+  children,
+}: {
+  context?: FrameContext;
+  onAgents?: boolean;
+  children: ReactNode;
+}) {
   return (
     <>
       <a className="skip-link" href="#main">
@@ -31,6 +41,14 @@ export function Frame({ context, children }: { context?: FrameContext; children:
             ) · Policy <code>{context.profileRef}</code>
           </p>
         )}
+        <nav aria-label="Main">
+          <Link to="/" {...(onAgents ? {} : { "aria-current": "page" as const })}>
+            Conversation
+          </Link>{" "}
+          <Link to="/agents" {...(onAgents ? { "aria-current": "page" as const } : {})}>
+            Agents
+          </Link>
+        </nav>
       </header>
       <main id="main" tabIndex={-1}>
         {children}
