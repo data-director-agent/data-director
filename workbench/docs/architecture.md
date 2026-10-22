@@ -1,6 +1,7 @@
 # Architecture
 
-This page gives a short overview of how the workbench is put together. The decisions behind it
+This page gives a short overview of how the workbench is put together. For the whole system,
+including the app and its deployment, start with [`docs/architecture.md`](../../docs/architecture.md). The decisions behind it
 are recorded in [`adr/`](../../docs/adr/). For one request followed through every step, with real output,
 see [`walkthrough.md`](walkthrough.md).
 
