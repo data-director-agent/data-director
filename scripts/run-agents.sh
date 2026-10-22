@@ -12,17 +12,22 @@ declare -A PORTS=(
   [dd-director]=8106
 )
 
-# The agents read their own DD_<AGENT>_* from the same file the workbench loads, if it exists.
-env_file=()
-[[ -f workbench/.env ]] && env_file=(--env-file workbench/.env)
+# Each agent reads the file the workbench loads, if it exists, and then its own,
+# workbench/agents/<name>.env (dd-standards: standards.env), whose settings win. A model key goes
+# only in the agent's own file, so no other agent is given it (ADR-0026).
+shared=()
+[[ -f workbench/.env ]] && shared=(--env-file workbench/.env)
 
 pids=()
 trap 'kill "${pids[@]}" 2>/dev/null || true' EXIT INT TERM
 
 for script in "${!PORTS[@]}"; do
   port="${PORTS[$script]}"
+  env_files=("${shared[@]}")
+  own="workbench/agents/${script#dd-}.env"
+  [[ -f "$own" ]] && env_files+=(--env-file "$own")
   echo "starting $script on http://127.0.0.1:$port"
-  uv run "${env_file[@]}" "$script" serve --port "$port" &
+  uv run "${env_files[@]}" "$script" serve --port "$port" &
   pids+=("$!")
 done
 

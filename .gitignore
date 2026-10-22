@@ -155,6 +155,8 @@ activemq-data/
 # Environments
 .env
 .envrc
+# Per-agent settings and model keys for scripts/run-agents.sh (ADR-0026).
+workbench/agents/*.env
 .venv
 env/
 venv/
