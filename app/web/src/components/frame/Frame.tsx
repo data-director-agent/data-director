@@ -1,5 +1,5 @@
 /**
- * The page frame: a skip link, the banner and one main landmark.
+ * The page frame: a skip link, the banner (with the dark mode switch) and one main landmark.
  *
  * The banner says whom runs act for and whose rules apply. Until there is authentication
  * (ADR-0018, #17) the principal is the operator's assertion, and the banner says so.
@@ -8,6 +8,7 @@
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 export interface FrameContext {
   actingFor: { name: string; assurance: string };
@@ -49,6 +50,7 @@ export function Frame({
             Agents
           </Link>
         </nav>
+        <ThemeSwitch />
       </header>
       <main id="main" tabIndex={-1}>
         {children}

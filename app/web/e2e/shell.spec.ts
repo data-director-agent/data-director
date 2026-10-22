@@ -75,6 +75,11 @@ async function serveConversation(page: Page) {
   await page.route("/api/conversations/*", (route) => route.fulfill({ json: conversation }));
 }
 
+/** Choose the scheme as the banner's switch would, before the page loads. */
+async function useScheme(page: Page, scheme: "light" | "dark") {
+  await page.addInitScript((value) => localStorage.setItem("dd-theme", value), scheme);
+}
+
 async function axeViolations(page: Page) {
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -94,7 +99,7 @@ for (const [name, body] of [
 ] as const) {
   for (const scheme of ["light", "dark"] as const) {
     test(`${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
+      await useScheme(page, scheme);
       await serve(page, body);
       await gotoDirectory(page);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -185,7 +190,7 @@ for (const [name, run] of [
 ] as const) {
   for (const scheme of ["light", "dark"] as const) {
     test(`run outcome ${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
-      await page.emulateMedia({ colorScheme: scheme });
+      await useScheme(page, scheme);
       await serve(page, reference, run);
       await gotoDirectory(page);
       await page.getByRole("button", { name: "Run", exact: true }).click();
@@ -213,7 +218,7 @@ test("a run and the history reflow at 320 CSS pixels", async ({ page }) => {
 
 for (const scheme of ["light", "dark"] as const) {
   test(`conversation home, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
-    await page.emulateMedia({ colorScheme: scheme });
+    await useScheme(page, scheme);
     await serveConversation(page);
     await page.goto("/");
     await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
@@ -319,4 +324,26 @@ test("the workspace reflows at 320px with every phase open", async ({ page }) =>
   for (const summary of await summaries.all()) await summary.click();
   expect(await overflow(page), "horizontal overflow with the phases open").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
+});
+
+test("light by default whatever the system prefers; the dark choice survives a reload", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await serveConversation(page);
+  await page.goto("/");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "light");
+  const background = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(await background()).toBe("rgb(255, 255, 255)");
+
+  await page.getByRole("button", { name: "Dark mode" }).click();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Dark mode" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  expect(await background()).not.toBe("rgb(255, 255, 255)");
 });
