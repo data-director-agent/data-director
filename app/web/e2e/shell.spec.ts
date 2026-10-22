@@ -42,10 +42,9 @@ async function serve(page: Page, body: unknown, run: unknown = succeeded) {
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
 }
 
-/** The home page is the conversation. These agent sets have no orchestrator, so open the directory. */
+/** The directory is its own page, `/agents`. */
 async function gotoDirectory(page: Page) {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Open the agent directory" }).click();
+  await page.goto("/agents");
 }
 
 /** The several-agents set plus an orchestrator, found by its grounding mode. */
@@ -108,7 +107,7 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
   await serve(page, several);
   await gotoDirectory(page);
   await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
-  // The skip link is the first stop on the home page, whichever view it shows.
+  // The skip link is the first stop on every page.
   await page.goto("/");
   await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "Skip to main content" });
@@ -117,8 +116,9 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
   await page.keyboard.press("Enter");
   await expect(page.locator("main")).toBeFocused();
 
-  // The directory is one click away; its list is one stop for the keyboard.
-  await page.getByRole("button", { name: "Open the agent directory" }).click();
+  // The directory is one link away; its list is one stop for the keyboard.
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Agents" }).click();
+  await expect(page).toHaveURL(/\/agents$/);
   await page.getByRole("option", { name: "hello.world" }).focus();
   await expect(page.getByRole("option", { name: "hello.world" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
@@ -234,4 +234,26 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
   await expect(box).toBeFocused();
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
+});
+
+test("the directory is a page: reachable from the navigation, survives a reload, and Back leaves it", async ({
+  page,
+}) => {
+  await serve(page, several);
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await nav.getByRole("link", { name: "Agents" }).click();
+  await expect(page).toHaveURL(/\/agents$/);
+  await expect(nav.getByRole("link", { name: "Agents" })).toHaveAttribute("aria-current", "page");
+  await page.reload();
+  await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(nav.getByRole("link", { name: "Conversation" })).toHaveAttribute("aria-current", "page");
+});
+
+test("a link names the agent to show", async ({ page }) => {
+  await serve(page, several);
+  await page.goto("/agents?agent=quality.reviewer");
+  await expect(page.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
 });

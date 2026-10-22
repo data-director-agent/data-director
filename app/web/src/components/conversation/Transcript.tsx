@@ -6,6 +6,7 @@
  */
 
 import type { Conversation, ConversationTurn } from "../../conversation/types";
+import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
 
@@ -38,7 +39,10 @@ function ChildCard({ child, onOpen }: { child: Envelope; onOpen: (child: Envelop
       </p>
       <button type="button" onClick={() => onOpen(child)}>
         Open run<span className="visually-hidden"> of {name}</span>
-      </button>
+      </button>{" "}
+      <Link to={`/agents?agent=${encodeURIComponent(child.agent_id)}`}>
+        About this agent<span className="visually-hidden"> {child.agent_id}</span>
+      </Link>
     </li>
   );
 }

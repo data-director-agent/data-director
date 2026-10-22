@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AgentDirectory } from "./components/capabilities/AgentDirectory";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
 
@@ -19,7 +20,8 @@ export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
 
 export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory }) {
   const [state, setState] = useState<Load>({ state: "loading" });
-  const [view, setView] = useState<"conversation" | "directory">("conversation");
+  const location = useLocation();
+  const onAgents = location.split("?")[0] === "/agents";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -35,6 +37,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
 
   return (
     <Frame
+      onAgents={onAgents}
       {...(state.state === "loaded"
         ? {
             context: {
@@ -50,21 +53,14 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
           <p>Data Director could not list its agents: {state.message}.</p>
         </div>
       )}
-      {state.state === "loaded" && view === "conversation" && (
-        <ConversationHome
-          directory={state.directory}
-          onOpenDirectory={() => setView("directory")}
-        />
-      )}
-      {state.state === "loaded" && view === "directory" && (
+      {state.state === "loaded" && !onAgents && <ConversationHome directory={state.directory} />}
+      {state.state === "loaded" && onAgents && (
         <>
-          <p>
-            <button type="button" onClick={() => setView("conversation")}>
-              Back to the conversation
-            </button>
-          </p>
-          <h1>What Data Director can do here</h1>
-          <AgentDirectory directory={state.directory} />
+          <h1>Agents: what Data Director can do here</h1>
+          <AgentDirectory
+            directory={state.directory}
+            initial={new URLSearchParams(location.split("?")[1]).get("agent") ?? undefined}
+          />
         </>
       )}
     </Frame>

@@ -123,8 +123,8 @@ shapes, under a profile that does not list the standards advisor, so the shell i
 - There is no human review of proposed changes (#72, #73). The standards advisor only advises, so it proposes none.
 - The form checks only required fields and numbers; the conductor's input check decides.
 - The conversation is with the rule-based `director.stub`; a model-backed orchestrator and
-  streaming replies come later (#21). The directory is reached from the home page by a button,
-  not yet a page of its own (#132).
+  streaming replies come later (#21). The agent directory is its own page, `/agents`, reached
+  from the navigation and from a delegated child's card (`/agents?agent=<id>` selects an agent).
 - No agent declares its limits, reliability or data handling yet. That needs the oversight
   extension (ADR-0025, TODO).
 

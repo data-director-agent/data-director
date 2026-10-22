@@ -36,21 +36,22 @@ function fakeApi(overrides: Partial<ConversationApi> = {}): ConversationApi {
   };
 }
 
-function renderHome(directory: Directory, api: ConversationApi, onOpenDirectory = () => undefined) {
+function renderHome(directory: Directory, api: ConversationApi) {
   return render(
     <ConversationApiContext.Provider value={api}>
-      <ConversationHome directory={directory} onOpenDirectory={onOpenDirectory} />
+      <ConversationHome directory={directory} />
     </ConversationApiContext.Provider>,
   );
 }
 
 describe("ConversationHome", () => {
   it("says plainly when there is no orchestrator, and links to the directory", async () => {
-    const onOpen = vi.fn();
-    renderHome(normalise(raw), fakeApi(), onOpen);
+    renderHome(normalise(raw), fakeApi());
     expect(screen.getByRole("heading", { name: "No conversation is available" })).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Open the agent directory" }));
-    expect(onOpen).toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Open the agent directory" })).toHaveAttribute(
+      "href",
+      "/agents",
+    );
   });
 
   it("says when the profile does not permit the orchestrator", () => {
