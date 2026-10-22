@@ -101,7 +101,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     return (
       <Workspace
         {...frame}
-        heading={<h1>No conversation is available</h1>}
+        title="No conversation is available"
         centre={
           <>
             <p>{unusable} You can still use each agent on its own.</p>
@@ -187,7 +187,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   return (
     <Workspace
       {...frame}
-      heading={<h1>Talk to Data Director</h1>}
+      title="Talk to Data Director"
       runOpen={Boolean(runId)}
       centre={
         <section aria-labelledby="conversation-heading" className="conversation-main">

@@ -1,0 +1,80 @@
+/* The checks a run passed and the evidence it gathered. */
+
+@layer components {
+  .check-summary {
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  .checks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .checks li {
+    margin-bottom: var(--space-2);
+  }
+
+  .evidence-list {
+    list-style: none;
+    margin: var(--space-3) 0 0;
+    padding: 0;
+  }
+
+  .evidence-list > li {
+    padding: var(--space-3) 0;
+    border-top: var(--border-width) solid var(--color-surface-selected);
+    max-width: var(--measure);
+  }
+
+  .evidence-list > li:target {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .evidence-name {
+    font-weight: 600;
+    margin-bottom: var(--space-1);
+  }
+
+  .evidence-number {
+    color: var(--color-text-muted);
+  }
+
+  .evidence-meta {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-1);
+  }
+
+  .evidence-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-4);
+    margin: 0 0 var(--space-1);
+    font-size: var(--font-size-small);
+  }
+
+  .evidence-facts > div {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .evidence-facts dt {
+    color: var(--color-text-muted);
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .evidence-facts dt::after {
+    content: ":";
+  }
+
+  .evidence-facts dd {
+    min-width: 0;
+    margin: 0;
+  }
+}

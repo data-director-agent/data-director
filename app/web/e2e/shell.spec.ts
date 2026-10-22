@@ -280,6 +280,29 @@ test("the directory is a page: reachable from the navigation, survives a reload,
   await expect(nav.getByRole("link", { name: "Conversation" })).toHaveAttribute("aria-current", "page");
 });
 
+for (const width of [1280, 320]) {
+  test(`at ${width}px the banner does not move between pages or tabs`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await serveConversation(page);
+    const nav = page.getByRole("navigation", { name: "Main" });
+    const parts = [nav, page.getByRole("button", { name: "Dark mode" })];
+    const boxes = () => Promise.all(parts.map((part) => part.boundingBox()));
+
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const first = await boxes();
+
+    await nav.getByRole("link", { name: "Agents" }).click();
+    await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
+    expect(await boxes(), "after opening Agents").toEqual(first);
+
+    for (const tab of ["About", "History", "Run"]) {
+      await page.getByRole("tab", { name: tab }).click();
+      expect(await boxes(), `after selecting ${tab}`).toEqual(first);
+    }
+  });
+}
+
 test("a link names the agent to show", async ({ page }) => {
   await serve(page, several);
   await page.goto("/agents?agent=quality.reviewer");

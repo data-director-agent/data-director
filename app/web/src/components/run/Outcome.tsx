@@ -7,6 +7,8 @@
  * run, are not built yet, and are drawn in place (#72, #73).
  */
 
+import "./Outcome.css";
+
 import { type Ref, useState } from "react";
 
 import type { AgentView } from "../../manifest/normalise";

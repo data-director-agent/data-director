@@ -7,6 +7,8 @@
  * while hidden, so a run and an opened record survive a look at About.
  */
 
+import "./AgentDetail.css";
+
 import { useState } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-aria-components";
 
@@ -15,11 +17,11 @@ import { CapabilitiesPanel } from "../capabilities/CapabilitiesPanel";
 import { RunHistory } from "../history/RunHistory";
 import { RunView } from "../run/RunView";
 
-export function AgentWorkspace({ agent }: { agent: AgentView }) {
+export function AgentDetail({ agent }: { agent: AgentView }) {
   const headingId = `agent-${agent.id}-heading`;
   const [finished, setFinished] = useState(0);
   return (
-    <section className="workspace" aria-labelledby={headingId}>
+    <section className="agent-detail" aria-labelledby={headingId}>
       <h2 id={headingId}>
         <code>{agent.id}</code>
       </h2>

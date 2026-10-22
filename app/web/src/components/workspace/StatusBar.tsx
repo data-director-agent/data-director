@@ -7,6 +7,8 @@
  * the bar says so.
  */
 
+import "./StatusBar.css";
+
 import type { Directory } from "../../manifest/normalise";
 import { IssueLinks } from "../NotBuilt";
 

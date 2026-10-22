@@ -114,7 +114,7 @@ export function RunHistory({ agent, refresh = 0 }: { agent: AgentView; refresh?:
       )}
       {load.state === "loaded" && load.rows.length === 0 && <p>No runs yet. Start one from Run.</p>}
       {load.state === "loaded" && load.rows.length > 0 && (
-        <table className="history-table">
+        <table className="data-table">
           <caption className="visually-hidden">Runs of {agent.id}, newest first</caption>
           <thead>
             <tr>

@@ -1,58 +1,55 @@
 /**
- * The page frame: a skip link, the banner (with the dark mode switch) and one main landmark.
+ * The page frame: a skip link, the banner and one main landmark.
  *
- * The banner says whom runs act for and whose rules apply. Until there is authentication
- * (ADR-0018, #17) the principal is the operator's assertion, and the banner says so.
+ * The banner holds the same three things on every page (the name, the main navigation and the
+ * dark mode switch), so nothing in it moves when the page changes. What a page is about, and for
+ * whom it acts, is said in the page itself.
  */
+
+import "./Frame.css";
 
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
 import { ThemeSwitch } from "./ThemeSwitch";
 
-export interface FrameContext {
-  actingFor: { name: string; assurance: string };
-  profileRef: string;
-}
+const PAGES = [
+  { to: "/", label: "Conversation" },
+  { to: "/agents", label: "Agents" },
+] as const;
 
-export function Frame({
-  context,
-  onAgents = false,
-  children,
-}: {
-  context?: FrameContext;
-  onAgents?: boolean;
-  children: ReactNode;
-}) {
+export function Frame({ current, children }: { current: string; children: ReactNode }) {
   return (
     <>
       <a className="skip-link" href="#main">
         Skip to main content
       </a>
-      <header className="site-header">
-        <p className="site-name">
-          Data Director <span className="status status-warn">Alpha</span>
-        </p>
-        {context && (
-          <p className="site-context">
-            Acting as {context.actingFor.name} (
-            {context.actingFor.assurance === "asserted"
-              ? "asserted by the operator, not authenticated"
-              : context.actingFor.assurance}
-            ) · Policy <code>{context.profileRef}</code>
+      <header className="app-header">
+        <div className="app-header-inner">
+          <p className="app-brand">
+            Data Director <span className="status status-warn">Alpha</span>
           </p>
-        )}
-        <nav aria-label="Main">
-          <Link to="/" {...(onAgents ? {} : { "aria-current": "page" as const })}>
-            Conversation
-          </Link>{" "}
-          <Link to="/agents" {...(onAgents ? { "aria-current": "page" as const } : {})}>
-            Agents
-          </Link>
-        </nav>
-        <ThemeSwitch />
+          <nav aria-label="Main" className="app-nav">
+            <ul className="app-nav-list">
+              {PAGES.map(({ to, label }) => (
+                <li key={to}>
+                  <Link
+                    to={to}
+                    className="app-nav-link"
+                    {...(to === current ? { "aria-current": "page" as const } : {})}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div className="app-tools">
+            <ThemeSwitch />
+          </div>
+        </div>
       </header>
-      <main id="main" tabIndex={-1}>
+      <main id="main" className="app-main" tabIndex={-1}>
         {children}
       </main>
     </>

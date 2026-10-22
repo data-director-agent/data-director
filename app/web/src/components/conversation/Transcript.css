@@ -1,0 +1,7 @@
+/* The conversation's turns. */
+
+@layer components {
+  .transcript [aria-current="true"] {
+    border-inline-start: var(--focus-width) solid var(--color-border);
+  }
+}

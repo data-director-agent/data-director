@@ -1,0 +1,34 @@
+/* A run's result, with each value's derivation and the evidence it rests on. */
+
+@layer components {
+  /* Inside a table that scrolls on its own, short values keep their words whole. */
+  .result-table th,
+  .result-table td {
+    overflow-wrap: normal;
+  }
+
+  .result-table td.long {
+    min-width: 22rem;
+    overflow-wrap: anywhere;
+  }
+
+  .derivation {
+    display: inline-block;
+    padding: 0 var(--space-1);
+    border: var(--border-width) dotted var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text-muted);
+    font-size: 0.8em;
+    white-space: nowrap;
+  }
+
+  .rests-on {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .rests-on li {
+    white-space: nowrap;
+  }
+}

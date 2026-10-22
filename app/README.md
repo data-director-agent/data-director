@@ -134,12 +134,36 @@ orchestrator: orchestrator.model
 When the named agent is not running, does not delegate, or is not permitted, the home page says
 so and links to the agent directory; it does not fall back to another agent.
 
+## Layout and styles
+
+Every page is the same frame (`web/src/components/frame/Frame.tsx`): a banner holding the name,
+the main navigation and the dark mode switch, identical on every page so that nothing in it
+moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
+before the content). What a page acts for is said in the page, not in the banner.
+
+Styles are plain CSS in cascade layers, declared once in `web/src/styles/index.css`:
+`reset`, `base` (element defaults), `layout` (page grids), `components` and `utilities`. Order of
+layers, not selector specificity, decides which rule wins.
+
+- **Where a rule goes.** Page layout and each page's grid are in `styles/layout.css`; patterns
+  used by several components (statuses, callouts, fields, data tables) in `styles/patterns.css`;
+  anything else beside its component (`RunForm.tsx` imports `RunForm.css`), wrapped in
+  `@layer components`. A component does not set its own outer margins or grid placement.
+- **Names.** Classes are kebab-case and start with their component's name (`app-nav-link`,
+  `stage-name`).
+- **State.** Selected, current and hovered come from ARIA and React Aria attributes
+  (`[aria-current="page"]`, `[data-selected]`), not modifier classes. A selected item is marked by
+  colour and a bar, never by a change of weight, so selecting it does not shift its neighbours.
+- **Values.** Every colour, size and font is a token from `web/src/tokens/neutral.css`
+  (ADR-0024 §5). Stylelint (`web/.stylelintrc.json`, part of `npm run lint`) rejects a literal
+  colour outside the token file.
+
 ## Tests
 
 ```bash
 uv run pytest app/tests            # the server; keeps app/web/fixtures current
 cd app/web
-npm run lint && npm run typecheck && npm test      # ESLint (with jsx-a11y), tsc, Vitest + axe
+npm run lint && npm run typecheck && npm test      # ESLint (with jsx-a11y), Stylelint, tsc, Vitest + axe
 npx playwright install chromium && npm run e2e      # axe light and dark, keyboard, 400% reflow
 ```
 

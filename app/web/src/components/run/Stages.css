@@ -1,0 +1,65 @@
+/* A run's stages. */
+
+@layer components {
+  .stages {
+    list-style: none;
+    margin: 0 0 var(--space-4);
+    padding: 0;
+    max-width: var(--measure);
+  }
+
+  .stage {
+    display: grid;
+    grid-template-columns: 1.5rem minmax(8rem, max-content) minmax(0, 1fr);
+    gap: var(--space-1) var(--space-3);
+    align-items: baseline;
+    padding: var(--space-1) 0;
+    border-bottom: var(--border-width) solid var(--color-surface-selected);
+  }
+
+  .stage-mark {
+    text-align: center;
+    font-weight: 700;
+  }
+
+  .stage-name {
+    font-weight: 600;
+  }
+
+  .stage-state {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+    font-weight: 600;
+  }
+
+  .stage .status,
+  .stage .stage-state {
+    justify-self: start;
+  }
+
+  .stage-detail {
+    grid-column: 2 / -1;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+  }
+
+  .stage-not-built .stage-name,
+  .stage-not-reached .stage-name,
+  .stage-nothing-to-check .stage-name,
+  .stage-waiting .stage-name {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  @media (width <= 30rem) {
+    .stage {
+      grid-template-columns: 1.5rem minmax(0, 1fr);
+    }
+
+    .stage .status,
+    .stage .stage-state,
+    .stage-detail {
+      grid-column: 2;
+    }
+  }
+}

@@ -1,0 +1,17 @@
+/* A minimal reset. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* The scrollbar's space is always kept, so a page that scrolls is as wide as one that does not. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}

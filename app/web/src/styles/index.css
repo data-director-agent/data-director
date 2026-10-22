@@ -1,0 +1,14 @@
+/*
+ * The shell's global styles, in explicit cascade layers so that order, not specificity, decides
+ * which rule wins: reset < base < layout < components < utilities. Component styles live beside
+ * their components and are wrapped in `@layer components`. Every value comes from a token
+ * (tokens/neutral.css), which is loaded first and unlayered.
+ */
+
+@layer reset, base, layout, components, utilities;
+
+@import url("./reset.css") layer(reset);
+@import url("./base.css") layer(base);
+@import url("./layout.css") layer(layout);
+@import url("./patterns.css") layer(components);
+@import url("./utilities.css") layer(utilities);

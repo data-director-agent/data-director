@@ -10,8 +10,10 @@
 
 import type { ReactNode } from "react";
 
+import { PageHeader } from "../frame/PageHeader";
+
 export function Workspace({
-  heading,
+  title,
   status,
   phases,
   centre,
@@ -19,7 +21,7 @@ export function Workspace({
   log,
   runOpen,
 }: {
-  heading: ReactNode;
+  title: string;
   status: ReactNode;
   phases: ReactNode;
   centre: ReactNode;
@@ -29,10 +31,9 @@ export function Workspace({
 }) {
   return (
     <div className={`workspace${runOpen ? " has-run" : ""}`}>
-      <div className="workspace-head">
-        {heading}
+      <PageHeader title={title} className="workspace-head">
         {status}
-      </div>
+      </PageHeader>
       {phases}
       <div className="workspace-centre">{centre}</div>
       {context}

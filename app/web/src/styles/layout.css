@@ -1,0 +1,120 @@
+/*
+ * Page layout: the main area, the page header, and each page's grid. Components never set their
+ * own outer margins or grid placement; this file does.
+ *
+ * Every layout reflows to one column at narrow widths, so the page works at 400% zoom (a 320 CSS
+ * pixel viewport) without horizontal scrolling (WCAG 2.2 SC 1.4.10). Breakpoints are in rem
+ * because custom properties cannot be used in media queries.
+ */
+
+.app-main {
+  max-width: var(--page-width);
+  margin-inline: auto;
+  padding: var(--space-5) var(--page-gutter) var(--space-6);
+}
+
+.page-header {
+  margin-bottom: var(--space-5);
+}
+
+.page-header > :last-child {
+  margin-bottom: 0;
+}
+
+/* The agent directory: the list of agents beside the selected agent. */
+.agents-layout {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (width <= 48rem) {
+  .agents-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The workspace (ADR-0024 §18): the head across the top, then phases, conversation and the open
+   run side by side, and the activity log beneath. The source order is the reading order at every
+   width. Narrower, the phases go above the conversation; narrower still, everything is one
+   column and an open run is its own view, reached from its card (#135). */
+.workspace {
+  display: grid;
+  gap: var(--space-4) var(--space-5);
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) minmax(16rem, 26rem);
+  grid-template-areas:
+    "head head head"
+    "phases centre context"
+    "log log log";
+  align-items: start;
+}
+
+/* An open run carries its evidence, so it takes more of the width than the empty panel. */
+.workspace.has-run {
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr) minmax(0, 1.2fr);
+}
+
+.workspace-head {
+  grid-area: head;
+  margin-bottom: 0;
+}
+
+.workspace-phases {
+  grid-area: phases;
+}
+
+.workspace-centre {
+  grid-area: centre;
+  min-width: 0;
+}
+
+.workspace-context {
+  grid-area: context;
+  min-width: 0;
+  padding-inline-start: var(--space-4);
+  border-inline-start: var(--border-width) solid var(--color-border);
+}
+
+.workspace-log {
+  grid-area: log;
+  border-top: var(--border-width) solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+@media (width <= 64rem) {
+  .workspace,
+  .workspace.has-run {
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
+    grid-template-areas:
+      "head head"
+      "phases phases"
+      "centre context"
+      "log log";
+  }
+}
+
+@media (width <= 48rem) {
+  .workspace,
+  .workspace.has-run {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "phases"
+      "centre"
+      "context"
+      "log";
+  }
+
+  .workspace-context {
+    padding-inline-start: 0;
+    border-inline-start: none;
+  }
+
+  .workspace.has-run .workspace-head,
+  .workspace.has-run .workspace-phases,
+  .workspace.has-run .workspace-centre,
+  .workspace.has-run .workspace-log {
+    display: none;
+  }
+}

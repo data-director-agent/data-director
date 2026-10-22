@@ -1,0 +1,36 @@
+/* The list of registered agents. */
+
+@layer components {
+  .agent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .agent-option {
+    padding: var(--space-2) var(--space-3);
+    cursor: default;
+    border-bottom: var(--border-width) solid var(--color-surface);
+  }
+
+  .agent-option[data-hovered] {
+    background: var(--color-surface);
+  }
+
+  .agent-option[data-selected] {
+    background: var(--color-surface-selected);
+    box-shadow: inset var(--focus-width) 0 0 var(--color-link);
+  }
+
+  .agent-option[data-focus-visible] {
+    outline-offset: -3px;
+  }
+
+  .agent-option-id {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+  }
+}

@@ -6,6 +6,8 @@
  * (ADR-0016). Each item has an anchor the result's "rests on" links point to.
  */
 
+import "./EvidencePanel.css";
+
 import { fieldName } from "../../manifest/wording";
 import type { CheckReport, Checks, EvidenceItem } from "../../run/types";
 

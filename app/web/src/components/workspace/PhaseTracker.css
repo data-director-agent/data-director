@@ -1,0 +1,54 @@
+/* The Blueprint's phases and their steps. */
+
+@layer components {
+  .phase-list,
+  .step-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .phase-list > li {
+    border-bottom: var(--border-width) solid var(--color-surface-selected);
+    padding: var(--space-2) 0;
+  }
+
+  .phase-list summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .phase-number {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  .phase-number::after {
+    content: " ·";
+  }
+
+  .phase-served {
+    font-weight: 400;
+    font-size: var(--font-size-small);
+  }
+
+  .step-list {
+    margin-top: var(--space-2);
+  }
+
+  .step-list > li {
+    padding-inline-start: var(--space-3);
+    border-inline-start: var(--focus-width) solid var(--color-surface-selected);
+    margin-bottom: var(--space-3);
+  }
+
+  .step-text {
+    margin-bottom: var(--space-1);
+  }
+
+  .step-meta {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+}

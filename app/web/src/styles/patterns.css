@@ -1,0 +1,187 @@
+/*
+ * Patterns shared by several components: statuses, callouts, fact lists, form fields, data
+ * tables and plain lists. Loaded into the components layer.
+ */
+
+/* A status is never shown by colour alone: each badge also carries a word. */
+.status {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  border: var(--border-width) solid currentcolor;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+
+.status-ok {
+  color: var(--color-ok-fg);
+  background: var(--color-ok-bg);
+}
+
+.status-warn {
+  color: var(--color-warn-fg);
+  background: var(--color-warn-bg);
+}
+
+.status-danger {
+  color: var(--color-danger-fg);
+  background: var(--color-danger-bg);
+}
+
+.status-undeclared {
+  color: var(--color-undeclared-fg);
+  background: var(--color-undeclared-bg);
+  border-style: dashed;
+}
+
+.callout {
+  padding: var(--space-3) var(--space-4);
+  border-left: var(--focus-width) solid currentcolor;
+  margin: 0 0 var(--space-4);
+  max-width: var(--measure);
+}
+
+.callout p:last-child {
+  margin-bottom: 0;
+}
+
+/* Something not built yet, drawn as such rather than filled with a stand-in. */
+.not-built {
+  color: var(--color-text);
+  border-left-style: dashed;
+  border-left-color: var(--color-undeclared-fg);
+  background: var(--color-undeclared-bg);
+}
+
+button.primary {
+  color: var(--color-bg);
+  background: var(--color-link);
+  border-color: var(--color-link);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-5);
+}
+
+/* Facts: a definition list laid out as a two-column table. */
+dl.facts {
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+/* A definition list whose rows are wrapped (for keys) lays out as if they were not. */
+dl.facts > div {
+  display: contents;
+}
+
+dl.facts dt {
+  font-weight: 600;
+}
+
+dl.facts dd {
+  margin: 0;
+}
+
+@media (width <= 30rem) {
+  dl.facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  dl.facts dd {
+    margin-bottom: var(--space-2);
+  }
+}
+
+/* Form fields. */
+.field {
+  margin-bottom: var(--space-4);
+}
+
+.field label {
+  display: block;
+  font-weight: 600;
+}
+
+.field .hint {
+  margin-bottom: var(--space-1);
+}
+
+.field input[type="text"],
+.field textarea,
+.field select {
+  display: block;
+  width: 100%;
+}
+
+.field-check {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.field-check label {
+  display: inline;
+}
+
+.field-invalid input,
+.field-invalid textarea,
+.field-invalid select {
+  border-color: var(--color-danger-fg);
+  border-width: 2px;
+}
+
+.field-error {
+  color: var(--color-danger-fg);
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+
+/* A table that scrolls on its own rather than widening the page. */
+.table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border: var(--border-width) solid var(--color-surface-selected);
+  border-radius: var(--radius);
+}
+
+.data-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--space-2);
+  border-bottom: var(--border-width) solid var(--color-surface-selected);
+  font-size: var(--font-size-small);
+}
+
+.data-table th {
+  background: var(--color-surface);
+}
+
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.json-view {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-small);
+  white-space: pre-wrap;
+  background: var(--color-surface);
+  padding: var(--space-3);
+  border-radius: var(--radius);
+}
+
+/* Agent replies are Markdown; raw HTML in them is not rendered. */
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown pre {
+  overflow-x: auto;
+}
