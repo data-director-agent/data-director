@@ -8,6 +8,9 @@ import { type ConversationApi, ConversationApiContext } from "../../conversation
 import type { Conversation } from "../../conversation/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
+import runFixture from "../../../fixtures/run-succeeded.json";
+import { type RunApi, RunApiContext } from "../../run/api";
+import type { RunResult } from "../../run/types";
 import { ConversationHome } from "./ConversationHome";
 
 const CONVERSATION = conversationFixture as unknown as Conversation;
@@ -159,5 +162,46 @@ describe("ConversationHome", () => {
     expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "New conversation" }));
     expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+  });
+
+  describe("the selected run beside the conversation", () => {
+    const run = { ...(runFixture as unknown as RunResult) };
+    const runs = { get: vi.fn().mockResolvedValue(run) } as unknown as RunApi;
+
+    async function sendAndSelect(conversation: Conversation) {
+      history.replaceState(null, "", "/");
+      const api = fakeApi({ get: () => Promise.resolve(conversation) });
+      const view = render(
+        <RunApiContext.Provider value={runs}>
+          <ConversationApiContext.Provider value={api}>
+            <ConversationHome directory={withOrchestrator()} />
+          </ConversationApiContext.Provider>
+        </RunApiContext.Provider>,
+      );
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await userEvent.click((await screen.findAllByRole("button", { name: /Open run/ }))[0] as HTMLElement);
+      return view;
+    }
+
+    it("keeps the transcript, marks the card and shows the run in a panel", async () => {
+      const { container } = await sendAndSelect(CONVERSATION);
+      expect(await screen.findByRole("heading", { name: /^Run of / })).toHaveFocus();
+      expect(screen.getByRole("list", { name: "Conversation" })).toBeInTheDocument();
+      expect(location.search).toMatch(/^\?run=/);
+      expect(document.querySelector('[aria-current="true"]')).not.toBeNull();
+      expect(await axe(container)).toHaveNoViolations();
+      await userEvent.click(screen.getByRole("button", { name: "Back to the conversation" }));
+      expect(location.search).toBe("");
+      expect(screen.queryByRole("heading", { name: /^Run of / })).toBeNull();
+    });
+
+    it("says a suspended child is waiting for review", async () => {
+      const suspended = structuredClone(CONVERSATION);
+      for (const t of suspended.turns)
+        for (const c of t.children) c.outcome.status = "suspended";
+      await sendAndSelect(suspended);
+      expect((await screen.findAllByText(/Waiting for review/))[0]).toBeVisible();
+    });
   });
 });

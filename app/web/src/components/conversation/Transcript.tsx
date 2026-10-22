@@ -29,13 +29,29 @@ function OutcomeNote({ envelope }: { envelope: Envelope }) {
   );
 }
 
-function ChildCard({ child, onOpen }: { child: Envelope; onOpen: (child: Envelope) => void }) {
+function ChildCard({
+  child,
+  onOpen,
+  selected,
+}: {
+  child: Envelope;
+  onOpen: (child: Envelope) => void;
+  selected: boolean;
+}) {
   const { label, tone } = OUTCOME[child.outcome.status];
+  // TODO: a suspended run is the only sign of review waiting until the gate exists (#72, #73).
+  const waiting = child.outcome.status === "suspended";
   const name = `${child.agent_id}@${child.agent_version}`;
   return (
-    <li className="callout">
+    <li className="callout" {...(selected ? { "aria-current": "true" as const } : {})}>
       <p>
         <code>{name}</code> <span className={`status status-${tone}`}>{label}</span>
+        {waiting && (
+          <>
+            {" "}
+            <span className="status status-warn">⏸ Waiting for review</span>
+          </>
+        )}
       </p>
       <button type="button" onClick={() => onOpen(child)}>
         Open run<span className="visually-hidden"> of {name}</span>
@@ -50,9 +66,11 @@ function ChildCard({ child, onOpen }: { child: Envelope; onOpen: (child: Envelop
 export function Transcript({
   conversation,
   onOpenRun,
+  selectedRun = null,
 }: {
   conversation: Conversation;
   onOpenRun: (child: Envelope) => void;
+  selectedRun?: string | null;
 }) {
   return (
     <ol className="transcript" aria-label="Conversation">
@@ -82,7 +100,12 @@ export function Transcript({
           {turn.children.length > 0 && (
             <ul aria-label={`Agents ${turn.agent_id} delegated to`} className="plain-list">
               {turn.children.map((child) => (
-                <ChildCard key={child.invocation_id} child={child} onOpen={onOpenRun} />
+                <ChildCard
+                  key={child.invocation_id}
+                  child={child}
+                  onOpen={onOpenRun}
+                  selected={child.invocation_id === selectedRun}
+                />
               ))}
             </ul>
           )}

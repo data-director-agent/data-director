@@ -16,16 +16,12 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import { useConversationApi } from "../../conversation/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
-import { Link } from "../../route";
+import { Link, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
-import { RunRefused, errorMessage, useRunApi } from "../../run/api";
-import { inferStages } from "../../run/stages";
-import type { Envelope, RunResult } from "../../run/types";
-import { Outcome } from "../run/Outcome";
-import { Stages } from "../run/Stages";
+import { RunRefused, errorMessage } from "../../run/api";
+import type { Envelope } from "../../run/types";
+import { RunPanel } from "./RunPanel";
 import { Transcript } from "./Transcript";
-
-type OpenRun = { envelope: Envelope; result: RunResult | null; error?: string };
 
 /** Why the named orchestrator cannot be conversed with, or null when it can. */
 function whyUnusable(named: string | null, agent: AgentView | undefined): string | null {
@@ -46,8 +42,7 @@ function whyUnusable(named: string | null, agent: AgentView | undefined): string
 
 export function ConversationHome({ directory }: { directory: Directory }) {
   const api = useConversationApi();
-  const runs = useRunApi();
-  const named = directory.orchestratorId;
+    const named = directory.orchestratorId;
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -57,7 +52,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
-  const [open, setOpen] = useState<OpenRun | null>(null);
+  const runId = new URLSearchParams(useLocation().split("?")[1]).get("run");
+  const returnFocus = useRef<HTMLElement | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const openHeading = useRef<HTMLHeadingElement>(null);
 
@@ -73,8 +69,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   }, [reloadPast]);
 
   useEffect(() => {
-    if (open) openHeading.current?.focus();
-  }, [open]);
+    if (runId) openHeading.current?.focus();
+  }, [runId]);
 
   if (unusable || !orchestrator) {
     return (
@@ -145,55 +141,22 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   }
 
   function openRun(envelope: Envelope) {
-    setOpen({ envelope, result: null });
-    runs.get(envelope.invocation_id).then(
-      (result) => setOpen({ envelope, result }),
-      (e: unknown) => setOpen({ envelope, result: null, error: errorMessage(e) }),
-    );
+    returnFocus.current = document.activeElement as HTMLElement | null;
+    navigate(`/?run=${encodeURIComponent(envelope.invocation_id)}`);
   }
 
-  if (open) {
-    const agent = directory.agents.find((a) => a.id === open.envelope.agent_id);
-    return (
-      <section aria-labelledby="open-run">
-        <p>
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(null);
-              queueMicrotask(() => box.current?.focus());
-            }}
-          >
-            Back to the conversation
-          </button>
-        </p>
-        <h1 id="open-run" ref={openHeading} tabIndex={-1}>
-          Run of {open.envelope.agent_id}@{open.envelope.agent_version}
-        </h1>
-        {open.error && (
-          <div role="alert" className="callout status-danger">
-            <p>Data Director could not open this run: {open.error}.</p>
-          </div>
-        )}
-        {!open.error && !open.result && <p role="status">Opening the run…</p>}
-        {open.result && agent && (
-          <>
-            <Stages stages={inferStages(open.result)} inferred />
-            <Outcome result={open.result} agent={agent} idPrefix="conversation-run" />
-          </>
-        )}
-        {open.result && !agent && (
-          <p>
-            {open.envelope.outcome.statement} This agent is not in the directory, so its full run
-            view is not available.
-          </p>
-        )}
-      </section>
-    );
+  function closeRun() {
+    navigate("/");
+    queueMicrotask(() => (returnFocus.current ?? box.current)?.focus());
   }
+
+  const selected = conversation?.turns
+    .flatMap((t) => t.children)
+    .find((c) => c.invocation_id === runId);
 
   return (
-    <section aria-labelledby="conversation-heading">
+    <div className={`conversation-layout${runId ? " has-run" : ""}`}>
+    <section aria-labelledby="conversation-heading" className="conversation-main">
       <h1 id="conversation-heading">Talk to Data Director</h1>
       <p className="muted">
         This conversation acts for {directory.actingFor.name}, as asserted by the operator and not
@@ -206,7 +169,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         <Link to="/agents">Agent directory</Link>
       </p>
       {conversation && conversation.turns.length > 0 && (
-        <Transcript conversation={conversation} onOpenRun={openRun} />
+        <Transcript conversation={conversation} onOpenRun={openRun} selectedRun={runId} />
       )}
       <form onSubmit={(e) => void send(e)} aria-busy={busy}>
         <div className="field">
@@ -246,5 +209,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         </section>
       )}
     </section>
+    {runId && (
+      <RunPanel
+        ref={openHeading}
+        invocationId={runId}
+        agent={directory.agents.find((a) => a.id === selected?.agent_id)}
+        name={selected ? `${selected.agent_id}@${selected.agent_version}` : runId}
+        onClose={closeRun}
+      />
+    )}
+    </div>
   );
 }

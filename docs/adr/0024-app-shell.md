@@ -89,7 +89,10 @@ every delegated child is labelled `agent_id@agent_version`.
     profile's permission for that agent, like any other; the profile has no separate setting for
     direct runs.
 14. **Every delegated child is named and linked.** The conversation shows each child as
-    `agent_id@agent_version` and links it to its own run.
+    `agent_id@agent_version` and links it to its own run. The selected run is the `run` query parameter, so Back and reload keep
+    it. It shows beside the transcript, drawn by the run view's own components; on a narrow screen
+    it is its own view, reached from the card. A suspended child's card says it is waiting for
+    review. TODO: the review gate itself waits for #72 and #73.
 15. **A turn is a governed invocation.** Each message is one invocation of the orchestrator
     through the conductor (ADR-0012 §1), and each hand-off is a child invocation under the grant
     the conductor issues (ADR-0012 §5). The app must issue that grant (#129).
