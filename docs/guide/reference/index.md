@@ -2,6 +2,7 @@
 
 These documents are kept with the code they govern, and are read on GitHub.
 
+- [Architecture](https://github.com/data-director-agent/data-director/blob/main/docs/architecture.md)
 - [Contract](https://github.com/data-director-agent/data-director/blob/main/docs/contract.md)
 - [Glossary](https://github.com/data-director-agent/data-director/blob/main/docs/glossary.md)
 - [Architecture decision records](https://github.com/data-director-agent/data-director/tree/main/docs/adr)

@@ -51,7 +51,8 @@ cd workbench
 uv run workbench serve                # then open http://127.0.0.1:8000/viewer/
 ```
 
-Each part of the repository has its own README with the details:
+[`docs/architecture.md`](docs/architecture.md) explains how the parts fit together. Each part of
+the repository has its own README with the details:
 
 | Directory | What it is |
 |---|---|
