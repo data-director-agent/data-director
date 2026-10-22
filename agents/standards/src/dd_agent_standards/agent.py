@@ -64,6 +64,7 @@ class StandardsAgent:
             "items.kind": Derived(Derivation.LEXICAL, recorded_in="classification_derivation"),
             "items.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
         },
+        serves=("R3",),
     )
 
     def __init__(

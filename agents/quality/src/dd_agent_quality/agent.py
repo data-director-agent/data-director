@@ -67,6 +67,7 @@ class QualityReviewer:
             "findings.severity": Derived(Derivation.LEXICAL),
             "findings.message": Derived(Derivation.LEXICAL, recorded_in="derivation"),
         },
+        serves=("R4",),
     )
 
     def __init__(self, checks: list[dict[str, Any]] | None = None) -> None:
