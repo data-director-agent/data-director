@@ -10,7 +10,7 @@ one principal in configuration, and every invocation is recorded as acting for t
 `assurance: asserted`. On a shared `workbench serve` that means every caller is recorded as the
 operator; `asserted` is there so no record claims to have checked who the caller was. Real
 authentication replaces `OperatorAssertion` behind `Authenticator` and records `authenticated`
-(TODO: its own ADR). Nothing else changes.
+(ADR-0029). Nothing else changes.
 """
 
 from __future__ import annotations
