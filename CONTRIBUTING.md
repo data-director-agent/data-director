@@ -29,7 +29,7 @@ This repository is organised as follow:
 You need [uv](https://docs.astral.sh/uv/) (it installs Python 3.14), Node 22 or later with npm, and
 git. From a clone of the repository:
 
-```
+```sh
 uv sync --all-packages --all-extras      # Python environment for every workspace package
 uv tool install pre-commit && pre-commit install
 (cd app/web && npm ci)                 # the shell's dependencies
@@ -42,12 +42,13 @@ Check the setup with `uv run pytest`, which is offline and needs no credentials.
 The app has two parts: a Python server (`dd_app`) that serves `/api`, and the React shell in
 `app/web`. Run both, in two terminals:
 
-```
+```sh
 # Terminal 1, repository root: the API on http://127.0.0.1:7860
 export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."
 (cd app/web && npm run build)          # once: the server refuses to start without app/web/dist
 uv run data-director
-
+```
+```sh
 # Terminal 2, in app/web: the shell with hot module replacement
 npm run dev
 ```
@@ -110,7 +111,7 @@ and runs again when the title is edited:
 
 Dependabot's and release-please's pull requests are exempt. Check a title and branch locally:
 
-```
+```sh
 python3 scripts/check_names.py --title "feat(app): history tab" --branch "$(git branch --show-current)"
 ```
 
@@ -121,13 +122,13 @@ a `pyproject.toml` changes it too, and two such branches conflict. The `uv-lock`
 re-locks whenever a `pyproject.toml` changes, so the lock never lags behind and CI's locked check
 never fails for that reason. Install it once:
 
-```
+```sh
 uv tool install pre-commit && pre-commit install
 ```
 
 Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock again:
 
-```
+```sh
 git checkout origin/main -- uv.lock && uv lock && git add uv.lock
 ```
 
