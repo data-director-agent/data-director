@@ -15,3 +15,9 @@ agents:
   - name: director
     url: http://127.0.0.1:8106
     timeout_s: 120
+  # The model-backed orchestrator (#21). The reference profile does not permit it, so the
+  # conversation stays with director.stub and needs no key; a deployment with a key permits it
+  # instead (app/README.md, "Choosing the orchestrator").
+  - name: orchestrator
+    url: http://127.0.0.1:8107
+    timeout_s: 300

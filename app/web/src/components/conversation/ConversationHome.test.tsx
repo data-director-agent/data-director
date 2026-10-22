@@ -15,10 +15,11 @@ const raw = several as unknown as RawAgentsResponse;
 const template: RawManifestEntry | undefined = raw.agents[0];
 if (!template) throw new Error("no agent in the fixture");
 
-/** The several-agents set plus an orchestrator, found by its grounding mode. */
+/** The several-agents set plus an orchestrator, which the profile names. */
 function withOrchestrator(assigned: string | null = "advise"): Directory {
   return normalise({
     ...raw,
+    profile: { ...raw.profile, orchestrator: "director.stub" },
     agents: [
       ...raw.agents,
       { ...(template as RawManifestEntry), agent_id: "director.stub", grounding_mode: "delegation", assigned_action_class: assigned },
@@ -52,6 +53,36 @@ describe("ConversationHome", () => {
       "href",
       "/agents",
     );
+  });
+
+  it("says when the profile names no orchestrator", () => {
+    renderHome(normalise(raw), fakeApi());
+    expect(screen.getByText(/names no agent to converse with/)).toBeVisible();
+  });
+
+  it("says when the named orchestrator is not available", () => {
+    renderHome(normalise({ ...raw, profile: { ...raw.profile, orchestrator: "orchestrator.model" } }), fakeApi());
+    expect(screen.getByText(/names orchestrator.model .* not available/)).toBeVisible();
+  });
+
+  it("does not converse with a named agent that does not delegate", () => {
+    const other = template as RawManifestEntry;
+    renderHome(normalise({ ...raw, profile: { ...raw.profile, orchestrator: other.agent_id } }), fakeApi());
+    expect(screen.getByText(/does not delegate to other agents/)).toBeVisible();
+  });
+
+  it("converses with the named orchestrator, not the first delegation agent", async () => {
+    const sendTurn = vi.fn().mockResolvedValue(undefined);
+    const delegation = { ...(template as RawManifestEntry), grounding_mode: "delegation" as const, assigned_action_class: "advise" };
+    const directory = normalise({
+      ...raw,
+      profile: { ...raw.profile, orchestrator: "orchestrator.model" },
+      agents: [...raw.agents, { ...delegation, agent_id: "director.stub" }, { ...delegation, agent_id: "orchestrator.model" }],
+    });
+    renderHome(directory, fakeApi({ sendTurn }));
+    await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.model", "hi");
   });
 
   it("says when the profile does not permit the orchestrator", () => {

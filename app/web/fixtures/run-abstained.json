@@ -29,8 +29,8 @@
       "statement": "The dataset profile has no title, keywords, themes, media types or temporal fields to search on, so no registry query was possible.",
       "status": "abstained"
     },
-    "policy_bundle_ref": "profile:data-director-app@v3",
-    "policy_digest": "a7ad1abfce489835e8a48710271b26941002548018efccb34cd8df7f7b80c8c3",
+    "policy_bundle_ref": "profile:data-director-app@v4",
+    "policy_digest": "67866ede74c85f002b96208bd695d32a91c5957bea2e91ab79f4bfe17f88af6a",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

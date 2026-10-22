@@ -148,14 +148,16 @@ Every dependency's licence is compatible with the repository's MIT licence.
   model of its own. The home page and navigation change (#131, #132), and the directory becomes
   its own page.
 - The home page needs the app to issue delegation grants (#129) and a conversation API over the
-  conductor (#130) before it works. Until then `director.stub` abstains in the app.
-- The profile loader refuses keys nothing enforces, so `orchestrator` is added to the loader,
-  the profile vocabulary (`workbench/profiles/README.md`) and the reference profile with the home
-  page that reads it (#131), not before. The workbench's profiles may leave it out.
-- When a model-backed orchestrator is released, the reference profile is changed to name it, in
-  an ordinary profile change with a new `version`.
-- Until a model-backed orchestrator exists (#21), the conversation is with the rule-based
-  `director.stub`: replies are templates, and routing follows its `routing.yaml`.
+  conductor (#130) before it works.
+- The profile loader refuses keys nothing enforces, so `orchestrator` was added to the loader,
+  the profile vocabulary (`workbench/profiles/README.md`) and the reference profile with the
+  second orchestrator (#21), when the shell could no longer take the only `delegation` agent it
+  was shown. The app enforces it: a conversation turn to any other agent is refused. The
+  workbench's profiles may leave it out.
+- The model-backed orchestrator, `orchestrator.model` (#21), is released, but the reference
+  profile still names the rule-based `director.stub`, so that the app runs with no model key. A
+  deployment with a key names `orchestrator.model` in its own profile, in an ordinary profile
+  change with a new `version` (`app/README.md`).
 - The JavaScript tests carry no requirement marker and do not feed `CONFORMANCE.md`. TODO:
   decide whether to bridge them (for example from Playwright's JSON report) or leave C6 to
   review.

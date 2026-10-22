@@ -1,7 +1,7 @@
 # Test profile: enables the scripted fake agents the harness tests register. Not for use with
 # real invocations.
 profile_id: test-permissive
-version: 3
+version: 4
 description: Enables the in-tree agents and the test doubles; requires approval for writes.
 
 agents:
@@ -10,6 +10,7 @@ agents:
   stub.abstain: advise
   hello.world: advise
   director.stub: advise
+  orchestrator.model: advise
   fake.retrieval: advise
   fake.input-only: advise
   fake.none: advise

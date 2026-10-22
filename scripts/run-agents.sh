@@ -10,11 +10,13 @@ declare -A PORTS=(
   [dd-quality]=8102
   [dd-standards]=8105
   [dd-director]=8106
+  [dd-orchestrator]=8107
 )
 
 # Each agent reads the file the workbench loads, if it exists, and then its own,
 # workbench/agents/<name>.env (dd-standards: standards.env), whose settings win. A model key goes
-# only in the agent's own file, so no other agent is given it (ADR-0026).
+# only in the agent's own file, so no other agent is given it (ADR-0026). dd-orchestrator needs
+# one (workbench/agents/orchestrator.env); without it, it stops at start-up and the rest run on.
 shared=()
 [[ -f workbench/.env ]] && shared=(--env-file workbench/.env)
 

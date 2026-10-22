@@ -1,9 +1,10 @@
 /**
  * The home page: a conversation with the orchestrator (ADR-0024 §9-17).
  *
- * The orchestrator is the agent whose grounding mode is `delegation`, never one found by name.
- * Without one, or when the profile does not permit it, the page says so and links to the
- * directory. The server builds each turn's history; the page sends the agent and the message.
+ * The orchestrator is the agent the profile names (ADR-0024 §10), never one the shell picks.
+ * When the profile names none, the named agent is not running, its card does not declare
+ * `delegation` grounding, or the policy does not permit it, the page says which and links to the
+ * directory (§12). The server builds each turn's history; the page sends the agent and the message.
  * Until there is authentication (#17) the conversation acts for the operator (ADR-0018).
  *
  * A new reply is announced in a polite live region, the busy state is announced, and focus
@@ -14,7 +15,7 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 
 import { useConversationApi } from "../../conversation/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
-import type { Directory } from "../../manifest/normalise";
+import type { AgentView, Directory } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
 import { RunRefused, errorMessage, useRunApi } from "../../run/api";
@@ -26,10 +27,29 @@ import { Transcript } from "./Transcript";
 
 type OpenRun = { envelope: Envelope; result: RunResult | null; error?: string };
 
+/** Why the named orchestrator cannot be conversed with, or null when it can. */
+function whyUnusable(named: string | null, agent: AgentView | undefined): string | null {
+  if (named === null) {
+    return "The policy in force names no agent to converse with.";
+  }
+  if (!agent) {
+    return `The policy in force names ${named} to converse with, but it is not available.`;
+  }
+  if (agent.groundingMode !== "delegation") {
+    return `The policy in force names ${named} to converse with, but it does not delegate to other agents.`;
+  }
+  if (agent.gate.kind === "not-permitted" || agent.gate.kind === "mismatch") {
+    return `The policy in force does not permit ${named} to run here.`;
+  }
+  return null;
+}
+
 export function ConversationHome({ directory }: { directory: Directory }) {
   const api = useConversationApi();
   const runs = useRunApi();
-  const orchestrator = directory.agents.find((a) => a.groundingMode === "delegation");
+  const named = directory.orchestratorId;
+  const orchestrator = directory.agents.find((a) => a.id === named);
+  const unusable = whyUnusable(named, orchestrator);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [past, setPast] = useState<ConversationSummary[]>([]);
@@ -56,15 +76,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     if (open) openHeading.current?.focus();
   }, [open]);
 
-  if (!orchestrator || orchestrator.gate.kind === "not-permitted") {
+  if (unusable || !orchestrator) {
     return (
       <section aria-labelledby="no-orchestrator">
         <h1 id="no-orchestrator">No conversation is available</h1>
         <p>
-          {orchestrator
-            ? `The policy in force does not permit ${orchestrator.id} to run here.`
-            : "No agent here delegates to other agents, so there is nothing to converse with."}{" "}
-          You can still use each agent on its own.
+          {unusable} You can still use each agent on its own.
         </p>
         <p>
 <Link to="/agents">Open the agent directory</Link>

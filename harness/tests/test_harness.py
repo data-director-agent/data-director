@@ -112,6 +112,19 @@ def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
         load_profile(stale)
 
 
+@pytest.mark.requirement("DD-POLICY")
+def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: Path) -> None:
+    base = PERMISSIVE.read_text(encoding="utf-8")
+    named = tmp_path / "named.yaml"
+    named.write_text(base + "orchestrator: director.stub\n", encoding="utf-8")
+    assert load_profile(named).orchestrator == "director.stub"
+    assert load_profile(PERMISSIVE).orchestrator is None
+    stranger = tmp_path / "stranger.yaml"
+    stranger.write_text(base + "orchestrator: not.enabled\n", encoding="utf-8")
+    with pytest.raises(PolicyError, match=r"not\.enabled"):
+        load_profile(stranger)
+
+
 @pytest.mark.requirement("DD-POLICY", "C13.2")
 def test_disabled_agent_fails_with_problem_details(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)

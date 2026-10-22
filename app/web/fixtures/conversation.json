@@ -102,7 +102,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000008",
-          "policy_bundle_ref": "profile:data-director-app@v3",
+          "policy_bundle_ref": "profile:data-director-app@v4",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
           "requires_human_review": true,
           "telemetry": {
@@ -173,7 +173,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
-        "policy_bundle_ref": "profile:data-director-app@v3",
+        "policy_bundle_ref": "profile:data-director-app@v4",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
         "requires_human_review": true,
         "telemetry": {
@@ -236,7 +236,7 @@
             "schema_class": "Greeting"
           },
           "payload_schema": "0000000000000000000000000000000000000000000000000000000000000008",
-          "policy_bundle_ref": "profile:data-director-app@v3",
+          "policy_bundle_ref": "profile:data-director-app@v4",
           "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
           "requires_human_review": true,
           "telemetry": {
@@ -307,7 +307,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
-        "policy_bundle_ref": "profile:data-director-app@v3",
+        "policy_bundle_ref": "profile:data-director-app@v4",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
         "requires_human_review": true,
         "telemetry": {

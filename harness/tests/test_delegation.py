@@ -338,3 +338,33 @@ def test_routes_without_an_authenticator_accept_only_a_live_grant(tmp_path: Path
     env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
     assert served["task"].status.state == TaskState.TASK_STATE_COMPLETED
     assert [d.delegated_agent_id for d in env.delegations] == ["fake.none"]
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_a_delegation_agent_reads_what_it_may_invoke_from_the_harness_card(
+    tmp_path: Path,
+) -> None:
+    seen: list[list[dict[str, Any]]] = []
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        assert ctx.delegate is not None
+        seen.append(ctx.delegate.manifest())
+        return abstain("only looking")
+
+    conductor = make_conductor(
+        tmp_path, ScriptedAgent(GroundingMode.DELEGATION, behaviour), child_agent()
+    )
+    conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
+    [manifest] = seen
+    by_id = {entry["agent_id"]: entry for entry in manifest}
+    assert set(by_id) == {"fake.delegation", "fake.none"}
+    # Each entry is the agent's own description, with the schemas a caller builds an input from.
+    assert "ProbeRecord" in by_id["fake.none"]["accepts"]
+    assert "json_schema" in by_id["fake.none"]["schemas"]["ProbeRecord"]
+
+
+def test_a_card_without_the_manifest_is_a_refusal() -> None:
+    from dd_sdk.delegate import _manifest_from_card
+
+    with pytest.raises(DelegationRefused, match="manifest"):
+        _manifest_from_card({"name": "not a harness", "capabilities": {}})

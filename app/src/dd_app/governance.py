@@ -117,9 +117,23 @@ class Governance:
         The history is built here from the stored turns, never taken from the caller, so the
         input hash covers what the agent was really shown (ADR-0024 §17). It is read on the
         worker, in the same call as the invocation, so two turns sent at once are run one after
-        the other and the second is shown the first. Raises `UnknownConversationError`, or what
-        `Conductor.invoke` raises for a request it refuses before running.
+        the other and the second is shown the first. A turn goes only to the orchestrator the
+        profile names (ADR-0024 §10); a turn to any other agent, or under a profile that names
+        none, is refused with `ValueError` before anything runs. Raises
+        `UnknownConversationError`, or what `Conductor.invoke` raises for a request it refuses
+        before running.
         """
+        orchestrator = self.conductor.profile.orchestrator
+        if orchestrator is None:
+            raise ValueError(
+                f"The profile {self.conductor.profile.ref} names no orchestrator, so there is no "
+                "conversation."
+            )
+        if agent_id != orchestrator:
+            raise ValueError(
+                f"A turn goes to the orchestrator the profile names, {orchestrator!r}, "
+                f"not {agent_id!r}."
+            )
 
         def invoke() -> Envelope:
             found = self._conversation(conversation_id)
@@ -209,7 +223,8 @@ class Governance:
         profile assigns it: the action class, and whether that class needs approval (ADR-0017).
         An agent the profile does not list is shown with `assigned_action_class: null`; the gate
         refuses it. The profile and the principal are named so the page can say whose rules
-        apply and whom runs act for.
+        apply and whom runs act for, and the profile's `orchestrator` so the home page converses
+        with that agent and no other (ADR-0024 §10).
         """
         profile = self.conductor.profile
         listing = self.conductor.registry.listing()
@@ -221,7 +236,11 @@ class Governance:
             )
         return {
             **listing,
-            "profile": {"ref": profile.ref, "digest": profile.digest},
+            "profile": {
+                "ref": profile.ref,
+                "digest": profile.digest,
+                "orchestrator": profile.orchestrator,
+            },
             "acting_for": {
                 "name": self.acting_for.name,
                 "assurance": self.acting_for.assurance.value,

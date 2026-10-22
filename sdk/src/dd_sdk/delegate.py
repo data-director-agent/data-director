@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Self
 
@@ -44,7 +44,9 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import ENVELOPE_CANONICALISATION, HASH_ALGORITHM, envelope_hash
 from dd_sdk.tracing import ATTR_CONTENT_HASH, ATTR_SOURCE_ID, delegate_span
 from dd_sdk.wire import (
+    CARD_PATH,
     ENVELOPE_JSON_ARTIFACT,
+    MANIFEST_EXTENSION_URI,
     META_DELEGATE_URL,
     META_DELEGATION_TOKEN,
     META_TRACEPARENT,
@@ -104,6 +106,27 @@ class HarnessDelegate:
     tracer: Tracer
     timeout_s: float = DEFAULT_TIMEOUT_S
     client_factory: ClientFactory = default_client
+    _manifest: list[dict[str, Any]] | None = field(default=None, init=False, repr=False)
+
+    def manifest(self) -> list[dict[str, Any]]:
+        """The agents the harness's card lists (`MANIFEST_EXTENSION_URI`), read once per grant."""
+        if self._manifest is None:
+            try:
+                card = asyncio.run(self._card())
+            except (httpx.HTTPError, TimeoutError, ValueError) as exc:
+                raise DelegationRefused(
+                    f"cannot read the harness card at {self.grant.url}: {exc!r}"
+                ) from exc
+            self._manifest = _manifest_from_card(card)
+        return self._manifest
+
+    async def _card(self) -> dict[str, Any]:
+        async with asyncio.timeout(self.timeout_s):
+            async with self.client_factory(self.grant.url, self.timeout_s) as hc:
+                response = await hc.get(CARD_PATH)
+                response.raise_for_status()
+                card: dict[str, Any] = response.json()
+                return card
 
     def __call__(self, agent_id: str, input: Frozen) -> Delegated:
         request = InvocationRequest(
@@ -160,6 +183,15 @@ class HarnessDelegate:
                 async for response in client.send_message(SendMessageRequest(message=message)):
                     last = response
                 return last
+
+
+def _manifest_from_card(card: dict[str, Any]) -> list[dict[str, Any]]:
+    for ext in (card.get("capabilities") or {}).get("extensions") or []:
+        if ext.get("uri") == MANIFEST_EXTENSION_URI:
+            agents = (ext.get("params") or {}).get("agents")
+            if isinstance(agents, list):
+                return [a for a in agents if isinstance(a, dict)]
+    raise DelegationRefused(f"the harness card does not declare {MANIFEST_EXTENSION_URI}")
 
 
 def _envelope_document(response: Any) -> dict[str, Any]:

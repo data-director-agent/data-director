@@ -1,7 +1,7 @@
 # ADR-0012: Conversations, and orchestration through the workbench
 
 **Status:** Proposed
-**Date:** 2026-09-24
+**Date:** 2026-09-24; decisions 13 and 14 added 2026-10-22 (#21)
 
 Amends [ADR-0002](0002-opentelemetry.md) (a new span name),
 [ADR-0008](0008-grounding-modes.md) (a new grounding mode),
@@ -86,6 +86,21 @@ Several constraints shaped the answer:
     conversation with one agent, labels every reply and every delegated child
     `agent_id@agent_version`, marks version changes between turns, and links each card to its
     envelope in Inspect. The orchestrator is found by grounding mode, never by name.
+13. **A delegation agent learns what it may invoke from the harness, not from a list of its
+    own.** The harness's agent card carries a second extension, `MANIFEST_EXTENSION_URI`
+    (`dd_sdk.wire`), whose `params` are `{"agents": [...]}`: one `describe(spec)` per registered
+    agent, input schemas included. `ctx.delegate.manifest()` reads it from the grant's URL, once
+    per invocation. The card lists every registered agent, not only those the profile permits;
+    the policy gate still refuses a child the profile does not enable, and the orchestrator
+    reports that refusal like any other outcome. `orchestrator.model` (`agents/orchestrator/`,
+    #21) routes this way; `director.stub` keeps its `routing.yaml` as a fixed, model-free
+    reference.
+14. **An orchestrator succeeds once it has replied, whatever its children's outcomes.** This
+    holds for a model-backed orchestrator as for the stub (decision 11). A failed child stays
+    failed on its own envelope and in the parent's `delegations`, where anyone can see it, and
+    the reply says what went wrong and what to try next. Mirroring the failure on the parent
+    would lose that explanation. A parent fails only when it cannot reply at all: for a model,
+    when the API fails or the model declines the request.
 
 Rejected:
 
@@ -100,6 +115,10 @@ Rejected:
 - **History in AG-UI `messages` only.** The A2A and CLI paths would not carry it, and the input
   hash would not cover it.
 - **A conversation store.** It would duplicate what the invocation store already holds.
+- **Routing from the orchestrator's own configuration** (decision 13). Its list would drift
+  from the agents the harness has registered, and it would duplicate the registry.
+- **The manifest in the grant's metadata** (decision 13). Every delegation-mode request would
+  carry every agent's schemas, and the wire keys would change.
 
 ## Dependencies introduced
 
@@ -124,5 +143,4 @@ Rejected:
   one level deep; delegation from the CLI; whether children inherit `requirement_ids`; the
   parent's Process Run Crate referencing its children's crates; checking a caller's history
   against the store (the app takes none and builds it from the store, ADR-0024 §17; other
-  transports still accept one); whether an orchestrator should mirror a failed child's status; streaming
-  replies (`TEXT_MESSAGE_*`).
+  transports still accept one); streaming replies (`TEXT_MESSAGE_*`, #159).

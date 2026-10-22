@@ -26,7 +26,13 @@ from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
 from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
-from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill
+from a2a.types import (
+    AgentCapabilities,
+    AgentCard,
+    AgentExtension,
+    AgentInterface,
+    AgentSkill,
+)
 from google.protobuf.json_format import MessageToDict
 from starlette.routing import BaseRoute
 
@@ -35,12 +41,20 @@ from dd_harness.identity import Authenticator, IdentityError
 from dd_harness.policy import PolicyError
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.contract.validate import ContractViolation
-from dd_sdk.wire import ENVELOPE_JSON_ARTIFACT, META_DELEGATION_TOKEN, META_TRACEPARENT
+from dd_sdk.wire import (
+    ENVELOPE_JSON_ARTIFACT,
+    MANIFEST_EXTENSION_URI,
+    META_DELEGATION_TOKEN,
+    META_TRACEPARENT,
+)
 
 PROTOCOL_VERSION = "1.0"
 
 
 def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
+    """The harness's card. One skill per registered agent, and the manifest extension that a
+    delegation agent routes from: each agent's `describe(spec)`, schemas included (ADR-0012)."""
+    manifest = conductor.registry.manifest()
     skills = [
         AgentSkill(
             id=entry["agent_id"],
@@ -52,7 +66,7 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
                 *(f"accepts:{name}" for name in entry["accepts"]),
             ],
         )
-        for entry in conductor.registry.manifest()
+        for entry in manifest
     ]
     return AgentCard(
         name="Data Director Harness",
@@ -65,7 +79,16 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
         version="0.1.0",
         default_input_modes=["application/json"],
         default_output_modes=["application/json"],
-        capabilities=AgentCapabilities(streaming=False),
+        capabilities=AgentCapabilities(
+            streaming=False,
+            extensions=[
+                AgentExtension(
+                    uri=MANIFEST_EXTENSION_URI,
+                    description="The agents this harness may invoke (dd_sdk.agent.describe each).",
+                    params={"agents": manifest},
+                )
+            ],
+        ),
         supported_interfaces=[
             AgentInterface(
                 protocol_binding="JSONRPC",

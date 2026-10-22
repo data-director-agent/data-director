@@ -33,7 +33,7 @@ def test_the_shipped_config_lists_every_agent_package() -> None:
     script = (root / "scripts" / "run-agents.sh").read_text()
     served = {m[0]: int(m[1]) for m in re.findall(r"\[dd-([a-z0-9]+)\]=(\d+)", script)}
     packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
-    assert set(served) == packages == {"hello", "quality", "standards", "director"}
+    assert set(served) == packages == {"hello", "quality", "standards", "director", "orchestrator"}
     assert set(served.values()) == ports
 
 
