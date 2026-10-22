@@ -258,6 +258,10 @@ button.primary {
   font-weight: 600;
   padding: var(--space-2) var(--space-5);
 }
+.theme-switch[data-selected] {
+  background: var(--color-surface-selected);
+  font-weight: 600;
+}
 button[aria-disabled="true"] {
   cursor: progress;
   opacity: 0.8;

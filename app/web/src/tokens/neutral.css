@@ -2,8 +2,8 @@
  * The neutral theme: the shell's default design tokens (ADR-0024).
  *
  * Components use these custom properties and no literal colour, size or font. A theme is a
- * file like this one that redefines them; nothing else changes. `data-theme` on <html> chooses
- * light or dark explicitly; without it the system preference applies.
+ * file like this one that redefines them; nothing else changes. The scheme is light unless
+ * `data-theme="dark"` is set on <html>, which the banner's dark mode switch does (`theme.ts`).
  *
  * Every text/background pair below meets WCAG 2.2 AA (4.5:1 for text, 3:1 for borders and the
  * focus ring) in both schemes. A status is never shown by colour alone: each also has a word.
@@ -50,28 +50,6 @@
   --color-danger-bg: #fbe6e7;
   --color-undeclared-fg: #4a4f57;
   --color-undeclared-bg: #eceef1;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --color-bg: #15171a;
-    --color-surface: #1f2226;
-    --color-surface-selected: #2c3440;
-    --color-text: #eceef1;
-    --color-text-muted: #b4b9c1;
-    --color-border: #8a9099;
-    --color-link: #9cc2ff;
-    --color-focus: #9cc2ff;
-    --color-ok-fg: #9be0a0;
-    --color-ok-bg: #18301a;
-    --color-warn-fg: #ffcf8a;
-    --color-warn-bg: #3a2a10;
-    --color-danger-fg: #ffaaae;
-    --color-danger-bg: #3d1517;
-    --color-undeclared-fg: #c3c8cf;
-    --color-undeclared-bg: #2a2d32;
-  }
 }
 
 :root[data-theme="dark"] {
