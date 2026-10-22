@@ -54,6 +54,9 @@ class Registry:
     agents: dict[str, Registered] = field(default_factory=dict)
     unavailable: dict[str, str] = field(default_factory=dict)  # name or URL -> reason
     incompatible: dict[str, str] = field(default_factory=dict)  # name or URL -> both versions
+    # Where `from_config` read the agents from, so `refresh` can try the missing ones again.
+    config: Path | None = None
+    client_factory: ClientFactory = default_client
 
     @classmethod
     def from_agents(cls, agents: Iterable[Registered]) -> Registry:
@@ -67,24 +70,47 @@ class Registry:
         """Read `path` and each agent card it lists. A missing or malformed file is a
         `RegistryError`; an agent that cannot be reached is recorded as unavailable, and one
         built against another contract version as incompatible."""
-        registry = cls()
-        for entry in load_config(path):
+        registry = cls(config=path, client_factory=client_factory)
+        registry._connect(load_config(path))
+        return registry
+
+    def refresh(self) -> None:
+        """Try again each configured agent that is unavailable or incompatible, so an agent that
+        started after this registry was built is found, and one fixed is no longer reported.
+        Registered agents are left as they are. A configuration that has since gone missing or
+        malformed leaves the registry unchanged: the request that asked is not the place to fail."""
+        if self.config is None or not (self.unavailable or self.incompatible):
+            return
+        missing = self.unavailable.keys() | self.incompatible.keys()
+        try:
+            entries = [
+                entry
+                for entry in load_config(self.config)
+                if str(entry.get("name") or entry["url"]) in missing
+            ]
+        except RegistryError:
+            return
+        self.unavailable.clear()
+        self.incompatible.clear()
+        self._connect(entries)
+
+    def _connect(self, entries: Iterable[dict[str, Any]]) -> None:
+        for entry in entries:
             url = entry["url"]
             name = str(entry.get("name") or url)
             try:
                 agent = RemoteAgent.from_url(
                     url,
                     timeout_s=float(entry.get("timeout_s", DEFAULT_TIMEOUT_S)),
-                    client_factory=client_factory,
+                    client_factory=self.client_factory,
                 )
             except ContractVersionError as exc:
-                registry.incompatible[name] = str(exc)
+                self.incompatible[name] = str(exc)
                 continue
             except (RemoteAgentError, SpecError) as exc:
-                registry.unavailable[name] = str(exc)
+                self.unavailable[name] = str(exc)
                 continue
-            registry.add(agent)
-        return registry
+            self.add(agent)
 
     def add(self, agent: Registered) -> None:
         if not isinstance(agent, (RemoteAgent, Agent)):

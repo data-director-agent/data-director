@@ -227,6 +227,7 @@ class Governance:
         with that agent and no other (ADR-0024 §10).
         """
         profile = self.conductor.profile
+        self.conductor.registry.refresh()  # an agent started since the app was is found now
         listing = self.conductor.registry.listing()
         for entry in listing["agents"]:
             assigned = profile.agents.get(entry["agent_id"])
