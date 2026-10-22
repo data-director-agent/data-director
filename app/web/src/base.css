@@ -754,3 +754,12 @@ button[aria-disabled="true"] {
 .transcript [aria-current="true"] {
   border-inline-start: var(--focus-width) solid var(--color-border);
 }
+
+/* Agent replies are Markdown; raw HTML in them is not rendered. */
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown pre {
+  overflow-x: auto;
+}

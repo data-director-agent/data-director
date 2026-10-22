@@ -5,6 +5,7 @@
  * outcome wording, not a generic error.
  */
 
+import Markdown from "react-markdown";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
@@ -93,9 +94,11 @@ export function Transcript({
                 {turn.agent_id}@{turn.agent_version}
               </code>
               :
-            </strong>{" "}
-            {replyText(conversation, turn)}
+            </strong>
           </p>
+          <div className="markdown">
+            <Markdown>{replyText(conversation, turn)}</Markdown>
+          </div>
           <OutcomeNote envelope={turn.envelope} />
           {turn.children.length > 0 && (
             <ul aria-label={`Agents ${turn.agent_id} delegated to`} className="plain-list">
