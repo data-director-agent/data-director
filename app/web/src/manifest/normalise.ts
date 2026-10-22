@@ -67,6 +67,8 @@ export interface Directory {
   agents: AgentView[];
   unregistered: Unregistered[];
   profileRef: string;
+  /** The agent the profile names for the conversation, or null when it names none. */
+  orchestratorId: string | null;
   actingFor: { name: string; assurance: string };
 }
 
@@ -130,6 +132,7 @@ export function normalise(response: RawAgentsResponse): Directory {
       })),
     ],
     profileRef: response.profile.ref,
+    orchestratorId: response.profile.orchestrator ?? null,
     actingFor: response.acting_for,
   };
 }

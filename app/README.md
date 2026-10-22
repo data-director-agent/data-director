@@ -68,7 +68,7 @@ uv run data-director               # opens http://127.0.0.1:7860
 
 The agents are separate services. Start them with `scripts/run-agents.sh` from the
 repository root before the app, which reads their cards once at start-up; one that is not
-running is listed as unavailable. `director.stub` runs the agents it delegates to through the
+running is listed as unavailable. The orchestrator runs the agents it delegates to through the
 app's own A2A endpoint, under a grant the conductor issues for that run.
 
 To run it on a server that keeps itself up to date with `main`, see `deploy/README.md`.
@@ -101,6 +101,26 @@ the run that issued it lasts. Until callers are authenticated (#17), keep the ap
 the agents' ports, on the host or a private network (ADR-0011). The app warns at start-up if
 `DD_APP_HOST` is not a loopback address.
 
+### Choosing the orchestrator
+
+The home page converses with the agent the profile names under `orchestrator` (ADR-0024 §10),
+and the app refuses a conversation turn to any other. The reference profile names the
+rule-based `director.stub`, which needs no model key: its replies are templates, and it routes
+by its `routing.yaml`.
+
+The model-backed `orchestrator.model` (`agents/orchestrator/`) decides which agents to ask
+from what each one declares, and writes its replies with a model. To use it, give it a model key
+(`workbench/agents/orchestrator.env` in development, `deploy/README.md` on a server), and in the
+profile the app runs under set
+
+```yaml
+version: 5                         # one more than before
+orchestrator: orchestrator.model
+```
+
+When the named agent is not running, does not delegate, or is not permitted, the home page says
+so and links to the agent directory; it does not fall back to another agent.
+
 ## Tests
 
 ```bash
@@ -122,8 +142,9 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   replaces it (#68, #69).
 - There is no human review of proposed changes (#72, #73). The standards advisor only advises, so it proposes none.
 - The form checks only required fields and numbers; the conductor's input check decides.
-- The conversation is with the rule-based `director.stub`; a model-backed orchestrator and
-  streaming replies come later (#21). The agent directory is its own page, `/agents`, reached
+- The conversation is with the rule-based `director.stub` unless the profile names the
+  model-backed orchestrator, which needs a key (see "Choosing the orchestrator"). Replies are not
+  streamed (#159). The agent directory is its own page, `/agents`, reached
   from the navigation and from a delegated child's card (`/agents?agent=<id>` selects an agent).
 - No agent declares its limits, reliability or data handling yet. That needs the oversight
   extension (ADR-0025, TODO).

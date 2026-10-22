@@ -7,6 +7,10 @@ the outcome it is documented to reach through `workbench invoke`, that `workbenc
 on each envelope, and that the orchestrator delegates over AG-UI. Runs are written to a temporary
 directory, never to `workbench/runs/`.
 
+An agent that calls a model stops at start-up without a key (ADR-0026). When no key is set for
+it, the script skips that agent and says so, so the smoke test needs no model key. Given a key,
+the agent must answer and register like the rest. The script makes no model call either way.
+
     uv run python scripts/smoke_agents.py
 
 It exits 1 on the first check that fails, after stopping every process it started. It carries no
@@ -41,6 +45,11 @@ SAMPLES = WORKBENCH / "samples"
 START_TIMEOUT_S = 120
 WORKBENCH_PORT = 8100
 PRINCIPAL = {"DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097", "DD_PRINCIPAL_NAME": "CI"}
+
+# Each agent that needs a model key, by registry URL, with the name of its own env file
+# (workbench/agents/<name>.env, as scripts/run-agents.sh reads it).
+MODEL_BACKED = {"http://127.0.0.1:8107": "orchestrator"}
+KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
 
 # (agent, sample, outcome.status), as samples/README.md documents them.
 CASES = [
@@ -80,6 +89,20 @@ def started(cmd: list[str], env: dict[str, str], log: Path) -> Iterator[None]:
             except subprocess.TimeoutExpired:
                 with suppress(ProcessLookupError):
                     os.killpg(proc.pid, signal.SIGKILL)
+
+
+def has_key(env: dict[str, str], name: str) -> bool:
+    """Whether the agent with env file `name` would be given a model key at start-up."""
+    if any(env.get(var) for var in KEY_VARS):
+        return True
+    own = WORKBENCH / "agents" / f"{name}.env"
+    if not own.is_file():
+        return False
+    for line in own.read_text(encoding="utf-8").splitlines():
+        var, sep, value = line.partition("=")
+        if sep and var.strip() in KEY_VARS and value.strip():
+            return True
+    return False
 
 
 def wait_for(url: str, log: Path) -> None:
@@ -135,7 +158,15 @@ def agui_run(agent_id: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
 def smoke(tmp: Path) -> None:
     env = {**os.environ, **PRINCIPAL, "DD_RUNS_DIR": str(tmp / "runs")}
     agents_log, serve_log = tmp / "agents.log", tmp / "serve.log"
-    urls = [e["url"] for e in yaml.safe_load((WORKBENCH / "agents.yaml").read_text())["agents"]]
+    registered = yaml.safe_load((WORKBENCH / "agents.yaml").read_text())["agents"]
+    skipped = {
+        e["url"]
+        for e in registered
+        if e["url"] in MODEL_BACKED and not has_key(env, MODEL_BACKED[e["url"]])
+    }
+    urls = [e["url"] for e in registered if e["url"] not in skipped]
+    for url in sorted(skipped):
+        print(f"skip  {url}: no model key for {MODEL_BACKED[url]}")
 
     with started([str(ROOT / "scripts" / "run-agents.sh")], env, agents_log):
         for url in urls:
@@ -146,8 +177,8 @@ def smoke(tmp: Path) -> None:
         check(listed.returncode == 0, "`workbench agents` exits 0", listed.stderr)
         listing = json.loads(listed.stdout)
         check(
-            not listing["unavailable"] and not listing["incompatible"],
-            "every agent registers",
+            set(listing["unavailable"]) <= skipped and not listing["incompatible"],
+            "every agent not skipped registers",
             {k: listing[k] for k in ("unavailable", "incompatible")},
         )
 

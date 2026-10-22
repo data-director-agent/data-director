@@ -301,9 +301,15 @@ class AgentResult:
 
 
 class Delegate(Protocol):
-    """Invoke another agent through the harness and return its envelope (`dd_sdk.delegate`)."""
+    """Invoke another agent through the harness and return its envelope (`dd_sdk.delegate`).
+
+    `manifest` is what the harness says it may invoke: one `describe(spec)` per registered agent,
+    schemas included. A delegation agent routes from it, never from its own list (ADR-0012).
+    """
 
     def __call__(self, agent_id: str, input: Frozen) -> Delegated: ...
+
+    def manifest(self) -> list[dict[str, Any]]: ...
 
 
 @dataclass(frozen=True)

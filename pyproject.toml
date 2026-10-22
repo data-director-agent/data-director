@@ -19,6 +19,7 @@ dependencies = [
   "data-director-agent-quality",
   "data-director-agent-standards",
   "data-director-agent-director",
+  "data-director-agent-orchestrator",
   "data-director-app",
 ]
 
@@ -56,6 +57,7 @@ data-director-agent-hello = { workspace = true }
 data-director-agent-quality = { workspace = true }
 data-director-agent-standards = { workspace = true }
 data-director-agent-director = { workspace = true }
+data-director-agent-orchestrator = { workspace = true }
 data-director-app = { workspace = true }
 
 [tool.ruff]
@@ -67,7 +69,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_director", "dd_app"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -102,7 +104,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_director", "dd_app"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
 relative_files = true
 
 [tool.coverage.report]
@@ -127,7 +129,7 @@ explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
   "agents/quality/src", "agents/standards/src",
-  "agents/director/src", "app/src",
+  "agents/director/src", "agents/orchestrator/src", "app/src",
 ]
 strict = true
 warn_unreachable = true

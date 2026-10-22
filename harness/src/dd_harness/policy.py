@@ -18,7 +18,7 @@ import yaml
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
 # a rule is in force when it is not (ADR-0017).
 PROFILE_KEYS = frozenset(
-    {"profile_id", "version", "description", "agents", "actions_requiring_approval"}
+    {"profile_id", "version", "description", "agents", "actions_requiring_approval", "orchestrator"}
 )
 
 
@@ -34,6 +34,9 @@ class Profile:
     actions_requiring_approval: frozenset[str]
     digest: str  # SHA-256 of the file's bytes
     source: str = ""
+    # The agent a person converses with first (ADR-0024 §10). The app sends conversation turns to
+    # it and to no other; None means the deployment offers no conversation.
+    orchestrator: str | None = None
 
     @property
     def ref(self) -> str:
@@ -52,6 +55,11 @@ class Profile:
             agents = data.get("agents") or {}
             if not isinstance(agents, dict):
                 raise TypeError("agents must map each agent_id to an action class")
+            orchestrator = data.get("orchestrator")
+            if orchestrator is not None and str(orchestrator) not in agents:
+                raise ValueError(
+                    f"orchestrator {orchestrator!r} is not one of the agents the profile enables"
+                )
             return cls(
                 profile_id=str(data["profile_id"]),
                 version=int(data.get("version", 1)),
@@ -59,6 +67,7 @@ class Profile:
                 actions_requiring_approval=frozenset(data.get("actions_requiring_approval") or []),
                 digest=digest,
                 source=source,
+                orchestrator=None if orchestrator is None else str(orchestrator),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc

@@ -4,7 +4,8 @@ The Blueprint's Data Director is an orchestrator: one agent a person converses w
 work to specialist agents. This package is the smallest agent that exercises that shape through
 the workbench, so the conversation contract, the delegation grant, the viewer's chat screen and the
 linter's `delegation` rules have something real to run against before a model-backed
-orchestrator exists.
+orchestrator exists. `orchestrator.model` (`agents/orchestrator/`) is that orchestrator; this one
+stays as the model-free reference, and the app's default.
 
 It routes each message by the first matching rule in `routing.yaml`, delegates to that rule's
 agent through `ctx.delegate` (never directly: the workbench runs the child as a governed
@@ -14,12 +15,11 @@ by the input hash but not used for routing.
 
 Grounding mode `delegation`: the reply cites the input and each child envelope it relays, and
 the linter checks those citations against the delegations the conductor recorded (R1, D1-D3,
-G4). This agent calls no model, so its telemetry carries none. A model-backed orchestrator takes
-the same spec with `reply_derivation` `model` and a `chat` span, and needs no contract change.
+G4). This agent calls no model, so its telemetry carries none.
 
 The parent succeeds when it has delegated and relayed the child's outcome, whatever that outcome
-was; the child's own status is on its envelope and on the parent's `delegations`.
-TODO: decide whether the LLM orchestrator should mirror a failed child's status.
+was; the child's own status is on its envelope and on the parent's `delegations` (ADR-0012
+decision 14).
 """
 
 from __future__ import annotations

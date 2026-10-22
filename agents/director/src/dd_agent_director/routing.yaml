@@ -10,8 +10,8 @@
 #   relay_field   the child payload field quoted in the reply, if the child succeeded
 #   example       shown to the user when nothing matches
 #
-# A new agent is routable only once a rule names it. TODO: the LLM orchestrator routes from the
-# agent manifest instead of this file.
+# A new agent is routable only once a rule names it. The model-backed orchestrator,
+# orchestrator.model, routes from the harness's manifest instead (ADR-0012 decision 13).
 rules:
   - name: greet
     agent_id: hello.world

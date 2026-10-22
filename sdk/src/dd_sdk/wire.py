@@ -10,7 +10,9 @@ part `{"result": <AgentResult document>, "spans": [<span JSON>, ...]}`. Each spa
 floating-point numbers) cannot alter it. The agent never returns an `Envelope`: the conductor
 builds that.
 
-The agent card declares the extension `EXTENSION_URI`, whose `params` are `describe(spec)`.
+The agent card declares the extension `EXTENSION_URI`, whose `params` are `describe(spec)`. The
+harness's own card declares `MANIFEST_EXTENSION_URI`, whose `params` are `{"agents": [...]}`, one
+`describe(spec)` per registered agent: what a delegation agent may ask it to invoke (ADR-0012).
 
 A delegation agent's request back to the harness (ADR-0012) carries `dd.delegation_token` and
 a `traceparent` in its metadata, and is answered with an `envelope-json` artifact.
@@ -29,6 +31,7 @@ from dd_sdk.contract.models import EvidenceItem, Grounded, OpenPayload, Outcome,
 # TODO: a persistent identifier for the extension. The w3id namespace the problem types use is
 # not yet registered either (contract/problem.py).
 EXTENSION_URI = "https://w3id.org/data-director/a2a/agent-spec/v0"
+MANIFEST_EXTENSION_URI = "https://w3id.org/data-director/a2a/manifest/v0"
 
 META_INPUT_REF = "dd.input_ref"
 META_INPUT_HASH = "dd.input_hash"

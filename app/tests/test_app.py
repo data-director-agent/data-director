@@ -117,14 +117,20 @@ def test_the_reference_set_lists_and_enables_every_in_tree_agent():
         ("quality", "http://127.0.0.1:8102"),
         ("standards", "http://127.0.0.1:8105"),
         ("director", "http://127.0.0.1:8106"),
+        ("orchestrator", "http://127.0.0.1:8107"),
     ]
     enabled = (
         STANDARDS_AGENT_ID,
         "hello.world",
         "quality.reviewer",
         "director.stub",
+        "orchestrator.model",
     )
-    assert load_profile(DEFAULT_PROFILE).agents == dict.fromkeys(enabled, "advise")
+    profile = load_profile(DEFAULT_PROFILE)
+    assert profile.agents == dict.fromkeys(enabled, "advise")
+    # The rule-based stub, which needs no model key, is the conversation until a deployment
+    # names another (ADR-0024 §11).
+    assert profile.orchestrator == "director.stub"
 
 
 def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
@@ -149,7 +155,8 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v3"
+    assert body["profile"]["ref"] == "profile:data-director-app@v4"
+    assert body["profile"]["orchestrator"] == "director.stub"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 
 
@@ -581,6 +588,17 @@ def test_a_malformed_turn_is_refused_and_nothing_runs(
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/problem+json"
     assert detail in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+def test_a_turn_goes_only_to_the_orchestrator_the_profile_names(
+    delegating: tuple[Governance, Any],
+):
+    governance, app = delegating
+    client = TestClient(app)
+    response = turn(client, start(client), "hello world", agent_id="hello.world")
+    assert response.status_code == 400
+    assert "'director.stub', not 'hello.world'" in response.json()["detail"]
     assert list(governance.conductor.store.iter_envelopes()) == []
 
 

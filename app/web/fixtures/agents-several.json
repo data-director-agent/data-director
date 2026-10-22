@@ -791,8 +791,9 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "6eb06e6bc8c391961d2093caae317869266b1a9198b22e9f1648c5765be51858",
-    "ref": "profile:test-permissive@v3"
+    "digest": "dc6854d4155f739f9d644811a78a625c92d49c6bc22f5fd3789bb53e303da536",
+    "orchestrator": null,
+    "ref": "profile:test-permissive@v4"
   },
   "unavailable": {}
 }

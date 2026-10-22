@@ -47,6 +47,13 @@
         "agents/director/tests"
       ]
     },
+    "agents/orchestrator": {
+      "component": "agent-orchestrator",
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/orchestrator/tests"
+      ]
+    },
     "agents/hello": {
       "component": "agent-hello",
       "release-type": "python",

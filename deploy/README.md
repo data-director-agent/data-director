@@ -29,8 +29,9 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
-| `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`. |
+| `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`, and `@orchestrator` once it has a key. |
 | `systemd/data-director-agent@standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
+| `systemd/data-director-agent@orchestrator.service.d/` | The model-backed orchestrator's key, likewise. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
@@ -142,8 +143,9 @@ release, stop the timer: `sudo systemctl disable --now data-director-deploy.time
 ## A model key
 
 An agent that calls a hosted model holds the key itself. The app never does, and the key never
-appears in a run, a trace or an export (ADR-0026). Only the standards advisor's optional
-explainer calls a model today. In its default mode it uses templates and needs no key.
+appears in a run, a trace or an export (ADR-0026). Two agents can call a model: the standards
+advisor's optional explainer, which in its default mode uses templates and needs no key, and the
+model-backed orchestrator, which always needs one (see below).
 
 To give it a model:
 
@@ -173,6 +175,27 @@ To give it a model:
 If the key is missing or empty, the unit stops at start-up with one line in
 `journalctl -u data-director-agent@standards`, and is not restarted until the configuration is
 fixed. The standards advisor's About tab then names Anthropic and the model.
+
+### The model-backed orchestrator
+
+`orchestrator.model` is not part of `data-director.target`, because it cannot start without a
+key. The app converses with `director.stub` until the profile names the orchestrator. To switch:
+
+1. Install its key as in step 1 above, under `/etc/data-director/credentials/orchestrator/`.
+   Its settings, all optional, go in `/etc/data-director/agents/orchestrator.env`
+   (`workbench/agents/env.example` lists them). It calls Claude Fable 5.1 by default, which
+   costs more per token than other models and is not available to an organisation under zero
+   data retention; `DD_MODEL_ID=claude-opus-5-5` is the alternative.
+2. Start it, and have it start with the rest:
+
+   ```bash
+   sudo systemctl enable --now data-director-agent@orchestrator.service
+   ```
+
+3. Add `8107` to `DD_WAIT_PORTS` in a drop-in for `data-director-app.service`, so the app waits
+   for it.
+4. In the deployment's profile, set `orchestrator: orchestrator.model` and raise `version`
+   (`app/README.md`, "Choosing the orchestrator"). Then restart the app.
 
 Give each model-backed agent its own key, so that one key can be revoked without the others and
 the provider's usage reports show each agent separately. Sharing one key is allowed, but

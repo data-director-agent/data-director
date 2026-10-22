@@ -32,9 +32,12 @@ actions_requiring_approval:  # action classes a human must approve before an age
   - deposit                  # writing a dataset or metadata record to a repository
   - metadata_write           # changing an existing metadata record
   # "advise" (read-only recommendations, which is all the standards advisor does) is not listed, so the standards advisor runs freely
+
+orchestrator: director.stub  # optional: the agent a person converses with in the app; it must be
+                             # listed under `agents`. Without it the app offers no conversation.
 ```
 
-Those five keys are the whole vocabulary. A profile with any other key is refused when the
+Those six keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
@@ -66,8 +69,7 @@ These arrive with the agent that enforces them, and not before:
 
 - approved repositories, for repository recommendation (R1);
 - accepted persistent identifier systems (R7);
-- which external registries agents may consult;
-- `orchestrator`, the agent a person converses with first in the app (ADR-0024, #131).
+- which external registries agents may consult.
 
 ## Rights and licensing
 

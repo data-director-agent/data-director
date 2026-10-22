@@ -47,6 +47,8 @@ export interface RawAgentsResponse {
   agents: RawManifestEntry[];
   unavailable: Record<string, string>;
   incompatible: Record<string, string>;
-  profile: { ref: string; digest: string };
+  /** `orchestrator` is the agent the profile names for the conversation (ADR-0024 §10). Absent
+   * from a server older than the key; null when the profile names none. */
+  profile: { ref: string; digest: string; orchestrator?: string | null };
   acting_for: { name: string; assurance: string };
 }

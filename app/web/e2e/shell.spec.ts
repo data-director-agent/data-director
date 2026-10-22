@@ -47,9 +47,10 @@ async function gotoDirectory(page: Page) {
   await page.goto("/agents");
 }
 
-/** The several-agents set plus an orchestrator, found by its grounding mode. */
+/** The several-agents set plus an orchestrator, named by the profile (ADR-0024 §10). */
 const withOrchestrator = {
   ...several,
+  profile: { ...several.profile, orchestrator: "director.stub" },
   agents: [
     ...several.agents,
     { ...several.agents[0], agent_id: "director.stub", grounding_mode: "delegation" },
