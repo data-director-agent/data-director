@@ -87,6 +87,9 @@ def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) 
             base = TOOL_NAME_UNSAFE.sub("_", agent_id)
             name = base if len(accepts) == 1 else f"{base}__{schema_class}"
             description = str(entry.get("description") or agent_id)
+            serves = [str(r) for r in entry.get("serves") or []]
+            if serves:
+                description += f" Serves Blueprint requirement(s) {', '.join(serves)}."
             tools.append(
                 Tool(
                     name=name[:TOOL_NAME_MAX],

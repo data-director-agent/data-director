@@ -20,6 +20,7 @@ from dd_agent_orchestrator.agent import (
     tools_from_manifest,
 )
 from dd_agent_orchestrator.model import ModelError, ModelTurn, ToolCall
+from dd_agent_orchestrator.prompt import SYSTEM_PROMPT
 from dd_agent_standards.factory import build as build_standards
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -33,6 +34,7 @@ from dd_sdk.contract.models import (
     Reply,
     TurnRole,
 )
+from dd_sdk.process_flow import describe_flow
 from dd_sdk.tracing import CHAT, DELEGATE, records_from_jsonl
 
 MODEL = "claude-test"
@@ -139,6 +141,20 @@ def test_the_tools_are_the_agents_the_harness_lists(runs_dir: Path) -> None:
     hello = next(t for t in model.sent[0]["tools"] if t["name"] == "hello_world")
     assert "schema_class" not in hello["input_schema"]["properties"]
     assert hello["input_schema"]["required"] == ["greeted_name"]
+
+
+def test_a_tool_says_which_blueprint_requirements_its_agent_serves(runs_dir: Path) -> None:
+    model = ScriptedModel([say("Where are you with your data?")])
+    invoke(conductor(runs_dir, model))
+    tools = {t["name"]: t for t in model.sent[0]["tools"]}
+    assert tools["standards_advisor"]["description"].endswith("Serves Blueprint requirement(s) R3.")
+    assert "Serves" not in tools["hello_world"]["description"]
+
+
+def test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent() -> None:
+    assert describe_flow() in SYSTEM_PROMPT
+    assert "no agent yet (R5)" in SYSTEM_PROMPT
+    assert "hello.world" not in SYSTEM_PROMPT and "standards.advisor" not in SYSTEM_PROMPT
 
 
 def test_delegation_agents_and_itself_are_not_tools() -> None:

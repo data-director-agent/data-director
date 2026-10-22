@@ -183,7 +183,10 @@ type, is in [`conductor.md`](../harness/docs/conductor.md#the-steps).
 
 The app opens on a conversation with an orchestrator: the agent whose grounding mode is
 `delegation`. Today that is `director.stub`, a rule-based stand-in that routes each message by the
-patterns in its `routing.yaml`. An orchestrator answers by asking other agents, but it never calls them directly. It
+patterns in its `routing.yaml`. A first message that matches no pattern is asked which of the
+Blueprint's three entry points applies (before data collection, data being prepared for sharing,
+ready to deposit), and the reply lists the steps from there, each with the agents that serve it or
+"no agent yet" and its requirement ([ADR-0028](adr/0028-entry-points-and-serves.md)). An orchestrator answers by asking other agents, but it never calls them directly. It
 asks the harness, so that every child run passes through every step above.
 
 ```mermaid
