@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from a2a.helpers import get_data_parts, new_data_part, new_task_from_user_message
@@ -33,6 +35,7 @@ from starlette.applications import Starlette
 from dd_sdk import delegate as delegation
 from dd_sdk.agent import Agent, AgentResult, RunContext, describe, typed_request
 from dd_sdk.contract.models import InvocationRequest
+from dd_sdk.credentials import ConfigError
 from dd_sdk.tracing import make_tracing
 from dd_sdk.wire import (
     ARTIFACT_NAME,
@@ -45,6 +48,9 @@ from dd_sdk.wire import (
 )
 
 PROTOCOL_VERSION = "1.0"
+# The exit status for a configuration error. systemd units do not restart on it
+# (`RestartPreventExitStatus=`): the agent would only stop again.
+EXIT_CONFIG = 2
 
 
 def agent_card(agent: Agent, base_url: str) -> AgentCard:
@@ -201,10 +207,17 @@ def app(
 
 
 def main(build: Callable[[], Agent], argv: list[str] | None = None) -> int:
-    """Console script for an agent package: `<agent> serve [--host H] [--port N]`."""
+    """Console script for an agent package: `<agent> serve [--host H] [--port N]`.
+
+    A `ConfigError` from `build` is printed as one line and the script exits with `EXIT_CONFIG`,
+    before any port is opened."""
     import uvicorn
 
-    agent = build()
+    try:
+        agent = build()
+    except ConfigError as exc:
+        sys.stderr.write(f"{Path(sys.argv[0]).name}: {exc}\n")
+        return EXIT_CONFIG
     parser = argparse.ArgumentParser(prog=agent.spec.agent_id, description=agent.spec.description)
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("serve", help="serve this agent over A2A")
