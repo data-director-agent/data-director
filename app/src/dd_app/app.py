@@ -3,7 +3,9 @@
 `GET /api/agents` is what the shell draws its capabilities panel from. `POST /api/runs` runs an
 agent through the conductor and answers when the run has ended, with its envelope and the
 checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples`
-lists example inputs. The run endpoint is a stopgap until runs stream over AG-UI (#68, #69).
+lists example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
+(`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
+until runs stream over AG-UI (#68, #69).
 `POST /api/conversations` starts a conversation and `POST /api/conversations/{id}/turns` sends it
 one message, answered as a run is; `GET /api/conversations` and `GET /api/conversations/{id}`
 read them back as the harness derives them from the run store (ADR-0012, #130).
@@ -18,6 +20,7 @@ and `DD_HARNESS_URL` the address the agents call back on, if they reach the app 
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import sys
@@ -45,6 +48,7 @@ from dd_harness.transport.a2a import a2a_routes
 from dd_sdk.contract.problem import PROBLEM_BASE
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
+from dd_sdk.process_flow import ENTRIES, PHASES
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
@@ -148,6 +152,9 @@ def build_app(
     async def list_examples(request: Request) -> Response:
         return JSONResponse(examples(examples_dir))
 
+    async def get_process_flow(request: Request) -> Response:
+        return JSONResponse(process_flow())
+
     async def shell(request: Request) -> Response:
         # A page of the shell's own, so a reload or a link lands on it rather than a 404.
         return FileResponse(web_dist / "index.html")
@@ -166,11 +173,20 @@ def build_app(
             Route("/api/conversations/{conversation_id}", get_conversation, methods=["GET"]),
             Route("/api/conversations/{conversation_id}/turns", send_turn, methods=["POST"]),
             Route("/api/examples", list_examples, methods=["GET"]),
+            Route("/api/process-flow", get_process_flow, methods=["GET"]),
             *delegation,
             Route("/agents", shell, methods=["GET"]),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ]
     )
+
+
+def process_flow() -> dict[str, Any]:
+    """The Blueprint's entry points and phases, the same for every deployment (ADR-0028)."""
+    return {
+        "entries": [dataclasses.asdict(e) for e in ENTRIES],
+        "phases": [dataclasses.asdict(p) for p in PHASES],
+    }
 
 
 def examples(directory: Path) -> list[dict[str, Any]]:

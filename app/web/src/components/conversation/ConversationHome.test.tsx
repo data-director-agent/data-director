@@ -4,8 +4,11 @@ import { axe } from "jest-axe";
 
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
+import flowFixture from "../../../fixtures/process-flow.json";
 import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
+import { type FlowApi, FlowApiContext } from "../../flow/api";
+import type { ProcessFlow } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import runFixture from "../../../fixtures/run-succeeded.json";
@@ -14,6 +17,7 @@ import type { RunResult } from "../../run/types";
 import { ConversationHome } from "./ConversationHome";
 
 const CONVERSATION = conversationFixture as unknown as Conversation;
+const FLOW: FlowApi = { get: () => Promise.resolve(flowFixture as ProcessFlow) };
 const raw = several as unknown as RawAgentsResponse;
 const template: RawManifestEntry | undefined = raw.agents[0];
 if (!template) throw new Error("no agent in the fixture");
@@ -40,11 +44,13 @@ function fakeApi(overrides: Partial<ConversationApi> = {}): ConversationApi {
   };
 }
 
-function renderHome(directory: Directory, api: ConversationApi) {
+function renderHome(directory: Directory, api: ConversationApi, flow: FlowApi = FLOW) {
   return render(
-    <ConversationApiContext.Provider value={api}>
-      <ConversationHome directory={directory} />
-    </ConversationApiContext.Provider>,
+    <FlowApiContext.Provider value={flow}>
+      <ConversationApiContext.Provider value={api}>
+        <ConversationHome directory={directory} />
+      </ConversationApiContext.Provider>
+    </FlowApiContext.Provider>,
   );
 }
 
@@ -96,7 +102,7 @@ describe("ConversationHome", () => {
   it("sends a turn, labels replies and children, and returns focus to the message box", async () => {
     const sendTurn = vi.fn().mockResolvedValue(undefined);
     const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
-    expect(screen.getByText(/acts for .*not\s+authenticated/)).toBeVisible();
+    expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     const box = screen.getByRole("textbox", { name: "What would you like to do?" });
     await userEvent.type(box, "hello world");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -164,6 +170,67 @@ describe("ConversationHome", () => {
     expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
   });
 
+  describe("the workspace around the conversation", () => {
+    it("lists the Blueprint's six phases and the agents serving each step", async () => {
+      const { container } = renderHome(withOrchestrator(), fakeApi());
+      const phases = await screen.findByRole("navigation", { name: "Blueprint phases" });
+      const items = within(phases).getAllByRole("listitem").filter((li) => li.querySelector("summary"));
+      expect(items).toHaveLength(6);
+      expect(within(phases).getByText("Pre-collection setup")).toBeVisible();
+      await userEvent.click(within(phases).getByText("Pre-collection setup"));
+      const step = within(phases).getByText("Select controlled vocabularies and ontologies").closest("li");
+      if (!step) throw new Error("no step");
+      expect(within(step).getByText(/Requirements: R3/)).toBeVisible();
+      expect(within(step).getByRole("link", { name: "standards.advisor" })).toHaveAttribute(
+        "href",
+        "/agents?agent=standards.advisor",
+      );
+      const unserved = within(phases)
+        .getByText("Create a new Data Management Plan or review the existing one")
+        .closest("li");
+      if (!unserved) throw new Error("no step");
+      expect(within(unserved).getByText(/No agent here serves this step/)).toBeVisible();
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("draws what has no source yet as not built, linked to its issue", () => {
+      renderHome(withOrchestrator(), fakeApi());
+      const status = screen.getByRole("region", { name: "Where this work stands" });
+      for (const label of ["Dataset", "Phase", "Repository", "Governance"]) {
+        const dd = within(status).getByText(label).nextElementSibling as HTMLElement;
+        expect(within(dd).getByText("Not built yet")).toBeVisible();
+        expect(within(dd).getAllByRole("link").length).toBeGreaterThan(0);
+      }
+      expect(screen.getByRole("heading", { name: "Activity log" })).toBeVisible();
+    });
+
+    it("shows whom you are talking to until a run is opened", () => {
+      renderHome(withOrchestrator(), fakeApi());
+      const panel = screen.getByRole("region", { name: "Runs and evidence" });
+      expect(within(panel).getByText("director.stub@0.1.0")).toBeVisible();
+      expect(within(panel).getByText("Not declared")).toBeVisible();
+      expect(within(panel).getByRole("link", { name: "Its full capabilities and limits" })).toHaveAttribute(
+        "href",
+        "/agents?agent=director.stub",
+      );
+    });
+
+    it("keeps the conversation working when the phases cannot be loaded", async () => {
+      const failing: FlowApi = { get: () => Promise.reject(new Error("the server answered 500")) };
+      renderHome(withOrchestrator(), fakeApi(), failing);
+      const phases = screen.getByRole("navigation", { name: "Blueprint phases" });
+      expect(await within(phases).findByRole("alert")).toHaveTextContent("the server answered 500");
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
+    });
+
+    it("keeps the phases and the bar when there is no conversation", async () => {
+      renderHome(normalise(raw), fakeApi());
+      expect(screen.getByRole("heading", { level: 1, name: "No conversation is available" })).toBeVisible();
+      expect(await screen.findByText("Pre-collection setup")).toBeVisible();
+      expect(screen.getByRole("region", { name: "Where this work stands" })).toBeVisible();
+    });
+  });
+
   describe("the selected run beside the conversation", () => {
     const run = { ...(runFixture as unknown as RunResult) };
     const runs = { get: vi.fn().mockResolvedValue(run) } as unknown as RunApi;
@@ -172,11 +239,13 @@ describe("ConversationHome", () => {
       history.replaceState(null, "", "/");
       const api = fakeApi({ get: () => Promise.resolve(conversation) });
       const view = render(
-        <RunApiContext.Provider value={runs}>
-          <ConversationApiContext.Provider value={api}>
-            <ConversationHome directory={withOrchestrator()} />
-          </ConversationApiContext.Provider>
-        </RunApiContext.Provider>,
+        <FlowApiContext.Provider value={FLOW}>
+          <RunApiContext.Provider value={runs}>
+            <ConversationApiContext.Provider value={api}>
+              <ConversationHome directory={withOrchestrator()} />
+            </ConversationApiContext.Provider>
+          </RunApiContext.Provider>
+        </FlowApiContext.Provider>,
       );
       await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));

@@ -1,7 +1,8 @@
 /**
  * The built shell in a browser: axe, keyboard-only use, and reflow at the 400% zoom equivalent.
  *
- * `/api/agents` is answered from the fixtures app/tests/test_app.py keeps current.
+ * `/api/agents` and `/api/process-flow` are answered from the fixtures app/tests/test_app.py
+ * keeps current.
  */
 
 import AxeBuilder from "@axe-core/playwright";
@@ -12,6 +13,7 @@ import soil from "../../config/examples/soil-chemistry.profile.json" with { type
 import reference from "../fixtures/agents.json" with { type: "json" };
 import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
+import flow from "../fixtures/process-flow.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -32,9 +34,10 @@ function row(run: typeof succeeded | typeof abstained) {
   };
 }
 
-/** Answer the shell's API from the fixtures: the agents, the examples, and a run's result. */
+/** Answer the shell's API from the fixtures: the agents, the phases, the examples, and a run. */
 async function serve(page: Page, body: unknown, run: unknown = succeeded) {
   await page.route("/api/agents", (route) => route.fulfill({ json: body }));
+  await page.route("/api/process-flow", (route) => route.fulfill({ json: flow }));
   await page.route("/api/examples", (route) => route.fulfill({ json: EXAMPLES }));
   await page.route("/api/runs", (route) =>
     route.fulfill({ json: route.request().method() === "POST" ? run : [row(succeeded)] }),
@@ -276,4 +279,44 @@ test("a link names the agent to show", async ({ page }) => {
   await serve(page, several);
   await page.goto("/agents?agent=quality.reviewer");
   await expect(page.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
+});
+
+test("the workspace at 1280px: phases, conversation and the open run side by side", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await serveConversation(page);
+  await page.goto("/");
+  const phases = page.getByRole("navigation", { name: "Blueprint phases" });
+  await expect(phases.locator("summary")).toHaveCount(6);
+  await expect(page.getByRole("region", { name: "Runs and evidence" })).toBeVisible();
+  expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
+
+  // A phase opens from the keyboard and names the agents serving its steps.
+  const first = phases.locator("summary").first();
+  await first.focus();
+  await page.keyboard.press("Enter");
+  await expect(phases.getByRole("link", { name: "standards.advisor" }).first()).toBeVisible();
+
+  // An open run sits beside the transcript, and closing it returns focus to its card.
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
+  await page.getByRole("button", { name: "Send" }).click();
+  const open = page.getByRole("button", { name: /Open run/ }).first();
+  await open.click();
+  await expect(page.getByRole("heading", { name: /^Run of / })).toBeFocused();
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+  await expect(phases).toBeVisible();
+  expect(await axeViolations(page)).toEqual([]);
+  await page.getByRole("button", { name: "Back to the conversation" }).click();
+  await expect(open).toBeFocused();
+  await expect(page.getByRole("region", { name: "Runs and evidence" })).toBeVisible();
+});
+
+test("the workspace reflows at 320px with every phase open", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.goto("/");
+  const summaries = page.getByRole("navigation", { name: "Blueprint phases" }).locator("summary");
+  await expect(summaries).toHaveCount(6);
+  for (const summary of await summaries.all()) await summary.click();
+  expect(await overflow(page), "horizontal overflow with the phases open").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
 });

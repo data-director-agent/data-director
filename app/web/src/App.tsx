@@ -38,7 +38,8 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   return (
     <Frame
       onAgents={onAgents}
-      {...(state.state === "loaded"
+      // On the conversation the workspace's status bar says this; the directory has no bar.
+      {...(state.state === "loaded" && onAgents
         ? {
             context: {
               actingFor: state.directory.actingFor,
