@@ -155,11 +155,9 @@ log "$short: live"
 
 # The units are installed by root (install.sh), not from the release, so that a commit cannot
 # change whom the services run as. Say when the release's copies have moved on.
-for unit in "$release"/deploy/systemd/*; do
-  [[ -e "$unit" ]] || continue
-  installed="/etc/systemd/system/$(basename "$unit")"
-  if ! cmp --silent "$unit" "$installed"; then
-    log "warning: $(basename "$unit") differs from the installed copy; re-run deploy/install.sh"
+(cd "$release/deploy/systemd" && find . -type f -printf '%P\n') | while read -r unit; do
+  if ! cmp --silent "$release/deploy/systemd/$unit" "/etc/systemd/system/$unit"; then
+    log "warning: $unit differs from the installed copy; re-run deploy/install.sh"
   fi
 done
 

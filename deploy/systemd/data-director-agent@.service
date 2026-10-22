@@ -14,11 +14,16 @@ User=datadirector
 Group=datadirector
 WorkingDirectory=/opt/data-director/current
 EnvironmentFile=/opt/data-director/current/deploy/agents/%i.env
-# The agents' own DD_<AGENT>_* settings, such as DD_STANDARDS_RETRIEVAL or a model id.
+# Settings every agent shares, then this agent's own (DD_<AGENT>_*, a model id), which win. A
+# model key is never set here but given as a credential to the one unit that needs it
+# (ADR-0026).
 EnvironmentFile=-/etc/data-director/agents.env
+EnvironmentFile=-/etc/data-director/agents/%i.env
 ExecStart=/opt/data-director/current/.venv/bin/dd-%i serve --host 127.0.0.1 --port ${PORT}
 Restart=on-failure
 RestartSec=5
+# Exit status 2 is a configuration error (dd_sdk.serve): restarting would only fail again.
+RestartPreventExitStatus=2
 TimeoutStopSec=30
 SyslogIdentifier=dd-%i
 

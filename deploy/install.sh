@@ -73,6 +73,10 @@ new_file() { # new_file DEST [SOURCE]
 }
 new_file "$ETC/app.env" "$SRC/app/env.example"
 new_file "$ETC/agents.env"
+# Each agent's own settings, and model keys (ADR-0026). A key file is root's alone: systemd hands
+# it to the one unit that loads it (LoadCredential=).
+install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
+install -d -o root -g root -m 0700 "$ETC/credentials"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
 
 step "Restart rule"
@@ -84,7 +88,9 @@ install -m 0440 "$rule" /etc/sudoers.d/data-director
 rm -f "$rule"
 
 step "systemd units"
-install -m 0644 "$SRC"/deploy/systemd/* /etc/systemd/system/
+(cd "$SRC/deploy/systemd" && find . -type f -printf '%P\n') | while read -r unit; do
+  install -D -m 0644 "$SRC/deploy/systemd/$unit" "/etc/systemd/system/$unit"
+done
 systemctl daemon-reload
 
 step "NGINX site for $domain"
