@@ -10,8 +10,15 @@ stays as the model-free reference, and the app's default.
 It routes each message by the first matching rule in `routing.yaml`, delegates to that rule's
 agent through `ctx.delegate` (never directly: the workbench runs the child as a governed
 invocation and records it), and replies with a template sentence naming the agent and version
-that answered. It reads only the current message; the history in `Message.history` is covered
-by the input hash but not used for routing.
+that answered.
+
+A message no rule matches may name one of the Blueprint's three entry points (§8.1): before data
+collection, data collected and being prepared for sharing, or ready to deposit. The reply then
+lists every step from that entry's phase to the last, with the agents whose manifest entry
+serves the step's requirement, and says "no agent yet" with the requirement where none does
+(ADR-0028). On a first turn that names neither a rule nor an entry, it asks which entry applies.
+Otherwise it reads only the current message: `Message.history` is covered by the input hash, and
+used only to tell a first turn.
 
 Grounding mode `delegation`: the reply cites the input and each child envelope it relays, and
 the linter checks those citations against the delegations the conductor recorded (R1, D1-D3,
@@ -50,6 +57,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
+from dd_sdk.process_flow import ENTRIES, Entry, entry, plan
 
 HERE = Path(__file__).resolve().parent
 ROUTING = HERE / "routing.yaml"
@@ -82,6 +90,26 @@ def load_rules(path: Path = ROUTING) -> list[Rule]:
         )
         for r in doc["rules"]
     ]
+
+
+@dataclass(frozen=True)
+class EntryRule:
+    entry: Entry
+    pattern: re.Pattern[str]
+
+
+def load_entries(path: Path = ROUTING) -> list[EntryRule]:
+    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return [
+        EntryRule(entry(int(e["entry"])), re.compile(e["pattern"], re.IGNORECASE | re.DOTALL))
+        for e in doc.get("entries") or []
+    ]
+
+
+def entry_named(text: str, entries: list[EntryRule]) -> Entry | None:
+    """The entry point a message names, if any."""
+    text = text.strip()
+    return next((e.entry for e in entries if e.pattern.search(text)), None)
 
 
 def fill(template: Any, values: dict[str, str]) -> Any:
@@ -127,7 +155,8 @@ class DirectorStub:
         version="0.1.0",
         description=(
             "A rule-based stand-in for the Data Director orchestrator. Routes each message to "
-            "one specialist agent through the workbench and relays its answer."
+            "one specialist agent through the workbench and relays its answer, or asks where "
+            "the researcher is and lists the steps from that Blueprint entry point."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(Message),),
@@ -136,8 +165,11 @@ class DirectorStub:
         derivations={"reply_text": Derived(Derivation.TEMPLATE, recorded_in="reply_derivation")},
     )
 
-    def __init__(self, rules: list[Rule] | None = None) -> None:
+    def __init__(
+        self, rules: list[Rule] | None = None, entries: list[EntryRule] | None = None
+    ) -> None:
         self.rules = rules if rules is not None else load_rules()
+        self.entries = entries if entries is not None else load_entries()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         message = request.input
@@ -151,6 +183,19 @@ class DirectorStub:
             )
         found = route(message.message_text, self.rules)
         if isinstance(found, str):
+            start = entry_named(message.message_text, self.entries)
+            if start is not None:
+                return _template_reply(
+                    self._plan_text(start, ctx.delegate.manifest()),
+                    f"Listed the steps from entry point {start.number}; no agent was asked.",
+                    ctx,
+                )
+            if not message.history:
+                return _template_reply(
+                    self._entry_question(),
+                    "Asked which entry point applies; no agent was asked.",
+                    ctx,
+                )
             return _abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{found} {self._routable()}")
 
         # A refused delegation (unknown agent, unreachable workbench) raises DelegationRefused;
@@ -184,21 +229,67 @@ class DirectorStub:
                 reply_derivation=Derivation.TEMPLATE,
                 grounded_on=[input_ref, delegated.ref],
             ),
-            evidence=[
-                EvidenceItem(
-                    source_id=ctx.input_ref,
-                    retrieved_at=datetime.now(UTC),
-                    hash_algorithm=HASH_ALGORITHM,
-                    canonicalisation=INPUT_CANONICALISATION,
-                    content_hash=ctx.input_hash,
-                ),
-                delegated.evidence,
-            ],
+            evidence=[_input_evidence(ctx), delegated.evidence],
         )
+
+    def _entry_question(self) -> str:
+        options = " ".join(f"({e.number}) {e.text[0].upper()}{e.text[1:]}." for e in ENTRIES)
+        return (
+            f"Where are you with your research data? {options} Reply 1, 2 or 3. "
+            f"Or ask for one thing directly. {self._routable()}"
+        )
+
+    def _plan_text(self, start: Entry, manifest: list[dict[str, Any]]) -> str:
+        examples = {r.agent_id: r.example for r in self.rules}
+        lines = [f"Entry point {start.number}: {start.text}. The steps from here:"]
+        phase = None
+        for planned in plan(start, manifest):
+            if planned.phase is not phase:
+                phase = planned.phase
+                lines.append(f"Phase {phase.number}, {phase.title}:")
+            step = planned.step
+            label = step.text + (" (optional)" if step.optional else "")
+            requirements = ", ".join(step.requirements) or "no Blueprint requirement"
+            if planned.agent_ids:
+                asks = "; ".join(
+                    f"{a}, for example {examples[a]!r}" if a in examples else a
+                    for a in planned.agent_ids
+                )
+                lines.append(f"- {label} ({requirements}): {asks}.")
+            else:
+                lines.append(f"- {label}: no agent yet ({requirements}).")
+        lines.append("The work and every decision are yours; the agents only advise.")
+        return "\n".join(lines)
 
     def _routable(self) -> str:
         examples = "; ".join(f"{r.example!r} → {r.agent_id}" for r in self.rules)
         return f"Try: {examples}; or '@<agent_id> <text>'."
+
+
+def _template_reply(text: str, statement: str, ctx: RunContext) -> AgentResult:
+    """A reply this agent writes itself, resting on the input alone."""
+    return AgentResult(
+        outcome=Outcome(
+            status=OutcomeStatus.SUCCEEDED,
+            statement=f"{statement} Rule-based; human review is required.",
+        ),
+        payload=Reply(
+            reply_text=text,
+            reply_derivation=Derivation.TEMPLATE,
+            grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
+        ),
+        evidence=[_input_evidence(ctx)],
+    )
+
+
+def _input_evidence(ctx: RunContext) -> EvidenceItem:
+    return EvidenceItem(
+        source_id=ctx.input_ref,
+        retrieved_at=datetime.now(UTC),
+        hash_algorithm=HASH_ALGORITHM,
+        canonicalisation=INPUT_CANONICALISATION,
+        content_hash=ctx.input_hash,
+    )
 
 
 def _abstain(reason: ReasonCode, statement: str) -> AgentResult:

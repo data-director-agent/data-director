@@ -35,6 +35,7 @@ from dd_sdk.contract.models import (
     Outcome,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
+from dd_sdk.process_flow import REQUIREMENTS
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -88,8 +89,17 @@ class AgentSpec:
     contract_version: str = CONTRACT_VERSION
     # The models the agent sends data to, as configured. Empty: it calls no model.
     models: tuple[ModelUse, ...] = ()
+    # The Blueprint's functional requirements (R1 to R12) the agent serves, so an orchestrator can
+    # place it in the process flow (`dd_sdk.process_flow`, ADR-0028). Empty: none.
+    serves: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        unknown = sorted(set(self.serves) - REQUIREMENTS)
+        if unknown:
+            raise SpecError(
+                f"agent {self.agent_id!r} serves {unknown}, which are not Blueprint functional "
+                "requirements (R1 to R12)"
+            )
         if self.payload is not None and not self.payload.grounded:
             raise SpecError(
                 f"agent {self.agent_id!r}: payload class {self.payload.name} does not mix in "
@@ -194,6 +204,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
         "models": [
             {"provider": m.provider, "model": m.model, "hosting": m.hosting} for m in spec.models
         ],
+        "serves": list(spec.serves),
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -255,6 +266,10 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed models: {exc}") from exc
+    # `serves` may be absent: a card written before ADR-0028 serves no requirement.
+    serves = entry.get("serves", ())
+    if not isinstance(serves, list | tuple):
+        raise SpecError(f"agent {agent_id!r}: serves is not a list")
     return AgentSpec(
         agent_id=agent_id,
         version=str(entry["version"]),
@@ -266,6 +281,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         derivations=derivations,
         contract_version=declared,
         models=models,
+        serves=tuple(str(r) for r in serves),
     )
 
 

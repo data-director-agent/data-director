@@ -1,0 +1,57 @@
+"""The Blueprint's process flow, and the plan it gives each entry point from a manifest."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import pytest
+import yaml
+
+from dd_sdk.process_flow import ENTRIES, PHASES, REQUIREMENTS, describe_flow, entry, plan
+
+REGISTER = Path(__file__).resolve().parents[2] / "docs" / "requirements.yaml"
+
+
+def test_three_entry_points_join_at_phases_one_two_and_three() -> None:
+    assert [(e.number, e.starts_at) for e in ENTRIES] == [(1, 1), (2, 2), (3, 3)]
+    assert [p.number for p in PHASES] == [1, 2, 3, 4, 5, 6]
+    with pytest.raises(KeyError):
+        entry(4)
+
+
+def test_every_requirement_a_step_names_is_a_blueprint_requirement_in_the_register() -> None:
+    register = yaml.safe_load(REGISTER.read_text(encoding="utf-8"))["requirements"]
+    blueprint = {r["id"] for r in register if r["source"] == "blueprint"}
+    named = {r for p in PHASES for s in p.steps for r in s.requirements}
+    assert blueprint >= REQUIREMENTS
+    assert named <= REQUIREMENTS
+
+
+@pytest.mark.requirement("DD-ENTRY-POINTS")
+def test_a_plan_runs_from_the_entry_to_the_last_phase_and_names_who_serves_each_step() -> None:
+    manifest: list[dict[str, Any]] = [
+        {"agent_id": "quality.reviewer", "serves": ["R4"]},
+        {"agent_id": "standards.advisor", "serves": ["R3"]},
+        {"agent_id": "hello.world"},
+    ]
+    first = plan(entry(1), manifest)
+    assert first[0].phase.number == 1 and first[-1].phase.number == 6
+    by_text = {p.step.text: p.agent_ids for p in first}
+    assert by_text["Select controlled vocabularies and ontologies"] == ("standards.advisor",)
+    assert by_text["Recommend open formats"] == ("standards.advisor",)
+    assert by_text["Validate metadata quality"] == ("quality.reviewer",)
+    assert by_text["Draft the data documentation"] == ()
+
+    third = plan(entry(3), manifest)
+    assert {p.phase.number for p in third} == {3, 4, 5, 6}
+
+
+def test_the_prompt_text_names_every_entry_phase_and_requirement() -> None:
+    text = describe_flow()
+    for e in ENTRIES:
+        assert f"Entry {e.number}:" in text
+    for p in PHASES:
+        assert f"Phase {p.number}: {p.title}" in text
+    named = {r for p in PHASES for s in p.steps for r in s.requirements}
+    assert all(r in text for r in named)

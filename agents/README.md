@@ -32,7 +32,7 @@ lists an agent built against an incompatible one as **incompatible**.
 |---|---|---|---|---|---|---|
 | `quality/` | `quality.reviewer` | `MetadataRecord` | `input_only` | `QualityReview` | `dd-quality`, port 8102 | Demonstration: weighted completeness from `checks.yaml`. |
 | `hello/` | `hello.world` | `Salutation` | `none` | `Greeting` | `dd-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
-| `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012). |
+| `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012), or lists the steps from the researcher's Blueprint entry point (ADR-0028). |
 | `orchestrator/` | `orchestrator.model` | `Message` | `delegation` | `Reply` | `dd-orchestrator`, port 8107 | The model-backed orchestrator (#21): Claude decides which agents to ask, from the manifest the harness publishes, and writes the reply. Needs a model key (`orchestrator/README.md`). |
 | `standards/` | `standards.advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`r3/src/dd_agent_standards/README.md`). |
 
@@ -78,6 +78,10 @@ CLI, transports or viewer, this agent will show it.
    A test calls `dd_sdk.schema.gen.stale(<path to the LinkML file>)` and expects `[]`, so a
    stale generated schema fails the agent's own suite. Two agents may define classes of the same
    name; the digest, not the name, identifies a class in a stored run.
+
+   If the agent serves any of the Blueprint's functional requirements, say so in the spec:
+   `serves=("R3",)`, from R1 to R12. The orchestrators place it in the Blueprint's process flow
+   by them, and name it at each step that applies one (ADR-0028).
 2. **Decide its grounding mode** (ADR-0008).
    - `retrieval` if it consults external records. Emit one
      `dd_sdk.tracing.retrieval_span(ctx.tracer, source_id, content_hash)` per record consulted,

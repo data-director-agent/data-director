@@ -157,6 +157,31 @@ def test_a_description_without_models_declares_none() -> None:
     assert spec_from_description(entry).models == ()
 
 
+def test_the_requirements_an_agent_serves_round_trip_through_the_manifest() -> None:
+    spec = dataclasses.replace(SPEC, serves=("R3", "R4"))
+    entry = describe(spec)
+    assert entry["serves"] == ["R3", "R4"]
+    assert spec_from_description(entry).serves == ("R3", "R4")
+
+
+def test_a_description_without_serves_serves_nothing() -> None:
+    entry = describe(SPEC)
+    del entry["serves"]
+    assert spec_from_description(entry).serves == ()
+
+
+@pytest.mark.parametrize("serves", [("R13",), ("C1",), ("R3.1",)])
+def test_serving_something_other_than_a_functional_requirement_is_refused(
+    serves: tuple[str, ...],
+) -> None:
+    with pytest.raises(SpecError, match="not Blueprint functional requirements"):
+        dataclasses.replace(SPEC, serves=serves)
+    entry = describe(SPEC)
+    entry["serves"] = list(serves)
+    with pytest.raises(SpecError, match="not Blueprint functional requirements"):
+        spec_from_description(entry)
+
+
 def test_a_model_hosted_somewhere_unknown_is_refused() -> None:
     entry = describe(SPEC)
     entry["models"] = [{"provider": "p", "model": "m", "hosting": "elsewhere"}]
