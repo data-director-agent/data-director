@@ -75,8 +75,8 @@ None.
 - Every stored run, crate and viewer page names a human beside the agent.
 - Real authentication (an OIDC bearer token resolved to an ORCID iD, for example) replaces
   `OperatorAssertion` behind `Authenticator`. It adds `authenticated` to `Assurance`, which is a
-  schema change and needs its own ADR. Nothing else changes. TODO: that ADR, together with the
-  HTTP status for a caller who cannot be authenticated.
+  schema change and needs its own ADR. Nothing else changes. That ADR, with the HTTP status for
+  a caller who cannot be authenticated, is [ADR-0029](0029-signing-in.md).
 - Envelopes stored before this change have no `acting_for` and do not validate against the new
   schema. The viewer shows no principal for them.
 - Every call to `Conductor.invoke` names a principal. An agent's own tests pass
