@@ -81,7 +81,8 @@ Several constraints shaped the answer:
 11. **`director.stub` is the reference orchestrator** (`agents/director/`): rule-based routing
     from `routing.yaml`, a template reply, no model. It succeeds once it has delegated and
     relayed, whatever the child's outcome; the child's status is on its own envelope and in
-    `delegations`.
+    `delegations`. It also asks a first turn which Blueprint entry point applies, and lists the
+    steps from that entry ([ADR-0028](0028-entry-points-and-serves.md)).
 12. **The viewer has two modes.** Inspect is the existing single-run screen. Chat holds a
     conversation with one agent, labels every reply and every delegated child
     `agent_id@agent_version`, marks version changes between turns, and links each card to its
@@ -94,7 +95,8 @@ Several constraints shaped the answer:
     the policy gate still refuses a child the profile does not enable, and the orchestrator
     reports that refusal like any other outcome. `orchestrator.model` (`agents/orchestrator/`,
     #21) routes this way; `director.stub` keeps its `routing.yaml` as a fixed, model-free
-    reference.
+    reference. Both place agents in the Blueprint's process flow by the manifest's `serves`
+    ([ADR-0028](0028-entry-points-and-serves.md)).
 14. **An orchestrator succeeds once it has replied, whatever its children's outcomes.** This
     holds for a model-backed orchestrator as for the stub (decision 11). A failed child stays
     failed on its own envelope and in the parent's `delegations`, where anyone can see it, and
