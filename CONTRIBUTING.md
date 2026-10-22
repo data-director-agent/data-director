@@ -37,7 +37,8 @@ passes only when every other job has. Each job can be run locally from the repos
 |---|---|
 | Ruff (lint + format) | `uv run ruff check . && uv run ruff format --check .` |
 | mypy | `uv run mypy` |
-| pytest and CONFORMANCE.md | `uv run pytest --json-report --json-report-file=.report.json && uv run python scripts/conformance_report.py --check` |
+| pytest | `uv run pytest --json-report --json-report-file=.report.json` |
+| CONFORMANCE.md is current | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
 | Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
