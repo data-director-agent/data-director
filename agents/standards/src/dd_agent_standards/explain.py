@@ -124,11 +124,20 @@ class AnthropicExplainer:
     """Explains with Claude. Emits one `chat` span carrying model id and token counts."""
 
     def __init__(
-        self, client: anthropic.Anthropic | None = None, model_id: str = DEFAULT_MODEL
+        self,
+        client: anthropic.Anthropic | None = None,
+        model_id: str = DEFAULT_MODEL,
+        api_key: str | None = None,
     ) -> None:
-        import anthropic as _anthropic
+        """Give a `client` (tests) or an `api_key` (`dd_sdk.credentials.api_key`). The key is
+        always passed explicitly, so the SDK's own credential chain is never used (ADR-0026)."""
+        if client is None:
+            if not api_key:
+                raise ValueError("AnthropicExplainer needs a client or an api_key")
+            import anthropic as _anthropic
 
-        self._client = client or _anthropic.Anthropic()
+            client = _anthropic.Anthropic(api_key=api_key)
+        self._client = client
         self.model_id: str | None = model_id
 
     def _prompt(self, profile: DatasetProfile, items: list[Item]) -> str:

@@ -14,9 +14,10 @@ from dd_agent_standards.explain import AnthropicExplainer, TemplateExplainer
 from dd_agent_standards.fairsharing.live import LiveBackend
 from dd_agent_standards.fairsharing.snapshot import DEFAULT_SNAPSHOT, SnapshotBackend
 from dd_agent_standards.testing import make_conductor
-from dd_sdk.agent import describe, spec_from_description
+from dd_sdk.agent import ModelUse, describe, spec_from_description
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import GroundingMode, InvocationRequest, OutcomeStatus
+from dd_sdk.credentials import ConfigError
 from dd_sdk.schema import gen
 
 
@@ -46,11 +47,22 @@ def test_the_anthropic_explainer_takes_the_configured_model() -> None:
     )
     assert isinstance(agent.explainer, AnthropicExplainer)
     assert agent.explainer.model_id == "m-test"
+    assert agent.spec.models == (ModelUse("anthropic", "m-test", "hosted"),)
+    assert StandardsAgent.spec.models == ()
+
+
+def test_the_template_explainer_declares_no_model() -> None:
+    assert factory.build({}).spec.models == ()
+
+
+def test_the_anthropic_explainer_without_a_key_stops_at_start_up() -> None:
+    with pytest.raises(ConfigError, match="ANTHROPIC_API_KEY"):
+        factory.build({"DD_STANDARDS_EXPLAINER": "anthropic"})
 
 
 @pytest.mark.parametrize("variable", ["DD_STANDARDS_RETRIEVAL", "DD_STANDARDS_EXPLAINER"])
 def test_an_unknown_setting_is_a_configuration_error(variable: str) -> None:
-    with pytest.raises(ValueError, match=variable):
+    with pytest.raises(ConfigError, match=variable):
         factory.build({variable: "carrier-pigeon"})
 
 
