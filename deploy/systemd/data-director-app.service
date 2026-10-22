@@ -16,8 +16,8 @@ WorkingDirectory=/opt/data-director/current
 Environment=DD_APP_HOST=127.0.0.1
 Environment=DD_APP_PORT=7860
 Environment=DD_RUNS_DIR=/var/lib/data-director/runs
-# The agents' ports to wait for. Add 8105 when the standards advisor runs as a service.
-Environment="DD_WAIT_PORTS=8101 8102 8106"
+# The agents' ports to wait for.
+Environment="DD_WAIT_PORTS=8101 8102 8105 8106"
 # DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME (required), and any override of the above.
 EnvironmentFile=/etc/data-director/app.env
 ExecStartPre=/opt/data-director/current/deploy/wait-for-ports.sh 60 $DD_WAIT_PORTS

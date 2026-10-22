@@ -12,7 +12,7 @@ connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
    │                                          ▼
  VM: data-director-deploy.timer ──▶ deploy.sh ── build ──▶ /opt/data-director/releases/<sha>
                                               └─ switch /opt/data-director/current, restart
- browser ──HTTPS──▶ NGINX (password) ──▶ app 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101, 8102, 8106
+ browser ──HTTPS──▶ NGINX (password) ──▶ app 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101, 8102, 8105, 8106
 ```
 
 The app is alpha and has no authentication (#17): every run acts for the operator named in
@@ -29,16 +29,15 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
-| `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@director`, and `@standards` if it calls a model. |
+| `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`. |
 | `systemd/data-director-agent@standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
-| `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml` (and `agents.yaml`). |
-| `agents.yaml` | The app's agent list when the standards advisor runs as a service. |
+| `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
 | `nginx/data-director.conf` | The reverse proxy: password, long timeouts for runs, `/a2a` closed from outside. |
 
-The standards advisor runs in the app's process, so it has no service of its own, unless it is to
-call a model (see [A model key](#a-model-key)).
+Every agent, the standards advisor included, is a service of its own; the app runs none in its
+process (ADR-0027).
 
 ## Layout on the VM
 
@@ -144,10 +143,9 @@ release, stop the timer: `sudo systemctl disable --now data-director-deploy.time
 
 An agent that calls a hosted model holds the key itself. The app never does, and the key never
 appears in a run, a trace or an export (ADR-0026). Only the standards advisor's optional
-explainer calls a model today. In its default mode it uses templates, runs in the app's process,
-and needs no key. The app refuses to start if it is configured for the model there.
+explainer calls a model today. In its default mode it uses templates and needs no key.
 
-To give it a model, run it as its own service:
+To give it a model:
 
 1. Put the key where only root can read it. Its unit loads it as a credential
    (`systemd/data-director-agent@standards.service.d/credentials.conf`), so no other agent can
@@ -166,19 +164,10 @@ To give it a model, run it as its own service:
    DD_MODEL_ID=claude-opus-5
    ```
 
-3. Point the app at the agent list that includes the service, and have it wait for the port, in
-   `/etc/data-director/app.env`:
+3. Restart it:
 
    ```bash
-   DD_AGENTS_CONFIG=/opt/data-director/current/deploy/agents.yaml
-   DD_WAIT_PORTS="8101 8102 8105 8106"
-   ```
-
-4. Enable the instance and restart:
-
-   ```bash
-   sudo systemctl enable data-director-agent@standards.service
-   sudo systemctl restart data-director.target
+   sudo systemctl restart data-director-agent@standards.service
    ```
 
 If the key is missing or empty, the unit stops at start-up with one line in

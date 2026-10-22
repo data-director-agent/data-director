@@ -1,29 +1,23 @@
 """The conductor the app runs agents through, and the principal every run acts for.
 
-The standards advisor (`standards.advisor`) runs in this process, registered beside the app's agent
-list, so each run passes the policy gate, the input check, the grounding linter and the source
-check, and is stored with whom it acted for (ADR-0018, issue #60). If the agent list names it
-(`name: standards`), as a deployment that gives it a model does, it is reached over A2A instead.
-
-An agent in this process may not call a hosted model: the app would then hold the model key
-(ADR-0026). Configuring the in-process advisor for one stops start-up.
+Every agent is a separate service that the conductor reaches over A2A (ADR-0011, ADR-0027), so
+each run passes the policy gate, the input check, the grounding linter and the source check, and
+is stored with whom it acted for (ADR-0018). The app runs no agent in its own process, so it never
+holds an agent's model key (ADR-0026).
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from dd_agent_standards import factory as standards
 from dd_harness import conversations
 from dd_harness.conductor import Conductor
-from dd_harness.settings import Settings, SettingsError, build_authenticator, build_conductor
-from dd_sdk.agent import Agent
+from dd_harness.settings import Settings, build_authenticator, build_conductor
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
     Envelope,
@@ -32,30 +26,12 @@ from dd_sdk.contract.models import (
     new_invocation_id,
 )
 
-STANDARDS_AGENT_ID = "standards.advisor"
-# The name the agent list gives the standards advisor's service, if it lists it.
-STANDARDS_NAME = "standards"
 RUN_ID = re.compile(r"[0-9A-Za-z-]{1,64}")
 CONVERSATION_ID = re.compile(UUID7_PATTERN)
 
 
 class UnknownConversationError(LookupError):
     """No conversation has this identifier: it was neither started here nor has a stored turn."""
-
-
-def in_process_standards() -> Agent:
-    """The standards advisor in this process, which may not call a model (ADR-0026)."""
-    explainer = os.environ.get("DD_STANDARDS_EXPLAINER", "template")
-    if explainer != "template":
-        raise SettingsError(
-            f"DD_STANDARDS_EXPLAINER={explainer}: the app runs the standards advisor in its own "
-            "process, which never holds a model key. Run dd-standards as a service and list it "
-            f"as `{STANDARDS_NAME}` in DD_AGENTS_CONFIG (ADR-0026)"
-        )
-    agent = standards.build()
-    if agent.spec.models:
-        raise SettingsError(f"{STANDARDS_AGENT_ID} in the app's process may not call a model")
-    return agent
 
 
 def _report(path: Path) -> dict[str, Any] | None:
@@ -102,14 +78,6 @@ class Governance:
             # (ADR-0018, #17), not the person using the page.
             acting_for = build_authenticator(settings).principal_for(None)
             conductor = build_conductor(settings)
-            registry = conductor.registry
-            listed = (
-                STANDARDS_AGENT_ID in registry.agents
-                or STANDARDS_NAME in registry.unavailable
-                or STANDARDS_NAME in registry.incompatible
-            )
-            if not listed:
-                registry.add(in_process_standards())
             conductor.harness_url = settings.harness_url or base_url
             return conductor, acting_for
 

@@ -104,9 +104,8 @@ The boundaries between packages are deliberate, and tests enforce the most impor
   (`harness/tests/test_harness_boundary.py`).
 - An agent depends only on `sdk`. The harness reaches it over A2A, not by import
   ([ADR-0011](adr/0011-remote-agents.md)).
-- `app` and `workbench` each depend on `harness`, and never on each other. The app also imports
-  the standards advisor and runs it in its own process; the harness still governs it as it does
-  any other agent.
+- `app` and `workbench` each depend on `harness`, and never on each other. Neither imports an
+  agent; each reaches every agent over A2A ([ADR-0027](adr/0027-no-agent-in-the-apps-process.md)).
 
 This is why adding an agent needs no change to the harness, the app or the workbench: each of
 them learns about the agent from its *agent card*, the document every A2A service publishes,
@@ -251,8 +250,8 @@ flowchart LR
     browser(["Browser"])
     subgraph vm["Ubuntu VM"]
         nginx["NGINX<br/>HTTPS, password,<br/>/a2a closed"]
-        app["data-director-app<br/>127.0.0.1:7860<br/>(+ standards advisor)"]
-        agents["data-director-agent@…<br/>hello :8101, quality :8102,<br/>director :8106"]
+        app["data-director-app<br/>127.0.0.1:7860"]
+        agents["data-director-agent@…<br/>hello :8101, quality :8102,<br/>standards :8105, director :8106"]
         runs[("/var/lib/data-director/runs")]
         timer["deploy timer<br/>every 5 min"]
     end
