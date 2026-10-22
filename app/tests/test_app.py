@@ -29,13 +29,12 @@ from dd_agent_standards import factory as standards
 from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
-from dd_app.governance import STANDARDS_AGENT_ID, Governance
+from dd_app.governance import Governance
 from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
-from dd_harness.settings import SettingsError
 from dd_harness.store import RunStore
 from dd_harness.testing import (
     PERMISSIVE,
@@ -58,6 +57,7 @@ PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 # shapes under the permissive test profile, which does not list the standards advisor.
 FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
 APP_URL = "http://app.test"
+STANDARDS_AGENT_ID = "standards.advisor"
 
 
 @pytest.fixture
@@ -65,8 +65,8 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """The app's reference set, a principal, and runs written under `tmp_path`.
 
     The reference agent list names services these tests do not start, and whether one happens to
-    be running would change what the server says, so it is replaced by an empty list: the
-    standards advisor, in process, is then the only agent.
+    be running would change what the server says, so it is replaced by an empty list. A test
+    that needs an agent serves it in memory over A2A (`with_standards`).
     """
     for variable in PATH_VARIABLES:
         monkeypatch.delenv(variable, raising=False)
@@ -81,9 +81,16 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     return tmp_path
 
 
+def with_standards(governance: Governance) -> Governance:
+    """`governance` with the standards advisor registered as the reference list would reach its
+    service, but served in memory over A2A."""
+    governance.conductor.registry.add(in_process(standards.build()))
+    return governance
+
+
 @pytest.fixture
 def governance(env: Path) -> Iterator[Governance]:
-    governance = Governance.create(settings_from_env(), APP_URL)
+    governance = with_standards(Governance.create(settings_from_env(), APP_URL))
     yield governance
     governance.worker.shutdown()
 
@@ -103,12 +110,12 @@ def agents_response(governance: Governance, dist: Path) -> dict[str, Any]:
     return body
 
 
-def test_the_reference_set_lists_and_enables_every_other_in_tree_agent():
-    # The standards advisor runs in process, so its port (8105) is not listed.
+def test_the_reference_set_lists_and_enables_every_in_tree_agent():
     entries = load_config(DEFAULT_AGENTS_CONFIG)
     assert [(e["name"], e["url"]) for e in entries] == [
         ("hello", "http://127.0.0.1:8101"),
         ("quality", "http://127.0.0.1:8102"),
+        ("standards", "http://127.0.0.1:8105"),
         ("director", "http://127.0.0.1:8106"),
     ]
     enabled = (
@@ -120,11 +127,15 @@ def test_the_reference_set_lists_and_enables_every_other_in_tree_agent():
     assert load_profile(DEFAULT_PROFILE).agents == dict.fromkeys(enabled, "advise")
 
 
-def test_without_remote_agents_the_standards_advisor_runs_alone(governance: Governance):
-    conductor = governance.conductor
-    assert conductor.registry.ids() == [STANDARDS_AGENT_ID]
-    assert conductor.profile.profile_id == "data-director-app"
-    assert governance.acting_for == TEST_PRINCIPAL
+def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
+    # Every agent is a service (ADR-0027): with none listed, the app has none to run.
+    governance = Governance.create(settings_from_env(), APP_URL)
+    try:
+        assert governance.conductor.registry.ids() == []
+        assert governance.conductor.profile.profile_id == "data-director-app"
+        assert governance.acting_for == TEST_PRINCIPAL
+    finally:
+        governance.worker.shutdown()
 
 
 def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
@@ -146,7 +157,7 @@ def test_an_agent_the_profile_does_not_list_is_shown_unassigned(
     env: Path, dist: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv("DD_PROFILE", str(RESTRICTIVE))
-    governance = Governance.create(settings_from_env(), APP_URL)
+    governance = with_standards(Governance.create(settings_from_env(), APP_URL))
     try:
         (standards,) = agents_response(governance, dist)["agents"]
     finally:
@@ -178,20 +189,10 @@ def test_no_principal_stops_start_up(env: Path, monkeypatch: pytest.MonkeyPatch)
         Governance.create(settings_from_env(), APP_URL)
 
 
-def test_the_standards_advisor_in_process_may_not_call_a_model(
+def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
     env: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    monkeypatch.setenv("DD_STANDARDS_EXPLAINER", "anthropic")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-not-for-the-app")
-    with pytest.raises(SettingsError, match="never holds a model key") as caught:
-        Governance.create(settings_from_env(), APP_URL)
-    assert "sk-ant-not-for-the-app" not in str(caught.value)
-
-
-def test_a_listed_standards_service_replaces_the_one_in_process(
-    env: Path, monkeypatch: pytest.MonkeyPatch
-):
-    # Listed but not running: it is shown unavailable, and the app does not quietly run its own.
+    # The app does not quietly run its own copy in its place.
     agents = env / "with-standards.yaml"
     agents.write_text("agents:\n  - name: standards\n    url: http://127.0.0.1:9\n")
     monkeypatch.setenv("DD_AGENTS_CONFIG", str(agents))

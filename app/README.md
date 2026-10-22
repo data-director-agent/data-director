@@ -48,8 +48,8 @@ It is built from:
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant (ADR-0012) and refuses every other
     request, so the app is no general A2A way in;
-- the harness (`harness/`, `dd_harness`), whose conductor governs every run. The standards advisor
-  (`standards.advisor`) runs in the app's process.
+- the harness (`harness/`, `dd_harness`), whose conductor governs every run. The app runs no agent
+  in its own process; it reaches each over A2A (ADR-0027).
 
 ## Run it
 
@@ -66,7 +66,7 @@ export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."   # whom r
 uv run data-director               # opens http://127.0.0.1:7860
 ```
 
-The other agents are separate services. Start them with `scripts/run-agents.sh` from the
+The agents are separate services. Start them with `scripts/run-agents.sh` from the
 repository root before the app, which reads their cards once at start-up; one that is not
 running is listed as unavailable. `director.stub` runs the agents it delegates to through the
 app's own A2A endpoint, under a grant the conductor issues for that run.
@@ -86,7 +86,7 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 | File | What it is | Override |
 |---|---|---|
 | `config/profile.yaml` | The institutional profile. It enables every in-tree agent. | `DD_PROFILE` |
-| `config/agents.yaml` | Agents reached over A2A: every in-tree agent but the standards advisor, which runs in the app's process. | `DD_AGENTS_CONFIG` |
+| `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
 | `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own (#108). | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |

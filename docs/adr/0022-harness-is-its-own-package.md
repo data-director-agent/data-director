@@ -1,6 +1,6 @@
 # ADR-0022: The harness is a package of its own, and the workbench is one way in to it
 
-**Status:** Proposed
+**Status:** Proposed; amended by [ADR-0027](0027-no-agent-in-the-apps-process.md)
 **Date:** 2026-10-21
 
 ## Context

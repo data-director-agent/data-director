@@ -1,14 +1,15 @@
 # The agents the app reaches over A2A (ADR-0011), unless DD_AGENTS_CONFIG names another list.
-# The app runs the standards advisor in its own process and adds it beside these, so it is not
-# listed here. Each other in-tree agent is, on the port `scripts/run-agents.sh` starts it on; one
-# that is not running is shown as unavailable and the rest still run. The profile still decides
-# whether each may run.
+# Every in-tree agent is listed, on the port `scripts/run-agents.sh` starts it on; the app runs
+# none in its own process (ADR-0027). One that is not running is shown as unavailable and the
+# rest still run. The profile still decides whether each may run.
 # Format as in workbench/agents.yaml.
 agents:
   - name: hello
     url: http://127.0.0.1:8101
   - name: quality
     url: http://127.0.0.1:8102
+  - name: standards
+    url: http://127.0.0.1:8105
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
   # theirs (ADR-0012). It calls them back through the app's own A2A endpoint under its grant.
   - name: director

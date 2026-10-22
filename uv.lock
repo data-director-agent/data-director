@@ -931,7 +931,6 @@ name = "data-director-app"
 version = "0.3.0a1"
 source = { editable = "app" }
 dependencies = [
-    { name = "data-director-agent-standards" },
     { name = "data-director-harness" },
     { name = "starlette" },
     { name = "uvicorn" },
@@ -939,7 +938,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "data-director-agent-standards", editable = "agents/standards" },
     { name = "data-director-harness", editable = "harness" },
     { name = "starlette", specifier = ">=0.47" },
     { name = "uvicorn", specifier = ">=0.54.0" },

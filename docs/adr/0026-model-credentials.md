@@ -1,6 +1,6 @@
 # ADR-0026: A model key stays with the agent that calls the model
 
-**Status:** Proposed
+**Status:** Proposed; amended by [ADR-0027](0027-no-agent-in-the-apps-process.md)
 **Date:** 2026-10-22
 
 Amends [ADR-0011](0011-remote-agents.md) (the manifest gains `models`).

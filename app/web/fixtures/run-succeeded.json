@@ -726,8 +726,8 @@
       ],
       "schema_class": "Recommendations",
       "searched": {
-        "candidates_qualifying": 14,
-        "candidates_retrieved": 27,
+        "candidates_qualifying": 14.0,
+        "candidates_retrieved": 27.0,
         "queries": [
           "terminologies: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [terminology_artefact]",
           "formats: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [model_and_format]",

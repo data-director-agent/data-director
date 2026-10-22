@@ -131,7 +131,7 @@ class Settings:
 
 def build_registry(settings: Settings, agents: Iterable[Registered] = ()) -> Registry:
     """The agents `agents_config` lists, and beside them `agents`: agent objects the caller runs
-    in its own process, such as the app's R3. The profile still decides which may run."""
+    in its own process. The profile still decides which may run."""
     registry = Registry.from_config(settings.agents_config)
     for agent in agents:
         registry.add(agent)
