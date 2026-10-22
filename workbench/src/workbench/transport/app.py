@@ -88,6 +88,7 @@ def build_app(
         return JSONResponse(json.loads(UISCHEMA.read_text(encoding="utf-8")))
 
     async def agents(request: Request) -> Response:
+        conductor.registry.refresh()
         return JSONResponse(conductor.registry.listing())
 
     async def agent_detail(request: Request) -> Response:

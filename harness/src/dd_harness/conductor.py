@@ -235,6 +235,9 @@ class Conductor:
     ) -> Envelope:
         agent = self.registry.get(request.agent_id)
         if agent is None:
+            self.registry.refresh()  # it may have started since the registry was built
+            agent = self.registry.get(request.agent_id)
+        if agent is None:
             raise UnknownAgent(
                 f"no agent registered as {request.agent_id!r}; known: {self.registry.ids()}"
                 + self.registry.not_registered()

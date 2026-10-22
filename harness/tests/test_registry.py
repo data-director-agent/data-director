@@ -118,6 +118,29 @@ def test_an_unreachable_agent_is_unavailable_and_the_rest_still_load(tmp_path: P
 
 
 @pytest.mark.requirement("DD-REGISTRY")
+def test_refresh_finds_an_agent_that_started_after_the_registry_was_built(tmp_path: Path) -> None:
+    apps: dict[str, Any] = {}
+    config = write_config(tmp_path, [{"name": "hello", "url": "http://hello.test"}])
+    registry = Registry.from_config(config, client_factory=routed(apps))
+    assert registry.ids() == [] and "hello" in registry.unavailable
+    apps["http://hello.test"] = serve.app(HelloWorld(), base_url="http://hello.test")
+    registry.refresh()
+    assert registry.ids() == ["hello.world"]
+    assert registry.unavailable == {}
+    before = registry.get("hello.world")
+    registry.refresh()
+    assert registry.get("hello.world") is before  # a registered agent is not read again
+
+
+@pytest.mark.requirement("DD-REGISTRY")
+def test_refresh_keeps_an_agent_still_down_unavailable(tmp_path: Path) -> None:
+    registry = registry_of(tmp_path, [{"name": "standards", "url": "http://standards.test"}])
+    registry.refresh()
+    assert set(registry.ids()) == IDS
+    assert "cannot read the agent card" in registry.unavailable["standards"]
+
+
+@pytest.mark.requirement("DD-REGISTRY")
 def test_a_card_without_the_spec_extension_is_rejected(tmp_path: Path) -> None:
     card = {"name": "someone-else", "capabilities": {"extensions": []}}
     path = write_config(tmp_path, [{"name": "foreign", "url": "http://foreign.test"}])
