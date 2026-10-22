@@ -46,7 +46,7 @@ def test_the_orchestrator_key_reaches_no_stored_record(runs_dir: Path) -> None:
     assert payload.reply_derivation == Derivation.MODEL
     assert payload.reply_text == "The greeting agent says: Hello, Ada!"
     assert [d.delegated_agent_id for d in env.delegations] == ["hello.world"]
-    assert env.telemetry.model_id == "claude-fable-5-1"
+    assert env.telemetry.model_id == "claude-haiku-5-5"
     # Cached input counts as input read.
     assert env.telemetry.input_tokens == 900 + 600 + 80 + 600
     assert conductor.grounding_reports[env.invocation_id].passed

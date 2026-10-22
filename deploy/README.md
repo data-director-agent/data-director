@@ -183,9 +183,9 @@ key. The app converses with `director.stub` until the profile names the orchestr
 
 1. Install its key as in step 1 above, under `/etc/data-director/credentials/orchestrator/`.
    Its settings, all optional, go in `/etc/data-director/agents/orchestrator.env`
-   (`workbench/agents/env.example` lists them). It calls Claude Fable 5.1 by default, which
-   costs more per token than other models and is not available to an organisation under zero
-   data retention; `DD_MODEL_ID=claude-opus-5-5` is the alternative.
+   (`workbench/agents/env.example` lists them). It calls Claude Haiku 5.5 by default, a small
+   model; `DD_MODEL_ID=claude-opus-5-5` or `claude-fable-5-1` selects a more capable one (Fable
+   5.1 is not available to an organisation under zero data retention).
 2. Start it, and have it start with the rest:
 
    ```bash

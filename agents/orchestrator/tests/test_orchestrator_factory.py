@@ -22,7 +22,7 @@ def test_the_spec_declares_the_model_it_calls() -> None:
 
 def test_the_defaults() -> None:
     built = factory.build(KEY)
-    assert DEFAULT_MODEL == "claude-fable-5-1"
+    assert DEFAULT_MODEL == "claude-haiku-5-5"
     assert (built.history_turns, built.max_delegations) == (20, 4)
 
 

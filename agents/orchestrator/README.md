@@ -9,7 +9,7 @@ grounding mode `delegation`, with `reply_derivation` `model`.
 |---|---|
 | Agent id | `orchestrator.model` |
 | Serve | `dd-orchestrator serve --port 8107` (`scripts/run-agents.sh`) |
-| Model | Claude Fable 5.1 (`claude-fable-5-1`) by default, declared in `AgentSpec.models` |
+| Model | Claude Haiku 5.5 (`claude-haiku-5-5`) by default, declared in `AgentSpec.models` |
 | Status | Alpha (`0.1.0`) |
 
 ## How a turn runs
@@ -51,7 +51,7 @@ Read at start-up by `factory.build`. A bad value stops the service with one line
 | Variable | Default | Meaning |
 |---|---|---|
 | `ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY_FILE` | none: required | The model key, which only this process holds. |
-| `DD_MODEL_ID` | `claude-fable-5-1` | The model it calls. |
+| `DD_MODEL_ID` | `claude-haiku-5-5` | The model it calls. |
 | `DD_ORCHESTRATOR_EFFORT` | `high` | `low`, `medium`, `high`, `xhigh` or `max`. |
 | `DD_ORCHESTRATOR_HISTORY` | `20` | Earlier turns sent to the model. `0` sends only the current message. |
 | `DD_ORCHESTRATOR_MAX_DELEGATIONS` | `4` | Tool calls allowed in one turn. |
@@ -62,11 +62,11 @@ systemd credential (`deploy/README.md`).
 
 ## Choice of model
 
-The orchestrator weighs each request before handing it on, so it defaults to the most capable
-model available, Claude Fable 5.1. Two consequences follow:
+The orchestrator defaults to a small model, Claude Haiku 5.5, which keeps the cost and latency of
+each turn low. Two consequences follow:
 
-- **Cost.** Fable 5.1 costs more per token than Claude Opus 5.5. The system prompt is cached
-  across turns. `DD_MODEL_ID=claude-opus-5-5` is the cheaper alternative.
+- **Capability.** A small model may route ambiguous requests less reliably. Set
+  `DD_MODEL_ID=claude-opus-5-5` or `DD_MODEL_ID=claude-fable-5-1` for a more capable one.
 - **Data retention.** Fable 5.1 requires 30-day data retention by the provider. It is not
   available to an organisation under zero data retention, which gets an error on every turn.
   Check this against the institution's agreement before choosing it.

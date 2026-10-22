@@ -5,8 +5,8 @@
 
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the key, read at
   start-up (`dd_sdk.credentials`, ADR-0026). There is no default: this agent is a model.
-- `DD_MODEL_ID`: the model it calls. Claude Fable 5.1 by default, the most capable model
-  available, since the orchestrator weighs each request before handing it on.
+- `DD_MODEL_ID`: the model it calls. Claude Haiku 5.5 by default, a small, fast and
+  inexpensive model; a more capable one (`claude-opus-5-5`, `claude-fable-5-1`) can be named.
 - `DD_ORCHESTRATOR_EFFORT`: `low`, `medium`, `high` (default), `xhigh` or `max`.
 - `DD_ORCHESTRATOR_HISTORY`: how many earlier turns of the conversation it sends (default 20).
 - `DD_ORCHESTRATOR_MAX_DELEGATIONS`: how many delegations one turn may make (default 4).

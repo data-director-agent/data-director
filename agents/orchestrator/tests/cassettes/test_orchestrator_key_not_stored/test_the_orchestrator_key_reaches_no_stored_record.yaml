@@ -12,7 +12,7 @@ interactions:
     uri: https://api.anthropic.com/v1/messages?beta=true
   response:
     body:
-      string: "{\"id\": \"msg_cassette_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"claude-fable-5-1\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"\", \"signature\": \"sig-cassette\"}, {\"type\": \"tool_use\", \"id\": \"toolu_cassette\", \"name\": \"hello_world\", \"input\": {\"greeted_name\": \"Ada\"}}], \"stop_reason\": \"tool_use\", \"stop_sequence\": null, \"usage\": {\"input_tokens\": 900, \"output_tokens\": 40, \"cache_read_input_tokens\": 0, \"cache_creation_input_tokens\": 600}}"
+      string: "{\"id\": \"msg_cassette_1\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"claude-haiku-5-5\", \"content\": [{\"type\": \"thinking\", \"thinking\": \"\", \"signature\": \"sig-cassette\"}, {\"type\": \"tool_use\", \"id\": \"toolu_cassette\", \"name\": \"hello_world\", \"input\": {\"greeted_name\": \"Ada\"}}], \"stop_reason\": \"tool_use\", \"stop_sequence\": null, \"usage\": {\"input_tokens\": 900, \"output_tokens\": 40, \"cache_read_input_tokens\": 0, \"cache_creation_input_tokens\": 600}}"
     headers:
       content-type:
       - application/json
@@ -28,7 +28,7 @@ interactions:
     uri: https://api.anthropic.com/v1/messages?beta=true
   response:
     body:
-      string: "{\"id\": \"msg_cassette_2\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"claude-fable-5-1\", \"content\": [{\"type\": \"text\", \"text\": \"The greeting agent says: Hello, Ada!\"}], \"stop_reason\": \"end_turn\", \"stop_sequence\": null, \"usage\": {\"input_tokens\": 80, \"output_tokens\": 12, \"cache_read_input_tokens\": 600, \"cache_creation_input_tokens\": 0}}"
+      string: "{\"id\": \"msg_cassette_2\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"claude-haiku-5-5\", \"content\": [{\"type\": \"text\", \"text\": \"The greeting agent says: Hello, Ada!\"}], \"stop_reason\": \"end_turn\", \"stop_sequence\": null, \"usage\": {\"input_tokens\": 80, \"output_tokens\": 12, \"cache_read_input_tokens\": 600, \"cache_creation_input_tokens\": 0}}"
     headers:
       content-type:
       - application/json
