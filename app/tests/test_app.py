@@ -34,6 +34,8 @@ from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry, load_config
+from dd_harness.remote import RemoteAgent, RemoteAgentError
+from dd_harness.settings import SettingsError
 from dd_harness.store import RunStore
 from dd_harness.testing import (
     PERMISSIVE,
@@ -174,6 +176,36 @@ def test_no_principal_stops_start_up(env: Path, monkeypatch: pytest.MonkeyPatch)
     monkeypatch.delenv("DD_PRINCIPAL_ID")
     with pytest.raises(IdentityError, match="DD_PRINCIPAL_ID"):
         Governance.create(settings_from_env(), APP_URL)
+
+
+def test_the_standards_advisor_in_process_may_not_call_a_model(
+    env: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("DD_STANDARDS_EXPLAINER", "anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-not-for-the-app")
+    with pytest.raises(SettingsError, match="never holds a model key") as caught:
+        Governance.create(settings_from_env(), APP_URL)
+    assert "sk-ant-not-for-the-app" not in str(caught.value)
+
+
+def test_a_listed_standards_service_replaces_the_one_in_process(
+    env: Path, monkeypatch: pytest.MonkeyPatch
+):
+    # Listed but not running: it is shown unavailable, and the app does not quietly run its own.
+    agents = env / "with-standards.yaml"
+    agents.write_text("agents:\n  - name: standards\n    url: http://127.0.0.1:9\n")
+    monkeypatch.setenv("DD_AGENTS_CONFIG", str(agents))
+
+    def unreachable(url: str, **_: Any) -> RemoteAgent:
+        raise RemoteAgentError(f"{url}: connection refused")
+
+    monkeypatch.setattr(RemoteAgent, "from_url", unreachable)
+    governance = Governance.create(settings_from_env(), APP_URL)
+    try:
+        assert governance.conductor.registry.ids() == []
+        assert "standards" in governance.conductor.registry.unavailable
+    finally:
+        governance.worker.shutdown()
 
 
 def check_fixture(name: str, body: dict[str, Any]) -> None:

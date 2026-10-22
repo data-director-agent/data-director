@@ -47,6 +47,11 @@ export const DERIVATION: Record<DerivationHow, string> = {
 };
 
 /** Words for a class name such as `DatasetProfile`: "dataset profile". */
+/** Model providers by the name a manifest gives them. One not listed is shown as given. */
+export const PROVIDER: Record<string, string> = {
+  anthropic: "Anthropic",
+};
+
 export function className(name: string): string {
   return name
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")

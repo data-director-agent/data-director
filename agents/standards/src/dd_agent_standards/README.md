@@ -16,8 +16,21 @@ returns `Recommendations`. Serve it with `uv run dd-standards serve --port 8105`
 | `DD_STANDARDS_EXPLAINER` | `template` or `anthropic` | `template` |
 | `DD_MODEL_ID` | model id for the Anthropic explainer | `explain.DEFAULT_MODEL` |
 | `DD_SNAPSHOT_PATH` | path to a snapshot JSONL file | `data/fairsharing/snapshot.jsonl` |
+| `ANTHROPIC_API_KEY` | the Anthropic explainer's key, in development | none |
+| `ANTHROPIC_API_KEY_FILE` | a file holding that key, in deployment; a relative path is under `$CREDENTIALS_DIRECTORY` | none |
 
-An unknown value is a configuration error and stops the service at start-up.
+An unknown value is a configuration error and stops the service at start-up. So is the Anthropic
+explainer without exactly one of the two key variables. The key is passed to the Anthropic client
+explicitly: the SDK's own credential chain, such as an `ant auth login`, is never used
+(ADR-0026). In development, put the key in `workbench/agents/standards.env`, which only this
+agent reads. In deployment, the key is loaded as a systemd credential (`deploy/README.md`).
+
+With the Anthropic explainer the advisor sends Anthropic the dataset profile's title,
+description, keywords, themes and field names and types, and the candidate records' names,
+descriptions and subjects (`AnthropicExplainer._prompt`). It never sends data values. Its
+manifest then declares the model (`models`), and the app's About tab names it. The app runs the
+advisor in its own process only with the template explainer. For the model, run it as a
+service.
 
 ## Grounding
 
@@ -43,5 +56,7 @@ that content (E1, ADR-0015), so what a reader is shown is what was retrieved. Th
 - **Live search needs a FAIRsharing account** (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`);
   record fetch does not. No live-search cassette is committed, so that path is unsubstantiated in
   `CONFORMANCE.md` until someone with an account records one.
-- **The Anthropic explainer** (`DD_STANDARDS_EXPLAINER=anthropic`) is implemented but no cassette is
-  committed; the trace shape it produces is exercised with a fake model in tests.
+- **The Anthropic explainer** (`DD_STANDARDS_EXPLAINER=anthropic`) is tested only against a
+  hand-written cassette (`tests/cassettes/test_key_not_stored/`), which shows that its key stays
+  out of every stored record. No real reply has been recorded, so the quality of its rationales
+  is unsubstantiated.

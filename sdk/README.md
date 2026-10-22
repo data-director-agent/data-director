@@ -14,9 +14,10 @@ package.
 | `dd_sdk.contract.version` | The contract version and the compatibility rule. |
 | `dd_sdk.evidence` | The registered evidence canonicalisations and hashes (ADR-0009). |
 | `dd_sdk.tracing` | The span helpers and owned `dd.*` attributes the grounding linter reads (ADR-0002). |
-| `dd_sdk.agent` | `AgentSpec`, `AgentResult`, `RunContext`, the `Agent` protocol, and `describe`. |
+| `dd_sdk.agent` | `AgentSpec` (with the `models` it sends data to), `AgentResult`, `RunContext`, the `Agent` protocol, and `describe`. |
 | `dd_sdk.wire` | How a request, a result, its spans and a spec cross A2A. |
 | `dd_sdk.serve` | `app(agent)` and `main(build)`: serve one agent over A2A. |
+| `dd_sdk.credentials` | `api_key(env)`: a model key, read once at start-up, and `ConfigError` (ADR-0026). |
 
 ## Contract
 

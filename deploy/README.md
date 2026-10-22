@@ -29,13 +29,16 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
-| `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@director`. |
+| `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@director`, and `@standards` if it calls a model. |
+| `systemd/data-director-agent@standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
-| `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
+| `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml` (and `agents.yaml`). |
+| `agents.yaml` | The app's agent list when the standards advisor runs as a service. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
 | `nginx/data-director.conf` | The reverse proxy: password, long timeouts for runs, `/a2a` closed from outside. |
 
-The standards advisor runs in the app's process, so it has no service of its own.
+The standards advisor runs in the app's process, so it has no service of its own, unless it is to
+call a model (see [A model key](#a-model-key)).
 
 ## Layout on the VM
 
@@ -48,7 +51,9 @@ The standards advisor runs in the app's process, so it has no service of its own
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |
 | `/etc/data-director/app.env` | The app's settings (`app/env.example`); `DD_PRINCIPAL_*` are required. |
-| `/etc/data-director/agents.env` | The agents' settings (`DD_STANDARDS_*`, a model id). |
+| `/etc/data-director/agents.env` | Settings every agent service shares. |
+| `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
+| `/etc/data-director/credentials/` | Model keys, readable by root alone. Never put a key in an `.env` file. |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/etc/nginx/data-director.htpasswd` | Who may use the site. |
 
@@ -134,6 +139,56 @@ sudo systemctl restart data-director.target
 
 The timer will move it forward again at the next new commit on `main`. To hold the VM on one
 release, stop the timer: `sudo systemctl disable --now data-director-deploy.timer`.
+
+## A model key
+
+An agent that calls a hosted model holds the key itself. The app never does, and the key never
+appears in a run, a trace or an export (ADR-0026). Only the standards advisor's optional
+explainer calls a model today. In its default mode it uses templates, runs in the app's process,
+and needs no key. The app refuses to start if it is configured for the model there.
+
+To give it a model, run it as its own service:
+
+1. Put the key where only root can read it. Its unit loads it as a credential
+   (`systemd/data-director-agent@standards.service.d/credentials.conf`), so no other agent can
+   read it, although every agent runs as `datadirector`.
+
+   ```bash
+   sudo install -d -m 0700 /etc/data-director/credentials/standards
+   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/standards/anthropic-api-key
+   # paste the key, then Ctrl-D
+   ```
+
+2. Configure the advisor in its own settings file, `/etc/data-director/agents/standards.env`:
+
+   ```bash
+   DD_STANDARDS_EXPLAINER=anthropic
+   DD_MODEL_ID=claude-opus-5
+   ```
+
+3. Point the app at the agent list that includes the service, and have it wait for the port, in
+   `/etc/data-director/app.env`:
+
+   ```bash
+   DD_AGENTS_CONFIG=/opt/data-director/current/deploy/agents.yaml
+   DD_WAIT_PORTS="8101 8102 8105 8106"
+   ```
+
+4. Enable the instance and restart:
+
+   ```bash
+   sudo systemctl enable data-director-agent@standards.service
+   sudo systemctl restart data-director.target
+   ```
+
+If the key is missing or empty, the unit stops at start-up with one line in
+`journalctl -u data-director-agent@standards`, and is not restarted until the configuration is
+fixed. The standards advisor's About tab then names Anthropic and the model.
+
+Give each model-backed agent its own key, so that one key can be revoked without the others and
+the provider's usage reports show each agent separately. Sharing one key is allowed, but
+spending limits are set on the provider's side, for the Console workspace a key belongs to, not
+per key. To rotate a key, replace the file and restart that agent's unit.
 
 ## Changing the deployment
 

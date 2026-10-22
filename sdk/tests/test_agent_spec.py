@@ -16,6 +16,7 @@ from dd_sdk.agent import (
     AgentSpec,
     ContractVersionError,
     Derived,
+    ModelUse,
     SpecError,
     describe,
     spec_from_description,
@@ -140,6 +141,27 @@ def test_a_derivation_the_payload_class_does_not_support_is_refused(
 ) -> None:
     with pytest.raises(SpecError, match=complaint):
         dataclasses.replace(SPEC, derivations={path: derived})
+
+
+def test_the_models_an_agent_sends_data_to_round_trip_through_the_manifest() -> None:
+    spec = dataclasses.replace(SPEC, models=(ModelUse("anthropic", "claude-x", "hosted"),))
+    entry = describe(spec)
+    assert entry["models"] == [{"provider": "anthropic", "model": "claude-x", "hosting": "hosted"}]
+    assert spec_from_description(entry).models == spec.models
+
+
+def test_a_description_without_models_declares_none() -> None:
+    entry = describe(SPEC)
+    assert entry["models"] == []
+    del entry["models"]
+    assert spec_from_description(entry).models == ()
+
+
+def test_a_model_hosted_somewhere_unknown_is_refused() -> None:
+    entry = describe(SPEC)
+    entry["models"] = [{"provider": "p", "model": "m", "hosting": "elsewhere"}]
+    with pytest.raises(SpecError, match="malformed models"):
+        spec_from_description(entry)
 
 
 def test_derivations_without_a_payload_are_refused() -> None:

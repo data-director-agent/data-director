@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from opentelemetry.trace import Tracer
 
@@ -62,6 +62,17 @@ class Derived:
 
 
 @dataclass(frozen=True)
+class ModelUse:
+    """A model the agent sends data to, as configured: who provides it, which model, and whether
+    it runs on the provider's service (`hosted`) or on the institution's own (`local`)
+    (ADR-0026). It names no credential."""
+
+    provider: str
+    model: str
+    hosting: Literal["hosted", "local"]
+
+
+@dataclass(frozen=True)
 class AgentSpec:
     agent_id: str
     version: str
@@ -75,6 +86,8 @@ class AgentSpec:
     derivations: Mapping[str, Derived] = field(default_factory=dict)
     # The core contract the agent was built against: this SDK's, or the one its card declares.
     contract_version: str = CONTRACT_VERSION
+    # The models the agent sends data to, as configured. Empty: it calls no model.
+    models: tuple[ModelUse, ...] = ()
 
     def __post_init__(self) -> None:
         if self.payload is not None and not self.payload.grounded:
@@ -178,6 +191,9 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             for path, d in spec.derivations.items()
         },
         "contract_version": spec.contract_version,
+        "models": [
+            {"provider": m.provider, "model": m.model, "hosting": m.hosting} for m in spec.models
+        ],
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -231,6 +247,14 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         }
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed derivations: {exc}") from exc
+    # `models` may be absent: a card written before ADR-0026 declares no model.
+    try:
+        models = tuple(
+            ModelUse(str(m["provider"]), str(m["model"]), _hosting(m["hosting"]))
+            for m in entry.get("models", ())
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise SpecError(f"agent {agent_id!r}: malformed models: {exc}") from exc
     return AgentSpec(
         agent_id=agent_id,
         version=str(entry["version"]),
@@ -241,7 +265,14 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         payload=payload,
         derivations=derivations,
         contract_version=declared,
+        models=models,
     )
+
+
+def _hosting(value: object) -> Literal["hosted", "local"]:
+    if value == "hosted" or value == "local":
+        return value
+    raise ValueError(f"hosting {value!r}: expected hosted or local")
 
 
 def typed_request(spec: AgentSpec, request: InvocationRequest) -> InvocationRequest:

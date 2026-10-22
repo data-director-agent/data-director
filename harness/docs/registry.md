@@ -23,7 +23,8 @@ Set `DD_AGENTS_CONFIG` to use a different file, for example one per deployment.
 
 The file holds only addresses. Everything else about an agent comes from the agent itself:
 its identifier, version, the input classes it reads, its payload class, its grounding mode, its
-action class, its requirement identifiers and how it derives each payload field (`derivations`).
+action class, its requirement identifiers, how it derives each payload field (`derivations`) and
+the models it sends data to (`models`, ADR-0026).
 
 ## What happens at start-up
 

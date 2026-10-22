@@ -44,6 +44,7 @@ from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_sdk.contract.problem import PROBLEM_BASE
 from dd_sdk.contract.validate import ContractViolation
+from dd_sdk.credentials import ConfigError
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
@@ -211,8 +212,15 @@ def main() -> int:
     try:
         governance = Governance.create(settings_from_env(), f"http://{host}:{port}")
     # No principal (ADR-0018), or a profile, agent list or source list that is unset, missing
-    # or malformed (ADR-0022): nothing may run.
-    except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
+    # or malformed (ADR-0022), or an agent in this process configured wrongly: nothing may run.
+    except (
+        IdentityError,
+        SettingsError,
+        PolicyError,
+        RegistryError,
+        SourceConfigError,
+        ConfigError,
+    ) as exc:
         sys.exit(f"data-director: {exc}")
     try:
         app = build_app(governance)
