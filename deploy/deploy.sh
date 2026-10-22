@@ -69,7 +69,7 @@ if ((FORCE == 0)); then
 
   # The check runs on the commit. The repository is public, so no token is needed; 60
   # unauthenticated requests an hour is more than one every five minutes uses.
-  slug="$(sed -E 's#^(https://github.com/|git@github.com:)##; s#\.git$##' <<<"$REPO")"
+  slug="$(sed -E 's#^(https://github.com/|ssh://git@github.com/|git@github.com:)##; s#\.git$##' <<<"$REPO")"
   auth=()
   [[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
   conclusion="$(
