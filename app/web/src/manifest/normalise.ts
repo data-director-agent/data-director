@@ -54,6 +54,8 @@ export interface AgentView {
   gate: GateStatus;
   /** The models it sends data to. Empty: it calls none. */
   models: RawModelUse[];
+  /** The Blueprint requirements it serves, which place it in the process flow. Empty: none. */
+  serves: string[];
   oversight: Oversight;
 }
 
@@ -105,6 +107,7 @@ export function normaliseAgent(entry: RawManifestEntry): AgentView {
     declaredActionClass: entry.action_class,
     gate: gateStatus(entry),
     models: (entry.models ?? []).map((m) => ({ ...m })),
+    serves: [...(entry.serves ?? [])],
     // No agent carries the oversight extension yet (increment 2).
     oversight: {
       actions: UNDECLARED,

@@ -106,8 +106,25 @@ every delegated child is labelled `agent_id@agent_version`.
     and a browser cannot put words in an earlier turn (#130). This settles, for the app,
     ADR-0012's open question of checking a caller's history against the store.
 
+### The workspace
+
+18. **The conversation is the centre of a workspace.** Around it: a status bar (whom the work
+    acts for, the policy, and the project's dataset, phase, repository and governance flags); the
+    Blueprint's six phases on the left; the open delegated run, its evidence and the
+    orchestrator's declared limits on the right; and an activity log beneath. The phases are
+    served from `dd_sdk.process_flow` (`GET /api/process-flow`) and joined in the shell to each
+    manifest entry's `serves` (ADR-0028), so the shell keeps no copy of the flow and names no
+    agent. A zone with no source yet is drawn as not built and linked to its issue (#75). When
+    proposals and the review gate exist (#71-#73) they take the centre and the conversation docks
+    beside them. TODO: decide how the dock behaves once there is a working surface.
+
 Rejected:
 
+- **The conversation as a strip beneath a working surface, as in the target design.** Nothing
+  can fill that surface until proposals exist (#71), so the one part that works would be the
+  smallest thing on screen.
+- **Marking the researcher's current phase from the conversation.** The shell would be
+  inferring where a project stands, which no agent has said and no record holds (#160).
 - **Keeping the directory as the home page, with the conversation as one more page.** The
   Blueprint puts the chat interface first, and a person should not have to choose an agent before
   saying what they need.

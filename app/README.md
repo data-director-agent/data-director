@@ -22,6 +22,18 @@ The app opens on a conversation with the orchestrator, the agent whose grounding
 a child opens its run, and past conversations reopen. Without a permitted orchestrator the page
 says so and links to the pages above, which are one step away (#131).
 
+The conversation sits in the centre of a workspace (ADR-0024 §18):
+
+- across the top, whom the work acts for and whose policy applies, then the project's dataset,
+  phase, repository and governance flags, which are not built yet (#160);
+- on the left, the Blueprint's six phases and their steps, from `GET /api/process-flow`, each step
+  naming the agents here whose manifest `serves` its requirements (ADR-0028);
+- on the right, the delegated run the researcher opened, with its stages, outcome and evidence,
+  or, with none open, what the orchestrator is and what it has not declared;
+- beneath, the activity log, which needs streamed runs (#68, #69).
+
+On a narrow screen the zones stack in that order, and an open run is its own view.
+
 What is not built yet is drawn in place, marked "Not built yet", with a link to the issue that
 builds it, rather than filled with invented data (#75). `docs/ui/best-practices.md` is the design
 input.
@@ -38,6 +50,7 @@ It is built from:
     a 400 with Problem Details;
   - `GET /api/runs` and `GET /api/runs/{id}`: the run store, newest first;
   - `GET /api/examples`: the example inputs in `config/examples/`;
+  - `GET /api/process-flow`: the Blueprint's entry points and phases (`dd_sdk.process_flow`);
   - `POST /api/conversations`: starts a conversation and gives its `conversation_id`;
   - `POST /api/conversations/{id}/turns` (`{agent_id, message_text}`): sends one `Message` to
     the agent through the conductor and answers as `POST /api/runs` does. The server builds the

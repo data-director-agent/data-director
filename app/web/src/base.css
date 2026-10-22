@@ -607,21 +607,145 @@ button[aria-disabled="true"] {
   border-radius: var(--radius);
 }
 
-/* The conversation, with the selected delegated run beside it (#135). On a narrow screen the
-   run is its own view, reached from the card. */
-.conversation-layout.has-run {
+/* The workspace (ADR-0024 §18): the head across the top, then phases, conversation and the open
+   run side by side, and the activity log beneath. The source order is the reading order at every
+   width. Narrower, the phases go above the conversation; narrower still, everything is one
+   column and an open run is its own view, reached from its card (#135). */
+.workspace {
   display: grid;
-  gap: var(--space-5);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--space-4) var(--space-5);
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) minmax(16rem, 26rem);
+  grid-template-areas:
+    "head head head"
+    "phases centre context"
+    "log log log";
   align-items: start;
 }
-@media (max-width: 48rem) {
-  .conversation-layout.has-run {
-    grid-template-columns: minmax(0, 1fr);
+/* An open run carries its evidence, so it takes more of the width than the empty panel. */
+.workspace.has-run {
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr) minmax(0, 1.2fr);
+}
+.workspace-head {
+  grid-area: head;
+}
+.workspace-phases {
+  grid-area: phases;
+}
+.workspace-centre {
+  grid-area: centre;
+  min-width: 0;
+}
+.workspace-context {
+  grid-area: context;
+  min-width: 0;
+  padding-inline-start: var(--space-4);
+  border-inline-start: var(--border-width) solid var(--color-border);
+}
+.workspace-log {
+  grid-area: log;
+  border-top: var(--border-width) solid var(--color-border);
+  padding-top: var(--space-3);
+}
+@media (max-width: 64rem) {
+  .workspace,
+  .workspace.has-run {
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
+    grid-template-areas:
+      "head head"
+      "phases phases"
+      "centre context"
+      "log log";
   }
-  .conversation-layout.has-run .conversation-main {
+}
+@media (max-width: 48rem) {
+  .workspace,
+  .workspace.has-run {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "phases"
+      "centre"
+      "context"
+      "log";
+  }
+  .workspace-context {
+    padding-inline-start: 0;
+    border-inline-start: none;
+  }
+  .workspace.has-run .workspace-head,
+  .workspace.has-run .workspace-phases,
+  .workspace.has-run .workspace-centre,
+  .workspace.has-run .workspace-log {
     display: none;
   }
+}
+
+.status-bar dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  font-size: var(--font-size-small);
+}
+.status-bar dl > div {
+  display: flex;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.status-bar dt {
+  font-weight: 600;
+}
+.status-bar dt::after {
+  content: ":";
+}
+.status-bar dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.phase-list,
+.step-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.phase-list > li {
+  border-bottom: var(--border-width) solid var(--color-surface-selected);
+  padding: var(--space-2) 0;
+}
+.phase-list summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.phase-number {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+.phase-number::after {
+  content: " ·";
+}
+.phase-served {
+  font-weight: 400;
+  font-size: var(--font-size-small);
+}
+.step-list {
+  margin-top: var(--space-2);
+}
+.step-list > li {
+  padding-inline-start: var(--space-3);
+  border-inline-start: var(--focus-width) solid var(--color-surface-selected);
+  margin-bottom: var(--space-3);
+}
+.step-text {
+  margin-bottom: var(--space-1);
+}
+.step-meta {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  margin: 0;
 }
 .transcript [aria-current="true"] {
   border-inline-start: var(--focus-width) solid var(--color-border);

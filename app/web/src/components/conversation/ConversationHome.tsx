@@ -1,5 +1,6 @@
 /**
- * The home page: a conversation with the orchestrator (ADR-0024 §9-17).
+ * The home page: a conversation with the orchestrator (ADR-0024 §9-17), in the centre of the
+ * workspace (§18), with the Blueprint's phases beside it and the open run on the other side.
  *
  * The orchestrator is the agent the profile names (ADR-0024 §10), never one the shell picks.
  * When the profile names none, the named agent is not running, its card does not declare
@@ -14,12 +15,18 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { useConversationApi } from "../../conversation/api";
+import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
 import { Link, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
 import { RunRefused, errorMessage } from "../../run/api";
 import type { Envelope } from "../../run/types";
+import { ActivityLog } from "../workspace/ActivityLog";
+import { ContextPanel } from "../workspace/ContextPanel";
+import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
+import { StatusBar } from "../workspace/StatusBar";
+import { Workspace } from "../workspace/Workspace";
 import { RunPanel } from "./RunPanel";
 import { Transcript } from "./Transcript";
 
@@ -42,7 +49,8 @@ function whyUnusable(named: string | null, agent: AgentView | undefined): string
 
 export function ConversationHome({ directory }: { directory: Directory }) {
   const api = useConversationApi();
-    const named = directory.orchestratorId;
+  const flowApi = useFlowApi();
+  const named = directory.orchestratorId;
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -52,6 +60,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
   const runId = new URLSearchParams(useLocation().split("?")[1]).get("run");
   const returnFocus = useRef<HTMLElement | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
@@ -72,17 +81,38 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     if (runId) openHeading.current?.focus();
   }, [runId]);
 
+  // The phases do not depend on the conversation: if they fail, only the tracker says so.
+  useEffect(() => {
+    const abort = new AbortController();
+    flowApi.get(abort.signal).then(
+      (loaded) => setFlow({ state: "loaded", flow: loaded }),
+      (e: unknown) => abort.signal.aborted || setFlow({ state: "failed", message: errorMessage(e) }),
+    );
+    return () => abort.abort();
+  }, [flowApi]);
+
+  const frame = {
+    status: <StatusBar directory={directory} />,
+    phases: <PhaseTracker load={flow} agents={directory.agents} />,
+    log: <ActivityLog />,
+  };
+
   if (unusable || !orchestrator) {
     return (
-      <section aria-labelledby="no-orchestrator">
-        <h1 id="no-orchestrator">No conversation is available</h1>
-        <p>
-          {unusable} You can still use each agent on its own.
-        </p>
-        <p>
-<Link to="/agents">Open the agent directory</Link>
-        </p>
-      </section>
+      <Workspace
+        {...frame}
+        heading={<h1>No conversation is available</h1>}
+        centre={
+          <>
+            <p>{unusable} You can still use each agent on its own.</p>
+            <p>
+              <Link to="/agents">Open the agent directory</Link>
+            </p>
+          </>
+        }
+        context={<ContextPanel run={null} orchestrator={undefined} />}
+        runOpen={false}
+      />
     );
   }
 
@@ -155,69 +185,78 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     .find((c) => c.invocation_id === runId);
 
   return (
-    <div className={`conversation-layout${runId ? " has-run" : ""}`}>
-    <section aria-labelledby="conversation-heading" className="conversation-main">
-      <h1 id="conversation-heading">Talk to Data Director</h1>
-      <p className="muted">
-        This conversation acts for {directory.actingFor.name}, as asserted by the operator and not
-        authenticated.
-      </p>
-      <p>
-        <button type="button" onClick={reset}>
-          New conversation
-        </button>{" "}
-        <Link to="/agents">Agent directory</Link>
-      </p>
-      {conversation && conversation.turns.length > 0 && (
-        <Transcript conversation={conversation} onOpenRun={openRun} selectedRun={runId} />
-      )}
-      <form onSubmit={(e) => void send(e)} aria-busy={busy}>
-        <div className="field">
-          <label htmlFor="message">What would you like to do?</label>
-          <textarea
-            id="message"
-            ref={box}
-            rows={3}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-        </div>
-        <button type="submit" disabled={busy || !text.trim()}>
-          {busy ? "Sending…" : "Send"}
-        </button>
-      </form>
-      <div role="status" aria-live="polite" className="visually-hidden">
-        {announcement}
-      </div>
-      {error && (
-        <div role="alert" className="callout status-danger">
-          <p>{error}</p>
-        </div>
-      )}
-      {past.length > 0 && (
-        <section aria-labelledby="past-heading">
-          <h2 id="past-heading">Earlier conversations</h2>
-          <ul className="plain-list">
-            {past.map((c) => (
-              <li key={c.conversation_id}>
-                <button type="button" onClick={() => void reopen(c.conversation_id)}>
-                  {c.started_at} ({c.turns} {c.turns === 1 ? "turn" : "turns"})
-                </button>
-              </li>
-            ))}
-          </ul>
+    <Workspace
+      {...frame}
+      heading={<h1>Talk to Data Director</h1>}
+      runOpen={Boolean(runId)}
+      centre={
+        <section aria-labelledby="conversation-heading" className="conversation-main">
+          <h2 id="conversation-heading" className="visually-hidden">
+            Conversation
+          </h2>
+          <p>
+            <button type="button" onClick={reset}>
+              New conversation
+            </button>
+          </p>
+          {conversation && conversation.turns.length > 0 && (
+            <Transcript conversation={conversation} onOpenRun={openRun} selectedRun={runId} />
+          )}
+          <form onSubmit={(e) => void send(e)} aria-busy={busy}>
+            <div className="field">
+              <label htmlFor="message">What would you like to do?</label>
+              <textarea
+                id="message"
+                ref={box}
+                rows={3}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
+            </div>
+            <button type="submit" disabled={busy || !text.trim()}>
+              {busy ? "Sending…" : "Send"}
+            </button>
+          </form>
+          <div role="status" aria-live="polite" className="visually-hidden">
+            {announcement}
+          </div>
+          {error && (
+            <div role="alert" className="callout status-danger">
+              <p>{error}</p>
+            </div>
+          )}
+          {past.length > 0 && (
+            <section aria-labelledby="past-heading">
+              <h3 id="past-heading">Earlier conversations</h3>
+              <ul className="plain-list">
+                {past.map((c) => (
+                  <li key={c.conversation_id}>
+                    <button type="button" onClick={() => void reopen(c.conversation_id)}>
+                      {c.started_at} ({c.turns} {c.turns === 1 ? "turn" : "turns"})
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </section>
-      )}
-    </section>
-    {runId && (
-      <RunPanel
-        ref={openHeading}
-        invocationId={runId}
-        agent={directory.agents.find((a) => a.id === selected?.agent_id)}
-        name={selected ? `${selected.agent_id}@${selected.agent_version}` : runId}
-        onClose={closeRun}
-      />
-    )}
-    </div>
+      }
+      context={
+        <ContextPanel
+          orchestrator={orchestrator}
+          run={
+            runId && (
+              <RunPanel
+                ref={openHeading}
+                invocationId={runId}
+                agent={directory.agents.find((a) => a.id === selected?.agent_id)}
+                name={selected ? `${selected.agent_id}@${selected.agent_version}` : runId}
+                onClose={closeRun}
+              />
+            )
+          }
+        />
+      }
+    />
   );
 }

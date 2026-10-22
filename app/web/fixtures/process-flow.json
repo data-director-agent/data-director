@@ -1,0 +1,239 @@
+{
+  "entries": [
+    {
+      "number": 1,
+      "starts_at": 1,
+      "text": "starting a new project, before data collection begins"
+    },
+    {
+      "number": 2,
+      "starts_at": 2,
+      "text": "data already collected, being prepared for sharing"
+    },
+    {
+      "number": 3,
+      "starts_at": 3,
+      "text": "ready to deposit data into a repository"
+    }
+  ],
+  "phases": [
+    {
+      "number": 1,
+      "steps": [
+        {
+          "optional": false,
+          "requirements": [
+            "R5"
+          ],
+          "text": "Draft the data documentation"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R3"
+          ],
+          "text": "Select controlled vocabularies and ontologies"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Create a new Data Management Plan or review the existing one"
+        }
+      ],
+      "title": "Pre-collection setup"
+    },
+    {
+      "number": 2,
+      "steps": [
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Check funder, journal and institutional data sharing policies"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Identify and handle sensitive data"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Confirm whether an embargo is required"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R8"
+          ],
+          "text": "Verify data sharing commitments against the Data Management Plan"
+        }
+      ],
+      "title": "Governance and constraints"
+    },
+    {
+      "number": 3,
+      "steps": [
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Check whether the funder, journal or institution mandates a repository"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R1"
+          ],
+          "text": "Recommend a repository where none is mandated"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R7"
+          ],
+          "text": "Confirm or arrange persistent identifier (PID) assignment"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Check access options and deposit costs"
+        },
+        {
+          "optional": true,
+          "requirements": [],
+          "text": "Verify repository certification"
+        }
+      ],
+      "title": "Repository selection"
+    },
+    {
+      "number": 4,
+      "steps": [
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Clean and version the data files"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R3"
+          ],
+          "text": "Recommend open formats"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R5"
+          ],
+          "text": "Create or review data documentation: READMEs and data dictionaries"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Identify the appropriate metadata standard"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R2",
+            "R6"
+          ],
+          "text": "Complete metadata fields with FAIR-aligned, discipline-appropriate vocabularies and ontologies"
+        }
+      ],
+      "title": "Data preparation and metadata creation"
+    },
+    {
+      "number": 5,
+      "steps": [
+        {
+          "optional": false,
+          "requirements": [
+            "R4"
+          ],
+          "text": "Validate metadata quality"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Assign a licence"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R7"
+          ],
+          "text": "Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Set access restrictions"
+        },
+        {
+          "optional": true,
+          "requirements": [],
+          "text": "Generate a private peer review link"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Upload the files"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Review and finalise the submission"
+        }
+      ],
+      "title": "Deposit and submit"
+    },
+    {
+      "number": 6,
+      "steps": [
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Update the Data Management Plan"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Record the deposit in institutional systems where required"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Monitor access, downloads and citations"
+        },
+        {
+          "optional": false,
+          "requirements": [],
+          "text": "Check embargo release"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R12"
+          ],
+          "text": "Evaluate the FAIRness of the published objects and discover related datasets"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R9"
+          ],
+          "text": "Retrofit FAIR-aligned metadata for existing datasets"
+        },
+        {
+          "optional": false,
+          "requirements": [
+            "R11"
+          ],
+          "text": "Link datasets to related research outputs"
+        }
+      ],
+      "title": "Post-publication"
+    }
+  ]
+}

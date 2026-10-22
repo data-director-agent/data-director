@@ -114,7 +114,7 @@ export function CapabilitiesPanel({ agent, embedded = false }: { agent: AgentVie
   );
 }
 
-function Models({ models }: { models: AgentView["models"] }) {
+export function Models({ models }: { models: AgentView["models"] }) {
   if (models.length === 0) {
     return <p>It sends your input to no language model.</p>;
   }

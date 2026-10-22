@@ -49,6 +49,7 @@ from dd_harness.testing import (
 from dd_harness.transport.a2a import DELEGATED_ONLY
 from dd_sdk.agent import Agent
 from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
+from dd_sdk.process_flow import ENTRIES, PHASES
 
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 # The shell's component and browser tests are drawn from these, so each must be what the server
@@ -228,6 +229,20 @@ def check_fixture(name: str, body: dict[str, Any]) -> None:
 
 def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):
     check_fixture("agents.json", agents_response(governance, dist))
+
+
+def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
+    response = TestClient(build_app(governance, dist)).get("/api/process-flow")
+    assert response.status_code == 200
+    body = response.json()
+    assert [p["number"] for p in body["phases"]] == [p.number for p in PHASES]
+    assert [e["starts_at"] for e in body["entries"]] == [e.starts_at for e in ENTRIES]
+    assert body["phases"][0]["steps"][1] == {
+        "text": "Select controlled vocabularies and ontologies",
+        "requirements": ["R3"],
+        "optional": False,
+    }
+    check_fixture("process-flow.json", body)
 
 
 def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Path):
