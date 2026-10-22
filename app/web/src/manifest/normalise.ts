@@ -6,7 +6,13 @@
  */
 
 import type { JsonSchema } from "../run/schema";
-import type { DerivationHow, GroundingMode, RawAgentsResponse, RawManifestEntry } from "./types";
+import type {
+  DerivationHow,
+  GroundingMode,
+  RawAgentsResponse,
+  RawManifestEntry,
+  RawModelUse,
+} from "./types";
 
 export type Declared<T> = { state: "declared"; value: T } | { state: "undeclared" };
 
@@ -46,6 +52,8 @@ export interface AgentView {
   derivations: Derivation[];
   declaredActionClass: string;
   gate: GateStatus;
+  /** The models it sends data to. Empty: it calls none. */
+  models: RawModelUse[];
   oversight: Oversight;
 }
 
@@ -94,6 +102,7 @@ export function normaliseAgent(entry: RawManifestEntry): AgentView {
       .sort((a, b) => a.path.localeCompare(b.path)),
     declaredActionClass: entry.action_class,
     gate: gateStatus(entry),
+    models: (entry.models ?? []).map((m) => ({ ...m })),
     // No agent carries the oversight extension yet (increment 2).
     oversight: {
       actions: UNDECLARED,

@@ -7,7 +7,7 @@
  */
 
 import type { AgentView, Declared, GateStatus } from "../../manifest/normalise";
-import { DERIVATION, GROUNDING, className } from "../../manifest/wording";
+import { DERIVATION, GROUNDING, PROVIDER, className } from "../../manifest/wording";
 import { IssueLinks } from "../NotBuilt";
 
 const OVERSIGHT_FIELDS: { key: keyof AgentView["oversight"]; label: string }[] = [
@@ -90,6 +90,9 @@ export function CapabilitiesPanel({ agent, embedded = false }: { agent: AgentVie
         </>
       )}
 
+      <h3>Where it sends your data</h3>
+      <Models models={agent.models} />
+
       <h3>Limits and reliability</h3>
       {OVERSIGHT_FIELDS.every(({ key }) => agent.oversight[key].state === "undeclared") && (
         <p>
@@ -108,6 +111,24 @@ export function CapabilitiesPanel({ agent, embedded = false }: { agent: AgentVie
         ).
       </p>
     </Wrapper>
+  );
+}
+
+function Models({ models }: { models: AgentView["models"] }) {
+  if (models.length === 0) {
+    return <p>It sends your input to no language model.</p>;
+  }
+  return (
+    <ul>
+      {models.map((m) => (
+        <li key={`${m.provider}/${m.model}`}>
+          {m.hosting === "hosted"
+            ? "Sends your input to a model hosted outside this institution: "
+            : "Sends your input to a model run by this institution: "}
+          {PROVIDER[m.provider] ?? m.provider} <code>{m.model}</code>
+        </li>
+      ))}
+    </ul>
   );
 }
 

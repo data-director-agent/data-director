@@ -24,6 +24,7 @@
       },
       "description": "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing for a dataset profile, grounded on the registry records it retrieved.",
       "grounding_mode": "retrieval",
+      "models": [],
       "payload": "Recommendations",
       "requires_approval": false,
       "schemas": {

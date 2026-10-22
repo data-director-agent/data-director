@@ -20,6 +20,7 @@
       },
       "description": "Greets whoever the input names. A template: it demonstrates the agent contract and does nothing useful.",
       "grounding_mode": "none",
+      "models": [],
       "payload": "Greeting",
       "requires_approval": false,
       "schemas": {
@@ -160,6 +161,7 @@
       },
       "description": "Scores the completeness of a metadata record against fixed criteria.",
       "grounding_mode": "input_only",
+      "models": [],
       "payload": "QualityReview",
       "requires_approval": false,
       "schemas": {
@@ -380,6 +382,7 @@
       },
       "description": "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing for a dataset profile, grounded on the registry records it retrieved.",
       "grounding_mode": "retrieval",
+      "models": [],
       "payload": "Recommendations",
       "requires_approval": false,
       "schemas": {
@@ -687,6 +690,7 @@
       "derivations": {},
       "description": "Abstains unconditionally; exercises the non-success path.",
       "grounding_mode": "none",
+      "models": [],
       "payload": null,
       "requires_approval": false,
       "schemas": {

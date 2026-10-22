@@ -45,6 +45,25 @@ describe("CapabilitiesPanel", () => {
       .toBeVisible();
   });
 
+  it("says when an agent sends the input to no model", () => {
+    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
+    expect(screen.getByText("It sends your input to no language model.")).toBeVisible();
+  });
+
+  it("names the provider and model an agent sends data to", () => {
+    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
+    if (!raw) throw new Error("no standards.advisor in the fixture");
+    const view = normaliseAgent({
+      ...raw,
+      models: [{ provider: "anthropic", model: "claude-test", hosting: "hosted" }],
+    });
+    render(<CapabilitiesPanel agent={view} />);
+    const item = screen.getByRole("listitem");
+    expect(item).toHaveTextContent(
+      "Sends your input to a model hosted outside this institution: Anthropic claude-test",
+    );
+  });
+
   it("says the grounding check is not proof of retrieval", () => {
     render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
     expect(screen.getByText(/does not prove the agent retrieved them/)).toBeVisible();

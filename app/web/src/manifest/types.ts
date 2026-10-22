@@ -17,6 +17,13 @@ export interface RawDerived {
   recorded_in?: string | null;
 }
 
+/** A model the agent sends data to, as configured (ADR-0026). It names no credential. */
+export interface RawModelUse {
+  provider: string;
+  model: string;
+  hosting: "hosted" | "local";
+}
+
 export interface RawManifestEntry {
   agent_id: string;
   version: string;
@@ -27,6 +34,8 @@ export interface RawManifestEntry {
   payload: string | null;
   derivations: Record<string, RawDerived>;
   contract_version: string;
+  /** Absent on a card written before ADR-0026, which declares no model. */
+  models?: RawModelUse[];
   schemas: Record<string, { digest: string; json_schema: unknown }>;
   assigned_action_class: string | null;
   requires_approval: boolean;
