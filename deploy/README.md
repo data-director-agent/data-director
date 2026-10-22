@@ -163,7 +163,7 @@ To give it a model:
 
    ```bash
    DD_STANDARDS_EXPLAINER=anthropic
-   DD_MODEL_ID=claude-opus-5
+   DD_MODEL_ID=<model identifier from the provider>
    ```
 
 3. Restart it:
@@ -183,9 +183,9 @@ key. The app converses with `director.stub` until the profile names the orchestr
 
 1. Install its key as in step 1 above, under `/etc/data-director/credentials/orchestrator/`.
    Its settings, all optional, go in `/etc/data-director/agents/orchestrator.env`
-   (`workbench/agents/env.example` lists them). It calls Claude Haiku 5.5 by default, a small
-   model; `DD_MODEL_ID=claude-opus-5-5` or `claude-fable-5-1` selects a more capable one (Fable
-   5.1 is not available to an organisation under zero data retention).
+   (`workbench/agents/env.example` lists them). It calls a small model by default;
+   `DD_MODEL_ID` selects another (some models are not available to an organisation under zero
+   data retention).
 2. Start it, and have it start with the rest:
 
    ```bash
