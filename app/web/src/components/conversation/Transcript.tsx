@@ -5,6 +5,8 @@
  * outcome wording, not a generic error.
  */
 
+import "./Transcript.css";
+
 import Markdown from "react-markdown";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import { Link } from "../../route";

@@ -7,6 +7,8 @@
  * project (#160), so it is drawn as not built rather than guessed.
  */
 
+import "./PhaseTracker.css";
+
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { servingIndex, servingStep } from "../../flow/serving";

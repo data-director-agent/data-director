@@ -1,0 +1,75 @@
+/* The run form: fields drawn from an agent's input schema, and repeatable records. */
+
+@layer components {
+  .run-form {
+    max-width: var(--measure);
+  }
+
+  .form-tools,
+  .example-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .form-tools .example-buttons {
+    margin-bottom: 0;
+  }
+
+  .json-input {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+  }
+
+  .error-summary ul {
+    margin: 0;
+    padding-left: var(--space-5);
+  }
+
+  .records {
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+    padding: var(--space-3) var(--space-4);
+    margin: 0 0 var(--space-4);
+  }
+
+  .records > legend {
+    font-weight: 600;
+    padding: 0 var(--space-1);
+  }
+
+  .record-list {
+    list-style: none;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+  }
+
+  .record {
+    border: none;
+    border-top: var(--border-width) solid var(--color-surface-selected);
+    margin: 0;
+    padding: var(--space-3) 0;
+  }
+
+  .record > legend {
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    padding: 0;
+  }
+
+  .record-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0 var(--space-3);
+  }
+
+  .record-fields .field {
+    margin-bottom: var(--space-2);
+  }
+
+  .form-actions {
+    margin-top: var(--space-4);
+  }
+}

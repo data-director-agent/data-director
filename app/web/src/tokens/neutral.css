@@ -28,11 +28,13 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
   --measure: 70ch;
+  --page-width: 96rem;
+  --page-gutter: var(--space-4);
   --radius: 0.375rem;
   --border-width: 1px;
   --focus-width: 3px;
 
-  --color-bg: #ffffff;
+  --color-bg: #fff;
   --color-surface: #f4f5f7;
   --color-surface-selected: #e3e8f0;
   --color-text: #1b1d21;

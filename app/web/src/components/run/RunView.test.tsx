@@ -12,7 +12,7 @@ import { normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse } from "../../manifest/types";
 import { type RunApi, RunApiContext, RunRefused } from "../../run/api";
 import type { RunResult, RunRow } from "../../run/types";
-import { AgentWorkspace } from "../agent/AgentWorkspace";
+import { AgentDetail } from "../agent/AgentDetail";
 import { RunHistory } from "../history/RunHistory";
 import { Outcome } from "./Outcome";
 import { RunView } from "./RunView";
@@ -189,10 +189,10 @@ describe("RunHistory", () => {
   });
 });
 
-describe("AgentWorkspace", () => {
+describe("AgentDetail", () => {
   it("opens on Run, and keeps a run while About is shown", async () => {
     const user = userEvent.setup();
-    render(withApi(fakeApi(), <AgentWorkspace agent={standards} />));
+    render(withApi(fakeApi(), <AgentDetail agent={standards} />));
     expect(screen.getByRole("tab", { name: "Run" })).toHaveAttribute("aria-selected", "true");
     await user.click(screen.getByRole("button", { name: "Run" }));
     await screen.findByRole("heading", { name: "Outcome: Succeeded" });

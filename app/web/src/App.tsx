@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { AgentDirectory } from "./components/capabilities/AgentDirectory";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { PageHeader } from "./components/frame/PageHeader";
 import { useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
@@ -21,7 +22,8 @@ export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
 export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory }) {
   const [state, setState] = useState<Load>({ state: "loading" });
   const location = useLocation();
-  const onAgents = location.split("?")[0] === "/agents";
+  const [path = "/", query] = location.split("?");
+  const onAgents = path === "/agents";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -36,18 +38,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   }, [load]);
 
   return (
-    <Frame
-      onAgents={onAgents}
-      // On the conversation the workspace's status bar says this; the directory has no bar.
-      {...(state.state === "loaded" && onAgents
-        ? {
-            context: {
-              actingFor: state.directory.actingFor,
-              profileRef: state.directory.profileRef,
-            },
-          }
-        : {})}
-    >
+    <Frame current={onAgents ? "/agents" : "/"}>
       {state.state === "loading" && <p role="status">Loading the agents…</p>}
       {state.state === "failed" && (
         <div role="alert" className="callout status-danger">
@@ -57,13 +48,32 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       {state.state === "loaded" && !onAgents && <ConversationHome directory={state.directory} />}
       {state.state === "loaded" && onAgents && (
         <>
-          <h1>Agents: what Data Director can do here</h1>
+          <PageHeader title="Agents: what Data Director can do here">
+            <ActingFor directory={state.directory} />
+          </PageHeader>
           <AgentDirectory
             directory={state.directory}
-            initial={new URLSearchParams(location.split("?")[1]).get("agent") ?? undefined}
+            initial={new URLSearchParams(query).get("agent") ?? undefined}
           />
         </>
       )}
     </Frame>
+  );
+}
+
+/**
+ * Whom runs act for and whose rules apply. Until there is authentication (ADR-0018, #17) the
+ * principal is the operator's assertion, and the line says so. On the conversation the
+ * workspace's status bar says this.
+ */
+function ActingFor({ directory: { actingFor, profileRef } }: { directory: Directory }) {
+  return (
+    <p className="hint">
+      Acting as {actingFor.name} (
+      {actingFor.assurance === "asserted"
+        ? "asserted by the operator, not authenticated"
+        : actingFor.assurance}
+      ) · Policy <code>{profileRef}</code>
+    </p>
   );
 }

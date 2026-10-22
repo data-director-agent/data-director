@@ -1,0 +1,47 @@
+{
+  "extends": [
+    "stylelint-config-standard"
+  ],
+  "rules": {
+    "color-no-hex": true,
+    "color-named": "never",
+    "function-disallowed-list": [
+      "rgb",
+      "rgba",
+      "hsl",
+      "hsla",
+      "hwb",
+      "lab",
+      "lch",
+      "oklab",
+      "oklch"
+    ],
+    "selector-class-pattern": [
+      "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      {
+        "message": "Use kebab-case class names prefixed by their component (app/README.md)"
+      }
+    ],
+    "no-duplicate-selectors": true,
+    "import-notation": "url",
+    "value-keyword-case": [
+      "lower",
+      {
+        "ignoreProperties": [
+          "/^--font-/"
+        ]
+      }
+    ],
+    "custom-property-empty-line-before": null
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/tokens/*.css"
+      ],
+      "rules": {
+        "color-no-hex": null
+      }
+    }
+  ]
+}

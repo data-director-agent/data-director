@@ -6,6 +6,8 @@
  * and a reliability nobody has evaluated is shown as unsubstantiated.
  */
 
+import "./CapabilitiesPanel.css";
+
 import type { AgentView, Declared, GateStatus } from "../../manifest/normalise";
 import { DERIVATION, GROUNDING, PROVIDER, className } from "../../manifest/wording";
 import { IssueLinks } from "../NotBuilt";

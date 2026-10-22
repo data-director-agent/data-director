@@ -5,6 +5,8 @@
  * progress needs the AG-UI stream (#68, #69).
  */
 
+import "./Stages.css";
+
 import { STAGE_STATE } from "../../manifest/wording";
 import type { Stage, StageState } from "../../run/stages";
 import { IssueLinks } from "../NotBuilt";

@@ -1,14 +1,16 @@
 /**
- * Every registered agent, one selected at a time, with its workspace (run, about, history)
+ * Every registered agent, one selected at a time, with its detail (run, about, history)
  * beside the list. The list is a React Aria listbox: arrow keys move, and the selection follows
  * focus.
  */
+
+import "./AgentDirectory.css";
 
 import { useState } from "react";
 import { ListBox, ListBoxItem, type Selection } from "react-aria-components";
 
 import type { Directory } from "../../manifest/normalise";
-import { AgentWorkspace } from "../agent/AgentWorkspace";
+import { AgentDetail } from "../agent/AgentDetail";
 
 export function AgentDirectory({
   directory,
@@ -48,7 +50,7 @@ export function AgentDirectory({
               )}
             </ListBox>
           </div>
-          {agent && <AgentWorkspace key={agent.id} agent={agent} />}
+          {agent && <AgentDetail key={agent.id} agent={agent} />}
         </div>
       )}
       {directory.unregistered.length > 0 && (

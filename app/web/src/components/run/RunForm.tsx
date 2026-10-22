@@ -7,6 +7,8 @@
  * check decides (#69 brings full validation).
  */
 
+import "./RunForm.css";
+
 import {
   type FormEvent,
   type ReactNode,

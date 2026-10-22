@@ -1,0 +1,44 @@
+/* One agent's heading and its Run, About and History tabs. */
+
+@layer components {
+  .agent-detail {
+    min-width: 0;
+  }
+
+  .tab-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    border-bottom: var(--border-width) solid var(--color-border);
+    margin-bottom: var(--space-4);
+  }
+
+  /* The selected tab is marked by its colour and a bar, not by weight, so selecting one does
+     not shift the others. */
+  .tab {
+    padding: var(--space-2) var(--space-4);
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .tab[data-hovered] {
+    background: var(--color-surface);
+  }
+
+  .tab[data-selected] {
+    color: var(--color-link);
+    box-shadow: inset 0 calc(-1 * var(--focus-width)) 0 var(--color-link);
+  }
+
+  .tab[data-focus-visible] {
+    outline-offset: -3px;
+  }
+
+  .tab-panel {
+    min-width: 0;
+  }
+
+  .tab-panel[inert] {
+    display: none;
+  }
+}

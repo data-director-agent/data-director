@@ -12,6 +12,8 @@
  * TODO: the full renderer, with per-class renderers in a registry, is #70.
  */
 
+import "./ResultView.css";
+
 import type { Derivation } from "../../manifest/normalise";
 import type { DerivationHow } from "../../manifest/types";
 import { DERIVATION, DERIVATION_SHORT, fieldName } from "../../manifest/wording";
@@ -125,7 +127,7 @@ function RecordsTable({
           data tables); the region takes focus so it can be scrolled from the keyboard. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
       <div className="table-scroll" role="region" aria-labelledby={headingId} tabIndex={0}>
-        <table className="result-table">
+        <table className="data-table result-table">
           <thead>
             <tr>
               <th scope="col">#</th>

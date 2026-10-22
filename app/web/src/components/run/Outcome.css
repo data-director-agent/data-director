@@ -1,0 +1,27 @@
+/* A run's outcome. */
+
+@layer components {
+  .outcome {
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: var(--focus-width) solid var(--color-surface-selected);
+  }
+
+  .outcome > h3 {
+    margin-top: 0;
+  }
+
+  .problem-detail {
+    white-space: pre-wrap;
+  }
+
+  .run-facts {
+    margin-top: var(--space-4);
+  }
+
+  .run-facts summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: var(--space-2);
+  }
+}

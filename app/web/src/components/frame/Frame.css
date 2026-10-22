@@ -1,0 +1,117 @@
+/*
+ * The banner: brand, main navigation and the dark mode switch, the same on every page so that
+ * nothing in it moves. Its rows depend on the viewport's width only, never on its content.
+ */
+
+@layer components {
+  .skip-link {
+    position: absolute;
+    left: var(--space-2);
+    top: -10rem;
+    padding: var(--space-2) var(--space-3);
+    background: var(--color-bg);
+    color: var(--color-link);
+    border: var(--border-width) solid var(--color-border);
+    z-index: 1;
+  }
+
+  .skip-link:focus {
+    top: var(--space-2);
+  }
+
+  .app-header {
+    background: var(--color-surface);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+
+  .app-header-inner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand nav tools";
+    align-items: stretch;
+    column-gap: var(--space-6);
+    max-width: var(--page-width);
+    margin-inline: auto;
+    padding-inline: var(--page-gutter);
+  }
+
+  .app-brand {
+    grid-area: brand;
+    align-self: center;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    min-width: 0;
+    margin: 0;
+    padding-block: var(--space-3);
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+  }
+
+  .app-tools {
+    grid-area: tools;
+    align-self: center;
+  }
+
+  .app-nav {
+    grid-area: nav;
+    display: flex;
+  }
+
+  .app-nav-list {
+    display: flex;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .app-nav-list > li {
+    display: flex;
+  }
+
+  /* Each link fills the banner's height; the current page has a bar along the bottom. The
+     weight never changes, so selecting a page does not shift its neighbours. */
+  .app-nav-link {
+    display: flex;
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .app-nav-link:hover {
+    background: var(--color-surface-selected);
+    text-decoration: underline;
+  }
+
+  .app-nav-link:focus-visible {
+    outline-offset: calc(-1 * var(--focus-width));
+  }
+
+  .app-nav-link[aria-current="page"] {
+    color: var(--color-link);
+    box-shadow: inset 0 calc(-1 * var(--focus-width)) 0 var(--color-link);
+  }
+
+  .theme-switch {
+    white-space: nowrap;
+  }
+
+  .theme-switch[data-selected] {
+    background: var(--color-surface-selected);
+  }
+
+  /* Narrow: brand and switch on the first row, the navigation on its own row beneath. */
+  @media (width <= 40rem) {
+    .app-header-inner {
+      column-gap: var(--space-3);
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "brand tools"
+        "nav nav";
+    }
+  }
+}
