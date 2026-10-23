@@ -18,6 +18,7 @@ import {
   describeBuild,
   useFeedbackApi,
 } from "../../feedback/api";
+import { Button } from "../ui/Button";
 import { ISSUES } from "../NotBuilt";
 import { PageHeader } from "../frame/PageHeader";
 
@@ -202,13 +203,14 @@ export function FeedbackPage({ query }: { query: string }) {
               <p>The report was not filed: {send.message}</p>
             </div>
           )}
-          <button
+          <Button
             type="submit"
-            className="primary"
-            disabled={disabled || load.state !== "loaded" || send.state === "sending"}
+            variant="primary"
+            isDisabled={disabled || load.state !== "loaded"}
+            isPending={send.state === "sending"}
           >
             {send.state === "sending" ? "Sending…" : "Send report"}
-          </button>
+          </Button>
         </form>
         <aside className="feedback-preview" aria-labelledby="feedback-preview-heading">
           <h2 id="feedback-preview-heading">What will be sent</h2>
