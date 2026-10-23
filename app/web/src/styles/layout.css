@@ -35,10 +35,10 @@
   }
 }
 
-/* The workspace (ADR-0024 §18): the head across the top, then phases, conversation and the open
-   run side by side, and the activity log beneath. The source order is the reading order at every
-   width. Narrower, the phases go above the conversation; narrower still, everything is one
-   column and an open run is its own view, reached from its card (#135). */
+/* The workspace (ADR-0024 §18): the head across the top, then phases, conversation and the
+   project's documents side by side, and the activity log beneath. The source order is the
+   reading order at every width. Narrower, the phases go above the conversation; narrower still,
+   everything is one column. A delegated run opens inside its card in the conversation (§14). */
 .workspace {
   display: grid;
   gap: var(--space-4) var(--space-5);
@@ -48,11 +48,6 @@
     "phases centre context"
     "log log log";
   align-items: start;
-}
-
-/* An open run carries its evidence, so it takes more of the width than the empty panel. */
-.workspace.has-run {
-  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr) minmax(0, 1.2fr);
 }
 
 .workspace-head {
@@ -83,8 +78,7 @@
 }
 
 @media (width <= 64rem) {
-  .workspace,
-  .workspace.has-run {
+  .workspace {
     grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
     grid-template-areas:
       "head head"
@@ -95,8 +89,7 @@
 }
 
 @media (width <= 48rem) {
-  .workspace,
-  .workspace.has-run {
+  .workspace {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "head"
@@ -109,12 +102,5 @@
   .workspace-context {
     padding-inline-start: 0;
     border-inline-start: none;
-  }
-
-  .workspace.has-run .workspace-head,
-  .workspace.has-run .workspace-phases,
-  .workspace.has-run .workspace-centre,
-  .workspace.has-run .workspace-log {
-    display: none;
   }
 }

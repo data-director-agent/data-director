@@ -1,18 +1,20 @@
 /**
  * The transcript: an ordered list of turns. Each reply is labelled `agent_id@agent_version`,
  * a change of version since an earlier turn is marked (ADR-0012 §12), and each delegated child
- * is a card that opens its run. Abstained, referred and failed replies use the run view's
- * outcome wording, not a generic error.
+ * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
+ * replies use the run view's outcome wording, not a generic error.
  */
 
 import "./Transcript.css";
 
 import Markdown from "react-markdown";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
+import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
 import { Button } from "../ui/Button";
+import { RunDetail } from "./RunDetail";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   const entry = conversation.history.find(
@@ -33,21 +35,29 @@ function OutcomeNote({ envelope }: { envelope: Envelope }) {
   );
 }
 
+/**
+ * A delegated child as a disclosure: its button shows or hides the run inside the card, and
+ * focus stays on the button. Which run is open is the `run` query parameter, so only one is
+ * open at a time and Back and reload keep it.
+ */
 function ChildCard({
   child,
-  onOpen,
+  agents,
+  onToggle,
   selected,
 }: {
   child: Envelope;
-  onOpen: (child: Envelope) => void;
+  agents: AgentView[];
+  onToggle: (child: Envelope) => void;
   selected: boolean;
 }) {
   const { label, tone } = OUTCOME[child.outcome.status];
   // TODO: a suspended run is the only sign of review waiting until the gate exists (#72, #73).
   const waiting = child.outcome.status === "suspended";
   const name = `${child.agent_id}@${child.agent_version}`;
+  const regionId = `run-${child.invocation_id}`;
   return (
-    <li className="callout" {...(selected ? { "aria-current": "true" as const } : {})}>
+    <li className="callout child-card" {...(selected ? { "aria-current": "true" as const } : {})}>
       <p>
         <code>{name}</code> <span className={`status status-${tone}`}>{label}</span>
         {waiting && (
@@ -57,23 +67,34 @@ function ChildCard({
           </>
         )}
       </p>
-      <Button size="small" onPress={() => onOpen(child)}>
-        Open run<span className="visually-hidden"> of {name}</span>
+      <Button
+        size="small"
+        aria-expanded={selected}
+        aria-controls={regionId}
+        onPress={() => onToggle(child)}
+      >
+        {selected ? "Hide the run" : "Show the run"}
+        <span className="visually-hidden"> of {name}</span>
       </Button>{" "}
       <Link to={`/agents?agent=${encodeURIComponent(child.agent_id)}`}>
         About this agent<span className="visually-hidden"> {child.agent_id}</span>
       </Link>
+      <div id={regionId} className="child-run" hidden={!selected}>
+        {selected && <RunDetail invocationId={child.invocation_id} agents={agents} idPrefix={regionId} />}
+      </div>
     </li>
   );
 }
 
 export function Transcript({
   conversation,
-  onOpenRun,
+  agents,
+  onToggleRun,
   selectedRun = null,
 }: {
   conversation: Conversation;
-  onOpenRun: (child: Envelope) => void;
+  agents: AgentView[];
+  onToggleRun: (child: Envelope) => void;
   selectedRun?: string | null;
 }) {
   return (
@@ -109,7 +130,8 @@ export function Transcript({
                 <ChildCard
                   key={child.invocation_id}
                   child={child}
-                  onOpen={onOpenRun}
+                  agents={agents}
+                  onToggle={onToggleRun}
                   selected={child.invocation_id === selectedRun}
                 />
               ))}

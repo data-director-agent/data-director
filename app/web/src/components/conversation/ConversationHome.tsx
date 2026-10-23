@@ -1,6 +1,7 @@
 /**
  * The home page: a conversation with the orchestrator (ADR-0024 §9-17), in the centre of the
- * workspace (§18), with the Blueprint's phases beside it and the open run on the other side.
+ * workspace (§18), with the Blueprint's phases on one side and the project's documents on the
+ * other. A delegated run opens inside its card in the transcript (§14).
  *
  * The orchestrator is the agent the profile names (ADR-0024 §10), never one the shell picks.
  * When the profile names none, the named agent is not running, its card does not declare
@@ -28,7 +29,7 @@ import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { StatusBar } from "../workspace/StatusBar";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
-import { RunPanel } from "./RunPanel";
+import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
 
 /** Why the named orchestrator cannot be conversed with, or null when it can. */
@@ -63,9 +64,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
   const runId = new URLSearchParams(useLocation().split("?")[1]).get("run");
-  const returnFocus = useRef<HTMLElement | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
-  const openHeading = useRef<HTMLHeadingElement>(null);
 
   const reloadPast = useCallback(
     (signal?: AbortSignal) => api.list(signal).then(setPast, () => undefined),
@@ -77,10 +76,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     void reloadPast(abort.signal);
     return () => abort.abort();
   }, [reloadPast]);
-
-  useEffect(() => {
-    if (runId) openHeading.current?.focus();
-  }, [runId]);
 
   // The phases do not depend on the conversation: if they fail, only the tracker says so.
   useEffect(() => {
@@ -111,8 +106,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             </p>
           </>
         }
-        context={<ContextPanel run={null} orchestrator={undefined} />}
-        runOpen={false}
+        context={<ContextPanel orchestrator={undefined} />}
       />
     );
   }
@@ -171,25 +165,21 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     }
   }
 
-  function openRun(envelope: Envelope) {
-    returnFocus.current = document.activeElement as HTMLElement | null;
-    navigate(`/?run=${encodeURIComponent(envelope.invocation_id)}`);
+  // Opening a run shows it in its card and closing it hides it; focus stays on the card's button.
+  function toggleRun(envelope: Envelope) {
+    navigate(envelope.invocation_id === runId ? "/" : `/?run=${encodeURIComponent(envelope.invocation_id)}`);
   }
 
-  function closeRun() {
-    navigate("/");
-    queueMicrotask(() => (returnFocus.current ?? box.current)?.focus());
-  }
-
-  const selected = conversation?.turns
+  // A run named in the address but not in the transcript, as after a reload (the conversation is
+  // not in the address), is shown above the message box so the link still opens it.
+  const inTranscript = conversation?.turns
     .flatMap((t) => t.children)
-    .find((c) => c.invocation_id === runId);
+    .some((c) => c.invocation_id === runId);
 
   return (
     <Workspace
       {...frame}
       title="Talk to Data Director"
-      runOpen={Boolean(runId)}
       centre={
         <section aria-labelledby="conversation-heading" className="conversation-main">
           <h2 id="conversation-heading" className="visually-hidden">
@@ -199,7 +189,23 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             <Button onPress={reset}>New conversation</Button>
           </p>
           {conversation && conversation.turns.length > 0 && (
-            <Transcript conversation={conversation} onOpenRun={openRun} selectedRun={runId} />
+            <Transcript
+              conversation={conversation}
+              agents={directory.agents}
+              onToggleRun={toggleRun}
+              selectedRun={runId}
+            />
+          )}
+          {runId && !inTranscript && (
+            <section aria-labelledby="linked-run" className="callout">
+              <h3 id="linked-run">
+                Run <code>{runId}</code>
+              </h3>
+              <RunDetail invocationId={runId} agents={directory.agents} idPrefix="linked-run" />
+              <p>
+                <Button onPress={() => navigate("/")}>Close the run</Button>
+              </p>
+            </section>
           )}
           <form onSubmit={(e) => void send(e)} aria-busy={busy}>
             <div className="field">
@@ -240,22 +246,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           )}
         </section>
       }
-      context={
-        <ContextPanel
-          orchestrator={orchestrator}
-          run={
-            runId && (
-              <RunPanel
-                ref={openHeading}
-                invocationId={runId}
-                agent={directory.agents.find((a) => a.id === selected?.agent_id)}
-                name={selected ? `${selected.agent_id}@${selected.agent_version}` : runId}
-                onClose={closeRun}
-              />
-            )
-          }
-        />
-      }
+      context={<ContextPanel orchestrator={orchestrator} />}
     />
   );
 }
