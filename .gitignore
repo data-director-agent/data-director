@@ -229,3 +229,6 @@ logs/
 
 # MkDocs build output
 /site/
+
+# A local copy of the app profile (app/config/profile.yaml.example) for editing.
+app/config/profile.yaml

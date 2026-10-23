@@ -44,7 +44,7 @@ A way in supplies a set by passing its files to `Settings.from_env` as defaults,
 `build_conductor(settings)`. A variable wins over the default, so a deployment replaces one file
 without touching the others. Two sets are in the repository:
 
-- `app/config/` is the Data Director app's reference set (`profile.yaml`, `agents.yaml`,
+- `app/config/` is the Data Director app's reference set (`profile.yaml.example`, `agents.yaml`,
   `sources.yaml`), supplied by `dd_app.config`, with runs in `app/runs/`.
 - `workbench/` holds the workbench's development set, supplied by `workbench.config`.
 
