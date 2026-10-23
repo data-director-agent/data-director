@@ -11,11 +11,14 @@ one message, answered as a run is; `GET /api/conversations` and `GET /api/conver
 read them back as the harness derives them from the run store (ADR-0012, #130).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (ADR-0012, #129).
+`GET /api/about` names the build (version and commit) and says whether reports can be filed;
+`POST /api/feedback` files a problem report or feature request as a GitHub issue (ADR-0030).
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
 
 Serves on http://127.0.0.1:7860 by default; `DD_APP_HOST` and `DD_APP_PORT` change the address,
 and `DD_HARNESS_URL` the address the agents call back on, if they reach the app by another.
+`DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) turns problem reports on, into `DD_FEEDBACK_REPO`.
 """
 
 from __future__ import annotations
@@ -25,9 +28,11 @@ import json
 import os
 import sys
 import webbrowser
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import httpx
 import uvicorn
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -35,6 +40,8 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from dd_app import feedback
+from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.governance import Governance, UnknownConversationError
 from dd_harness.conductor import UnknownAgent
@@ -50,6 +57,7 @@ from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
 from dd_sdk.process_flow import ENTRIES, PHASES
 
+FEEDBACK_REFUSED = "Data Director could not file this report"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -63,9 +71,20 @@ class ShellNotBuiltError(FileNotFoundError):
 
 
 def build_app(
-    governance: Governance, web_dist: Path = WEB_DIST, examples_dir: Path = EXAMPLES_DIR
+    governance: Governance,
+    web_dist: Path = WEB_DIST,
+    examples_dir: Path = EXAMPLES_DIR,
+    *,
+    feedback_token: str | None = None,
+    feedback_repo: str = feedback.DEFAULT_REPO,
+    feedback_client: httpx.AsyncClient | None = None,
+    build: Mapping[str, str | None] | None = None,
 ) -> Starlette:
-    """The server. `web_dist` must hold a built shell (its `index.html`)."""
+    """The server. `web_dist` must hold a built shell (its `index.html`).
+
+    Problem reports are on when `feedback_token` is given; `feedback_client` and `build` let a test
+    stand in for GitHub and for the build's identity.
+    """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
             f"the shell is not built ({web_dist / 'index.html'} is missing); "
@@ -155,6 +174,55 @@ def build_app(
     async def get_process_flow(request: Request) -> Response:
         return JSONResponse(process_flow())
 
+    identity = dict(build) if build is not None else about()
+    limiter = feedback.RateLimiter()
+
+    async def get_about(request: Request) -> Response:
+        return JSONResponse({**identity, "feedback_enabled": feedback_token is not None})
+
+    async def send_feedback(request: Request) -> Response:
+        if feedback_token is None:
+            return _problem(
+                503,
+                "feedback-unavailable",
+                "Reports are not switched on",
+                "This deployment has no GitHub token for problem reports.",
+            )
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", FEEDBACK_REFUSED)
+        try:
+            report = feedback.parse(body)
+        except feedback.FeedbackRefusedError as exc:
+            return _refused(str(exc), FEEDBACK_REFUSED)
+        try:
+            limiter.check()
+        except feedback.RateLimitedError as exc:
+            return _problem(429, "rate-limited", "Too many reports", str(exc))
+        context: list[str] = []
+        if report.include_context:
+            if report.run and (stored := governance.stored_run(report.run)) is not None:
+                context += feedback.run_context(stored)
+            if report.conversation:
+                found = governance.conversation(report.conversation)
+                if found is not None:
+                    context += feedback.conversation_context(found)
+        text = feedback.issue_body(report, identity, context)
+        try:
+            if feedback_client is not None:
+                created = await feedback.create_issue(
+                    report, text, repo=feedback_repo, token=feedback_token, client=feedback_client
+                )
+            else:
+                async with httpx.AsyncClient(timeout=feedback.GITHUB_TIMEOUT_SECONDS) as client:
+                    created = await feedback.create_issue(
+                        report, text, repo=feedback_repo, token=feedback_token, client=client
+                    )
+        except feedback.FeedbackFailedError as exc:
+            return _problem(502, "feedback-failed", "The report was not filed", str(exc))
+        return JSONResponse(created, status_code=201)
+
     async def shell(request: Request) -> Response:
         # A page of the shell's own, so a reload or a link lands on it rather than a 404.
         return FileResponse(web_dist / "index.html")
@@ -174,8 +242,11 @@ def build_app(
             Route("/api/conversations/{conversation_id}/turns", send_turn, methods=["POST"]),
             Route("/api/examples", list_examples, methods=["GET"]),
             Route("/api/process-flow", get_process_flow, methods=["GET"]),
+            Route("/api/about", get_about, methods=["GET"]),
+            Route("/api/feedback", send_feedback, methods=["POST"]),
             *delegation,
             Route("/agents", shell, methods=["GET"]),
+            Route("/feedback", shell, methods=["GET"]),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ]
     )
@@ -217,8 +288,8 @@ def _no_conversation(conversation_id: str) -> Response:
     )
 
 
-def _refused(detail: str) -> Response:
-    return _problem(400, "request-refused", "Data Director could not start this run", detail)
+def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:
+    return _problem(400, "request-refused", title, detail)
 
 
 def main() -> int:
@@ -239,12 +310,16 @@ def main() -> int:
     ) as exc:
         sys.exit(f"data-director: {exc}")
     try:
-        app = build_app(governance)
+        app = build_app(
+            governance,
+            feedback_token=feedback.token_from_env(os.environ),
+            feedback_repo=os.environ.get(feedback.REPO_VARIABLE) or feedback.DEFAULT_REPO,
+        )
         if host not in LOOPBACK:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
         webbrowser.open(f"http://{host}:{port}/")
         uvicorn.run(app, host=host, port=port)
-    except ShellNotBuiltError as exc:
+    except (ShellNotBuiltError, ConfigError) as exc:
         sys.exit(f"data-director: {exc}")
     finally:
         governance.worker.shutdown()

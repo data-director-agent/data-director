@@ -130,7 +130,7 @@ explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
   "agents/quality/src", "agents/standards/src",
-  "agents/director/src", "agents/orchestrator/src", "app/src",
+  "agents/director/src", "agents/orchestrator/src", "app/src", "app/tests",
 ]
 strict = true
 warn_unreachable = true
@@ -141,6 +141,6 @@ module = ["a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "go
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*"]
+module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_feedback", "support"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

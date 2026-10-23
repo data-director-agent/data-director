@@ -18,7 +18,21 @@ const PAGES = [
   { to: "/agents", label: "Agents" },
 ] as const;
 
-export function Frame({ current, children }: { current: string; children: ReactNode }) {
+/**
+ * `from` is the page the reader is on, which the report form carries so a report says where it
+ * was made.
+ */
+export function Frame({
+  current,
+  from = current,
+  children,
+}: {
+  current: string;
+  from?: string;
+  children: ReactNode;
+}) {
+  const run = new URLSearchParams(from.split("?")[1]).get("run");
+  const report = `/feedback?from=${encodeURIComponent(from)}${run ? `&run=${encodeURIComponent(run)}` : ""}`;
   return (
     <>
       <a className="skip-link" href="#main">
@@ -45,6 +59,13 @@ export function Frame({ current, children }: { current: string; children: ReactN
             </ul>
           </nav>
           <div className="app-tools">
+            <Link
+              to={report}
+              className="app-tool-link"
+              {...(current === "/feedback" ? { "aria-current": "page" as const } : {})}
+            >
+              Report a problem
+            </Link>
             <ThemeSwitch />
           </div>
         </div>
