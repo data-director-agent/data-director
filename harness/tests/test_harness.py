@@ -30,12 +30,14 @@ from dd_harness.testing import (
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    Assurance,
     GroundingMode,
     InvocationRequest,
     OpenInput,
     OpenPayload,
     Outcome,
     OutcomeStatus,
+    Principal,
     ReasonCode,
     to_document,
 )
@@ -521,6 +523,26 @@ def test_the_crate_names_the_human_beside_the_agent(runs_dir: Path) -> None:
     person = graph[TEST_PRINCIPAL.principal_id]
     assert person["@type"] == "Person" and person["name"] == TEST_PRINCIPAL.name
     assert "asserted" in person["description"]
+
+
+@pytest.mark.requirement("DD-ACTS-FOR", "R10.1")
+def test_the_crate_names_the_issuer_that_vouched_for_the_human(runs_dir: Path) -> None:
+    person = Principal(
+        principal_id="https://orcid.org/0000-0002-1825-0097",
+        name="Josiah Carberry",
+        assurance=Assurance.AUTHENTICATED,
+        vouched_by="https://orcid.org",
+    )
+    conductor = make_conductor(runs_dir, AbstainingStub(), crate=True)
+    env = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=person)
+    meta = json.loads(
+        (runs_dir / env.invocation_id / "crate" / "ro-crate-metadata.json").read_text()
+    )
+    assert {"vouchedBy": "https://w3id.org/data-director/vouched_by"} in meta["@context"]
+    graph = {e["@id"]: e for e in meta["@graph"]}
+    assert graph[person.principal_id]["vouchedBy"] == {"@id": "https://orcid.org"}
+    assert graph["https://orcid.org"]["@type"] == "Organization"
+    assert "authenticated" in graph[person.principal_id]["description"]
 
 
 @pytest.mark.requirement("R10.1")

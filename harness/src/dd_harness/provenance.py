@@ -17,6 +17,9 @@ from rocrate.rocrate import ROCrate
 
 PROCESS_RUN_CRATE = "https://w3id.org/ro/wfrun/process/0.5"
 AGENT_BASE = "https://w3id.org/data-director/agents/"
+# The contract's `vouched_by` slot (dd:vouched_by), a term of the crate's context (ADR-0029).
+VOUCHED_BY = "vouchedBy"
+VOUCHED_BY_IRI = "https://w3id.org/data-director/vouched_by"
 
 
 def write_process_run_crate(
@@ -58,6 +61,21 @@ def write_process_run_crate(
             },
         )
     )
+    # An authenticated principal names the issuer that vouched (ADR-0029).
+    if issuer_id := principal.get("vouched_by"):
+        crate.metadata.extra_terms[VOUCHED_BY] = VOUCHED_BY_IRI
+        issuer = crate.add(
+            ContextEntity(
+                crate,
+                issuer_id,
+                properties={
+                    "@type": "Organization",
+                    "name": issuer_id,
+                    "description": "The identity provider that vouched for the principal.",
+                },
+            )
+        )
+        human[VOUCHED_BY] = issuer
     request_file = crate.add_file(
         request_path, dest_path="request.json", properties={"encodingFormat": "application/json"}
     )

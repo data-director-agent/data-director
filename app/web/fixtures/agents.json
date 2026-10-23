@@ -11,7 +11,7 @@
       "action_class": "advise",
       "agent_id": "standards.advisor",
       "assigned_action_class": "advise",
-      "contract_version": "0.8.0",
+      "contract_version": "0.9.0",
       "derivations": {
         "items.kind": {
           "how": "lexical",

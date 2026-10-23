@@ -46,7 +46,8 @@ function actingFor(p) {
   const id = /^https?:/.test(p.principal_id)
     ? el("a", { href: p.principal_id, target: "_blank", rel: "noopener", textContent: p.principal_id })
     : el("code", { textContent: p.principal_id });
-  return el("span", {}, p.name, " ", id, " ", el("span", { className: "chip", textContent: p.assurance }));
+  const vouched = p.vouched_by ? [" vouched for by ", el("code", { textContent: p.vouched_by })] : [];
+  return el("span", {}, p.name, " ", id, " ", el("span", { className: "chip", textContent: p.assurance }), ...vouched);
 }
 function collectCited(node, out = new Set()) {
   if (Array.isArray(node)) node.forEach((n) => collectCited(n, out));
