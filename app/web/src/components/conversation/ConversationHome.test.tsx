@@ -204,9 +204,11 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("heading", { name: "Activity log" })).toBeVisible();
     });
 
-    it("shows whom you are talking to until a run is opened", () => {
+    it("draws the project's documents as not built, and shows whom you are talking to", () => {
       renderHome(withOrchestrator(), fakeApi());
-      const panel = screen.getByRole("region", { name: "Runs and evidence" });
+      const panel = screen.getByRole("region", { name: "Project documents" });
+      expect(within(panel).getByText("Not built yet")).toBeVisible();
+      expect(within(panel).getByRole("link", { name: "#160" })).toBeVisible();
       expect(within(panel).getByText("director.stub@0.1.0")).toBeVisible();
       expect(within(panel).getByText("Not declared")).toBeVisible();
       expect(within(panel).getByRole("link", { name: "Its full capabilities and limits" })).toHaveAttribute(
@@ -231,14 +233,13 @@ describe("ConversationHome", () => {
     });
   });
 
-  describe("the selected run beside the conversation", () => {
+  describe("the selected run in its card", () => {
     const run = { ...(runFixture as unknown as RunResult) };
     const runs = { get: vi.fn().mockResolvedValue(run) } as unknown as RunApi;
 
-    async function sendAndSelect(conversation: Conversation) {
-      history.replaceState(null, "", "/");
+    function renderWithRuns(conversation: Conversation) {
       const api = fakeApi({ get: () => Promise.resolve(conversation) });
-      const view = render(
+      return render(
         <FlowApiContext.Provider value={FLOW}>
           <RunApiContext.Provider value={runs}>
             <ConversationApiContext.Provider value={api}>
@@ -247,22 +248,44 @@ describe("ConversationHome", () => {
           </RunApiContext.Provider>
         </FlowApiContext.Provider>,
       );
-      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
-      await userEvent.click(screen.getByRole("button", { name: "Send" }));
-      await userEvent.click((await screen.findAllByRole("button", { name: /Open run/ }))[0] as HTMLElement);
-      return view;
     }
 
-    it("keeps the transcript, marks the card and shows the run in a panel", async () => {
-      const { container } = await sendAndSelect(CONVERSATION);
-      expect(await screen.findByRole("heading", { name: /^Run of / })).toHaveFocus();
-      expect(screen.getByRole("list", { name: "Conversation" })).toBeInTheDocument();
+    async function sendAndSelect(conversation: Conversation) {
+      history.replaceState(null, "", "/");
+      const view = renderWithRuns(conversation);
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      const show = (await screen.findAllByRole("button", { name: /Show the run/ }))[0] as HTMLElement;
+      await userEvent.click(show);
+      return { ...view, show };
+    }
+
+    it("opens the run and its evidence inside the card, keeping the transcript", async () => {
+      const { container, show } = await sendAndSelect(CONVERSATION);
       expect(location.search).toMatch(/^\?run=/);
-      expect(document.querySelector('[aria-current="true"]')).not.toBeNull();
+      expect(show).toHaveFocus();
+      expect(show).toHaveAttribute("aria-expanded", "true");
+      expect(show).toHaveAccessibleName(/^Hide the run/);
+      const card = show.closest("li") as HTMLElement;
+      expect(card).toHaveAttribute("aria-current", "true");
+      expect(await within(card).findByRole("heading", { name: /^Outcome:/ })).toBeVisible();
+      expect(within(card).getByRole("heading", { name: /^Evidence/ })).toBeVisible();
+      expect(screen.getByRole("list", { name: "Conversation" })).toBeInTheDocument();
       expect(await axe(container)).toHaveNoViolations();
-      await userEvent.click(screen.getByRole("button", { name: "Back to the conversation" }));
+      await userEvent.click(show);
       expect(location.search).toBe("");
-      expect(screen.queryByRole("heading", { name: /^Run of / })).toBeNull();
+      expect(show).toHaveAttribute("aria-expanded", "false");
+      expect(within(card).queryByRole("heading", { name: /^Outcome:/ })).toBeNull();
+    });
+
+    it("opens a linked run that is not in the transcript, as after a reload", async () => {
+      history.replaceState(null, "", `/?run=${run.envelope.invocation_id}`);
+      renderWithRuns(CONVERSATION);
+      const linked = screen.getByRole("region", { name: /^Run / });
+      expect(await within(linked).findByRole("heading", { name: /^Outcome:/ })).toBeVisible();
+      await userEvent.click(within(linked).getByRole("button", { name: "Close the run" }));
+      expect(location.search).toBe("");
+      expect(screen.queryByRole("region", { name: /^Run / })).toBeNull();
     });
 
     it("says a suspended child is waiting for review", async () => {

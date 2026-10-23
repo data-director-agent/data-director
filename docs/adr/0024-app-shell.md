@@ -90,10 +90,12 @@ every delegated child is labelled `agent_id@agent_version`.
     profile's permission for that agent, like any other; the profile has no separate setting for
     direct runs.
 14. **Every delegated child is named and linked.** The conversation shows each child as
-    `agent_id@agent_version` and links it to its own run. The selected run is the `run` query parameter, so Back and reload keep
-    it. It shows beside the transcript, drawn by the run view's own components; on a narrow screen
-    it is its own view, reached from the card. A suspended child's card says it is waiting for
-    review. TODO: the review gate itself waits for #72 and #73.
+    `agent_id@agent_version` and opens its run inside the card, at every width, drawn by the run
+    view's own components, so the evidence sits beside the turn it supports. The card's button
+    is a disclosure: focus stays on it. The open run is the `run` query parameter, so Back and
+    reload keep it and only one is open at a time; a run named there that is not in the
+    transcript, as after a reload, is shown above the message box. A suspended child's card says
+    it is waiting for review. TODO: the review gate itself waits for #72 and #73.
 15. **A turn is a governed invocation.** Each message is one invocation of the orchestrator
     through the conductor (ADR-0012 §1), and each hand-off is a child invocation under the grant
     the conductor issues (ADR-0012 §5). The app must issue that grant (#129).
@@ -111,16 +113,22 @@ every delegated child is labelled `agent_id@agent_version`.
 
 18. **The conversation is the centre of a workspace.** Around it: a status bar (whom the work
     acts for, the policy, and the project's dataset, phase, repository and governance flags); the
-    Blueprint's six phases on the left; the open delegated run, its evidence and the
-    orchestrator's declared limits on the right; and an activity log beneath. The phases are
-    served from `dd_sdk.process_flow` (`GET /api/process-flow`) and joined in the shell to each
-    manifest entry's `serves` (ADR-0028), so the shell keeps no copy of the flow and names no
-    agent. A zone with no source yet is drawn as not built and linked to its issue (#75). When
-    proposals and the review gate exist (#71-#73) they take the centre and the conversation docks
-    beside them. TODO: decide how the dock behaves once there is a working surface.
+    Blueprint's six phases on the left; the project's documents (READMEs, data dictionaries,
+    metadata records) and the orchestrator's declared limits on the right; and an activity log
+    beneath. Until there is a record of the project (#160) its documents are drawn as not built.
+    The phases are served from `dd_sdk.process_flow` (`GET /api/process-flow`) and joined in the
+    shell to each manifest entry's `serves` (ADR-0028), so the shell keeps no copy of the flow
+    and names no agent. A zone with no source yet is drawn as not built and linked to its issue
+    (#75). When proposals and the review gate exist (#71-#73) they take the centre and the
+    conversation docks beside them. TODO: decide how the dock behaves once there is a working surface.
 
 Rejected:
 
+- **The open run in the right-hand column (#135).** The evidence sat away from the turn it
+  supported, the column was empty until a run was opened, and on a narrow screen the run
+  replaced the whole page. Evidence belongs next to the claim it supports
+  (`docs/ui/best-practices.md` §4), so the run opens in its card (§14) and the column holds
+  what the project has produced.
 - **The conversation as a strip beneath a working surface, as in the target design.** Nothing
   can fill that surface until proposals exist (#71), so the one part that works would be the
   smallest thing on screen.

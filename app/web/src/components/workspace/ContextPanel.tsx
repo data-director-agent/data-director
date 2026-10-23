@@ -1,34 +1,27 @@
 /**
- * Beside the conversation: the delegated run the researcher opened, with its progress, outcome
- * and evidence (`RunPanel`), or, with none open, what the orchestrator is and how far to rely
- * on it (checklist item 9). Drawn from the manifest; a limit nobody declared is shown as not
- * declared.
+ * Beside the conversation: the documents the project has produced, and what the orchestrator
+ * is and how far to rely on it (checklist item 9). There is no record of the project yet
+ * (#160), so its documents are drawn as not built rather than guessed at. The orchestrator's
+ * summary is drawn from the manifest; a limit nobody declared is shown as not declared. A
+ * delegated run and its evidence open in the transcript, beside the turn they support.
  */
-
-import type { ReactNode } from "react";
 
 import type { AgentView } from "../../manifest/normalise";
 import { GROUNDING } from "../../manifest/wording";
 import { Link } from "../../route";
 import { Models } from "../capabilities/CapabilitiesPanel";
-import { IssueLinks } from "../NotBuilt";
+import { IssueLinks, NotBuilt } from "../NotBuilt";
 
-export function ContextPanel({
-  run,
-  orchestrator,
-}: {
-  /** The open run's panel, or nothing when no run is open. */
-  run: ReactNode;
-  orchestrator: AgentView | undefined;
-}) {
-  if (run) return <div className="workspace-context">{run}</div>;
+export function ContextPanel({ orchestrator }: { orchestrator: AgentView | undefined }) {
   return (
     <section aria-labelledby="context-heading" className="workspace-context">
-      <h2 id="context-heading">Runs and evidence</h2>
-      <p>
-        When Data Director passes work to another agent, the conversation shows it as a card.
-        Open one to see its progress, outcome and the evidence it rests on here.
-      </p>
+      <h2 id="context-heading">Project documents</h2>
+      <NotBuilt title="The documents this project has produced" issues={[160]}>
+        <p>
+          READMEs, data dictionaries and metadata records will be listed here as agents draft
+          them, each with the run it came from.
+        </p>
+      </NotBuilt>
       {orchestrator && <AgentSummary agent={orchestrator} />}
     </section>
   );

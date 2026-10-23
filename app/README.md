@@ -28,11 +28,12 @@ The conversation sits in the centre of a workspace (ADR-0024 §18):
   phase, repository and governance flags, which are not built yet (#160);
 - on the left, the Blueprint's six phases and their steps, from `GET /api/process-flow`, each step
   naming the agents here whose manifest `serves` its requirements (ADR-0028);
-- on the right, the delegated run the researcher opened, with its stages, outcome and evidence,
-  or, with none open, what the orchestrator is and what it has not declared;
+- on the right, the project's documents, which are not built yet (#160), and what the
+  orchestrator is and what it has not declared;
 - beneath, the activity log, which needs streamed runs (#68, #69).
 
-On a narrow screen the zones stack in that order, and an open run is its own view.
+Each run the orchestrator delegates is a card in the conversation; opening it shows the run's
+stages, outcome and evidence inside the card. On a narrow screen the zones stack in that order.
 
 What is not built yet is drawn in place, marked "Not built yet", with a link to the issue that
 builds it, rather than filled with invented data (#75). `docs/ui/best-practices.md` is the design

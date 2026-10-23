@@ -4,4 +4,11 @@
   .transcript [aria-current="true"] {
     border-inline-start: var(--focus-width) solid var(--color-border);
   }
+
+  /* An open run sits inside its card, beneath the card's own line, set off from it. */
+  .child-run:not([hidden]) {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--color-border-subtle);
+  }
 }
