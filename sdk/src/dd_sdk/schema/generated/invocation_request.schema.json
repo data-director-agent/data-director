@@ -14,9 +14,10 @@
          ]
       },
       "Assurance": {
-         "description": "How the harness came to know the principal. TODO: authenticated arrives with authentication, under its own ADR.",
+         "description": "How the harness came to know the principal (ADR-0018, ADR-0029).",
          "enum": [
-            "asserted"
+            "asserted",
+            "authenticated"
          ],
          "title": "Assurance",
          "type": "string"
@@ -544,6 +545,50 @@
       },
       "Principal": {
          "additionalProperties": false,
+         "allOf": [
+            {
+               "if": {
+                  "properties": {
+                     "assurance": {
+                        "const": "authenticated"
+                     }
+                  },
+                  "required": [
+                     "assurance"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "vouched_by": {}
+                  },
+                  "required": [
+                     "vouched_by"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "assurance": {
+                        "const": "asserted"
+                     }
+                  },
+                  "required": [
+                     "assurance"
+                  ]
+               },
+               "then": {
+                  "not": {
+                     "required": [
+                        "vouched_by"
+                     ]
+                  },
+                  "properties": {
+                     "vouched_by": {}
+                  }
+               }
+            }
+         ],
          "description": "The human an invocation acted for (Blueprint \u00a75.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018).",
          "properties": {
             "principal_id": {
@@ -563,6 +608,15 @@
             "assurance": {
                "$ref": "#/$defs/Assurance",
                "description": "How the harness came to know the principal."
+            },
+            "vouched_by": {
+               "description": "The IRI of the identity provider's issuer that vouched for the principal, for example https://orcid.org, so that a reader can weigh the claim by who made it. Required when assurance is authenticated and absent when it is asserted (ADR-0029).",
+               "format": "uri",
+               "pattern": "^[a-z][a-z0-9+.-]*:\\S+$",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -804,5 +858,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.8.0"
+   "version": "0.9.0"
 }

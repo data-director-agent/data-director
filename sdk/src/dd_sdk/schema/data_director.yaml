@@ -12,7 +12,7 @@ description: >-
   schema_class (ADR-0007); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.8.0
+version: 0.9.0
 license: MIT
 
 prefixes:
@@ -103,10 +103,30 @@ classes:
       - name
       - principal_kind
       - assurance
+      - vouched_by
     slot_usage:
       name:
         description: How the person or role is named to a reader of the record.
         pattern: "\\S"
+    rules:
+      - description: An authenticated principal names the issuer that vouched (ADR-0029).
+        preconditions:
+          slot_conditions:
+            assurance:
+              equals_string: authenticated
+        postconditions:
+          slot_conditions:
+            vouched_by:
+              required: true
+      - description: An asserted principal was vouched for by nobody (ADR-0029).
+        preconditions:
+          slot_conditions:
+            assurance:
+              equals_string: asserted
+        postconditions:
+          slot_conditions:
+            vouched_by:
+              value_presence: ABSENT
 
   Outcome:
     description: >-
@@ -309,6 +329,14 @@ slots:
     description: How the harness came to know the principal.
     range: Assurance
     required: true
+  vouched_by:
+    description: >-
+      The IRI of the identity provider's issuer that vouched for the principal, for example
+      https://orcid.org, so that a reader can weigh the claim by who made it. Required when
+      assurance is authenticated and absent when it is asserted (ADR-0029).
+    range: uri
+    slot_uri: dd:vouched_by
+    pattern: "^[a-z][a-z0-9+.-]*:\\S+$"
   input:
     description: >-
       What the agent is asked to work on: an instance of one of the input classes the agent
@@ -578,13 +606,16 @@ enums:
 
   Assurance:
     description: >-
-      How the harness came to know the principal. TODO: authenticated arrives with
-      authentication, under its own ADR.
+      How the harness came to know the principal (ADR-0018, ADR-0029).
     permissible_values:
       asserted:
         description: >-
           Named in the deployment's configuration and not verified by anyone. On a shared
           server every caller is recorded as that principal.
+      authenticated:
+        description: >-
+          An identity provider vouched for the principal, and the harness verified its signed
+          statement. vouched_by names the provider's issuer.
 
   TurnRole:
     description: Who spoke in a conversation turn.

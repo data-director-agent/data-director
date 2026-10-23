@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
@@ -89,6 +89,7 @@ class PrincipalKind(StrEnum):
 
 class Assurance(StrEnum):
     ASSERTED = "asserted"
+    AUTHENTICATED = "authenticated"
 
 
 class TurnRole(StrEnum):
@@ -266,6 +267,18 @@ class Principal(Frozen):
     name: str = Field(pattern=r"\S")
     principal_kind: PrincipalKind = PrincipalKind.PERSON
     assurance: Assurance = Assurance.ASSERTED
+    # The issuer that vouched: required when authenticated, absent when asserted (ADR-0029).
+    vouched_by: str | None = Field(default=None, pattern=IRI_PATTERN)
+
+    @model_validator(mode="after")
+    def _vouched_by_matches_assurance(self) -> Principal:
+        if self.assurance == Assurance.AUTHENTICATED and self.vouched_by is None:
+            raise ValueError(
+                "an authenticated principal names the issuer that vouched (vouched_by)"
+            )
+        if self.assurance == Assurance.ASSERTED and self.vouched_by is not None:
+            raise ValueError("an asserted principal was vouched for by nobody: omit vouched_by")
+        return self
 
 
 class Envelope(Frozen):

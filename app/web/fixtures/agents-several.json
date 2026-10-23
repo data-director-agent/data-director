@@ -11,7 +11,7 @@
       "action_class": "advise",
       "agent_id": "hello.world",
       "assigned_action_class": "advise",
-      "contract_version": "0.8.0",
+      "contract_version": "0.9.0",
       "derivations": {
         "greeting_text": {
           "how": "template",
@@ -145,7 +145,7 @@
       "action_class": "advise",
       "agent_id": "quality.reviewer",
       "assigned_action_class": "advise",
-      "contract_version": "0.8.0",
+      "contract_version": "0.9.0",
       "derivations": {
         "findings.message": {
           "how": "lexical",
@@ -373,7 +373,7 @@
       "action_class": "advise",
       "agent_id": "standards.advisor",
       "assigned_action_class": "advise",
-      "contract_version": "0.8.0",
+      "contract_version": "0.9.0",
       "derivations": {
         "items.kind": {
           "how": "lexical",
@@ -693,7 +693,7 @@
       "action_class": "advise",
       "agent_id": "stub.abstain",
       "assigned_action_class": "advise",
-      "contract_version": "0.8.0",
+      "contract_version": "0.9.0",
       "derivations": {},
       "description": "Abstains unconditionally; exercises the non-success path.",
       "grounding_mode": "none",
