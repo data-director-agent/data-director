@@ -154,9 +154,16 @@ layers, not selector specificity, decides which rule wins.
 - **State.** Selected, current and hovered come from ARIA and React Aria attributes
   (`[aria-current="page"]`, `[data-selected]`), not modifier classes. A selected item is marked by
   colour and a bar, never by a change of weight, so selecting it does not shift its neighbours.
-- **Values.** Every colour, size and font is a token from `web/src/tokens/neutral.css`
-  (ADR-0024 §5). Stylelint (`web/.stylelintrc.json`, part of `npm run lint`) rejects a literal
-  colour outside the token file.
+- **Values.** Every colour, size, weight, shadow and font is a token from
+  `web/src/tokens/neutral.css` (ADR-0024 §5). Stylelint (`web/.stylelintrc.json`, part of
+  `npm run lint`) rejects a literal colour outside the token file. The typeface, Inter, is
+  self-hosted from `@fontsource-variable/inter`; no font is fetched from a third party.
+- **Controls.** Buttons come from the shell's kit, `web/src/components/ui/Button.tsx`: React
+  Aria's `Button` and `ToggleButton` in four variants (`primary` for the one action a view exists
+  for, `secondary` by default, `quiet` beside the content it acts on, `danger` to remove what the
+  reader entered) and two sizes. An action under way takes `isPending`, which keeps the focus.
+  ESLint rejects a bare `<button>`. Text fields, text areas and selects share the buttons' height,
+  radius and focus ring (`styles/base.css`).
 
 ## Tests
 

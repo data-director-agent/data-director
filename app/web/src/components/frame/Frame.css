@@ -21,7 +21,7 @@
 
   .app-header {
     background: var(--color-surface);
-    border-bottom: var(--border-width) solid var(--color-border);
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
   }
 
   .app-header-inner {
@@ -45,7 +45,7 @@
     min-width: 0;
     margin: 0;
     padding-block: var(--space-3);
-    font-weight: 700;
+    font-weight: var(--font-weight-heavy);
     font-size: var(--font-size-h3);
   }
 
@@ -79,7 +79,7 @@
     padding: var(--space-3) var(--space-4);
     color: var(--color-text);
     text-decoration: none;
-    font-weight: 600;
+    font-weight: var(--font-weight-strong);
   }
 
   .app-nav-link:hover {
@@ -98,10 +98,6 @@
 
   .theme-switch {
     white-space: nowrap;
-  }
-
-  .theme-switch[data-selected] {
-    background: var(--color-surface-selected);
   }
 
   /* Narrow: brand and switch on the first row, the navigation on its own row beneath. */

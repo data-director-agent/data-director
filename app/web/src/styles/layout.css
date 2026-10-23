@@ -73,12 +73,12 @@
   grid-area: context;
   min-width: 0;
   padding-inline-start: var(--space-4);
-  border-inline-start: var(--border-width) solid var(--color-border);
+  border-inline-start: var(--border-width) solid var(--color-border-subtle);
 }
 
 .workspace-log {
   grid-area: log;
-  border-top: var(--border-width) solid var(--color-border);
+  border-top: var(--border-width) solid var(--color-border-subtle);
   padding-top: var(--space-3);
 }
 

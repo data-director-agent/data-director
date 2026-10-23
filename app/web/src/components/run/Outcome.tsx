@@ -16,6 +16,7 @@ import { OUTCOME, REASON } from "../../manifest/wording";
 import { problemSlug } from "../../run/stages";
 import type { RunResult } from "../../run/types";
 import { NotBuilt } from "../NotBuilt";
+import { Button } from "../ui/Button";
 import { EvidencePanel } from "./EvidencePanel";
 import { ResultView } from "./ResultView";
 
@@ -32,9 +33,9 @@ function RunId({ id }: { id: string }) {
   return (
     <p>
       Run id: <code className="run-id">{id}</code>{" "}
-      <button type="button" onClick={() => void copy()}>
+      <Button variant="quiet" size="small" onPress={() => void copy()}>
         Copy run id
-      </button>{" "}
+      </Button>{" "}
       <span role="status">{copied}</span>
     </p>
   );
@@ -83,9 +84,7 @@ export function Outcome({
   const slug = problemSlug(envelope.problem?.type);
   const editButton = onEditInput && (
     <p>
-      <button type="button" onClick={onEditInput}>
-        Edit the input and run again
-      </button>
+      <Button onPress={onEditInput}>Edit the input and run again</Button>
     </p>
   );
 

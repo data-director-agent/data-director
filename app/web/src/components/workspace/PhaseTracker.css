@@ -15,7 +15,7 @@
 
   .phase-list summary {
     cursor: pointer;
-    font-weight: 600;
+    font-weight: var(--font-weight-strong);
   }
 
   .phase-number {
@@ -28,7 +28,7 @@
   }
 
   .phase-served {
-    font-weight: 400;
+    font-weight: var(--font-weight-normal);
     font-size: var(--font-size-small);
   }
 

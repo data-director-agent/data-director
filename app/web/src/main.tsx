@@ -1,3 +1,4 @@
+import "@fontsource-variable/inter";
 import "./tokens/neutral.css";
 import "./styles/index.css";
 

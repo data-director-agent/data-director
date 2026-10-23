@@ -13,6 +13,16 @@ export default tseslint.config(
     files: ["**/*.{ts,tsx}"],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     plugins: { "react-hooks": reactHooks },
-    rules: { ...reactHooks.configs.recommended.rules },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      // Every button is the kit's, so that they look and behave alike (components/ui/Button.tsx).
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message: "Use Button or ToggleButton from components/ui/Button.tsx.",
+        },
+      ],
+    },
   },
 );
