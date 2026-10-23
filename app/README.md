@@ -99,7 +99,7 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 
 | File | What it is | Override |
 |---|---|---|
-| `config/profile.yaml` | The institutional profile. It enables every in-tree agent. | `DD_PROFILE` |
+| `config/profile.yaml.example` | The institutional profile. It enables every in-tree agent. Copy it to `config/profile.yaml` (not committed) to edit it locally; the app prefers that copy. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
 | `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own (#108). | — |

@@ -50,7 +50,7 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
     as before this decision.
 - **Where a deployment's configuration lives (#57).** Each way in brings its own set and passes
   it to `Settings.from_env` as defaults. The workbench's development set stays in `workbench/`.
-  The app's reference set is `app/config/` (`profile.yaml`, `agents.yaml`, `sources.yaml`), and
+  The app's reference set is `app/config/` (`profile.yaml.example`, `agents.yaml`, `sources.yaml`), and
   its runs go to `app/runs/`. A `DD_*` variable still wins over each file, so a deployment can
   replace any of them without changing the repository.
 - **The app reaches the standards advisor through the conductor (#60, option 1).** The app's one tool builds a
