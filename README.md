@@ -4,9 +4,9 @@
 [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg)](https://codecov.io/gh/data-director-agent/data-director)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/data-director-agent/data-director)
 
-A proposed reference implementation for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/).
+The Data Director is an agentic AI tool for research data stewardship. It helps researchers to make their data [FAIR](https://www.go-fair.org/fair-principles/) (Findable, Accessible, Interoperable, and Reusable), select an appropriate data repository for archiving, draft metadata records, a README and data dictionaries, to create deposit-ready packages with an audit trail.
 
-The Blueprint followed an RDA community consultation, reported in [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151).
+This is proposed _reference implementation_ for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/). The Blueprint followed an RDA community consultation, reported in [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151).
 
 ## Overview
 
