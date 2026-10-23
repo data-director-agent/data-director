@@ -129,7 +129,7 @@ to ORCID records, and nothing here writes to one.
 
 | Dependency | Tier | Fallback if this dependency is abandoned |
 |---|---|---|
-| An OpenID Connect and JOSE library for the Python harness (candidates: `joserfc`, `authlib`; chosen in #151) | Runtime path | Another JOSE library, or verifying RS256 with `cryptography` directly. Token verification sits behind one function in `dd_harness.identity`, and the sign-in flow behind the app's sign-in routes, so a replacement is local to each. |
+| `joserfc`, the JOSE library that verifies ID tokens in the harness (#151). Chosen over `authlib` because it is that project's JOSE core alone, typed, with no web framework. | Runtime path | Another JOSE library, or verifying RS256 with `cryptography` directly. Token verification sits behind one function in `dd_harness.identity`, and the sign-in flow behind the app's sign-in routes, so a replacement is local to each. |
 
 ## Consequences
 

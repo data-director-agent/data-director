@@ -38,6 +38,12 @@ def action_class_mismatch(
     )
 
 
+def unauthenticated(detail: str) -> ProblemDetails:
+    """A caller whose credential is missing or bad (ADR-0029). `detail` never holds the
+    credential."""
+    return problem("unauthenticated", "The caller is not signed in", detail, http_status=401)
+
+
 def grounding_violation(violations: list[str]) -> ProblemDetails:
     return problem(
         "grounding-violation",

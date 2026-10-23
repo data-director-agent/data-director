@@ -19,7 +19,14 @@ from dd_sdk.contract.models import GroundingMode
 
 BASE = "http://testserver"
 PATH_VARIABLES = ("DD_RUNS_DIR", "DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
-OTHER_VARIABLES = ("DD_HARNESS_URL", "DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME", "DD_PRINCIPAL_KIND")
+OTHER_VARIABLES = (
+    "DD_HARNESS_URL",
+    "DD_PRINCIPAL_ID",
+    "DD_PRINCIPAL_NAME",
+    "DD_PRINCIPAL_KIND",
+    "DD_OIDC_ISSUER",
+    "DD_OIDC_CLIENT_ID",
+)
 
 
 @pytest.fixture
@@ -121,6 +128,27 @@ def test_a_host_beyond_loopback_is_warned_about(
     assert "trusted network only" in capsys.readouterr().err
     server.main(["serve"])
     assert capsys.readouterr().err == ""
+
+
+def test_a_server_that_signs_callers_in_is_not_warned_about(
+    deployment: pytest.MonkeyPatch, ran: dict[str, Any], capsys: pytest.CaptureFixture[str]
+) -> None:
+    deployment.delenv("DD_PRINCIPAL_ID")
+    deployment.delenv("DD_PRINCIPAL_NAME")
+    deployment.setenv("DD_OIDC_ISSUER", "https://sandbox.orcid.org")
+    deployment.setenv("DD_OIDC_CLIENT_ID", "APP-TESTCLIENT0000")
+    server.main(["serve", "--host", "0.0.0.0"])
+    assert capsys.readouterr().err == ""
+
+
+def test_a_provider_beside_the_operator_stops_start_up(
+    deployment: pytest.MonkeyPatch, ran: dict[str, Any]
+) -> None:
+    deployment.setenv("DD_OIDC_ISSUER", "https://sandbox.orcid.org")
+    deployment.setenv("DD_OIDC_CLIENT_ID", "APP-TESTCLIENT0000")
+    with pytest.raises(SystemExit, match="both set"):
+        server.main(["serve"])
+    assert not ran
 
 
 def test_serving_sets_the_callback_to_the_base_url(deployment: pytest.MonkeyPatch) -> None:

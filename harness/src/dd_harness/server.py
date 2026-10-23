@@ -21,7 +21,7 @@ import sys
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor
-from dd_harness.identity import Authenticator, IdentityError
+from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.policy import PolicyError
 from dd_harness.registry import RegistryError
 from dd_harness.settings import Settings, SettingsError, build_authenticator, build_conductor
@@ -32,7 +32,8 @@ from dd_harness.transport.a2a import a2a_routes
 LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
 UNTRUSTED_WARNING = (
     "dd-harness: warning: serving on {host}. Callers are not authenticated, so every "
-    "invocation acts for the configured principal; expose this server to a trusted network only.\n"
+    "invocation acts for the configured principal; expose this server to a trusted network "
+    "only, or set DD_OIDC_ISSUER to sign callers in.\n"
 )
 
 
@@ -64,7 +65,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     # so a deployment behind a proxy or a container network sets DD_HARNESS_URL.
     base_url = settings.harness_url or f"http://{args.host}:{args.port}"
     conductor, authenticator = serving(settings, base_url)
-    if args.host not in LOOPBACK:
+    if args.host not in LOOPBACK and isinstance(authenticator, OperatorAssertion):
         sys.stderr.write(UNTRUSTED_WARNING.format(host=args.host))
     uvicorn.run(build_app(conductor, authenticator, base_url), host=args.host, port=args.port)
     return 0
