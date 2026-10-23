@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-app"
 # Alpha: exploratory (README.md).
-version = "0.3.0-alpha.1"
+version = "0.3.0-alpha.2"
 description = "An alpha Data Director: a browser shell drawn from each agent's manifest, over the harness (ADR-0024)"
 requires-python = ">=3.14"
 license = "MIT"
