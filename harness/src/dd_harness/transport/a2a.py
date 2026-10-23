@@ -37,9 +37,10 @@ from google.protobuf.json_format import MessageToDict
 from starlette.routing import BaseRoute
 
 from dd_harness.conductor import Conductor, UnknownAgent
-from dd_harness.identity import Authenticator, IdentityError
+from dd_harness.identity import Authenticator, IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
-from dd_sdk.contract.models import InvocationRequest
+from dd_sdk.contract.models import InvocationRequest, to_document
+from dd_sdk.contract.problem import unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.wire import (
     ENVELOPE_JSON_ARTIFACT,
@@ -149,10 +150,19 @@ class ConductorExecutor(AgentExecutor):
                 headers = (
                     context.call_context.state.get("headers") if context.call_context else None
                 )
-                acting_for = self.authenticator.principal_for(headers)
+                # In a thread: verifying a token may fetch the issuer's keys.
+                acting_for = await asyncio.to_thread(self.authenticator.principal_for, headers)
                 envelope = await asyncio.to_thread(
                     self.conductor.invoke, request, acting_for=acting_for
                 )
+        except Unauthenticated as exc:
+            # Refused in the task, with the problem document ADR-0029 sets. TODO: answer the HTTP
+            # request itself with 401 and WWW-Authenticate, which needs the credential checked
+            # before the JSON-RPC handler, where a delegation callback cannot yet be told apart
+            # (#17).
+            refusal = {"error": str(exc), "problem": to_document(unauthenticated(str(exc)))}
+            await updater.failed(updater.new_agent_message([new_data_part(refusal)]))
+            return
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             await updater.failed(updater.new_agent_message([new_data_part({"error": str(exc)})]))
             return

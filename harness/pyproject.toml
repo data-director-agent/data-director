@@ -22,6 +22,7 @@ dependencies = [
   "pydantic>=2.14.1,<3",
   "pyyaml>=6.0",
   "python-dotenv>=1.1",
+  "joserfc>=1.0",
 ]
 
 [project.scripts]

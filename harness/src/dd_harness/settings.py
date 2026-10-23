@@ -24,7 +24,14 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 from dd_harness.conductor import Conductor
-from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.identity import (
+    Authenticator,
+    BearerTokenAuthenticator,
+    IdentityError,
+    IssuerKeys,
+    OidcProvider,
+    OperatorAssertion,
+)
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
@@ -80,6 +87,10 @@ class Settings:
     principal_id: str | None = None
     principal_name: str | None = None
     principal_kind: str = PrincipalKind.PERSON.value
+    # The OpenID Connect provider whose ID tokens a caller sends as a bearer token (ADR-0029).
+    # Set, it replaces the operator's principal for every HTTP caller.
+    oidc_issuer: str | None = None
+    oidc_client_id: str | None = None
 
     def principal(self) -> Principal:
         """The configured principal. Raises `IdentityError` if it is unset or malformed."""
@@ -126,6 +137,8 @@ class Settings:
             principal_id=os.environ.get("DD_PRINCIPAL_ID") or None,
             principal_name=os.environ.get("DD_PRINCIPAL_NAME") or None,
             principal_kind=os.environ.get("DD_PRINCIPAL_KIND") or PrincipalKind.PERSON.value,
+            oidc_issuer=os.environ.get("DD_OIDC_ISSUER") or None,
+            oidc_client_id=os.environ.get("DD_OIDC_CLIENT_ID") or None,
         )
 
 
@@ -149,5 +162,17 @@ def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) ->
 
 
 def build_authenticator(settings: Settings) -> Authenticator:
-    """The stub authenticator (ADR-0018). An unset principal stops start-up, not a request."""
-    return OperatorAssertion(settings.principal())
+    """The bearer-token authenticator if a provider is configured (ADR-0029), else the stub
+    (ADR-0018). A provider configured beside an operator principal, a provider without a client
+    ID, or neither provider nor principal stops start-up, not a request."""
+    if settings.oidc_issuer is None:
+        return OperatorAssertion(settings.principal())
+    if settings.principal_id or settings.principal_name:
+        raise IdentityError(
+            "DD_OIDC_ISSUER and DD_PRINCIPAL_ID are both set: a server that signs people in "
+            "never gives a caller the operator's principal (ADR-0029); unset one"
+        )
+    if not settings.oidc_client_id:
+        raise IdentityError("DD_OIDC_CLIENT_ID unset: DD_OIDC_ISSUER needs the client ID")
+    provider = OidcProvider(issuer=settings.oidc_issuer, client_id=settings.oidc_client_id)
+    return BearerTokenAuthenticator(provider, IssuerKeys(provider.issuer))

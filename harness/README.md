@@ -37,7 +37,8 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 | `DD_AGENTS_CONFIG` | The YAML list of agent base URLs. |
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against. |
 | `DD_RUNS_DIR` | Where runs are written. |
-| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for, until there is authentication. |
+| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for on a server that signs no one in, and for callers with no request (the CLI, the evaluation). Recorded as `asserted`. |
+| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider (for example `https://orcid.org`) and the client ID its ID tokens are issued to. Set, every HTTP caller must send one of its ID tokens, and is recorded as `authenticated` (ADR-0029). It cannot be set beside `DD_PRINCIPAL_ID`. |
 
 A way in supplies a set by passing its files to `Settings.from_env` as defaults, then calls
 `build_conductor(settings)`. A variable wins over the default, so a deployment replaces one file
@@ -76,8 +77,17 @@ dd-harness serve --host 127.0.0.1 --port 8000
 - `DD_HARNESS_URL` is the address other systems reach the server by. The agent card advertises
   it, and delegation agents call back on it. Set it when the server binds all interfaces, or sits
   behind a proxy or a container network. Unset, it is `http://<host>:<port>`.
-- Callers are not authenticated yet (ADR-0018, #17, #43). Every invocation acts for the
-  configured principal, whoever sent it. **Do not expose this server beyond a trusted network.**
+- With `DD_OIDC_ISSUER` and `DD_OIDC_CLIENT_ID` set, a caller sends
+  `Authorization: Bearer <ID token>` with an ID token from that issuer. The server verifies it on
+  every request against the issuer's published keys (fetched through its discovery document and
+  cached), and each invocation acts for the person the token names. A caller without a good token
+  is refused with the problem type `…/problems/unauthenticated`, in the A2A task. A delegation
+  callback needs no token: its grant names whom it acts for (ADR-0012, ADR-0018).
+  - TODO: answer such a caller with HTTP `401` and `WWW-Authenticate: Bearer` (ADR-0029), and
+    decide whether an ID token is the right credential for a program at all (#17).
+- Without a provider, callers are not authenticated (ADR-0018, #17, #43). Every invocation acts
+  for the configured principal, whoever sent it. **Do not expose such a server beyond a trusted
+  network.**
   It prints a warning when bound to anything other than a loopback address.
 - `workbench serve` builds its conductor the same way (`dd_harness.server.serving`) and adds
   AG-UI, the run and conversation index and the viewer to the same A2A routes.

@@ -969,6 +969,7 @@ dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
     { name = "data-director-sdk" },
     { name = "httpx" },
+    { name = "joserfc" },
     { name = "opentelemetry-sdk" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -986,6 +987,7 @@ requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.2.2,<2" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
+    { name = "joserfc", specifier = ">=1.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.44" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
     { name = "python-dotenv", specifier = ">=1.1" },
@@ -1592,6 +1594,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d3/59/322338183ecda247fb5d1763a6cbe46eff7222eaeebafd9fa65d4bf5cb11/jmespath-1.1.0.tar.gz", hash = "sha256:472c87d80f36026ae83c6ddd0f1d05d4e510134ed462851fd5f754c8c3cbb88d", size = 27377, upload-time = "2026-01-22T16:35:26.279Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl", hash = "sha256:a5663118de4908c91729bea0acadca56526eb2698e83de10cd116ae0f4e97c64", size = 20419, upload-time = "2026-01-22T16:35:24.919Z" },
+]
+
+[[package]]
+name = "joserfc"
+version = "1.7.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bd/15/48ff246732232d35ee234228def22b52455fcc55577f06146602399a29b0/joserfc-1.7.7.tar.gz", hash = "sha256:471d0fd12a5a0d1c0942de280f39efe6f597878315033270b504d4d006d25510", size = 237446, upload-time = "2026-10-19T00:30:29.974Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/9f/934db284aa22f37af59708e382903860d4b81329c137b1b0ed2745daeb65/joserfc-1.7.7-py3-none-any.whl", hash = "sha256:06979cfbab78bc802f14c0358f32969826cc26720e13cb38926ffdc86bc0cb2c", size = 71758, upload-time = "2026-10-19T00:30:28.498Z" },
 ]
 
 [[package]]
