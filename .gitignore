@@ -157,6 +157,9 @@ activemq-data/
 .envrc
 # Per-agent settings and model keys for scripts/run-agents.sh (ADR-0026).
 workbench/agents/*.env
+# Per-agent env files under agents/ hold API keys; the bare .env rule misses *.env names.
+agents/**/*.env
+agents/**/.env.*
 .venv
 env/
 venv/
