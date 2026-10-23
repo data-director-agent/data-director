@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0-alpha.3](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.2...app-v0.3.0-alpha.3) (2026-10-23)
+
+
+### Features
+
+* **app:** a design system of tokens and styled controls ([#191](https://github.com/data-director-agent/data-director/issues/191)) ([34c1cd4](https://github.com/data-director-agent/data-director/commit/34c1cd4f1efaff48824ea6b66399035b9d0d920e))
+* **app:** report a problem from the app ([#187](https://github.com/data-director-agent/data-director/issues/187)) ([30d8311](https://github.com/data-director-agent/data-director/commit/30d831154b5300f26e5ad9285c1315f546451aa4))
+* **app:** show a delegated run's evidence inside its card ([#193](https://github.com/data-director-agent/data-director/issues/193)) ([cb36ce2](https://github.com/data-director-agent/data-director/commit/cb36ce2a466d4bae2b733a2230d241a873aaf463))
+
 ## [0.3.0-alpha.2](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.1...app-v0.3.0-alpha.2) (2026-10-23)
 
 
