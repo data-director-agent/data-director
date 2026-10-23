@@ -206,8 +206,7 @@ export function FeedbackPage({ query }: { query: string }) {
           <Button
             type="submit"
             variant="primary"
-            isDisabled={disabled || load.state !== "loaded"}
-            isPending={send.state === "sending"}
+            isDisabled={disabled || load.state !== "loaded" || send.state === "sending"}
           >
             {send.state === "sending" ? "Sending…" : "Send report"}
           </Button>
