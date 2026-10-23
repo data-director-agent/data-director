@@ -109,6 +109,16 @@ every run acts for this operator, not for the person using the page (ADR-0018), 
 says so. The app stops at start-up, with one line, if either is unset, a file is missing or
 malformed, or the shell has not been built.
 
+### Version and problem reports
+
+`GET /api/about` names the build: the app and harness versions, and the commit (`DD_REVISION`,
+else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
+"Report a problem" page, linked from the banner, shows it and files a GitHub issue through
+`POST /api/feedback` (ADR-0030). It is on only if `DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) is
+set; `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
+build, the page, and, if they agree, the identifiers of the run and conversation, never their
+inputs or results.
+
 A delegation grant is a bearer token: whoever holds it may run agents for the operator while
 the run that issued it lasts. Until callers are authenticated (#17), keep the app's port, like
 the agents' ports, on the host or a private network (ADR-0011). The app warns at start-up if

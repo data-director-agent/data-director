@@ -12,6 +12,7 @@ license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
   "data-director-harness",
+  "httpx>=0.28",
   "starlette>=0.47",
   "uvicorn>=0.54.0",
 ]

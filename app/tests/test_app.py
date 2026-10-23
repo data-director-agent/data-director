@@ -21,6 +21,7 @@ import uvicorn
 from a2a.helpers import get_data_parts
 from a2a.types import TaskState
 from starlette.testclient import TestClient
+from support import APP_URL, configure_env, dist_dir, new_governance, with_standards
 
 from dd_agent_director.agent import build as build_director
 from dd_agent_hello.agent import build as build_hello
@@ -51,57 +52,27 @@ from dd_sdk.agent import Agent
 from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
 from dd_sdk.process_flow import ENTRIES, PHASES
 
-PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 # The shell's component and browser tests are drawn from these, so each must be what the server
 # says. `DD_WRITE_FIXTURES=1 uv run pytest app/tests` rewrites them. `agents.json` is the
 # reference set; `agents-several.json` is five agents of different grounding modes and payload
 # shapes under the permissive test profile, which does not list the standards advisor.
 FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
-APP_URL = "http://app.test"
 STANDARDS_AGENT_ID = "standards.advisor"
 
 
 @pytest.fixture
 def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    """The app's reference set, a principal, and runs written under `tmp_path`.
-
-    The reference agent list names services these tests do not start, and whether one happens to
-    be running would change what the server says, so it is replaced by an empty list. A test
-    that needs an agent serves it in memory over A2A (`with_standards`).
-    """
-    for variable in PATH_VARIABLES:
-        monkeypatch.delenv(variable, raising=False)
-    no_remote_agents = tmp_path / "agents.yaml"
-    no_remote_agents.write_text("agents: []\n", encoding="utf-8")
-    monkeypatch.setenv("DD_AGENTS_CONFIG", str(no_remote_agents))
-    for variable in ("DD_STANDARDS_RETRIEVAL", "DD_STANDARDS_EXPLAINER", "DD_SNAPSHOT_PATH"):
-        monkeypatch.delenv(variable, raising=False)
-    monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
-    monkeypatch.setenv("DD_PRINCIPAL_NAME", TEST_PRINCIPAL.name)
-    monkeypatch.setenv("DD_RUNS_DIR", str(tmp_path))
-    return tmp_path
-
-
-def with_standards(governance: Governance) -> Governance:
-    """`governance` with the standards advisor registered as the reference list would reach its
-    service, but served in memory over A2A."""
-    governance.conductor.registry.add(in_process(standards.build()))
-    return governance
+    return configure_env(monkeypatch, tmp_path)
 
 
 @pytest.fixture
 def governance(env: Path) -> Iterator[Governance]:
-    governance = with_standards(Governance.create(settings_from_env(), APP_URL))
-    yield governance
-    governance.worker.shutdown()
+    yield from new_governance()
 
 
 @pytest.fixture
 def dist(tmp_path: Path) -> Path:
-    built = tmp_path / "dist"
-    built.mkdir()
-    (built / "index.html").write_text("<!doctype html><title>shell</title>", encoding="utf-8")
-    return built
+    return dist_dir(tmp_path)
 
 
 def agents_response(governance: Governance, dist: Path) -> dict[str, Any]:
@@ -442,7 +413,7 @@ def started(env: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     """What `main` built and served, in place of serving it or opening a browser."""
     seen: dict[str, Any] = {}
 
-    def spy_build(governance: Governance) -> str:
+    def spy_build(governance: Governance, **settings: Any) -> str:
         seen["governance"] = governance
         return "app"
 

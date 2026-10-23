@@ -370,3 +370,38 @@ test("light by default whatever the system prefers; the dark choice survives a r
   await expect(html).toHaveAttribute("data-theme", "dark");
   expect(await background()).not.toBe("rgb(255, 255, 255)");
 });
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`report a problem, ${scheme}: sends with the version, no axe violations`, async ({ page }) => {
+    await useScheme(page, scheme);
+    await serve(page, reference);
+    await page.route("/api/about", (route) =>
+      route.fulfill({
+        json: {
+          app_version: "0.3.0-alpha.1",
+          harness_version: "0.1.0",
+          commit: "abcdef0123456789",
+          feedback_enabled: true,
+        },
+      }),
+    );
+    let sent: Record<string, unknown> | undefined;
+    await page.route("/api/feedback", (route) => {
+      sent = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({
+        status: 201,
+        json: { url: "https://github.com/data-director-agent/data-director/issues/1", number: 1 },
+      });
+    });
+    await page.goto("/agents");
+    await page.getByRole("link", { name: "Report a problem" }).click();
+    await expect(page.getByText("This is Data Director v0.3.0-alpha.1 (abcdef0).")).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await page.getByLabel("Title").fill("It hangs");
+    await page.getByLabel("Details").fill("Never ends.");
+    await page.getByRole("button", { name: "Send report" }).click();
+    await expect(page.getByRole("status")).toContainText("issue #1");
+    expect(sent).toMatchObject({ kind: "bug", title: "It hangs", page: "/agents" });
+    expect(await axeViolations(page)).toEqual([]);
+  });
+}

@@ -45,7 +45,7 @@ process (ADR-0027).
 | Path | Holds |
 |---|---|
 | `/opt/data-director/repo.git` | A bare clone of the branch. |
-| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, `app/web/dist`. The newest three are kept. |
+| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, `app/web/dist`, and `REVISION`, the full commit hash the app reports as its build. The newest three are kept. |
 | `/opt/data-director/current` | Link to the live release. The units run from it. |
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
@@ -139,6 +139,34 @@ sudo systemctl restart data-director.target
 
 The timer will move it forward again at the next new commit on `main`. To hold the VM on one
 release, stop the timer: `sudo systemctl disable --now data-director-deploy.timer`.
+
+## Problem reports
+
+The app's "Report a problem" page files a GitHub issue for the person, who needs no GitHub
+account (ADR-0030). It is off until the app holds a token, and the page says so. The token is
+a fine-grained personal access token for this repository only, with Issues: write and nothing
+else. Issues are public.
+
+```bash
+sudo install -d -m 0700 /etc/data-director/credentials/app
+sudo install -m 0600 /dev/stdin /etc/data-director/credentials/app/feedback-github-token
+# paste the token, then Ctrl-D
+sudo systemctl edit data-director-app.service   # add the lines below
+sudo systemctl restart data-director-app.service
+```
+
+```ini
+[Service]
+LoadCredential=feedback-github-token:/etc/data-director/credentials/app/feedback-github-token
+Environment=DD_FEEDBACK_GITHUB_TOKEN_FILE=feedback-github-token
+```
+
+The drop-in is not shipped, because a unit with `LoadCredential=` does not start if the file is
+missing, and the app should start without reports.
+
+`DD_FEEDBACK_REPO` in `/etc/data-director/app.env` names another repository
+(`owner/name`; default `data-director-agent/data-director`). The version and commit that reports
+carry come from the app's package version and `releases/<sha>/REVISION`.
 
 ## A model key
 

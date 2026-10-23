@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { AgentDirectory } from "./components/capabilities/AgentDirectory";
+import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
 import { PageHeader } from "./components/frame/PageHeader";
@@ -24,6 +25,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const location = useLocation();
   const [path = "/", query] = location.split("?");
   const onAgents = path === "/agents";
+  const onFeedback = path === "/feedback";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -38,15 +40,16 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   }, [load]);
 
   return (
-    <Frame current={onAgents ? "/agents" : "/"}>
-      {state.state === "loading" && <p role="status">Loading the agents…</p>}
-      {state.state === "failed" && (
+    <Frame current={onAgents ? "/agents" : onFeedback ? "/feedback" : "/"} from={onFeedback ? (new URLSearchParams(query).get("from") ?? "/") : location}>
+      {onFeedback && <FeedbackPage query={query ?? ""} />}
+      {!onFeedback && state.state === "loading" && <p role="status">Loading the agents…</p>}
+      {!onFeedback && state.state === "failed" && (
         <div role="alert" className="callout status-danger">
           <p>Data Director could not list its agents: {state.message}.</p>
         </div>
       )}
-      {state.state === "loaded" && !onAgents && <ConversationHome directory={state.directory} />}
-      {state.state === "loaded" && onAgents && (
+      {!onFeedback && state.state === "loaded" && !onAgents && <ConversationHome directory={state.directory} />}
+      {!onFeedback && state.state === "loaded" && onAgents && (
         <>
           <PageHeader title="Agents: what Data Director can do here">
             <ActingFor directory={state.directory} />

@@ -104,6 +104,8 @@ if [[ ! -f "$release/.built" ]]; then
   rm -rf "$release"
   mkdir -p "$release"
   git -C "$BARE" archive "$sha" | tar -x -C "$release"
+  # A release has no .git, so the app reads the commit it was built from here (dd_app.about).
+  echo "$sha" >"$release/REVISION"
   (
     cd "$release"
     uv sync --locked --no-dev --quiet
