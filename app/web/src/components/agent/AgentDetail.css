@@ -9,7 +9,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1);
-    border-bottom: var(--border-width) solid var(--color-border);
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
     margin-bottom: var(--space-4);
   }
 
@@ -18,7 +18,7 @@
   .tab {
     padding: var(--space-2) var(--space-4);
     cursor: pointer;
-    font-weight: 600;
+    font-weight: var(--font-weight-strong);
   }
 
   .tab[data-hovered] {

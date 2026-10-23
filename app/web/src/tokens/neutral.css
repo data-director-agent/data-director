@@ -5,22 +5,35 @@
  * file like this one that redefines them; nothing else changes. The scheme is light unless
  * `data-theme="dark"` is set on <html>, which the banner's dark mode switch does (`theme.ts`).
  *
- * Every text/background pair below meets WCAG 2.2 AA (4.5:1 for text, 3:1 for borders and the
- * focus ring) in both schemes. A status is never shown by colour alone: each also has a word.
+ * Every text/background pair below meets WCAG 2.2 AA (4.5:1 for text, 3:1 for control borders
+ * and the focus ring) in both schemes. `--color-border-subtle` only separates regions that are
+ * already told apart by headings or position, so it is exempt. A status is never shown by colour
+ * alone: each also has a word.
  */
 
 :root {
   color-scheme: light;
 
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Type. Inter is self-hosted (`@fontsource-variable/inter`, loaded in main.tsx); the system
+     fonts stand in while it loads. */
+  --font-body:
+    "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --font-size-small: 0.875rem;
   --font-size-body: 1rem;
   --font-size-h3: 1.125rem;
   --font-size-h2: 1.375rem;
   --font-size-h1: 1.75rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-strong: 600;
+  --font-weight-heavy: 700;
   --line-height: 1.5;
+  --line-height-heading: 1.25;
+  --letter-spacing-heading: -0.01em;
 
+  /* Space and size. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -30,18 +43,52 @@
   --measure: 70ch;
   --page-width: 96rem;
   --page-gutter: var(--space-4);
-  --radius: 0.375rem;
+
+  /* Controls: buttons, text fields and selects share one height so that they line up in a row.
+     The small size still meets the 24 CSS pixel target of WCAG 2.2 SC 2.5.8. */
+  --control-height: 2.5rem;
+  --control-height-small: 2rem;
+  --control-padding-inline: var(--space-4);
+  --control-padding-inline-small: var(--space-3);
+
+  /* Shape. */
+  --radius-small: 0.25rem;
+  --radius: 0.5rem;
+  --radius-large: 0.75rem;
+  --radius-full: 999rem;
   --border-width: 1px;
   --focus-width: 3px;
+  --focus-offset: 2px;
 
+  /* Elevation: a raised surface (a card, an open run) and a floating one (a popover). */
+  --shadow-raised: 0 1px 2px #1b1d2114, 0 1px 3px #1b1d210f;
+  --shadow-floating: 0 4px 12px #1b1d211f, 0 2px 4px #1b1d2114;
+
+  /* Motion. Reduced to nothing when the reader asks for less motion (below). */
+  --duration-fast: 120ms;
+  --easing: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Colour. */
   --color-bg: #fff;
   --color-surface: #f4f5f7;
   --color-surface-selected: #e3e8f0;
   --color-text: #1b1d21;
   --color-text-muted: #4a4f57;
   --color-border: #767b84;
+  --color-border-subtle: #d5d9df;
   --color-link: #1d4f91;
   --color-focus: #1d4f91;
+
+  /* The accent: the one primary action on a page, and the selected item's bar. */
+  --color-accent: #1d4f91;
+  --color-accent-hover: #173f74;
+  --color-accent-pressed: #12325c;
+  --color-on-accent: #fff;
+
+  /* Controls at rest, hovered and pressed. */
+  --color-control: #fff;
+  --color-control-hover: #f4f5f7;
+  --color-control-pressed: #e3e8f0;
 
   /* Statuses: each pairs a foreground with a tinted background. */
   --color-ok-fg: #1b5e20;
@@ -56,14 +103,24 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --shadow-raised: 0 1px 2px #0000004d, 0 1px 3px #0003;
+  --shadow-floating: 0 4px 12px #0006, 0 2px 4px #0000004d;
   --color-bg: #15171a;
   --color-surface: #1f2226;
   --color-surface-selected: #2c3440;
   --color-text: #eceef1;
   --color-text-muted: #b4b9c1;
   --color-border: #8a9099;
+  --color-border-subtle: #363a41;
   --color-link: #9cc2ff;
   --color-focus: #9cc2ff;
+  --color-accent: #9cc2ff;
+  --color-accent-hover: #b8d4ff;
+  --color-accent-pressed: #d2e4ff;
+  --color-on-accent: #15171a;
+  --color-control: #1f2226;
+  --color-control-hover: #2a2e34;
+  --color-control-pressed: #343a42;
   --color-ok-fg: #9be0a0;
   --color-ok-bg: #18301a;
   --color-warn-fg: #ffcf8a;
@@ -72,4 +129,10 @@
   --color-danger-bg: #3d1517;
   --color-undeclared-fg: #c3c8cf;
   --color-undeclared-bg: #2a2d32;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+  }
 }

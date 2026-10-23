@@ -15,6 +15,7 @@ import { inferStages } from "../../run/stages";
 import type { RunResult, RunRow } from "../../run/types";
 import { Outcome } from "../run/Outcome";
 import { Stages } from "../run/Stages";
+import { Button } from "../ui/Button";
 
 type Load =
   | { state: "loading" }
@@ -70,9 +71,7 @@ export function RunHistory({ agent, refresh = 0 }: { agent: AgentView; refresh?:
     return (
       <div className="history-run">
         <p>
-          <button type="button" onClick={back}>
-            Back to all runs
-          </button>
+          <Button onPress={back}>Back to all runs</Button>
         </p>
         {open.error ? (
           <div role="alert" className="callout status-danger">
@@ -102,9 +101,7 @@ export function RunHistory({ agent, refresh = 0 }: { agent: AgentView; refresh?:
         Runs of this agent
       </h3>
       <p>
-        <button type="button" onClick={() => void reload()}>
-          Refresh
-        </button>
+        <Button onPress={() => void reload()}>Refresh</Button>
       </p>
       {load.state === "loading" && <p role="status">Loading the runs…</p>}
       {load.state === "failed" && (
@@ -137,13 +134,14 @@ export function RunHistory({ agent, refresh = 0 }: { agent: AgentView; refresh?:
                   </td>
                   <td>{row.acting_for ?? "Not recorded"}</td>
                   <td>
-                    <button
-                      type="button"
-                      onClick={() => show(row.invocation_id)}
+                    <Button
+                      variant="quiet"
+                      size="small"
+                      onPress={() => show(row.invocation_id)}
                       aria-label={`Open the run completed at ${row.completed_at}`}
                     >
                       Open
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               );

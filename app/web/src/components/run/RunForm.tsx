@@ -36,6 +36,7 @@ import {
 } from "../../run/form";
 import type { JsonSchema } from "../../run/schema";
 import type { Example } from "../../run/types";
+import { Button } from "../ui/Button";
 
 export interface RunFormProps {
   schemaClass: string;
@@ -143,16 +144,16 @@ export function RunForm({ schemaClass, schema, examples, running, onRun, heading
         {fitting.length > 0 && (
           <div className="example-buttons" role="group" aria-label="Examples">
             {fitting.map((e) => (
-              <button key={e.name} type="button" onClick={() => load(e)}>
+              <Button key={e.name} size="small" onPress={() => load(e)}>
                 Load example: {fieldName(e.name).toLowerCase()}
-              </button>
+              </Button>
             ))}
           </div>
         )}
         {plan && (
-          <button type="button" onClick={switchMode}>
+          <Button size="small" variant="quiet" onPress={switchMode}>
             {asJson ? "Edit as a form" : "Edit as JSON"}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -189,9 +190,9 @@ export function RunForm({ schemaClass, schema, examples, running, onRun, heading
       )}
 
       <div className="form-actions">
-        <button type="submit" className="primary" aria-disabled={running || undefined}>
+        <Button type="submit" variant="primary" isPending={running}>
           {running ? "Running…" : "Run"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -388,20 +389,23 @@ function PlannedField({
                   );
                 })}
               </div>
-              <button type="button" onClick={() => onChange(rows.filter((_, j) => j !== i))}>
+              <Button
+                variant="danger"
+                size="small"
+                onPress={() => onChange(rows.filter((_, j) => j !== i))}
+              >
                 Remove {noun.toLowerCase()} {i + 1}
-              </button>
+              </Button>
             </fieldset>
           </li>
         ))}
       </ol>
-      <button
-        type="button"
+      <Button
         id={inputId(prefix, field.name, "add")}
-        onClick={() => onChange([...rows, emptyRow(field.fields)])}
+        onPress={() => onChange([...rows, emptyRow(field.fields)])}
       >
         Add {noun.toLowerCase()}
-      </button>
+      </Button>
     </fieldset>
   );
 }

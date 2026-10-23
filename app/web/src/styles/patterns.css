@@ -10,7 +10,7 @@
   border-radius: var(--radius);
   border: var(--border-width) solid currentcolor;
   font-size: var(--font-size-small);
-  font-weight: 600;
+  font-weight: var(--font-weight-strong);
 }
 
 .status-ok {
@@ -53,14 +53,6 @@
   background: var(--color-undeclared-bg);
 }
 
-button.primary {
-  color: var(--color-bg);
-  background: var(--color-link);
-  border-color: var(--color-link);
-  font-weight: 600;
-  padding: var(--space-2) var(--space-5);
-}
-
 /* Facts: a definition list laid out as a two-column table. */
 dl.facts {
   display: grid;
@@ -75,7 +67,7 @@ dl.facts > div {
 }
 
 dl.facts dt {
-  font-weight: 600;
+  font-weight: var(--font-weight-strong);
 }
 
 dl.facts dd {
@@ -99,7 +91,8 @@ dl.facts dd {
 
 .field label {
   display: block;
-  font-weight: 600;
+  font-weight: var(--font-weight-strong);
+  margin-bottom: var(--space-1);
 }
 
 .field .hint {
@@ -132,7 +125,7 @@ dl.facts dd {
 
 .field-error {
   color: var(--color-danger-fg);
-  font-weight: 600;
+  font-weight: var(--font-weight-strong);
   margin-bottom: var(--space-1);
 }
 
@@ -140,7 +133,7 @@ dl.facts dd {
 .table-scroll {
   overflow-x: auto;
   max-width: 100%;
-  border: var(--border-width) solid var(--color-surface-selected);
+  border: var(--border-width) solid var(--color-border-subtle);
   border-radius: var(--radius);
 }
 
@@ -154,7 +147,7 @@ dl.facts dd {
   text-align: left;
   vertical-align: top;
   padding: var(--space-2);
-  border-bottom: var(--border-width) solid var(--color-surface-selected);
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
   font-size: var(--font-size-small);
 }
 

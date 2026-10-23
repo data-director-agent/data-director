@@ -19,17 +19,17 @@
 
   .stage-mark {
     text-align: center;
-    font-weight: 700;
+    font-weight: var(--font-weight-heavy);
   }
 
   .stage-name {
-    font-weight: 600;
+    font-weight: var(--font-weight-strong);
   }
 
   .stage-state {
     color: var(--color-text-muted);
     font-size: var(--font-size-small);
-    font-weight: 600;
+    font-weight: var(--font-weight-strong);
   }
 
   .stage .status,
@@ -48,7 +48,7 @@
   .stage-nothing-to-check .stage-name,
   .stage-waiting .stage-name {
     color: var(--color-text-muted);
-    font-weight: 400;
+    font-weight: var(--font-weight-normal);
   }
 
   @media (width <= 30rem) {
