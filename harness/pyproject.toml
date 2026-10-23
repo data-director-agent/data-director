@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-harness"
-version = "0.1.0"
+version = "0.2.0-alpha"
 description = "Data Director harness: the conductor, policy gate, grounding linter, source check, run store and provenance, with an A2A way in (ADR-0022)"
 readme = "README.md"
 requires-python = ">=3.14"
