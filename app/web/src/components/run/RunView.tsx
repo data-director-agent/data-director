@@ -17,6 +17,7 @@ import { OUTCOME, className } from "../../manifest/wording";
 import { RunRefused, errorMessage, useRunApi } from "../../run/api";
 import { inferStages, pendingStages } from "../../run/stages";
 import type { Example, RunResult } from "../../run/types";
+import { Button } from "../ui/Button";
 import { Outcome } from "./Outcome";
 import { RunForm } from "./RunForm";
 import { Stages } from "./Stages";
@@ -131,9 +132,7 @@ export function RunView({ agent, onFinished }: { agent: AgentView; onFinished?: 
         <>
           <Stages stages={pendingStages()} inferred={false} />
           <p>
-            <button type="button" onClick={stop}>
-              Stop waiting
-            </button>
+            <Button onPress={stop}>Stop waiting</Button>
           </p>
         </>
       )}

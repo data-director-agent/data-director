@@ -27,6 +27,7 @@ import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { StatusBar } from "../workspace/StatusBar";
 import { Workspace } from "../workspace/Workspace";
+import { Button } from "../ui/Button";
 import { RunPanel } from "./RunPanel";
 import { Transcript } from "./Transcript";
 
@@ -195,9 +196,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             Conversation
           </h2>
           <p>
-            <button type="button" onClick={reset}>
-              New conversation
-            </button>
+            <Button onPress={reset}>New conversation</Button>
           </p>
           {conversation && conversation.turns.length > 0 && (
             <Transcript conversation={conversation} onOpenRun={openRun} selectedRun={runId} />
@@ -213,9 +212,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 onChange={(e) => setText(e.target.value)}
               />
             </div>
-            <button type="submit" disabled={busy || !text.trim()}>
+            <Button type="submit" variant="primary" isDisabled={!busy && !text.trim()} isPending={busy}>
               {busy ? "Sending…" : "Send"}
-            </button>
+            </Button>
           </form>
           <div role="status" aria-live="polite" className="visually-hidden">
             {announcement}
@@ -231,9 +230,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               <ul className="plain-list">
                 {past.map((c) => (
                   <li key={c.conversation_id}>
-                    <button type="button" onClick={() => void reopen(c.conversation_id)}>
+                    <Button variant="quiet" onPress={() => void reopen(c.conversation_id)}>
                       {c.started_at} ({c.turns} {c.turns === 1 ? "turn" : "turns"})
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

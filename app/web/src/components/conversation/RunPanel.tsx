@@ -13,6 +13,7 @@ import { inferStages } from "../../run/stages";
 import type { RunResult } from "../../run/types";
 import { Outcome } from "../run/Outcome";
 import { Stages } from "../run/Stages";
+import { Button } from "../ui/Button";
 
 type Loaded = { id: string; result: RunResult | null; error?: string };
 
@@ -38,9 +39,7 @@ export const RunPanel = forwardRef<
   return (
     <section aria-labelledby="open-run" className="run-panel">
       <p>
-        <button type="button" onClick={onClose}>
-          Back to the conversation
-        </button>
+        <Button onPress={onClose}>Back to the conversation</Button>
       </p>
       <h2 id="open-run" ref={heading} tabIndex={-1}>
         Run of {name}

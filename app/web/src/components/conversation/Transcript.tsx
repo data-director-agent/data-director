@@ -12,6 +12,7 @@ import type { Conversation, ConversationTurn } from "../../conversation/types";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
+import { Button } from "../ui/Button";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
   const entry = conversation.history.find(
@@ -56,9 +57,9 @@ function ChildCard({
           </>
         )}
       </p>
-      <button type="button" onClick={() => onOpen(child)}>
+      <Button size="small" onPress={() => onOpen(child)}>
         Open run<span className="visually-hidden"> of {name}</span>
-      </button>{" "}
+      </Button>{" "}
       <Link to={`/agents?agent=${encodeURIComponent(child.agent_id)}`}>
         About this agent<span className="visually-hidden"> {child.agent_id}</span>
       </Link>
