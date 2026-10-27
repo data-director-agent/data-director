@@ -138,8 +138,7 @@ class ConductorExecutor(AgentExecutor):
             request = InvocationRequest.model_validate(inputs[0])
             if token:
                 # A delegation agent calling back under its grant (ADR-0012).
-                envelope = await asyncio.to_thread(
-                    self.conductor.invoke_delegated,
+                envelope = await self.conductor.ainvoke_delegated(
                     request,
                     str(token),
                     str(metadata.get(META_TRACEPARENT, "")),
@@ -152,9 +151,7 @@ class ConductorExecutor(AgentExecutor):
                 )
                 # In a thread: verifying a token may fetch the issuer's keys.
                 acting_for = await asyncio.to_thread(self.authenticator.principal_for, headers)
-                envelope = await asyncio.to_thread(
-                    self.conductor.invoke, request, acting_for=acting_for
-                )
+                envelope = await self.conductor.ainvoke(request, acting_for=acting_for)
         except Unauthenticated as exc:
             # Refused in the task, with the problem document ADR-0029 sets. TODO: answer the HTTP
             # request itself with 401 and WWW-Authenticate, which needs the credential checked

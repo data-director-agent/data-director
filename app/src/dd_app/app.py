@@ -321,6 +321,4 @@ def main() -> int:
         uvicorn.run(app, host=host, port=port)
     except (ShellNotBuiltError, ConfigError) as exc:
         sys.exit(f"data-director: {exc}")
-    finally:
-        governance.worker.shutdown()
     return 0

@@ -83,9 +83,9 @@ four) is the case for this design.
 - Inspect AI leaves one of its own memory streams unclosed. The evaluation test modules ignore
   that single `ResourceWarning` and force garbage collection at teardown, so that the warning
   does not fail an unrelated later test.
-- A conductor must be built on the thread that uses it: one used across threads leaks its
-  in-memory A2A streams. `invoke_agent` therefore runs every case on one worker thread and calls
-  the conductor factory there.
+- `invoke_agent` builds each case's conductor off Inspect's event loop and awaits it through
+  `Conductor.ainvoke`. (Amended by #171: it first ran every case on one worker thread, on the
+  belief that a conductor used across threads leaked its in-memory A2A streams.)
 - Do not add a requirement marker to an evaluation test. Do not change what a registered
   defect does. Do not blend scores into one figure.
 - TODO: Exercise 4 workshop materials ("Should it have stopped?") can build on

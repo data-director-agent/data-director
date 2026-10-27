@@ -110,7 +110,7 @@ def run(tmp_path: Path) -> Any:
     built: list[Any] = []
 
     def conductor_for(_case: dict[str, Any]) -> Any:
-        if not built:  # built on the solver's worker thread, as `invoke_agent` requires
+        if not built:  # one conductor, shared by every case
             built.append(make_conductor(tmp_path / "runs", agent))
         return built[0]
 

@@ -4,8 +4,10 @@ over the in-memory A2A wire, runs a governed and stored child invocation that th
 
 from __future__ import annotations
 
+import asyncio
 import json
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,7 @@ from dd_harness.testing import (
 from dd_harness.transport.a2a import DELEGATED_ONLY, a2a_routes
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.models import (
+    Envelope,
     GroundingMode,
     InvocationRequest,
     Outcome,
@@ -113,6 +116,32 @@ def test_a_delegated_child_is_stored_with_its_lineage_and_recorded_by_the_parent
     assert child["telemetry"]["trace_id"] != parent.telemetry.trace_id
     assert lint_stored(tmp_path, parent.invocation_id).passed
     assert lint_stored(tmp_path, child["invocation_id"]).passed
+
+
+@pytest.mark.requirement("DD-DELEGATION")
+def test_async_callers_run_parents_side_by_side_and_their_children_never_wait_on_them(
+    tmp_path: Path,
+) -> None:
+    conductor = make_conductor(tmp_path, delegating("fake.none"), child_agent())
+    # As many parent threads as parents: if a child needed one, it would wait for ever.
+    conductor._parents = ThreadPoolExecutor(max_workers=2)
+    requests = [
+        request("fake.delegation", message()),
+        request("fake.delegation", message()),
+        request("fake.none", record()),
+    ]
+
+    async def run_all() -> list[Envelope]:
+        async with asyncio.timeout(30):
+            return await asyncio.gather(
+                *(conductor.ainvoke(r, acting_for=TEST_PRINCIPAL) for r in requests)
+            )
+
+    envelopes = asyncio.run(run_all())
+
+    assert [e.outcome.status for e in envelopes] == [OutcomeStatus.SUCCEEDED] * 3
+    assert [len(e.delegations) for e in envelopes] == [1, 1, 0]
+    assert len(list(conductor.store.iter_envelopes())) == 5
 
 
 @pytest.mark.requirement("DD-DELEGATION")
