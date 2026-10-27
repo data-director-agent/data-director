@@ -106,6 +106,22 @@ cd workbench
 uv run workbench serve                # then open http://127.0.0.1:8000/viewer/
 ```
 
+To run the whole development stack in containers instead, you need only Docker with Compose.
+Source is bind-mounted, so edits to Python and to the shell take effect without a rebuild:
+
+```sh
+cp docker/env.example .env            # then set DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME
+docker compose up --build             # app at http://127.0.0.1:7860, shell at :5173
+docker compose --profile workbench up workbench   # viewer at http://127.0.0.1:8000/viewer/
+docker compose --profile llm up       # adds the model-backed orchestrator
+```
+
+The first start installs the dependencies into a volume, which takes a few minutes. The agents are
+reachable only inside the Compose network. Model keys go in `workbench/agents/<name>.env`, as when
+running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_PORT` or
+`DD_WORKBENCH_HOST_PORT` in `.env`. Containers run as uid 1000. This stack is for development only;
+`deploy/` covers deployment.
+
 ### Settings in `workbench/.env`
 
 `scripts/run-agents.sh` and the workbench read `workbench/.env` if it exists (copy
