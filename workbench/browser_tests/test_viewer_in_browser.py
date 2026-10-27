@@ -152,3 +152,20 @@ def test_the_agents_page_lists_every_registered_agent(viewer: Page, server_url: 
     ):
         row = viewer.locator(f'#agent-list button[data-id="{agent_id}"]')
         expect(row).to_contain_text("available", timeout=TIMEOUT_MS)
+
+
+def test_the_agents_page_lays_out_the_agent_card_to_read(viewer: Page, server_url: str) -> None:
+    viewer.goto(f"{server_url}/viewer/agents.html?agent_id=director.stub")
+    card = viewer.locator("#agent-card .agent-card")
+    expect(card).to_be_visible(timeout=TIMEOUT_MS)
+    for heading in ("Interfaces", "Capabilities", "Extensions", "Security", "Skills"):
+        expect(card.get_by_role("heading", name=heading, exact=True)).to_be_visible()
+    # The agent-spec extension's params, field by field, and the skill's tags.
+    expect(card).to_contain_text("grounding mode")
+    expect(card).to_contain_text("delegation")
+    expect(card).to_contain_text("accepts:Message")
+    # The raw card stays, collapsed until asked for.
+    raw = viewer.locator("#agent-card-json")
+    expect(raw).to_be_hidden()
+    viewer.locator("details.raw-json > summary").click()
+    expect(raw).to_contain_text('"supportedInterfaces"')

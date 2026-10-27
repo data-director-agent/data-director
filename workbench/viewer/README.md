@@ -4,7 +4,8 @@ A developer tool: run a registered agent on an input, written in a form or start
 not an end-user interface; end users will reach the agents through a chat interface or apps built
 on them (TODO: not yet designed).
 
-Two HTML pages, no build step: **Inspect** (`index.html`) and **Chat** (`chat.html`), switched by
+Three HTML pages, no build step: **Inspect** (`index.html`), **Chat** (`chat.html`) and
+**Agents** (`agents.html`), switched by
 the tabs under the header. Each is markup only; the behaviour is in native ES modules under `js/`
 and the styles in `viewer.css`:
 
@@ -16,7 +17,8 @@ and the styles in `viewer.css`:
 | `js/registry.js` | the agent manifest and samples, the agent picker and its detail card, the input-class and **Start from** pickers |
 | `js/payload.js` | the RJSF payload view and the derivation badges (Inspect only) |
 | `js/inputform.js` | the editable RJSF input form, built from an input class's schema |
-| `js/inspect.js`, `js/chat.js` | each page's own behaviour |
+| `js/agentcard.js` | an A2A agent card laid out to read (Agents only) |
+| `js/inspect.js`, `js/chat.js`, `js/agents.js` | each page's own behaviour |
 
 Paths are absolute under `/viewer/`, because Inspect is also served at `/`. The pages load React and
 react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
@@ -95,6 +97,20 @@ Inspect. `?conversation_id=` reopens a conversation (`GET /conversations/{id}`).
 The envelope-level `uischema.json` is kept as the reference description of the envelope and is
 still served at `/schema/uischema.json`, but the page no longer renders the envelope through RJSF:
 the summary, evidence and telemetry are laid out directly. TODO: decide whether to drop it.
+
+## What Agents shows
+
+The registry the workbench built at start-up (`GET /agents/{id}`), one agent at a time: its
+status, the resolved spec, and its A2A agent card laid out to read (`js/agentcard.js`): name,
+version and provider; the interfaces it can be reached on; its capabilities; each extension,
+with the Data Director `agent-spec/v0` params shown field by field and each schema named by its
+digest; its security schemes; and a card per skill with tags and examples. The raw JSON is kept
+below, behind a disclosure, with a **Copy** button. `?agent_id=` selects an agent.
+
+The page shows what the card says; it does not check it against the A2A specification. To do
+that, run the [A2A Inspector](https://github.com/a2aproject/a2a-inspector) beside the workbench
+and point it at the agent's URL in `agents.yaml`. It validates the card and lets you send
+messages and watch the raw traffic.
 
 ## Not here, on purpose
 
