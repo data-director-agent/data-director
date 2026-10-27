@@ -60,9 +60,21 @@ the reason.
 
 `dd-orchestrator` stops at start-up with "no model key" unless it has one. This is expected and
 the other agents keep running. The reference profile converses with `director.stub`, which needs
-no key, so you can ignore it. To use the orchestrator, copy `workbench/agents/env.example` to
-`workbench/agents/orchestrator.env`, set `ANTHROPIC_API_KEY` there and restart
-`scripts/run-agents.sh` (see [`app/README.md`](app/README.md#choosing-the-orchestrator)).
+no key, so you can ignore it.
+
+To use the orchestrator, give it a model key. The agents are separate from the workbench, but
+`scripts/run-agents.sh` is a development convenience and looks for each agent's settings in
+`workbench/agents/<name>.env`. That directory holds only settings files, no agent code. From the
+repository root:
+
+```sh
+cp workbench/agents/env.example workbench/agents/orchestrator.env
+```
+
+Set `ANTHROPIC_API_KEY` in `workbench/agents/orchestrator.env`, then stop and restart
+`scripts/run-agents.sh`. The file is ignored by git. See
+[`app/README.md`](app/README.md#choosing-the-orchestrator). On a server the same settings live
+in `/etc/data-director/agents/orchestrator.env` (see [`deploy/README.md`](deploy/README.md)).
 
 If an agent will not start, or the agent directory stays empty, read the terminal running
 `scripts/run-agents.sh`, which shows each agent's own start-up errors.
@@ -100,7 +112,8 @@ uv run workbench serve                # then open http://127.0.0.1:8000/viewer/
 `workbench/env.example`). It is an ordinary dotenv file, so quote a value that contains a space:
 `DD_PRINCIPAL_NAME="Josiah Carberry"`. An unquoted one gives
 "Failed to parse environment file `workbench/.env`", and the file is not applied. Put a model key
-only in an agent's own file under `workbench/agents/`, never in `workbench/.env`.
+only in that agent's own file, `workbench/agents/<name>.env` (for example `orchestrator.env`),
+never in `workbench/.env`, which every agent reads.
 
 [`docs/architecture.md`](docs/architecture.md) explains how the parts fit together. Each part of
 the repository has its own README with the details:
