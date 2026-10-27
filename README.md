@@ -40,6 +40,16 @@ To run the Data Director app, build its shell once and start the server:
 uv run data-director                  # opens http://127.0.0.1:7860
 ```
 
+To work on the shell with hot reload, leave `uv run data-director` running and start the Vite
+development server in a second terminal. It proxies `/api` to the app (set `DD_APP_URL` if the app
+is at another address):
+
+```sh
+cd app/web
+npm ci                                # first time only
+npm run dev                           # then open http://localhost:5173
+```
+
 To develop and test agents instead, start the agents in one terminal and use the workbench from a
 second terminal in `workbench/`:
 
