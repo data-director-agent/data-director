@@ -1,0 +1,201 @@
+# Local development stack: agents, the app and its Vite dev server. See README.md, "With Docker
+# Compose". For development only; deployment is in deploy/. Ports are published on loopback only,
+# because the app does not authenticate callers. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
+# DD_WORKBENCH_HOST_PORT in .env if a port is taken. The agents are reached only inside the network.
+
+x-python: &python
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+    target: python
+  volumes:
+    - .:/workspace
+    - venv:/venv
+    - uv-cache:/uv-cache
+  environment: &python-env
+    DD_PRINCIPAL_ID: ${DD_PRINCIPAL_ID:?set DD_PRINCIPAL_ID in .env (see docker/env.example)}
+    DD_PRINCIPAL_NAME: ${DD_PRINCIPAL_NAME:?set DD_PRINCIPAL_NAME in .env (see docker/env.example)}
+    DD_AGENTS_CONFIG: /workspace/docker/agents.yaml
+
+x-agent: &agent
+  <<: *python
+  depends_on:
+    deps:
+      condition: service_completed_successfully
+  healthcheck:
+    test:
+      - CMD
+      - /venv/bin/python
+      - -c
+      - "import urllib.request,os; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/.well-known/agent-card.json')"
+    interval: 5s
+    timeout: 5s
+    retries: 24
+  restart: unless-stopped
+
+services:
+  # Installs every workspace package into the venv volume, then exits.
+  deps:
+    <<: *python
+    command: uv sync --all-packages --all-extras
+
+  hello:
+    <<: *agent
+    command: uv run --no-sync dd-hello serve --host 0.0.0.0 --port 8101 --public-url http://hello:8101
+    environment:
+      <<: *python-env
+      PORT: "8101"
+    env_file:
+      - path: workbench/agents/hello.env
+        required: false
+
+  quality:
+    <<: *agent
+    command: uv run --no-sync dd-quality serve --host 0.0.0.0 --port 8102 --public-url http://quality:8102
+    environment:
+      <<: *python-env
+      PORT: "8102"
+    env_file:
+      - path: workbench/agents/quality.env
+        required: false
+
+  standards:
+    <<: *agent
+    command: uv run --no-sync dd-standards serve --host 0.0.0.0 --port 8105 --public-url http://standards:8105
+    environment:
+      <<: *python-env
+      PORT: "8105"
+    env_file:
+      - path: workbench/agents/standards.env
+        required: false
+
+  director:
+    <<: *agent
+    command: uv run --no-sync dd-director serve --host 0.0.0.0 --port 8106 --public-url http://director:8106
+    environment:
+      <<: *python-env
+      PORT: "8106"
+    env_file:
+      - path: workbench/agents/director.env
+        required: false
+
+  # Model-backed, so it is opt-in: `docker compose --profile llm up`. It exits at start-up
+  # without ANTHROPIC_API_KEY in workbench/agents/orchestrator.env.
+  orchestrator:
+    <<: *agent
+    profiles: [llm]
+    command: uv run --no-sync dd-orchestrator serve --host 0.0.0.0 --port 8107 --public-url http://orchestrator:8107
+    environment:
+      <<: *python-env
+      PORT: "8107"
+    env_file:
+      - path: workbench/agents/orchestrator.env
+        required: false
+
+  # Builds the shell once: the app will not start without app/web/dist.
+  web-build:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: node
+    volumes:
+      - ./app/web:/workspace/app/web
+      - ./app/config:/workspace/app/config:ro
+      - node-modules:/workspace/app/web/node_modules
+    command: sh -c "npm ci && npm run build"
+
+  app:
+    <<: *python
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      web-build:
+        condition: service_completed_successfully
+      hello:
+        condition: service_healthy
+      quality:
+        condition: service_healthy
+      standards:
+        condition: service_healthy
+      director:
+        condition: service_healthy
+    command: uv run --no-sync data-director
+    healthcheck:
+      test:
+        - CMD
+        - /venv/bin/python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/api/agents')"
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    environment:
+      <<: *python-env
+      DD_APP_HOST: 0.0.0.0
+      DD_APP_PORT: "7860"
+      DD_HARNESS_URL: http://app:7860
+      DD_RUNS_DIR: /runs
+    volumes:
+      - .:/workspace
+      - venv:/venv
+      - uv-cache:/uv-cache
+      - app-runs:/runs
+    ports: ["127.0.0.1:${DD_APP_HOST_PORT:-7860}:7860"]
+
+  # Vite dev server for the shell, with hot reload. Proxies /api to the app.
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: node
+    depends_on:
+      web-build:
+        condition: service_completed_successfully
+      app:
+        condition: service_healthy
+    volumes:
+      - ./app/web:/workspace/app/web
+      - ./app/config:/workspace/app/config:ro
+      - node-modules:/workspace/app/web/node_modules
+    environment:
+      DD_APP_URL: http://app:7860
+    command: npm run dev -- --host 0.0.0.0
+    ports: ["127.0.0.1:${DD_WEB_HOST_PORT:-5173}:5173"]
+
+  # The development way in to the harness: `docker compose --profile workbench up workbench`.
+  workbench:
+    <<: *python
+    profiles: [workbench]
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      hello:
+        condition: service_healthy
+      quality:
+        condition: service_healthy
+      standards:
+        condition: service_healthy
+      director:
+        condition: service_healthy
+    working_dir: /workspace/workbench
+    command: uv run --no-sync workbench serve --host 0.0.0.0 --port 8000
+    environment:
+      <<: *python-env
+      DD_HARNESS_URL: http://workbench:8000
+      DD_RUNS_DIR: /runs
+    env_file:
+      - path: workbench/.env
+        required: false
+    volumes:
+      - .:/workspace
+      - venv:/venv
+      - uv-cache:/uv-cache
+      - workbench-runs:/runs
+    ports: ["127.0.0.1:${DD_WORKBENCH_HOST_PORT:-8000}:8000"]
+
+volumes:
+  venv:
+  uv-cache:
+  node-modules:
+  app-runs:
+  workbench-runs:
