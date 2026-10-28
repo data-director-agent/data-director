@@ -97,19 +97,9 @@ then continue the rebase or merge. Release pull requests are re-locked by `relea
 
 ## Releases
 
-release-please keeps one release pull request open, `chore(main): release main`, and rewrites it
-after every merge to `main`. Nothing is tagged or published until that pull request is merged.
-Merge it at a milestone, such as a deployment or a hand-over to testers, not after every feature.
-The deployment follows `main` (`deploy/deploy.sh`), not tags, so a release does not change what
-is deployed.
-
-Every package stays on `0.x` alpha pre-releases (`0.2.0-alpha`, `0.2.0-alpha.1`, …) until the
-contract and its schemas are stable; uv reads these as `0.2.0a0`, `0.2.0a1`. Each release is
-marked as a pre-release on GitHub. A breaking change raises the minor version, not the major
-one. Moving any package to 1.0 is a deliberate decision, made by changing
-`release-please-config.json` in its own pull request, not by a commit's type.
-
-TODO: define the criteria for 1.0.
+[RELEASING.md](RELEASING.md) describes the versioning policy, how release-please makes a release
+and what to do when it goes wrong. A pull request needs nothing more than a Conventional Commit
+title; release-please reads it.
 
 ## Credit
 
