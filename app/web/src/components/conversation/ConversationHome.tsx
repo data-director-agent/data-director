@@ -217,6 +217,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 rows={3}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  // Ctrl+Enter (Cmd+Enter on a Mac) sends; the Send button's rules still apply.
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    if (!busy && text.trim()) e.currentTarget.form?.requestSubmit();
+                  }
+                }}
               />
             </div>
             <Button type="submit" variant="primary" icon={SendHorizontal} isDisabled={!busy && !text.trim()} isPending={busy}>
