@@ -142,6 +142,7 @@ This is a community-driven, open-source project. See:
 - [Blueprint](docs/BLUEPRINT.md) — the Data Director Agentic AI Tool Blueprint (RDA, CC BY 4.0), reproduced here as Markdown
 - [Project charter](https://github.com/data-director-agent/.github/blob/main/CHARTER.md) — the project's mission and scope
 - [Governance](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md) — how decisions are made and how the maintainer group grows
+- [Releasing](RELEASING.md) — versioning policy and how a release is made
 - [Contribution guide](CONTRIBUTING.md) — this repository's structure and tooling; the organisation-wide [contribution guide](https://github.com/data-director-agent/.github/blob/main/CONTRIBUTING.md) covers RFCs, sign-off and pull requests
 - [Code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md) — expected standards of behaviour
 - [Software management plan](docs/SOFTWARE_MANAGEMENT_PLAN.md) — the software management plan

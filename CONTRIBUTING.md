@@ -95,6 +95,12 @@ git checkout origin/main -- uv.lock && uv lock && git add uv.lock
 
 then continue the rebase or merge. Release pull requests are re-locked by `release-please.yml`.
 
+## Releases
+
+[RELEASING.md](RELEASING.md) describes the versioning policy, how release-please makes a release
+and what to do when it goes wrong. A pull request needs nothing more than a Conventional Commit
+title; release-please reads it.
+
 ## Credit
 
 Please add your details to the [citation file](./CITATION.cff) to be acknowledged as a contributor.
