@@ -75,7 +75,7 @@ every delegated child is labelled `agent_id@agent_version`.
     profile is refused, with one line, like any other malformed profile. A change to the key
     raises the profile's `version`, so stored runs say which orchestrator the rules named.
 11. **The default is written in the reference profile, not in code.** The app's reference profile
-    (`app/config/profile.yaml`) names the orchestrator released in this repository, at present
+    (`app/config/profile.example.yaml`) names the orchestrator released in this repository, at present
     `director.stub`. A deployment that wants another names it in its own profile. Neither the
     harness nor the shell holds a fallback agent identifier.
 12. **Without a usable orchestrator there is no conversation.** The grounding mode is on the

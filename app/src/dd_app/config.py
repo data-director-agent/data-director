@@ -13,7 +13,10 @@ from dd_harness.settings import Settings
 
 APP_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = APP_ROOT / "config"
-DEFAULT_PROFILE = CONFIG_DIR / "profile.yaml"
+# `profile.yaml` is a local, uncommitted copy of `profile.example.yaml`; without one the example applies.
+LOCAL_PROFILE = CONFIG_DIR / "profile.yaml"
+EXAMPLE_PROFILE = CONFIG_DIR / "profile.example.yaml"
+DEFAULT_PROFILE = LOCAL_PROFILE if LOCAL_PROFILE.exists() else EXAMPLE_PROFILE
 DEFAULT_AGENTS_CONFIG = CONFIG_DIR / "agents.yaml"
 DEFAULT_SOURCES_CONFIG = CONFIG_DIR / "sources.yaml"
 DEFAULT_RUNS_DIR = APP_ROOT / "runs"

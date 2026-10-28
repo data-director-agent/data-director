@@ -157,6 +157,8 @@ activemq-data/
 .envrc
 # Per-agent settings and model keys for scripts/run-agents.sh (ADR-0026).
 workbench/agents/*.env
+# A local copy of app/config/profile.example.yaml.
+app/config/profile.yaml
 .venv
 env/
 venv/
