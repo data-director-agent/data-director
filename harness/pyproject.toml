@@ -14,7 +14,7 @@ authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 # The harness imports `dd_sdk` and these libraries only, never the workbench, the app or an
 # agent (ADR-0022; enforced by tests/test_harness_boundary.py).
 dependencies = [
-  "data-director-sdk",
+  "data-director-sdk>=0.2.0a0",
   "httpx>=0.28",
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",

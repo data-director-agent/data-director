@@ -11,8 +11,8 @@ requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
-  "data-director-harness",
-  "data-director-sdk",
+  "data-director-harness>=0.2.0a0",
+  "data-director-sdk>=0.2.0a0",
   "httpx>=0.28",
   "starlette>=1.8.0",
   "uvicorn>=0.54.0",

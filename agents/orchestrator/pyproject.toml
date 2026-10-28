@@ -9,7 +9,7 @@ description = "orchestrator.model: the model-backed Data Director orchestrator"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-dependencies = ["data-director-sdk", "anthropic>=1.15.0"]
+dependencies = ["data-director-sdk>=0.2.0a0", "anthropic>=1.15.0"]
 
 [project.scripts]
 dd-orchestrator = "dd_agent_orchestrator.factory:main"

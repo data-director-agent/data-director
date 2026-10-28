@@ -35,6 +35,20 @@ contract and its schemas are stable. uv reads these as `0.2.0a0`, `0.2.0a1`.
 
 TODO(#260): define the criteria for 1.0.
 
+## Versions packages require of each other
+
+Inside the workspace, uv resolves `data-director-sdk` and the other members to their own
+directories and ignores any version. A built wheel keeps the requirement as written, so each
+member names a lower bound for every member it needs at run time (`data-director-sdk>=0.2.0a0`);
+`scripts/check_boundaries.py` rejects one without a version (ADR-0031).
+
+- The lower bound is the oldest release the package works with. Raise it in the same pull request
+  as a change that uses something newer. A release does not move it.
+- There is no upper bound yet. release-please raises a minor version for a breaking change, and an
+  upper bound such as `<0.3` would stop `uv lock` resolving in the release pull request until
+  someone edited it. TODO(#276): decide how upper bounds move with releases before any package is
+  published.
+
 ## Making a release
 
 Merge the release pull request at a milestone, such as a deployment or a hand-over to testers, not
