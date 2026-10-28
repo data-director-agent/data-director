@@ -33,5 +33,12 @@ dd-harness = "dd_harness.server:main"
 # the conductor as a library (the app) does not need it.
 serve = ["uvicorn>=0.30"]
 
+# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+[dependency-groups]
+dev = [
+  "data-director-agent-hello",
+  "data-director-agent-quality",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_harness"]
