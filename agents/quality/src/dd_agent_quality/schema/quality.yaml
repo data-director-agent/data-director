@@ -29,7 +29,7 @@ classes:
     description: >-
       An existing metadata record about a dataset, as a repository or catalogue holds it. The
       input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a
-      minimal record carries; TODO widen when a real repository export is exercised.
+      minimal record carries; TODO(#22): widen when a real repository export is exercised.
     slots:
       - schema_class
       - identifier

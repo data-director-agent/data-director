@@ -5,7 +5,7 @@
  * sdk/src/dd_sdk/agent.py) beside what the deployment's profile assigns it. These types cover
  * the fields the shell uses; a field it does not know is ignored, not refused.
  *
- * TODO: generate these from the extension's JSON Schema once the oversight extension has one
+ * TODO(#67): generate these from the extension's JSON Schema once the oversight extension has one
  * (increment 2, ADR-0025).
  */
 

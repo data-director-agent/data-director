@@ -22,7 +22,7 @@
     "contract_version": "0.9.0",
     "evidence": [],
     "grounding_mode": "retrieval",
-    "input_schema": "1e3f3abec2b8576f91ccd7643523ce39aa477774f36fb9ec5d62af089aeacdfd",
+    "input_schema": "c4090a745dec909b44ebf3ff5a3be5b0b23c017b90ab33065cf9603eded44cbc",
     "invocation_id": "01900000-0000-7000-8000-000000000001",
     "outcome": {
       "reason_code": "insufficient_input",
@@ -30,7 +30,7 @@
       "status": "abstained"
     },
     "policy_bundle_ref": "profile:data-director-app@v4",
-    "policy_digest": "67866ede74c85f002b96208bd695d32a91c5957bea2e91ab79f4bfe17f88af6a",
+    "policy_digest": "925abd06964afd7f6df18ce787fd0f985111fa1f35c6eb01f6bb7a16b518414c",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

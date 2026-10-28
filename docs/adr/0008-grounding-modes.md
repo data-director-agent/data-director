@@ -60,6 +60,7 @@ None. The rules are bespoke code over the ADR-0002 span records, as before.
 - A fourth mode is a table entry in `grounding.RULES` plus an enum value, not a redesign.
 - A test that wants the linter to pass must produce a payload with `grounded_on`; there is no
   shape that slips through. `tests/test_grounding.py` pins each rule with hand-built span trees.
-- R3 does not yet emit `grounded_on` and is not registered as usable until ported (TODO).
+- R3 did not then emit `grounded_on`, and was not registered as usable until it was ported. The
+  standards advisor, its port, does.
 - A future contributor must not weaken G0 to tolerate a payload without `grounded_on`, nor allow
   an agent to write `grounding_mode` or `dd.input_hash` itself.

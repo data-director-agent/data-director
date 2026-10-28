@@ -142,6 +142,14 @@ th, td { text-align: left; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(
 th { font-family: var(--mono); font-weight: 600; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
 .table-scroll { overflow-x: auto; }
 .hash { font-family: var(--mono); font-size: 0.75rem; }
+.agent-card > p { margin: 0 0 0.6rem; }
+.agent-card > section { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--line); }
+.agent-card p { overflow-wrap: anywhere; }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; }
+ul.card-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+ul.card-items > li > p { margin: 0 0 0.3rem; }
+details.raw-json { margin-top: 0.75rem; padding-top: 0.6rem; border-top: 1px solid var(--line); }
+details.raw-json > summary { cursor: pointer; margin-bottom: 0.4rem; }
 pre.json { margin: 0; font-family: var(--mono); font-size: 0.8rem; overflow: auto; max-height: 75vh; white-space: pre; }
 .legend { font-size: 0.75rem; color: var(--muted); margin: 0.5rem 0 0; }
 
@@ -165,7 +173,7 @@ pre.json { margin: 0; font-family: var(--mono); font-size: 0.8rem; overflow: aut
 .help-wrap { display: inline-flex; vertical-align: 0.05em; }
 /* The help button is the circled-question icon itself; its label is aria-label="About <term>".
    A transparent ::before pads the hit area to 24×24 (WCAG 2.2 2.5.8) around the small glyph.
-   TODO: Lucide recommends 44×44 (WCAG 2.5.5, AAA); revisit in the accessibility review. */
+   TODO(#85): Lucide recommends 44×44 (WCAG 2.5.5, AAA); revisit in the accessibility review. */
 button.help { position: relative; width: 1.1rem; height: 1.1rem; padding: 0; border: 0; border-radius: 50%; line-height: 1; color: var(--muted); background: none; display: inline-grid; place-items: center; margin-left: 0.25rem; }
 button.help::before { content: ""; position: absolute; inset: 50% auto auto 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); }
 button.help > .icon { width: 1.1rem; height: 1.1rem; vertical-align: 0; }

@@ -81,6 +81,22 @@ def agents_response(governance: Governance, dist: Path) -> dict[str, Any]:
     return body
 
 
+def test_api_agents_retries_an_agent_that_was_down_and_still_reports_it(
+    governance: Governance, dist: Path, tmp_path: Path
+):
+    def refused(url: str, timeout_s: float) -> httpx.AsyncClient:
+        raise httpx.ConnectError("refused")
+
+    config = tmp_path / "down.yaml"
+    config.write_text("agents:\n  - name: down\n    url: http://127.0.0.1:9\n", encoding="utf-8")
+    registry = governance.conductor.registry
+    registry.config = config
+    registry.client_factory = refused
+    registry.unavailable["down"] = "not started"
+    body = agents_response(governance, dist)
+    assert "cannot read the agent card" in body["unavailable"]["down"]
+
+
 def test_the_reference_set_lists_and_enables_every_in_tree_agent():
     entries = load_config(DEFAULT_AGENTS_CONFIG)
     assert [(e["name"], e["url"]) for e in entries] == [

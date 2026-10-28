@@ -54,7 +54,7 @@ None. The app drops its dependency on `data-director-agent-standards`.
 - The app lists no available agent until the agent services are running
   (`scripts/run-agents.sh` in development).
 - Integers in an agent's payload arrive as floats over A2A. That was already true of every agent
-  except the in-process advisor. TODO: decide whether the SDK restores them, and whether that
+  except the in-process advisor. TODO(#254): decide whether the SDK restores them, and whether that
   needs an ADR.
 - A future contributor must not register an agent object in the app's process. A new agent is a
   new entry in `app/config/agents.yaml`.

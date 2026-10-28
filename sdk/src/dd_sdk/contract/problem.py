@@ -1,6 +1,6 @@
 """RFC 9457 problem types the harness emits (ADR-0004).
 
-Type URIs are under a w3id namespace that is not yet registered. TODO: register
+Type URIs are under a w3id namespace that is not yet registered. TODO(#3): register
 https://w3id.org/data-director/ or move to a namespace the project controls.
 """
 

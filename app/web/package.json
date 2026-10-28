@@ -1,7 +1,7 @@
 {
   "name": "data-director-shell",
   "private": true,
-  "version": "0.3.0-alpha.2",
+  "version": "0.3.0-alpha.3",
   "description": "The Data Director app shell: drawn from each agent's manifest and the AG-UI event stream (ADR-0024)",
   "license": "MIT",
   "type": "module",
@@ -35,6 +35,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
+    "@vitest/coverage-v8": "5.0.5",
     "eslint": "10.13.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react-hooks": "7.1.1",

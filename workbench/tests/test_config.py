@@ -5,7 +5,7 @@ evidence."""
 from __future__ import annotations
 
 import json
-import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -25,13 +25,17 @@ from workbench.config import (
     WORKBENCH_ROOT,
 )
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+
+from devstack.common import load_agents
+
 
 def test_the_shipped_config_lists_every_agent_package() -> None:
-    # agents.yaml holds only URLs; run-agents.sh maps each package's script to its port.
+    # agents.yaml holds only URLs; scripts/dev.py starts each agent on the port the app's list
+    # names it at, so the two lists must agree.
     root = Path(__file__).resolve().parents[2]
     ports = {int(e["url"].rsplit(":", 1)[1]) for e in load_config(DEFAULT_AGENTS_CONFIG)}
-    script = (root / "scripts" / "run-agents.sh").read_text()
-    served = {m[0]: int(m[1]) for m in re.findall(r"\[dd-([a-z0-9]+)\]=(\d+)", script)}
+    served = {a.name: a.port for a in load_agents(root / "app" / "config" / "agents.yaml")}
     packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
     assert set(served) == packages == {"hello", "quality", "standards", "director", "orchestrator"}
     assert set(served.values()) == ports

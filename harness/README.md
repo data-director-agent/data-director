@@ -54,9 +54,9 @@ The app does not use it (ADR-0027).
 
 Not yet decided (#57):
 
-- TODO: one file (e.g. `harness.yaml`) naming the other three and the run directory.
-- TODO: how `sources.yaml` pins a source copy stored outside the repository.
-- TODO: how a steward edits and reviews the profile in a deployment (ADR-0017, #41).
+- TODO(#225): one file (e.g. `harness.yaml`) naming the other three and the run directory.
+- TODO(#225): how `sources.yaml` pins a source copy stored outside the repository.
+- TODO(#225): how a steward edits and reviews the profile in a deployment (ADR-0017, #41).
 
 ## Serving the harness
 
@@ -83,7 +83,7 @@ dd-harness serve --host 127.0.0.1 --port 8000
   cached), and each invocation acts for the person the token names. A caller without a good token
   is refused with the problem type `…/problems/unauthenticated`, in the A2A task. A delegation
   callback needs no token: its grant names whom it acts for (ADR-0012, ADR-0018).
-  - TODO: answer such a caller with HTTP `401` and `WWW-Authenticate: Bearer` (ADR-0029), and
+  - TODO(#17): answer such a caller with HTTP `401` and `WWW-Authenticate: Bearer` (ADR-0029), and
     decide whether an ID token is the right credential for a program at all (#17).
 - Without a provider, callers are not authenticated (ADR-0018, #17, #43). Every invocation acts
   for the configured principal, whoever sent it. **Do not expose such a server beyond a trusted
@@ -94,9 +94,9 @@ dd-harness serve --host 127.0.0.1 --port 8000
 
 Not yet decided:
 
-- TODO: whether the run and conversation read endpoints (`/runs`, `/conversations`) belong to
+- TODO(#170): whether the run and conversation read endpoints (`/runs`, `/conversations`) belong to
   the harness server or only to the workbench.
-- TODO: authentication of callers and of agents (#17, #43).
+- TODO(#17, #43): authentication of callers and of agents.
 
 ## Test kit
 

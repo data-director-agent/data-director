@@ -67,7 +67,19 @@ It is built from:
 
 ## Run it
 
-Node 22 or later, once, from `app/web`:
+From the repository root:
+
+```bash
+uv run scripts/dev.py setup        # once: whom runs act for, an optional model key; installs, builds
+uv run scripts/dev.py start        # the agents, the app (:7860) and the Vite dev server (:5173)
+```
+
+`start` builds the shell again whenever `app/web` has changed since the last build, starts every
+agent in `config/agents.yaml`, waits for each, and then starts the app and `npm run dev`, which
+proxies `/api` to it. Ctrl-C stops them all. `uv run scripts/dev.py doctor` says what is wrong
+when something is. The README at the repository root, "Quick start", has the steps by hand.
+
+By hand, with Node 22 or later, from `app/web`:
 
 ```bash
 npm ci && npm run build            # writes app/web/dist
@@ -81,8 +93,8 @@ uv run data-director               # opens http://127.0.0.1:7860
 ```
 
 The agents are separate services. Start them with `scripts/run-agents.sh` from the
-repository root before the app, which reads their cards once at start-up; one that is not
-running is listed as unavailable. The orchestrator runs the agents it delegates to through the
+repository root before the app; one that is not running is listed as unavailable, and is found
+when it starts. The orchestrator runs the agents it delegates to through the
 app's own A2A endpoint, under a grant the conductor issues for that run.
 
 To run it on a server that keeps itself up to date with `main`, see `deploy/README.md`.
@@ -102,8 +114,17 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 | `config/profile.yaml.example` | The institutional profile. It enables every in-tree agent. Copy it to `config/profile.yaml` (not committed) to edit it locally; the app prefers that copy. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
-| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own (#108). | — |
+| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
+
+To change the profile for your own machine, copy the example. `config/profile.yaml` is not
+committed, and the app uses it in place of the example when it exists:
+
+```bash
+cp app/config/profile.yaml.example app/config/profile.yaml
+```
+
+Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
 `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are required. Until there is authentication (#17),
 every run acts for this operator, not for the person using the page (ADR-0018), and the page
@@ -114,7 +135,8 @@ malformed, or the shell has not been built.
 
 `GET /api/about` names the build: the app and harness versions, and the commit (`DD_REVISION`,
 else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
-"Report a problem" page, linked from the banner, shows it and files a GitHub issue through
+footer of every page shows it, and the
+"Report a problem" page, linked from the banner, shows it too and files a GitHub issue through
 `POST /api/feedback` (ADR-0030). It is on only if `DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) is
 set; `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
 build, the page, and, if they agree, the identifiers of the run and conversation, never their
@@ -128,14 +150,15 @@ the agents' ports, on the host or a private network (ADR-0011). The app warns at
 ### Choosing the orchestrator
 
 The home page converses with the agent the profile names under `orchestrator` (ADR-0024 §10),
-and the app refuses a conversation turn to any other. The reference profile names the
+and the app refuses a conversation turn to any other. The example profile names the
 rule-based `director.stub`, which needs no model key: its replies are templates, and it routes
 by its `routing.yaml`.
 
 The model-backed `orchestrator.model` (`agents/orchestrator/`) decides which agents to ask
-from what each one declares, and writes its replies with a model. To use it, give it a model key
+from what each one declares, and writes its replies with a model. In development, `uv run scripts/dev.py setup` does
+both steps below when you give it a key. To use it, give it a model key
 (`workbench/agents/orchestrator.env` in development, `deploy/README.md` on a server), and in the
-profile the app runs under set
+profile the app runs under (your local `config/profile.yaml`) set
 
 ```yaml
 version: 5                         # one more than before
@@ -202,6 +225,6 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   streamed (#159). The agent directory is its own page, `/agents`, reached
   from the navigation and from a delegated child's card (`/agents?agent=<id>` selects an agent).
 - No agent declares its limits, reliability or data handling yet. That needs the oversight
-  extension (ADR-0025, TODO).
+  extension (ADR-0025), TODO(#67).
 
 This package substantiates no Blueprint requirement, and its tests carry no requirement marker.

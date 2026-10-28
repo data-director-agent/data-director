@@ -11,7 +11,7 @@ without rebuilding it. `version_changes` marks where an agent's version differs 
 that agent had earlier in the same conversation, which is what a developer needs to see when an
 agent is rebuilt mid-conversation.
 
-TODO: this scans the whole JSONL file on every call. Add an index if the store grows large.
+TODO(#141): this scans the whole JSONL file on every call. Add an index if the store grows large.
 """
 
 from __future__ import annotations

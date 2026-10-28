@@ -37,8 +37,8 @@
       <div class="panel empty" id="agent-empty">
         <div class="guide">
           <h3>Getting started</h3>
-          <p>Choose an agent to see its status, the raw agent card it published at
-            <code>/.well-known/agent-card.json</code>, and the <strong>AgentSpec</strong> the workbench
+          <p>Choose an agent to see its status, the agent card it published at
+            <code>/.well-known/agent-card.json</code> (laid out to read, with the raw JSON below), and the <strong>AgentSpec</strong> the workbench
             rebuilt from it: derivations, requirement IDs and grounding mode.</p>
           <p>An agent that is <strong>unavailable</strong> or <strong>incompatible</strong> has no
             resolved spec; only the reason the registry recorded at start-up is shown.</p>
@@ -56,7 +56,11 @@
         <section class="panel" id="agent-card-panel" aria-labelledby="agent-card-heading">
           <div class="panel-head"><div class="head-row"><h2 id="agent-card-heading">Agent card</h2></div>
             <button class="small" id="copy-card" type="button">Copy</button></div>
-          <pre class="json" id="agent-card-json" tabindex="0"></pre>
+          <div id="agent-card"></div>
+          <details class="raw-json">
+            <summary>Raw JSON, as published at <code>/.well-known/agent-card.json</code></summary>
+            <pre class="json" id="agent-card-json" tabindex="0"></pre>
+          </details>
         </section>
       </div>
     </main>

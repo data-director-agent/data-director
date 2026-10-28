@@ -1,7 +1,8 @@
 # Coverage is enforced loosely: the project figure may not fall by more than a point against the
 # base commit, and new or changed lines need 80%. The absolute floor is `fail_under` in
-# pyproject.toml. The per-package flags are reported but do not fail a pull request; TODO: set a
-# floor for each package once a few weeks of figures show where they sit.
+# pyproject.toml for Python and the coverage thresholds in app/web/vite.config.ts for the browser
+# shell. The per-package flags are reported but do not fail a pull request; TODO(#243): set a floor for
+# each package once a few weeks of figures show where they sit.
 coverage:
   status:
     project:
@@ -11,8 +12,13 @@ coverage:
     patch:
       default:
         target: 80%
-# CI uploads one report carrying every flag; each flag keeps only the files under its package.
+# The pytest job uploads one report carrying every Python flag, and the app/web job one carrying
+# `web`; each flag keeps only the files under its package. The two jobs run only when their side
+# changed, so a flag with no upload keeps the base commit's figure (carryforward) rather than
+# dropping out of the project total.
 flag_management:
+  default_rules:
+    carryforward: true
   individual_flags:
     - name: sdk
       paths: [sdk/]
@@ -21,9 +27,11 @@ flag_management:
     - name: workbench
       paths: [workbench/]
     - name: app
-      paths: [app/]
+      paths: [app/src/]
     - name: agents
       paths: [agents/]
+    - name: web
+      paths: [app/web/]
 comment:
   layout: "condensed_header, diff, files"
   require_changes: true

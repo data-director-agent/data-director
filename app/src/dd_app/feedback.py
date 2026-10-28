@@ -29,7 +29,7 @@ GITHUB_TIMEOUT_SECONDS = 15.0
 TITLE_LIMIT = 120
 DESCRIPTION_LIMIT = 5000
 CONTEXT_FIELD_LIMIT = 200
-# TODO: settle the numbers with the first real use.
+# TODO(#188): settle the numbers with the first real use.
 RATE_LIMIT = 5
 RATE_WINDOW_SECONDS = 600
 

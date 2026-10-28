@@ -153,10 +153,9 @@ class ConductorExecutor(AgentExecutor):
                 acting_for = await asyncio.to_thread(self.authenticator.principal_for, headers)
                 envelope = await self.conductor.ainvoke(request, acting_for=acting_for)
         except Unauthenticated as exc:
-            # Refused in the task, with the problem document ADR-0029 sets. TODO: answer the HTTP
-            # request itself with 401 and WWW-Authenticate, which needs the credential checked
-            # before the JSON-RPC handler, where a delegation callback cannot yet be told apart
-            # (#17).
+            # Refused in the task, with the problem document ADR-0029 sets. TODO(#17): answer the
+            # HTTP request itself with 401 and WWW-Authenticate, which needs the credential checked
+            # before the JSON-RPC handler, where a delegation callback cannot yet be told apart.
             refusal = {"error": str(exc), "problem": to_document(unauthenticated(str(exc)))}
             await updater.failed(updater.new_agent_message([new_data_part(refusal)]))
             return

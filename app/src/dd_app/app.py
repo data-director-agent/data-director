@@ -35,6 +35,7 @@ from typing import Any
 import httpx
 import uvicorn
 from starlette.applications import Starlette
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
@@ -92,7 +93,8 @@ def build_app(
         )
 
     async def agents(request: Request) -> Response:
-        return JSONResponse(governance.agents())
+        # Off the event loop: refreshing the registry reads agent cards, which blocks.
+        return JSONResponse(await run_in_threadpool(governance.agents))
 
     async def start_run(request: Request) -> Response:
         try:

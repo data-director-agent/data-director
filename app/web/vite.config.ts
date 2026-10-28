@@ -35,5 +35,24 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // A test that drives a whole run and then checks it with axe takes about three seconds, and
+    // coverage instrumentation adds two thirds again, which is past Vitest's default of five.
+    testTimeout: 15_000,
+    // Measured only with --coverage, as CI runs it, so that `npm test` stays quick. The text
+    // file is the job summary (fully covered files left out, as the Python report does); lcov
+    // goes to Codecov under the `web` flag (codecov.yml), its paths from the repository root.
+    // The floors sit a few points under the measured figures (87, 76, 89 and 90% when set), so
+    // ordinary variation does not fail a run; Codecov holds the figures from falling.
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}", "src/test/**"],
+      reporter: [
+        "text",
+        ["text", { file: "coverage.txt", skipFull: true }],
+        ["lcov", { projectRoot: "../.." }],
+      ],
+      thresholds: { statements: 82, branches: 71, functions: 84, lines: 85 },
+    },
   },
 });

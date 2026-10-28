@@ -52,7 +52,7 @@ that content (E1, ADR-0015), so what a reader is shown is what was retrieved. Th
 - **Vocabulary versus ontology** (the standards advisor's one explicit distinction) is decided lexically from the
   record's name and description, recorded as `classification_derivation: lexical`, with
   `terminology_unclassified` when neither pattern fires. FAIRsharing's curated subtype is not
-  exposed on the public record route. **TODO:** read it from the authenticated API.
+  exposed on the public record route. **TODO(#4):** read it from the authenticated API.
 - **Live search needs a FAIRsharing account** (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`);
   record fetch does not. No live-search cassette is committed, so that path is unsubstantiated in
   `CONFORMANCE.md` until someone with an account records one.

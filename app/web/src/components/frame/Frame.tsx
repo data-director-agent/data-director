@@ -1,5 +1,5 @@
 /**
- * The page frame: a skip link, the banner and one main landmark.
+ * The page frame: a skip link, the banner and one main landmark, then a footer that names the build.
  *
  * The banner holds the same three things on every page (the name, the main navigation and the
  * dark mode switch), so nothing in it moves when the page changes. What a page is about, and for
@@ -11,6 +11,7 @@ import "./Frame.css";
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
+import { FooterBuild } from "./FooterBuild";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 const PAGES = [
@@ -73,6 +74,11 @@ export function Frame({
       <main id="main" className="app-main" tabIndex={-1}>
         {children}
       </main>
+      <footer className="app-footer">
+        <div className="app-footer-inner">
+          <FooterBuild />
+        </div>
+      </footer>
     </>
   );
 }

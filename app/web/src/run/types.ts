@@ -4,8 +4,8 @@
  * The envelope is the contract's (sdk/src/dd_sdk/contract/models.py). These types cover the
  * fields the shell uses; a field it does not know is ignored, not refused.
  *
- * TODO: generate these from the contract's JSON Schema, and replace the one-shot run with the
- * AG-UI event stream (#68, #69).
+ * TODO(#68, #69): generate these from the contract's JSON Schema, and replace the one-shot run
+ * with the AG-UI event stream.
  */
 
 export type OutcomeStatus = "succeeded" | "abstained" | "referred" | "failed" | "suspended";

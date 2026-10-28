@@ -43,7 +43,7 @@ classes:
     description: >-
       One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
       Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
-      slot_uri (TODO: revisit if Frictionless publishes term IRIs).
+      slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).
     see_also:
       - https://datapackage.org/standard/table-schema/#field
     slots:

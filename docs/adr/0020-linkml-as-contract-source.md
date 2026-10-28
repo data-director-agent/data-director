@@ -51,7 +51,7 @@ The contract had to meet these constraints:
 6. **The Pydantic models in `dd_sdk/contract/models.py` mirror the source and are written by
    hand.** Their field names and enum values match the LinkML names. A test validates an instance
    of every model against the generated JSON Schema, so the models cannot drift away from the
-   source unnoticed. **TODO:** record whether LinkML's own Pydantic generator (`gen-pydantic`)
+   source unnoticed. **TODO(#249):** record whether LinkML's own Pydantic generator (`gen-pydantic`)
    was tried, and why hand-written mirrors were preferred.
 
 ### Alternatives

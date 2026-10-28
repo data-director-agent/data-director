@@ -37,7 +37,7 @@ fetching the record again, from a source that may since have changed.
 4. `Recommendation.resource` and the `ResourceRef` class are removed from the schema.
 5. No canonicalisation changes its bytes. Hashes in stored runs still verify. Stored envelopes
    written before this decision keep `resource` and have no evidence `content`; they are not
-   migrated. TODO: decide whether the viewer must keep rendering such runs.
+   migrated. TODO(#247): decide whether the viewer must keep rendering such runs.
 
 The chain from what the reader sees to what was retrieved is then checked end to end. The
 content is what the hash covers (E1). The hash is in the evidence (G4) and on a retrieval span
@@ -53,7 +53,7 @@ None.
   from `grounded_on`. It does not repeat the description in its payload. A second copy would be
   unchecked again.
 - `content` is optional. An agent that omits it still passes E1, but the viewer can show only
-  the bare `source_id` for what it cites. TODO: decide whether `retrieval`-mode evidence must
+  the bare `source_id` for what it cites. TODO(#246): decide whether `retrieval`-mode evidence must
   carry `content`.
 - Envelopes grow by one projected record per cited source. For the standards advisor that is at most a few
   kilobytes.

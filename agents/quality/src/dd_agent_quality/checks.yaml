@@ -1,6 +1,6 @@
 # Completeness criteria for a MetadataRecord. Each check names a slot, a weight and the message a
 # reviewer sees when the slot is empty. The score is the weighted share of slots present. Weights
-# are relative and were chosen by hand for the workbench; TODO replace with a community
+# are relative and were chosen by hand for the workbench; TODO(#18): replace with a community
 # assessment framework (e.g. FAIRsFAIR metrics) when a Validation agent is designed properly.
 checks:
   - slot: identifier

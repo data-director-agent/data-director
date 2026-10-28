@@ -49,9 +49,9 @@ rules. The workbench already follows a rule for the fields an agent must not dec
   Approved repositories (R1), persistent identifier systems (R7) and registry access return as
   keys with the agent or check that enforces them, each with its own ADR amendment.
 - **Approval is unchanged for now.** An action class requiring approval is still
-  `referred(policy_requires_approval)` to `data_steward`, and nothing resumes it. TODO: the
+  `referred(policy_requires_approval)` to `data_steward`, and nothing resumes it. TODO(#16): the
   approval half of the gate (suspend, record an approval bound to the input hash and the
-  `policy_digest`, resume as a new invocation) is issue #16.
+  `policy_digest`, resume as a new invocation) is not built.
 
 ## Dependencies introduced
 
@@ -68,10 +68,10 @@ None.
 - Envelopes stored before this change have no `policy_bundle_ref` or `policy_digest` and do not
   validate against the new schema.
 - The gate decides whether the workbench calls an agent. It cannot stop an agent's own service
-  doing something it did not declare. TODO: when agents that write arrive, an agent proposes the
+  doing something it did not declare. TODO(#196): when agents that write arrive, an agent proposes the
   write in its payload and the conductor performs it after approval, so no agent holds write
   credentials (Blueprint P4: "AI agents may draft and suggest"). That needs its own ADR.
-- TODO: per-user or per-group profiles need an authenticated user (C1), which the workbench does
+- TODO(#154): per-user or per-group profiles need an authenticated user (C1), which the workbench does
   not yet have.
 - A future contributor must not reintroduce a way for a request, or an agent, to select or relax
   the profile applied to it without revisiting this decision.

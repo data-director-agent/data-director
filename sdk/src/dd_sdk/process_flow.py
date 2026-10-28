@@ -10,7 +10,7 @@ own declaration, `AgentSpec.serves`, carried on its manifest entry (ADR-0028); `
 two, so an orchestrator keeps no map of agents. Governance as the entry point is deferred to the
 Blueprint's v2.0 (Appendix G, comment 1) and is not here.
 
-The steps are taken from the figure captions in §8.2. TODO: check them against Figures 1 to 6
+The steps are taken from the figure captions in §8.2. TODO(#245): check them against Figures 1 to 6
 themselves, which are images and may show steps or decisions the captions leave out.
 """
 

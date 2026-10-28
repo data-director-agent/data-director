@@ -3,7 +3,7 @@
    "$id": "https://w3id.org/data-director/agents/quality/MetadataRecord",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "An existing metadata record about a dataset, as a repository or catalogue holds it. The input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a minimal record carries; TODO widen when a real repository export is exercised.",
+   "description": "An existing metadata record about a dataset, as a repository or catalogue holds it. The input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a minimal record carries; TODO(#22): widen when a real repository export is exercised.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",

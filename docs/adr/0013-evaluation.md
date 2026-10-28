@@ -88,5 +88,5 @@ four) is the case for this design.
   belief that a conductor used across threads leaked its in-memory A2A streams.)
 - Do not add a requirement marker to an evaluation test. Do not change what a registered
   defect does. Do not blend scores into one figure.
-- TODO: Exercise 4 workshop materials ("Should it have stopped?") can build on
+- TODO(#7): Exercise 4 workshop materials ("Should it have stopped?") can build on
   `stopped_correctly`. They are not written.
