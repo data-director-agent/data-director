@@ -2,6 +2,7 @@
 // no run or send lives here. ?agent_id=… selects an entry.
 import { $, el, wireCopy, kvList } from "./common.js";
 import { help } from "./help.js";
+import { renderCard } from "./agentcard.js";
 import { agents, unavailable, incompatible, notRunnable, loadRegistry, groupedAgents } from "./registry.js";
 
 let current = null;
@@ -50,6 +51,7 @@ async function select(id) {
   $("agent-spec-panel").hidden = false;
   $("agent-card-panel").hidden = false;
   $("agent-spec").replaceChildren(el("p", { className: "muted", textContent: "Loading…" }));
+  $("agent-card").replaceChildren();
   $("agent-card-json").textContent = "";
 
   const r = await fetch(`/agents/${encodeURIComponent(id)}`);
@@ -57,6 +59,7 @@ async function select(id) {
   if (!r.ok) { $("agent-spec").replaceChildren(el("p", { className: "muted", textContent: `No detail for ${id}.` })); return; }
   const { card, spec } = await r.json();
   $("agent-spec").replaceChildren(kvList(spec));
+  $("agent-card").replaceChildren(card ? renderCard(card) : el("p", { className: "muted", textContent: "No agent card." }));
   $("agent-card-json").textContent = card ? JSON.stringify(card, null, 2) : "";
   wireCopy($("copy-card"), () => $("agent-card-json").textContent);
 }
