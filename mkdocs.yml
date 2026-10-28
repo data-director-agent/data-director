@@ -65,6 +65,7 @@ nav:
       - Repository: /README.md
       - UI best practices: /docs/ui/best-practices.md
   - Decisions:
+      - /docs/adr/README.md
       - /docs/adr/*.md
       - Template: /docs/adr/0000-template.md
   - Packages:
