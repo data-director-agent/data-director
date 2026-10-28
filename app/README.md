@@ -105,6 +105,15 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 | `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own (#108). | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 
+To change the profile for your own machine, copy the example. `config/profile.yaml` is not
+committed, and the app uses it in place of the example when it exists:
+
+```bash
+cp app/config/profile.yaml.example app/config/profile.yaml
+```
+
+Edit the copy (raise `version` when you change it). Delete it to return to the example.
+
 `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are required. Until there is authentication (#17),
 every run acts for this operator, not for the person using the page (ADR-0018), and the page
 says so. The app stops at start-up, with one line, if either is unset, a file is missing or
@@ -128,14 +137,14 @@ the agents' ports, on the host or a private network (ADR-0011). The app warns at
 ### Choosing the orchestrator
 
 The home page converses with the agent the profile names under `orchestrator` (ADR-0024 §10),
-and the app refuses a conversation turn to any other. The reference profile names the
+and the app refuses a conversation turn to any other. The example profile names the
 rule-based `director.stub`, which needs no model key: its replies are templates, and it routes
 by its `routing.yaml`.
 
 The model-backed `orchestrator.model` (`agents/orchestrator/`) decides which agents to ask
 from what each one declares, and writes its replies with a model. To use it, give it a model key
 (`workbench/agents/orchestrator.env` in development, `deploy/README.md` on a server), and in the
-profile the app runs under set
+profile the app runs under (your local `config/profile.yaml`) set
 
 ```yaml
 version: 5                         # one more than before
