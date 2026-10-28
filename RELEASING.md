@@ -35,6 +35,20 @@ contract and its schemas are stable. uv reads these as `0.2.0a0`, `0.2.0a1`.
 
 TODO(#260): define the criteria for 1.0.
 
+## Versions packages require of each other
+
+Inside the workspace, uv resolves `data-director-sdk` and the other members to their own
+directories and ignores any version. A built wheel keeps the requirement as written, so each
+member names a lower bound for every member it needs at run time (`data-director-sdk>=0.2.0a0`);
+`scripts/check_boundaries.py` rejects one without a version (ADR-0031).
+
+- The lower bound is the oldest release the package works with. Raise it in the same pull request
+  as a change that uses something newer. A release does not move it.
+- There is no upper bound yet. release-please raises a minor version for a breaking change, and an
+  upper bound such as `<0.3` would stop `uv lock` resolving in the release pull request until
+  someone edited it. TODO(#276): decide how upper bounds move with releases before any package is
+  published.
+
 ## Making a release
 
 Merge the release pull request at a milestone, such as a deployment or a hand-over to testers, not
@@ -48,6 +62,53 @@ after every feature.
 
 The deployment follows `main` (`deploy/deploy.sh`), not tags, so a release does not change what is
 deployed.
+
+## Archiving in Zenodo
+
+Each merged release pull request is also archived in [Zenodo](https://zenodo.org/), so that the
+software has a DOI. The repository has one Zenodo record. Its concept DOI always resolves to the
+latest version and is the one to cite in general; each release publishes a new version with a DOI
+of its own.
+
+- `release-please.yml` calls `.github/workflows/zenodo.yml` when merging the release pull request
+  creates at least one release. One merge makes one version, however many packages it released.
+- `zenodo.yml` zips the merge commit with `git archive` and runs `scripts/zenodo.py release`, which
+  makes a new version, replaces its file with the zip and publishes it.
+- The record's metadata comes from `CITATION.cff`: title, abstract, authors, keywords, licence and
+  references. The description also records the commit and every package's version from
+  `.release-please-manifest.json`. Correct the metadata there, not in Zenodo, since the next
+  release overwrites it.
+- Keep Zenodo's own GitHub integration switched off for this repository. It archives every GitHub
+  release, and release-please makes one for each package, so it would duplicate versions.
+- If the job fails, run **Zenodo** from the Actions tab with the release commit as `ref`. It
+  carries on with a draft the failed run left; once a version is published, running it again
+  publishes another, so check Zenodo first.
+
+`uv run scripts/zenodo.py release --archive <zip> --dry-run` prints the metadata without calling
+Zenodo.
+
+### Setting it up
+
+This is done once, by a Zenodo account holder who will own the record.
+
+1. In Zenodo, under Applications, create a personal access token with the scopes `deposit:write`
+   and `deposit:actions`.
+2. Create the draft record and reserve its DOI. Nothing is public yet.
+
+   ```sh
+   ZENODO_TOKEN=<token> uv run scripts/zenodo.py create
+   ```
+
+   To rehearse first, make a token on [Zenodo Sandbox](https://sandbox.zenodo.org/) and set
+   `ZENODO_API=https://sandbox.zenodo.org/api` for `create` and `release`.
+
+3. In the repository's settings, create an environment named `zenodo` with the secret
+   `ZENODO_TOKEN` and the variable `ZENODO_RECORD_ID` set to the record ID that `create` printed.
+   Restrict the environment to the `main` branch.
+4. Add the concept DOI that `create` printed to `CITATION.cff` as `doi:` in a pull request.
+5. To publish the first version without waiting for a release, run **Zenodo** from the Actions tab.
+
+Until `ZENODO_RECORD_ID` is set, `zenodo.yml` does nothing.
 
 ## When something is wrong
 
@@ -64,4 +125,5 @@ deployed.
 ## Keeping this page current
 
 Change this page in the same pull request as any change to `release-please-config.json`,
-`.release-please-manifest.json` or `.github/workflows/release-please.yml`.
+`.release-please-manifest.json`, `.github/workflows/release-please.yml`,
+`.github/workflows/zenodo.yml` or `scripts/zenodo.py`.

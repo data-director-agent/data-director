@@ -22,6 +22,9 @@ A reference implementation of the RDA [Data Director Agentic AI Blueprint](https
   the harness (see below). `agents/` holds one package and one A2A service per agent
   (`agents/README.md`). `sdk/` is what agents and the harness share: the contract, evidence, span
   helpers and the agent server. Tooling config is in the root `pyproject.toml`.
+- Each workspace member keeps to its own directory: it imports only what it declares (tests
+  from its own `dev` group) and reads no path outside itself. ADR-0031 says why, and what may
+  live in other repositories of the organisation.
 - `docs/blueprint/` is the published Blueprint v1.0 reproduced verbatim (RDA, CC BY 4.0,
   <https://doi.org/10.15497/RDA00157>), one file per chapter; `README.md` there has the contents.
   Read the chapter you need: the requirements are in `07-functional-specification.md`, each with an

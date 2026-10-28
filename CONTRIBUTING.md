@@ -24,6 +24,11 @@ This repository is organised as follow:
 * `agents/` contains one package per agent, including alpha-versioned experimental ones
   (`agents/README.md`)
 
+Each package keeps to its own directory, so that it can later move to a repository of its own.
+Agent Skills, MCP servers and other resources that do not use the contract belong in their own
+repositories in the organisation. [ADR-0031](docs/adr/0031-ecosystem-and-repository-boundaries.md)
+sets out both.
+
 ## Code style and testing
 
 The Python packages use Python 3.14 and [uv](https://docs.astral.sh/uv/); `app/web` uses Node 22
@@ -45,7 +50,7 @@ passes only when every other job has. Each job can be run locally from the repos
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e` |
-| Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate` and `uv run scripts/check_citation.py` |
+| Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
 | Workflows | `uvx zizmor .github` and [actionlint](https://github.com/rhysd/actionlint) |
 | Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
