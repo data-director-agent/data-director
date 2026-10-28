@@ -12,6 +12,7 @@ license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
   "data-director-harness",
+  "data-director-sdk",
   "httpx>=0.28",
   "starlette>=1.8.0",
   "uvicorn>=0.54.0",
@@ -19,6 +20,15 @@ dependencies = [
 
 [project.scripts]
 data-director = "dd_app.app:main"
+
+# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+[dependency-groups]
+dev = [
+  "data-director-agent-director",
+  "data-director-agent-hello",
+  "data-director-agent-quality",
+  "data-director-agent-standards",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_app"]
