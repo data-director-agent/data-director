@@ -1,13 +1,14 @@
 name: Docs
 
-# Builds the documentation site (mkdocs.yml, docs/guide/) on every pull request that touches it,
-# and publishes it to GitHub Pages when main changes. Pages must use the "GitHub Actions" source.
+# Builds the documentation site (mkdocs.yml, docs/hooks.py and the Markdown it publishes) on every
+# pull request that touches it, and publishes it to GitHub Pages when main changes. Pages must use
+# the "GitHub Actions" source.
 on:
   pull_request:
-    paths: [mkdocs.yml, "docs/guide/**", .github/workflows/docs.yml, pyproject.toml, uv.lock]
+    paths: [mkdocs.yml, docs/hooks.py, "**/*.md", .github/workflows/docs.yml, pyproject.toml, uv.lock]
   push:
     branches: [main]
-    paths: [mkdocs.yml, "docs/guide/**", .github/workflows/docs.yml, pyproject.toml, uv.lock]
+    paths: [mkdocs.yml, docs/hooks.py, "**/*.md", .github/workflows/docs.yml, pyproject.toml, uv.lock]
   workflow_dispatch:
 
 permissions:
