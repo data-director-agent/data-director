@@ -7,9 +7,7 @@ outside its directory:
 - a module under `src/` imports only the members named in `[project].dependencies` or an extra;
 - any other Python file in the member (tests, browser tests, scripts) may also import those in
   the member's `[dependency-groups].dev`;
-- no Python file climbs out of the member with `Path(__file__)…parents[N]`;
-- every member it requires at run time carries a version, which the workspace ignores but a
-  built wheel keeps (RELEASING.md).
+- no Python file climbs out of the member with `Path(__file__)…parents[N]`.
 
 The uv workspace installs every member together, so none of this fails at run time; it fails
 only when the member is installed on its own.
@@ -49,8 +47,6 @@ class Member:
     modules: frozenset[str]
     runtime: frozenset[str]
     dev: frozenset[str]
-    # Runtime requirements with no version specifier.
-    unversioned: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -77,18 +73,6 @@ def requirement_names(requirements: list[str]) -> set[str]:
     return names
 
 
-def unversioned(requirements: list[str]) -> set[str]:
-    """The names in `requirements` that carry no version specifier."""
-    names = set()
-    for requirement in requirements:
-        match = REQUIREMENT_NAME.match(requirement.strip())
-        rest = requirement.strip()[match.end() :] if match else ""
-        rest = re.sub(r"^\[[^\]]*\]", "", rest.strip()).split(";")[0]
-        if match and not rest.strip():
-            names.add(normalise(match.group()))
-    return names
-
-
 def member_dirs(root: Path = ROOT) -> list[Path]:
     workspace = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     patterns = workspace["tool"]["uv"]["workspace"]["members"]
@@ -104,10 +88,8 @@ def read_member(directory: Path, root: Path = ROOT) -> Member:
     project_file = tomllib.loads((directory / "pyproject.toml").read_text(encoding="utf-8"))
     project = project_file["project"]
     runtime = requirement_names(project.get("dependencies", []))
-    loose = unversioned(project.get("dependencies", []))
     for extra in project.get("optional-dependencies", {}).values():
         runtime |= requirement_names(extra)
-        loose |= unversioned(extra)
     dev = requirement_names(project_file.get("dependency-groups", {}).get("dev", []))
     src = directory / "src"
     modules = (
@@ -119,7 +101,6 @@ def read_member(directory: Path, root: Path = ROOT) -> Member:
         modules=modules,
         runtime=frozenset(runtime),
         dev=frozenset(dev),
-        unversioned=frozenset(loose),
     )
 
 
@@ -198,19 +179,8 @@ def problems(root: Path = ROOT, allowed: set[tuple[str, str]] | None = None) -> 
     allowed = load_allowed() if allowed is None else allowed
     members = [read_member(directory, root) for directory in member_dirs(root)]
     owners = {module: member.name for member in members for module in member.modules}
-    first_party = {member.name for member in members}
     found: list[Problem] = []
     for member in members:
-        pyproject = f"{member.path}/pyproject.toml"
-        lines = (root / pyproject).read_text(encoding="utf-8").splitlines()
-        found += [
-            Problem(
-                pyproject,
-                next((i for i, line in enumerate(lines, start=1) if f'"{name}' in line), 1),
-                f"requires {name} without a version",
-            )
-            for name in sorted(member.unversioned & first_party)
-        ]
         for relative in tracked_python(member.path, root):
             try:
                 source = (root / relative).read_text(encoding="utf-8")

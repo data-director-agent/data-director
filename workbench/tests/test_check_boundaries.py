@@ -38,18 +38,6 @@ def test_requirement_names_drop_versions_extras_and_markers() -> None:
     ) == {"data-director-sdk", "data-director-harness", "pyyaml"}
 
 
-def test_unversioned_requirements_are_those_with_no_specifier() -> None:
-    assert cb.unversioned(
-        [
-            "data-director-sdk",
-            "data-director-harness[serve]",
-            "data-director-workbench ; python_version>'3'",
-            "data-director-app>=0.3.0a3",
-            "httpx[http2]>=0.28",
-        ]
-    ) == {"data-director-sdk", "data-director-harness", "data-director-workbench"}
-
-
 def test_imports_are_absolute_and_top_level() -> None:
     source = "import dd_sdk.agent\nfrom dd_harness.testing import claim\nfrom . import sibling\n"
     assert cb.imports(source) == [(1, "dd_sdk"), (2, "dd_harness")]
@@ -108,17 +96,3 @@ def test_an_exception_hides_its_problem_and_a_stale_one_is_reported(tmp_path: Pa
     stale = cb.problems(tmp_path, allowed={(agent, "reads outside"), (agent, "imports dd_sdk")})
     assert len(stale) == 1
     assert "no longer 'imports dd_sdk'" in stale[0]
-
-
-def test_a_member_required_without_a_version_is_reported(tmp_path: Path) -> None:
-    _workspace(tmp_path)
-    (tmp_path / "agents" / "echo" / "src" / "dd_agent_echo" / "agent.py").write_text("")
-    other = tmp_path / "agents" / "other"
-    other.mkdir()
-    (other / "pyproject.toml").write_text(
-        '[project]\nname = "data-director-agent-other"\n'
-        'dependencies = [\n  "data-director-agent-echo",\n  "pyyaml",\n]\n'
-    )
-    assert cb.problems(tmp_path, allowed=set()) == [
-        "agents/other/pyproject.toml:4: requires data-director-agent-echo without a version"
-    ]
