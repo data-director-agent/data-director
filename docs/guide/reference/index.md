@@ -12,4 +12,4 @@ These documents are kept with the code they govern and published here from where
   [conformance report](../../../CONFORMANCE.md).
 - Each package's readme and documents, under Packages, starting with the
   [harness](../../../harness/README.md).
-- [Blueprint](../../BLUEPRINT.md) (RDA, CC BY 4.0; very large, on GitHub)
+- [Blueprint](../../blueprint/README.md) (RDA, CC BY 4.0; one page per chapter)

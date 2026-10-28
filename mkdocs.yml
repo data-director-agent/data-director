@@ -30,6 +30,7 @@ theme:
 
 markdown_extensions:
   - admonition
+  - footnotes
   - toc:
       permalink: true
   - pymdownx.superfences:
@@ -91,6 +92,9 @@ nav:
   - Conformance:
       - Approach: /docs/conformance.md
       - Report: /CONFORMANCE.md
+  - Blueprint:
+      - /docs/blueprint/README.md
+      - /docs/blueprint/*.md
   - Changelogs:
       - SDK: /sdk/CHANGELOG.md
       - Harness: /harness/CHANGELOG.md

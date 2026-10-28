@@ -46,9 +46,8 @@ UNPUBLISHED = (
     "agents/*/src/*/system_prompt.md",
     # The licence of a third-party data snapshot, which travels with the data.
     "agents/standards/data/*",
-    # Pandoc output whose contents links do not resolve; linked on GitHub until the chaptered
-    # edition in docs/blueprint/ (#286) replaces it.
-    "docs/BLUEPRINT.md",
+    # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.
+    "scripts/blueprint/index-header.md",
 )
 
 # Where a document is mounted when its repository path cannot be its place on the site. The
