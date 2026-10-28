@@ -1,4 +1,4 @@
-"""The rule in scripts/check_todos.py that every TODO names its issue."""
+"""The rule in scripts/check_todos.py that every to-do marker names its issue."""
 
 from __future__ import annotations
 

@@ -54,7 +54,7 @@ def file_problems(path: str) -> list[str]:
     """`path:line: text` for each unreferenced TODO in the file at `path`."""
     try:
         text = (ROOT / path).read_text(encoding="utf-8")
-    except UnicodeDecodeError, FileNotFoundError, IsADirectoryError:
+    except (UnicodeDecodeError, FileNotFoundError, IsADirectoryError):
         # A binary file, or one deleted or replaced by a directory in the working tree.
         return []
     return [
