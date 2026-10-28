@@ -135,7 +135,8 @@ malformed, or the shell has not been built.
 
 `GET /api/about` names the build: the app and harness versions, and the commit (`DD_REVISION`,
 else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
-"Report a problem" page, linked from the banner, shows it and files a GitHub issue through
+footer of every page shows it, and the
+"Report a problem" page, linked from the banner, shows it too and files a GitHub issue through
 `POST /api/feedback` (ADR-0030). It is on only if `DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) is
 set; `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
 build, the page, and, if they agree, the identifiers of the run and conversation, never their
