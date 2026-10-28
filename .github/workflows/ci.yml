@@ -10,6 +10,7 @@ name: CI
 #   Python workspace (ADR-0011): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
 #     packages, the agents as real services, the workbench viewer in a browser (#9)
 #   app/web (ADR-0024): ESLint, tsc, Vitest, Vite build, Playwright
+#   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does
 #   Repository: links, citation file, workflows, sign-off, dependency review
 #
 # The weekly run catches what changes without a commit: the latest uv and Python 3.14 patch
@@ -48,6 +49,7 @@ jobs:
     outputs:
       python: ${{ steps.paths.outputs.python }}
       web: ${{ steps.paths.outputs.web }}
+      deploy: ${{ steps.paths.outputs.deploy }}
     steps:
       # A pull request is checked out as GitHub's merge commit, whose first parent is the base
       # branch, so HEAD^1..HEAD is exactly what the pull request changes.
@@ -68,7 +70,7 @@ jobs:
           if [ "$EVENT" = pull_request ]; then
             git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
           else
-            printf 'python=true\nweb=true\n' >> "$GITHUB_OUTPUT"
+            printf 'python=true\nweb=true\ndeploy=true\n' >> "$GITHUB_OUTPUT"
           fi
 
   # --- Python workspace: every step runs from the root, where the tooling config lives. ---------
@@ -270,6 +272,23 @@ jobs:
           path: app/web/playwright-report
           retention-days: 14
 
+  # --- Deployment: the way in from outside the VM (deploy/README.md). -----------------------------
+
+  nginx:
+    name: NGINX reverse proxy
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The site as install.sh sets it up, without the packaged default site, in front of a
+      # stand-in for the app: the password, the closed A2A routes, the forwarded headers.
+      - run: sudo apt-get install -y -q nginx apache2-utils
+      - run: sudo bash scripts/check_nginx.sh
+
   # --- Repository ------------------------------------------------------------------------------
 
   docs:
@@ -376,6 +395,7 @@ jobs:
       - packages
       - viewer
       - web
+      - nginx
       - docs
       - workflows
       - dco

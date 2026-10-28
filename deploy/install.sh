@@ -94,6 +94,8 @@ done
 systemctl daemon-reload
 
 step "NGINX site for $domain"
+# The packaged default site would answer any request for another host name.
+rm -f /etc/nginx/sites-enabled/default
 sed "s/SERVER_NAME/$domain/" "$SRC/deploy/nginx/data-director.conf" \
   >/etc/nginx/sites-available/data-director
 ln -sfn /etc/nginx/sites-available/data-director /etc/nginx/sites-enabled/data-director

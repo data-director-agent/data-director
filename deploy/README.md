@@ -24,7 +24,7 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 
 | File | What it does |
 |---|---|
-| `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site, first deployment. Run again to install changed units or NGINX config. |
+| `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. |
 | `deploy.sh` | One pass of the deployment (fetch, check CI, build, switch, check health, roll back). |
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
