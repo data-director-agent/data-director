@@ -12,6 +12,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import { Square } from "lucide-react";
 import type { AgentView } from "../../manifest/normalise";
 import { OUTCOME, className } from "../../manifest/wording";
 import { RunRefused, errorMessage, useRunApi } from "../../run/api";
@@ -132,7 +133,7 @@ export function RunView({ agent, onFinished }: { agent: AgentView; onFinished?: 
         <>
           <Stages stages={pendingStages()} inferred={false} />
           <p>
-            <Button onPress={stop}>Stop waiting</Button>
+            <Button icon={Square} onPress={stop}>Stop waiting</Button>
           </p>
         </>
       )}

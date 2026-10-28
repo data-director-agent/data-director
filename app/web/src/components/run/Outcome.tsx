@@ -11,6 +11,7 @@ import "./Outcome.css";
 
 import { type Ref, useState } from "react";
 
+import { Copy, RotateCcw } from "lucide-react";
 import type { AgentView } from "../../manifest/normalise";
 import { OUTCOME, REASON } from "../../manifest/wording";
 import { problemSlug } from "../../run/stages";
@@ -33,7 +34,7 @@ function RunId({ id }: { id: string }) {
   return (
     <p>
       Run id: <code className="run-id">{id}</code>{" "}
-      <Button variant="quiet" size="small" onPress={() => void copy()}>
+      <Button variant="quiet" size="small" icon={Copy} onPress={() => void copy()}>
         Copy run id
       </Button>{" "}
       <span role="status">{copied}</span>
@@ -84,7 +85,7 @@ export function Outcome({
   const slug = problemSlug(envelope.problem?.type);
   const editButton = onEditInput && (
     <p>
-      <Button onPress={onEditInput}>Edit the input and run again</Button>
+      <Button icon={RotateCcw} onPress={onEditInput}>Edit the input and run again</Button>
     </p>
   );
 

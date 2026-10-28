@@ -12,6 +12,7 @@ import "./RunForm.css";
 
 import { type Ref, useId } from "react";
 
+import { Braces, FileInput, ListChecks, Play } from "lucide-react";
 import { className, fieldName } from "../../manifest/wording";
 import type { JsonSchema } from "../../run/schema";
 import type { Example } from "../../run/types";
@@ -51,14 +52,19 @@ export function RunForm({ schemaClass, schema, examples, running, onRun, heading
         {fitting.length > 0 && (
           <div className="example-buttons" role="group" aria-label="Examples">
             {fitting.map((e) => (
-              <Button key={e.name} size="small" onPress={() => form.load(e)}>
+              <Button key={e.name} size="small" icon={FileInput} onPress={() => form.load(e)}>
                 Load example: {fieldName(e.name).toLowerCase()}
               </Button>
             ))}
           </div>
         )}
         {plan && (
-          <Button size="small" variant="quiet" onPress={form.switchMode}>
+          <Button
+            size="small"
+            variant="quiet"
+            icon={form.asJson ? ListChecks : Braces}
+            onPress={form.switchMode}
+          >
             {form.asJson ? "Edit as a form" : "Edit as JSON"}
           </Button>
         )}
@@ -97,7 +103,7 @@ export function RunForm({ schemaClass, schema, examples, running, onRun, heading
       )}
 
       <div className="form-actions">
-        <Button type="submit" variant="primary" isPending={running}>
+        <Button type="submit" variant="primary" icon={Play} isPending={running}>
           {running ? "Running…" : "Run"}
         </Button>
       </div>
