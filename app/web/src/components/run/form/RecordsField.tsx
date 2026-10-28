@@ -8,6 +8,7 @@ import {
   inputId,
   singular,
 } from "../../../run/form";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "../../ui/Button";
 import { ScalarInput } from "./ScalarInput";
 
@@ -60,6 +61,7 @@ export function RecordsField({
               <Button
                 variant="danger"
                 size="small"
+                icon={Trash2}
                 onPress={() => onChange(rows.filter((_, j) => j !== i))}
               >
                 Remove {noun.toLowerCase()} {i + 1}
@@ -70,6 +72,7 @@ export function RecordsField({
       </ol>
       <Button
         id={inputId(prefix, field.name, "add")}
+        icon={Plus}
         onPress={() => onChange([...rows, emptyRow(field.fields)])}
       >
         Add {noun.toLowerCase()}

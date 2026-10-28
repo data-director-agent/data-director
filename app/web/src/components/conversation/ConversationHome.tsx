@@ -15,6 +15,7 @@
 
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
+import { FolderOpen, MessageSquarePlus, SendHorizontal, X } from "lucide-react";
 import { useConversationApi } from "../../conversation/api";
 import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
@@ -186,7 +187,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             Conversation
           </h2>
           <p>
-            <Button onPress={reset}>New conversation</Button>
+            <Button icon={MessageSquarePlus} onPress={reset}>New conversation</Button>
           </p>
           {conversation && conversation.turns.length > 0 && (
             <Transcript
@@ -203,7 +204,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               </h3>
               <RunDetail invocationId={runId} agents={directory.agents} idPrefix="linked-run" />
               <p>
-                <Button onPress={() => navigate("/")}>Close the run</Button>
+                <Button icon={X} onPress={() => navigate("/")}>Close the run</Button>
               </p>
             </section>
           )}
@@ -225,7 +226,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 }}
               />
             </div>
-            <Button type="submit" variant="primary" isDisabled={!busy && !text.trim()} isPending={busy}>
+            <Button type="submit" variant="primary" icon={SendHorizontal} isDisabled={!busy && !text.trim()} isPending={busy}>
               {busy ? "Sending…" : "Send"}
             </Button>
           </form>
@@ -243,7 +244,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               <ul className="plain-list">
                 {past.map((c) => (
                   <li key={c.conversation_id}>
-                    <Button variant="quiet" onPress={() => void reopen(c.conversation_id)}>
+                    <Button variant="quiet" icon={FolderOpen} onPress={() => void reopen(c.conversation_id)}>
                       {c.started_at} ({c.turns} {c.turns === 1 ? "turn" : "turns"})
                     </Button>
                   </li>

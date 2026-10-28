@@ -28,6 +28,7 @@ from devstack.common import (
     prepare_web,
     read_env,
     shared_env,
+    workspace_env,
 )
 
 # How long a service may take to answer for the first time: `uv run` may first build the package.
@@ -109,8 +110,7 @@ class Stack:
 
 
 def start(agents_only: bool, web: bool) -> int:
-    # `uv run` gives this script an environment of its own; the services use the workspace's.
-    base = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"} | shared_env()
+    base = workspace_env() | shared_env()
     if not (base.get("DD_PRINCIPAL_ID") and base.get("DD_PRINCIPAL_NAME")):
         base |= EXAMPLE_PRINCIPAL
         print(
