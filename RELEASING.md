@@ -49,6 +49,45 @@ after every feature.
 The deployment follows `main` (`deploy/deploy.sh`), not tags, so a release does not change what is
 deployed.
 
+## Archiving in ORDA
+
+Each merged release pull request is also archived in [ORDA](https://orda.shef.ac.uk/), the
+University of Sheffield's Figshare repository, so that the software has a DOI. The repository has
+one ORDA item. Its DOI, reserved once, always resolves to the latest version and is the one to
+cite in general; each release publishes a new version of the item with its own DOI ending `.v<N>`.
+
+- `release-please.yml` calls `.github/workflows/orda.yml` when merging the release pull request
+  creates at least one release. One merge makes one version, however many packages it released.
+- `orda.yml` zips the merge commit with `git archive` and runs `scripts/orda.py release`, which
+  replaces the item's file with the zip and publishes it.
+- The item's metadata comes from `CITATION.cff`: title, abstract, authors, keywords, licence and
+  references. The description also records the commit and every package's version from
+  `.release-please-manifest.json`. Correct the metadata there, not in ORDA, since the next release
+  overwrites it. The Figshare categories are set in `scripts/orda.py`.
+- If the job fails, run **ORDA** from the Actions tab with the release commit as `ref`. Running it
+  again publishes a new version, so check ORDA first.
+
+`uv run scripts/orda.py release --archive <zip> --dry-run` prints the metadata without calling ORDA.
+
+### Setting it up
+
+This is done once, by an ORDA account holder who will own the item.
+
+1. In ORDA, under Applications, create a personal token.
+2. Create the item and reserve its DOI. Nothing is public yet.
+
+   ```sh
+   ORDA_TOKEN=<token> uv run scripts/orda.py create
+   ```
+
+3. In the repository's settings, create an environment named `orda` with the secret `ORDA_TOKEN`
+   and the variable `ORDA_ARTICLE_ID` set to the item's ID that `create` printed. Restrict the
+   environment to the `main` branch.
+4. Add the reserved DOI to `CITATION.cff` as `doi:` in a pull request.
+5. To publish the first version without waiting for a release, run **ORDA** from the Actions tab.
+
+Until `ORDA_ARTICLE_ID` is set, `orda.yml` does nothing.
+
 ## When something is wrong
 
 - **A tag is missing.** release-please counts commits from the tag `<component>-v<version>` that
@@ -64,4 +103,5 @@ deployed.
 ## Keeping this page current
 
 Change this page in the same pull request as any change to `release-please-config.json`,
-`.release-please-manifest.json` or `.github/workflows/release-please.yml`.
+`.release-please-manifest.json`, `.github/workflows/release-please.yml`,
+`.github/workflows/orda.yml` or `scripts/orda.py`.
