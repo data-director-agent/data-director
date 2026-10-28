@@ -88,12 +88,14 @@ class Client:
 
 def read_citation() -> dict[str, Any]:
     with CITATION.open(encoding="utf-8") as stream:
-        return yaml.safe_load(stream)
+        citation: dict[str, Any] = yaml.safe_load(stream)
+    return citation
 
 
 def components() -> dict[str, str]:
     """Each released package's version, by its path, from release-please's manifest."""
-    return json.loads(MANIFEST.read_text(encoding="utf-8"))
+    versions: dict[str, str] = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    return versions
 
 
 def authors(citation: dict[str, Any]) -> list[dict[str, str]]:
@@ -165,7 +167,8 @@ def licence_id(client: Client, spdx: str) -> int:
     licences = client.call("GET", "/account/licenses")
     for licence in licences:
         if licence["name"] == spdx:
-            return licence["value"]
+            value: int = licence["value"]
+            return value
     names = ", ".join(licence["name"] for licence in licences)
     raise OrdaError(f"ORDA offers no licence named {spdx!r}; it offers: {names}")
 
