@@ -1,6 +1,7 @@
 cff-version: 1.2.0
 title: Data Director
 type: software
+doi: 10.5281/zenodo.23735877
 message: "If you use this software, please cite it as below."
 abstract: >-
   A proposed reference implementation for the Data Director Agentic AI
