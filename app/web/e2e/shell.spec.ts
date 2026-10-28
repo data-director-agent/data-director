@@ -405,6 +405,7 @@ for (const scheme of ["light", "dark"] as const) {
       });
     });
     await page.goto("/agents");
+    await expect(page.getByRole("contentinfo")).toContainText("v0.3.0-alpha.1 (abcdef0)");
     await page.getByRole("link", { name: "Report a problem" }).click();
     await expect(page.getByText("This is Data Director v0.3.0-alpha.1 (abcdef0).")).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);

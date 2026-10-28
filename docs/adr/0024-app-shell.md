@@ -53,7 +53,8 @@ every delegated child is labelled `agent_id@agent_version`.
    theme file (`app/web/src/tokens/neutral.css`). Components use no literal value, so another
    theme (for example an institution's) is a new token file. No organisation's branding is
    built in. The scheme is light by default, whatever the system prefers; a switch in the
-   banner applies the dark scheme and remembers the choice in that browser.
+   banner applies the dark scheme and remembers the choice in that browser. The footer of every
+   page names the build (version and short commit) from `GET /api/about`.
 6. **Accessibility is tested from the first increment.** WCAG 2.2 AA: axe in component and
    browser tests, light and dark; keyboard-only journeys; reflow at 320 CSS pixels (400% zoom)
    without horizontal scrolling. A status is never shown by colour alone. Interactive widgets
