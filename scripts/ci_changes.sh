@@ -28,7 +28,7 @@ while IFS= read -r f; do
     # An agent's system prompt is Markdown but is the agent's code, which its tests check.
     agents/*/system_prompt.md) python=true ;;
     # Prose and the documentation site (docs.yml builds it; the docs job checks the links).
-    *.md | docs/guide/* | mkdocs.yml | LICENSE | CITATION.cff) ;;
+    *.md | docs/guide/* | docs/hooks.py | mkdocs.yml | LICENSE | CITATION.cff) ;;
     *) python=true ;;
   esac
   echo "$f: python=$python web=$web deploy=$deploy" >&2

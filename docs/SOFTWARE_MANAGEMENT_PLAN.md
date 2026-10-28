@@ -44,7 +44,8 @@ Origin sign-off requirement, and the pull request workflow.
   [`data-director-agent/.github`](https://github.com/data-director-agent/.github).
 - `docs/SOFTWARE_MANAGEMENT_PLAN.md` — this document.
 - `docs/architecture.md` — the system overview; `docs/adr/` — the architecture decisions.
-- `docs/guide/` — the user and developer guides, published as the documentation site.
+- `docs/guide/` — the user and developer guides. The documentation site publishes them with
+  the documents above and each package's own, from where they are kept (`mkdocs.yml`).
 
 ## Testing and quality assurance
 
