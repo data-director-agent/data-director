@@ -33,7 +33,7 @@ contract and its schemas are stable. uv reads these as `0.2.0a0`, `0.2.0a1`.
 - Moving any package to 1.0 is a deliberate decision, made by changing
   `release-please-config.json` in its own pull request, not by a commit's type.
 
-TODO: define the criteria for 1.0.
+TODO(#260): define the criteria for 1.0.
 
 ## Making a release
 
