@@ -96,7 +96,7 @@ every delegated child is labelled `agent_id@agent_version`.
     is a disclosure: focus stays on it. The open run is the `run` query parameter, so Back and
     reload keep it and only one is open at a time; a run named there that is not in the
     transcript, as after a reload, is shown above the message box. A suspended child's card says
-    it is waiting for review. TODO: the review gate itself waits for #72 and #73.
+    it is waiting for review. TODO(#72, #73): the review gate itself.
 15. **A turn is a governed invocation.** Each message is one invocation of the orchestrator
     through the conductor (ADR-0012 §1), and each hand-off is a child invocation under the grant
     the conductor issues (ADR-0012 §5). The app must issue that grant (#129).
@@ -121,7 +121,7 @@ every delegated child is labelled `agent_id@agent_version`.
     shell to each manifest entry's `serves` (ADR-0028), so the shell keeps no copy of the flow
     and names no agent. A zone with no source yet is drawn as not built and linked to its issue
     (#75). When proposals and the review gate exist (#71-#73) they take the centre and the
-    conversation docks beside them. TODO: decide how the dock behaves once there is a working surface.
+    conversation docks beside them. TODO(#73): decide how the dock behaves once there is a working surface.
 
 Rejected:
 
@@ -188,7 +188,7 @@ Every dependency's licence is compatible with the repository's MIT licence.
   profile still names the rule-based `director.stub`, so that the app runs with no model key. A
   deployment with a key names `orchestrator.model` in its own profile, in an ordinary profile
   change with a new `version` (`app/README.md`).
-- The JavaScript tests carry no requirement marker and do not feed `CONFORMANCE.md`. TODO:
+- The JavaScript tests carry no requirement marker and do not feed `CONFORMANCE.md`. TODO(#244):
   decide whether to bridge them (for example from Playwright's JSON report) or leave C6 to
   review.
 - A future contributor must not name an agent (the orchestrator included) in `app/web/src`, put

@@ -140,4 +140,5 @@ uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # 
 - **Test module basenames are unique across the workspace.** Test directories are not packages;
   shared doubles live in `dd_harness.testing` and `dd_agent_standards.testing`.
 
-British English, declarative prose, `TODO` rather than a plausible guess (root `CLAUDE.md`).
+British English, declarative prose, `TODO(#123)` naming its issue rather than a plausible guess
+(root `AGENTS.md`).

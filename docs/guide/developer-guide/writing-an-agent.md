@@ -6,4 +6,4 @@ the workbench, the app or another agent.
 
 See `agents/README.md` for the layout and the version convention that marks an agent as alpha.
 
-TODO: a worked example, following the `hello` agent.
+TODO(#250): a worked example, following the `hello` agent.

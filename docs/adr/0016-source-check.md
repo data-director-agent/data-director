@@ -68,12 +68,12 @@ none of that. ADR-0009 made the projection reproducible, and ADR-0015 put it in 
 
 Not decided here:
 
-- TODO: route retrieval through the workbench, so that the conductor, not the agent, records
+- TODO(#246): route retrieval through the workbench, so that the conductor, not the agent, records
   when each record was read. Until then, G1 is a consistency check of the agent's own timeline.
-- TODO: a resolver for the standards advisor's `live` route. The FAIRsharing API needs credentials and network
+- TODO(#246): a resolver for the standards advisor's `live` route. The FAIRsharing API needs credentials and network
   access. Live runs are unresolved.
-- TODO: whether an unresolved item in `retrieval` mode should be a violation for some profiles.
-- TODO: show the source-check verdict in the viewer.
+- TODO(#246): whether an unresolved item in `retrieval` mode should be a violation for some profiles.
+- TODO(#246): show the source-check verdict in the viewer.
 
 Whether a model's rationale is faithful to its input or to what it retrieved is a question for
 evaluation (ADR-0013), not for either check.

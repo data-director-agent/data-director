@@ -16,8 +16,8 @@ const NOT_BUILT: { label: string; issues: number[] }[] = [
   { label: "Dataset", issues: [160] },
   { label: "Phase", issues: [160] },
   { label: "Repository", issues: [160] },
-  // TODO: governance flags have no single issue yet; the review gate and the personal-data
-  // pause are the nearest.
+  // TODO(#72, #39): governance flags have no single issue; the review gate and the
+  // personal-data pause are the nearest.
   { label: "Governance", issues: [72, 39] },
 ];
 

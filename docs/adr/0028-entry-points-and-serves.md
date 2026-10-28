@@ -32,7 +32,7 @@ paths, is deferred by the Blueprint to v2.0 (Appendix G, comment 1) and is not d
 1. **The process flow is SDK data.** `dd_sdk.process_flow` holds the three entry points and the
    six phases, each step with the requirements its figure caption names. It is shared by every
    orchestrator and names no agent. The steps are taken from the captions in §8.2; whether the
-   figures show more is an open `TODO`.
+   figures show more is open, TODO(#245).
 2. **An agent declares the Blueprint requirements it serves.** `AgentSpec.serves` is a tuple of
    functional requirement IDs, `R1` to `R12`; a sub-requirement such as `R3.1`, or anything else,
    is a `SpecError`. `describe` carries it as `serves`. A description without it, written before
@@ -67,6 +67,6 @@ None.
   `R3` meets R3; that is for the conformance report and its reviews (ADR-0014).
 - Which entry point a researcher chose is not recorded beyond the conversation. The stub reads
   only the current message, so it lists the steps once and does not track progress through them.
-  TODO: whether an orchestrator should keep the researcher's place in the flow across turns.
+  TODO(#203): whether an orchestrator should keep the researcher's place in the flow across turns.
 - Changing the process flow changes the model's prompt, and so its behaviour: treat an edit to
   `dd_sdk/process_flow.py` as a change to both orchestrators.

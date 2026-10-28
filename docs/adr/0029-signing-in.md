@@ -3,7 +3,7 @@
 **Status:** Proposed
 **Date:** 2026-10-22
 
-Settles the TODO that [ADR-0018](0018-acting-for.md) left for real authentication (#150).
+Settles what [ADR-0018](0018-acting-for.md) left open for real authentication (#150).
 
 ## Context
 
@@ -38,7 +38,7 @@ to ORCID records, and nothing here writes to one.
 
 - **OpenID Connect, with ORCID as the one provider in the first version.** The code names no
   provider. A provider is configuration: issuer, client ID and client secret. The first version
-  accepts one issuer, `https://orcid.org`, and development and CI use the sandbox issuer. TODO: a
+  accepts one issuer, `https://orcid.org`, and development and CI use the sandbox issuer. TODO(#179): a
   second provider, such as an institution's single sign-on, so that staff without an iD can sign
   in. It is configuration, not a change of design, but it raises the question of linking
   accounts (below).
@@ -68,7 +68,7 @@ to ORCID records, and nothing here writes to one.
   decides anything by it. Another provider's principal is a `mailto:` IRI or a URN, as ADR-0018
   allows.
 - **Two routes are two principals.** One person who signs in by two providers is two principals.
-  Accounts are never linked by matching email addresses or names. TODO: an explicit act of
+  Accounts are never linked by matching email addresses or names. TODO(#179): an explicit act of
   linking, when a second provider arrives.
 - **The record names the issuer that vouched.** The LinkML contract changes, and its version
   rises by a minor step:
@@ -88,7 +88,7 @@ to ORCID records, and nothing here writes to one.
   - The app's authenticator reads the session cookie and returns the session's principal.
   - The harness's own server (`dd-harness serve`, ADR-0022) has no browser session. A
     non-browser caller sends `Authorization: Bearer` with an ID token from the configured issuer,
-    and the server verifies it per request. TODO: whether an ID token is the right credential for
+    and the server verifies it per request. TODO(#17): whether an ID token is the right credential for
     a program that calls the harness, or whether that waits for machine-to-machine
     authentication (#17).
 - **A caller who cannot be authenticated is refused, never given a default.** An API request with
@@ -109,7 +109,7 @@ to ORCID records, and nothing here writes to one.
     now, and the app says on every page that it is not signing anyone in (#152).
 - **Sessions expire, and sign-out ends them on the server.**
   - A session has an idle timeout and an absolute lifetime, both set by the deployment. The
-    proposed defaults are an idle timeout of 8 hours and a lifetime of 7 days. TODO: confirm
+    proposed defaults are an idle timeout of 8 hours and a lifetime of 7 days. TODO(#152): confirm
     these against the hosting institution's policy.
   - Sign-out deletes the server-side session. ORCID offers no sign-out for a relying party, so
     the person stays signed in at ORCID, and the sign-out page says so.

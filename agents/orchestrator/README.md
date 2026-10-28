@@ -71,7 +71,7 @@ each turn low. Two consequences follow:
   an organisation under zero data retention, which gets an error on every turn. Check the
   chosen model against the institution's agreement.
 
-TODO: a profile rule that limits which models an agent may send a given class of data to (#40).
+TODO(#40): a profile rule that limits which models an agent may send a given class of data to.
 
 ## Using it in the app
 

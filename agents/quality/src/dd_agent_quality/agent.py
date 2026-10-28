@@ -6,7 +6,7 @@ mode `input_only`: a model *may* be called under this mode; this agent does not)
 produced by a rule in `checks.yaml` and is badged `lexical`.
 
 This is a demonstration of the harness, not a quality framework. The criteria and weights are
-hand-chosen; see the TODO in `checks.yaml`.
+hand-chosen; see `checks.yaml` and #18.
 """
 
 from __future__ import annotations

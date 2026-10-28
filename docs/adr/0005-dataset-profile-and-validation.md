@@ -19,7 +19,7 @@ a bespoke `ValidationReport` type would be a second thing to maintain.
   `fields`. Each of the first five has a `slot_uri` in Dublin Core Terms or DCAT. `fields` is a
   list of `TableField`, mirroring a Frictionless Table Schema field descriptor (`name`, `type`,
   `format`, `description`). Frictionless publishes no RDF namespace, so those slots carry
-  `see_also` links to the specification rather than invented URIs. **TODO:** revisit if
+  `see_also` links to the specification rather than invented URIs. **TODO(#20):** revisit if
   Frictionless publishes term IRIs.
 - Adding a slot to `DatasetProfile` requires naming the agent that reads it and its external URI.
 - The format for structured validation output is the W3C SHACL Validation Report vocabulary

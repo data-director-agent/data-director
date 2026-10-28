@@ -167,13 +167,13 @@
       "requires_approval": false,
       "schemas": {
         "MetadataRecord": {
-          "digest": "11ec4be7c69474191fee04b583f17da2416cf3551b3826440b690de4fdf0e639",
+          "digest": "4c22739bf8b026f221a752135d62f40eb0951a0f5499b0b59cfb698a165a92c9",
           "json_schema": {
             "$comment": "Generated from quality.yaml by `uv run dd-gen-schema <path to quality.yaml>`. Do not edit.",
             "$id": "https://w3id.org/data-director/agents/quality/MetadataRecord",
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
-            "description": "An existing metadata record about a dataset, as a repository or catalogue holds it. The input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a minimal record carries; TODO widen when a real repository export is exercised.",
+            "description": "An existing metadata record about a dataset, as a repository or catalogue holds it. The input a quality or validation agent assesses. Slots are the DCAT and Dublin Core terms a minimal record carries; TODO(#22): widen when a real repository export is exercised.",
             "properties": {
               "creators": {
                 "items": {
@@ -391,13 +391,13 @@
       "requires_approval": false,
       "schemas": {
         "DatasetProfile": {
-          "digest": "1e3f3abec2b8576f91ccd7643523ce39aa477774f36fb9ec5d62af089aeacdfd",
+          "digest": "c4090a745dec909b44ebf3ff5a3be5b0b23c017b90ab33065cf9603eded44cbc",
           "json_schema": {
             "$comment": "Generated from standards.yaml by `uv run dd-gen-schema <path to standards.yaml>`. Do not edit.",
             "$defs": {
               "TableField": {
                 "additionalProperties": false,
-                "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO: revisit if Frictionless publishes term IRIs).",
+                "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).",
                 "properties": {
                   "field_description": {
                     "type": [

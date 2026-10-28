@@ -5,7 +5,7 @@
 # where it lives: a file that no longer matches its pin stops the workbench from starting.
 # Rebuilding a snapshot changes its label and its hash; add a new entry for it.
 # Override the path with DD_SOURCES_CONFIG. Paths are relative to this file.
-# TODO: a resolver for the standards advisor's `live` route (the FAIRsharing API needs credentials and network).
+# TODO(#246): a resolver for the standards advisor's `live` route (the FAIRsharing API needs credentials and network).
 sources:
   - snapshot_refs: ["snapshot:2026-09-04", "snapshot:2026-09-04 (stale)"]
     path: ../agents/standards/data/fairsharing/snapshot.jsonl

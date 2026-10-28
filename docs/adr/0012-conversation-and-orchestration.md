@@ -137,11 +137,11 @@ Rejected:
 - A model-backed orchestrator uses the same spec (`Message` in, `Reply` out, mode
   `delegation`), adds a `chat` span and `reply_derivation` `model`, and needs no contract change.
 - The grant token is a bearer capability. ADR-0011's rule still holds: agent and workbench ports
-  stay on the host or a private network until authentication exists (TODO).
+  stay on the host or a private network until authentication exists, TODO(#17).
 - An orchestrator's timeout in `agents.yaml` must exceed the timeouts of the agents it delegates
   to.
-- Conversations are found by scanning the JSONL file (TODO: an index if the store grows large).
-- TODO, not decided here: mapping A2A `context_id` to `conversation_id`; delegation more than
+- Conversations are found by scanning the JSONL file (TODO(#141): an index if the store grows large).
+- TODO(#253), not decided here: mapping A2A `context_id` to `conversation_id`; delegation more than
   one level deep; delegation from the CLI; whether children inherit `requirement_ids`; the
   parent's Process Run Crate referencing its children's crates; checking a caller's history
   against the store (the app takes none and builds it from the store, ADR-0024 §17; other

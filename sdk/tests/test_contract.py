@@ -423,10 +423,11 @@ def test_a_request_cannot_say_whom_it_acts_for() -> None:
     doc = to_document(InvocationRequest(agent_id="stub.abstain", input=Message(message_text="hi")))
     doc["acting_for"] = to_document(PRINCIPAL)
     # The model refuses it, and every transport parses the request with the model before the
-    # conductor sees it. TODO: the generated request schema's root is open, so a consumer that
-    # validates with the JSON Schema alone would not refuse it.
+    # conductor sees it. The generated JSON Schema, whose root is closed, refuses it too.
     with pytest.raises(ValueError, match="acting_for"):
         InvocationRequest.model_validate(doc)
+    with pytest.raises(validate.ContractViolation, match="acting_for"):
+        validate.validate_request(doc)
 
 
 def test_request_validates_and_rejects_bad_id() -> None:

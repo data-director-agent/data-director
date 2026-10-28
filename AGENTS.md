@@ -87,5 +87,8 @@ CI runs `zizmor` and `actionlint` over `.github/` (blanket policy, no unpinned a
 ## Writing conventions
 
 British English (`organisation`, `behaviour`, `licence` as noun). Declarative prose for a mixed
-audience of researchers and engineers; no hype. Mark undecided matters with an explicit `TODO`
-rather than filling in a plausible guess.
+audience of researchers and engineers; no hype. Mark undecided matters with an explicit
+`TODO(#123)` rather than filling in a plausible guess. The reference, directly after the word, is
+the issue that will resolve it: open one if none fits, or list several, `TODO(#41, #57)`.
+`scripts/check_todos.py` rejects a bare marker anywhere git tracks except `docs/BLUEPRINT.md`,
+and CI runs it.

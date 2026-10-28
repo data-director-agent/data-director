@@ -82,7 +82,7 @@ None. The review record is YAML read with PyYAML, which the report already uses.
   which requirements are waiting for one.
 - R3 and C15 keep their test verdicts; the added review column does not downgrade them.
 - A review holds until a later review supersedes it, however much the code has changed since.
-  The report shows the reviewed commit so a reader can judge. TODO: decide whether a review
+  The report shows the reviewed commit so a reader can judge. TODO(#248): decide whether a review
   should lapse, for example when files in a declared scope change after the reviewed commit.
 - The review record is unsigned, as the report is (ADR-0006, "Rejected for v0"). Its only
   attestation is the commit that added the entry and the project's DCO sign-off.

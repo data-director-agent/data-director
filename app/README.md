@@ -114,7 +114,7 @@ The app supplies its own configuration to the harness (ADR-0022). Its reference 
 | `config/profile.yaml.example` | The institutional profile. It enables every in-tree agent. Copy it to `config/profile.yaml` (not committed) to edit it locally; the app prefers that copy. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
-| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO: agents should declare their own (#108). | — |
+| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 
 To change the profile for your own machine, copy the example. `config/profile.yaml` is not
@@ -225,6 +225,6 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   streamed (#159). The agent directory is its own page, `/agents`, reached
   from the navigation and from a delegated child's card (`/agents?agent=<id>` selects an agent).
 - No agent declares its limits, reliability or data handling yet. That needs the oversight
-  extension (ADR-0025, TODO).
+  extension (ADR-0025), TODO(#67).
 
 This package substantiates no Blueprint requirement, and its tests carry no requirement marker.

@@ -2,7 +2,7 @@
 # names another list. Paths are relative to this file; each copy is pinned by sha256, and a
 # file that no longer matches its pin stops the app from starting. Format as in
 # workbench/sources.yaml.
-# TODO: how to pin a copy that is not in the repository (#57).
+# TODO(#225): how to pin a copy that is not in the repository.
 sources:
   - snapshot_refs: ["snapshot:2026-09-04", "snapshot:2026-09-04 (stale)"]
     path: ../../agents/standards/data/fairsharing/snapshot.jsonl

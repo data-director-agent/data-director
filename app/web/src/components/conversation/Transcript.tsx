@@ -52,7 +52,7 @@ function ChildCard({
   selected: boolean;
 }) {
   const { label, tone } = OUTCOME[child.outcome.status];
-  // TODO: a suspended run is the only sign of review waiting until the gate exists (#72, #73).
+  // TODO(#72, #73): a suspended run is the only sign of review waiting until the gate exists.
   const waiting = child.outcome.status === "suspended";
   const name = `${child.agent_id}@${child.agent_version}`;
   const regionId = `run-${child.invocation_id}`;

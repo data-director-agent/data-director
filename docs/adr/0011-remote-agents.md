@@ -108,14 +108,14 @@ Rejected:
   workbench reports it as unavailable and carries on.
 - The trust boundary moves. The linter checks what the agent reports about its spans, and it
   did so before too, but the report now crosses a network. Independently re-fetching retrieved
-  sources to verify their hashes is TODO.
-- Authentication between the workbench and its agents is TODO (mutual TLS, bearer tokens or a
+  sources to verify their hashes is TODO(#246).
+- Authentication between the workbench and its agents is TODO(#17) (mutual TLS, bearer tokens or a
   gateway). Until it exists, agent ports must not be exposed beyond the host or a private network.
 - Invocations are blocking `message/send`. Streaming, and mapping `suspended` to A2A
   `input-required`, arrive with the outcome that needs them.
-- A persistent identifier for the extension URI is TODO, as it is for the problem-type namespace
+- A persistent identifier for the extension URI is TODO(#3), as it is for the problem-type namespace
   (ADR-0004).
-- Container images and a `compose.yaml` are TODO. `scripts/run-agents.sh` starts every agent
+- Container images and a `compose.yaml` are TODO(#223, #224). `scripts/run-agents.sh` starts every agent
   locally.
 - Test module basenames must be unique across the workspace, because test directories are not
   packages and pytest imports each module by its basename.

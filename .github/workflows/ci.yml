@@ -331,6 +331,8 @@ jobs:
         with:
           enable-cache: false
       - run: uvx cffconvert --validate --infile CITATION.cff
+      # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
+      - run: python3 scripts/check_todos.py
 
   workflows:
     name: Workflows (actionlint, zizmor)
@@ -393,7 +395,7 @@ jobs:
         with:
           persist-credentials: false
       # Refuses a pull request that adds a dependency with a known advisory of moderate severity
-      # or worse. TODO: decide which dependency licences the project accepts, then deny the rest.
+      # or worse. TODO(#82): decide which dependency licences the project accepts, then deny the rest.
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: moderate

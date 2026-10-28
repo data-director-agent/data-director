@@ -45,7 +45,7 @@ def write_process_run_crate(
             properties={"name": envelope["agent_id"], "version": envelope["agent_version"]},
         )
     )
-    # TODO: Process Run Crate has no convention for an accountable role; until one is settled,
+    # TODO(#26): Process Run Crate has no convention for an accountable role; until one is settled,
     # a role is recorded as a Person whose description says so.
     principal = envelope["acting_for"]
     human = crate.add(

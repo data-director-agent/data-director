@@ -58,9 +58,9 @@ None.
 
 ## Not yet decided
 
-- TODO: whether `https://w3id.org/data-director/schema/core` is registered with w3id, as for
+- TODO(#3): whether `https://w3id.org/data-director/schema/core` is registered with w3id, as for
   the previous id.
-- TODO: the prose in `workbench/docs/` (e.g. `contract.md`) and the requirements register behind
+- TODO(#255): the prose in `workbench/docs/` (e.g. `contract.md`) and the requirements register behind
   `CONFORMANCE.md` still say "the workbench" in places where they mean the harness. That goes
   with ADR-0022's open question of whether the harness's documentation moves out of
   `workbench/docs/`.
