@@ -67,7 +67,19 @@ It is built from:
 
 ## Run it
 
-Node 22 or later, once, from `app/web`:
+From the repository root:
+
+```bash
+uv run scripts/dev.py setup        # once: whom runs act for, an optional model key; installs, builds
+uv run scripts/dev.py start        # the agents, the app (:7860) and the Vite dev server (:5173)
+```
+
+`start` builds the shell again whenever `app/web` has changed since the last build, starts every
+agent in `config/agents.yaml`, waits for each, and then starts the app and `npm run dev`, which
+proxies `/api` to it. Ctrl-C stops them all. `uv run scripts/dev.py doctor` says what is wrong
+when something is. The README at the repository root, "Quick start", has the steps by hand.
+
+By hand, with Node 22 or later, from `app/web`:
 
 ```bash
 npm ci && npm run build            # writes app/web/dist
@@ -81,8 +93,8 @@ uv run data-director               # opens http://127.0.0.1:7860
 ```
 
 The agents are separate services. Start them with `scripts/run-agents.sh` from the
-repository root before the app, which reads their cards once at start-up; one that is not
-running is listed as unavailable. The orchestrator runs the agents it delegates to through the
+repository root before the app; one that is not running is listed as unavailable, and is found
+when it starts. The orchestrator runs the agents it delegates to through the
 app's own A2A endpoint, under a grant the conductor issues for that run.
 
 To run it on a server that keeps itself up to date with `main`, see `deploy/README.md`.
@@ -142,7 +154,8 @@ rule-based `director.stub`, which needs no model key: its replies are templates,
 by its `routing.yaml`.
 
 The model-backed `orchestrator.model` (`agents/orchestrator/`) decides which agents to ask
-from what each one declares, and writes its replies with a model. To use it, give it a model key
+from what each one declares, and writes its replies with a model. In development, `uv run scripts/dev.py setup` does
+both steps below when you give it a key. To use it, give it a model key
 (`workbench/agents/orchestrator.env` in development, `deploy/README.md` on a server), and in the
 profile the app runs under (your local `config/profile.yaml`) set
 
