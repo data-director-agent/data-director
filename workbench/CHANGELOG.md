@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-alpha.1](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha...workbench-v0.2.0-alpha.1) (2026-10-28)
+
+
+### Features
+
+* **workbench:** show the agent card in a readable form on the Agents page ([#217](https://github.com/data-director-agent/data-director/issues/217)) ([f5a650c](https://github.com/data-director-agent/data-director/commit/f5a650caa4afb7138353243dfed9bd144e3eff19)), closes [#138](https://github.com/data-director-agent/data-director/issues/138)
+
 ## [0.2.0-alpha](https://github.com/data-director-agent/data-director/compare/workbench-v0.1.0...workbench-v0.2.0-alpha) (2026-10-23)
 
 

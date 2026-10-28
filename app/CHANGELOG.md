@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0-alpha.3](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.2...app-v0.3.0-alpha.3) (2026-10-28)
+
+
+### Features
+
+* **app:** a design system of tokens and styled controls ([#191](https://github.com/data-director-agent/data-director/issues/191)) ([34c1cd4](https://github.com/data-director-agent/data-director/commit/34c1cd4f1efaff48824ea6b66399035b9d0d920e))
+* **app:** make the local profile optional with an example ([#227](https://github.com/data-director-agent/data-director/issues/227)) ([3f76cc3](https://github.com/data-director-agent/data-director/commit/3f76cc307b74c2d228ba832c3058bfbb7a6731c9))
+* **app:** report a problem from the app ([#187](https://github.com/data-director-agent/data-director/issues/187)) ([30d8311](https://github.com/data-director-agent/data-director/commit/30d831154b5300f26e5ad9285c1315f546451aa4))
+* **app:** show a delegated run's evidence inside its card ([#193](https://github.com/data-director-agent/data-director/issues/193)) ([cb36ce2](https://github.com/data-director-agent/data-director/commit/cb36ce2a466d4bae2b733a2230d241a873aaf463))
+* **app:** show the deployed commit in the footer ([#230](https://github.com/data-director-agent/data-director/issues/230)) ([9378ada](https://github.com/data-director-agent/data-director/commit/9378ada19456654a69128032dbee8c3e032e26b8))
+* **scripts:** add a guided setup and one-command start for development ([#228](https://github.com/data-director-agent/data-director/issues/228)) ([bc42417](https://github.com/data-director-agent/data-director/commit/bc42417a45d080377438ef579e2df7ac73c687ff))
+
+
+### Bug Fixes
+
+* **app:** read agent cards off the event loop in /api/agents ([#219](https://github.com/data-director-agent/data-director/issues/219)) ([f2bb8d8](https://github.com/data-director-agent/data-director/commit/f2bb8d8ac0e6204061d4aa2ea6f935df64d54da2))
+
 ## [0.3.0-alpha.2](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.1...app-v0.3.0-alpha.2) (2026-10-23)
 
 
