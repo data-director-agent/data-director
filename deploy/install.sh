@@ -93,6 +93,24 @@ step "systemd units"
 done
 systemctl daemon-reload
 
+step "Certificate for $domain"
+# The site names certbot's certificate, so it must exist before the site is installed. certbot
+# answers the challenge through whatever NGINX serves on port 80 at the time, and renews the
+# same way; the hook reloads NGINX onto the renewed certificate.
+cert="/etc/letsencrypt/live/$domain/fullchain.pem"
+if [[ ! -s "$cert" ]]; then
+  if [[ -t 0 ]]; then
+    certbot certonly --nginx -d "$domain"
+  else
+    echo "no $cert; get it with: sudo certbot certonly --nginx -d $domain" >&2
+    exit 1
+  fi
+fi
+install -D -m 0755 /dev/stdin /etc/letsencrypt/renewal-hooks/deploy/reload-nginx <<'HOOK'
+#!/bin/sh
+exec systemctl reload nginx
+HOOK
+
 step "NGINX site for $domain"
 # The packaged default site would answer any request for another host name.
 rm -f /etc/nginx/sites-enabled/default
@@ -134,5 +152,4 @@ step "Enabling the services and the deployment timer"
 systemctl enable --now data-director.target data-director-deploy.timer
 
 echo
-echo "Done. The site is http://$domain/ (behind the password)."
-echo "For HTTPS: sudo certbot --nginx -d $domain"
+echo "Done. The site is https://$domain/ (behind the password)."

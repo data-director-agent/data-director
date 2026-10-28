@@ -35,7 +35,7 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
-| `nginx/data-director.conf` | The reverse proxy: password, long timeouts for runs, `/a2a` closed from outside. |
+| `nginx/data-director.conf` | The reverse proxy: HTTPS only, password, long timeouts for runs, `/a2a` closed from outside. |
 
 Every agent, the standards advisor included, is a service of its own; the app runs none in its
 process (ADR-0027).
@@ -59,9 +59,18 @@ process (ADR-0027).
 
 ## Set up the VM
 
-You need Ubuntu 22.04 or later, sudo, and a DNS name for the VM if it is to have HTTPS.
+You need Ubuntu 22.04 or later, sudo, and a DNS name that resolves to the VM.
 
-1. Clone the repository anywhere and run the installer. It asks for the first user name and
+1. Open the firewall to the web only. Port 80 must be reachable from the internet for Let's
+   Encrypt to issue and renew the certificate; on a network where it is not, ask IT for a
+   certificate and put it at `/etc/letsencrypt/live/<name>/fullchain.pem` and `privkey.pem`.
+
+   ```bash
+   sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
+   ```
+
+2. Clone the repository anywhere and run the installer. It gets the certificate with certbot
+   (which asks for an email address the first time) and asks for the first user name and
    password for the site.
 
    ```bash
@@ -70,7 +79,7 @@ You need Ubuntu 22.04 or later, sudo, and a DNS name for the VM if it is to have
    sudo deploy/install.sh --domain data-director.example.ac.uk
    ```
 
-2. It stops to ask for the operator. Set `DD_PRINCIPAL_ID` (an ORCID iD URL, for example) and
+3. It stops to ask for the operator. Set `DD_PRINCIPAL_ID` (an ORCID iD URL, for example) and
    `DD_PRINCIPAL_NAME` in `/etc/data-director/app.env`, then run it again. That builds the first
    release, which takes some minutes, starts everything and enables the timer.
 
@@ -79,16 +88,11 @@ You need Ubuntu 22.04 or later, sudo, and a DNS name for the VM if it is to have
    sudo deploy/install.sh --domain data-director.example.ac.uk
    ```
 
-3. Open the firewall to the web only, and add HTTPS. certbot edits the NGINX site and renews the
-   certificate itself. It needs the name to resolve to the VM and port 80 to be reachable from the
-   internet; on a network that is not, ask IT for a certificate instead.
+The site is then HTTPS only: port 80 redirects, TLS 1.3 alone is offered, and HSTS is set. A
+certificate from IT needs renewing by hand. One from certbot renews itself, and a hook that
+`install.sh` adds reloads NGINX when it does.
 
-   ```bash
-   sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
-   sudo certbot --nginx -d data-director.example.ac.uk
-   ```
-
-The clone from step 1 is only needed for `install.sh`; the VM deploys from its own bare clone.
+The clone from step 2 is only needed for `install.sh`; the VM deploys from its own bare clone.
 
 ### Why it fetches over HTTPS
 
