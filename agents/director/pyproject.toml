@@ -9,7 +9,7 @@ description = "director.stub: a rule-based stand-in for the Data Director orches
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-dependencies = ["data-director-sdk", "pyyaml>=6.0"]
+dependencies = ["data-director-sdk>=0.2.0a0", "pyyaml>=6.0"]
 
 [project.scripts]
 dd-director = "dd_agent_director.agent:main"
