@@ -1,0 +1,32 @@
+/* The report form beside the summary of what it will send. */
+
+@layer components {
+  .feedback-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .feedback-form fieldset {
+    border: 0;
+    padding: 0;
+  }
+
+  .feedback-form legend {
+    font-weight: 600;
+  }
+
+  .feedback-preview {
+    padding: var(--space-3) var(--space-4);
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-surface);
+    overflow-wrap: anywhere;
+  }
+
+  @media (width <= 48rem) {
+    .feedback-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

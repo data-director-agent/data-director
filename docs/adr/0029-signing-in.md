@@ -77,8 +77,12 @@ to ORCID records, and nothing here writes to one.
   - `Principal` gains `vouched_by`, the issuer's IRI (for example `https://orcid.org`). It is
     required when `assurance` is `authenticated` and absent when it is `asserted`. A reader can
     then weigh the claim by who made it.
-  - TODO: the slot's `slot_uri`, and the property that carries it on the crate's `Person`
-    entity. Both are settled with the contract change.
+  - The slot's IRI is `dd:vouched_by` (`https://w3id.org/data-director/vouched_by`). No
+    published vocabulary has a term that means exactly this, so none is borrowed. The contract
+    states the rule as LinkML rules on `Principal`, and the JSON Schema enforces it.
+  - The crate's `Person` carries it as `vouchedBy`, a term the crate adds to its `@context`
+    with that IRI. Its value references a context entity of type `Organization` for the issuer,
+    whose `@id` is the issuer's IRI.
 - **The `Authenticator` interface does not change.** `principal_for(headers)` still maps a
   caller's request headers to a `Principal`. Two kinds of caller use it:
   - The app's authenticator reads the session cookie and returns the session's principal.
@@ -125,7 +129,7 @@ to ORCID records, and nothing here writes to one.
 
 | Dependency | Tier | Fallback if this dependency is abandoned |
 |---|---|---|
-| An OpenID Connect and JOSE library for the Python harness (candidates: `joserfc`, `authlib`; chosen in #151) | Runtime path | Another JOSE library, or verifying RS256 with `cryptography` directly. Token verification sits behind one function in `dd_harness.identity`, and the sign-in flow behind the app's sign-in routes, so a replacement is local to each. |
+| `joserfc`, the JOSE library that verifies ID tokens in the harness (#151). Chosen over `authlib` because it is that project's JOSE core alone, typed, with no web framework. | Runtime path | Another JOSE library, or verifying RS256 with `cryptography` directly. Token verification sits behind one function in `dd_harness.identity`, and the sign-in flow behind the app's sign-in routes, so a replacement is local to each. |
 
 ## Consequences
 

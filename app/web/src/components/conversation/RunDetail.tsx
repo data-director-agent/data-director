@@ -1,11 +1,10 @@
 /**
- * The selected delegated child's work, beside the conversation (#135): its progress, outcome,
- * result and evidence, drawn by the run view's own `Stages` and `Outcome` rather than a second
- * rendering. Beside the transcript on a wide screen; its own view, reached from the card, on a
- * narrow one (the layout rules are in `base.css`).
+ * A delegated child's work, opened in its card in the transcript (ADR-0024 §14): its progress,
+ * outcome, result and evidence, drawn by the run view's own `Stages` and `Outcome` rather than
+ * a second rendering, so the evidence sits beside the turn it supports.
  */
 
-import { forwardRef, useEffect, useState } from "react";
+import { type Ref, useEffect, useState } from "react";
 
 import type { AgentView } from "../../manifest/normalise";
 import { errorMessage, useRunApi } from "../../run/api";
@@ -16,10 +15,18 @@ import { Stages } from "../run/Stages";
 
 type Loaded = { id: string; result: RunResult | null; error?: string };
 
-export const RunPanel = forwardRef<
-  HTMLHeadingElement,
-  { invocationId: string; agent: AgentView | undefined; name: string; onClose: () => void }
->(function RunPanel({ invocationId, agent, name, onClose }, heading) {
+export function RunDetail({
+  invocationId,
+  agents,
+  idPrefix,
+  headingRef,
+}: {
+  invocationId: string;
+  /** The directory, in which the run's own agent is found once the run is loaded. */
+  agents: AgentView[];
+  idPrefix: string;
+  headingRef?: Ref<HTMLHeadingElement>;
+}) {
   const runs = useRunApi();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
 
@@ -35,16 +42,9 @@ export const RunPanel = forwardRef<
   }, [runs, invocationId]);
 
   const shown = loaded?.id === invocationId ? loaded : null;
+  const agent = shown?.result && agents.find((a) => a.id === shown.result?.envelope.agent_id);
   return (
-    <section aria-labelledby="open-run" className="run-panel">
-      <p>
-        <button type="button" onClick={onClose}>
-          Back to the conversation
-        </button>
-      </p>
-      <h2 id="open-run" ref={heading} tabIndex={-1}>
-        Run of {name}
-      </h2>
+    <>
       {shown?.error && (
         <div role="alert" className="callout status-danger">
           <p>Data Director could not open this run: {shown.error}.</p>
@@ -55,7 +55,12 @@ export const RunPanel = forwardRef<
         <>
           <h3 className="visually-hidden">Progress and outcome</h3>
           <Stages stages={inferStages(shown.result)} inferred />
-          <Outcome result={shown.result} agent={agent} idPrefix="conversation-run" />
+          <Outcome
+            result={shown.result}
+            agent={agent}
+            idPrefix={idPrefix}
+            {...(headingRef ? { headingRef } : {})}
+          />
         </>
       )}
       {shown?.result && !agent && (
@@ -64,6 +69,6 @@ export const RunPanel = forwardRef<
           run view is not available.
         </p>
       )}
-    </section>
+    </>
   );
-});
+}

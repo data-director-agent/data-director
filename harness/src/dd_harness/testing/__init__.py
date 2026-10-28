@@ -12,6 +12,10 @@ The conductor `make_conductor` builds also serves its own A2A routes
 delegation agent's call back to the conductor (ADR-0012) crosses the real wire too. Nothing here
 needs the workbench (ADR-0022).
 
+`FakeIdentityProvider` stands in for an OpenID Connect provider such as ORCID (ADR-0029): a local
+signing key, its published keys, and ID tokens built to order, so that a test of sign-in needs no
+network and no real account.
+
 `AbstainingStub` abstains unconditionally under the fixed id `stub.abstain`, which the test profiles
 name, so a test can exercise the gate, the store and the non-success path without scripting
 anything. `ScriptedAgent` is a generic double whose specification and behaviour are set per test. It
@@ -27,8 +31,9 @@ The conductor knows them only from the doubles' cards, as it knows every real ag
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -38,11 +43,18 @@ from a2a.client import ClientConfig, create_client
 from a2a.helpers import new_data_part
 from a2a.types import Message as A2AMessage
 from a2a.types import Role, SendMessageRequest
+from joserfc import jwt
+from joserfc.jwk import KeySet, RSAKey
 from pydantic import Field
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor
-from dd_harness.identity import OperatorAssertion
+from dd_harness.identity import (
+    BearerTokenAuthenticator,
+    IssuerKeys,
+    OidcProvider,
+    OperatorAssertion,
+)
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry
 from dd_harness.remote import RemoteAgent
@@ -89,6 +101,7 @@ __all__ = [
     "AbstainingStub",
     "Behaviour",
     "Chat",
+    "FakeIdentityProvider",
     "ProbeCheck",
     "ProbeClaim",
     "ProbeProfile",
@@ -121,6 +134,78 @@ RESTRICTIVE = PROFILES_DIR / "test-restrictive.yaml"
 TEST_PRINCIPAL = Principal(
     principal_id="https://orcid.org/0000-0002-1825-0097", name="Josiah Carberry"
 )
+
+# --- A fake identity provider (ADR-0029) ------------------------------------------------------
+
+# RSA modulus size for the fake provider's key: the smallest that RS256 verifiers accept.
+FAKE_KEY_BITS = 2048
+FAKE_TOKEN_LIFETIME_S = 600
+
+
+def _signing_key(kid: str) -> RSAKey:
+    return RSAKey.generate_key(FAKE_KEY_BITS, parameters={"kid": kid, "use": "sig", "alg": "RS256"})
+
+
+@dataclass
+class FakeIdentityProvider:
+    """An OpenID Connect provider in memory: it signs ID tokens with a local key and publishes
+    that key, as ORCID does at its `jwks_uri`. The issuer defaults to ORCID's sandbox, so the
+    principals it yields have the form a development deployment records."""
+
+    issuer: str = "https://sandbox.orcid.org"
+    client_id: str = "APP-TESTCLIENT0000"
+    key: RSAKey = field(default_factory=lambda: _signing_key("fake-1"))
+    fetches: int = 0
+
+    @property
+    def provider(self) -> OidcProvider:
+        return OidcProvider(issuer=self.issuer, client_id=self.client_id)
+
+    def jwks(self, issuer: str = "") -> dict[str, Any]:
+        """The published keys: what `IssuerKeys` would fetch from the issuer."""
+        self.fetches += 1
+        return dict(KeySet([self.key]).as_dict(private=False))
+
+    def keys(self) -> IssuerKeys:
+        return IssuerKeys(self.issuer, fetch=self.jwks)
+
+    def authenticator(self) -> BearerTokenAuthenticator:
+        return BearerTokenAuthenticator(self.provider, self.keys())
+
+    def rotate(self, kid: str) -> None:
+        """Sign with a new key from now on, as a provider rotating its keys does."""
+        self.key = _signing_key(kid)
+
+    def id_token(
+        self,
+        sub: str = "0000-0002-1825-0097",
+        *,
+        name: str | None = "Josiah Carberry",
+        nonce: str | None = None,
+        issued_at: int | None = None,
+        lifetime_s: int = FAKE_TOKEN_LIFETIME_S,
+        audience: str | list[str] | None = None,
+        issuer: str | None = None,
+        key: RSAKey | None = None,
+        **claims: Any,
+    ) -> str:
+        """An ID token as the provider would issue it; each argument changes one claim, so a
+        test can build the token it means to refuse."""
+        iat = int(time.time()) if issued_at is None else issued_at
+        body: dict[str, Any] = {
+            "iss": issuer or self.issuer,
+            "aud": self.client_id if audience is None else audience,
+            "sub": sub,
+            "iat": iat,
+            "exp": iat + lifetime_s,
+            "auth_time": iat,
+            **({"name": name} if name is not None else {}),
+            **({"nonce": nonce} if nonce is not None else {}),
+            **claims,
+        }
+        signer = key or self.key
+        return jwt.encode({"alg": "RS256", "kid": signer.kid}, body, signer)
+
 
 # --- The doubles' own classes (schema/doubles.yaml) -----------------------------------------
 
@@ -366,13 +451,18 @@ HARNESS_URL = "http://harness.test"
 
 
 def send_to_harness(
-    app: Any, base_url: str, request: InvocationRequest, metadata: dict[str, str] | None = None
+    app: Any,
+    base_url: str,
+    request: InvocationRequest,
+    metadata: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> Any:
     """Send `request` to the conductor's A2A routes served by `app` at `base_url`, with the
-    message metadata given, and return the task that came back."""
+    message metadata and HTTP headers given, and return the task that came back."""
 
     async def send() -> Any:
         async with asgi_client_factory(app)(base_url, 30.0) as hc:
+            hc.headers.update(headers or {})
             client = await create_client(
                 agent=base_url, client_config=ClientConfig(streaming=False, httpx_client=hc)
             )

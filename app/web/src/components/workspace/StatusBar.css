@@ -19,7 +19,7 @@
   }
 
   .status-bar dt {
-    font-weight: 600;
+    font-weight: var(--font-weight-strong);
   }
 
   .status-bar dt::after {

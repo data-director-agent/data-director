@@ -13,6 +13,7 @@ import pytest
 
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
+    Assurance,
     ConversationTurn,
     Delegation,
     Derivation,
@@ -367,6 +368,44 @@ def test_a_principal_needs_an_absolute_iri_and_a_name(principal_id: str, name: s
     doc = _envelope().to_document()
     doc["acting_for"] = {**doc["acting_for"], "principal_id": principal_id, "name": name}
     with pytest.raises(validate.ContractViolation):
+        validate.validate_envelope(doc)
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+def test_an_authenticated_principal_names_the_issuer_that_vouched() -> None:
+    person = Principal(
+        principal_id="https://orcid.org/0000-0002-1825-0097",
+        name="Josiah Carberry",
+        assurance=Assurance.AUTHENTICATED,
+        vouched_by="https://orcid.org",
+    )
+    doc = _envelope(acting_for=person).to_document()
+    assert doc["acting_for"]["vouched_by"] == "https://orcid.org"
+    validate.validate_envelope(doc)
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
+@pytest.mark.parametrize(
+    ("assurance", "vouched_by"),
+    [(Assurance.AUTHENTICATED, None), (Assurance.ASSERTED, "https://orcid.org")],
+)
+def test_vouched_by_is_present_exactly_when_authenticated(
+    assurance: Assurance, vouched_by: str | None
+) -> None:
+    with pytest.raises(ValueError, match="vouched_by"):
+        Principal(
+            principal_id=PRINCIPAL.principal_id,
+            name=PRINCIPAL.name,
+            assurance=assurance,
+            vouched_by=vouched_by,
+        )
+    # The JSON Schema holds the same rule for a document produced outside Python.
+    doc = _envelope().to_document()
+    acting_for = {**doc["acting_for"], "assurance": assurance.value}
+    if vouched_by is not None:
+        acting_for["vouched_by"] = vouched_by
+    doc["acting_for"] = acting_for
+    with pytest.raises(validate.ContractViolation, match="vouched_by"):
         validate.validate_envelope(doc)
 
 

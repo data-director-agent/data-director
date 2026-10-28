@@ -15,14 +15,14 @@ function withReply(text: string): Conversation {
 
 describe("Transcript", () => {
   it("renders Markdown in a reply as formatted text", () => {
-    render(<Transcript conversation={withReply("**bold** and\n\n- one\n- two")} onOpenRun={() => {}} />);
+    render(<Transcript conversation={withReply("**bold** and\n\n- one\n- two")} agents={[]} onToggleRun={() => {}} />);
     expect(screen.getAllByText("bold")[0]?.tagName).toBe("STRONG");
     expect(screen.getAllByRole("listitem").some((li) => li.textContent === "one")).toBe(true);
   });
 
   it("does not render raw HTML in a reply", () => {
     const { container } = render(
-      <Transcript conversation={withReply("<img src=x onerror=alert(1)>")} onOpenRun={() => {}} />,
+      <Transcript conversation={withReply("<img src=x onerror=alert(1)>")} agents={[]} onToggleRun={() => {}} />,
     );
     expect(container.querySelector("img")).toBeNull();
   });

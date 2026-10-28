@@ -1,0 +1,29 @@
+name: Dependabot approve
+
+# Approves Dependabot pull requests that carry only patch updates, so that the "CI passed" gate and
+# the ruleset, not a person's review, decide when they merge. Minor and major updates are left for
+# a person to review. This workflow approves; it does not merge.
+on: pull_request
+
+permissions: {}
+
+jobs:
+  approve:
+    name: Approve patch updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'data-director-agent/data-director'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Approve the pull request
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -245,7 +245,7 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
 
-test("a delegated run is its own view at 320px, reached from the card, and Back returns to it", async ({
+test("a delegated run opens inside its card at 320px, keeping focus and the conversation", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
@@ -254,14 +254,18 @@ test("a delegated run is its own view at 320px, reached from the card, and Back 
   await page.goto("/");
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
   await page.getByRole("button", { name: "Send" }).click();
-  const open = page.getByRole("button", { name: /Open run/ }).first();
-  await open.click();
+  const toggle = page.getByRole("button", { name: /(Show|Hide) the run/ }).first();
+  await toggle.click();
   await expect(page).toHaveURL(/\?run=/);
-  await expect(page.getByRole("heading", { name: /^Run of / })).toBeFocused();
-  await expect(page.getByRole("list", { name: "Conversation" })).toBeHidden();
-  expect(await overflow(page), "horizontal overflow on the run view").toBeLessThanOrEqual(0);
-  await page.getByRole("button", { name: "Back to the conversation" }).click();
-  await expect(open).toBeFocused();
+  await expect(toggle).toBeFocused();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const conversation = page.getByRole("list", { name: "Conversation" });
+  await expect(conversation).toBeVisible();
+  await expect(conversation.getByRole("heading", { name: /^Outcome:/ })).toBeVisible();
+  expect(await overflow(page), "horizontal overflow with a run open").toBeLessThanOrEqual(0);
+  await toggle.click();
+  await expect(page).not.toHaveURL(/\?run=/);
+  await expect(toggle).toBeFocused();
 });
 
 test("the directory is a page: reachable from the navigation, survives a reload, and Back leaves it", async ({
@@ -309,13 +313,17 @@ test("a link names the agent to show", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
 });
 
-test("the workspace at 1280px: phases, conversation and the open run side by side", async ({ page }) => {
+test("the workspace at 1280px: phases, conversation and the project's documents side by side", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await serveConversation(page);
+  await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
   await page.goto("/");
   const phases = page.getByRole("navigation", { name: "Blueprint phases" });
   await expect(phases.locator("summary")).toHaveCount(6);
-  await expect(page.getByRole("region", { name: "Runs and evidence" })).toBeVisible();
+  const documents = page.getByRole("region", { name: "Project documents" });
+  await expect(documents).toBeVisible();
   expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
 
   // A phase opens from the keyboard and names the agents serving its steps.
@@ -324,18 +332,21 @@ test("the workspace at 1280px: phases, conversation and the open run side by sid
   await page.keyboard.press("Enter");
   await expect(phases.getByRole("link", { name: "standards.advisor" }).first()).toBeVisible();
 
-  // An open run sits beside the transcript, and closing it returns focus to its card.
+  // An open run sits inside its card in the transcript, and the documents stay beside it.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
   await page.getByRole("button", { name: "Send" }).click();
-  const open = page.getByRole("button", { name: /Open run/ }).first();
-  await open.click();
-  await expect(page.getByRole("heading", { name: /^Run of / })).toBeFocused();
-  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+  const toggle = page.getByRole("button", { name: /(Show|Hide) the run/ }).first();
+  await toggle.click();
+  const conversation = page.getByRole("list", { name: "Conversation" });
+  await expect(conversation.getByRole("heading", { name: /^Evidence/ })).toBeVisible();
+  await expect(toggle).toBeFocused();
   await expect(phases).toBeVisible();
+  await expect(documents).toBeVisible();
+  expect(await overflow(page), "horizontal overflow with a run open").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
-  await page.getByRole("button", { name: "Back to the conversation" }).click();
-  await expect(open).toBeFocused();
-  await expect(page.getByRole("region", { name: "Runs and evidence" })).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toBeFocused();
+  await expect(conversation.getByRole("heading", { name: /^Outcome:/ })).toHaveCount(0);
 });
 
 test("the workspace reflows at 320px with every phase open", async ({ page }) => {
@@ -370,3 +381,38 @@ test("light by default whatever the system prefers; the dark choice survives a r
   await expect(html).toHaveAttribute("data-theme", "dark");
   expect(await background()).not.toBe("rgb(255, 255, 255)");
 });
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`report a problem, ${scheme}: sends with the version, no axe violations`, async ({ page }) => {
+    await useScheme(page, scheme);
+    await serve(page, reference);
+    await page.route("/api/about", (route) =>
+      route.fulfill({
+        json: {
+          app_version: "0.3.0-alpha.1",
+          harness_version: "0.1.0",
+          commit: "abcdef0123456789",
+          feedback_enabled: true,
+        },
+      }),
+    );
+    let sent: Record<string, unknown> | undefined;
+    await page.route("/api/feedback", (route) => {
+      sent = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({
+        status: 201,
+        json: { url: "https://github.com/data-director-agent/data-director/issues/1", number: 1 },
+      });
+    });
+    await page.goto("/agents");
+    await page.getByRole("link", { name: "Report a problem" }).click();
+    await expect(page.getByText("This is Data Director v0.3.0-alpha.1 (abcdef0).")).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    await page.getByLabel("Title").fill("It hangs");
+    await page.getByLabel("Details").fill("Never ends.");
+    await page.getByRole("button", { name: "Send report" }).click();
+    await expect(page.getByRole("status")).toContainText("issue #1");
+    expect(sent).toMatchObject({ kind: "bug", title: "It hangs", page: "/agents" });
+    expect(await axeViolations(page)).toEqual([]);
+  });
+}

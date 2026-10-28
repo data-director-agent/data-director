@@ -19,7 +19,7 @@
     "agent_id": "standards.advisor",
     "agent_version": "0.2.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.8.0",
+    "contract_version": "0.9.0",
     "evidence": [
       {
         "canonicalisation": "json-sorted-utf8-v1",

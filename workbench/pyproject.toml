@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-workbench"
-version = "0.1.0"
+version = "0.2.0-alpha"
 description = "Data Director Workbench: a development way in to the harness, with the CLI, the viewer and evaluation"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -25,7 +25,7 @@ workbench = "workbench.cli:entry"
 
 [project.optional-dependencies]
 # Evaluation on Inspect AI (ADR-0013): `workbench.evaluation` and each agent's `evals/`.
-eval = ["inspect-ai>=0.3.268"]
+eval = ["inspect-ai>=0.3.281"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/workbench"]

@@ -4,15 +4,17 @@
  */
 
 import { useState } from "react";
-import { ToggleButton } from "react-aria-components";
 
 import { applyTheme, storedTheme } from "../../theme";
+import { ToggleButton } from "../ui/Button";
 
 export function ThemeSwitch() {
   const [dark, setDark] = useState(() => storedTheme() === "dark");
   return (
     <ToggleButton
       className="theme-switch"
+      variant="quiet"
+      size="small"
       isSelected={dark}
       onChange={(selected) => {
         setDark(selected);

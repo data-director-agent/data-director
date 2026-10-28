@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-harness"
-version = "0.1.0"
+version = "0.2.0-alpha"
 description = "Data Director harness: the conductor, policy gate, grounding linter, source check, run store and provenance, with an A2A way in (ADR-0022)"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -18,10 +18,11 @@ dependencies = [
   "httpx>=0.28",
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
-  "rocrate>=0.15",
+  "rocrate>=0.16.0",
   "pydantic>=2.14.1,<3",
   "pyyaml>=6.0",
   "python-dotenv>=1.1",
+  "joserfc>=1.0",
 ]
 
 [project.scripts]
