@@ -8,6 +8,9 @@ The Blueprint followed an RDA community consultation, reported in
 [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151)
 (<https://doi.org/10.15497/RDA00151>).
 
+The software is archived on Zenodo, and is cited as
+[doi:10.5281/zenodo.23735878](https://doi.org/10.5281/zenodo.23735878).
+
 !!! note "Alpha"
     The app and several agents are alpha software. Their shape will change.
 
