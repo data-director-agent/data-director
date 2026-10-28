@@ -11,7 +11,8 @@ two, so an orchestrator keeps no map of agents. Governance as the entry point is
 Blueprint's v2.0 (Appendix G, comment 1) and is not here.
 
 Creating, reviewing and updating a Data Management Plan are out of scope for the initial phase, so
-the figures' steps for them are left out; neither the orchestrator nor the phase tracker offers them.
+the figures' steps for them are left out; neither the orchestrator nor the phase tracker offers
+them. TODO(#284): a read-only check of a deposit against an existing Data Management Plan.
 
 The steps are taken from the figure captions in §8.2. TODO(#245): check them against Figures 1 to 6
 themselves, which are images and may show steps or decisions the captions leave out.
