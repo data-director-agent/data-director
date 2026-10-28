@@ -27,6 +27,7 @@ jobs:
       pull-requests: write # to open and update the release PRs
     outputs:
       prs: ${{ steps.release.outputs.prs }}
+      publish: ${{ steps.publish.outputs.paths }}
     steps:
       # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -35,6 +36,14 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      # The packages that other repositories need from an index (ADR-0031), among those just
+      # released.
+      - name: Choose the packages to publish
+        id: publish
+        env:
+          RELEASED: ${{ steps.release.outputs.paths_released }}
+        run: |
+          echo "paths=$(jq -c '[.[] | select(. == "sdk" or . == "harness")]' <<< "${RELEASED:-[]}")" >> "$GITHUB_OUTPUT"
 
   # release-please edits each pyproject.toml but cannot regenerate uv.lock, which records the
   # workspace members' versions. Refresh it on every release PR branch.
@@ -67,3 +76,41 @@ jobs:
           git add uv.lock
           git commit -s -m "chore: refresh uv.lock for release"
           git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
+
+  # Publish a released sdk or harness to TestPyPI, so that an agent outside this repository can
+  # install them (#277). Trusted publishing: TestPyPI trusts this workflow in the `testpypi`
+  # environment, and no token is stored. The commit is the one the release was tagged on.
+  publish-testpypi:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.publish != '' && needs.release-please.outputs.publish != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/data-director-${{ matrix.path }}
+    permissions:
+      contents: read
+      id-token: write # to prove this workflow's identity to TestPyPI
+    strategy:
+      fail-fast: false
+      matrix:
+        path: ${{ fromJSON(needs.release-please.outputs.publish) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No cache: a publishing job must not restore anything another run could have written.
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false
+      - name: Build
+        env:
+          PACKAGE: ${{ matrix.path }}
+        run: uv build --out-dir dist "${PACKAGE}"
+      - run: uvx twine check dist/*
+      - name: Publish
+        run: >-
+          uv publish --trusted-publishing always
+          --publish-url https://test.pypi.org/legacy/
+          --check-url https://test.pypi.org/simple/
+          dist/*
