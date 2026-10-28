@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # The Blueprint is external material reproduced verbatim (AGENTS.md); release-please writes each
 # CHANGELOG.md from commit subjects, which may mention the word; this script must name it.
-EXCLUDED_PATHS = ("docs/BLUEPRINT.md", "scripts/check_todos.py")
+EXCLUDED_PATHS = ("scripts/check_todos.py",)
+EXCLUDED_TREES = ("docs/blueprint/",)
 EXCLUDED_NAMES = ("CHANGELOG.md",)
 EXCLUDED_DIRS = ("node_modules",)
 
@@ -38,6 +39,7 @@ def excluded(path: str) -> bool:
     parts = path.split("/")
     return (
         path in EXCLUDED_PATHS
+        or path.startswith(EXCLUDED_TREES)
         or parts[-1] in EXCLUDED_NAMES
         or any(part in EXCLUDED_DIRS for part in parts)
     )

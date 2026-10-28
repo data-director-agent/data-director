@@ -1,0 +1,45 @@
+---
+title: "Phase 2: Governance and Constraints of Research Data"
+---
+flowchart TD
+    sub["Data Publication Workflow | Entry 2: Data already collected joins here"]:::subtitle
+    r10["<b>R10 (Horizontal Requirement — all phases):</b> Track provenance of all AI agent actions on data and metadata. Record all actions so they can be verified, validated and audited."]:::horizontal
+    sub ~~~ r10 ~~~ entry2
+
+    entry2(["Entry 2: Data already collected — joins here"]):::entry
+    phase2["PHASE 2: GOVERNANCE AND CONSTRAINTS OF RESEARCH DATA"]:::phase
+    governs["Governs: funder policies, ethics, legal obligations, data sensitivity and embargo requirements"]:::caption
+    policies["Check funder, journal and institutional data sharing policies<br><br><b>Guidance note:</b> Informs all subsequent decisions on sensitive data handling, ethical constraints and embargo period. The agent could connect to FAIRsharing policy records to surface relevant requirements. requirements."]:::step
+    sensitive{"Is sensitive data present?"}:::decision
+    anonymise["Anonymise or remove sensitive data<br><br><b>Guidance note:</b> The agent could warn, question or flag if sensitive data is detected. Data must be anonymised before the agent accesses it in cloud deployment. Air-gapped deployment allows more flexibility within a trusted boundary."]:::step
+    nosensitive["No sensitive data — continue"]:::step
+    constraints["Check ethical, legal and institutional constraints"]:::step
+    embargo{"Is an embargo required?"}:::decision
+    noembargo["No embargo required — continue"]:::step
+    define["Define embargo period<br><br><b>Guidance note:</b> The agent could suggest a duration based on funder, journal and institutional requirements already identified above."]:::step
+    verify["Verify data sharing at publication against Data Management Plan (DMP) commitments<br><br><b>R8:</b> Verify data sharing at publication against Data Management Plan (DMP) commitments"]:::step
+    next["→ Entry 3 (Ready to deposit data) joins at Phase 3 (see next page)"]:::link
+
+    entry2 --> phase2
+    phase2 ~~~ governs
+    governs --> policies --> sensitive
+    sensitive -- YES --> anonymise
+    sensitive -- NO --> nosensitive
+    anonymise --> constraints
+    nosensitive --> constraints
+    constraints --> embargo
+    embargo -- NO --> noembargo
+    embargo -- YES --> define
+    noembargo --> verify
+    define --> verify
+    verify --> next
+
+    classDef subtitle fill:none,stroke:none,color:#555
+    classDef caption fill:none,stroke:none,color:#555
+    classDef horizontal fill:#fff5f5,stroke:#c00,color:#c00
+    classDef entry fill:#005a4e,stroke:#005a4e,color:#fff
+    classDef phase fill:#fff8e1,stroke:#c9a54a,color:#c66a00
+    classDef step fill:#fff,stroke:#999,color:#111
+    classDef optional fill:#fff,stroke:#999,color:#111,stroke-dasharray:4 3
+    classDef decision fill:#fff8e1,stroke:#e08a00,color:#c66a00,stroke-dasharray:5 3
+    classDef link fill:none,stroke:none,color:#005a4e
