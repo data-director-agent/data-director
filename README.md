@@ -139,7 +139,7 @@ the repository has its own README with the details:
 
 This is a community-driven, open-source project. See:
 
-- [Blueprint](docs/BLUEPRINT.md) — the Data Director Agentic AI Tool Blueprint (RDA, CC BY 4.0), reproduced here as Markdown
+- [Blueprint](docs/blueprint/README.md) — the Data Director Agentic AI Tool Blueprint v1.0 (RDA, CC BY 4.0, [doi:10.15497/RDA00157](https://doi.org/10.15497/RDA00157)), reproduced here as Markdown
 - [Project charter](https://github.com/data-director-agent/.github/blob/main/CHARTER.md) — the project's mission and scope
 - [Governance](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md) — how decisions are made and how the maintainer group grows
 - [Releasing](RELEASING.md) — versioning policy and how a release is made

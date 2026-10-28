@@ -9,5 +9,5 @@ These documents are kept with the code they govern, and are read on GitHub.
 - [Requirements register](https://github.com/data-director-agent/data-director/blob/main/docs/requirements.yaml)
 - [Conformance report](https://github.com/data-director-agent/data-director/blob/main/CONFORMANCE.md)
 - [Harness documentation](https://github.com/data-director-agent/data-director/tree/main/harness/docs)
-- [Blueprint](https://github.com/data-director-agent/data-director/blob/main/docs/BLUEPRINT.md)
-  (RDA, CC BY 4.0; very large)
+- [Blueprint](https://github.com/data-director-agent/data-director/blob/main/docs/blueprint/README.md)
+  (RDA, CC BY 4.0; one page per chapter)

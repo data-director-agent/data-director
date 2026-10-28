@@ -1,0 +1,31 @@
+---
+title: "Phase 1: Pre-collection Setup"
+---
+flowchart TD
+    sub["Data Publication Workflow | Entry 1: Starting a new research or data collection project"]:::subtitle
+    r10["<b>R10 (Horizontal Requirement — all phases):</b> Track provenance of all AI agent actions on data and metadata. Record all actions so they can be verified, validated and audited."]:::horizontal
+    sub ~~~ r10 ~~~ entry1
+
+    entry1(["Entry 1: Starting a new research or data collection project"]):::entry
+    phase1["PHASE 1: PRE-COLLECTION SETUP (before data collection)"]:::phase
+    draft["Draft data dictionary and README file<br><br><b>R5:</b> Draft data documentation including READMEs and data dictionaries at publication"]:::step
+    vocab["Select controlled vocabularies and ontologies (e.g. via FAIRsharing)<br><br><b>R3:</b> Suggest appropriate vocabularies, ontologies and open data formats"]:::step
+    dmp{"Does a Data Management Plan (DMP) exist?"}:::decision
+    create["Create Data Management Plan (DMP) (OPTIONAL)<br><br><b>Guidance note:</b> The agent could point to existing DMP tools, e.g. DMPTool or DSW. A DMP ID is a plan-level Persistent Identifier linking pre-grant planning to post-publication."]:::optional
+    review["Review and update DMP"]:::step
+    next["→ Entry 2 (Data already collected) joins at Phase 2 (see next page)"]:::link
+
+    entry1 --> phase1 --> draft --> vocab --> dmp
+    dmp -- NO --> create
+    dmp -- YES --> review
+    create --> next
+    review --> next
+
+    classDef subtitle fill:none,stroke:none,color:#555
+    classDef horizontal fill:#fff5f5,stroke:#c00,color:#c00
+    classDef entry fill:#005a4e,stroke:#005a4e,color:#fff
+    classDef phase fill:#fff8e1,stroke:#c9a54a,color:#c66a00
+    classDef step fill:#fff,stroke:#999,color:#111
+    classDef optional fill:#fff,stroke:#999,color:#111,stroke-dasharray:4 3
+    classDef decision fill:#fff8e1,stroke:#e08a00,color:#c66a00,stroke-dasharray:5 3
+    classDef link fill:none,stroke:none,color:#005a4e
