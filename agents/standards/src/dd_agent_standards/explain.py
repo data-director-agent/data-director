@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from dd_agent_standards.classes import DatasetProfile, RecommendationKind
@@ -108,16 +109,8 @@ class TemplateExplainer:
 
 DEFAULT_MODEL = "claude-opus-5"
 
-SYSTEM_PROMPT = (
-    "You write short explanations for a research data steward. You are given a dataset profile "
-    "(metadata only, never data values) and a numbered list of standards that have ALREADY been "
-    "selected from the FAIRsharing registry by a deterministic ranking step. For each numbered "
-    "item, "
-    "write one or two sentences explaining why that standard fits this dataset, using only the "
-    "registry description supplied. Do not recommend anything not in the list, do not rank or "
-    "reorder, and do not mention identifiers other than the one given for each item. "
-    "Reply with exactly one line per item, in order, formatted `N. <explanation>`."
-)
+# What the model is told it may and may not do; the prose is a Markdown file beside this module.
+SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
 
 
 class AnthropicExplainer:
