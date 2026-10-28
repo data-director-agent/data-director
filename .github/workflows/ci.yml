@@ -9,7 +9,7 @@ name: CI
 #
 #   Python workspace (ADR-0011): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
 #     packages, the agents as real services, the workbench viewer in a browser (#9)
-#   app/web (ADR-0024): ESLint, tsc, Vitest, Vite build, Playwright
+#   app/web (ADR-0024): ESLint, tsc, Vitest with coverage, Vite build, Playwright
 #   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does
 #   Repository: links, citation file, workflows, sign-off, dependency review
 #
@@ -259,8 +259,25 @@ jobs:
       - run: npm run typecheck
       # ESLint (with jsx-a11y), tsc, Vitest with axe, and Playwright (axe in light and dark,
       # keyboard-only use, reflow at 320 CSS pixels). The fixtures it reads are kept current by
-      # app/tests/test_app.py, which the test job runs.
-      - run: npm test
+      # app/tests/test_app.py, which the test job runs. Vitest measures coverage as the pytest job
+      # does: the report goes to the job summary, and lcov to Codecov under the `web` flag.
+      - run: npm test -- --coverage
+      - name: Coverage report
+        run: |
+          {
+            echo '## Coverage (app/web)'
+            echo '```'
+            cat coverage/coverage.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        # A fork's pull request has no secret; the report in the job summary still shows.
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: app/web/coverage/lcov.info
+          flags: web
+          fail_ci_if_error: false
       - run: npm run build
       # Headless runs need only chromium-headless-shell, not the full browser.
       - run: npx playwright install --with-deps --only-shell chromium
