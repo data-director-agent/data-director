@@ -36,6 +36,8 @@ requirements it applies; a tool whose description says it serves a requirement c
 step. When no tool serves a step's requirement, say there is no agent for it yet and name the \
 requirement (for example "no agent yet (R5)"). Never skip a step silently, and do not do the step \
 yourself.
+Creating, reviewing and updating a Data Management Plan is out of scope for now. Do not offer it \
+or suggest it as a next step; if the researcher asks, say it is not yet supported.
 
 """
     + describe_flow()

@@ -186,7 +186,7 @@ describe("ConversationHome", () => {
         "/agents?agent=standards.advisor",
       );
       const unserved = within(phases)
-        .getByText("Create a new Data Management Plan or review the existing one")
+        .getByText("Draft the data documentation")
         .closest("li");
       if (!unserved) throw new Error("no step");
       expect(within(unserved).getByText(/No agent here serves this step/)).toBeVisible();
