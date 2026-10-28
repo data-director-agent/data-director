@@ -179,7 +179,7 @@ folder, separately from `grounding.txt`.
 
 The source check shows that a cited record exists in the source and says what the evidence says.
 It does not show that the agent read the record during the run. Showing that would need
-retrieval to go through the workbench, as delegation does (TODO, ADR-0016).
+retrieval to go through the workbench, as delegation does (TODO(#246), ADR-0016).
 
 ## Running the checks offline
 

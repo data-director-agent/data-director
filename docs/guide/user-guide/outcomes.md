@@ -11,4 +11,4 @@ Every run ends in one of four outcomes.
 
 The app shows, with each outcome, what it means and what to do next.
 
-TODO: link to the outcome vocabulary in the contract once the reference pages are settled.
+TODO(#250): link to the outcome vocabulary in the contract once the reference pages are settled.

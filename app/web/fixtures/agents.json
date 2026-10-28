@@ -29,13 +29,13 @@
       "requires_approval": false,
       "schemas": {
         "DatasetProfile": {
-          "digest": "1e3f3abec2b8576f91ccd7643523ce39aa477774f36fb9ec5d62af089aeacdfd",
+          "digest": "c4090a745dec909b44ebf3ff5a3be5b0b23c017b90ab33065cf9603eded44cbc",
           "json_schema": {
             "$comment": "Generated from standards.yaml by `uv run dd-gen-schema <path to standards.yaml>`. Do not edit.",
             "$defs": {
               "TableField": {
                 "additionalProperties": false,
-                "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO: revisit if Frictionless publishes term IRIs).",
+                "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).",
                 "properties": {
                   "field_description": {
                     "type": [
@@ -327,7 +327,7 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "67866ede74c85f002b96208bd695d32a91c5957bea2e91ab79f4bfe17f88af6a",
+    "digest": "925abd06964afd7f6df18ce787fd0f985111fa1f35c6eb01f6bb7a16b518414c",
     "orchestrator": "director.stub",
     "ref": "profile:data-director-app@v4"
   },

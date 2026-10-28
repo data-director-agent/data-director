@@ -18,7 +18,7 @@ rules hold every citation to the input or a recorded delegation (R2, D1, D2), ev
 the conductor computed. In `retrieval` mode no rule does that, so such evidence is unresolved.
 
 What the check does not show: when, or whether, the agent read the record during the run. That
-would need retrieval to go through the harness, as delegation does. TODO (ADR-0016).
+would need retrieval to go through the harness, as delegation does. TODO(#246) (ADR-0016).
 
 A copy is independent of the agent because its bytes are pinned by `sha256` in `sources.yaml`,
 not because of where the file lives. A file that does not match its pin is a configuration

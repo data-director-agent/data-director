@@ -125,12 +125,12 @@ evaluation/CI path (ADR-0007): it is needed to regenerate a class schema, not to
 - The normative fixed format is smaller. Agent classes follow their agent's own version.
 - Envelopes stored before this change have no `contract_version`, `input_schema` or
   `payload_schema`, and do not validate against the new core schema. The viewer shows their
-  payloads as raw JSON. TODO: a migration for stored envelopes, as in ADR-0015 decision 5.
+  payloads as raw JSON. TODO(#247): a migration for stored envelopes, as in ADR-0015 decision 5.
 - Input hashes of the same logical input can differ from those recorded before this change,
   where a model default was added before hashing.
-- SHACL shapes are generated for the core only. TODO: whether an agent's classes get shapes, and
+- SHACL shapes are generated for the core only. TODO(#19): whether an agent's classes get shapes, and
   where a SHACL validation report (ADR-0005) would find them.
-- The Process Run Crate does not yet name the schema digests. TODO.
+- The Process Run Crate does not yet name the schema digests. TODO(#26).
 - A future contributor must not reintroduce a closed registry of class names in the SDK or the
   workbench, add an agent's class to the core schema, or accept a card whose schemas do not match
   their digests, without revisiting this decision.

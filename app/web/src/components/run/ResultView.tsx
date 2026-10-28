@@ -9,7 +9,7 @@
  * evidence; a citation with no matching evidence item is flagged. The top-level `grounded_on`
  * is the evidence list itself, so it is not repeated.
  *
- * TODO: the full renderer, with per-class renderers in a registry, is #70.
+ * TODO(#70): the full renderer, with per-class renderers in a registry.
  */
 
 import "./ResultView.css";

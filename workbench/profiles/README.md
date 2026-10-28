@@ -14,7 +14,7 @@ rules (ADR-0017). Each stored run records the profile it was held to as
 `policy_bundle_ref: profile:<profile_id>@v<version>`, with `policy_digest`, the SHA-256 of this
 file's bytes, so a later reader can tell exactly which rules applied.
 
-TODO: per-user or per-group profiles. These need an authenticated user (C1), which the workbench
+TODO(#154): per-user or per-group profiles. These need an authenticated user (C1), which the workbench
 does not yet have.
 
 ## What a profile contains

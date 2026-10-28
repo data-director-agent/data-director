@@ -249,7 +249,7 @@ per key. To rotate a key, replace the file and restart that agent's unit.
 
 ## Not done yet
 
-- TODO: no notice reaches anyone when a deployment fails; the journal and `systemctl --failed`
-  are the record (#144).
-- TODO: GitHub does not show what is deployed (#145).
+- TODO(#144): no notice reaches anyone when a deployment fails; the journal and
+  `systemctl --failed` are the record.
+- TODO(#145): GitHub does not show what is deployed.
 - The site's password is the only access control until the app authenticates people (#17).

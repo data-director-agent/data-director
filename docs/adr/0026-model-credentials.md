@@ -81,7 +81,7 @@ that what leaves the institution be declared and controllable (#40).
    cassette with a sentinel key, and checks that the sentinel appears in no stored file and in
    no manifest.
 
-TODO (#40): a profile rule that refuses an agent's `models`, per data class, enforced by the
+TODO(#40): a profile rule that refuses an agent's `models`, per data class, enforced by the
 conductor from the manifest before a run is sent.
 
 ## Dependencies introduced

@@ -99,7 +99,7 @@ or someone acting on their written instruction.
 
 A review stays current until a later one replaces it, however much the code changes. The report
 shows the reviewed commit so that readers can judge. Whether a review should lapse automatically
-is still to be decided (TODO in ADR-0014).
+is still to be decided (ADR-0014, #248).
 
 ## Regenerating the report
 

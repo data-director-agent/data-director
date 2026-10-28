@@ -87,16 +87,15 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
 
 ## Not yet decided
 
-- TODO: governing the app's own model turn and answer, by making the app a front end to an
-  orchestrator under `delegation` grounding (ADR-0012, #21). Only an agent reached over A2A can
-  be granted delegation today.
+- The app's own model turn and answer are governed by making the app a front end to an
+  orchestrator under `delegation` grounding (ADR-0012, ADR-0024 §15, #21).
 - Names that still said "workbench" where they meant the harness are renamed by ADR-0023 (#54).
 - **The harness has a server of its own (#55).** `dd-harness serve` (`dd_harness.server`) serves
   the A2A routes and the agent card, and nothing else, for deployments that need no viewer. Its
   settings come from the environment with no defaults. `uvicorn` is the optional extra
   `data-director-harness[serve]`, so the app, which embeds the conductor, does not install it.
   `workbench serve` builds its conductor with the same `serving` function and adds its own
-  routes. TODO: whether `/runs` and `/conversations` belong to the harness server; until callers
+  routes. TODO(#170): whether `/runs` and `/conversations` belong to the harness server; until callers
   are authenticated (#17, #43), it must not be exposed beyond a trusted network.
 - **The test kit belongs to the harness (#56).** The scripted doubles, `in_process`,
   `make_conductor`, `TEST_PRINCIPAL` and the two test profiles are `dd_harness.testing`, in the
@@ -110,8 +109,8 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   `grounding.md` and `registry.md` are in `harness/docs/`. The ADRs, the contract, the glossary,
   the requirements register and the review record govern every package, so they are in the
   repository-level `docs/`, with `CONFORMANCE.md` at the root and its generator in `scripts/`.
-- TODO: whether configuration may also come from one file (e.g. a `harness.yaml` naming the
+- TODO(#225): whether configuration may also come from one file (e.g. a `harness.yaml` naming the
   profile, agent list, source list and run directory), rather than four variables (#57).
-- TODO: how `sources.yaml` pins a source copy stored outside the repository. Today its paths
+- TODO(#225): how `sources.yaml` pins a source copy stored outside the repository. Today its paths
   are relative to the file, and its copies are the committed snapshots under `agents/` (#57).
-- TODO: how a steward edits and reviews the profile in a deployment (ADR-0017, #41, #57).
+- TODO(#225): how a steward edits and reviews the profile in a deployment (ADR-0017, #41, #57).

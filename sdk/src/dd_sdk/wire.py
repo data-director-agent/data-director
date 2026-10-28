@@ -28,7 +28,7 @@ from typing import Any
 from dd_sdk.agent import AgentResult
 from dd_sdk.contract.models import EvidenceItem, Grounded, OpenPayload, Outcome, to_document
 
-# TODO: a persistent identifier for the extension. The w3id namespace the problem types use is
+# TODO(#3): a persistent identifier for the extension. The w3id namespace the problem types use is
 # not yet registered either (contract/problem.py).
 EXTENSION_URI = "https://w3id.org/data-director/a2a/agent-spec/v0"
 MANIFEST_EXTENSION_URI = "https://w3id.org/data-director/a2a/manifest/v0"

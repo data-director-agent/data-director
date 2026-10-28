@@ -1,8 +1,7 @@
 # Software Management Plan
 
 This plan follows the [FAIR4RS Software Lifecycle Planning](https://fair2-for-research-software.github.io/Software_Lifecycle_Planning/SMP_for_research.html)
-approach. It is a living document, updated as the project matures — items marked `TODO` are not
-yet decided.
+approach. It is a living document, updated as the project matures.
 
 ## Purpose and scope
 
@@ -15,9 +14,12 @@ the [project charter](https://github.com/data-director-agent/.github/blob/main/C
 - **Language / stack**: Python, `uv` workspace. Exploratory approaches are trialled as
   alpha-versioned agents in [`agents/`](../agents/) (see `agents/README.md`) rather than in a
   separate prototype tree.
-- **Repository**: Git, hosted at `TODO: repository URL`.
-- **Branching and release strategy**: `TODO` — to be defined once initial development begins.
-- **Versioning**: [Semantic Versioning](https://semver.org/) once releases begin.
+- **Repository**: Git, hosted at <https://github.com/data-director-agent/data-director>.
+- **Branching and release strategy**: work happens on short-lived branches, merged into `main`
+  by squashed pull requests whose titles are Conventional Commits (`AGENTS.md`). release-please
+  reads those titles to propose each package's next version and changelog.
+- **Versioning**: [Semantic Versioning](https://semver.org/), per package. Every package is
+  released as an alpha pre-release for now.
 
 ## Licensing
 
@@ -41,13 +43,17 @@ Origin sign-off requirement, and the pull request workflow.
 - Charter, governance, contribution guide and code of conduct — organisation-wide, in
   [`data-director-agent/.github`](https://github.com/data-director-agent/.github).
 - `docs/SOFTWARE_MANAGEMENT_PLAN.md` — this document.
-- Further user- and developer-facing documentation: `TODO`, to be added as the implementation
-  takes shape.
+- `docs/architecture.md` — the system overview; `docs/adr/` — the architecture decisions.
+- `docs/guide/` — the user and developer guides, published as the documentation site.
 
 ## Testing and quality assurance
 
-`TODO` — no code or tooling exists yet. A testing strategy (frameworks, coverage expectations, CI)
-will be defined once implementation starts, and this section updated accordingly.
+Python is tested with pytest and type-checked with mypy; the app's browser shell is tested with
+Vitest and Playwright. Every pull request runs these in the CI pipeline
+(`.github/workflows/ci.yml`), with linting, link checks, workflow checks, a check that every
+open question marked in the source names its issue, and the DCO sign-off. Coverage is reported to Codecov. A test that
+substantiates a Blueprint requirement carries its marker, and `CONFORMANCE.md` is generated from
+those tests.
 
 ## Citation
 

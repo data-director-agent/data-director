@@ -106,7 +106,7 @@ agent, without a network.
 
 ## Not yet decided
 
-- Authentication between the workbench and its agents. TODO (ADR-0011). Until it exists, do not
+- Authentication between the workbench and its agents. TODO(#17) (ADR-0011). Until it exists, do not
   expose agent ports beyond the host or a private network.
-- Reloading the registry, or checking agent health, while the workbench runs. TODO.
-- Container images and a `compose.yaml` for running the agents. TODO (ADR-0011).
+- Reloading the registry, or checking agent health, while the workbench runs. TODO(#251).
+- Container images and a `compose.yaml` for running the agents. TODO(#223, #224) (ADR-0011).

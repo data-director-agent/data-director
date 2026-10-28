@@ -81,13 +81,13 @@ None.
   schema. The viewer shows no principal for them.
 - Every call to `Conductor.invoke` names a principal. An agent's own tests pass
   `acting_for=TEST_PRINCIPAL`.
-- TODO: once there is more than one principal, bind a `conversation_id` to the principal that
+- TODO(#153): once there is more than one principal, bind a `conversation_id` to the principal that
   started it, so that one person cannot continue another's conversation.
-- TODO: Process Run Crate has no convention for an accountable role. Until one is settled, a role
+- TODO(#26): Process Run Crate has no convention for an accountable role. Until one is settled, a role
   is recorded as a `Person` whose description states its kind.
-- TODO: the generated request schema's root is open (`additionalProperties: true`), so a
-  consumer that validates a request with the JSON Schema alone would accept `acting_for`. Only
-  the model refuses it. Closing the root needs a change to `gen_schema.py`, and it affects
-  ADR-0017's `policy_bundle_ref` in the same way.
+- The generated request schema's root was open when this was decided, so the JSON Schema alone
+  would have accepted `acting_for`. The generator (`dd_sdk/schema/gen.py`) now closes the root
+  of every class schema, so the JSON Schema refuses `acting_for`, and ADR-0017's
+  `policy_bundle_ref`, as the model does.
 - A future contributor must not read `acting_for` from a request body, set it in an agent, or
   give the conductor a default principal without revisiting this decision.

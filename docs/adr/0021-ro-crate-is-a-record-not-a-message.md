@@ -45,24 +45,25 @@ find out what happened or what was produced.
 
 ## Not yet decided
 
-- TODO: a crate for the deliverable. The metadata a Data Director run produces for a dataset
+- TODO(#202): a crate for the deliverable. The metadata a Data Director run produces for a dataset
   could itself be packaged as an RO-Crate and checked with the RO-Crate validator (R4). Which
   agent or component would write it, and how it would refer to the Process Run Crates of the
   runs that produced it, are not settled.
-- TODO: whether an agent whose payload describes a research object may return
+- TODO(#202): whether an agent whose payload describes a research object may return
   `ro-crate-metadata.json` as that payload. It would travel inside an envelope, as any payload
   does, and would not change the message format above.
-- TODO: the Process Run Crate names the workbench's own files as the action's object and
+- TODO(#26): the Process Run Crate names the workbench's own files as the action's object and
   result, not the records the agent read or the metadata it changed. The evidence items
   (ADR-0015) are the obvious source for those entities.
-- TODO: a delegated run's crate is not linked to its parent's (ADR-0012). A Workflow Run Crate
+- TODO(#26): a delegated run's crate is not linked to its parent's (ADR-0012). A Workflow Run Crate
   or Provenance Run Crate may suit orchestrated runs better.
-- TODO: the outcome status is recorded as a `PropertyValue` that the action does not refer to.
-- TODO: an accountable role is recorded as a `Person` (ADR-0018), and the crate does not name
+- TODO(#26): the outcome status is recorded as a `PropertyValue` that the action does not refer to.
+- TODO(#26): an accountable role is recorded as a `Person` (ADR-0018), and the crate does not name
   the schema digests (ADR-0019).
-- TODO: no test checks the crate against the Process Run Crate profile with
+- TODO(#26): no test checks the crate against the Process Run Crate profile with
   `rocrate-validator`, and PROV-O alignment is not exercised (`docs/requirements.yaml`, R10).
-- TODO: the Data Director app (`app/`) writes no provenance record of this kind.
+- The Data Director app (`app/`) writes the same record, because it runs agents through the
+  conductor (#60).
 
 ## Dependencies introduced
 

@@ -7,7 +7,7 @@ and weights live in `ranking.yaml` beside this module and are read once.
 Vocabulary versus ontology (the standards advisor's one explicit distinction) is decided lexically
 from the record's name and description, with `classification_derivation=lexical`. FAIRsharing's
 curated subtype would be better (`registry`), but the public record route does not expose it.
-TODO: read the subtype from the authenticated API when a record supplies one.
+TODO(#4): read the subtype from the authenticated API when a record supplies one.
 """
 
 from __future__ import annotations

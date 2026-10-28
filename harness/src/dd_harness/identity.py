@@ -165,7 +165,7 @@ def verify_id_token(
 
 def principal_from_claims(issuer: str, claims: Mapping[str, Any]) -> Principal:
     """The principal a verified token names. For ORCID the subject is the bare iD, so the
-    principal is the iD URL, `https://orcid.org/<sub>` (ADR-0029). TODO: another provider's
+    principal is the iD URL, `https://orcid.org/<sub>` (ADR-0029). TODO(#179): another provider's
     principal is a `mailto:` IRI or a URN (#179); this form fits an issuer whose subjects are
     paths under it, as ORCID's are."""
     principal_id = f"{issuer.rstrip('/')}/{claims['sub']}"
@@ -189,7 +189,7 @@ def principal_from_claims(issuer: str, claims: Mapping[str, Any]) -> Principal:
 @dataclass(frozen=True)
 class BearerTokenAuthenticator:
     """A caller sends an ID token from the configured issuer as `Authorization: Bearer`, and
-    each request is verified. TODO: whether an ID token is the right credential for a program
+    each request is verified. TODO(#17): whether an ID token is the right credential for a program
     that calls the harness, or whether that waits for machine-to-machine authentication (#17)."""
 
     provider: OidcProvider

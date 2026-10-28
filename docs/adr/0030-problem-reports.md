@@ -32,7 +32,7 @@ without the build it was made on. The app did not say which version was running.
   run store, never an input, a payload or evidence. The page's address is attached as a path.
 - **Bounded.** A title may be 120 characters and a description 5000, unknown fields are refused,
   and the app files at most five reports in ten minutes for the whole process.
-  TODO: settle these numbers on use, and count per person once people sign in (ADR-0029) (#188).
+  TODO(#188): settle these numbers on use, and count per person once people sign in (ADR-0029).
 
 ## Dependencies introduced
 

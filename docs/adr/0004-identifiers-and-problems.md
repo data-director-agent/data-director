@@ -15,7 +15,7 @@ Failure and suspension need a structured shape that other software already under
   (Python 3.14). The contract pins the version nibble in a pattern.
 - `failed` and `suspended` outcomes carry an RFC 9457 Problem Details object in the envelope's
   `problem` slot. Problem types are URIs under `https://w3id.org/data-director/problems/`
-  (TODO: register the w3id namespace). Two extension members, `resume_condition` and
+  (TODO(#3): register the w3id namespace). Two extension members, `resume_condition` and
   `resume_after`, carry the resumption condition for `suspended`.
 - `abstained` and `referred` are **not** problems. They are outcomes of equal standing with
   `succeeded`, expressed by the bespoke `ReasonCode` enumeration in the contract. The Blueprint

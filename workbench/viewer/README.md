@@ -1,8 +1,7 @@
 # Read-only viewer
 
 A developer tool: run a registered agent on an input, written in a form or started from a sample, and inspect the envelope it produced. It is
-not an end-user interface; end users will reach the agents through a chat interface or apps built
-on them (TODO: not yet designed).
+not an end-user interface; end users reach the agents through the Data Director app (`app/`).
 
 Three HTML pages, no build step: **Inspect** (`index.html`), **Chat** (`chat.html`) and
 **Agents** (`agents.html`), switched by
@@ -96,7 +95,7 @@ Inspect. `?conversation_id=` reopens a conversation (`GET /conversations/{id}`).
 
 The envelope-level `uischema.json` is kept as the reference description of the envelope and is
 still served at `/schema/uischema.json`, but the page no longer renders the envelope through RJSF:
-the summary, evidence and telemetry are laid out directly. TODO: decide whether to drop it.
+the summary, evidence and telemetry are laid out directly. TODO(#252): decide whether to drop it.
 
 ## What Agents shows
 
