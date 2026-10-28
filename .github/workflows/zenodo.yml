@@ -1,0 +1,56 @@
+name: Zenodo
+
+# Archives a snapshot of the repository in Zenodo as a new version of the repository's one Zenodo
+# record, which gives it a DOI (scripts/zenodo.py, RELEASING.md). release-please.yml calls this
+# when merging the release PR tags a release; run it from the Actions tab to archive a commit again
+# after a failure. The `zenodo` environment holds the ZENODO_TOKEN secret and the ZENODO_RECORD_ID
+# variable; until the variable is set, this does nothing.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to archive
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: The commit, tag or branch to archive
+        required: true
+        default: main
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: zenodo
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    name: Archive in Zenodo
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    environment:
+      name: zenodo
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Archive and publish
+        env:
+          ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
+          ZENODO_RECORD_ID: ${{ vars.ZENODO_RECORD_ID }}
+        run: |
+          if [ -z "$ZENODO_RECORD_ID" ]; then
+            echo "::notice::ZENODO_RECORD_ID is not set in the zenodo environment; nothing archived."
+            exit 0
+          fi
+          commit="$(git rev-parse HEAD)"
+          name="data-director-$(date -u +%Y-%m-%d)-${commit:0:7}"
+          git archive --format=zip --prefix="$name/" -o "$RUNNER_TEMP/$name.zip" HEAD
+          uv run --no-project scripts/zenodo.py release --archive "$RUNNER_TEMP/$name.zip" --commit "$commit"

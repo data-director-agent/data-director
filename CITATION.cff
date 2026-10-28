@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: data-director
+title: Data Director
 type: software
 message: "If you use this software, please cite it as below."
 abstract: >-
@@ -13,3 +13,14 @@ authors:
     orcid: 'https://orcid.org/0000-0001-8733-1117'
 repository-code: 'https://github.com/data-director-agent/data-director/'
 license: MIT
+keywords:
+  - research data management
+  - agentic AI
+  - FAIR data
+  - Research Data Alliance
+references:
+  - type: report
+    title: Data Director Agentic AI Tool Blueprint
+    authors:
+      - name: Research Data Alliance
+    doi: 10.15497/RDA00157
