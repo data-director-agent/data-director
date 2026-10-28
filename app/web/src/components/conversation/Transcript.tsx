@@ -8,6 +8,7 @@
 import "./Transcript.css";
 
 import Markdown from "react-markdown";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
@@ -69,6 +70,7 @@ function ChildCard({
       </p>
       <Button
         size="small"
+        icon={selected ? ChevronUp : ChevronDown}
         aria-expanded={selected}
         aria-controls={regionId}
         onPress={() => onToggle(child)}

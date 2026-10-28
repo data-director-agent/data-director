@@ -18,6 +18,7 @@ import {
   describeBuild,
   useFeedbackApi,
 } from "../../feedback/api";
+import { Send } from "lucide-react";
 import { Button } from "../ui/Button";
 import { ISSUES } from "../NotBuilt";
 import { PageHeader } from "../frame/PageHeader";
@@ -206,6 +207,7 @@ export function FeedbackPage({ query }: { query: string }) {
           <Button
             type="submit"
             variant="primary"
+            icon={Send}
             isDisabled={disabled || load.state !== "loaded" || send.state === "sending"}
           >
             {send.state === "sending" ? "Sending…" : "Send report"}

@@ -50,6 +50,10 @@
     cursor: progress;
   }
 
+  .button-icon {
+    flex: none;
+  }
+
   .button-small {
     min-height: var(--control-height-small);
     padding-inline: var(--control-padding-inline-small);

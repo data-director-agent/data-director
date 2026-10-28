@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
+import { ArrowLeft, Eye, RefreshCw } from "lucide-react";
 import type { AgentView } from "../../manifest/normalise";
 import { OUTCOME } from "../../manifest/wording";
 import { errorMessage, useRunApi } from "../../run/api";
@@ -71,7 +72,7 @@ export function RunHistory({ agent, refresh = 0 }: { agent: AgentView; refresh?:
     return (
       <div className="history-run">
         <p>
-          <Button onPress={back}>Back to all runs</Button>
+          <Button icon={ArrowLeft} onPress={back}>Back to all runs</Button>
         </p>
         {open.error ? (
           <div role="alert" className="callout status-danger">
@@ -101,7 +102,7 @@ export function RunHistory({ agent, refresh = 0 }: { agent: AgentView; refresh?:
         Runs of this agent
       </h3>
       <p>
-        <Button onPress={() => void reload()}>Refresh</Button>
+        <Button icon={RefreshCw} onPress={() => void reload()}>Refresh</Button>
       </p>
       {load.state === "loading" && <p role="status">Loading the runs…</p>}
       {load.state === "failed" && (
@@ -137,6 +138,7 @@ export function RunHistory({ agent, refresh = 0 }: { agent: AgentView; refresh?:
                     <Button
                       variant="quiet"
                       size="small"
+                      icon={Eye}
                       onPress={() => show(row.invocation_id)}
                       aria-label={`Open the run completed at ${row.completed_at}`}
                     >
