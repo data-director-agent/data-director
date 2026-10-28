@@ -27,8 +27,9 @@ This repository is organised as follow:
 ## Code style and testing
 
 The Python packages use Python 3.14 and [uv](https://docs.astral.sh/uv/); `app/web` uses Node 22
-and npm. Follow the conventions of the surrounding code, and describe how you tested your change
-in the pull request description.
+and npm. `uv run scripts/dev.py setup` installs both sides and `uv run scripts/dev.py doctor`
+says what is wrong with a setup (README, "Quick start"). Follow the conventions of the surrounding
+code, and describe how you tested your change in the pull request description.
 
 Every pull request runs `.github/workflows/ci.yml`, which ends in one check, **CI passed**, that
 passes only when every other job has. Each job can be run locally from the repository root:
