@@ -2,7 +2,7 @@
 # else: no real agent reads or returns them. They exist so that the harness is tested against
 # classes it knows only from a card, as it will be for every real agent (ADR-0019, decision 10).
 # After an edit, run `uv run dd-gen-schema harness/src/dd_harness/schema/doubles.yaml` and keep
-# the Probe* models in ../testing/__init__.py in step; ClassSchema.of refuses a model that has
+# the Probe* models in ../testing/classes.py in step; ClassSchema.of refuses a model that has
 # drifted.
 id: https://w3id.org/data-director/harness/doubles
 name: harness_doubles
