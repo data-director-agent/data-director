@@ -1,0 +1,34 @@
+---
+title: "Phase 4: Data Preparation and Metadata Creation"
+---
+flowchart TD
+    sub["Data Publication Workflow | Data preparation and metadata creation can run in parallel with each other"]:::subtitle
+    r10["<b>R10 (Horizontal Requirement — all phases):</b> Track provenance of all AI agent actions on data and metadata. Record all actions so they can be verified, validated and audited."]:::horizontal
+    sub ~~~ r10 ~~~ phase4
+
+    phase4["PHASE 4: DATA PREPARATION AND METADATA CREATION"]:::phase
+    clean["Clean, organise and version files"]:::step
+    convert["Convert to open or non-proprietary formats (OPTIONAL)<br><br><b>Guidance note:</b> The agent could recommend formats and tools but does not perform conversion for large collections or complex pipelines. The researcher carries out conversion outside the agent where needed.<br><br><b>R3:</b> Suggest appropriate vocabularies, ontologies and open data formats"]:::step
+    dict{"Was a data dictionary and README file created pre-collection?"}:::decision
+    update["Review and update data dictionary and README file for data publication"]:::step
+    create["Create data dictionary and README file<br><br><b>R5:</b> Draft data documentation including READMEs and data dictionaries at publication"]:::step
+    standard["Identify metadata standard (usually dictated by repository) e.g. Dublin Core, DataCite"]:::step
+    vocab["Finalise controlled vocabularies and ontologies"]:::step
+    complete["Complete metadata fields in repository deposit form<br><br><b>R6:</b> Enable interoperable metadata across institutions and Data Director instances<br><br><b>R2:</b> Generate FAIR-aligned and discipline-appropriate metadata using controlled vocabularies, ontologies and community standards including CARE principles"]:::step
+    next["→ Continues to Phase 5: Deposit and Submit (see next page)"]:::link
+
+    phase4 --> clean --> convert --> dict
+    dict -- YES --> update
+    dict -- NO --> create
+    update --> standard
+    create --> standard
+    standard --> vocab --> complete --> next
+
+    classDef subtitle fill:none,stroke:none,color:#555
+    classDef horizontal fill:#fff5f5,stroke:#c00,color:#c00
+    classDef entry fill:#005a4e,stroke:#005a4e,color:#fff
+    classDef phase fill:#fff8e1,stroke:#c9a54a,color:#c66a00
+    classDef step fill:#fff,stroke:#999,color:#111
+    classDef optional fill:#fff,stroke:#999,color:#111,stroke-dasharray:4 3
+    classDef decision fill:#fff8e1,stroke:#e08a00,color:#c66a00,stroke-dasharray:5 3
+    classDef link fill:none,stroke:none,color:#005a4e

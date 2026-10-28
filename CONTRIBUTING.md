@@ -50,7 +50,7 @@ passes only when every other job has. Each job can be run locally from the repos
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e` |
-| Links and citation file | `lychee --offline --include-fragments --exclude-path docs/BLUEPRINT.md '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
+| Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
 | Workflows | `uvx zizmor .github` and [actionlint](https://github.com/rhysd/actionlint) |
 | Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |

@@ -11,7 +11,7 @@ did and why.
 The [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157), adopted by the
 Research Data Alliance (RDA), describes an assistant made of sub-agents that help researchers
 manage their data. This repository is a proposed reference implementation of it; the Blueprint is
-reproduced in [`../docs/BLUEPRINT.md`](../docs/BLUEPRINT.md) and its requirements are cited by ID
+reproduced in [`../docs/blueprint/`](../docs/blueprint/README.md) and its requirements are cited by ID
 (`R3`, `P14`, …).
 
 The workbench is not the reference implementation itself, and it contains no agent code. Each
