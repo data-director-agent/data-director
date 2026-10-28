@@ -25,6 +25,8 @@ while IFS= read -r f; do
     app/*) python=true web=true ;;
     # CONFORMANCE.md is checked by the test job, and the packages' readmes by twine.
     CONFORMANCE.md | sdk/README.md | harness/README.md | workbench/README.md) python=true ;;
+    # An agent's system prompt is Markdown but is the agent's code, which its tests check.
+    agents/*/system_prompt.md) python=true ;;
     # Prose and the documentation site (docs.yml builds it; the docs job checks the links).
     *.md | docs/guide/* | mkdocs.yml | LICENSE | CITATION.cff) ;;
     *) python=true ;;

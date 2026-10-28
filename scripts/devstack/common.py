@@ -3,6 +3,7 @@ the toolchain."""
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import socket
@@ -193,9 +194,15 @@ def needs_build(web: Path | None = None) -> bool:
     return not built.is_file() or built.stat().st_mtime < _newest(web / p for p in WEB_INPUTS)
 
 
+def workspace_env() -> dict[str, str]:
+    """This environment less `VIRTUAL_ENV`: `uv run` gives this script an environment of its own,
+    and what it starts uses the workspace's `.venv`."""
+    return {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+
+
 def run(cmd: list[str], cwd: Path | None = None) -> None:
     print(f"$ {' '.join(cmd)}", flush=True)
-    if subprocess.run(cmd, cwd=cwd or paths.ROOT).returncode != 0:
+    if subprocess.run(cmd, cwd=cwd or paths.ROOT, env=workspace_env()).returncode != 0:
         raise DevError(f"`{' '.join(cmd)}` failed; its output is above")
 
 

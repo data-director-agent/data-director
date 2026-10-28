@@ -1,0 +1,3 @@
+# One name and address for each person who commits under several (git-check-mailmap(1)).
+# scripts/check_citation.py matches the address on the left against CITATION.cff.
+Joe Heffer <j.heffer@sheffield.ac.uk> <60133133+Joe-Heffer-Shef@users.noreply.github.com>

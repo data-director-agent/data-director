@@ -116,6 +116,17 @@ describe("ConversationHome", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("sends the message on Ctrl+Enter but not when it is empty", async () => {
+    const sendTurn = vi.fn().mockResolvedValue(undefined);
+    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+    await userEvent.type(box, "{Control>}{Enter}{/Control}");
+    expect(sendTurn).not.toHaveBeenCalled();
+    await userEvent.type(box, "hello");
+    await userEvent.keyboard("{Control>}{Enter}{/Control}");
+    expect(sendTurn).toHaveBeenCalledWith("c1", "director.stub", "hello");
+  });
+
   it("marks a version change between turns", async () => {
     const changed: Conversation = {
       ...CONVERSATION,
@@ -186,7 +197,7 @@ describe("ConversationHome", () => {
         "/agents?agent=standards.advisor",
       );
       const unserved = within(phases)
-        .getByText("Create a new Data Management Plan or review the existing one")
+        .getByText("Draft the data documentation")
         .closest("li");
       if (!unserved) throw new Error("no step");
       expect(within(unserved).getByText(/No agent here serves this step/)).toBeVisible();

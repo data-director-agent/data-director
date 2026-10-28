@@ -33,11 +33,6 @@
             "R3"
           ],
           "text": "Select controlled vocabularies and ontologies"
-        },
-        {
-          "optional": false,
-          "requirements": [],
-          "text": "Create a new Data Management Plan or review the existing one"
         }
       ],
       "title": "Pre-collection setup"
@@ -191,11 +186,6 @@
     {
       "number": 6,
       "steps": [
-        {
-          "optional": false,
-          "requirements": [],
-          "text": "Update the Data Management Plan"
-        },
         {
           "optional": false,
           "requirements": [],
