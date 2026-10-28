@@ -25,3 +25,21 @@ references:
     authors:
       - name: Research Data Alliance
     doi: 10.15497/RDA00157
+  - type: report
+    title: >-
+      Global Community Priorities for Agentic AI in Research: Community Consultation Results
+    authors:
+      - family-names: Clare
+        given-names: Connie
+      - family-names: Collinson
+        given-names: Marcy
+      - family-names: Hanahoe
+        given-names: Hilary
+      - family-names: Payton
+        given-names: Ryan
+      - family-names: Sharma
+        given-names: Curtis J. M.
+    publisher:
+      name: Research Data Alliance
+    year: 2025
+    doi: 10.15497/RDA00151
