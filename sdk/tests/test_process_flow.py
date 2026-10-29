@@ -16,6 +16,7 @@ from dd_sdk.process_flow import (
     describe_flow,
     entry,
     plan,
+    requirements_of,
 )
 
 REGISTER = Path(__file__).resolve().parents[2] / "docs" / "requirements.yaml"
@@ -39,8 +40,8 @@ def test_every_requirement_a_step_names_is_a_blueprint_requirement_in_the_regist
 @pytest.mark.requirement("DD-ENTRY-POINTS")
 def test_a_plan_runs_from_the_entry_to_the_last_phase_and_names_who_serves_each_step() -> None:
     manifest: list[dict[str, Any]] = [
-        {"agent_id": "quality.reviewer", "serves": ["R4"]},
-        {"agent_id": "standards.advisor", "serves": ["R3"]},
+        {"agent_id": "quality.reviewer", "serves": ["deposit.validate"]},
+        {"agent_id": "standards.advisor", "serves": ["setup.vocabularies", "preparation.formats"]},
         {"agent_id": "hello.world"},
     ]
     first = plan(entry(1), manifest)
@@ -63,16 +64,29 @@ def test_every_step_has_a_unique_id_under_its_phase_and_none_is_a_requirement() 
     assert all(len(prefix) == 1 for prefix in prefixes.values())
 
 
-def test_an_agent_serving_a_step_id_is_planned_for_that_step_alone() -> None:
+def test_an_agent_is_planned_at_the_steps_it_names_and_no_other() -> None:
     manifest: list[dict[str, Any]] = [
         {"agent_id": "policy.advisor", "serves": ["governance.policies", "repository.mandated"]},
-        {"agent_id": "dmp.checker", "serves": ["R8"]},
+        {"agent_id": "metadata.advisor", "serves": ["setup.vocabularies"]},
     ]
-    by_id = {p.step.id: p.agent_ids for p in plan(entry(2), manifest)}
+    by_id = {p.step.id: p.agent_ids for p in plan(entry(1), manifest)}
     assert by_id["governance.policies"] == ("policy.advisor",)
     assert by_id["repository.mandated"] == ("policy.advisor",)
-    assert by_id["governance.dmp"] == ("dmp.checker",)
     assert by_id["governance.embargo"] == ()
+    # Serving one R3 step does not place an agent at every step that names R3.
+    assert by_id["setup.vocabularies"] == ("metadata.advisor",)
+    assert by_id["preparation.formats"] == ()
+
+
+def test_the_requirements_an_agent_bears_on_follow_from_its_steps() -> None:
+    assert requirements_of(["deposit.validate"]) == ("R4",)
+    assert requirements_of(["preparation.metadata", "setup.vocabularies", "post.retrofit"]) == (
+        "R2",
+        "R3",
+        "R6",
+        "R9",
+    )
+    assert requirements_of(["governance.policies"]) == ()
 
 
 def test_the_prompt_text_names_every_entry_phase_and_requirement() -> None:

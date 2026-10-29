@@ -125,11 +125,10 @@ evidence: see [What the Data Director records](records.md).
 
 ### Steps with no agent
 
-An agent joins a step by declaring the step, or the requirements, it serves. Where no registered
-agent serves a step, the Data Director says "no agent yet", and gives the requirement if the
-Blueprint names one. It does not skip the step
-or do the work itself. The set of steps with an agent depends on which agents your deployment has
-registered, so the list differs between deployments.
+An agent joins a step by declaring the steps it serves. Where no registered agent serves a step,
+the Data Director says "no agent yet", and gives the requirement if the Blueprint names one. It
+does not skip the step or do the work itself. The set of steps with an agent depends on which
+agents your deployment has registered, so the list differs between deployments.
 
 The **Blueprint phases** panel in the app shows the same phases and, for each step, the agents
 here that serve it. It does not yet show where your own project has reached in them

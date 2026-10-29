@@ -37,7 +37,7 @@ export interface RawManifestEntry {
   /** Absent on a card written before ADR-0026, which declares no model. */
   models?: RawModelUse[];
   schemas: Record<string, { digest: string; json_schema: unknown }>;
-  /** The Blueprint requirements (R1 to R12) it serves (ADR-0028). Absent on an older card. */
+  /** The process flow step ids it serves (ADR-0028). Absent on an older card. */
   serves?: string[];
   assigned_action_class: string | null;
   requires_approval: boolean;

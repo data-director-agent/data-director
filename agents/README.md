@@ -81,11 +81,11 @@ CLI, transports or viewer, this agent will show it.
    stale generated schema fails the agent's own suite. Two agents may define classes of the same
    name; the digest, not the name, identifies a class in a stored run.
 
-   If the agent serves any of the Blueprint's functional requirements, say so in the spec:
-   `serves=("R3",)`, from R1 to R12. The orchestrators place it in the Blueprint's process flow
-   by them, and name it at each step that applies one (ADR-0028). For a step that names no
-   requirement, serve the step by its id from `dd_sdk.process_flow`, such as
-   `serves=("governance.policies",)` (ADR-0032).
+   Say which steps of the Blueprint's process flow the agent helps with, by their ids in
+   `dd_sdk.process_flow`: `serves=("setup.vocabularies", "preparation.formats")`. The
+   orchestrators name it at those steps and no others (ADR-0028, ADR-0032). Name steps, not
+   requirements: the requirements it bears on follow from the steps, and whether it meets them is
+   for the [requirements register](../docs/requirements.yaml).
 2. **Decide its grounding mode** (ADR-0008).
    - `retrieval` if it consults external records. Emit one
      `dd_sdk.tracing.retrieval_span(ctx.tracer, source_id, content_hash)` per record consulted,
