@@ -35,7 +35,7 @@ HAR = Path(__file__).with_name("esm.sh.har.zip")
 CDN = "https://esm.sh/**"
 # Anything but the app itself.
 REMOTE = re.compile(r"^(?!http://127\.0\.0\.1:\d+/)")
-PAGES = ("/viewer/", "/viewer/chat.html", "/viewer/agents.html")
+PAGES = ("/viewer/", "/viewer/inspect.html", "/viewer/agents.html")
 START_TIMEOUT_S = 10
 
 

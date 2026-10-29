@@ -75,12 +75,13 @@ uv run workbench serve                                 # then open http://127.0.
 
 ### The viewer
 
-The viewer has two pages, reached by the tabs under its header.
+The viewer has three pages, reached by the tabs under its header. It opens on Chat.
 
-- **Inspect** runs one agent over a sample and shows the run.
-- **Chat** (`http://127.0.0.1:8000/viewer/chat.html`) holds a conversation with the orchestrator,
+- **Chat** (`http://127.0.0.1:8000/viewer/`) holds a conversation with the orchestrator,
   `director.stub`, which hands each message to other agents and shows their replies inside its
   own ([ADR-0012](../docs/adr/0012-conversation-and-orchestration.md)).
+- **Inspect** (`/viewer/inspect.html`) runs one agent over a sample and shows the run.
+- **Agents** (`/viewer/agents.html`) lists the registered agents and their cards.
 
 Only `serve` can run the orchestrator: `invoke` does not grant the permission it needs to call
 other agents, so `samples/director.message.json` has to go through the viewer or the conversation

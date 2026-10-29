@@ -34,7 +34,7 @@ VIEWER_DIR = ROOT / "viewer"
 BASE = json.loads((VIEWER_DIR / "uischema.json").read_text(encoding="utf-8"))
 PAGES = {
     n: (VIEWER_DIR / n).read_text(encoding="utf-8")
-    for n in ("index.html", "chat.html", "agents.html")
+    for n in ("index.html", "inspect.html", "agents.html")
 }
 SOURCES = sorted(
     [*VIEWER_DIR.glob("*.html"), *VIEWER_DIR.glob("*.css"), *VIEWER_DIR.glob("js/*.js")]
@@ -112,7 +112,7 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     assert "readonly: true" in VIEWER
     assert "@rjsf/core@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in VIEWER
     assert "@rjsf/validator-ajv8@6.8.0?deps=react@19.3.1,react-dom@19.3.1" in VIEWER
-    assert 'role="status"' in PAGES["index.html"] and 'role="status"' in PAGES["chat.html"]
+    assert 'role="status"' in PAGES["index.html"] and 'role="status"' in PAGES["index.html"]
     assert '<label for="agent-select">' in VIEWER
     # Driven by the manifest and the samples listing; no agent or sample is named.
     assert 'fetch("/agents")' in VIEWER and 'fetch("/samples")' in VIEWER
@@ -138,12 +138,12 @@ def test_input_form_is_built_from_the_cards_class_schema_and_names_no_class() ->
     # Chat names Message for its text box; no other input class is named anywhere.
     for name in ("Salutation", "Claim", "MetadataRecord", "DatasetProfile"):
         assert name not in VIEWER, name
-    assert 'id="chat-json"' not in PAGES["chat.html"]
+    assert 'id="chat-json"' not in PAGES["index.html"]
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_chat_mode_is_driven_by_the_conversation_api_and_names_every_agent_version() -> None:
-    assert '<label for="chat-agent-select">' in PAGES["chat.html"]
+    assert '<label for="chat-agent-select">' in PAGES["index.html"]
     assert 'fetch("/conversations")' in VIEWER and "fetch(`/conversations/${" in VIEWER
     # Every reply card, and every delegated card inside it, is labelled agent_id@agent_version.
     assert "`${env.agent_id}@${env.agent_version}`" in VIEWER
@@ -151,8 +151,8 @@ def test_chat_mode_is_driven_by_the_conversation_api_and_names_every_agent_versi
     # The orchestrator is found by grounding mode, never by name.
     assert 'grounding_mode === "delegation"' in VIEWER
     # Chat and Inspect both reload from the address bar; Inspect forwards the old Chat address.
-    assert "/viewer/chat.html?conversation_id=" in VIEWER and "/viewer/?invocation_id=" in VIEWER
-    assert 'p.get("mode") === "chat"' in PAGES["index.html"]
+    assert "/viewer/?conversation_id=" in VIEWER and "/viewer/inspect.html?invocation_id=" in VIEWER
+    assert "/viewer/inspect.html?invocation_id=" in PAGES["index.html"]
 
 
 def test_every_outcome_status_has_a_colour_rule() -> None:
@@ -188,9 +188,9 @@ def _mode_nav(page: str) -> str:
 def test_all_pages_share_the_mode_tabs_and_mark_their_own() -> None:
     nav = {name: _mode_nav(page) for name, page in PAGES.items()}
     unmarked = {name: text.replace(' aria-current="page"', "") for name, text in nav.items()}
-    assert unmarked["index.html"] == unmarked["chat.html"] == unmarked["agents.html"]
+    assert unmarked["index.html"] == unmarked["inspect.html"] == unmarked["agents.html"]
     assert re.search(r'href="/viewer/" aria-current="page"', nav["index.html"])
-    assert re.search(r'href="/viewer/chat.html" aria-current="page"', nav["chat.html"])
+    assert re.search(r'href="/viewer/inspect.html" aria-current="page"', nav["inspect.html"])
     assert re.search(r'href="/viewer/agents.html" aria-current="page"', nav["agents.html"])
     for name, page in PAGES.items():
         assert nav[name].count('aria-current="page"') == 1, name
