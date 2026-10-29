@@ -96,7 +96,7 @@ scripts/run-agents.sh                 # first terminal; the same as `scripts/dev
 ```
 ```sh
 cd workbench
-uv run workbench serve                # then open http://127.0.0.1:8000/viewer/
+uv run workbench serve --port 8000    # then open http://127.0.0.1:8000/viewer/
 ```
 
 To run the whole development stack in containers instead, you need only Docker with Compose.
