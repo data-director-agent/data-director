@@ -10,6 +10,8 @@ agents:
     url: http://127.0.0.1:8102
   - name: standards
     url: http://127.0.0.1:8105
+  - name: repository
+    url: http://127.0.0.1:8109
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
   # theirs (ADR-0012). It calls them back through the app's own A2A endpoint under its grant.
   - name: director

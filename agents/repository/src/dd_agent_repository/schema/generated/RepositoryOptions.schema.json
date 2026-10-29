@@ -1,0 +1,226 @@
+{
+   "$comment": "Generated from repository.yaml by `uv run dd-gen-schema <path to repository.yaml>`. Do not edit.",
+   "$defs": {
+      "Answer": {
+         "description": "",
+         "enum": [
+            "yes",
+            "no",
+            "unstated"
+         ],
+         "title": "Answer",
+         "type": "string"
+      },
+      "CandidateBasis": {
+         "description": "",
+         "enum": [
+            "mandated",
+            "recommended"
+         ],
+         "title": "CandidateBasis",
+         "type": "string"
+      },
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
+      "GroundingRef": {
+         "additionalProperties": false,
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "properties": {
+            "source_id": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "source_id",
+            "content_hash"
+         ],
+         "title": "GroundingRef",
+         "type": "object"
+      },
+      "RepositoryCandidate": {
+         "additionalProperties": false,
+         "description": "One repository. It is named only in grounded_on; its name, PID systems, access and upload conditions, certificates and metadata standards are in the cited evidence items' content (ADR-0015). The judgements here are read from those records or compared with the needs.",
+         "properties": {
+            "basis": {
+               "$ref": "#/$defs/CandidateBasis"
+            },
+            "score": {
+               "type": [
+                  "number",
+                  "null"
+               ]
+            },
+            "assigns_pids": {
+               "$ref": "#/$defs/Answer",
+               "description": "Whether the registry lists a persistent identifier system the repository uses. re3data does not say whether assignment is automatic."
+            },
+            "commercial": {
+               "$ref": "#/$defs/Answer",
+               "description": "Whether an institution responsible for the repository is listed as commercial."
+            },
+            "fee_required": {
+               "$ref": "#/$defs/Answer",
+               "description": "Whether the registry lists a fee as a condition of depositing data."
+            },
+            "meets": {
+               "description": "The needs this repository meets, as recorded by its registry entries.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "misses": {
+               "description": "The needs this repository does not meet, or that its records leave open. Flagged for the researcher; never resolved by the agent.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "notes": {
+               "description": "Facts the researcher should weigh that are neither met nor missed needs: fees, a commercial platform, the deposit conditions FAIRsharing's curators record.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "rationale": {
+               "type": "string"
+            },
+            "rationale_derivation": {
+               "$ref": "#/$defs/Derivation"
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "basis",
+            "assigns_pids",
+            "commercial",
+            "fee_required",
+            "rationale",
+            "rationale_derivation",
+            "grounded_on"
+         ],
+         "title": "RepositoryCandidate",
+         "type": "object"
+      },
+      "SearchedSummary": {
+         "additionalProperties": false,
+         "description": "What was looked for, so a reader can judge an abstention as well as a recommendation.",
+         "properties": {
+            "queries": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "snapshot_ref": {
+               "description": "Which copies of the registries answered, e.g. re3data:snapshot:2026-10-29.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "candidates_retrieved": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "candidates_qualifying": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "title": "SearchedSummary",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/repository/RepositoryOptions",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The repository advisor payload. Repositories recommended or described, each grounded on its registry records. The researcher selects; the agent does not.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "RepositoryOptions"
+         ],
+         "type": "string"
+      },
+      "candidates": {
+         "items": {
+            "$ref": "#/$defs/RepositoryCandidate"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "not_found": {
+         "description": "Mandated repositories for which no registry record was found.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "searched": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/SearchedSummary"
+            },
+            {
+               "type": "null"
+            }
+         ]
+      },
+      "grounded_on": {
+         "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+         "items": {
+            "$ref": "#/$defs/GroundingRef"
+         },
+         "type": "array"
+      }
+   },
+   "required": [
+      "schema_class",
+      "grounded_on"
+   ],
+   "title": "RepositoryOptions",
+   "type": "object"
+}

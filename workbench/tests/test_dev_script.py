@@ -223,7 +223,8 @@ def test_the_agents_and_ports_come_from_the_apps_list() -> None:
     agents = common.load_agents(ROOT / "app" / "config" / "agents.yaml")
     assert {a.script: a.port for a in agents}["dd-hello"] == 8101
     assert all(
-        a.name in {"hello", "quality", "standards", "director", "orchestrator"} for a in agents
+        a.name in {"hello", "quality", "standards", "repository", "director", "orchestrator"}
+        for a in agents
     )
 
 

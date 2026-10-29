@@ -1,0 +1,31 @@
+# re3data identifiers in the committed snapshot, spread across disciplines, with generalist and
+# institutional repositories. One per line; text after the identifier is a reminder only.
+r3d100010468 Zenodo
+r3d100010066 figshare
+r3d100000044 Dryad
+r3d100010051 Harvard Dataverse
+r3d100011137 Open Science Framework
+r3d100011868 Mendeley Data
+r3d100010216 4TU.ResearchData
+r3d100010230 UK Data Service
+r3d100010215 UK Data Archive
+r3d100010255 ICPSR
+r3d100012496 GESIS Data Archive
+r3d100011038 Qualitative Data Repository
+r3d100010138 Australian Data Archive
+r3d100014195 DANS Data Station Social Sciences and Humanities
+r3d100000006 Archaeology Data Service
+r3d100010134 PANGAEA
+r3d100010199 Environmental Information Data Centre
+r3d100000011 CEDA Archive
+r3d100010192 British Oceanographic Data Centre
+r3d100012627 BioStudies
+r3d100010527 European Nucleotide Archive
+r3d100010137 PRIDE
+r3d100010283 Gene Expression Omnibus
+r3d100010924 OpenNeuro
+r3d100010197 Cambridge Structural Database
+r3d100011583 NOMAD
+r3d100012124 ORDA, University of Sheffield
+r3d100011945 Research Data Leeds Repository
+r3d100000047 Edinburgh DataShare

@@ -1,0 +1,126 @@
+{
+   "$comment": "Generated from repository.yaml by `uv run dd-gen-schema <path to repository.yaml>`. Do not edit.",
+   "$defs": {
+      "AccessNeed": {
+         "description": "",
+         "enum": [
+            "open",
+            "embargoed",
+            "restricted"
+         ],
+         "title": "AccessNeed",
+         "type": "string"
+      },
+      "Affiliation": {
+         "additionalProperties": false,
+         "description": "The researcher's institution, matched against the institutions a registry lists.",
+         "properties": {
+            "name": {
+               "type": "string"
+            },
+            "ror": {
+               "description": "The organisation's ROR identifier.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "Affiliation",
+         "type": "object"
+      },
+      "RepositoryRef": {
+         "additionalProperties": false,
+         "description": "A repository named by a funder, journal, institution or the researcher. The re3data identifier is used when given; otherwise the name is looked up.",
+         "properties": {
+            "name": {
+               "type": "string"
+            },
+            "re3data_id": {
+               "description": "The re3data identifier, e.g. r3d100010230.",
+               "pattern": "^r3d\\d+$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "RepositoryRef",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/repository/RepositoryNeeds",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "RepositoryNeeds"
+         ],
+         "type": "string"
+      },
+      "themes": {
+         "description": "Discipline or subject, as free text.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "data_kinds": {
+         "description": "What the data is, e.g. interview transcripts or household survey microdata.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "access": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/AccessNeed"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet decided, and no access need is checked."
+      },
+      "mandated": {
+         "items": {
+            "$ref": "#/$defs/RepositoryRef"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "affiliation": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/Affiliation"
+            },
+            {
+               "type": "null"
+            }
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "RepositoryNeeds",
+   "type": "object"
+}

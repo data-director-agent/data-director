@@ -45,7 +45,7 @@ UNPUBLISHED = (
     # An agent's system prompt is its code, read by the model rather than by people.
     "agents/*/src/*/system_prompt.md",
     # The licence of a third-party data snapshot, which travels with the data.
-    "agents/standards/data/*",
+    "agents/*/data/*",
     # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.
     "scripts/blueprint/index-header.md",
 )

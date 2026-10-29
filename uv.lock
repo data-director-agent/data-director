@@ -17,6 +17,7 @@ members = [
     "data-director-agent-hello",
     "data-director-agent-orchestrator",
     "data-director-agent-quality",
+    "data-director-agent-repository",
     "data-director-agent-standards",
     "data-director-app",
     "data-director-harness",
@@ -859,6 +860,7 @@ dependencies = [
     { name = "data-director-agent-hello" },
     { name = "data-director-agent-orchestrator" },
     { name = "data-director-agent-quality" },
+    { name = "data-director-agent-repository" },
     { name = "data-director-agent-standards" },
     { name = "data-director-app" },
     { name = "data-director-harness", extra = ["serve"] },
@@ -891,6 +893,7 @@ requires-dist = [
     { name = "data-director-agent-hello", editable = "agents/hello" },
     { name = "data-director-agent-orchestrator", editable = "agents/orchestrator" },
     { name = "data-director-agent-quality", editable = "agents/quality" },
+    { name = "data-director-agent-repository", editable = "agents/repository" },
     { name = "data-director-agent-standards", editable = "agents/standards" },
     { name = "data-director-app", editable = "app" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
@@ -1015,6 +1018,40 @@ requires-dist = [
     { name = "data-director-sdk", editable = "sdk" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-repository"
+version = "0.1.0a0"
+source = { editable = "agents/repository" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "httpx" },
+    { name = "pyyaml" },
+    { name = "rank-bm25" },
+]
+
+[package.optional-dependencies]
+anthropic = [
+    { name = "anthropic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.50" },
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "rank-bm25", specifier = ">=0.2.2" },
+]
+provides-extras = ["anthropic"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "data-director-harness", editable = "harness" }]

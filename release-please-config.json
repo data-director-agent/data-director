@@ -79,6 +79,13 @@
       "exclude-paths": [
         "agents/standards/tests"
       ]
+    },
+    "agents/repository": {
+      "component": "agent-repository",
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/repository/tests"
+      ]
     }
   }
 }
