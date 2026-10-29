@@ -157,7 +157,7 @@ by its `routing.yaml`.
 The model-backed `orchestrator.model` (`agents/orchestrator/`) decides which agents to ask
 from what each one declares, and writes its replies with a model. In development, `uv run scripts/dev.py setup` does
 both steps below when you give it a key. To use it, give it a model key
-(`workbench/agents/orchestrator.env` in development, `deploy/README.md` on a server), and in the
+(`config/local/agents/orchestrator.env` in development, `deploy/README.md` on a server), and in the
 profile the app runs under (your local `config/profile.yaml`) set
 
 ```yaml

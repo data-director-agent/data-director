@@ -19,7 +19,7 @@ development test bed and not for the product.
 The harness modules did not import the workbench-side modules, so they could be separated
 without redesign (issue #47). One thing did tie the harness to the workbench tree: its default
 configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`,
-`sources.yaml`, the run directory and the `.env` file from their own location in `workbench/`.
+`sources.yaml`, the run directory and the settings file from their own location in `workbench/`.
 
 ## Decision
 

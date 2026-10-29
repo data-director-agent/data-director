@@ -21,13 +21,14 @@ from devstack.common import (
     WEB_PORT,
     Agent,
     DevError,
+    agent_env,
     answers,
+    app_env,
+    ensure_local_tree,
     has_key,
     load_agents,
     port_free,
     prepare_web,
-    read_env,
-    shared_env,
     workspace_env,
 )
 
@@ -110,9 +111,11 @@ class Stack:
 
 
 def start(agents_only: bool, web: bool, reload: bool = True) -> int:
-    base = workspace_env() | shared_env()
-    if not (base.get("DD_PRINCIPAL_ID") and base.get("DD_PRINCIPAL_NAME")):
-        base |= EXAMPLE_PRINCIPAL
+    ensure_local_tree()
+    base = workspace_env()
+    app = app_env()
+    if not (app.get("DD_PRINCIPAL_ID") and app.get("DD_PRINCIPAL_NAME")):
+        app |= EXAMPLE_PRINCIPAL
         print(
             f"No principal is set, so runs act for the example, {EXAMPLE_PRINCIPAL['DD_PRINCIPAL_NAME']}. "
             "Run `uv run scripts/dev.py setup` to give your own."
@@ -134,7 +137,7 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
     try:
         started: list[tuple[Agent, Service]] = []
         for agent in agents:
-            env = base | read_env(agent.env_file)
+            env = base | agent_env(agent)
             if agent.name in MODEL_BACKED and not has_key(env):
                 print(
                     f"skip  {agent.script}: no model key "
@@ -153,14 +156,14 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
                 )
 
         if not agents_only:
-            app = Service(
+            app_service = Service(
                 "app",
                 ["uv", "run", "data-director"],
                 # The app opens a browser on its own address; the page to open is printed below.
-                base | {"BROWSER": "true"} | read_env(paths.ROOT / "app" / ".env"),
+                base | app | {"BROWSER": "true"},
             )
-            stack.start(app)
-            if not stack.wait_for(app, f"http://127.0.0.1:{APP_PORT}/api/agents"):
+            stack.start(app_service)
+            if not stack.wait_for(app_service, f"http://127.0.0.1:{APP_PORT}/api/agents"):
                 raise DevError("the app did not start; its output is above")
             if web:
                 vite = Service(

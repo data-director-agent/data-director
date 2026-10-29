@@ -57,7 +57,7 @@ Read at start-up by `factory.build`. A bad value stops the service with one line
 | `DD_ORCHESTRATOR_HISTORY` | `20` | Earlier turns sent to the model. `0` sends only the current message. |
 | `DD_ORCHESTRATOR_MAX_DELEGATIONS` | `4` | Tool calls allowed in one turn. |
 
-In development these go in `workbench/agents/orchestrator.env` (`workbench/agents/env.example`).
+In development these go in `config/local/agents/orchestrator.env` (`config/examples/agents/orchestrator.env`), with the key in `config/local/credentials/`.
 On a server they go in `/etc/data-director/agents/orchestrator.env`, with the key loaded as a
 systemd credential (`deploy/README.md`).
 

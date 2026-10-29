@@ -1,7 +1,7 @@
 """Factory and console script for R3.
 
 `build` assembles the standards advisor from its own environment variables (documented in
-`workbench/env.example`):
+`config/examples/agents.env`):
 
 - `DD_STANDARDS_RETRIEVAL`: `snapshot` (default) searches the committed FAIRsharing snapshot. `live`
   searches FAIRsharing (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`) and, when the live route

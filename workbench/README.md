@@ -137,10 +137,10 @@ for one command. If only one of them is set, the command stops with
 
 ### Environment variables
 
-The workbench reads these from the environment when it starts. For local development, copy
-[`env.example`](env.example) to `workbench/.env`: the `workbench` command loads it at start-up,
-from whichever directory it is run. A variable already set in the environment takes precedence
-over the file. `scripts/run-agents.sh` passes the same file to the agents.
+The workbench reads these from the environment when it starts. For local development, set
+`DD_CONFIG_DIR=config/local` (the tree `scripts/dev.py setup` creates, which the workbench does not
+own): the `workbench` command loads `app.env` and `agents.env` from it at start-up. A variable
+already set in the environment takes precedence over the files.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -157,7 +157,7 @@ These defaults are the workbench's development set (`src/workbench/config.py`), 
 `workbench/`. The harness has no defaults of its own, so another way in names these files itself
 (ADR-0022). Each agent is a separate process and reads
 its own variables, such as the standards advisor retrieval backend or a model API key, where it runs;
-[`env.example`](env.example) lists them.
+[`config/examples/`](../config/examples/) lists them.
 
 ### Agent registry
 

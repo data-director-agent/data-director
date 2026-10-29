@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import stat
 import sys
 import time
@@ -31,9 +32,14 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         (ROOT / "app" / "config" / "profile.yaml.example").read_text(encoding="utf-8")
     )
     monkeypatch.setattr(paths, "ROOT", tmp_path)
-    monkeypatch.setattr(paths, "ROOT_ENV", tmp_path / ".env")
-    monkeypatch.setattr(paths, "WORKBENCH_ENV", tmp_path / "workbench" / ".env")
-    monkeypatch.setattr(paths, "AGENT_ENV_DIR", tmp_path / "workbench" / "agents")
+    shutil.copytree(ROOT / "config" / "examples", tmp_path / "config" / "examples")
+    local = tmp_path / "config" / "local"
+    monkeypatch.setattr(paths, "LOCAL_DIR", local)
+    monkeypatch.setattr(paths, "EXAMPLES_DIR", tmp_path / "config" / "examples")
+    monkeypatch.setattr(paths, "APP_ENV", local / "app.env")
+    monkeypatch.setattr(paths, "AGENTS_ENV", local / "agents.env")
+    monkeypatch.setattr(paths, "AGENT_ENV_DIR", local / "agents")
+    monkeypatch.setattr(paths, "CREDENTIALS_DIR", local / "credentials")
     monkeypatch.setattr(paths, "PROFILE_EXAMPLE", config / "profile.yaml.example")
     monkeypatch.setattr(paths, "PROFILE", config / "profile.yaml")
     return tmp_path
@@ -54,8 +60,10 @@ def scripted(*answers: str, asked: list[str] | None = None) -> Prompter:
 
 def test_defaults_write_the_example_principal_and_no_key(repo: Path) -> None:
     assert setup(Prompter(accept_defaults=True), install=False) == 0
-    assert common.read_env(repo / ".env") == common.EXAMPLE_PRINCIPAL
-    assert not (repo / "workbench" / "agents").exists()
+    assert common.read_env(repo / "config" / "local" / "app.env") == common.EXAMPLE_PRINCIPAL
+    assert (repo / "config" / "local" / "agents.env").is_file()
+    assert not list((repo / "config" / "local" / "agents").iterdir())
+    assert not list((repo / "config" / "local" / "credentials").iterdir())
     assert not (repo / "app" / "config" / "profile.yaml").exists()
 
 
@@ -63,28 +71,36 @@ def test_a_bare_orcid_id_is_given_its_prefix_and_a_name_with_a_space_is_quoted(
     repo: Path,
 ) -> None:
     setup(scripted("Ada Lovelace", "0000-0001-2345-678X", ""), install=False)
-    text = (repo / ".env").read_text()
+    text = (repo / "config" / "local" / "app.env").read_text()
     assert 'DD_PRINCIPAL_NAME="Ada Lovelace"' in text
     assert (
-        common.read_env(repo / ".env")["DD_PRINCIPAL_ID"] == "https://orcid.org/0000-0001-2345-678X"
+        common.read_env(repo / "config" / "local" / "app.env")["DD_PRINCIPAL_ID"]
+        == "https://orcid.org/0000-0001-2345-678X"
     )
 
 
 def test_an_invalid_id_is_asked_again(repo: Path) -> None:
     setup(scripted("Ada", "not an id", "https://ror.org/05krs5044", ""), install=False)
-    assert common.read_env(repo / ".env")["DD_PRINCIPAL_ID"] == "https://ror.org/05krs5044"
+    app = common.read_env(repo / "config" / "local" / "app.env")
+    assert app["DD_PRINCIPAL_ID"] == "https://ror.org/05krs5044"
 
 
 def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
     setup(scripted("", "", KEY, "y", "y"), install=False)
-    agents = repo / "workbench" / "agents"
-    assert common.read_env(agents / "orchestrator.env") == {"ANTHROPIC_API_KEY": KEY}
+    local = repo / "config" / "local"
+    agents, credentials = local / "agents", local / "credentials"
+    assert common.read_env(agents / "orchestrator.env") == {
+        "ANTHROPIC_API_KEY_FILE": "orchestrator-anthropic-api-key"
+    }
     assert common.read_env(agents / "standards.env") == {
         "DD_STANDARDS_EXPLAINER": "anthropic",
-        "ANTHROPIC_API_KEY": KEY,
+        "ANTHROPIC_API_KEY_FILE": "standards-anthropic-api-key",
     }
-    assert KEY not in (repo / ".env").read_text()
-    for path in (agents / "orchestrator.env", agents / "standards.env", repo / ".env"):
+    assert (credentials / "orchestrator-anthropic-api-key").read_text().strip() == KEY
+    assert (credentials / "standards-anthropic-api-key").read_text().strip() == KEY
+    for path in (local / "app.env", local / "agents.env", agents / "orchestrator.env"):
+        assert KEY not in path.read_text()
+    for path in (*credentials.iterdir(), agents / "orchestrator.env", local / "app.env"):
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
@@ -103,12 +119,19 @@ def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(re
 
 
 def test_a_rerun_keeps_the_key_and_other_lines(repo: Path) -> None:
-    own = repo / "workbench" / "agents" / "orchestrator.env"
+    local = repo / "config" / "local"
+    own = local / "agents" / "orchestrator.env"
     own.parent.mkdir(parents=True)
-    own.write_text(f"# mine\nDD_MODEL_ID=claude-haiku-5-5\nANTHROPIC_API_KEY={KEY}\n")
+    text = (
+        "# mine\nDD_MODEL_ID=claude-haiku-5-5\n"
+        "ANTHROPIC_API_KEY_FILE=orchestrator-anthropic-api-key\n"
+    )
+    own.write_text(text)
+    (local / "credentials").mkdir()
+    (local / "credentials" / "orchestrator-anthropic-api-key").write_text(KEY + "\n")
     asked: list[str] = []
     setup(scripted("", "", "", "n", "n", asked=asked), install=False)
-    assert own.read_text() == f"# mine\nDD_MODEL_ID=claude-haiku-5-5\nANTHROPIC_API_KEY={KEY}\n"
+    assert own.read_text() == text
     assert any(mask(KEY) in q for q in asked) and not any(KEY in q for q in asked)
 
 
@@ -131,16 +154,49 @@ def test_settings_files_read_as_uv_reads_them() -> None:
 
 
 def test_a_key_in_a_shared_file_is_refused(repo: Path) -> None:
-    (repo / ".env").write_text(f"ANTHROPIC_API_KEY={KEY}\n")
+    local = repo / "config" / "local"
+    local.mkdir(parents=True)
+    (local / "agents.env").write_text(f"ANTHROPIC_API_KEY={KEY}\n")
     with pytest.raises(common.DevError, match="ADR-0026"):
-        common.shared_env()
+        common.agent_env(common.Agent("hello", 8101))
 
 
-def test_the_root_env_wins_over_the_workbench_one(repo: Path) -> None:
-    (repo / "workbench").mkdir()
-    (repo / "workbench" / ".env").write_text("DD_PRINCIPAL_NAME=old\nDD_RUNS_DIR=runs\n")
-    (repo / ".env").write_text("DD_PRINCIPAL_NAME=new\n")
-    assert common.shared_env() == {"DD_PRINCIPAL_NAME": "new", "DD_RUNS_DIR": "runs"}
+def test_an_agent_reads_its_own_file_and_the_shared_one_but_not_the_apps_or_anothers(
+    repo: Path,
+) -> None:
+    local = repo / "config" / "local"
+    common.ensure_local_tree()
+    (local / "app.env").write_text("DD_PRINCIPAL_NAME=Ada\n")
+    (local / "agents.env").write_text("DD_MODEL_ID=shared\nDD_OTHER=1\n")
+    (local / "agents" / "orchestrator.env").write_text("DD_MODEL_ID=own\nANTHROPIC_API_KEY=k\n")
+    (local / "agents" / "standards.env").write_text("DD_STANDARDS_EXPLAINER=anthropic\n")
+    env = common.agent_env(common.Agent("orchestrator", 8107))
+    assert env["DD_MODEL_ID"] == "own" and env["DD_OTHER"] == "1"
+    assert "DD_PRINCIPAL_NAME" not in env and "DD_STANDARDS_EXPLAINER" not in env
+    assert env["CREDENTIALS_DIRECTORY"] == str(local / "credentials")
+    assert "ANTHROPIC_API_KEY" not in common.agent_env(common.Agent("standards", 8105))
+    assert common.app_env() == {"DD_PRINCIPAL_NAME": "Ada"}
+    assert "DD_MODEL_ID" not in common.app_env()
+
+
+def test_the_tree_is_made_from_the_examples_and_never_overwritten(repo: Path) -> None:
+    created = common.ensure_local_tree()
+    assert {p.name for p in created} == {"app.env", "agents.env"}
+    (repo / "config" / "local" / "app.env").write_text("DD_PRINCIPAL_NAME=mine\n")
+    assert common.ensure_local_tree() == []
+    assert common.read_env(repo / "config" / "local" / "app.env") == {"DD_PRINCIPAL_NAME": "mine"}
+
+
+def test_settings_files_of_the_old_layout_are_reported_with_where_they_move(repo: Path) -> None:
+    (repo / ".env").write_text("DD_PRINCIPAL_NAME=x\n")
+    (repo / "workbench" / "agents").mkdir(parents=True)
+    (repo / "workbench" / "agents" / "orchestrator.env").write_text("ANTHROPIC_API_KEY=k\n")
+    found = common.stray_files()
+    assert any(f.startswith(".env -> config/local/app.env") for f in found)
+    assert any(
+        "workbench/agents/orchestrator.env -> config/local/agents/orchestrator.env" in f
+        for f in found
+    )
 
 
 def test_the_agents_and_ports_come_from_the_apps_list() -> None:
