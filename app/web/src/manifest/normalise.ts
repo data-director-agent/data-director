@@ -73,7 +73,7 @@ export interface Directory {
   profileRef: string;
   /** The agent the profile names for the conversation, or null when it names none. */
   orchestratorId: string | null;
-  actingFor: { name: string; assurance: string };
+  actingFor: { name: string; assurance: string; vouchedBy?: string };
 }
 
 const UNDECLARED = { state: "undeclared" } as const;
@@ -139,6 +139,10 @@ export function normalise(response: RawAgentsResponse): Directory {
     ],
     profileRef: response.profile.ref,
     orchestratorId: response.profile.orchestrator ?? null,
-    actingFor: response.acting_for,
+    actingFor: {
+      name: response.acting_for.name,
+      assurance: response.acting_for.assurance,
+      ...(response.acting_for.vouched_by ? { vouchedBy: response.acting_for.vouched_by } : {}),
+    },
   };
 }

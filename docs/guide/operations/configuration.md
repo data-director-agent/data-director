@@ -38,9 +38,27 @@ request cannot name a profile; only the operator chooses it
 
 ## Who a run acts for
 
-`DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are required, and the app will not start without them.
-Until people sign in (#17), every run acts for this operator, whoever uses the page, and the page
-says so. Use an ORCID iD URL as the identifier where the operator has one.
+The app can sign people in with ORCID, so that each run acts for the person who started it and
+records that ORCID vouched for them (ADR-0029). Register an ORCID public API client for the
+deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, then set:
+
+| Variable | What it is |
+|---|---|
+| `DD_OIDC_ISSUER` | `https://orcid.org` |
+| `DD_OIDC_CLIENT_ID` | The client's ID (`APP-…`) |
+| `DD_OIDC_CLIENT_SECRET_FILE` | A file that holds the client's secret, relative to `$CREDENTIALS_DIRECTORY` under systemd |
+| `DD_APP_PUBLIC_URL` | `https://<your host>`, as registered |
+| `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | Optional: a session ends after 8 hours unused or 7 days at most |
+
+Sign-in needs HTTPS. Sessions are held in memory, so restarting the app signs everyone out. The
+app asks ORCID for the iD and the name only, and keeps no token. TODO(#155): `install.sh` and the
+NGINX configuration still set up the operator and the site's password; follow #155 before relying
+on sign-in in a deployment.
+
+Without `DD_OIDC_ISSUER`, nobody signs in. `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are then
+required, every run acts for this operator, whoever uses the page, and the banner says on every
+page that nobody is signed in. Use an ORCID iD URL as the identifier where the operator has one.
+Setting both a provider and an operator stops the app at start-up.
 
 ## What is stored
 
@@ -52,8 +70,8 @@ says so. Use an ORCID iD URL as the identifier where the operator has one.
 
 ## Before you open it to users
 
-1. Set the operator in `app.env`, and the site's password in NGINX. These are the only access
-   controls until #17.
+1. Turn on sign-in (above), or set the operator in `app.env` and the site's password in NGINX,
+   which are then the only access controls.
 2. Review the profile. List only the agents you intend to offer, and add to
    `actions_requiring_approval` any action that must be referred to a person.
 3. Decide on [AI models](ai-models.md): whether either model-backed agent is on, which model, and

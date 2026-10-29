@@ -55,6 +55,10 @@ to ORCID records, and nothing here writes to one.
   server-side session that holds the `Principal` and the session's times, and nothing else.
   - The cookie is an opaque, random session identifier, marked `HttpOnly`, `Secure` and
     `SameSite=Lax`. `Lax` is needed because the provider redirects back across sites.
+  - The server keeps only a hash of each identifier. Nothing is signed into the cookie, so the
+    deployment needs no session secret.
+  - A sign-in's `state` is bound to the browser that started it by a short-lived cookie of its
+    own, so a callback carried to another browser opens no session.
   - Neither the ID token nor any access or refresh token is kept once it has been verified.
     Nothing calls ORCID's API.
 - **The principal is the iD URL.** For ORCID, `principal_id` is `https://orcid.org/` followed by
@@ -109,8 +113,10 @@ to ORCID records, and nothing here writes to one.
     now, and the app says on every page that it is not signing anyone in (#152).
 - **Sessions expire, and sign-out ends them on the server.**
   - A session has an idle timeout and an absolute lifetime, both set by the deployment. The
-    proposed defaults are an idle timeout of 8 hours and a lifetime of 7 days. TODO(#152): confirm
-    these against the hosting institution's policy.
+    defaults are an idle timeout of 8 hours and a lifetime of 7 days (`DD_SESSION_IDLE_S`,
+    `DD_SESSION_LIFETIME_S`). TODO(#155): confirm these against the hosting institution's policy.
+  - Before a session ends for want of use, the shell warns the person and offers to keep it
+    going (WCAG 2.2.1). Asking when a session ends does not keep it going.
   - Sign-out deletes the server-side session. ORCID offers no sign-out for a relying party, so
     the person stays signed in at ORCID, and the sign-out page says so.
   - A run that is still going when its session ends finishes and acts for whoever started it.
@@ -135,8 +141,10 @@ to ORCID records, and nothing here writes to one.
 
 - An envelope or crate from a deployment with sign-in names a person whom ORCID vouched for, and
   says so. Records from development servers still say `asserted`.
-- Every deployment registers its own ORCID client and redirect URI, and keeps a client secret
-  and a session secret. Development and CI need a sandbox client.
+- Every deployment registers its own ORCID client and redirect URI, and keeps a client secret.
+  Development needs a sandbox client; the tests need none.
+- Sessions are held in the app's memory, which suits one server process: restarting the app
+  signs everyone out.
 - People without an ORCID iD cannot sign in until a second provider is configured.
 - The browser API gains a `401` that every route can return, and the shell must handle it.
 - Nothing about an agent changes. An agent is still not told who it acts for (ADR-0018).

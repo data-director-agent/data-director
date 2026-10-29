@@ -17,6 +17,9 @@ import flow from "../fixtures/process-flow.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
+import development from "../fixtures/session-development.json" with { type: "json" };
+import signedIn from "../fixtures/session-signed-in.json" with { type: "json" };
+import signedOut from "../fixtures/session-signed-out.json" with { type: "json" };
 
 const EXAMPLES = [
   { name: "empty.profile", schema_class: "DatasetProfile", input: empty },
@@ -44,6 +47,15 @@ async function serve(page: Page, body: unknown, run: unknown = succeeded) {
   );
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
 }
+
+/** Who is signed in. Unless a test says otherwise, a development server: nobody signs in. */
+async function serveSession(page: Page, session: unknown) {
+  await page.route("/api/session", (route) => route.fulfill({ json: session }));
+}
+
+test.beforeEach(async ({ page }) => {
+  await serveSession(page, development);
+});
 
 /** The directory is its own page, `/agents`. */
 async function gotoDirectory(page: Page) {
@@ -290,7 +302,14 @@ for (const width of [1280, 320]) {
     await serveConversation(page);
     const nav = page.getByRole("navigation", { name: "Main" });
     const parts = [nav, page.getByRole("button", { name: "Dark mode" })];
-    const boxes = () => Promise.all(parts.map((part) => part.boundingBox()));
+    // Where each part is on the page, not in the viewport: selecting a tab below the fold
+    // scrolls the page, which moves nothing in it.
+    const boxes = async () => {
+      const scrollY = await page.evaluate(() => window.scrollY);
+      return (await Promise.all(parts.map((part) => part.boundingBox()))).map(
+        (box) => box && { ...box, y: box.y + scrollY },
+      );
+    };
 
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -417,3 +436,84 @@ for (const scheme of ["light", "dark"] as const) {
     expect(await axeViolations(page)).toEqual([]);
   });
 }
+
+// Signing in (ADR-0029). The server decides; the shell shows the sign-in page when it says nobody
+// is signed in, or when any request is refused with 401.
+
+test("signed out: the sign-in page, by keyboard, with no axe violations, at 320px", async ({
+  page,
+}) => {
+  await serveSession(page, signedOut);
+  await serve(page, reference);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/agents?agent=standards.advisor");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Sign in to Data Director" }),
+  ).toBeVisible();
+  const link = page.getByRole("link", { name: "Sign in with ORCID" });
+  await expect(link).toHaveAttribute(
+    "href",
+    `/api/sign-in?return_to=${encodeURIComponent("/agents?agent=standards.advisor")}`,
+  );
+  for (let i = 0; i < 20; i++) {
+    await page.keyboard.press("Tab");
+    if (await link.evaluate((element) => element === document.activeElement)) break;
+  }
+  await expect(link).toBeFocused();
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+});
+
+test("signed in: the banner names the person, and signing out ends the session", async ({
+  page,
+}) => {
+  await serveSession(page, signedIn);
+  await serve(page, reference);
+  let signedOutOnServer = false;
+  await page.route("/api/sign-out", (route) => {
+    signedOutOnServer = true;
+    return route.fulfill({ status: 204 });
+  });
+  await page.goto("/agents");
+  const banner = page.locator("header.app-header");
+  await expect(banner.getByText("Josiah Carberry")).toBeVisible();
+  expect(await axeViolations(page)).toEqual([]);
+  await banner.getByRole("button", { name: "Sign out" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { level: 1, name: "You have signed out" })).toBeVisible();
+  await expect(page.getByText(/still be signed in at ORCID/)).toBeVisible();
+  expect(signedOutOnServer).toBe(true);
+  await expect(banner.getByText("Josiah Carberry")).toHaveCount(0);
+  expect(await axeViolations(page)).toEqual([]);
+});
+
+test("a request refused with 401 brings the sign-in page back", async ({ page }) => {
+  await serveSession(page, signedIn);
+  await page.route("/api/agents", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "application/problem+json",
+      json: {
+        type: "https://w3id.org/data-director/problems/unauthenticated",
+        title: "The caller is not signed in",
+        status: 401,
+      },
+    }),
+  );
+  await page.goto("/agents");
+  await expect(page.getByRole("link", { name: "Sign in with ORCID" })).toBeVisible();
+});
+
+test("a sign-in that came back without a session says why", async ({ page }) => {
+  await serveSession(page, signedOut);
+  await page.goto("/sign-in?problem=declined");
+  await expect(page.getByRole("alert")).toContainText("You did not sign in");
+  expect(await axeViolations(page)).toEqual([]);
+});
+
+test("a development server says in the banner that it signs nobody in", async ({ page }) => {
+  await serve(page, reference);
+  await page.goto("/agents");
+  await expect(page.locator("header.app-header").getByText("Not signing anyone in")).toBeVisible();
+  await expect(page.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
+});

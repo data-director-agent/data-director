@@ -7,6 +7,7 @@ import reference from "../../../fixtures/agents.json";
 import several from "../../../fixtures/agents-several.json";
 import { type Directory, normalise, normaliseAgent } from "../../manifest/normalise";
 import type { RawAgentsResponse } from "../../manifest/types";
+import { DEVELOPMENT, WithSession, fakeSessionApi } from "../../test/session";
 import { AgentDirectory } from "./AgentDirectory";
 import { CapabilitiesPanel } from "./CapabilitiesPanel";
 
@@ -151,7 +152,9 @@ describe("App", () => {
   it("loads the directory and names whom runs act for", async () => {
     history.pushState(null, "", "/");
     const { container } = render(
-      <App load={() => Promise.resolve(normalise(reference as unknown as RawAgentsResponse))} />,
+      <WithSession api={fakeSessionApi(DEVELOPMENT)}>
+        <App load={() => Promise.resolve(normalise(reference as unknown as RawAgentsResponse))} />
+      </WithSession>,
     );
     // The reference set has no orchestrator, so the home page points to the directory.
     await userEvent.click(await screen.findByRole("link", { name: "Open the agent directory" }));
@@ -161,7 +164,11 @@ describe("App", () => {
   });
 
   it("reports a failure to load as an alert", async () => {
-    render(<App load={() => Promise.reject(new Error("the server answered 500"))} />);
+    render(
+      <WithSession api={fakeSessionApi(DEVELOPMENT)}>
+        <App load={() => Promise.reject(new Error("the server answered 500"))} />
+      </WithSession>,
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent("the server answered 500");
   });
 });
