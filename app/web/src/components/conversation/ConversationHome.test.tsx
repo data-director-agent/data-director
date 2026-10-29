@@ -200,7 +200,7 @@ describe("ConversationHome", () => {
     expect(screen.getByRole("textbox")).toHaveValue("");
 
     reply();
-    await screen.findByText("New reply from director.stub: Succeeded.");
+    await screen.findByText("New reply from orchestrator.stub: Succeeded.");
     expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
   });
 
