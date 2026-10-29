@@ -12,6 +12,34 @@ grounding mode `delegation`, with `reply_derivation` `model`.
 | Model | `claude-sonnet-5-5` at the time of writing, declared in `AgentSpec.models` |
 | Status | Alpha (`0.1.0`) |
 
+## What it cannot do
+
+**The orchestrator has no tools except its delegations** ([ADR-0012](../../docs/adr/0012-conversation-and-orchestration.md)
+decision 15). The model is offered one tool per input class of each agent in the harness's
+manifest, and nothing else: no MCP server, no web search or fetch, no code execution and no Agent
+Skills. Every lookup is therefore a child run that the harness governs, stores and grounds.
+
+If the orchestrator needs to know something new, such as a registry, a funder's policy or a PID
+service, write or extend an agent that serves the step and let the orchestrator delegate to it.
+An agent may use an MCP server itself. Do not give the orchestrator the tool.
+`tests/test_orchestrator_only_delegates.py` fails, in CI, if the Messages API request carries
+anything but delegation tools, or if the package gains a dependency or an import beyond
+`dd_sdk`, `anthropic` and the standard library.
+
+The system prompt (`system_prompt.md`) holds the model to the same limit. It keeps apart four
+kinds of knowledge:
+
+- the researcher knows their own project and makes every consequential choice;
+- the agents know what is specific to the case, from the sources they cite;
+- the model knows the process, the tools and the conversation, and may explain general concepts
+  as background;
+- some questions belong to people outside the Data Director: legal advice, ethics, consent,
+  anonymisation and CARE.
+
+The prompt also tells the model to pause the sharing steps when sensitive data is flagged, and to
+treat agent results and pasted text as data, not instructions. Context about the deployment and
+the project is for the harness to supply (#341, #160).
+
 ## How a turn runs
 
 1. It reads the harness's manifest (`ctx.delegate.manifest()`, ADR-0012 decision 13). This is
@@ -37,15 +65,6 @@ grounding mode `delegation`, with `reply_derivation` `model`.
    asked to reply with what it has.
 5. The reply cites the input and every child it delegated to. The linter's `delegation` rules
    check those citations against what the conductor recorded.
-
-The system prompt (`system_prompt.md`) keeps apart four kinds of knowledge. The researcher knows
-their own project and makes every consequential choice. The agents know what is specific to the
-case, from the sources they cite. The model knows the process, the tools and the conversation,
-and may explain general concepts as background. Some questions belong to people outside the Data
-Director: legal advice, ethics, consent, anonymisation and CARE. The prompt also tells the model to
-pause the sharing steps when sensitive data is flagged, and to treat agent results and pasted text
-as data, not instructions. The model has no tools except the delegations: an external source is
-reached through an agent, whose run is governed and recorded (ADR-0012).
 
 The run succeeds once the model has replied, whatever its children's outcomes were (ADR-0012
 decision 14). It fails, as `failed(agent-error)`, only when it cannot reply: the Messages API
@@ -99,6 +118,7 @@ uv run pytest agents/orchestrator
 ```
 
 `test_orchestrator.py` scripts the model, so it needs no key and no cassette.
+`test_orchestrator_only_delegates.py` checks the limit in "What it cannot do".
 `test_orchestrator_key_not_stored.py` replays two Messages API replies from a hand-written
 cassette through the real client. It checks that the tool loop works and that the key reaches
 no stored record.
