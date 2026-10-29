@@ -61,7 +61,9 @@ FAILED = "failed"
 
 ConductorFor = Callable[[dict[str, Any]], Conductor]
 """Returns the conductor for a case, given the case's metadata. Called off the event loop (see
-`invoke_agent`)."""
+`invoke_agent`), from as many threads at once as Inspect runs samples, so it must be safe to call
+concurrently: guard any conductor it builds on first use with a lock. The conductor it returns
+may be shared by cases running side by side, which `Conductor.ainvoke` allows."""
 
 
 # --- Metrics ----------------------------------------------------------------------------------

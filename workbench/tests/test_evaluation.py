@@ -9,6 +9,7 @@ from __future__ import annotations
 import gc
 import json
 import math
+import threading
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, cast
@@ -108,18 +109,24 @@ CASES = [
 def run(tmp_path: Path) -> Any:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, behaviour)
     built: list[Any] = []
+    building = threading.Lock()  # cases run side by side
 
     def conductor_for(_case: dict[str, Any]) -> Any:
-        if not built:  # one conductor, shared by every case
-            built.append(make_conductor(tmp_path / "runs", agent))
-        return built[0]
+        with building:
+            if not built:  # one conductor, shared by every case
+                built.append(make_conductor(tmp_path / "runs", agent))
+            return built[0]
 
     task = Task(
         dataset=CASES,
         solver=invoke_agent(conductor_for, agent.spec.agent_id, TEST_PRINCIPAL),
         scorer=[outcome_matches(), stopped_correctly(), grounding_passed()],
     )
-    [log] = inspect_eval(task, model="none", log_dir=str(tmp_path / "logs"), display="none")
+    try:
+        [log] = inspect_eval(task, model="none", log_dir=str(tmp_path / "logs"), display="none")
+    finally:
+        for conductor in built:
+            conductor.close()
     assert log.status == "success", log.error
     return log
 

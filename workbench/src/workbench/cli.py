@@ -162,7 +162,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
     # The harness's own server builds the same conductor (#55); the workbench adds its routes.
     conductor, authenticator = serving(_settings(args), base_url)
     app = build_app(conductor, authenticator, base_url=base_url)
-    uvicorn.run(app, host=args.host, port=args.port)
+    try:
+        uvicorn.run(app, host=args.host, port=args.port)
+    finally:
+        conductor.close()
     return 0
 
 
