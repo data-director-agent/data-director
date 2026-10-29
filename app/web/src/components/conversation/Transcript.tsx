@@ -16,6 +16,7 @@ import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
 import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
+import { Pending } from "./Pending";
 import { RunDetail } from "./RunDetail";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
@@ -107,15 +108,18 @@ export function Transcript({
   agents,
   onToggleRun,
   selectedRun = null,
+  pending = null,
 }: {
-  conversation: Conversation;
+  conversation: Conversation | null;
   agents: AgentView[];
   onToggleRun: (child: Envelope) => void;
   selectedRun?: string | null;
+  /** A message sent and not yet answered, shown after the turns with a sign that a reply is coming. */
+  pending?: { agentId: string; message: string } | null;
 }) {
   return (
     <ol className="transcript" aria-label="Conversation">
-      {conversation.turns.map((turn) => (
+      {conversation?.turns.map((turn) => (
         <li key={turn.invocation_id}>
           {conversation.version_changes
             .filter((c) => c.turn_index === turn.turn_index)
@@ -156,6 +160,7 @@ export function Transcript({
           )}
         </li>
       ))}
+      {pending && <Pending agentId={pending.agentId} message={pending.message} />}
     </ol>
   );
 }

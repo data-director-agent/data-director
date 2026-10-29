@@ -9,8 +9,9 @@
  * directory (§12). The server builds each turn's history; the page sends the agent and the message.
  * Until there is authentication (#17) the conversation acts for the operator (ADR-0018).
  *
- * A new reply is announced in a polite live region, the busy state is announced, and focus
- * returns to the message box.
+ * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
+ * orchestrator is working. A new reply is announced in a polite live region, the busy state is
+ * announced, and focus returns to the message box.
  */
 
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -61,6 +62,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [past, setPast] = useState<ConversationSummary[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
@@ -119,13 +121,16 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setBusy(true);
     setError(null);
     setAnnouncement("Waiting for a reply.");
+    // The message moves into the transcript while the reply is awaited, and comes back to the
+    // box if the send fails, so nothing typed is lost.
+    setSent(message);
+    setText("");
     try {
       const id = conversationId ?? (await api.create());
       setConversationId(id);
       await api.sendTurn(id, orchestrator.id, message);
       const updated = await api.get(id);
       setConversation(updated);
-      setText("");
       const last = updated.turns[updated.turns.length - 1];
       setAnnouncement(
         last
@@ -134,6 +139,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       );
       void reloadPast();
     } catch (e) {
+      setText(message);
       setError(
         e instanceof RunRefused
           ? `${e.problem.title}: ${e.message}`
@@ -141,6 +147,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       );
       setAnnouncement("");
     } finally {
+      setSent(null);
       setBusy(false);
       box.current?.focus();
     }
@@ -189,12 +196,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           <p>
             <Button icon={MessageSquarePlus} onPress={reset}>New conversation</Button>
           </p>
-          {conversation && conversation.turns.length > 0 && (
+          {((conversation && conversation.turns.length > 0) || sent !== null) && (
             <Transcript
               conversation={conversation}
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
+              pending={sent === null ? null : { agentId: orchestrator.id, message: sent }}
             />
           )}
           {runId && !inTranscript && (
