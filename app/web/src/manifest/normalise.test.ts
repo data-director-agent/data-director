@@ -24,9 +24,9 @@ describe("normalise", () => {
   it("keeps every agent of different shapes and names none specially", () => {
     const directory = normalise(severalAgents);
     expect(directory.agents.map((a) => [a.id, a.groundingMode, a.payload])).toEqual([
-      ["example.hello", "none", "Greeting"],
       ["advisor.quality", "input_only", "QualityReview"],
       ["advisor.standards", "retrieval", "Recommendations"],
+      ["example.hello", "none", "Greeting"],
       ["stub.abstain", "none", null],
     ]);
   });

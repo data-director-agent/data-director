@@ -126,7 +126,7 @@ def test_chat_shows_the_orchestrator_delegating(viewer: Page, server_url: str) -
     viewer.locator("#chat-text").fill("hello world")
     viewer.locator("#send").click()
     reply = viewer.locator("#transcript article.card").first
-    expect(reply).to_have_attribute("aria-label", re.compile(r"^director\.stub@.* succeeded$"))
+    expect(reply).to_have_attribute("aria-label", re.compile(r"^orchestrator\.stub@.* succeeded$"))
     expect(reply.locator(".reply")).to_contain_text("example.hello", timeout=TIMEOUT_MS)
     children = reply.get_by_role("list", name="Delegated invocations")
     expect(children).to_contain_text("example.hello@")

@@ -118,16 +118,16 @@ describe("AgentDirectory", () => {
   it("selects an agent from the keyboard and shows its panel", async () => {
     const user = userEvent.setup();
     render(<AgentDirectory directory={directory} />);
-    expect(screen.getByRole("heading", { level: 2, name: "example.hello" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
 
     await user.tab();
-    expect(screen.getByRole("option", { name: /^hello\.world/ })).toHaveFocus();
+    expect(screen.getByRole("option", { name: /^advisor\.quality/ })).toHaveFocus();
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("option", { name: /^quality\.reviewer/ })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: /^advisor\.standards/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "advisor.standards" })).toBeVisible();
   });
 
   it("lists agents that could not be registered", async () => {
