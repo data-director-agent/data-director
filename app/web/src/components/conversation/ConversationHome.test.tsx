@@ -167,6 +167,26 @@ describe("ConversationHome", () => {
     await userEvent.type(screen.getByRole("textbox"), "hi");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("the server answered 500");
+    // The message returns to the box and the waiting sign goes.
+    expect(screen.getByRole("textbox")).toHaveValue("hi");
+    expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
+  });
+
+  it("shows the message and that the orchestrator is working until the reply arrives", async () => {
+    let reply: () => void = () => undefined;
+    const sendTurn = () => new Promise<void>((resolve) => (reply = resolve));
+    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    await userEvent.type(screen.getByRole("textbox"), "hello world");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const transcript = await screen.findByRole("list", { name: "Conversation" });
+    expect(within(transcript).getByText("hello world")).toBeVisible();
+    expect(within(transcript).getByText(/is working on a reply/)).toBeVisible();
+    expect(screen.getByRole("textbox")).toHaveValue("");
+
+    reply();
+    await screen.findByText("New reply from director.stub: Succeeded.");
+    expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
   });
 
   it("reopens a past conversation and starts a new one", async () => {
