@@ -8,3 +8,5 @@ governed by the harness and recorded, so you can see what an agent did and why.
    you are and what the Data Director can help with.
 3. [Running an agent](running-an-agent.md): choose an agent, give it input and read the result.
 4. [Understanding outcomes](outcomes.md): what succeeded, abstained, referred and failed mean.
+5. [What the Data Director records](records.md): what is kept about each run and conversation,
+   where you can see it, and who else can.
