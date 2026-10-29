@@ -9,7 +9,7 @@ grounding mode `delegation`, with `reply_derivation` `model`.
 |---|---|
 | Agent id | `orchestrator.model` |
 | Serve | `dd-orchestrator serve --port 8107` (`scripts/run-agents.sh`) |
-| Model | a small Claude model (`claude-haiku-5-5` at the time of writing) by default, declared in `AgentSpec.models` |
+| Model | `claude-sonnet-5-5` at the time of writing, declared in `AgentSpec.models`; the most capable model suits an orchestrator best |
 | Status | Alpha (`0.1.0`) |
 
 ## How a turn runs
@@ -51,7 +51,7 @@ Read at start-up by `factory.build`. A bad value stops the service with one line
 | Variable | Default | Meaning |
 |---|---|---|
 | `ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY_FILE` | none: required | The model key, which only this process holds. |
-| `DD_MODEL_ID` | `claude-haiku-5-5` | The model it calls. |
+| `DD_MODEL_ID` | `claude-sonnet-5-5` | The model it calls. |
 | `DD_ORCHESTRATOR_EFFORT` | `high` | `low`, `medium`, `high`, `xhigh` or `max`. |
 | `DD_ORCHESTRATOR_HISTORY` | `20` | Earlier turns sent to the model. `0` sends only the current message. |
 | `DD_ORCHESTRATOR_MAX_DELEGATIONS` | `4` | Tool calls allowed in one turn. |
