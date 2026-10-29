@@ -122,7 +122,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (!onAgents) return <ConversationHome directory={state.value} />;
     return (
       <>
-        <PageHeader title="Agents: what Data Director can do here">
+        <PageHeader title="Agents: what Data Director can do here" titleHidden>
           <ActingFor directory={state.value} />
         </PageHeader>
         <AgentDirectory

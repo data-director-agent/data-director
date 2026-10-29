@@ -14,6 +14,7 @@ import { PageHeader } from "../frame/PageHeader";
 
 export function Workspace({
   title,
+  titleHidden,
   status,
   phases,
   centre,
@@ -21,6 +22,7 @@ export function Workspace({
   log,
 }: {
   title: string;
+  titleHidden?: boolean | undefined;
   status: ReactNode;
   phases: ReactNode;
   centre: ReactNode;
@@ -29,7 +31,7 @@ export function Workspace({
 }) {
   return (
     <div className="workspace">
-      <PageHeader title={title} className="workspace-head">
+      <PageHeader title={title} titleHidden={titleHidden} className="workspace-head">
         {status}
       </PageHeader>
       {phases}
