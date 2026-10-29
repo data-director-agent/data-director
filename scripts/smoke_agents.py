@@ -48,19 +48,19 @@ PRINCIPAL = {"DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097", "DD_PRI
 
 # Each agent that needs a model key, by registry URL, with the name of its own env file
 # (workbench/agents/<name>.env, as scripts/run-agents.sh reads it).
-MODEL_BACKED = {"http://127.0.0.1:8107": "orchestrator"}
+MODEL_BACKED = {"http://127.0.0.1:8107": "orchestrator-model"}
 KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
 
 # (agent, sample, outcome.status), as samples/README.md documents them.
 CASES = [
-    ("hello.world", "hello.salutation.json", "succeeded"),
-    ("quality.reviewer", "orda-record.metadata.json", "succeeded"),
-    ("standards.advisor", "soil-chemistry.profile.json", "succeeded"),
-    ("standards.advisor", "empty.profile.json", "abstained"),
-    ("policy.advisor", "policy-context.json", "succeeded"),
-    ("repository.advisor", "repository-needs.json", "succeeded"),
-    ("repository.advisor", "repository-mandated.json", "succeeded"),
-    ("quality.reviewer", "hello.salutation.json", "failed"),
+    ("example.hello", "hello.salutation.json", "succeeded"),
+    ("advisor.quality", "orda-record.metadata.json", "succeeded"),
+    ("advisor.standards", "soil-chemistry.profile.json", "succeeded"),
+    ("advisor.standards", "empty.profile.json", "abstained"),
+    ("advisor.policy", "policy-context.json", "succeeded"),
+    ("advisor.repository", "repository-needs.json", "succeeded"),
+    ("advisor.repository", "repository-mandated.json", "succeeded"),
+    ("advisor.quality", "hello.salutation.json", "failed"),
 ]
 
 
@@ -200,18 +200,18 @@ def smoke(tmp: Path) -> None:
         with started(serve, {**env, "PWD": str(WORKBENCH)}, serve_log):
             wait_for(f"http://127.0.0.1:{WORKBENCH_PORT}/agents", serve_log)
             message = json.loads((SAMPLES / "director.message.json").read_text())
-            events = agui_run("director.stub", message)
+            events = agui_run("orchestrator.stub", message)
             finished = [e for e in events if e["type"] == "RUN_FINISHED"]
-            check(len(finished) == 1, "AG-UI run of director.stub finishes", events)
+            check(len(finished) == 1, "AG-UI run of orchestrator.stub finishes", events)
             envelope = finished[0]["result"]
             check(
                 envelope["outcome"]["status"] == "succeeded",
-                "director.stub succeeds over AG-UI",
+                "orchestrator.stub succeeds over AG-UI",
                 envelope["outcome"],
             )
             check(
                 bool(envelope.get("delegations")),
-                "director.stub's envelope records a delegation",
+                "orchestrator.stub's envelope records a delegation",
             )
 
 

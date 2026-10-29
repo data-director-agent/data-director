@@ -39,7 +39,7 @@ The workbench builds the registry once, when it starts. For each entry in `agent
 4. registers the agent under the `agent_id` from the spec.
 
 The `agent_id` comes from the card, not from `name` in `agents.yaml`. Requests, profiles and
-envelopes use the `agent_id`, for example `hello.world`.
+envelopes use the `agent_id`, for example `example.hello`.
 
 The workbench does not read the file again while it runs. If an agent starts after the
 workbench, or its URL changes, restart the workbench to pick it up. Each CLI command is a new

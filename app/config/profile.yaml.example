@@ -6,17 +6,17 @@ version: 6
 description: Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.
 
 agents:
-  standards.advisor: advise
-  policy.advisor: advise
-  repository.advisor: advise
-  hello.world: advise
-  quality.reviewer: advise
-  director.stub: advise
+  advisor.standards: advise
+  advisor.policy: advise
+  advisor.repository: advise
+  example.hello: advise
+  advisor.quality: advise
+  orchestrator.stub: advise
   orchestrator.model: advise
 
 # The agent the home page converses with (ADR-0024 §10). The rule-based stub needs no model key.
 # A deployment with a key names orchestrator.model instead, and raises `version`.
-orchestrator: director.stub
+orchestrator: orchestrator.stub
 
 actions_requiring_approval:
   - deposit

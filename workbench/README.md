@@ -65,11 +65,11 @@ terminal in `workbench/`, name the person the invocations act for (see
 export DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097   # your ORCID iD, or another IRI
 export DD_PRINCIPAL_NAME="Josiah Carberry"                     # your name
 uv run workbench agents                                # what is registered, what each accepts
-uv run workbench invoke --agent quality.reviewer --input samples/orda-record.metadata.json
-uv run workbench invoke --agent standards.advisor --input samples/soil-chemistry.profile.json
-uv run workbench invoke --agent hello.world      --input samples/hello.salutation.json
-uv run workbench invoke --agent quality.reviewer --input samples/hello.salutation.json   # failed: input-not-accepted
-uv run workbench invoke --agent standards.advisor --input samples/empty.profile.json   # abstained
+uv run workbench invoke --agent advisor.quality --input samples/orda-record.metadata.json
+uv run workbench invoke --agent advisor.standards --input samples/soil-chemistry.profile.json
+uv run workbench invoke --agent example.hello      --input samples/hello.salutation.json
+uv run workbench invoke --agent advisor.quality --input samples/hello.salutation.json   # failed: input-not-accepted
+uv run workbench invoke --agent advisor.standards --input samples/empty.profile.json   # abstained
 uv run workbench serve                                 # then open http://127.0.0.1:8000/viewer/
 ```
 
@@ -78,7 +78,7 @@ uv run workbench serve                                 # then open http://127.0.
 The viewer has three pages, reached by the tabs under its header. It opens on Chat.
 
 - **Chat** (`http://127.0.0.1:8000/viewer/`) holds a conversation with the orchestrator,
-  `director.stub`, which hands each message to other agents and shows their replies inside its
+  `orchestrator.stub`, which hands each message to other agents and shows their replies inside its
   own ([ADR-0012](../docs/adr/0012-conversation-and-orchestration.md)).
 - **Inspect** (`/viewer/inspect.html`) runs one agent over a sample and shows the run.
 - **Agents** (`/viewer/agents.html`) lists the registered agents and their cards.
@@ -204,7 +204,7 @@ pass `--profile <path>` to `invoke` or `serve`, to use another. The format is de
   the profile assigns it, usually because the agent changed. The steward updates the profile.
 - **The workbench will not start: `has keys nothing enforces`.** The profile uses a key outside
   its vocabulary; see [`profiles/README.md`](profiles/README.md).
-- **`director.stub` cannot reach other agents from `invoke`.** `invoke` issues no delegation
+- **`orchestrator.stub` cannot reach other agents from `invoke`.** `invoke` issues no delegation
   grant, so the orchestrator has no way to call them. Use `workbench serve`; see
   [The viewer](#the-viewer).
 

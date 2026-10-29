@@ -68,10 +68,10 @@ flowchart TB
     harness["harness/ — dd_harness<br/>conductor, policy gate, checks,<br/>run store, provenance"]
 
     subgraph agent_services["agents/ — one service each"]
-        director["director.stub<br/>orchestrator"]
-        standards["standards.advisor"]
-        quality["quality.reviewer"]
-        hello["hello.world<br/>template"]
+        director["orchestrator.stub<br/>orchestrator"]
+        standards["advisor.standards"]
+        quality["advisor.quality"]
+        hello["example.hello<br/>template"]
     end
 
     sdk["sdk/ — dd_sdk<br/>contract, evidence, tracing,<br/>agent server"]
@@ -91,7 +91,7 @@ Solid arrows are calls at run time; dotted arrows are imports.
 |---|---|---|
 | `sdk/` | What agents and the harness share: the contract (in LinkML, with generated JSON Schema), evidence hashing, tracing helpers, and the server that puts an agent behind A2A. | [`sdk/README.md`](../sdk/README.md), [contract](contract.md) |
 | `harness/` | The governance every run goes through. Its centre is the conductor. It also serves its own A2A endpoint (`dd-harness serve`). | [`harness/README.md`](../harness/README.md), [conductor](../harness/docs/conductor.md) |
-| `agents/` | One package and one A2A service per agent. `hello/` is the template for a new one. | [`agents/README.md`](../agents/README.md) |
+| `agents/` | One package and one A2A service per agent. `example-hello/` is the template for a new one. | [`agents/README.md`](../agents/README.md) |
 | `app/` | The Data Director that people use (alpha). A Starlette server (`dd_app`) over the conductor, and a React shell (`app/web`) drawn from each agent's manifest. | [`app/README.md`](../app/README.md), [ADR-0024](adr/0024-app-shell.md) |
 | `workbench/` | The test bed for people who write agents: a CLI, the Inspect and Chat pages, and evaluation. Not part of a deployment. | [`workbench/README.md`](../workbench/README.md) |
 
@@ -182,7 +182,7 @@ type, is in [`conductor.md`](../harness/docs/conductor.md#the-steps).
 ## 4. Conversations and delegation
 
 The app opens on a conversation with an orchestrator: the agent whose grounding mode is
-`delegation`. Today that is `director.stub`, a rule-based stand-in that routes each message by the
+`delegation`. Today that is `orchestrator.stub`, a rule-based stand-in that routes each message by the
 patterns in its `routing.yaml`. A first message that matches no pattern is asked which of the
 Blueprint's three entry points applies (before data collection, data being prepared for sharing,
 ready to deposit), and the reply lists the steps from there, each with the agents that serve it or
@@ -194,7 +194,7 @@ sequenceDiagram
     autonumber
     participant App as App server
     participant C as Conductor
-    participant D as Orchestrator<br/>(director.stub)
+    participant D as Orchestrator<br/>(orchestrator.stub)
     participant X as Specialist agent
 
     App->>C: Message for the orchestrator

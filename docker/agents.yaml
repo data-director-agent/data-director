@@ -1,17 +1,17 @@
 # The agents as the app and the workbench reach them inside the Compose network (compose.yaml).
 # Same list, ports and timeouts as app/config/agents.yaml, with service names for hosts.
 agents:
-  - name: hello
-    url: http://hello:8101
-  - name: quality
-    url: http://quality:8102
-  - name: standards
-    url: http://standards:8105
-  - name: director
-    url: http://director:8106
+  - name: example-hello
+    url: http://example-hello:8101
+  - name: advisor-quality
+    url: http://advisor-quality:8102
+  - name: advisor-standards
+    url: http://advisor-standards:8105
+  - name: orchestrator-stub
+    url: http://orchestrator-stub:8106
     timeout_s: 120
   # Only started with the `llm` profile, and it needs ANTHROPIC_API_KEY in
-  # config/local/agents/orchestrator.env. Without it the app shows it as unavailable.
-  - name: orchestrator
-    url: http://orchestrator:8107
+  # config/local/agents/orchestrator-model.env. Without it the app shows it as unavailable.
+  - name: orchestrator-model
+    url: http://orchestrator-model:8107
     timeout_s: 300

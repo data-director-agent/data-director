@@ -40,16 +40,16 @@ def test_every_requirement_a_step_names_is_a_blueprint_requirement_in_the_regist
 @pytest.mark.requirement("DD-ENTRY-POINTS")
 def test_a_plan_runs_from_the_entry_to_the_last_phase_and_names_who_serves_each_step() -> None:
     manifest: list[dict[str, Any]] = [
-        {"agent_id": "quality.reviewer", "serves": ["deposit.validate"]},
-        {"agent_id": "standards.advisor", "serves": ["setup.vocabularies", "preparation.formats"]},
-        {"agent_id": "hello.world"},
+        {"agent_id": "advisor.quality", "serves": ["deposit.validate"]},
+        {"agent_id": "advisor.standards", "serves": ["setup.vocabularies", "preparation.formats"]},
+        {"agent_id": "example.hello"},
     ]
     first = plan(entry(1), manifest)
     assert first[0].phase.number == 1 and first[-1].phase.number == 6
     by_text = {p.step.text: p.agent_ids for p in first}
-    assert by_text["Select controlled vocabularies and ontologies"] == ("standards.advisor",)
-    assert by_text["Recommend open formats"] == ("standards.advisor",)
-    assert by_text["Validate metadata quality"] == ("quality.reviewer",)
+    assert by_text["Select controlled vocabularies and ontologies"] == ("advisor.standards",)
+    assert by_text["Recommend open formats"] == ("advisor.standards",)
+    assert by_text["Validate metadata quality"] == ("advisor.quality",)
     assert by_text["Draft the data documentation"] == ()
 
     third = plan(entry(3), manifest)
@@ -66,12 +66,12 @@ def test_every_step_has_a_unique_id_under_its_phase_and_none_is_a_requirement() 
 
 def test_an_agent_is_planned_at_the_steps_it_names_and_no_other() -> None:
     manifest: list[dict[str, Any]] = [
-        {"agent_id": "policy.advisor", "serves": ["governance.policies", "repository.mandated"]},
+        {"agent_id": "advisor.policy", "serves": ["governance.policies", "repository.mandated"]},
         {"agent_id": "metadata.advisor", "serves": ["setup.vocabularies"]},
     ]
     by_id = {p.step.id: p.agent_ids for p in plan(entry(1), manifest)}
-    assert by_id["governance.policies"] == ("policy.advisor",)
-    assert by_id["repository.mandated"] == ("policy.advisor",)
+    assert by_id["governance.policies"] == ("advisor.policy",)
+    assert by_id["repository.mandated"] == ("advisor.policy",)
     assert by_id["governance.embargo"] == ()
     # Serving one R3 step does not place an agent at every step that names R3.
     assert by_id["setup.vocabularies"] == ("metadata.advisor",)

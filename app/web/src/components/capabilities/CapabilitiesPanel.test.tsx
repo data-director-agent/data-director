@@ -27,8 +27,8 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("names the agent in a heading and shows what it takes and returns", () => {
-    render(<CapabilitiesPanel agent={agent("quality.reviewer")} />);
-    expect(screen.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
+    render(<CapabilitiesPanel agent={agent("advisor.quality")} />);
+    expect(screen.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
     expect(screen.getByText("metadata record")).toBeVisible();
     expect(screen.getByText("quality review")).toBeVisible();
   });
@@ -40,20 +40,20 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("tables each declared derivation", () => {
-    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
+    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
     const table = screen.getByRole("table");
     expect(within(table).getByRole("row", { name: /items\.rationale Written by a language model/ }))
       .toBeVisible();
   });
 
   it("says when an agent has no AI model and is deterministic", () => {
-    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
+    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
     expect(screen.getByText(/This agent is deterministic software/)).toBeVisible();
   });
 
   it("does not call an agent deterministic when its card says nothing about models", () => {
-    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
-    if (!raw) throw new Error("no standards.advisor in the fixture");
+    const raw = severalAgents.agents.find((a) => a.agent_id === "advisor.standards");
+    if (!raw) throw new Error("no advisor.standards in the fixture");
     const card = { ...raw };
     delete card.models;
     render(<CapabilitiesPanel agent={normaliseAgent(card)} />);
@@ -62,8 +62,8 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("names the provider and model an agent sends data to", () => {
-    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
-    if (!raw) throw new Error("no standards.advisor in the fixture");
+    const raw = severalAgents.agents.find((a) => a.agent_id === "advisor.standards");
+    if (!raw) throw new Error("no advisor.standards in the fixture");
     const view = normaliseAgent({
       ...raw,
       models: [{ provider: "anthropic", model: "claude-test", hosting: "hosted" }],
@@ -75,8 +75,8 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("says a locally hosted model is local", () => {
-    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
-    if (!raw) throw new Error("no standards.advisor in the fixture");
+    const raw = severalAgents.agents.find((a) => a.agent_id === "advisor.standards");
+    if (!raw) throw new Error("no advisor.standards in the fixture");
     const view = normaliseAgent({
       ...raw,
       models: [{ provider: "ollama", model: "llama-test", hosting: "local" }],
@@ -86,26 +86,26 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("says the grounding check is not proof of retrieval", () => {
-    render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
+    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
     expect(screen.getByText(/does not prove the agent retrieved them/)).toBeVisible();
   });
 
   it("shows each undeclared oversight field as Not declared, and reliability as unsubstantiated", () => {
-    render(<CapabilitiesPanel agent={agent("hello.world")} />);
+    render(<CapabilitiesPanel agent={agent("example.hello")} />);
     expect(screen.getAllByText("Not declared")).toHaveLength(5);
     expect(screen.getByText(/Treat its reliability as unsubstantiated/)).toBeVisible();
   });
 
   it("says when the profile does not permit the agent", () => {
-    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
-    if (!raw) throw new Error("no standards.advisor");
+    const raw = severalAgents.agents.find((a) => a.agent_id === "advisor.standards");
+    if (!raw) throw new Error("no advisor.standards");
     render(<CapabilitiesPanel agent={normaliseAgent({ ...raw, assigned_action_class: null })} />);
     expect(screen.getByText("Not permitted")).toBeVisible();
   });
 
   it("says when the declared and assigned action classes differ", () => {
-    const raw = severalAgents.agents.find((a) => a.agent_id === "hello.world");
-    if (!raw) throw new Error("no hello.world");
+    const raw = severalAgents.agents.find((a) => a.agent_id === "example.hello");
+    if (!raw) throw new Error("no example.hello");
     render(
       <CapabilitiesPanel agent={normaliseAgent({ ...raw, assigned_action_class: "deposit" })} />,
     );
@@ -118,16 +118,16 @@ describe("AgentDirectory", () => {
   it("selects an agent from the keyboard and shows its panel", async () => {
     const user = userEvent.setup();
     render(<AgentDirectory directory={directory} />);
-    expect(screen.getByRole("heading", { level: 2, name: "hello.world" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
 
     await user.tab();
-    expect(screen.getByRole("option", { name: /^hello\.world/ })).toHaveFocus();
+    expect(screen.getByRole("option", { name: /^advisor\.quality/ })).toHaveFocus();
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("option", { name: /^quality\.reviewer/ })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: /^advisor\.standards/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "advisor.standards" })).toBeVisible();
   });
 
   it("lists agents that could not be registered", async () => {
@@ -158,7 +158,7 @@ describe("App", () => {
     );
     // The reference set has no orchestrator, so the home page points to the directory.
     await userEvent.click(await screen.findByRole("link", { name: "Open the agent directory" }));
-    expect(await screen.findByRole("heading", { name: "standards.advisor" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "advisor.standards" })).toBeVisible();
     expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });

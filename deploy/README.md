@@ -30,8 +30,8 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`, and `@orchestrator` once it has a key. |
-| `systemd/data-director-agent@standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
-| `systemd/data-director-agent@orchestrator.service.d/` | The model-backed orchestrator's key, likewise. |
+| `systemd/data-director-agent@advisor-standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
+| `systemd/data-director-agent@orchestrator-model.service.d/` | The model-backed orchestrator's key, likewise. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |

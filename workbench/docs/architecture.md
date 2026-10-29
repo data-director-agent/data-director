@@ -78,8 +78,8 @@ root.
 | Viewer | Read-only browser pages, Chat (the default), Inspect and Agents, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `harness/src/dd_harness/testing/` |
 | Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](../../docs/conformance.md). | `docs/requirements.yaml`, `docs/reviews.yaml`, `scripts/conformance_report.py` |
-| Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |
-| FAIRsharing snapshot | The committed copy of FAIRsharing records that the standards advisor uses (CC BY-SA 4.0). | `agents/standards/data/fairsharing/` |
+| Agents | One package and one service per agent. `example-hello/` is the template to copy. | `agents/` |
+| FAIRsharing snapshot | The committed copy of FAIRsharing records that the standards advisor uses (CC BY-SA 4.0). | `agents/advisor-standards/data/fairsharing/` |
 
 ## Design principles
 

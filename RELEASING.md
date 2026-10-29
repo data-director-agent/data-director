@@ -11,7 +11,7 @@ version or a changelog by hand. `.github/workflows/release-please.yml` runs on e
 records the last released version of each package.
 
 - Each package is versioned on its own: `sdk`, `harness`, `workbench`, `app` and each agent in
-  `agents/`. Its component name is in the configuration (`agent-director`, `sdk`, …).
+  `agents/`. Its component name is in the configuration (`agent-orchestrator-stub`, `sdk`, …).
 - The [Conventional Commit](https://www.conventionalcommits.org/) subjects of the squash-merged
   pull requests that touch a package's directory decide its next version. A commit that touches
   only the package's tests does not.

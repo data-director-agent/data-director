@@ -1,0 +1,70 @@
+{
+  "identity": {
+    "agent_id": "advisor.standards",
+    "cases_sha256": "d92c8befc58c01e5d5992a764b0574fb0406b42332bfcb6ba7005fc1f53704d9",
+    "configuration": {},
+    "git_revision": "109481cc4aa81e1a283a61bb6696defdf902b2eb+dirty",
+    "ranking_sha256": "10f0eb50aa9ff44bee678b0e134cad4d8ad4240f77c7c1aaf47217f75663f8f6",
+    "snapshot_sha256": "969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1",
+    "spec_version": "0.2.0"
+  },
+  "scores": {
+    "soil-baseline": {
+      "expected_recall": 0.6666666666666666,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 0.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "soil-emptied": {
+      "expected_recall": null,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 1.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "soil-no-media-types": {
+      "expected_recall": 1.0,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 1.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "soil-no-temporal-fields": {
+      "expected_recall": 1.0,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 1.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "soil-no-themes-keywords": {
+      "expected_recall": 0.5,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 1.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "soil-off-domain": {
+      "expected_recall": 1.0,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 1.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "soil-registry-down": {
+      "expected_recall": null,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 1.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    },
+    "soil-unhelpful-title": {
+      "expected_recall": 0.75,
+      "grounding_passed": 1.0,
+      "no_wrong_recommendations": 1.0,
+      "outcome_matches": 1.0,
+      "stopped_correctly": 1.0
+    }
+  },
+  "task": "standards_seeded"
+}

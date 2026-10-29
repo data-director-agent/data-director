@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from dd_agent_standards import factory as standards
+from dd_agent_advisor_standards import factory as standards
 from dd_app.config import settings_from_env
 from dd_app.governance import Governance
 from dd_harness.testing import TEST_PRINCIPAL, in_process

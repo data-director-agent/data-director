@@ -33,7 +33,7 @@ function banner(): HTMLElement {
 
 describe("signing in", () => {
   it("shows the sign-in page, and loads nothing, when nobody is signed in", async () => {
-    at("/agents?agent=standards.advisor");
+    at("/agents?agent=advisor.standards");
     const load = vi.fn(() => Promise.resolve(directory));
     const { container } = render(
       <WithSession api={fakeSessionApi(SIGNED_OUT)}>
@@ -42,7 +42,7 @@ describe("signing in", () => {
     );
     expect(await screen.findByRole("heading", { level: 1, name: "Sign in to Data Director" })).toBeVisible();
     const link = screen.getByRole("link", { name: "Sign in with ORCID" });
-    expect(link).toHaveAttribute("href", signInHref("/agents?agent=standards.advisor"));
+    expect(link).toHaveAttribute("href", signInHref("/agents?agent=advisor.standards"));
     expect(screen.getByText(/not for your email address/)).toBeVisible();
     expect(load).not.toHaveBeenCalled();
     expect(within(banner()).queryByText("Sign out")).toBeNull();

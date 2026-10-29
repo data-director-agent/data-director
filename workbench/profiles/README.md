@@ -25,15 +25,15 @@ version: 2                   # raise it on every change, so stored runs say whic
 description: One sentence saying who this profile is for.
 
 agents:                      # only these agents may run, each with the action class you assign it
-  standards.advisor: advise
-  hello.world: advise
+  advisor.standards: advise
+  example.hello: advise
 
 actions_requiring_approval:  # action classes a human must approve before an agent performs them
   - deposit                  # writing a dataset or metadata record to a repository
   - metadata_write           # changing an existing metadata record
   # "advise" (read-only recommendations, which is all the standards advisor does) is not listed, so the standards advisor runs freely
 
-orchestrator: director.stub  # optional: the agent a person converses with in the app; it must be
+orchestrator: orchestrator.stub  # optional: the agent a person converses with in the app; it must be
                              # listed under `agents`. Without it the app offers no conversation.
 ```
 

@@ -4,24 +4,24 @@
 # rest still run. The profile still decides whether each may run.
 # Format as in workbench/agents.yaml.
 agents:
-  - name: hello
+  - name: example-hello
     url: http://127.0.0.1:8101
-  - name: quality
+  - name: advisor-quality
     url: http://127.0.0.1:8102
-  - name: standards
+  - name: advisor-standards
     url: http://127.0.0.1:8105
-  - name: policy
+  - name: advisor-policy
     url: http://127.0.0.1:8108
-  - name: repository
+  - name: advisor-repository
     url: http://127.0.0.1:8109
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
   # theirs (ADR-0012). It calls them back through the app's own A2A endpoint under its grant.
-  - name: director
+  - name: orchestrator-stub
     url: http://127.0.0.1:8106
     timeout_s: 120
   # The model-backed orchestrator (#21). The reference profile does not permit it, so the
-  # conversation stays with director.stub and needs no key; a deployment with a key permits it
+  # conversation stays with orchestrator.stub and needs no key; a deployment with a key permits it
   # instead (app/README.md, "Choosing the orchestrator").
-  - name: orchestrator
+  - name: orchestrator-model
     url: http://127.0.0.1:8107
     timeout_s: 300

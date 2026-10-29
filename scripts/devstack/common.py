@@ -25,7 +25,7 @@ EXAMPLE_PRINCIPAL = {
 }
 KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
 # Agents that stop at start-up without a model key, so `start` skips them when they have none.
-MODEL_BACKED = {"orchestrator"}
+MODEL_BACKED = {"orchestrator-model"}
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
 WEB_PORT = 5173  # Vite's default

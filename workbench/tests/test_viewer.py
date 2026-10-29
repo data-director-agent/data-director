@@ -21,10 +21,10 @@ from typing import Any, get_args
 
 import pytest
 
-from dd_agent_director.agent import DirectorStub
-from dd_agent_hello.agent import HelloWorld
-from dd_agent_quality.agent import QualityReviewer
-from dd_agent_standards.agent import StandardsAgent
+from dd_agent_advisor_quality.agent import QualityReviewer
+from dd_agent_advisor_standards.agent import StandardsAgent
+from dd_agent_example_hello.agent import HelloWorld
+from dd_agent_orchestrator_stub.agent import DirectorStub
 from dd_harness.testing import AbstainingStub
 from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import Assurance, Derivation, GroundingMode, OutcomeStatus
@@ -117,9 +117,9 @@ def test_shell_is_read_only_generic_and_pins_library_versions() -> None:
     # Driven by the manifest and the samples listing; no agent or sample is named.
     assert 'fetch("/agents")' in VIEWER and 'fetch("/samples")' in VIEWER
     for name in (
-        "standards.advisor",
+        "advisor.standards",
         "stub.abstain",
-        "director.stub",
+        "orchestrator.stub",
         "soil-chemistry",
         "FAIRsharing",
     ):

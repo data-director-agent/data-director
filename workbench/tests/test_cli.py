@@ -13,8 +13,8 @@ from typing import Any
 import httpx
 import pytest
 
-from dd_agent_hello.agent import HelloWorld
-from dd_agent_quality.agent import QualityReviewer
+from dd_agent_advisor_quality.agent import QualityReviewer
+from dd_agent_example_hello.agent import HelloWorld
 from dd_harness.identity import IdentityError
 from dd_harness.registry import Registry
 from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub
@@ -23,7 +23,7 @@ from dd_sdk.agent import Agent
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from workbench import cli
 
-INVOKE = ["invoke", "--agent", "hello.world", "--input", "samples/hello.salutation.json"]
+INVOKE = ["invoke", "--agent", "example.hello", "--input", "samples/hello.salutation.json"]
 
 
 @pytest.fixture(autouse=True)
@@ -64,7 +64,7 @@ AGENTS: dict[str, Agent] = {
     "http://quality.test": QualityReviewer(),
     "http://stub.test": AbstainingStub(),
 }
-IDS = {"hello.world", "quality.reviewer", "stub.abstain"}
+IDS = {"example.hello", "advisor.quality", "stub.abstain"}
 
 
 def _registry(tmp_path: Path) -> Registry:

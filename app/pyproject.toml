@@ -24,10 +24,10 @@ data-director = "dd_app.app:main"
 # What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
-  "data-director-agent-director",
-  "data-director-agent-hello",
-  "data-director-agent-quality",
-  "data-director-agent-standards",
+  "data-director-agent-orchestrator-stub",
+  "data-director-agent-example-hello",
+  "data-director-agent-advisor-quality",
+  "data-director-agent-advisor-standards",
 ]
 
 [tool.hatch.build.targets.wheel]

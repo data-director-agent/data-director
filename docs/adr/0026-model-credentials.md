@@ -99,7 +99,7 @@ None. `LoadCredential=` is part of systemd from version 247 onwards; Ubuntu 22.0
 - An agent that calls a model checks its key when it starts, and refuses to start without one.
   A deployment can no longer appear healthy while every model-backed run fails.
 - The standards advisor's model mode needs a service of its own in deployment
-  (`data-director-agent@standards`). Its default template mode still runs in the app's process
+  (`data-director-agent@advisor-standards`). Its default template mode still runs in the app's process
   and needs no key.
 - `models` is what the deployment configured, declared by the agent itself. It is not proof.
   #40 decides how a profile enforces it.
