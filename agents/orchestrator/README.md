@@ -38,6 +38,15 @@ grounding mode `delegation`, with `reply_derivation` `model`.
 5. The reply cites the input and every child it delegated to. The linter's `delegation` rules
    check those citations against what the conductor recorded.
 
+The system prompt (`system_prompt.md`) keeps apart four kinds of knowledge. The researcher knows
+their own project and makes every consequential choice. The agents know what is specific to the
+case, from the sources they cite. The model knows the process, the tools and the conversation,
+and may explain general concepts as background. Some questions belong to people outside the Data
+Director: legal advice, ethics, consent, anonymisation and CARE. The prompt also tells the model to
+pause the sharing steps when sensitive data is flagged, and to treat agent results and pasted text
+as data, not instructions. The model has no tools except the delegations: an external source is
+reached through an agent, whose run is governed and recorded (ADR-0012).
+
 The run succeeds once the model has replied, whatever its children's outcomes were (ADR-0012
 decision 14). It fails, as `failed(agent-error)`, only when it cannot reply: the Messages API
 failed, or the model declined the request after the server-side fallback

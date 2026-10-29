@@ -108,6 +108,9 @@ Rejected:
 
 - **The orchestrator calling other agents directly over A2A.** Faster to build, but the children
   would be ungoverned and unstored, and the parent could cite anything it liked.
+- **Tools of the orchestrator's own: MCP servers, web search or Agent Skills.** A lookup made that
+  way would pass no policy gate, leave no evidence and no stored run, and be checked by no source
+  check. An external source is reached through an agent, which may use an MCP server itself.
 - **Declaring `none` or `input_only` for the orchestrator.** Under R2 it could cite only its
   input, so a relayed answer would be ungrounded.
 - **Declaring `retrieval`.** G1 requires a retrieval before any model call; a model-backed
