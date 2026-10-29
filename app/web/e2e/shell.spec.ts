@@ -65,10 +65,10 @@ async function gotoDirectory(page: Page) {
 /** The several-agents set plus an orchestrator, named by the profile (ADR-0024 §10). */
 const withOrchestrator = {
   ...several,
-  profile: { ...several.profile, orchestrator: "director.stub" },
+  profile: { ...several.profile, orchestrator: "orchestrator.stub" },
   agents: [
     ...several.agents,
-    { ...several.agents[0], agent_id: "director.stub", grounding_mode: "delegation" },
+    { ...several.agents[0], agent_id: "orchestrator.stub", grounding_mode: "delegation" },
   ],
 };
 
@@ -140,11 +140,11 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
   // The directory is one link away; its list is one stop for the keyboard.
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Agents" }).click();
   await expect(page).toHaveURL(/\/agents$/);
-  await page.getByRole("option", { name: "hello.world" }).focus();
-  await expect(page.getByRole("option", { name: "hello.world" })).toBeFocused();
+  await page.getByRole("option", { name: "example.hello" }).focus();
+  await expect(page.getByRole("option", { name: "example.hello" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("option", { name: "quality.reviewer" })).toBeFocused();
-  await expect(page.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "advisor.quality" })).toBeFocused();
+  await expect(page.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
 
   // Tab leaves the listbox rather than walking every option: one stop per widget.
   await page.keyboard.press("Tab");
@@ -159,7 +159,7 @@ test("reflows at 320 CSS pixels (400% of 1280) without horizontal scrolling", as
   await serve(page, several);
   await gotoDirectory(page);
   await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
-  for (const option of ["quality.reviewer", "standards.advisor", "stub.abstain"]) {
+  for (const option of ["advisor.quality", "advisor.standards", "stub.abstain"]) {
     await page.getByRole("option", { name: option }).click();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -328,8 +328,8 @@ for (const width of [1280, 320]) {
 
 test("a link names the agent to show", async ({ page }) => {
   await serve(page, several);
-  await page.goto("/agents?agent=quality.reviewer");
-  await expect(page.getByRole("heading", { level: 2, name: "quality.reviewer" })).toBeVisible();
+  await page.goto("/agents?agent=advisor.quality");
+  await expect(page.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
 });
 
 test("the workspace at 1280px: phases, conversation and the project's documents side by side", async ({
@@ -349,7 +349,7 @@ test("the workspace at 1280px: phases, conversation and the project's documents 
   const first = phases.locator("summary").first();
   await first.focus();
   await page.keyboard.press("Enter");
-  await expect(phases.getByRole("link", { name: "standards.advisor" }).first()).toBeVisible();
+  await expect(phases.getByRole("link", { name: "advisor.standards" }).first()).toBeVisible();
 
   // An open run sits inside its card in the transcript, and the documents stay beside it.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
@@ -446,14 +446,14 @@ test("signed out: the sign-in page, by keyboard, with no axe violations, at 320p
   await serveSession(page, signedOut);
   await serve(page, reference);
   await page.setViewportSize({ width: 320, height: 800 });
-  await page.goto("/agents?agent=standards.advisor");
+  await page.goto("/agents?agent=advisor.standards");
   await expect(
     page.getByRole("heading", { level: 1, name: "Sign in to Data Director" }),
   ).toBeVisible();
   const link = page.getByRole("link", { name: "Sign in with ORCID" });
   await expect(link).toHaveAttribute(
     "href",
-    `/api/sign-in?return_to=${encodeURIComponent("/agents?agent=standards.advisor")}`,
+    `/api/sign-in?return_to=${encodeURIComponent("/agents?agent=advisor.standards")}`,
   );
   for (let i = 0; i < 20; i++) {
     await page.keyboard.press("Tab");

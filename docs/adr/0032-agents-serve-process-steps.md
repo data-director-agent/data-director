@@ -42,8 +42,8 @@ data, the Data Curation Librarian at the mandated-repository check.
    `governance.sensitive-data-handle`, so that an agent can flag sensitive data without deciding
    how it is treated, as the persona-based design separates them.
 3. **An agent's `serves` names steps only.** A requirement ID is a `SpecError`, like any other
-   unknown name. Cards that declared requirements are changed, not translated: `standards.advisor`
-   serves `setup.vocabularies` and `preparation.formats`, and `quality.reviewer` serves
+   unknown name. Cards that declared requirements are changed, not translated: `advisor.standards`
+   serves `setup.vocabularies` and `preparation.formats`, and `advisor.quality` serves
    `deposit.validate`.
 4. **The requirements an agent bears on are derived from its steps.** `Step.requirements` is the
    only map from steps to requirements, and `process_flow.requirements_of(steps)` reads it. The
@@ -66,7 +66,7 @@ None.
 ## Consequences
 
 - An agent can be placed at any step, including those that name no requirement. Phase 2's policy
-  check (`policy.advisor`) is the first.
+  check (`advisor.policy`) is the first.
 - An agent is listed only where it says it helps. Serving one R3 step no longer places it at the
   other.
 - A step id is a published name once an agent serves it, and an unknown id is refused, so renaming

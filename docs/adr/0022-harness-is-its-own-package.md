@@ -54,7 +54,7 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   its runs go to `app/runs/`. A `DD_*` variable still wins over each file, so a deployment can
   replace any of them without changing the repository.
 - **The app reaches the standards advisor through the conductor (#60, option 1).** The app's one tool builds a
-  `DatasetProfile` and calls `Conductor.invoke("standards.advisor", ...)` for the operator's
+  `DatasetProfile` and calls `Conductor.invoke("advisor.standards", ...)` for the operator's
   principal (`OperatorAssertion`, ADR-0018). The standards advisor does not delegate, so the app runs it in its own
   process: `build_conductor(settings, agents=[...])` registers agent objects beside those its
   agent list names. Each standards advisor run is gated, checked and stored. The app's own model turn and its
@@ -99,7 +99,7 @@ configuration. `policy.py` and `settings.py` computed the profile, `agents.yaml`
   are authenticated (#17, #43), it must not be exposed beyond a trusted network.
 - **The test kit belongs to the harness (#56).** The scripted doubles, `in_process`,
   `make_conductor`, `TEST_PRINCIPAL` and the two test profiles are `dd_harness.testing`, in the
-  deployable package beside the code they exercise, as `dd_agent_standards.testing` is for R3. The
+  deployable package beside the code they exercise, as `dd_agent_advisor_standards.testing` is for R3. The
   doubles' classes are `dd_harness/schema/doubles.yaml`, because `ClassSchema.of` looks for a
   class's schema in its top-level package. `make_conductor` serves the delegation callback with
   `dd_harness.transport.a2a.a2a_routes` alone, so a test conductor needs nothing from the

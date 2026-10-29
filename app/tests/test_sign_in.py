@@ -110,7 +110,7 @@ def sign_in(deployment: Deployment, browser: TestClient, sub: str = JOSIAH, **to
 
 def run(browser: TestClient) -> Any:
     input = json.loads(EXAMPLE.read_text(encoding="utf-8"))
-    return browser.post("/api/runs", json={"agent_id": "standards.advisor", "input": input})
+    return browser.post("/api/runs", json={"agent_id": "advisor.standards", "input": input})
 
 
 def problem_after(response: Any) -> str | None:
@@ -200,8 +200,8 @@ def test_the_name_falls_back_to_the_id_when_it_is_private(deployment: Deployment
 
 def test_the_person_returns_to_the_page_they_were_on(deployment: Deployment):
     browser = deployment.browser()
-    url = deployment.idp.approve(start(browser, "/agents?agent=standards.advisor"))
-    assert come_back(browser, url).headers["location"] == "/agents?agent=standards.advisor"
+    url = deployment.idp.approve(start(browser, "/agents?agent=advisor.standards"))
+    assert come_back(browser, url).headers["location"] == "/agents?agent=advisor.standards"
 
 
 @pytest.mark.parametrize(

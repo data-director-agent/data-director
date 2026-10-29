@@ -14,7 +14,7 @@ and being prepared for sharing (Phase 2), and Entry 3 ready to deposit (Phase 3)
 continue through the same final phases. Each step names the functional requirements (§7.1) it
 applies, or none; most name none.
 
-Both orchestrators waited for a request shaped for one agent. `director.stub` matched it against
+Both orchestrators waited for a request shaped for one agent. `orchestrator.stub` matched it against
 `routing.yaml`; `orchestrator.model` offered the model one tool per agent. Neither could tell a
 researcher where they were in the work, which steps from there an agent could help with, or which
 steps had no agent (#134).
@@ -44,7 +44,7 @@ paths, is deferred by the Blueprint to v2.0 (Appendix G, comment 1) and is not d
 4. **A step with no agent is named, with its requirement.** An orchestrator that takes a
    researcher through the steps says "no agent yet" and the requirement (for example R5), or
    that the Blueprint names none. It does not skip the step or do it itself.
-5. **`director.stub` asks on a first turn** (amends ADR-0012 decision 11). A message a routing
+5. **`orchestrator.stub` asks on a first turn** (amends ADR-0012 decision 11). A message a routing
    rule matches is routed as before. Otherwise, a message that names an entry point, by the
    `entries` patterns in `routing.yaml`, is answered with the steps from that entry. A first turn
    that names neither is answered with a question listing the three entry points. These replies
@@ -64,7 +64,7 @@ None.
 ## Consequences
 
 - An agent becomes part of an entry point's plan by declaring `serves` in its spec. Neither
-  orchestrator needs changing when a new agent serves a step, although `director.stub` can give
+  orchestrator needs changing when a new agent serves a step, although `orchestrator.stub` can give
   an example request only for an agent a `routing.yaml` rule names.
 - `serves` is a routing hint by the agent's author, not a conformance claim. Whether an agent
   meets a requirement is for the requirements register and its reviews (ADR-0014).

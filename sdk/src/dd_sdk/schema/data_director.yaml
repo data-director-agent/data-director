@@ -268,7 +268,7 @@ slots:
     required: true
     pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
   agent_id:
-    description: Stable identifier of the agent, e.g. standards.advisor or stub.abstain.
+    description: Stable identifier of the agent, e.g. advisor.standards or stub.abstain.
     required: true
     slot_uri: prov:wasAssociatedWith
   agent_version:

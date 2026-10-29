@@ -9,10 +9,10 @@ decisions. [ADR-0026](../../adr/0026-model-credentials.md) records why the key i
 | Agent | Calls a model | Default model | Needs a key |
 |---|---|---|---|
 | `orchestrator.model` | Always. It writes the replies in the app's conversation. | `claude-sonnet-5-5` | Yes: it does not start without one. |
-| `standards.advisor` | Only with `DD_STANDARDS_EXPLAINER=anthropic`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode. |
-| `hello.world`, `quality.reviewer`, `director.stub` | Never. | none | No. |
+| `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=anthropic`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode. |
+| `example.hello`, `advisor.quality`, `orchestrator.stub` | Never. | none | No. |
 
-The reference profile names `director.stub` as the agent a researcher converses with, so a
+The reference profile names `orchestrator.stub` as the agent a researcher converses with, so a
 default installation sends nothing to a model provider. It becomes model-backed when you choose,
 below.
 
@@ -59,8 +59,8 @@ left the host. A profile rule that refuses an agent's models by class of data is
 Each model call is recorded as a `chat` span with its token counts, in the stored run, so a
 change of model or settings can be judged from the runs themselves. The full list of settings,
 and what an unknown value does, is in the agents' readmes:
-[orchestrator](../../../agents/orchestrator/README.md) and
-[standards advisor](../../../agents/standards/src/dd_agent_standards/README.md).
+[orchestrator](../../../agents/orchestrator-model/README.md) and
+[standards advisor](../../../agents/advisor-standards/src/dd_agent_advisor_standards/README.md).
 
 A model identifier is the provider's, and the services do not check it at start-up: a mistyped
 identifier shows as a failed run, not a failed start. After changing it, run one conversation turn
@@ -91,33 +91,33 @@ per agent needs a workspace per agent.
    can read it, although every agent runs as `datadirector`.
 
    ```bash
-   sudo install -d -m 0700 /etc/data-director/credentials/standards
-   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/standards/anthropic-api-key
+   sudo install -d -m 0700 /etc/data-director/credentials/advisor-standards
+   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/advisor-standards/anthropic-api-key
    # paste the key, then Ctrl-D
    ```
 
-2. Configure the advisor in `/etc/data-director/agents/standards.env`:
+2. Configure the advisor in `/etc/data-director/agents/advisor-standards.env`:
 
    ```bash
    DD_STANDARDS_EXPLAINER=anthropic
    # DD_MODEL_ID=<another model, if you do not want the default>
    ```
 
-3. Restart it: `sudo systemctl restart data-director-agent@standards.service`.
+3. Restart it: `sudo systemctl restart data-director-agent@advisor-standards.service`.
 
 The app runs no agent in its own process, so there is nothing to change in the app (ADR-0027).
 
 ## Turn on the model-backed orchestrator
 
 `orchestrator.model` is not part of `data-director.target`, because it cannot start without a
-key. Until the profile names it, the app converses with the rule-based `director.stub`.
+key. Until the profile names it, the app converses with the rule-based `orchestrator.stub`.
 
-1. Install its key as above, under `/etc/data-director/credentials/orchestrator/`
-   (`anthropic-api-key`). Its optional settings go in `/etc/data-director/agents/orchestrator.env`.
+1. Install its key as above, under `/etc/data-director/credentials/orchestrator-model/`
+   (`anthropic-api-key`). Its optional settings go in `/etc/data-director/agents/orchestrator-model.env`.
 2. Start it, and have it start with the rest:
 
    ```bash
-   sudo systemctl enable --now data-director-agent@orchestrator.service
+   sudo systemctl enable --now data-director-agent@orchestrator-model.service
    ```
 
 3. Add `8107` to `DD_WAIT_PORTS` in a drop-in for `data-director-app.service`, so the app waits
@@ -125,7 +125,7 @@ key. Until the profile names it, the app converses with the rule-based `director
 4. In the deployment's profile, set `orchestrator: orchestrator.model` and raise `version`.
    List the agent under `agents` too. Then restart the app.
 
-To go back, set `orchestrator: director.stub` in the profile, raise `version` and restart the
+To go back, set `orchestrator: orchestrator.stub` in the profile, raise `version` and restart the
 app. The orchestrator can then be stopped.
 
 ## Check it works
@@ -138,7 +138,7 @@ app. The orchestrator can then be stopped.
 3. Read the agent's journal:
 
    ```bash
-   journalctl -u data-director-agent@orchestrator -n 50
+   journalctl -u data-director-agent@orchestrator-model -n 50
    ```
 
 ## Rotate or revoke a key

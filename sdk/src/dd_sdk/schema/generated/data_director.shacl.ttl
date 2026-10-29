@@ -281,7 +281,7 @@ _:c14n16 rdf:first "lexical" ;
 _:c14n17 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n18 sh:datatype xsd:string ;
-	sh:description "Stable identifier of the agent, e.g. standards.advisor or stub.abstain." ;
+	sh:description "Stable identifier of the agent, e.g. advisor.standards or stub.abstain." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
@@ -489,7 +489,7 @@ _:c14n55 sh:datatype xsd:string ;
 _:c14n56 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n57 sh:datatype xsd:string ;
-	sh:description "Stable identifier of the agent, e.g. standards.advisor or stub.abstain." ;
+	sh:description "Stable identifier of the agent, e.g. advisor.standards or stub.abstain." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;

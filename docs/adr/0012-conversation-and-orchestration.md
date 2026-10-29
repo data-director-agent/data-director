@@ -78,7 +78,7 @@ Several constraints shaped the answer:
 10. **The callback address is the workbench's own.** `workbench serve` uses its host and port;
     `DD_WORKBENCH_URL` overrides it. `workbench invoke` issues no grant, so a delegation agent
     run from the CLI has no `delegate`.
-11. **`director.stub` is the reference orchestrator** (`agents/director/`): rule-based routing
+11. **`orchestrator.stub` is the reference orchestrator** (`agents/orchestrator-stub/`): rule-based routing
     from `routing.yaml`, a template reply, no model. It succeeds once it has delegated and
     relayed, whatever the child's outcome; the child's status is on its own envelope and in
     `delegations`. It also asks a first turn which Blueprint entry point applies, and lists the
@@ -93,8 +93,8 @@ Several constraints shaped the answer:
     agent, input schemas included. `ctx.delegate.manifest()` reads it from the grant's URL, once
     per invocation. The card lists every registered agent, not only those the profile permits;
     the policy gate still refuses a child the profile does not enable, and the orchestrator
-    reports that refusal like any other outcome. `orchestrator.model` (`agents/orchestrator/`,
-    #21) routes this way; `director.stub` keeps its `routing.yaml` as a fixed, model-free
+    reports that refusal like any other outcome. `orchestrator.model` (`agents/orchestrator-model/`,
+    #21) routes this way; `orchestrator.stub` keeps its `routing.yaml` as a fixed, model-free
     reference. Both place agents in the Blueprint's process flow by the manifest's `serves`
     ([ADR-0028](0028-entry-points-and-serves.md)).
 14. **An orchestrator succeeds once it has replied, whatever its children's outcomes.** This

@@ -3,7 +3,7 @@
 [Unit]
 Description=Data Director (app and agents)
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
-Wants=data-director-app.service data-director-agent@hello.service data-director-agent@quality.service data-director-agent@standards.service data-director-agent@director.service
+Wants=data-director-app.service data-director-agent@example-hello.service data-director-agent@advisor-quality.service data-director-agent@advisor-standards.service data-director-agent@orchestrator-stub.service
 
 [Install]
 WantedBy=multi-user.target

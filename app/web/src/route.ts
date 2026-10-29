@@ -17,7 +17,7 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-/** The current path and query, e.g. `/agents?agent=hello.world`. */
+/** The current path and query, e.g. `/agents?agent=example.hello`. */
 export function useLocation(): string {
   return useSyncExternalStore(subscribe, () => location.pathname + location.search);
 }

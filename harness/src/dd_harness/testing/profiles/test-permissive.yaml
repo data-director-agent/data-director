@@ -5,13 +5,13 @@ version: 6
 description: Enables the in-tree agents and the test doubles; requires approval for writes.
 
 agents:
-  standards.advisor: advise
-  policy.advisor: advise
-  repository.advisor: advise
-  quality.reviewer: advise
+  advisor.standards: advise
+  advisor.policy: advise
+  advisor.repository: advise
+  advisor.quality: advise
   stub.abstain: advise
-  hello.world: advise
-  director.stub: advise
+  example.hello: advise
+  orchestrator.stub: advise
   orchestrator.model: advise
   fake.retrieval: advise
   fake.input-only: advise

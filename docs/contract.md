@@ -45,7 +45,7 @@ An agent receives an `InvocationRequest`. Its main fields are:
 | Field | Meaning |
 |---|---|
 | `invocation_id` | A UUIDv7 identifier for this run. UUIDv7 values sort by time ([ADR-0004](adr/0004-identifiers-and-problems.md)). |
-| `agent_id` | The agent to run, for example `quality.reviewer`. |
+| `agent_id` | The agent to run, for example `advisor.quality`. |
 | `input` | The input document. |
 | `conversation_id` | Optional. The conversation this run is a turn of (see below). |
 | `parent_invocation_id` | Set only by the conductor, on a run another agent delegated. A caller that sets it is refused. |

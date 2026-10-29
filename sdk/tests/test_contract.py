@@ -486,7 +486,7 @@ def test_linkml_source_is_valid_yaml_for_the_generator() -> None:
 def _delegation(child: str, content_hash: str = "c" * 64) -> Delegation:
     return Delegation(
         delegated_invocation_id=child,
-        delegated_agent_id="hello.world",
+        delegated_agent_id="example.hello",
         delegated_agent_version="0.1.0",
         delegated_status=OutcomeStatus.SUCCEEDED,
         content_hash=content_hash,
@@ -511,14 +511,14 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
             ConversationTurn(
                 role=TurnRole.AGENT,
                 turn_text="Hello!",
-                turn_agent_id="director.stub",
+                turn_agent_id="orchestrator.stub",
                 turn_agent_version="0.1.0",
                 turn_invocation_id=new_invocation_id(),
             ),
         ],
     )
     req = InvocationRequest(
-        agent_id="director.stub",
+        agent_id="orchestrator.stub",
         conversation_id=conv,
         input=message,
     )

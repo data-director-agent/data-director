@@ -19,7 +19,7 @@ describe("servingStep", () => {
         .filter((a) => a.serves.includes("setup.vocabularies"))
         .map((a) => a.id),
     );
-    expect(servingStep(vocabularies, index)).toContain("standards.advisor");
+    expect(servingStep(vocabularies, index)).toContain("advisor.standards");
   });
 
   it("finds no agent for a step that no agent serves", () => {

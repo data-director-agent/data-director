@@ -41,67 +41,67 @@ services:
     <<: *python
     command: uv sync --all-packages --all-extras
 
-  hello:
+  example-hello:
     <<: *agent
-    command: uv run --no-sync dd-hello serve --host 0.0.0.0 --port 8101 --public-url http://hello:8101
+    command: uv run --no-sync dd-example-hello serve --host 0.0.0.0 --port 8101 --public-url http://example-hello:8101
     environment:
       <<: *python-env
       PORT: "8101"
     env_file:
       - path: config/local/agents.env
         required: false
-      - path: config/local/agents/hello.env
+      - path: config/local/agents/example-hello.env
         required: false
 
-  quality:
+  advisor-quality:
     <<: *agent
-    command: uv run --no-sync dd-quality serve --host 0.0.0.0 --port 8102 --public-url http://quality:8102
+    command: uv run --no-sync dd-advisor-quality serve --host 0.0.0.0 --port 8102 --public-url http://advisor-quality:8102
     environment:
       <<: *python-env
       PORT: "8102"
     env_file:
       - path: config/local/agents.env
         required: false
-      - path: config/local/agents/quality.env
+      - path: config/local/agents/advisor-quality.env
         required: false
 
-  standards:
+  advisor-standards:
     <<: *agent
-    command: uv run --no-sync dd-standards serve --host 0.0.0.0 --port 8105 --public-url http://standards:8105
+    command: uv run --no-sync dd-advisor-standards serve --host 0.0.0.0 --port 8105 --public-url http://advisor-standards:8105
     environment:
       <<: *python-env
       PORT: "8105"
     env_file:
       - path: config/local/agents.env
         required: false
-      - path: config/local/agents/standards.env
+      - path: config/local/agents/advisor-standards.env
         required: false
 
-  director:
+  orchestrator-stub:
     <<: *agent
-    command: uv run --no-sync dd-director serve --host 0.0.0.0 --port 8106 --public-url http://director:8106
+    command: uv run --no-sync dd-orchestrator-stub serve --host 0.0.0.0 --port 8106 --public-url http://orchestrator-stub:8106
     environment:
       <<: *python-env
       PORT: "8106"
     env_file:
       - path: config/local/agents.env
         required: false
-      - path: config/local/agents/director.env
+      - path: config/local/agents/orchestrator-stub.env
         required: false
 
   # Model-backed, so it is opt-in: `docker compose --profile llm up`. It exits at start-up
-  # without a model key (ANTHROPIC_API_KEY_FILE) in config/local/agents/orchestrator.env.
-  orchestrator:
+  # without a model key (ANTHROPIC_API_KEY_FILE) in config/local/agents/orchestrator-model.env.
+  orchestrator-model:
     <<: *agent
     profiles: [llm]
-    command: uv run --no-sync dd-orchestrator serve --host 0.0.0.0 --port 8107 --public-url http://orchestrator:8107
+    command: uv run --no-sync dd-orchestrator-model serve --host 0.0.0.0 --port 8107 --public-url http://orchestrator-model:8107
     environment:
       <<: *python-env
       PORT: "8107"
     env_file:
       - path: config/local/agents.env
         required: false
-      - path: config/local/agents/orchestrator.env
+      - path: config/local/agents/orchestrator-model.env
         required: false
 
   # Builds the shell once: the app will not start without app/web/dist.
@@ -123,13 +123,13 @@ services:
         condition: service_completed_successfully
       web-build:
         condition: service_completed_successfully
-      hello:
+      example-hello:
         condition: service_healthy
-      quality:
+      advisor-quality:
         condition: service_healthy
-      standards:
+      advisor-standards:
         condition: service_healthy
-      director:
+      orchestrator-stub:
         condition: service_healthy
     command: uv run --no-sync data-director
     env_file:
@@ -184,13 +184,13 @@ services:
     depends_on:
       deps:
         condition: service_completed_successfully
-      hello:
+      example-hello:
         condition: service_healthy
-      quality:
+      advisor-quality:
         condition: service_healthy
-      standards:
+      advisor-standards:
         condition: service_healthy
-      director:
+      orchestrator-stub:
         condition: service_healthy
     working_dir: /workspace/workbench
     command: uv run --no-sync workbench serve --host 0.0.0.0 --port 8000

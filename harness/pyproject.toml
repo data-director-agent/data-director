@@ -36,8 +36,8 @@ serve = ["uvicorn>=0.30"]
 # What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
-  "data-director-agent-hello",
-  "data-director-agent-quality",
+  "data-director-agent-example-hello",
+  "data-director-agent-advisor-quality",
 ]
 
 [tool.hatch.build.targets.wheel]
