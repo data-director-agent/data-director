@@ -73,12 +73,12 @@ do, and the key never appears in a run, a trace, a manifest or an export.
 
 | | Development | A server |
 |---|---|---|
-| Variable | `ANTHROPIC_API_KEY` | `ANTHROPIC_API_KEY_FILE` |
-| Put it in | `workbench/agents/<name>.env`, which only that agent reads | A root-only file under `/etc/data-director/credentials/<name>/`, loaded as a systemd credential |
+| Variable | `ANTHROPIC_API_KEY_FILE`, relative to `config/local/credentials/` | `ANTHROPIC_API_KEY_FILE` |
+| Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads | A root-only file under `/etc/data-director/credentials/<name>/`, loaded as a systemd credential |
 
-Set one variable or the other, never both. A command-line login on the host, such as
-`ant auth login`, is never used. Never put a key in `workbench/.env`, `app.env` or
-`/etc/data-director/agents.env`: every agent reads those.
+`ANTHROPIC_API_KEY` itself also works in an agent's own file. Set one variable or the other, never both. A command-line login on the host, such as
+`ant auth login`, is never used. Never put a key in `app.env` or `agents.env`, in
+`config/local/` or `/etc/data-director/`: every agent reads `agents.env`.
 
 **Give each agent its own key.** One key can then be revoked without disturbing the other, and
 the provider's usage reports show each agent separately. A spending limit is set on the provider's

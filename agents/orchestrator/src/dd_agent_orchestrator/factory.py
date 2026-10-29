@@ -1,7 +1,7 @@
 """Factory and console script for orchestrator.model.
 
 `build` assembles the orchestrator from its own environment variables
-(`workbench/agents/env.example`):
+(`config/examples/agents/orchestrator.env`):
 
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the key, read at
   start-up (`dd_sdk.credentials`, ADR-0026). There is no default: this agent is a model.

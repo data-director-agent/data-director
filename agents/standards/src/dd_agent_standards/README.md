@@ -22,8 +22,8 @@ returns `Recommendations`. Serve it with `uv run dd-standards serve --port 8105`
 An unknown value is a configuration error and stops the service at start-up. So is the Anthropic
 explainer without exactly one of the two key variables. The key is passed to the Anthropic client
 explicitly: the SDK's own credential chain, such as an `ant auth login`, is never used
-(ADR-0026). In development, put the key in `workbench/agents/standards.env`, which only this
-agent reads. In deployment, the key is loaded as a systemd credential (`deploy/README.md`).
+(ADR-0026). In development, put the key in `config/local/credentials/` and name it in
+`config/local/agents/standards.env`, which only this agent reads. In deployment, the key is loaded as a systemd credential (`deploy/README.md`).
 
 With the Anthropic explainer the advisor sends Anthropic the dataset profile's title,
 description, keywords, themes and field names and types, and the candidate records' names,

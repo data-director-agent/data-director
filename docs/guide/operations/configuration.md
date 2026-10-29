@@ -6,15 +6,15 @@ are used; this page is the map. On a server the paths are those that
 
 ## Layers
 
-A setting has one home. Secrets are the exception that matters: a key sits in the one file that
+A setting has one home, and development has the same tree as a server, rooted at `config/local/` (git-ignored; `uv run scripts/dev.py setup` creates it). `dev.py doctor` reports settings files of the old layout (`.env`, `workbench/.env`) and where each moves. Secrets are the exception that matters: a key sits in the one file that
 only its own agent can read.
 
 | What | On a server | In development | Read by |
 |---|---|---|---|
-| The operator's identity, the app's address, problem reports | `/etc/data-director/app.env` | `app/.env` ([`app/env.example`](../../../app/env.example)) | The app |
-| Settings every agent shares | `/etc/data-director/agents.env` | `workbench/.env` ([`workbench/env.example`](../../../workbench/env.example)) | Every agent |
-| One agent's own settings, such as `DD_STANDARDS_*` and `DD_MODEL_ID` | `/etc/data-director/agents/<name>.env` | `workbench/agents/<name>.env` ([`env.example`](../../../workbench/agents/env.example)) | That agent |
-| A model key | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential | `ANTHROPIC_API_KEY` in the agent's own file | That agent |
+| The operator's identity, the app's address, problem reports | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
+| Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |
+| One agent's own settings, such as `DD_STANDARDS_*` and `DD_MODEL_ID` | `/etc/data-director/agents/<name>.env` | `config/local/agents/<name>.env` ([examples](../../../config/examples/agents/)) | That agent |
+| A model key | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
 | An agent's port | `deploy/agents/<name>.env` in the release | `scripts/run-agents.sh` | The unit, and `agents.yaml` |
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
 | Who may use the site | `/etc/nginx/data-director.htpasswd` | none | NGINX |

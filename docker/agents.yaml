@@ -11,7 +11,7 @@ agents:
     url: http://director:8106
     timeout_s: 120
   # Only started with the `llm` profile, and it needs ANTHROPIC_API_KEY in
-  # workbench/agents/orchestrator.env. Without it the app shows it as unavailable.
+  # config/local/agents/orchestrator.env. Without it the app shows it as unavailable.
   - name: orchestrator
     url: http://orchestrator:8107
     timeout_s: 300

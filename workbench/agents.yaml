@@ -14,7 +14,7 @@ agents:
   # theirs (ADR-0012).
   - url: http://127.0.0.1:8106
     timeout_s: 120
-  # The model-backed orchestrator (#21). It needs a model key (workbench/agents/orchestrator.env),
+  # The model-backed orchestrator (#21). It needs a model key (config/local/agents/orchestrator.env),
   # and a model's turn can take minutes on top of its children's.
   - url: http://127.0.0.1:8107
     timeout_s: 300

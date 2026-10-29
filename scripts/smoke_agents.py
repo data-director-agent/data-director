@@ -95,7 +95,7 @@ def has_key(env: dict[str, str], name: str) -> bool:
     """Whether the agent with env file `name` would be given a model key at start-up."""
     if any(env.get(var) for var in KEY_VARS):
         return True
-    own = WORKBENCH / "agents" / f"{name}.env"
+    own = ROOT / "config" / "local" / "agents" / f"{name}.env"
     if not own.is_file():
         return False
     for line in own.read_text(encoding="utf-8").splitlines():

@@ -31,8 +31,8 @@ uv run scripts/dev.py start           # the agents, the app and the shell; Ctrl-
 `setup` asks for your name and ORCID iD, because every run acts for a named person, and,
 optionally, for an Anthropic API key. Without a key, the app converses with `director.stub`, a
 rule-based agent, and everything else works. `setup` writes each answer to the file it belongs in,
-so you never edit a settings file by hand: your name in `.env` at the root, and the key only in
-the files of the agents that use it (`workbench/agents/<name>.env`), never in a file every agent
+so you never edit a settings file by hand: your name in `config/local/app.env`, and the key only in
+the credential file of the agent that uses it (`config/local/credentials/`), never in a file every agent
 reads (ADR-0026). Run `setup` again at any time to change an answer; Enter keeps the value shown.
 
 `start` opens nothing itself: open <http://localhost:5173>, which reloads as you edit the shell,
@@ -82,8 +82,8 @@ under `unavailable`, with the reason. For hot reload, run `npm run dev` in `app/
 open <http://localhost:5173>; it proxies `/api` to the app (set `DD_APP_URL` if the app is at
 another address).
 
-To give the orchestrator a model key by hand, copy `workbench/agents/env.example` to
-`workbench/agents/orchestrator.env`, set `ANTHROPIC_API_KEY` in it, and name `orchestrator.model`
+To give the orchestrator a model key by hand, copy `config/examples/agents/orchestrator.env` to
+`config/local/agents/orchestrator.env`, put the key in `config/local/credentials/orchestrator-anthropic-api-key`, and name `orchestrator.model`
 in your profile (see [`app/README.md`](app/README.md#choosing-the-orchestrator)). The file is
 ignored by git. On a server the same settings live in `/etc/data-director/agents/orchestrator.env`
 (see [`deploy/README.md`](deploy/README.md)).
@@ -104,38 +104,30 @@ To run the whole development stack in containers instead, you need only Docker w
 Source is bind-mounted, so edits to Python and to the shell take effect without a rebuild:
 
 ```sh
-uv run scripts/dev.py setup --no-install   # or: cp docker/env.example .env, then edit it
+uv run scripts/dev.py setup --no-install   # or: copy `config/examples/` to `config/local/` and edit it
 docker compose up --build             # app at http://127.0.0.1:7860, shell at :5173
 docker compose --profile workbench up workbench   # viewer at http://127.0.0.1:8000/viewer/
 docker compose --profile llm up       # adds the model-backed orchestrator
 ```
 
 The first start installs the dependencies into a volume, which takes a few minutes. The agents are
-reachable only inside the Compose network. Model keys go in `workbench/agents/<name>.env`, as when
+reachable only inside the Compose network. Model keys go in `config/local/credentials/`, named in `config/local/agents/<name>.env`, as when
 running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_PORT` or
-`DD_WORKBENCH_HOST_PORT` in `.env`. Containers run as uid 1000. This stack is for development only;
+`DD_WORKBENCH_HOST_PORT` in the shell. Containers run as uid 1000. This stack is for development only;
 `deploy/` covers deployment.
 
-### Settings in `workbench/.env`
+### Settings in `config/local/`
 
-`scripts/dev.py start` (and so `scripts/run-agents.sh`) and the workbench read `workbench/.env` if
-it exists (copy `workbench/env.example`); for `dev.py`, the root `.env` that `setup` writes wins
-over it. It is an ordinary dotenv file, so quote a value that contains a space:
-`DD_PRINCIPAL_NAME="Josiah Carberry"`. An unquoted one gives
-"Failed to parse environment file `workbench/.env`", and the file is not applied. Put a model key
-only in that agent's own file, `workbench/agents/<name>.env` (for example `orchestrator.env`),
-never in `workbench/.env`, which every agent reads.
-
-[`docs/architecture.md`](docs/architecture.md) explains how the parts fit together. Each part of
-the repository has its own README with the details:
-
-| Directory | What it is |
-|---|---|
-| [`app/`](app/README.md) | The Data Director app (alpha): a browser shell drawn from each agent's manifest, and its configuration |
-| [`harness/`](harness/README.md) | The governance every invocation goes through, and `dd-harness serve` for deployments |
-| [`workbench/`](workbench/README.md) | The development test bed: the `workbench` CLI, the viewer, samples and profiles |
-| [`agents/`](agents/README.md) | One package and one A2A service per agent, and how to write a new one from `hello/` |
-| [`sdk/`](sdk/README.md) | What agents and the harness share: the contract, evidence, span helpers and the agent server |
+`scripts/dev.py setup` creates `config/local/`, which mirrors `/etc/data-director/` on a server:
+`app.env` (the app), `agents.env` (every agent), `agents/<name>.env` (one agent) and
+`credentials/` (model keys, named by `*_FILE` variables). `dev.py start` and Docker Compose read
+it, and each agent is given `agents.env` and its own file only. The `workbench` command reads
+`app.env` and `agents.env` from the directory `DD_CONFIG_DIR` names (`DD_CONFIG_DIR=config/local`).
+These are ordinary dotenv files, so quote a value that contains a space: otherwise uv reports
+"Failed to parse environment file", and the file is not applied. Put a model key only in that
+agent's credential file, never in `agents.env`, which every agent reads. If you used the earlier
+layout (`.env`, `workbench/.env`, `workbench/agents/*.env`), `dev.py doctor` says where each file's
+settings move.
 
 ## Contributing
 

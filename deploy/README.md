@@ -50,7 +50,7 @@ process (ADR-0027).
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |
-| `/etc/data-director/app.env` | The app's settings (`app/env.example`); `DD_PRINCIPAL_*` are required. |
+| `/etc/data-director/app.env` | The app's settings (`config/examples/app.env`); `DD_PRINCIPAL_*` are required. |
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Model keys, readable by root alone. Never put a key in an `.env` file. |
