@@ -9,14 +9,15 @@
  * directory (§12). The server builds each turn's history; the page sends the agent and the message.
  * Until there is authentication (#17) the conversation acts for the operator (ADR-0018).
  *
- * A new reply is announced in a polite live region, the busy state is announced, and focus
- * returns to the message box.
+ * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
+ * orchestrator is working. A new reply is announced in a polite live region, the busy state is
+ * announced, and focus returns to the message box.
  */
 
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { FolderOpen, MessageSquarePlus, SendHorizontal, X } from "lucide-react";
-import { useConversationApi } from "../../conversation/api";
+import { Unreachable, useConversationApi } from "../../conversation/api";
 import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
@@ -61,6 +62,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [past, setPast] = useState<ConversationSummary[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
@@ -119,13 +121,17 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setBusy(true);
     setError(null);
     setAnnouncement("Waiting for a reply.");
+    // The message moves into the transcript while the reply is awaited, and comes back to the
+    // box if the send fails, so nothing typed is lost.
+    setSent(message);
+    setText("");
+    let id = conversationId;
     try {
-      const id = conversationId ?? (await api.create());
+      id ??= await api.create();
       setConversationId(id);
       await api.sendTurn(id, orchestrator.id, message);
       const updated = await api.get(id);
       setConversation(updated);
-      setText("");
       const last = updated.turns[updated.turns.length - 1];
       setAnnouncement(
         last
@@ -134,13 +140,24 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       );
       void reloadPast();
     } catch (e) {
-      setError(
-        e instanceof RunRefused
-          ? `${e.problem.title}: ${e.message}`
-          : `Data Director could not send this: ${errorMessage(e)}`,
-      );
+      setText(message);
+      if (e instanceof Unreachable) {
+        // The server may have received the turn and be running it, so show what it stored.
+        if (id) api.get(id).then(setConversation, () => undefined);
+        setError(
+          "Data Director could not reach the server, so this message may not have been sent. " +
+            "Your text is kept: check the conversation above, then send it again.",
+        );
+      } else {
+        setError(
+          e instanceof RunRefused
+            ? `${e.problem.title}: ${e.message}`
+            : `Data Director could not send this: ${errorMessage(e)}`,
+        );
+      }
       setAnnouncement("");
     } finally {
+      setSent(null);
       setBusy(false);
       box.current?.focus();
     }
@@ -181,6 +198,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     <Workspace
       {...frame}
       title="Talk to Data Director"
+      titleHidden
       centre={
         <section aria-labelledby="conversation-heading" className="conversation-main">
           <h2 id="conversation-heading" className="visually-hidden">
@@ -189,12 +207,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           <p>
             <Button icon={MessageSquarePlus} onPress={reset}>New conversation</Button>
           </p>
-          {conversation && conversation.turns.length > 0 && (
+          {((conversation && conversation.turns.length > 0) || sent !== null) && (
             <Transcript
               conversation={conversation}
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
+              pending={sent === null ? null : { agentId: orchestrator.id, message: sent }}
             />
           )}
           {runId && !inTranscript && (

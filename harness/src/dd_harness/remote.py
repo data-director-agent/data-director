@@ -135,6 +135,10 @@ class RemoteAgent:
     async def _send(self, request_doc: dict[str, Any], metadata: dict[str, str]) -> Any:
         async with asyncio.timeout(self.timeout_s):
             async with self.client_factory(self.url, self.timeout_s) as hc:
+                # Not streamed: the policy gate, grounding linter and source check judge the
+                # whole envelope, so the conductor waits for the agent's finished reply and
+                # nothing reaches a person before those checks have run. Streaming text to the
+                # shell is a separate matter, TODO(#68, #69).
                 client = await create_client(
                     agent=self.url, client_config=ClientConfig(streaming=False, httpx_client=hc)
                 )

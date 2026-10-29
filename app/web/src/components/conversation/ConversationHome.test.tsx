@@ -5,7 +5,7 @@ import { axe } from "jest-axe";
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
 import flowFixture from "../../../fixtures/process-flow.json";
-import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
+import { type ConversationApi, ConversationApiContext, Unreachable } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import type { ProcessFlow } from "../../flow/types";
@@ -167,6 +167,41 @@ describe("ConversationHome", () => {
     await userEvent.type(screen.getByRole("textbox"), "hi");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("the server answered 500");
+    // The message returns to the box and the waiting sign goes.
+    expect(screen.getByRole("textbox")).toHaveValue("hi");
+    expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
+  });
+
+  it("says the server could not be reached, keeps the text and reloads what was stored", async () => {
+    const get = vi.fn().mockResolvedValue(conversationFixture as Conversation);
+    renderHome(
+      withOrchestrator(),
+      fakeApi({ sendTurn: () => Promise.reject(new Unreachable()), get }),
+    );
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "could not reach the server, so this message may not have been sent",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("hi");
+    expect(get).toHaveBeenCalledWith("c1");
+  });
+
+  it("shows the message and that the orchestrator is working until the reply arrives", async () => {
+    let reply: () => void = () => undefined;
+    const sendTurn = () => new Promise<void>((resolve) => (reply = resolve));
+    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    await userEvent.type(screen.getByRole("textbox"), "hello world");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const transcript = await screen.findByRole("list", { name: "Conversation" });
+    expect(within(transcript).getByText("hello world")).toBeVisible();
+    expect(within(transcript).getByText(/is working on a reply/)).toBeVisible();
+    expect(screen.getByRole("textbox")).toHaveValue("");
+
+    reply();
+    await screen.findByText("New reply from director.stub: Succeeded.");
+    expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
   });
 
   it("reopens a past conversation and starts a new one", async () => {
