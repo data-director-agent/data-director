@@ -187,7 +187,9 @@ patterns in its `routing.yaml`. A first message that matches no pattern is asked
 Blueprint's three entry points applies (before data collection, data being prepared for sharing,
 ready to deposit), and the reply lists the steps from there, each with the agents that serve it or
 "no agent yet" and its requirement ([ADR-0028](adr/0028-entry-points-and-serves.md)). An orchestrator answers by asking other agents, but it never calls them directly. It
-asks the harness, so that every child run passes through every step above.
+asks the harness, so that every child run passes through every step above. A model-backed
+orchestrator has no other tools, no MCP server, web search or Skills, so whatever it says about a
+case comes from a child's result (ADR-0012 decision 15).
 
 ```mermaid
 sequenceDiagram

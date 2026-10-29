@@ -5,6 +5,9 @@ returns one `ModelTurn`: the text, the tool calls, why the model stopped, and th
 content to append unchanged before the next turn (thinking blocks included, which the API
 requires back as they were sent). The orchestrator's loop knows nothing else about the API.
 
+The request offers the model only the delegation tools it is given. It carries no MCP server,
+server tool or Skills container (ADR-0012 decision 15, `tests/test_orchestrator_only_delegates.py`).
+
 The key is passed in explicitly, so the SDK's own credential chain is never searched (ADR-0026).
 Refusals fall back server-side (`fallbacks: "default"`), which routes a declined request to
 another model by the refusal's category; a refusal that survives the fallback is a `ModelError`.
