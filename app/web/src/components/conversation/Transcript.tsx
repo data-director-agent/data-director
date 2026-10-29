@@ -14,6 +14,7 @@ import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
+import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
 import { RunDetail } from "./RunDetail";
 
@@ -22,6 +23,18 @@ function replyText(conversation: Conversation, turn: ConversationTurn): string {
     (h) => h.role === "agent" && h.turn_invocation_id === turn.invocation_id,
   );
   return entry?.turn_text ?? turn.envelope.outcome.statement;
+}
+
+/** What powers the agent, beside its name; nothing when it is not in the directory. */
+function ModelOf({ agents, agentId }: { agents: AgentView[]; agentId: string }) {
+  const agent = agents.find((a) => a.id === agentId);
+  if (!agent) return null;
+  return (
+    <>
+      {" "}
+      <ModelTag agent={agent} />
+    </>
+  );
 }
 
 function OutcomeNote({ envelope }: { envelope: Envelope }) {
@@ -61,6 +74,7 @@ function ChildCard({
     <li className="callout child-card" {...(selected ? { "aria-current": "true" as const } : {})}>
       <p>
         <code>{name}</code> <span className={`status status-${tone}`}>{label}</span>
+        <ModelOf agents={agents} agentId={child.agent_id} />
         {waiting && (
           <>
             {" "}
@@ -121,6 +135,7 @@ export function Transcript({
               </code>
               :
             </strong>
+            <ModelOf agents={agents} agentId={turn.agent_id} />
           </p>
           <div className="markdown">
             <Markdown>{replyText(conversation, turn)}</Markdown>

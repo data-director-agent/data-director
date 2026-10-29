@@ -45,9 +45,19 @@ describe("CapabilitiesPanel", () => {
       .toBeVisible();
   });
 
-  it("says when an agent sends the input to no model", () => {
+  it("says when an agent has no AI model and is deterministic", () => {
     render(<CapabilitiesPanel agent={agent("standards.advisor")} />);
-    expect(screen.getByText("It sends your input to no language model.")).toBeVisible();
+    expect(screen.getByText(/This agent is deterministic software/)).toBeVisible();
+  });
+
+  it("does not call an agent deterministic when its card says nothing about models", () => {
+    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
+    if (!raw) throw new Error("no standards.advisor in the fixture");
+    const card = { ...raw };
+    delete card.models;
+    render(<CapabilitiesPanel agent={normaliseAgent(card)} />);
+    expect(screen.getByText(/does not say whether it uses an AI model/)).toBeVisible();
+    expect(screen.queryByText(/deterministic/)).toBeNull();
   });
 
   it("names the provider and model an agent sends data to", () => {
@@ -59,9 +69,19 @@ describe("CapabilitiesPanel", () => {
     });
     render(<CapabilitiesPanel agent={view} />);
     const item = screen.getByRole("listitem");
-    expect(item).toHaveTextContent(
-      "Sends your input to a model hosted outside this institution: Anthropic claude-test",
-    );
+    expect(item).toHaveTextContent("Language model, remote: Anthropic claude-test");
+    expect(item).toHaveTextContent("outside this institution");
+  });
+
+  it("says a locally hosted model is local", () => {
+    const raw = severalAgents.agents.find((a) => a.agent_id === "standards.advisor");
+    if (!raw) throw new Error("no standards.advisor in the fixture");
+    const view = normaliseAgent({
+      ...raw,
+      models: [{ provider: "ollama", model: "llama-test", hosting: "local" }],
+    });
+    render(<CapabilitiesPanel agent={view} />);
+    expect(screen.getByRole("listitem")).toHaveTextContent("Language model, local: ollama llama-test");
   });
 
   it("says the grounding check is not proof of retrieval", () => {
@@ -100,9 +120,9 @@ describe("AgentDirectory", () => {
     expect(screen.getByRole("heading", { level: 2, name: "hello.world" })).toBeVisible();
 
     await user.tab();
-    expect(screen.getByRole("option", { name: "hello.world" })).toHaveFocus();
+    expect(screen.getByRole("option", { name: /^hello\.world/ })).toHaveFocus();
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("option", { name: "quality.reviewer" })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: /^quality\.reviewer/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
