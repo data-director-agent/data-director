@@ -13,8 +13,17 @@ read them back as the harness derives them from the run store (ADR-0012, #130).
 delegation agent's callback under a live grant and nothing else (ADR-0012, #129).
 `GET /api/about` names the build (version and commit) and says whether reports can be filed;
 `POST /api/feedback` files a problem report or feature request as a GitHub issue (ADR-0030).
+`GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through the configured
+OpenID Connect provider, `POST /api/sign-out` ends their session, and `GET /api/session` says who
+is signed in, until when, and whether this server signs anyone in (ADR-0029, `dd_app.signin`);
+`POST /api/session` says the same and keeps the session going.
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
+
+Every `/api` route that runs or reads anything acts for the person the request's session names,
+and answers `401` with an `unauthenticated` problem when there is none. `/api/about`,
+`/api/session` and the sign-in routes are open, so the shell can draw its sign-in page. A server
+with no provider configured is a development server: every request acts for the operator.
 
 Serves on http://127.0.0.1:7860 by default; `DD_APP_HOST` and `DD_APP_PORT` change the address,
 and `DD_HARNESS_URL` the address the agents call back on, if they reach the app by another.
@@ -25,38 +34,47 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import logging
 import os
 import sys
 import webbrowser
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 import uvicorn
 from starlette.applications import Starlette
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse, Response
+from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from dd_app import feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
-from dd_app.governance import Governance, UnknownConversationError
+from dd_app.governance import Governance, UnknownConversationError, principal_summary
+from dd_app.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
+from dd_app.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.conductor import UnknownAgent
-from dd_harness.identity import IdentityError
+from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
 from dd_harness.registry import RegistryError
 from dd_harness.server import LOOPBACK
 from dd_harness.settings import SettingsError
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
-from dd_sdk.contract.problem import PROBLEM_BASE
+from dd_sdk.contract.models import Principal
+from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
 from dd_sdk.process_flow import ENTRIES, PHASES
+
+log = logging.getLogger(__name__)
+Handler = Callable[[Request, Principal], Awaitable[Response]]
 
 FEEDBACK_REFUSED = "Data Director could not file this report"
 DEFAULT_HOST = "127.0.0.1"
@@ -65,6 +83,9 @@ UNTRUSTED_WARNING = (
     "data-director: warning: serving on {host}. A delegation grant is a bearer token and callers "
     "are not authenticated; expose the app to the host or a private network only (ADR-0011).\n"
 )
+# Why a sign-in came back to `/sign-in` without opening a session, for the shell to say.
+SIGN_IN_DECLINED = "declined"
+SIGN_IN_FAILED = "failed"
 
 
 class ShellNotBuiltError(FileNotFoundError):
@@ -80,23 +101,40 @@ def build_app(
     feedback_repo: str = feedback.DEFAULT_REPO,
     feedback_client: httpx.AsyncClient | None = None,
     build: Mapping[str, str | None] | None = None,
+    sign_in: SignIn | None = None,
 ) -> Starlette:
     """The server. `web_dist` must hold a built shell (its `index.html`).
 
     Problem reports are on when `feedback_token` is given; `feedback_client` and `build` let a test
-    stand in for GitHub and for the build's identity.
+    stand in for GitHub and for the build's identity. `sign_in` signs people in; its
+    authenticator must be `governance.authenticator`. Without it, the server signs nobody in.
     """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
             f"the shell is not built ({web_dist / 'index.html'} is missing); "
             "run `npm ci && npm run build` in app/web"
         )
+    if sign_in is not None and governance.authenticator is not sign_in.authenticator:
+        raise IdentityError("the app signs people in, so it must act for whom it signed in")
 
-    async def agents(request: Request) -> Response:
+    def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
+        """`handler`, given the principal the request acts for; a request with none is refused
+        with `401` (ADR-0029), and never given a default."""
+
+        async def endpoint(request: Request) -> Response:
+            try:
+                principal = governance.authenticator.principal_for(request.headers)
+            except Unauthenticated as exc:
+                return _unauthenticated(str(exc))
+            return await handler(request, principal)
+
+        return endpoint
+
+    async def agents(request: Request, acting_for: Principal) -> Response:
         # Off the event loop: refreshing the registry reads agent cards, which blocks.
-        return JSONResponse(await run_in_threadpool(governance.agents))
+        return JSONResponse(await run_in_threadpool(governance.agents, acting_for))
 
-    async def start_run(request: Request) -> Response:
+    async def start_run(request: Request, acting_for: Principal) -> Response:
         try:
             body = await request.json()
         except ValueError:
@@ -109,22 +147,24 @@ def build_app(
                 "The body must name `agent_id` (a string) and give `input` (an object)."
             )
         try:
-            return JSONResponse(await governance.run(agent_id, input))
+            return JSONResponse(await governance.run(agent_id, input, acting_for))
         # Refused before the run began, so nothing was stored (as `workbench/transport/agui.py`).
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             return _refused(str(exc))
 
-    async def list_runs(request: Request) -> Response:
+    # TODO(#153): every signed-in person still sees every run and conversation; each is to see
+    # only their own.
+    async def list_runs(request: Request, _: Principal) -> Response:
         return JSONResponse(governance.runs())
 
-    async def get_run(request: Request) -> Response:
+    async def get_run(request: Request, _: Principal) -> Response:
         invocation_id = request.path_params["invocation_id"]
         run = governance.stored_run(invocation_id)
         if run is None:
             return _problem(404, "run-not-found", "No such run", f"No run {invocation_id!r}.")
         return JSONResponse(run)
 
-    async def start_conversation(request: Request) -> Response:
+    async def start_conversation(request: Request, _: Principal) -> Response:
         conversation_id = governance.start_conversation()
         return JSONResponse(
             {"conversation_id": conversation_id},
@@ -132,7 +172,7 @@ def build_app(
             headers={"Location": f"/api/conversations/{conversation_id}"},
         )
 
-    async def send_turn(request: Request) -> Response:
+    async def send_turn(request: Request, acting_for: Principal) -> Response:
         conversation_id = request.path_params["conversation_id"]
         try:
             body = await request.json()
@@ -154,26 +194,28 @@ def build_app(
         if governance.conversation(conversation_id) is None:
             return _no_conversation(conversation_id)
         try:
-            return JSONResponse(await governance.turn(conversation_id, agent_id, message_text))
+            return JSONResponse(
+                await governance.turn(conversation_id, agent_id, message_text, acting_for)
+            )
         except UnknownConversationError:
             return _no_conversation(conversation_id)
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             return _refused(str(exc))
 
-    async def list_conversations(request: Request) -> Response:
+    async def list_conversations(request: Request, _: Principal) -> Response:
         return JSONResponse(governance.conversations())
 
-    async def get_conversation(request: Request) -> Response:
+    async def get_conversation(request: Request, _: Principal) -> Response:
         conversation_id = request.path_params["conversation_id"]
         found = governance.conversation(conversation_id)
         if found is None:
             return _no_conversation(conversation_id)
         return JSONResponse(found)
 
-    async def list_examples(request: Request) -> Response:
+    async def list_examples(request: Request, _: Principal) -> Response:
         return JSONResponse(examples(examples_dir))
 
-    async def get_process_flow(request: Request) -> Response:
+    async def get_process_flow(request: Request, _: Principal) -> Response:
         return JSONResponse(process_flow())
 
     identity = dict(build) if build is not None else about()
@@ -182,7 +224,7 @@ def build_app(
     async def get_about(request: Request) -> Response:
         return JSONResponse({**identity, "feedback_enabled": feedback_token is not None})
 
-    async def send_feedback(request: Request) -> Response:
+    async def send_feedback(request: Request, _: Principal) -> Response:
         if feedback_token is None:
             return _problem(
                 503,
@@ -225,6 +267,75 @@ def build_app(
             return _problem(502, "feedback-failed", "The report was not filed", str(exc))
         return JSONResponse(created, status_code=201)
 
+    async def get_session(request: Request) -> Response:
+        # `GET` says when the session ends and does not keep it going; `POST` keeps it going,
+        # which is what the shell's "Stay signed in" sends (WCAG 2.2.1).
+        if sign_in is None:
+            operator = governance.authenticator.principal_for(None)
+            return JSONResponse(
+                {"signs_in": False, "principal": _principal(operator), "expires_at": None}
+            )
+        session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
+        if session is None:
+            return JSONResponse({"signs_in": True, "principal": None, "expires_at": None})
+        expires_at = datetime.fromtimestamp(sign_in.store.expires_at(session), UTC)
+        return JSONResponse(
+            {
+                "signs_in": True,
+                "principal": _principal(session.principal),
+                "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
+            }
+        )
+
+    async def begin_sign_in(request: Request) -> Response:
+        if sign_in is None:
+            return _no_sign_in()
+        try:
+            url, state = await sign_in.start(request.query_params.get("return_to"))
+        except Unauthenticated as exc:
+            log.warning("data-director: sign-in could not start: %s", exc)
+            return _back_to_sign_in(SIGN_IN_FAILED)
+        response = RedirectResponse(url, status_code=302)
+        response.set_cookie(SIGN_IN_COOKIE, state, max_age=PENDING_S, **_SIGN_IN_COOKIE)
+        return response
+
+    async def finish_sign_in(request: Request) -> Response:
+        if sign_in is None:
+            return _no_sign_in()
+        params = request.query_params
+        response: Response
+        if params.get("error"):
+            # The person declined at the provider, or the provider refused the request.
+            sign_in.store.take(params.get("state") or "")
+            log.warning("data-director: the provider answered %s", params["error"][:64])
+            response = _back_to_sign_in(SIGN_IN_DECLINED)
+        else:
+            try:
+                session_id, return_to = await sign_in.finish(
+                    params.get("code"), params.get("state"), cookie(request.headers, SIGN_IN_COOKIE)
+                )
+            except Unauthenticated as exc:
+                log.warning("data-director: sign-in refused: %s", exc)
+                response = _back_to_sign_in(SIGN_IN_FAILED)
+            else:
+                # A session open in this browser before is ended, not carried over.
+                if previous := cookie(request.headers, SESSION_COOKIE):
+                    sign_in.store.delete(previous)
+                response = RedirectResponse(return_to, status_code=303)
+                response.set_cookie(
+                    SESSION_COOKIE, session_id, max_age=sign_in.settings.lifetime_s, **_SESSION
+                )
+        response.delete_cookie(SIGN_IN_COOKIE, **_SIGN_IN_COOKIE)
+        return response
+
+    async def sign_out(request: Request) -> Response:
+        response = Response(status_code=204)
+        if sign_in is not None:
+            if session_id := cookie(request.headers, SESSION_COOKIE):
+                sign_in.store.delete(session_id)
+            response.delete_cookie(SESSION_COOKIE, **_SESSION)
+        return response
+
     async def shell(request: Request) -> Response:
         # A page of the shell's own, so a reload or a link lands on it rather than a 404.
         return FileResponse(web_dist / "index.html")
@@ -234,24 +345,49 @@ def build_app(
     delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
     return Starlette(
         routes=[
-            Route("/api/agents", agents, methods=["GET"]),
-            Route("/api/runs", start_run, methods=["POST"]),
-            Route("/api/runs", list_runs, methods=["GET"]),
-            Route("/api/runs/{invocation_id}", get_run, methods=["GET"]),
-            Route("/api/conversations", start_conversation, methods=["POST"]),
-            Route("/api/conversations", list_conversations, methods=["GET"]),
-            Route("/api/conversations/{conversation_id}", get_conversation, methods=["GET"]),
-            Route("/api/conversations/{conversation_id}/turns", send_turn, methods=["POST"]),
-            Route("/api/examples", list_examples, methods=["GET"]),
-            Route("/api/process-flow", get_process_flow, methods=["GET"]),
+            Route("/api/agents", signed_in(agents), methods=["GET"]),
+            Route("/api/runs", signed_in(start_run), methods=["POST"]),
+            Route("/api/runs", signed_in(list_runs), methods=["GET"]),
+            Route("/api/runs/{invocation_id}", signed_in(get_run), methods=["GET"]),
+            Route("/api/conversations", signed_in(start_conversation), methods=["POST"]),
+            Route("/api/conversations", signed_in(list_conversations), methods=["GET"]),
+            Route(
+                "/api/conversations/{conversation_id}",
+                signed_in(get_conversation),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/conversations/{conversation_id}/turns",
+                signed_in(send_turn),
+                methods=["POST"],
+            ),
+            Route("/api/examples", signed_in(list_examples), methods=["GET"]),
+            Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/about", get_about, methods=["GET"]),
-            Route("/api/feedback", send_feedback, methods=["POST"]),
+            Route("/api/feedback", signed_in(send_feedback), methods=["POST"]),
+            Route("/api/session", get_session, methods=["GET", "POST"]),
+            Route("/api/sign-in", begin_sign_in, methods=["GET"]),
+            Route(CALLBACK_PATH, finish_sign_in, methods=["GET"]),
+            Route("/api/sign-out", sign_out, methods=["POST"]),
             *delegation,
             Route("/agents", shell, methods=["GET"]),
             Route("/feedback", shell, methods=["GET"]),
+            Route("/sign-in", shell, methods=["GET"]),
+            Route("/signed-out", shell, methods=["GET"]),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
         ]
     )
+
+
+# ADR-0029: the session cookie is opaque, unreadable by script, sent only over HTTPS, and `Lax`
+# because the provider sends the person back across sites. A browser treats `127.0.0.1` and
+# `localhost` as secure, so a development sign-in over plain HTTP still works.
+_SESSION: dict[str, Any] = {"path": "/", "secure": True, "httponly": True, "samesite": "lax"}
+_SIGN_IN_COOKIE: dict[str, Any] = {**_SESSION, "path": "/api/sign-in"}
+
+
+def _principal(principal: Principal) -> dict[str, Any]:
+    return {"principal_id": principal.principal_id, **principal_summary(principal)}
 
 
 def process_flow() -> dict[str, Any]:
@@ -294,14 +430,39 @@ def _refused(detail: str, title: str = "Data Director could not start this run")
     return _problem(400, "request-refused", title, detail)
 
 
+def _unauthenticated(detail: str) -> Response:
+    found = unauthenticated(detail)
+    return _problem(401, found.type.removeprefix(PROBLEM_BASE), found.title or "", detail)
+
+
+def _no_sign_in() -> Response:
+    return _problem(
+        404,
+        "sign-in-unavailable",
+        "This server signs nobody in",
+        "No identity provider is configured: this is a development server.",
+    )
+
+
+def _back_to_sign_in(reason: str) -> Response:
+    return RedirectResponse("/sign-in?" + urlencode({"problem": reason}), status_code=303)
+
+
 def main() -> int:
     """The `data-director` console script."""
     host = os.environ.get("DD_APP_HOST", DEFAULT_HOST)
     port = int(os.environ.get("DD_APP_PORT", DEFAULT_PORT))
+    base_url = f"http://{host}:{port}"
     try:
-        governance = Governance.create(settings_from_env(), f"http://{host}:{port}")
-    # No principal (ADR-0018), or a profile, agent list or source list that is unset, missing
-    # or malformed (ADR-0022), or an agent in this process configured wrongly: nothing may run.
+        settings = settings_from_env()
+        sign_in_settings = SignInSettings.from_env(os.environ, settings, base_url)
+        sign_in = SignIn(sign_in_settings) if sign_in_settings is not None else None
+        governance = Governance.create(
+            settings, base_url, sign_in.authenticator if sign_in is not None else None
+        )
+    # No principal (ADR-0018), a provider set wrongly or beside an operator (ADR-0029), or a
+    # profile, agent list or source list that is unset, missing or malformed (ADR-0022), or an
+    # agent in this process configured wrongly: nothing may run.
     except (
         IdentityError,
         SettingsError,
@@ -316,10 +477,11 @@ def main() -> int:
             governance,
             feedback_token=feedback.token_from_env(os.environ),
             feedback_repo=os.environ.get(feedback.REPO_VARIABLE) or feedback.DEFAULT_REPO,
+            sign_in=sign_in,
         )
-        if host not in LOOPBACK:
+        if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
-        webbrowser.open(f"http://{host}:{port}/")
+        webbrowser.open(f"{base_url}/")
         uvicorn.run(app, host=host, port=port)
     except (ShellNotBuiltError, ConfigError) as exc:
         sys.exit(f"data-director: {exc}")

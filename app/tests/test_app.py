@@ -33,7 +33,7 @@ from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import Governance
 from dd_harness.conductor import Conductor
-from dd_harness.identity import IdentityError
+from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
@@ -127,7 +127,8 @@ def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
     governance = Governance.create(settings_from_env(), APP_URL)
     assert governance.conductor.registry.ids() == []
     assert governance.conductor.profile.profile_id == "data-director-app"
-    assert governance.acting_for == TEST_PRINCIPAL
+    # A development server: every request acts for the operator's assertion (ADR-0029).
+    assert governance.authenticator.principal_for({}) == TEST_PRINCIPAL
 
 
 def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
@@ -233,7 +234,8 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         standards.build(),
     ]
     governance = Governance(
-        make_conductor(env, *agents, remote=False, profile=PERMISSIVE), TEST_PRINCIPAL
+        make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
+        OperatorAssertion(TEST_PRINCIPAL),
     )
     check_fixture("agents-several.json", agents_response(governance, dist))
 
@@ -386,7 +388,7 @@ def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
         registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
     )
     conductor.harness_url = APP_URL
-    governance = Governance(conductor, TEST_PRINCIPAL)
+    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL))
     served["app"] = build_app(governance, dist)
     yield governance, served["app"]
 
@@ -577,12 +579,12 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
 
     async def scenario() -> dict[str, Any]:
         first = asyncio.create_task(
-            governance.turn(conversation_id, "director.stub", "hello world")
+            governance.turn(conversation_id, "director.stub", "hello world", TEST_PRINCIPAL)
         )
         await asyncio.to_thread(entered.wait, 30)
         first.cancel()
         second = asyncio.create_task(
-            governance.turn(conversation_id, "director.stub", "hello again")
+            governance.turn(conversation_id, "director.stub", "hello again", TEST_PRINCIPAL)
         )
         await asyncio.sleep(0.1)
         assert not second.done()  # waiting for the cancelled turn, not running past it
