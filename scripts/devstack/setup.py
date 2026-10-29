@@ -23,6 +23,8 @@ from devstack.common import (
 
 KEYS_URL = "https://console.anthropic.com/settings/keys"
 FAIRSHARING_URL = "https://fairsharing.org/accounts/signup"
+# The agents given the FAIRsharing login, and the setting that turns on their live search.
+FAIRSHARING_AGENTS = (("standards", "DD_STANDARDS_RETRIEVAL"), ("policy", "DD_POLICY_RETRIEVAL"))
 ORCID_ID = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
 
 
@@ -144,13 +146,13 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
 
 
 def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
-    """Ask for a FAIRsharing account and give it to the standards advisor for live search."""
-    own = paths.AGENT_ENV_DIR / "standards.env"
-    current = read_env(own)
+    """Ask for a FAIRsharing account and give it to the agents that search FAIRsharing live."""
+    current = read_env(paths.AGENT_ENV_DIR / "standards.env")
     print(
-        "\nA FAIRsharing account (optional). Without one, the standards advisor searches its\n"
-        f"bundled snapshot. With one, it searches FAIRsharing itself. Sign up at {FAIRSHARING_URL}.\n"
-        "FAIRsharing issues its token on sign-in, so the advisor takes the login and password."
+        "\nA FAIRsharing account (optional). Without one, the standards and policy advisors search\n"
+        f"their bundled snapshots. With one, they search FAIRsharing itself. Sign up at\n"
+        f"{FAIRSHARING_URL}. FAIRsharing issues its token on sign-in, so the advisors take the\n"
+        "login and password."
     )
     login = prompt.text("FAIRsharing login, Enter skips", current.get("FAIRSHARING_LOGIN", ""))
     if not login:
@@ -161,16 +163,14 @@ def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
     if not password:
         print("  No password given; FAIRsharing live search is not set up.")
         return
-    update_env(
-        own,
-        {
-            "DD_STANDARDS_RETRIEVAL": "live",
-            "FAIRSHARING_LOGIN": login,
-            "FAIRSHARING_PASSWORD": password,
-        },
-        "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026).",
-    )
-    changes.note(own)
+    for agent, switch in FAIRSHARING_AGENTS:
+        own = paths.AGENT_ENV_DIR / f"{agent}.env"
+        update_env(
+            own,
+            {switch: "live", "FAIRSHARING_LOGIN": login, "FAIRSHARING_PASSWORD": password},
+            "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026).",
+        )
+        changes.note(own)
 
 
 def use_model_orchestrator(changes: Changes) -> None:

@@ -3,9 +3,9 @@
 It serves four steps of Phase 3 (Figure 3): recommending a repository (R1), whether it assigns
 persistent identifiers (R7), its access options and costs, and its certification. Whether a
 repository is mandated is a policy question, answered by `policy.advisor` from policy records
-(TODO(#324)); the orchestrator passes the answer in as `RepositoryNeeds.mandated`. With mandated
-repositories the agent describes them, flagging the needs they do not meet; with none it
-shortlists. The researcher chooses (TODO(#199)).
+(its `PolicyChecks.mandated_repositories`); the orchestrator passes the answer in as
+`RepositoryNeeds.mandated`. With mandated repositories the agent describes them, flagging the
+needs they do not meet; with none it shortlists. The researcher chooses (TODO(#199)).
 
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 repositories are offered or any judgement about them. A candidate names its records once, in

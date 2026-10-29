@@ -16,3 +16,7 @@ sources:
     path: ../../agents/repository/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: cca3c0b34ec9510002308fe2b6309ba8f9e8e158070bcdafb9facc7aefff3a87
+  - snapshot_refs: ["fairsharing-policy:snapshot:2026-10-29", "fairsharing-policy:snapshot:2026-10-29 (stale)"]
+    path: ../../agents/policy/data/fairsharing/snapshot.jsonl
+    id_field: fairsharing_id
+    sha256: 828c6229b341ba4864c3af414f9a6be5b8bc32fcc0393babea187a6012a0426f

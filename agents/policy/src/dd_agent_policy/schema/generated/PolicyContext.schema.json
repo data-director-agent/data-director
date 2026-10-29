@@ -1,0 +1,96 @@
+{
+   "$comment": "Generated from policy.yaml by `uv run dd-gen-schema <path to policy.yaml>`. Do not edit.",
+   "$defs": {
+      "Actor": {
+         "additionalProperties": false,
+         "description": "A funder, journal or institution. The FAIRsharing identifier of its policy is used when given; otherwise the name is looked up.",
+         "properties": {
+            "role": {
+               "$ref": "#/$defs/ActorRole"
+            },
+            "name": {
+               "type": "string"
+            },
+            "fairsharing_id": {
+               "description": "The FAIRsharing identifier of the actor's policy, e.g. FAIRsharing.636kdn.",
+               "pattern": "^FAIRsharing\\.\\S+$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "role",
+            "name"
+         ],
+         "title": "Actor",
+         "type": "object"
+      },
+      "ActorRole": {
+         "description": "",
+         "enum": [
+            "funder",
+            "journal",
+            "institution"
+         ],
+         "title": "ActorRole",
+         "type": "string"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/policy/PolicyContext",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "Who funds, publishes and hosts the research, and what the data is. The agent looks up each actor's data policy.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "PolicyContext"
+         ],
+         "type": "string"
+      },
+      "actors": {
+         "items": {
+            "$ref": "#/$defs/Actor"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "disciplines": {
+         "description": "Discipline or subject, as free text.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "data_kinds": {
+         "description": "What the data is, e.g. interview transcripts or household survey microdata.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "publication_date": {
+         "description": "When the work the data supports is, or will be, published (YYYY, YYYY-MM or YYYY-MM-DD).",
+         "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+         "type": [
+            "string",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "PolicyContext",
+   "type": "object"
+}

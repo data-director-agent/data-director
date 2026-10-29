@@ -69,7 +69,7 @@
       "schema_class": "Reply"
     },
     "payload_schema": "0000000000000000000000000000000000000000000000000000000000000007",
-    "policy_bundle_ref": "profile:data-director-app@v5",
+    "policy_bundle_ref": "profile:data-director-app@v6",
     "policy_digest": "0000000000000000000000000000000000000000000000000000000000000008",
     "requires_human_review": true,
     "telemetry": {

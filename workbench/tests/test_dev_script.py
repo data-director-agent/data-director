@@ -153,23 +153,29 @@ def test_settings_files_read_as_uv_reads_them() -> None:
     assert common.parse_env(text) == {"A": "1", "B": "two words", "C": "x", "D": "plain"}
 
 
-def test_a_fairsharing_login_turns_on_live_search_in_the_standards_file_alone(
+def test_a_fairsharing_login_turns_on_live_search_in_the_files_of_the_agents_that_search(
     repo: Path,
 ) -> None:
     setup(scripted("", "", "", "ada", "s3cret"), install=False)
     local = repo / "config" / "local"
-    assert common.read_env(local / "agents" / "standards.env") == {
-        "DD_STANDARDS_RETRIEVAL": "live",
-        "FAIRSHARING_LOGIN": "ada",
-        "FAIRSHARING_PASSWORD": "s3cret",
-    }
-    assert stat.S_IMODE((local / "agents" / "standards.env").stat().st_mode) == 0o600
+    for agent, switch in (
+        ("standards", "DD_STANDARDS_RETRIEVAL"),
+        ("policy", "DD_POLICY_RETRIEVAL"),
+    ):
+        own = local / "agents" / f"{agent}.env"
+        assert common.read_env(own) == {
+            switch: "live",
+            "FAIRSHARING_LOGIN": "ada",
+            "FAIRSHARING_PASSWORD": "s3cret",
+        }
+        assert stat.S_IMODE(own.stat().st_mode) == 0o600
     for other in (local / "app.env", local / "agents.env"):
         assert "s3cret" not in other.read_text()
     # A rerun keeps the password when Enter is pressed.
     asked: list[str] = []
     setup(scripted("", "", "", "", "", asked=asked), install=False)
     assert common.read_env(local / "agents" / "standards.env")["FAIRSHARING_PASSWORD"] == "s3cret"
+    assert common.read_env(local / "agents" / "policy.env")["FAIRSHARING_PASSWORD"] == "s3cret"
     assert any(mask("s3cret") in q for q in asked) and not any("s3cret" in q for q in asked)
 
 
@@ -223,7 +229,8 @@ def test_the_agents_and_ports_come_from_the_apps_list() -> None:
     agents = common.load_agents(ROOT / "app" / "config" / "agents.yaml")
     assert {a.script: a.port for a in agents}["dd-hello"] == 8101
     assert all(
-        a.name in {"hello", "quality", "standards", "repository", "director", "orchestrator"}
+        a.name
+        in {"hello", "quality", "standards", "policy", "repository", "director", "orchestrator"}
         for a in agents
     )
 

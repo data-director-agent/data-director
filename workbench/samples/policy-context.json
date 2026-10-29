@@ -1,0 +1,11 @@
+{
+  "schema_class": "PolicyContext",
+  "actors": [
+    { "role": "funder", "name": "Economic and Social Research Council" },
+    { "role": "institution", "name": "University of Sheffield" },
+    { "role": "journal", "name": "PLOS ONE" }
+  ],
+  "disciplines": ["social science"],
+  "data_kinds": ["interview transcripts", "household survey microdata"],
+  "publication_date": "2027"
+}

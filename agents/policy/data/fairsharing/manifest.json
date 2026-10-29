@@ -1,0 +1,10 @@
+{
+  "fetched_at": "2026-10-29T16:09:02+00:00",
+  "source": "https://fairsharing.org/{id}",
+  "authenticated": true,
+  "requested": 18,
+  "records": 18,
+  "missing": [],
+  "licence": "CC BY-SA 4.0 — see LICENCE.md",
+  "sha256": "828c6229b341ba4864c3af414f9a6be5b8bc32fcc0393babea187a6012a0426f"
+}

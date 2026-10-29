@@ -8,5 +8,6 @@
   "agents/quality": "0.1.1-alpha",
   "agents/standards": "0.1.1-alpha",
   "agents/orchestrator": "0.1.1-alpha",
-  "agents/repository": "0.1.0-alpha"
+  "agents/repository": "0.1.0-alpha",
+  "agents/policy": "0.1.0-alpha"
 }
