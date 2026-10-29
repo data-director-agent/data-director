@@ -13,6 +13,11 @@ name no requirement. Phase 2, governance and constraints, names one (R8) in four
 Phase 3's first step, *check whether the funder, journal or institution mandates a repository*,
 names none. An agent written for such a step could declare nothing that places it there, so
 both orchestrators and the phase tracker would report "no agent yet" for a step an agent serves.
+The policy check is the first such agent here, and not the only one in prospect: Uzwyshyn's
+persona-based Research Data Director
+([RDA P27 poster, 2026](https://rayuzwyshyn.net/rda-p27/)) gives sensitive and community-governed
+data to its own role, the Research Integrity and Ethics Manager, at a Phase 2 step that also names
+no requirement.
 
 Claiming the nearest requirement does not work either. A policy check could claim R1, whose
 description includes flagging conflicts between funder, journal and institutional requirements.
@@ -24,7 +29,11 @@ not at the Phase 2 step it was written for.
 1. **Every step has a stable id.** `dd_sdk.process_flow.Step.id` is `<phase>.<step>`, for
    example `governance.policies`, and all the steps of a phase share the prefix. The ids are this
    repository's labels for the Blueprint's steps, not the Blueprint's own, and `STEPS` holds them.
-   A test keeps them unique and distinct from requirement IDs.
+   A test keeps them unique and distinct from requirement IDs. Where one figure step joins two
+   acts that different agents may do, it is split: Figure 2's "identifying and handling sensitive
+   data" is `governance.sensitive-data-identify` and `governance.sensitive-data-handle`, so that an
+   agent can flag sensitive data without deciding how it is treated, as the persona-based design
+   separates them.
 2. **An agent may serve a step by its id** (amends ADR-0028 decision 2). `AgentSpec.serves`
    names functional requirements, step ids or both. Anything else is a `SpecError`. Serving a
    requirement remains the way to claim a Blueprint capability; serving a step claims only that
@@ -52,3 +61,6 @@ None.
   harmless; a split needs the same care as a rename.
 - Serving a step makes no conformance claim. The conformance report still counts only
   requirements.
+- Step ids may also become the vocabulary in which a deployment's policy names the steps that
+  need a person's sign-off, such as `repository.pid` or `deposit.licence` (ADR-0017), which is a
+  further reason to treat a rename as breaking. TODO(#308)

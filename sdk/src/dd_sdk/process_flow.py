@@ -68,7 +68,10 @@ PHASES: tuple[Phase, ...] = (
                 "governance.policies",
                 "Check funder, journal and institutional data sharing policies",
             ),
-            Step("governance.sensitive-data", "Identify and handle sensitive data"),
+            # Figure 2 has one step, "identifying and handling sensitive data". It is split here so
+            # that an agent can flag sensitive data without deciding how it is treated (ADR-0032).
+            Step("governance.sensitive-data-identify", "Identify sensitive data"),
+            Step("governance.sensitive-data-handle", "Handle sensitive data"),
             Step("governance.embargo", "Confirm whether an embargo is required"),
             Step(
                 "governance.dmp",

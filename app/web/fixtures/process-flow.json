@@ -49,10 +49,16 @@
           "text": "Check funder, journal and institutional data sharing policies"
         },
         {
-          "id": "governance.sensitive-data",
+          "id": "governance.sensitive-data-identify",
           "optional": false,
           "requirements": [],
-          "text": "Identify and handle sensitive data"
+          "text": "Identify sensitive data"
+        },
+        {
+          "id": "governance.sensitive-data-handle",
+          "optional": false,
+          "requirements": [],
+          "text": "Handle sensitive data"
         },
         {
           "id": "governance.embargo",

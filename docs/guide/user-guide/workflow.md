@@ -59,7 +59,8 @@ one. Steps marked *optional* may be left out.
 after them.
 
 - Check funder, journal and institutional data sharing policies
-- Identify and handle sensitive data
+- Identify sensitive data
+- Handle sensitive data
 - Confirm whether an embargo is required
 - Verify data sharing commitments against the Data Management Plan (R8)
 
