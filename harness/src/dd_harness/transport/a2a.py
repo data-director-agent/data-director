@@ -81,6 +81,8 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
         default_input_modes=["application/json"],
         default_output_modes=["application/json"],
         capabilities=AgentCapabilities(
+            # One reply per request, as for agents: the envelope is complete and checked before
+            # it is sent. TODO(#68, #69) covers streaming to the shell.
             streaming=False,
             extensions=[
                 AgentExtension(
