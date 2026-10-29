@@ -140,11 +140,11 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
   // The directory is one link away; its list is one stop for the keyboard.
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Agents" }).click();
   await expect(page).toHaveURL(/\/agents$/);
-  await page.getByRole("option", { name: "example.hello" }).focus();
-  await expect(page.getByRole("option", { name: "example.hello" })).toBeFocused();
-  await page.keyboard.press("ArrowDown");
+  await page.getByRole("option", { name: "advisor.quality" }).focus();
   await expect(page.getByRole("option", { name: "advisor.quality" })).toBeFocused();
-  await expect(page.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("option", { name: "advisor.standards" })).toBeFocused();
+  await expect(page.getByRole("heading", { level: 2, name: "advisor.standards" })).toBeVisible();
 
   // Tab leaves the listbox rather than walking every option: one stop per widget.
   await page.keyboard.press("Tab");
