@@ -61,6 +61,7 @@ terminal in `workbench/`, name the person the invocations act for (see
 ```sh
 ../scripts/run-agents.sh                               # in the first terminal
 
+# optional; without these runs act for the example person, Josiah Carberry
 export DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097   # your ORCID iD, or another IRI
 export DD_PRINCIPAL_NAME="Josiah Carberry"                     # your name
 uv run workbench agents                                # what is registered, what each accepts
@@ -106,7 +107,7 @@ Every response has one of five outcomes: `succeeded`, `abstained`, `referred`, `
 
 The defaults run entirely offline, and nothing needs configuring to run the tests. To invoke an
 agent, from the command line or through `serve`, the workbench must be told who the invocation
-acts for; it will not start `invoke` or `serve` without that. The workbench is configured in
+acts for. Unless told otherwise it acts for an example person, Josiah Carberry. The workbench is configured in
 three places.
 
 ### Who an invocation acts for
@@ -118,7 +119,10 @@ one person in its configuration, and every invocation is recorded as acting for 
 `assurance: asserted` to show that nobody's identity was checked. On a shared `workbench serve`,
 every caller is therefore recorded as the operator.
 
-Set both of these before running `invoke` or `serve`:
+To act for yourself, set both of these before running `invoke` or `serve`. With neither set, every
+invocation is recorded as acting for Josiah Carberry
+(`https://orcid.org/0000-0002-1825-0097`), the fictitious researcher ORCID publishes for examples.
+Setting only one is an error: the workbench does not complete half a principal.
 
 | Variable | Meaning |
 |---|---|
@@ -127,7 +131,7 @@ Set both of these before running `invoke` or `serve`:
 | `DD_PRINCIPAL_KIND` | Optional. `person` (the default), or `accountable_role` when the principal is a role rather than an individual. |
 
 `--acting-for-id` and `--acting-for-name` on `invoke` or `serve` take the place of the first two
-for one command. If either is missing, the command stops with
+for one command. If only one of them is set, the command stops with
 `DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset`; if the identifier is not an IRI, it stops with
 `the configured principal is malformed`.
 
@@ -140,7 +144,7 @@ over the file. `scripts/run-agents.sh` passes the same file to the agents.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | none; required | Who every invocation acts for; see [above](#who-an-invocation-acts-for). |
+| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Josiah Carberry, `https://orcid.org/0000-0002-1825-0097` | Who every invocation acts for; see [above](#who-an-invocation-acts-for). |
 | `DD_PRINCIPAL_KIND` | `person` | `person` or `accountable_role`. |
 | `DD_RUNS_DIR` | `runs` | Where each run's folder is written. |
 | `DD_WRITE_CRATE` | `1` | `0` stops the provenance record (Process Run Crate) being written. |
@@ -182,8 +186,8 @@ pass `--profile <path>` to `invoke` or `serve`, to use another. The format is de
 
 ## Troubleshooting
 
-- **`invoke` or `serve` will not start: `DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset`.** Name
-  the person the invocations act for; see
+- **`invoke` or `serve` will not start: `DD_PRINCIPAL_NAME unset` (or `DD_PRINCIPAL_ID unset`).**
+  Only one of the pair is set. Set both, or neither to act for the example person; see
   [Who an invocation acts for](#who-an-invocation-acts-for).
 - **`the configured principal is malformed`.** `DD_PRINCIPAL_ID` must be an absolute IRI, such
   as `https://orcid.org/…`, and `DD_PRINCIPAL_KIND` must be `person` or `accountable_role`.

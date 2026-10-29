@@ -15,6 +15,7 @@ import pytest
 
 from dd_agent_hello.agent import HelloWorld
 from dd_agent_quality.agent import QualityReviewer
+from dd_harness.identity import IdentityError
 from dd_harness.registry import Registry
 from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub
 from dd_sdk import serve
@@ -149,19 +150,26 @@ def no_principal(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.requirement("DD-ACTS-FOR")
+def test_the_cli_acts_for_the_example_person_when_no_one_is_named(no_principal: None) -> None:
+    principal = cli._settings(
+        argparse.Namespace(profile=None, acting_for_id=None, acting_for_name=None)
+    ).principal()
+    assert principal.principal_id == "https://orcid.org/0000-0002-1825-0097"
+    assert principal.name == "Josiah Carberry"
+
+
+@pytest.mark.requirement("DD-ACTS-FOR")
 @pytest.mark.parametrize(
-    "command",
-    [["invoke", "--agent", "hello.world", "--input", "samples/hello.salutation.json"], ["serve"]],
+    ("variable", "unset"),
+    [("DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME"), ("DD_PRINCIPAL_NAME", "DD_PRINCIPAL_ID")],
 )
-def test_the_cli_runs_nothing_without_a_principal(
-    no_principal: None, command: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+def test_the_cli_does_not_complete_half_a_principal(
+    no_principal: None, variable: str, unset: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    runs = tmp_path / "runs-unused"
-    runs.mkdir()
-    monkeypatch.setenv("DD_RUNS_DIR", str(runs))
-    with pytest.raises(SystemExit, match="DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset"):
-        cli.main(command)
-    assert list(runs.iterdir()) == []
+    monkeypatch.setenv(variable, "urn:example:someone")
+    args = argparse.Namespace(profile=None, acting_for_id=None, acting_for_name=None)
+    with pytest.raises(IdentityError, match=f"{unset} unset"):
+        cli._settings(args).principal()
 
 
 def test_the_cli_flags_replace_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
