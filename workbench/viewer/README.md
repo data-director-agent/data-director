@@ -3,7 +3,7 @@
 A developer tool: run a registered agent on an input, written in a form or started from a sample, and inspect the envelope it produced. It is
 not an end-user interface; end users reach the agents through the Data Director app (`app/`).
 
-Three HTML pages, no build step: **Inspect** (`index.html`), **Chat** (`chat.html`) and
+Three HTML pages, no build step: **Chat** (`index.html`, the page that loads by default), **Inspect** (`inspect.html`) and
 **Agents** (`agents.html`), switched by
 the tabs under the header. Each is markup only; the behaviour is in native ES modules under `js/`
 and the styles in `viewer.css`:
@@ -19,7 +19,7 @@ and the styles in `viewer.css`:
 | `js/agentcard.js` | an A2A agent card laid out to read (Agents only) |
 | `js/inspect.js`, `js/chat.js`, `js/agents.js` | each page's own behaviour |
 
-Paths are absolute under `/viewer/`, because Inspect is also served at `/`. The pages load React and
+Paths are absolute under `/viewer/`, because Chat is also served at `/`. The pages load React and
 react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
 contract's generated JSON Schema (`/schema/envelope.schema.json`). The agent and sample pickers are
 filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the viewer names
@@ -33,8 +33,8 @@ and the browser tests can replay it (see below).
 
 The two pages share only what the browser tab holds: an input sent from Chat is kept in
 `sessionStorage`, so **Inspect →** on a reply shows that turn's input, and Back returns to the same
-conversation. Addresses from before Chat had its own page (`?mode=chat&conversation_id=…`) are
-forwarded to `chat.html`.
+conversation. Addresses from before Inspect had its own page (`/viewer/?invocation_id=…`) are
+forwarded to `inspect.html`.
 
 ## What Inspect shows
 

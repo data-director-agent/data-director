@@ -83,11 +83,11 @@ export function statusPill(status) {
   return pill;
 }
 
-// Links between the two pages. Paths are absolute because Inspect is also served at /.
+// Links between the two pages. Paths are absolute because Chat is also served at /.
 export const inspectLink = (id, text) =>
-  el("a", { href: `/viewer/?invocation_id=${id}`, title: `Open ${id} in Inspect` }, ...(text == null ? ["Inspect", icon("arrow-right")] : [text]));
+  el("a", { href: `/viewer/inspect.html?invocation_id=${id}`, title: `Open ${id} in Inspect` }, ...(text == null ? ["Inspect", icon("arrow-right")] : [text]));
 export const chatLink = (conversationId, text = conversationId) =>
-  el("a", { href: `/viewer/chat.html?conversation_id=${conversationId}`, textContent: text, title: "Open the conversation in Chat" });
+  el("a", { href: `/viewer/?conversation_id=${conversationId}`, textContent: text, title: "Open the conversation in Chat" });
 export function kvList(obj) {
   const dl = el("dl", { className: "kvs" });
   for (const [k, v] of Object.entries(obj)) {

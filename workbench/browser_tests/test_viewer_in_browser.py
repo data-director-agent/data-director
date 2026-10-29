@@ -22,7 +22,7 @@ TIMEOUT_MS = 15_000
 
 
 def open_inspect(viewer: Page, server_url: str, agent_id: str, sample: str | None) -> None:
-    viewer.goto(f"{server_url}/viewer/")
+    viewer.goto(f"{server_url}/viewer/inspect.html")
     expect(viewer.locator("#status")).to_have_text("Ready.", timeout=TIMEOUT_MS)
     viewer.select_option("#agent-select", agent_id)
     if sample is not None:
@@ -103,7 +103,9 @@ def test_a_stored_run_replays_by_invocation_id(viewer: Page, server_url: str) ->
 def test_a_replay_of_an_unknown_run_says_so(
     viewer: Page, server_url: str, page_errors: list[str]
 ) -> None:
-    viewer.goto(f"{server_url}/viewer/?invocation_id=01a00000-0000-7000-8000-000000000000")
+    viewer.goto(
+        f"{server_url}/viewer/inspect.html?invocation_id=01a00000-0000-7000-8000-000000000000"
+    )
     expect(viewer.locator("#status")).to_have_text(
         re.compile(r"^No stored run "), timeout=TIMEOUT_MS
     )
@@ -116,7 +118,7 @@ def test_a_replay_of_an_unknown_run_says_so(
 
 
 def test_chat_shows_the_orchestrator_delegating(viewer: Page, server_url: str) -> None:
-    viewer.goto(f"{server_url}/viewer/chat.html")
+    viewer.goto(f"{server_url}/viewer/")
     # The orchestrator is chosen by default, by its grounding mode.
     expect(viewer.locator("#chat-agent-select")).to_have_value("director.stub", timeout=TIMEOUT_MS)
     viewer.locator("#chat-text").fill("hello world")
@@ -131,7 +133,7 @@ def test_chat_shows_the_orchestrator_delegating(viewer: Page, server_url: str) -
 
 
 def test_the_glossary_opens_and_closes_from_the_keyboard(viewer: Page, server_url: str) -> None:
-    viewer.goto(f"{server_url}/viewer/")
+    viewer.goto(f"{server_url}/viewer/inspect.html")
     expect(viewer.locator("#status")).to_have_text("Ready.", timeout=TIMEOUT_MS)
     viewer.locator("#open-glossary").click()
     dialog = viewer.get_by_role("dialog", name="Glossary")

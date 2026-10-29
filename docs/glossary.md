@@ -26,4 +26,4 @@ Terms used in the workbench, in alphabetical order.
 | Review record | `reviews.yaml`: the human reviews of requirements that a test cannot settle, one entry per review, each naming the reviewer and the commit reviewed. See [`conformance.md`](conformance.md#recording-a-review). |
 | Span, trace | A trace is a timed record of one run, in the OpenTelemetry format, written by the workbench rather than the agent. It is made of spans, one per step, such as fetching a record or calling a model. Spans nest inside one span for the whole run, forming a span tree. See [`grounding.md#traces-and-spans`](../harness/docs/grounding.md#traces-and-spans). |
 | Unavailable agent | An agent listed in `agents.yaml` whose card could not be read or was rejected. It is shown with the reason and cannot be run. See [`registry.md`](../harness/docs/registry.md#when-something-is-wrong). |
-| Viewer | The read-only browser pages in `viewer/` (Inspect and Chat) for trying agents and inspecting envelopes. Formerly called the shell. |
+| Viewer | The read-only browser pages in `viewer/` (Chat, Inspect and Agents) for trying agents and inspecting envelopes. Formerly called the shell. |
