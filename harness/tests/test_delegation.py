@@ -132,12 +132,20 @@ def test_async_callers_run_parents_side_by_side_and_their_children_never_wait_on
     ]
 
     async def run_all() -> list[Envelope]:
-        async with asyncio.timeout(30):
-            return await asyncio.gather(
-                *(conductor.ainvoke(r, acting_for=TEST_PRINCIPAL) for r in requests)
-            )
+        return await asyncio.gather(
+            *(conductor.ainvoke(r, acting_for=TEST_PRINCIPAL) for r in requests)
+        )
 
-    envelopes = asyncio.run(run_all())
+    # Bounded from a thread of its own: a timeout inside the loop would cancel only the awaiting
+    # coroutines and leave the parents blocked, so a deadlock would hang the run, not fail it.
+    envelopes: list[Envelope] = []
+    runner = threading.Thread(target=lambda: envelopes.extend(asyncio.run(run_all())), daemon=True)
+    runner.start()
+    runner.join(timeout=30)
+    if runner.is_alive():
+        conductor._parents.shutdown(wait=False, cancel_futures=True)
+        pytest.fail("a child waited on its parents' threads")
+    conductor.close()
 
     assert [e.outcome.status for e in envelopes] == [OutcomeStatus.SUCCEEDED] * 3
     assert [len(e.delegations) for e in envelopes] == [1, 1, 0]

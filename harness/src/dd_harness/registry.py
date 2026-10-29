@@ -24,6 +24,7 @@ Configuration shape:
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,6 +58,9 @@ class Registry:
     # Where `from_config` read the agents from, so `refresh` can try the missing ones again.
     config: Path | None = None
     client_factory: ClientFactory = default_client
+    # Held for the whole of `refresh`, which runs from whichever invocation finds an agent missing:
+    # two at once would each register the same agent (#218).
+    _refresh_lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     @classmethod
     def from_agents(cls, agents: Iterable[Registered]) -> Registry:
@@ -71,30 +75,37 @@ class Registry:
         `RegistryError`; an agent that cannot be reached is recorded as unavailable, and one
         built against another contract version as incompatible."""
         registry = cls(config=path, client_factory=client_factory)
-        registry._connect(load_config(path))
+        registry.unavailable, registry.incompatible = registry._connect(load_config(path))
         return registry
 
     def refresh(self) -> None:
         """Try again each configured agent that is unavailable or incompatible, so an agent that
         started after this registry was built is found, and one fixed is no longer reported.
         Registered agents are left as they are. A configuration that has since gone missing or
-        malformed leaves the registry unchanged: the request that asked is not the place to fail."""
-        if self.config is None or not (self.unavailable or self.incompatible):
-            return
-        missing = self.unavailable.keys() | self.incompatible.keys()
-        try:
-            entries = [
-                entry
-                for entry in load_config(self.config)
-                if str(entry.get("name") or entry["url"]) in missing
-            ]
-        except RegistryError:
-            return
-        self.unavailable.clear()
-        self.incompatible.clear()
-        self._connect(entries)
+        malformed leaves the registry unchanged: the request that asked is not the place to fail.
 
-    def _connect(self, entries: Iterable[dict[str, Any]]) -> None:
+        Safe to call from several threads: one refreshes while the others wait, then find nothing
+        left to do, and `unavailable` and `incompatible` are replaced whole, never seen empty
+        half-way."""
+        with self._refresh_lock:
+            if self.config is None or not (self.unavailable or self.incompatible):
+                return
+            missing = self.unavailable.keys() | self.incompatible.keys()
+            try:
+                entries = [
+                    entry
+                    for entry in load_config(self.config)
+                    if str(entry.get("name") or entry["url"]) in missing
+                ]
+            except RegistryError:
+                return
+            self.unavailable, self.incompatible = self._connect(entries)
+
+    def _connect(self, entries: Iterable[dict[str, Any]]) -> tuple[dict[str, str], dict[str, str]]:
+        """Register each agent in `entries` that can be reached; return the ones that could not
+        be, as `unavailable` and `incompatible`."""
+        unavailable: dict[str, str] = {}
+        incompatible: dict[str, str] = {}
         for entry in entries:
             url = entry["url"]
             name = str(entry.get("name") or url)
@@ -105,12 +116,13 @@ class Registry:
                     client_factory=self.client_factory,
                 )
             except ContractVersionError as exc:
-                self.incompatible[name] = str(exc)
+                incompatible[name] = str(exc)
                 continue
             except (RemoteAgentError, SpecError) as exc:
-                self.unavailable[name] = str(exc)
+                unavailable[name] = str(exc)
                 continue
             self.add(agent)
+        return unavailable, incompatible
 
     def add(self, agent: Registered) -> None:
         if not isinstance(agent, (RemoteAgent, Agent)):

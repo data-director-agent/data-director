@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -602,3 +603,36 @@ def test_the_conductor_keeps_no_spans_after_a_run_and_caps_its_reports(
     assert conductor.tracing.imported == {}
     assert list(conductor.grounding_reports) == [second.invocation_id]
     assert (runs_dir / first.invocation_id / "grounding.txt").exists()
+
+
+def test_invocations_side_by_side_are_all_stored_and_the_reports_stay_capped(
+    runs_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("dd_harness.conductor.GROUNDING_REPORTS_KEPT", 1)
+    conductor = make_conductor(runs_dir, ScriptedAgent(GroundingMode.NONE, fakes.review_of_input))
+
+    def run() -> str:
+        env = conductor.invoke(request("fake.none", fakes.record()), acting_for=TEST_PRINCIPAL)
+        return env.invocation_id
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        ids = list(pool.map(lambda _: run(), range(32)))
+
+    assert sorted(e["invocation_id"] for e in conductor.store.iter_envelopes()) == sorted(ids)
+    assert len(conductor.grounding_reports) == 1
+
+
+def test_appends_side_by_side_leave_every_index_line_whole(tmp_path: Path) -> None:
+    store = RunStore(tmp_path)
+    # Larger than a write buffer, so a line written in pieces could interleave with another.
+    padding = "x" * 64 * 1024
+
+    def append(n: int) -> None:
+        store.append({"invocation_id": f"run-{n}", "padding": padding})
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(append, range(64)))
+
+    assert sorted(e["invocation_id"] for e in store.iter_envelopes()) == sorted(
+        f"run-{n}" for n in range(64)
+    )

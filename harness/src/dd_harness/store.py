@@ -12,7 +12,10 @@ the schema it was checked against, whatever its agent's card says now.
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
+import threading
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
@@ -28,6 +31,8 @@ class RunStore:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)
+        # Runs finish side by side; each index line must go in whole, never interleaved.
+        self._index_lock = threading.Lock()
 
     @property
     def index(self) -> Path:
@@ -56,8 +61,9 @@ class RunStore:
             fh.write(json.dumps(envelope, indent=2))
         if request is not None:
             (run_dir / "request.json").write_text(json.dumps(request, indent=2), encoding="utf-8")
-        with self.index.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(envelope, separators=(",", ":")) + "\n")
+        line = json.dumps(envelope, separators=(",", ":")) + "\n"
+        with self._index_lock, self.index.open("a", encoding="utf-8") as fh:
+            fh.write(line)
         return run_dir
 
     def iter_envelopes(self) -> Iterator[dict[str, Any]]:
@@ -83,7 +89,16 @@ class RunStore:
         if path.exists():
             return
         path.parent.mkdir(exist_ok=True)
-        path.write_text(json.dumps(dict(schema.json_schema), indent=2), encoding="utf-8")
+        # Written aside and moved into place, so a reader never sees half a schema while another
+        # run keeps the same one.
+        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(dict(schema.json_schema), indent=2))
+            Path(tmp).replace(path)
+        except BaseException:
+            Path(tmp).unlink(missing_ok=True)
+            raise
 
     def get_schema(self, digest: str) -> dict[str, Any] | None:
         """The class schema kept under `digest`, or None. A digest is 64 hex characters; anything
