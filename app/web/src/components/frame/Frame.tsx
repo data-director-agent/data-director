@@ -19,6 +19,8 @@ const PAGES = [
   { to: "/agents", label: "Agents" },
 ] as const;
 
+const USER_GUIDE = "https://data-director-agent.github.io/data-director/user-guide/";
+
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
  * was made. `account` is who is signed in (`session/Account`).
@@ -63,6 +65,9 @@ export function Frame({
           </nav>
           <div className="app-tools">
             {account}
+            <a className="app-tool-link" href={USER_GUIDE} target="_blank" rel="noreferrer">
+              User guide
+            </a>
             <Link
               to={report}
               className="app-tool-link"
