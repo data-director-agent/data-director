@@ -17,6 +17,8 @@ dependencies = [
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
   "uvicorn>=0.30",
+  # So that `serve --reload` sees a prompt change, not only a change to Python.
+  "watchfiles>=1.0",
 ]
 
 [project.scripts]

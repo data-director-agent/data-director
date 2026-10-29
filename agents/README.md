@@ -37,7 +37,9 @@ lists an agent built against an incompatible one as **incompatible**.
 | `standards/` | `standards.advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`r3/src/dd_agent_standards/README.md`). |
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
-`uv run dd-hello serve --port 8101`.
+`uv run dd-hello serve --port 8101`. The script restarts an agent when a file in its package
+changes, its `system_prompt.md` included, unless `scripts/dev.py start` is given `--no-reload`;
+`serve --reload` does the same for one agent.
 
 ## Start from `hello/`
 

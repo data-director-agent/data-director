@@ -52,13 +52,18 @@ def main(argv: list[str] | None = None) -> int:
     start_cmd.add_argument(
         "--no-web", action="store_true", help="no Vite dev server; use the built shell"
     )
+    start_cmd.add_argument(
+        "--no-reload", action="store_true", help="do not restart an agent when its files change"
+    )
     commands.add_parser("doctor", help="check the toolchain, settings and ports; change nothing")
     args = parser.parse_args(argv)
     try:
         if args.command == "setup":
             return setup(Prompter(accept_defaults=args.yes), install=not args.no_install)
         if args.command == "start":
-            return start(agents_only=args.agents_only, web=not args.no_web)
+            return start(
+                agents_only=args.agents_only, web=not args.no_web, reload=not args.no_reload
+            )
         return doctor()
     except DevError as exc:
         print(f"dev.py: {exc}", file=sys.stderr)

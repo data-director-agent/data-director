@@ -38,7 +38,8 @@ reads (ADR-0026). Run `setup` again at any time to change an answer; Enter keeps
 `start` opens nothing itself: open <http://localhost:5173>, which reloads as you edit the shell,
 or <http://127.0.0.1:7860>, the app serving its built shell (`start --no-web` starts only that).
 Each line of output is labelled with the service it came from. An agent that needs a model key
-and has none is skipped, and says so.
+and has none is skipped, and says so. Each agent restarts when a file in its package changes, a prompt
+included (`start --no-reload` turns that off).
 
 If something does not work, run
 

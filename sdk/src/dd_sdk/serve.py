@@ -3,7 +3,8 @@
 
 `app(agent, base_url)` is a Starlette application with the agent card at
 `/.well-known/agent-card.json` and the JSON-RPC binding at `/a2a`. `main(build)` is the console
-script every agent package exposes (`<agent> serve --port N`).
+script every agent package exposes (`<agent> serve --port N`); with `--reload`, for development, it
+restarts the agent whenever a file in its package or in the SDK changes, its prompts included.
 
 Per request the server starts an isolated tracer, parents it to the `traceparent` the harness
 sent, runs the agent in a worker thread, and returns the result with the spans the agent emitted.
@@ -15,6 +16,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -206,6 +209,25 @@ def app(
     )
 
 
+# How `--reload` hands the agent to the reloaded worker, which uvicorn starts from an import string.
+BUILD_ENV = "DD_SERVE_BUILD"
+BASE_URL_ENV = "DD_SERVE_BASE_URL"
+# The files whose change restarts an agent: its code, its prompts and its configuration.
+RELOAD_INCLUDES = ["*.py", "*.md", "*.yaml", "*.yml", "*.json"]
+
+
+def reloadable_app() -> Starlette:
+    """The application `main` serves under `--reload`, built afresh in each reloaded worker from
+    the `build` that `BUILD_ENV` names (`module:function`)."""
+    module, _, name = os.environ[BUILD_ENV].partition(":")
+    build: Callable[[], Agent] = getattr(importlib.import_module(module), name)
+    return app(build(), os.environ[BASE_URL_ENV])
+
+
+def _package_dir(build: Callable[[], Agent]) -> str:
+    return str(Path(importlib.import_module(build.__module__).__file__ or "").parent)
+
+
 def main(build: Callable[[], Agent], argv: list[str] | None = None) -> int:
     """Console script for an agent package: `<agent> serve [--host H] [--port N]`.
 
@@ -228,7 +250,25 @@ def main(build: Callable[[], Agent], argv: list[str] | None = None) -> int:
         default=None,
         help="the base URL the agent card advertises, if not http://HOST:PORT",
     )
+    p.add_argument(
+        "--reload",
+        action="store_true",
+        help="restart when the agent's files change; for development",
+    )
     args = parser.parse_args(argv)
     base_url = args.public_url or f"http://{args.host}:{args.port}"
-    uvicorn.run(app(agent, base_url), host=args.host, port=args.port)
+    if not args.reload:
+        uvicorn.run(app(agent, base_url), host=args.host, port=args.port)
+        return 0
+    os.environ[BUILD_ENV] = f"{build.__module__}:{build.__qualname__}"
+    os.environ[BASE_URL_ENV] = base_url
+    uvicorn.run(
+        f"{__name__}:reloadable_app",
+        factory=True,
+        host=args.host,
+        port=args.port,
+        reload=True,
+        reload_dirs=[_package_dir(build), str(Path(__file__).parent)],
+        reload_includes=RELOAD_INCLUDES,
+    )
     return 0
