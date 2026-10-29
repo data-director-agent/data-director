@@ -14,7 +14,7 @@ returns `Recommendations`. Serve it with `uv run dd-standards serve --port 8105`
 |---|---|---|
 | `DD_STANDARDS_RETRIEVAL` | `snapshot`, or `live` (falls back to the snapshot, marked stale) | `snapshot` |
 | `DD_STANDARDS_EXPLAINER` | `template` or `anthropic` | `template` |
-| `DD_MODEL_ID` | model id for the Anthropic explainer | `explain.DEFAULT_MODEL` |
+| `DD_MODEL_ID` | model id for the Anthropic explainer | `explain.DEFAULT_MODEL` (`claude-sonnet-5-5`) |
 | `DD_SNAPSHOT_PATH` | path to a snapshot JSONL file | `data/fairsharing/snapshot.jsonl` |
 | `ANTHROPIC_API_KEY` | the Anthropic explainer's key, in development | none |
 | `ANTHROPIC_API_KEY_FILE` | a file holding that key, in deployment; a relative path is under `$CREDENTIALS_DIRECTORY` | none |

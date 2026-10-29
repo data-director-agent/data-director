@@ -107,7 +107,7 @@ class TemplateExplainer:
         )
 
 
-DEFAULT_MODEL = "claude-opus-5"
+DEFAULT_MODEL = "claude-sonnet-5-5"
 
 # What the model is told it may and may not do; the prose is a Markdown file beside this module.
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
