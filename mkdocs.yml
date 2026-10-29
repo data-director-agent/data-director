@@ -64,7 +64,6 @@ nav:
       - Contributing: /CONTRIBUTING.md
       - Working in the repository: /AGENTS.md
       - Releasing: /RELEASING.md
-      - Software management plan: /docs/SOFTWARE_MANAGEMENT_PLAN.md
   - Reference:
       - reference/index.md
       - Architecture: /docs/architecture.md
