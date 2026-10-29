@@ -38,8 +38,6 @@ flowchart TD
     P4["Phase 4<br/>Data preparation and<br/>metadata creation"] --> P5
     P5["Phase 5<br/>Deposit and submit"] --> P6
     P6["Phase 6<br/>Post-publication"]
-    R10["R10: every agent action is recorded, in every phase"] -.- P1
-    R10 -.- P6
 ```
 
 ## The phases and their steps
@@ -108,9 +106,8 @@ Publication is not the end. This phase is a continuing loop.
 - Retrofit FAIR-aligned metadata for existing datasets (R9)
 - Link datasets to related research outputs (R11)
 
-R10, which records every action an agent takes on your data and metadata, applies in all six
-phases. It is why every run in the app is stored with its evidence: see
-[Understanding outcomes](outcomes.md).
+In every phase, each action an agent takes on your data and metadata is recorded with its
+evidence: see [What the Data Director records](records.md).
 
 ## How you interact with it
 
