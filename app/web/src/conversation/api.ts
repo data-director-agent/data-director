@@ -35,6 +35,23 @@ function init(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
+/** The request got no HTTP response at all (the browser's `Failed to fetch`), so the server may
+ * not have received it. */
+export class Unreachable extends Error {
+  constructor() {
+    super("the server could not be reached");
+  }
+}
+
+async function post(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    if (e instanceof TypeError) throw new Unreachable();
+    throw e;
+  }
+}
+
 export const httpConversationApi: ConversationApi = {
   async create(signal) {
     const created = await json<{ conversation_id: string }>(
@@ -44,7 +61,7 @@ export const httpConversationApi: ConversationApi = {
   },
   async sendTurn(conversationId, agentId, messageText, signal) {
     await json(
-      await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
+      await post(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
         ...init(signal),
         method: "POST",
         headers: { "content-type": "application/json" },
