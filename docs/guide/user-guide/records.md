@@ -66,10 +66,14 @@ calls none. Your institution decides which models are used: see
 The records are kept by the deployment of the Data Director you are using, on your institution's
 server or on your own machine. They are not sent to the Data Director project.
 
-In this version people do not yet sign in. Every run is recorded as acting for the person who set
-up the deployment, and anyone who can open the app can see every run and conversation in it
-(TODO(#152, #153)). Do not enter anything you would not want others with access to the app to
-read.
+Where the deployment signs people in, you sign in with your ORCID iD, and each run is recorded as
+done for you, with ORCID named as the one that vouched for who you are. Data Director asks ORCID
+for your iD and your name only. Where nobody signs in, the banner says so, and every run is
+recorded as acting for the person who set up the deployment.
+
+In this version anyone who can open the app, or who is signed in to it, can see every run and
+conversation in it (TODO(#153)). Do not enter anything you would not want others with access to
+the app to read.
 
 If you report a problem from the app, the report includes what you type and, only if you agree,
 the identifiers of the run and conversation. It never includes your inputs or results.

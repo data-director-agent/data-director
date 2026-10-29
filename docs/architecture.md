@@ -236,7 +236,8 @@ The harness ships no profile, agent list or source list. Each comes from the dep
 | `DD_AGENTS_CONFIG` | The list of agent URLs to read cards from. |
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check uses. |
 | `DD_RUNS_DIR` | Where runs are written. |
-| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Whom every run acts for, until there is authentication. |
+| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Whom every run acts for where nobody signs in (the CLI, a development server). |
+| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider people sign in with (ADR-0029). The app also takes the client's secret. |
 
 The app's reference set is in `app/config/`; the workbench's development set is in `workbench/`.
 Listing an agent makes it known; only the profile makes it permitted.
