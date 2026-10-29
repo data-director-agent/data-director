@@ -14,6 +14,7 @@ import { Tab, TabList, TabPanel, Tabs } from "react-aria-components";
 
 import type { AgentView } from "../../manifest/normalise";
 import { CapabilitiesPanel } from "../capabilities/CapabilitiesPanel";
+import { ModelTag } from "../capabilities/ModelDisclosure";
 import { RunHistory } from "../history/RunHistory";
 import { RunView } from "../run/RunView";
 
@@ -26,6 +27,9 @@ export function AgentDetail({ agent }: { agent: AgentView }) {
         <code>{agent.id}</code>
       </h2>
       <p>{agent.description}</p>
+      <p>
+        <ModelTag agent={agent} />
+      </p>
       <Tabs className="tabs" defaultSelectedKey="run">
         <TabList className="tab-list" aria-label={`${agent.id}: views`}>
           <Tab className="tab" id="run">

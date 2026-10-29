@@ -52,6 +52,12 @@ export const PROVIDER: Record<string, string> = {
   anthropic: "Anthropic",
 };
 
+/** How a model is run, from the card's `hosting`: where the input goes when the agent uses it. */
+export const HOSTING: Record<"hosted" | "local", { label: string; explanation: string }> = {
+  hosted: { label: "Remote", explanation: "runs on its provider's service, outside this institution" },
+  local: { label: "Local", explanation: "runs on this institution's own infrastructure" },
+};
+
 export function className(name: string): string {
   return name
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
