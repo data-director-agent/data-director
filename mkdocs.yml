@@ -46,6 +46,7 @@ nav:
   - User guide:
       - user-guide/index.md
       - Getting started: user-guide/getting-started.md
+      - The workflow: user-guide/workflow.md
       - Running an agent: user-guide/running-an-agent.md
       - Understanding outcomes: user-guide/outcomes.md
   - Developer guide:
