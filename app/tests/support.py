@@ -44,9 +44,7 @@ def configure_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
 
 
 def new_governance() -> Iterator[Governance]:
-    governance = with_standards(Governance.create(settings_from_env(), APP_URL))
-    yield governance
-    governance.worker.shutdown()
+    yield with_standards(Governance.create(settings_from_env(), APP_URL))
 
 
 def dist_dir(tmp_path: Path) -> Path:

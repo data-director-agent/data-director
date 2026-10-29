@@ -24,7 +24,6 @@ import asyncio
 import json
 import subprocess
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -61,8 +60,10 @@ ANSWERED_NEEDLESSLY = "answered-when-it-should-have-stopped"
 FAILED = "failed"
 
 ConductorFor = Callable[[dict[str, Any]], Conductor]
-"""Returns the conductor for a case, given the case's metadata. Called on the solver's worker
-thread, where the conductor must also be built (see `invoke_agent`)."""
+"""Returns the conductor for a case, given the case's metadata. Called off the event loop (see
+`invoke_agent`), from as many threads at once as Inspect runs samples, so it must be safe to call
+concurrently: guard any conductor it builds on first use with a lock. The conductor it returns
+may be shared by cases running side by side, which `Conductor.ainvoke` allows."""
 
 
 # --- Metrics ----------------------------------------------------------------------------------
@@ -117,32 +118,21 @@ def invoke_agent(conductor_for: ConductorFor, agent_id: str, acting_for: Princip
     sample's metadata. No model is called. The profile applied is the one each conductor was
     built with (ADR-0017).
 
-    The conductor is synchronous and opens its own event loop per call, so it runs off Inspect's
-    loop, on one worker thread that `conductor_for` is also called on. Build the conductor
-    inside `conductor_for`: a conductor used on a thread other than the one that built it leaks
-    its in-memory A2A streams. One thread also serialises the invocations; the conductor's trace
-    is not built for concurrent use, and a fixed case set does not need parallel runs."""
-    worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="dd-eval")
+    `conductor_for` runs off Inspect's event loop, since building a conductor may read agent
+    cards with an event loop of its own; the invocation is awaited through `Conductor.ainvoke`."""
 
-    def run(
-        document: dict[str, Any], case: dict[str, Any]
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
-        conductor = conductor_for(case)
+    async def solve(state: TaskState, generate: Generate) -> TaskState:
+        conductor = await asyncio.to_thread(conductor_for, dict(state.metadata))
+        document = json.loads(state.input_text)
         request = InvocationRequest(agent_id=agent_id, input=OpenInput.model_validate(document))
-        envelope = conductor.invoke(request, acting_for=acting_for)
-        report = conductor.grounding_reports.get(envelope.invocation_id)
-        grounding = {
+        result = await conductor.ainvoke(request, acting_for=acting_for)
+        report = conductor.grounding_reports.get(result.invocation_id)
+        envelope = result.to_document()
+        state.metadata["envelope"] = envelope
+        state.metadata["grounding"] = {
             "passed": report.passed if report else None,
             "violations": list(report.violations) if report else [],
         }
-        return envelope.to_document(), grounding
-
-    async def solve(state: TaskState, generate: Generate) -> TaskState:
-        envelope, grounding = await asyncio.get_running_loop().run_in_executor(
-            worker, run, json.loads(state.input_text), dict(state.metadata)
-        )
-        state.metadata["envelope"] = envelope
-        state.metadata["grounding"] = grounding
         state.output = ModelOutput.from_content(
             model=agent_id, content=envelope["outcome"]["statement"]
         )

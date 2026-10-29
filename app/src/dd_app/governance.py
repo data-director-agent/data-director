@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import re
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -47,50 +48,37 @@ def _report(path: Path) -> dict[str, Any] | None:
 class Governance:
     """The conductor and the principal its runs act for.
 
-    A conductor is called on the thread that built it, one invocation at a time
-    (`workbench/evaluation.py`), so both are built on one worker thread and every invocation is
-    submitted to it. `create` builds them at start-up, so a bad setting stops the app before it
-    serves a page.
+    `create` builds them at start-up, so a bad setting stops the app before it serves a page.
+    Runs are awaited through `Conductor.ainvoke`, so several may run at once.
 
     The conductor's delegation callback (`conductor.harness_url`, ADR-0012) is the app itself,
     which serves the conductor's A2A routes for delegation callbacks only (#129). A delegated
-    child comes in over those routes and runs off the worker, as under `dd-harness serve`: its
-    parent holds the worker until the child has ended, so a child submitted to it would wait
-    for ever.
+    child comes in over those routes, as under `dd-harness serve`.
     """
 
     conductor: Conductor
     acting_for: Principal
-    worker: ThreadPoolExecutor = field(repr=False)
     # Conversations started in this process that have no turn yet. There is no conversation
     # store (ADR-0012 §4): once a turn is stored the store holds the conversation, and an id
     # never used is forgotten when the app stops.
     _started: set[str] = field(default_factory=set, repr=False)
+    # One lock per conversation, held from reading its history until its turn is stored, with
+    # the number of turns holding or waiting for it; the entry goes when that reaches nought.
+    _turn_locks: dict[str, tuple[asyncio.Lock, int]] = field(default_factory=dict, repr=False)
 
     @classmethod
     def create(cls, settings: Settings, base_url: str) -> Governance:
         """`base_url` is where the app is reached; `DD_HARNESS_URL` (`settings.harness_url`)
         overrides it as the delegation callback."""
-        worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="dd-app")
-
-        def build() -> tuple[Conductor, Principal]:
-            # The stub authenticator: the operator's assertion until there is authentication
-            # (ADR-0018, #17), not the person using the page.
-            acting_for = build_authenticator(settings).principal_for(None)
-            conductor = build_conductor(settings)
-            conductor.harness_url = settings.harness_url or base_url
-            return conductor, acting_for
-
-        try:
-            conductor, acting_for = worker.submit(build).result()
-        except BaseException:
-            worker.shutdown()
-            raise
-        return cls(conductor, acting_for, worker)
+        # The stub authenticator: the operator's assertion until there is authentication
+        # (ADR-0018, #17), not the person using the page.
+        acting_for = build_authenticator(settings).principal_for(None)
+        conductor = build_conductor(settings)
+        conductor.harness_url = settings.harness_url or base_url
+        return cls(conductor, acting_for)
 
     async def invoke(self, request: InvocationRequest) -> Envelope:
-        future = self.worker.submit(self.conductor.invoke, request, acting_for=self.acting_for)
-        return await asyncio.wrap_future(future)
+        return await self.conductor.ainvoke(request, acting_for=self.acting_for)
 
     async def run(self, agent_id: str, input: dict[str, Any]) -> dict[str, Any]:
         """One run, start to finish (`POST /api/runs`): its envelope and the checks' reports.
@@ -115,9 +103,10 @@ class Governance:
         `Message` to `agent_id`, answered as `run` answers.
 
         The history is built here from the stored turns, never taken from the caller, so the
-        input hash covers what the agent was really shown (ADR-0024 §17). It is read on the
-        worker, in the same call as the invocation, so two turns sent at once are run one after
-        the other and the second is shown the first. A turn goes only to the orchestrator the
+        input hash covers what the agent was really shown (ADR-0024 §17). It is read under the
+        conversation's lock, held until the turn is stored, so two turns sent to one
+        conversation at once are run one after the other and the second is shown the first;
+        turns to different conversations run side by side. A turn goes only to the orchestrator the
         profile names (ADR-0024 §10); a turn to any other agent, or under a profile that names
         none, is refused with `ValueError` before anything runs. Raises
         `UnknownConversationError`, or what `Conductor.invoke` raises for a request it refuses
@@ -135,8 +124,8 @@ class Governance:
                 f"not {agent_id!r}."
             )
 
-        def invoke() -> Envelope:
-            found = self._conversation(conversation_id)
+        async with self._turn_lock(conversation_id):
+            found = await asyncio.to_thread(self._conversation, conversation_id)
             if found is None:
                 raise UnknownConversationError(conversation_id)
             message = {
@@ -144,14 +133,36 @@ class Governance:
                 "message_text": message_text,
                 "history": found["history"],
             }
-            request = InvocationRequest(
-                agent_id=agent_id, conversation_id=conversation_id, input=message
+            run = asyncio.ensure_future(
+                self.invoke(
+                    InvocationRequest(
+                        agent_id=agent_id, conversation_id=conversation_id, input=message
+                    )
+                )
             )
-            return self.conductor.invoke(request, acting_for=self.acting_for)
-
-        envelope = await asyncio.wrap_future(self.worker.submit(invoke))
+            try:
+                envelope = await asyncio.shield(run)
+            except asyncio.CancelledError:
+                # The invocation runs on in its thread whatever happens to this turn, so the
+                # lock is kept until it is stored: the next turn must be shown this one.
+                await asyncio.wait({run})
+                raise
         self._started.discard(conversation_id)
         return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
+
+    @asynccontextmanager
+    async def _turn_lock(self, conversation_id: str) -> AsyncIterator[None]:
+        lock, count = self._turn_locks.get(conversation_id, (asyncio.Lock(), 0))
+        self._turn_locks[conversation_id] = (lock, count + 1)
+        try:
+            async with lock:
+                yield
+        finally:
+            lock, count = self._turn_locks[conversation_id]
+            if count == 1:
+                del self._turn_locks[conversation_id]
+            else:
+                self._turn_locks[conversation_id] = (lock, count - 1)
 
     def conversations(self) -> list[dict[str, Any]]:
         """Every stored conversation, most recently active first (`GET /api/conversations`). One

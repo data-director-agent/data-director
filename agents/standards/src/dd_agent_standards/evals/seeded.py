@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -105,6 +106,7 @@ def identity(agents: str | None) -> dict[str, Any]:
 def conductors(agents: str | None) -> Any:
     """A `ConductorFor`: one conductor per backend, built on first use."""
     built: dict[str, Any] = {}
+    building = threading.Lock()  # cases run side by side; each backend is built once
     runs = Path(tempfile.mkdtemp(prefix="dd-eval-standards-"))
 
     def local(backend: str) -> Any:
@@ -141,9 +143,10 @@ def conductors(agents: str | None) -> Any:
 
     def conductor_for(case: dict[str, Any]) -> Any:
         key = "remote" if agents else case["backend"]
-        if key not in built:
-            built[key] = remote() if agents else local(key)
-        return built[key]
+        with building:
+            if key not in built:
+                built[key] = remote() if agents else local(key)
+            return built[key]
 
     return conductor_for
 

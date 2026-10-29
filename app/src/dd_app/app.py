@@ -324,5 +324,5 @@ def main() -> int:
     except (ShellNotBuiltError, ConfigError) as exc:
         sys.exit(f"data-director: {exc}")
     finally:
-        governance.worker.shutdown()
+        governance.conductor.close()
     return 0

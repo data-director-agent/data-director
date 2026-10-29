@@ -6,12 +6,13 @@ An alpha substantiates no requirement, so these tests carry no requirement marke
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
+import threading
 import webbrowser
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -124,12 +125,9 @@ def test_the_reference_set_lists_and_enables_every_in_tree_agent():
 def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
     # Every agent is a service (ADR-0027): with none listed, the app has none to run.
     governance = Governance.create(settings_from_env(), APP_URL)
-    try:
-        assert governance.conductor.registry.ids() == []
-        assert governance.conductor.profile.profile_id == "data-director-app"
-        assert governance.acting_for == TEST_PRINCIPAL
-    finally:
-        governance.worker.shutdown()
+    assert governance.conductor.registry.ids() == []
+    assert governance.conductor.profile.profile_id == "data-director-app"
+    assert governance.acting_for == TEST_PRINCIPAL
 
 
 def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
@@ -153,10 +151,7 @@ def test_an_agent_the_profile_does_not_list_is_shown_unassigned(
 ):
     monkeypatch.setenv("DD_PROFILE", str(RESTRICTIVE))
     governance = with_standards(Governance.create(settings_from_env(), APP_URL))
-    try:
-        (standards,) = agents_response(governance, dist)["agents"]
-    finally:
-        governance.worker.shutdown()
+    (standards,) = agents_response(governance, dist)["agents"]
     assert standards["assigned_action_class"] is None
     assert standards["requires_approval"] is False
 
@@ -197,11 +192,8 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
 
     monkeypatch.setattr(RemoteAgent, "from_url", unreachable)
     governance = Governance.create(settings_from_env(), APP_URL)
-    try:
-        assert governance.conductor.registry.ids() == []
-        assert "standards" in governance.conductor.registry.unavailable
-    finally:
-        governance.worker.shutdown()
+    assert governance.conductor.registry.ids() == []
+    assert "standards" in governance.conductor.registry.unavailable
 
 
 def check_fixture(name: str, body: dict[str, Any]) -> None:
@@ -240,14 +232,9 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         standards.build(),
     ]
     governance = Governance(
-        make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
-        TEST_PRINCIPAL,
-        ThreadPoolExecutor(max_workers=1),
+        make_conductor(env, *agents, remote=False, profile=PERMISSIVE), TEST_PRINCIPAL
     )
-    try:
-        check_fixture("agents-several.json", agents_response(governance, dist))
-    finally:
-        governance.worker.shutdown()
+    check_fixture("agents-several.json", agents_response(governance, dist))
 
 
 # Runs (`POST /api/runs`, `GET /api/runs`, `GET /api/runs/{id}`) and examples. The run fixtures
@@ -398,10 +385,9 @@ def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
         registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
     )
     conductor.harness_url = APP_URL
-    governance = Governance(conductor, TEST_PRINCIPAL, ThreadPoolExecutor(max_workers=1))
+    governance = Governance(conductor, TEST_PRINCIPAL)
     served["app"] = build_app(governance, dist)
     yield governance, served["app"]
-    governance.worker.shutdown()
 
 
 def test_the_orchestrator_delegates_through_the_app(delegating: tuple[Governance, Any]):
@@ -569,6 +555,51 @@ def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, An
     assert (listed["conversation_id"], listed["turns"]) == (conversation_id, 2)
     check_fixture("conversation-turn.json", normalised_conversation(second.json()))
     check_fixture("conversation.json", normalised_conversation(found))
+
+
+def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governance, Any]):
+    """A turn cancelled (the client went away) runs on to the end in the conductor's thread, so
+    the next turn to the conversation waits for it and is shown it."""
+    governance, _app = delegating
+    conductor = governance.conductor
+    entered, release = threading.Event(), threading.Event()
+    invoke = conductor.invoke
+
+    def held_first(request: InvocationRequest, **kwargs: Any) -> Any:
+        if not entered.is_set():
+            entered.set()
+            release.wait(timeout=30)
+        return invoke(request, **kwargs)
+
+    conductor.invoke = held_first  # type: ignore[method-assign]
+    conversation_id = governance.start_conversation()
+
+    async def scenario() -> dict[str, Any]:
+        first = asyncio.create_task(
+            governance.turn(conversation_id, "director.stub", "hello world")
+        )
+        await asyncio.to_thread(entered.wait, 30)
+        first.cancel()
+        second = asyncio.create_task(
+            governance.turn(conversation_id, "director.stub", "hello again")
+        )
+        await asyncio.sleep(0.1)
+        assert not second.done()  # waiting for the cancelled turn, not running past it
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        return await second
+
+    try:
+        second = asyncio.run(scenario())
+    finally:
+        release.set()
+        conductor.close()
+
+    shown = (conductor.store.get_request(second["envelope"]["invocation_id"]) or {})["input"]
+    user, _agent = shown["history"]
+    assert user["turn_text"] == "hello world"
+    assert governance._turn_locks == {}  # nothing kept for a conversation with no turn running
 
 
 @pytest.mark.parametrize(

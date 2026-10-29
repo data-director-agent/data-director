@@ -26,12 +26,20 @@ authentication boundary and passes to `invoke`; the conductor keeps none of its 
 invocation without one cannot be written. A delegated child acts for its parent's principal,
 carried on the grant: the caller on that path is an agent, not the human. The principal is
 recorded in the envelope and the crate and is never sent to the agent.
+
+Threads (#171). `invoke` may be called from any thread, and several invocations may run at
+once. Async code calls `ainvoke` and `ainvoke_delegated` instead, which keep the one rule that
+matters inside the conductor: a parent holds its thread until its children have ended, so the
+two run on separate pools and a child never queues behind its parent.
 """
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -130,6 +138,35 @@ class Conductor:
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
     _running_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _reports_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    # Top-level invocations from `ainvoke`, built on its first call so a caller that only uses
+    # `invoke` (the CLI, most tests) starts no threads. Delegated children run on the default
+    # executor instead, so parents waiting on them can never take every thread a child needs.
+    _parents: ThreadPoolExecutor | None = field(default=None, repr=False)
+    _parents_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    async def ainvoke(self, request: InvocationRequest, *, acting_for: Principal) -> Envelope:
+        """`invoke`, awaited from async code without blocking its event loop."""
+        with self._parents_lock:
+            if self._parents is None:
+                self._parents = ThreadPoolExecutor(thread_name_prefix="dd-conductor")
+            parents = self._parents
+        call = functools.partial(self.invoke, request, acting_for=acting_for)
+        return await asyncio.get_running_loop().run_in_executor(parents, call)
+
+    def close(self) -> None:
+        """Wait for the invocations `ainvoke` started and release their threads. The conductor
+        may still be used afterwards: the next `ainvoke` starts a new pool."""
+        with self._parents_lock:
+            parents, self._parents = self._parents, None
+        if parents is not None:
+            parents.shutdown()
+
+    async def ainvoke_delegated(
+        self, request: InvocationRequest, token: str, traceparent: str = ""
+    ) -> Envelope:
+        """`invoke_delegated`, awaited from async code, off the pool parents run on."""
+        return await asyncio.to_thread(self.invoke_delegated, request, token, traceparent)
 
     def invoke(self, request: InvocationRequest, *, acting_for: Principal) -> Envelope:
         """Run one top-level invocation on behalf of `acting_for`, the principal the caller's
@@ -396,9 +433,10 @@ class Conductor:
             # 4. Grounding linter, over the finished tree of this trace.
             records = self.tracing.finished_records(trace_id)
             report = grounding.lint(records, envelope.to_document())
-            self.grounding_reports[request.invocation_id] = report
-            while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
-                del self.grounding_reports[next(iter(self.grounding_reports))]
+            with self._reports_lock:  # invocations finish side by side
+                self.grounding_reports[request.invocation_id] = report
+                while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
+                    del self.grounding_reports[next(iter(self.grounding_reports))]
             # 4a. Source check, over the evidence the linter has just read (ADR-0016).
             source_report = source_check.check(envelope.to_document(), self.sources)
             withheld = [

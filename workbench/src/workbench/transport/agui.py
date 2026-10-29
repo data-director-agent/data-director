@@ -81,8 +81,9 @@ async def run_agent(
                     f"{invocation.conversation_id!r}"
                 )
             thread_id = invocation.conversation_id
-        acting_for = authenticator.principal_for(request.headers)
-        envelope = await asyncio.to_thread(conductor.invoke, invocation, acting_for=acting_for)
+        # In a thread: verifying a token may fetch the issuer's keys.
+        acting_for = await asyncio.to_thread(authenticator.principal_for, request.headers)
+        envelope = await conductor.ainvoke(invocation, acting_for=acting_for)
     except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
         return _sse([RunErrorEvent(type=EventType.RUN_ERROR, message=str(exc))], accept)
     return _sse(_events_for(envelope.to_document(), thread_id, run_id), accept)

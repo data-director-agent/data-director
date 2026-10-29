@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -130,6 +132,27 @@ def test_refresh_finds_an_agent_that_started_after_the_registry_was_built(tmp_pa
     before = registry.get("hello.world")
     registry.refresh()
     assert registry.get("hello.world") is before  # a registered agent is not read again
+
+
+@pytest.mark.requirement("DD-REGISTRY")
+def test_refreshes_from_several_threads_register_an_agent_once(tmp_path: Path) -> None:
+    apps: dict[str, Any] = {}
+    config = write_config(tmp_path, [{"name": "hello", "url": "http://hello.test"}])
+    reach = routed(apps)
+
+    def slow(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        time.sleep(0.05)  # long enough for every thread to be refreshing at once
+        client: httpx.AsyncClient = reach(base_url, timeout_s)
+        return client
+
+    registry = Registry.from_config(config, client_factory=slow)
+    apps["http://hello.test"] = serve.app(HelloWorld(), base_url="http://hello.test")
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for refreshed in [pool.submit(registry.refresh) for _ in range(4)]:
+            refreshed.result()  # raises what the refresh raised
+
+    assert registry.ids() == ["hello.world"]
+    assert registry.unavailable == {}
 
 
 @pytest.mark.requirement("DD-REGISTRY")
