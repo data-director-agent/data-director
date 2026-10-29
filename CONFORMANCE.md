@@ -43,9 +43,9 @@ them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiat
 
 | Verdict | By test | By review |
 |---|---|---|
-| substantiated | 29 | 0 |
+| substantiated | 28 | 0 |
 | contradicted | 0 | 0 |
-| unsubstantiated | 24 | 8 |
+| unsubstantiated | 25 | 8 |
 
 | ID | Source | Title | Test verdict | Tests | Review verdict | Review |
 |---|---|---|---|---|---|---|
@@ -62,7 +62,7 @@ them. A Blueprint row whose sub-IDs are substantiated is not thereby substantiat
 | R4.1 | project (under R4) | Completeness of a metadata record scored against declared criteria, each finding explained | ✅ **substantiated** | `test_quality::test_complete_record_scores_one_and_every_finding_is_informational`, `test_quality::test_review_is_grounded_on_the_input_and_passes_the_linter` | not assessed | — |
 | R5 | blueprint | Draft data documentation including READMEs and data dictionaries at publication | ⬜ **unsubstantiated** | — | not assessed | — |
 | R6 | blueprint | Enable interoperable metadata across institutions and Data Director instances | ⬜ **unsubstantiated** | — | not assessed | — |
-| R7 | blueprint | Support assignment of persistent identifiers (PIDs) at point of publication | ✅ **substantiated** | `test_repository_agent::test_mandated_repositories_are_described_with_the_needs_they_miss`, `test_repository_agent::test_pid_assignment_is_read_from_the_record_not_assumed[systems0-yes]`, `test_repository_agent::test_pid_assignment_is_read_from_the_record_not_assumed[systems1-no]`, `test_repository_agent::test_pid_assignment_is_read_from_the_record_not_assumed[systems2-unstated]` | not assessed | — |
+| R7 | blueprint | Support assignment of persistent identifiers (PIDs) at point of publication | ⬜ **unsubstantiated** | — | not assessed | — |
 | R8 | blueprint | Verify data sharing at publication against Data Management Plan (DMP) commitments | ⬜ **unsubstantiated** | — | not assessed | — |
 | R9 | blueprint | Retrofit FAIR-aligned metadata for already-published datasets and supplementary materials | ⬜ **unsubstantiated** | — | not assessed | — |
 | R10 | blueprint | Track provenance of AI agent actions on data and metadata | ⬜ **unsubstantiated** | — | not assessed | — |
