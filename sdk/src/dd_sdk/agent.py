@@ -35,7 +35,7 @@ from dd_sdk.contract.models import (
     Outcome,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
-from dd_sdk.process_flow import REQUIREMENTS
+from dd_sdk.process_flow import STEPS
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -89,16 +89,17 @@ class AgentSpec:
     contract_version: str = CONTRACT_VERSION
     # The models the agent sends data to, as configured. Empty: it calls no model.
     models: tuple[ModelUse, ...] = ()
-    # The Blueprint's functional requirements (R1 to R12) the agent serves, so an orchestrator can
-    # place it in the process flow (`dd_sdk.process_flow`, ADR-0028). Empty: none.
+    # The process flow's step ids ("governance.policies") the agent serves, so an orchestrator can
+    # place it in the flow (`dd_sdk.process_flow`, ADR-0028). The requirements it bears on follow
+    # from the steps; whether it meets them is for the requirements register. Empty: none.
     serves: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        unknown = sorted(set(self.serves) - REQUIREMENTS)
+        unknown = sorted(set(self.serves) - STEPS)
         if unknown:
             raise SpecError(
-                f"agent {self.agent_id!r} serves {unknown}, which are not Blueprint functional "
-                "requirements (R1 to R12)"
+                f"agent {self.agent_id!r} serves {unknown}, which are not process flow steps; "
+                "name steps such as 'deposit.validate', and the requirements follow from them"
             )
         if self.payload is not None and not self.payload.grounded:
             raise SpecError(

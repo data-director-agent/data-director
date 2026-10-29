@@ -320,7 +320,8 @@
         }
       },
       "serves": [
-        "R3"
+        "setup.vocabularies",
+        "preparation.formats"
       ],
       "version": "0.2.0"
     }

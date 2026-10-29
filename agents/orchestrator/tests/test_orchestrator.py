@@ -4,6 +4,7 @@ linter on a model's reply, and the turn limits."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -143,12 +144,20 @@ def test_the_tools_are_the_agents_the_harness_lists(runs_dir: Path) -> None:
     assert hello["input_schema"]["required"] == ["greeted_name"]
 
 
-def test_a_tool_says_which_blueprint_requirements_its_agent_serves(runs_dir: Path) -> None:
+def test_a_tool_says_which_steps_its_agent_serves(runs_dir: Path) -> None:
     model = ScriptedModel([say("Where are you with your data?")])
     invoke(conductor(runs_dir, model))
     tools = {t["name"]: t for t in model.sent[0]["tools"]}
-    assert tools["standards_advisor"]["description"].endswith("Serves Blueprint requirement(s) R3.")
+    assert tools["standards_advisor"]["description"].endswith(
+        "Serves step(s) setup.vocabularies, preparation.formats. Those steps apply R3."
+    )
     assert "Serves" not in tools["hello_world"]["description"]
+
+
+def test_a_tool_serving_steps_that_name_no_requirement_says_only_the_steps() -> None:
+    entry = describe(dataclasses.replace(HelloWorld.spec, serves=("governance.policies",)))
+    [tool] = tools_from_manifest([entry])
+    assert tool.definition["description"].endswith("Serves step(s) governance.policies.")
 
 
 def test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent() -> None:

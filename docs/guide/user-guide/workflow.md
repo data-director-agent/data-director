@@ -59,7 +59,8 @@ one. Steps marked *optional* may be left out.
 after them.
 
 - Check funder, journal and institutional data sharing policies
-- Identify and handle sensitive data
+- Identify sensitive data
+- Handle sensitive data
 - Confirm whether an embargo is required
 - Verify data sharing commitments against the Data Management Plan (R8)
 
@@ -124,10 +125,10 @@ evidence: see [What the Data Director records](records.md).
 
 ### Steps with no agent
 
-An agent joins a step by declaring the requirements it serves. Where no registered agent serves a
-step, the Data Director says "no agent yet", and gives the requirement. It does not skip the step
-or do the work itself. The set of steps with an agent depends on which agents your deployment has
-registered, so the list differs between deployments.
+An agent joins a step by declaring the steps it serves. Where no registered agent serves a step,
+the Data Director says "no agent yet", and gives the requirement if the Blueprint names one. It
+does not skip the step or do the work itself. The set of steps with an agent depends on which
+agents your deployment has registered, so the list differs between deployments.
 
 The **Blueprint phases** panel in the app shows the same phases and, for each step, the agents
 here that serve it. It does not yet show where your own project has reached in them

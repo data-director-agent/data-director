@@ -15,10 +15,10 @@ that answered.
 A message no rule matches may name one of the Blueprint's three entry points (§8.1): before data
 collection, data collected and being prepared for sharing, or ready to deposit. The reply then
 lists every step from that entry's phase to the last, with the agents whose manifest entry
-serves the step's requirement, and says "no agent yet" with the requirement where none does
-(ADR-0028). On a first turn that names neither a rule nor an entry, it asks which entry applies.
-Otherwise it reads only the current message: `Message.history` is covered by the input hash, and
-used only to tell a first turn.
+serves the step, and says "no agent yet" with the step's requirement where none does (ADR-0028).
+On a first turn that names neither a rule nor an entry, it asks which entry applies. Otherwise it
+reads only the current message: `Message.history` is covered by the input hash, and used only to
+tell a first turn.
 
 Grounding mode `delegation`: the reply cites the input and each child envelope it relays, and
 the linter checks those citations against the delegations the conductor recorded (R1, D1-D3,

@@ -21,6 +21,7 @@
       "number": 1,
       "steps": [
         {
+          "id": "setup.documentation",
           "optional": false,
           "requirements": [
             "R5"
@@ -28,6 +29,7 @@
           "text": "Draft the data documentation"
         },
         {
+          "id": "setup.vocabularies",
           "optional": false,
           "requirements": [
             "R3"
@@ -41,21 +43,31 @@
       "number": 2,
       "steps": [
         {
+          "id": "governance.policies",
           "optional": false,
           "requirements": [],
           "text": "Check funder, journal and institutional data sharing policies"
         },
         {
+          "id": "governance.sensitive-data-identify",
           "optional": false,
           "requirements": [],
-          "text": "Identify and handle sensitive data"
+          "text": "Identify sensitive data"
         },
         {
+          "id": "governance.sensitive-data-handle",
+          "optional": false,
+          "requirements": [],
+          "text": "Handle sensitive data"
+        },
+        {
+          "id": "governance.embargo",
           "optional": false,
           "requirements": [],
           "text": "Confirm whether an embargo is required"
         },
         {
+          "id": "governance.dmp",
           "optional": false,
           "requirements": [
             "R8"
@@ -69,11 +81,13 @@
       "number": 3,
       "steps": [
         {
+          "id": "repository.mandated",
           "optional": false,
           "requirements": [],
           "text": "Check whether the funder, journal or institution mandates a repository"
         },
         {
+          "id": "repository.recommend",
           "optional": false,
           "requirements": [
             "R1"
@@ -81,6 +95,7 @@
           "text": "Recommend a repository where none is mandated"
         },
         {
+          "id": "repository.pid",
           "optional": false,
           "requirements": [
             "R7"
@@ -88,11 +103,13 @@
           "text": "Confirm or arrange persistent identifier (PID) assignment"
         },
         {
+          "id": "repository.access-and-costs",
           "optional": false,
           "requirements": [],
           "text": "Check access options and deposit costs"
         },
         {
+          "id": "repository.certification",
           "optional": true,
           "requirements": [],
           "text": "Verify repository certification"
@@ -104,11 +121,13 @@
       "number": 4,
       "steps": [
         {
+          "id": "preparation.files",
           "optional": false,
           "requirements": [],
           "text": "Clean and version the data files"
         },
         {
+          "id": "preparation.formats",
           "optional": false,
           "requirements": [
             "R3"
@@ -116,6 +135,7 @@
           "text": "Recommend open formats"
         },
         {
+          "id": "preparation.documentation",
           "optional": false,
           "requirements": [
             "R5"
@@ -123,11 +143,13 @@
           "text": "Create or review data documentation: READMEs and data dictionaries"
         },
         {
+          "id": "preparation.metadata-standard",
           "optional": false,
           "requirements": [],
           "text": "Identify the appropriate metadata standard"
         },
         {
+          "id": "preparation.metadata",
           "optional": false,
           "requirements": [
             "R2",
@@ -142,6 +164,7 @@
       "number": 5,
       "steps": [
         {
+          "id": "deposit.validate",
           "optional": false,
           "requirements": [
             "R4"
@@ -149,11 +172,13 @@
           "text": "Validate metadata quality"
         },
         {
+          "id": "deposit.licence",
           "optional": false,
           "requirements": [],
           "text": "Assign a licence"
         },
         {
+          "id": "deposit.links",
           "optional": false,
           "requirements": [
             "R7"
@@ -161,21 +186,25 @@
           "text": "Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs"
         },
         {
+          "id": "deposit.access",
           "optional": false,
           "requirements": [],
           "text": "Set access restrictions"
         },
         {
+          "id": "deposit.review-link",
           "optional": true,
           "requirements": [],
           "text": "Generate a private peer review link"
         },
         {
+          "id": "deposit.upload",
           "optional": false,
           "requirements": [],
           "text": "Upload the files"
         },
         {
+          "id": "deposit.finalise",
           "optional": false,
           "requirements": [],
           "text": "Review and finalise the submission"
@@ -187,21 +216,25 @@
       "number": 6,
       "steps": [
         {
+          "id": "post.institutional-record",
           "optional": false,
           "requirements": [],
           "text": "Record the deposit in institutional systems where required"
         },
         {
+          "id": "post.monitor",
           "optional": false,
           "requirements": [],
           "text": "Monitor access, downloads and citations"
         },
         {
+          "id": "post.embargo-release",
           "optional": false,
           "requirements": [],
           "text": "Check embargo release"
         },
         {
+          "id": "post.fairness",
           "optional": false,
           "requirements": [
             "R12"
@@ -209,6 +242,7 @@
           "text": "Evaluate the FAIRness of the published objects and discover related datasets"
         },
         {
+          "id": "post.retrofit",
           "optional": false,
           "requirements": [
             "R9"
@@ -216,6 +250,7 @@
           "text": "Retrofit FAIR-aligned metadata for existing datasets"
         },
         {
+          "id": "post.links",
           "optional": false,
           "requirements": [
             "R11"

@@ -54,7 +54,7 @@ export interface AgentView {
   gate: GateStatus;
   /** The models it sends data to. Empty: it calls none. */
   models: RawModelUse[];
-  /** The Blueprint requirements it serves, which place it in the process flow. Empty: none. */
+  /** The process flow steps it serves, which place it in the flow. Empty: none. */
   serves: string[];
   oversight: Oversight;
 }
