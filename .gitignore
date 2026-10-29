@@ -235,3 +235,6 @@ logs/
 
 # A local copy of the app profile (app/config/profile.yaml.example) for editing.
 app/config/profile.yaml
+
+# Coding agents
+.claude/worktrees/
