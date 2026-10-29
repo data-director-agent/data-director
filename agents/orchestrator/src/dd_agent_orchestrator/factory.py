@@ -5,8 +5,8 @@
 
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the key, read at
   start-up (`dd_sdk.credentials`, ADR-0026). There is no default: this agent is a model.
-- `DD_MODEL_ID`: the model it calls. a small, fast and inexpensive
-  Claude model by default; a deployment may name a more capable one.
+- `DD_MODEL_ID`: the model it calls. Claude Sonnet 5.5 by default;
+  a deployment may name a smaller or a more capable one.
 - `DD_ORCHESTRATOR_EFFORT`: `low`, `medium`, `high` (default), `xhigh` or `max`.
 - `DD_ORCHESTRATOR_HISTORY`: how many earlier turns of the conversation it sends (default 20).
 - `DD_ORCHESTRATOR_MAX_DELEGATIONS`: how many delegations one turn may make (default 4).

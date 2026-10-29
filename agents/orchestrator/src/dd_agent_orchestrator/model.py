@@ -25,7 +25,7 @@ from anthropic.types.beta import (
 
 from dd_agent_orchestrator.prompt import SYSTEM_PROMPT
 
-DEFAULT_MODEL = "claude-haiku-5-5"
+DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_EFFORT = "high"
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 # Room for a reply and the tool calls before it; a turn that reaches it is reported as cut short.
