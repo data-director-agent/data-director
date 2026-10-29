@@ -313,7 +313,8 @@ def build_app(
         if params.get("error"):
             # The person declined at the provider, or the provider refused the request.
             sign_in.store.take(params.get("state") or "")
-            log.warning("data-director: the provider answered %s", params["error"][:64])
+            # `%r`: the parameter is the caller's, so it cannot write a line of its own.
+            log.warning("data-director: the provider answered %r", params["error"][:64])
             response = _back_to_sign_in(SIGN_IN_DECLINED)
         else:
             try:
