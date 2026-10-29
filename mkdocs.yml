@@ -48,6 +48,12 @@ nav:
       - Getting started: user-guide/getting-started.md
       - Running an agent: user-guide/running-an-agent.md
       - Understanding outcomes: user-guide/outcomes.md
+  - Operations:
+      - operations/index.md
+      - AI models: operations/ai-models.md
+      - Configuration: operations/configuration.md
+      - Deploying to a VM: /deploy/README.md
+      - Institutional profiles: /workbench/profiles/README.md
   - Developer guide:
       - developer-guide/index.md
       - Setting up: developer-guide/setup.md
@@ -78,13 +84,11 @@ nav:
           - /workbench/docs/architecture.md
           - /workbench/docs/walkthrough.md
           - Working on the workbench: /workbench/AGENTS.md
-          - Profiles: /workbench/profiles/README.md
           - Samples: /workbench/samples/README.md
           - Viewer: /workbench/viewer/README.md
       - App:
           - /app/README.md
           - Configuration examples: /app/config/examples/README.md
-          - Deployment: /deploy/README.md
       - Agents:
           - /agents/README.md
           - Orchestrator: /agents/orchestrator/README.md

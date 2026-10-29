@@ -17,6 +17,8 @@ The software is archived on Zenodo, and is cited as
 ## Where to start
 
 - **[User guide](user-guide/index.md)**: run the app, run an agent and read what comes back.
+- **[Operations guide](operations/index.md)**: configure and run an instance at an institution,
+  including the AI models it may call.
 - **[Developer guide](developer-guide/index.md)**: set up the repository, write an agent and
   work on these pages.
 - **[Reference](reference/index.md)**: the contract, decisions, glossary and conformance report.
