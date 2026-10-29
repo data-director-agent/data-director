@@ -144,6 +144,6 @@ module = ["a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "go
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_feedback", "support"]
+module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_feedback", "test_sign_in", "support"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

@@ -30,9 +30,11 @@ The [architecture](../../architecture.md) and the
 
 ## Limits of the alpha
 
-- There is no sign-in yet (#17). Every run acts for the operator named in `DD_PRINCIPAL_ID`, and
-  the site's password is the only access control. Keep the app and agent ports on loopback or a
-  private network.
+- People can sign in with ORCID ([configuration](configuration.md#who-a-run-acts-for)), but the
+  deployment scripts do not set it up yet (#155), and everyone signed in sees every run (#153).
+  Without sign-in, every run acts for the operator named in `DD_PRINCIPAL_ID`, and the site's
+  password is the only access control. Keep the app and agent ports on loopback or a private
+  network.
 - No notice reaches anyone when a deployment fails (#144), and GitHub does not show what is
   deployed (#145). The journal and `systemctl --failed` are the record.
 - A profile cannot yet limit which models may receive which class of data (#40).

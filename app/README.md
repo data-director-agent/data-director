@@ -88,7 +88,7 @@ npm ci && npm run build            # writes app/web/dist
 Then from the repository root:
 
 ```bash
-export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."   # whom runs act for
+export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."   # whom runs act for (or sign in, below)
 uv run data-director               # opens http://127.0.0.1:7860
 ```
 
@@ -126,10 +126,43 @@ cp app/config/profile.yaml.example app/config/profile.yaml
 
 Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
-`DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are required. Until there is authentication (#17),
-every run acts for this operator, not for the person using the page (ADR-0018), and the page
-says so. The app stops at start-up, with one line, if either is unset, a file is missing or
+The app stops at start-up, with one line, if a setting is unset or wrong, a file is missing or
 malformed, or the shell has not been built.
+
+### Who a run acts for: signing in
+
+With `DD_OIDC_ISSUER` set, people sign in with ORCID, and each run acts for the person who
+started it, recorded as `authenticated` with the issuer that vouched (ADR-0029):
+
+| Variable | What it is |
+|---|---|
+| `DD_OIDC_ISSUER` | `https://orcid.org`, or `https://sandbox.orcid.org` for development. |
+| `DD_OIDC_CLIENT_ID` | The ORCID public API client's ID (`APP-…`). |
+| `DD_OIDC_CLIENT_SECRET` or `_FILE` | Its secret, or a file that holds it. |
+| `DD_APP_PUBLIC_URL` | Where people reach the app. The client's redirect URI is this followed by `/api/sign-in/callback`. Defaults to `http://DD_APP_HOST:DD_APP_PORT`. |
+| `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | A session ends after this long unused (8 hours) or this long at most (7 days). |
+
+To try it locally, register a client at `https://sandbox.orcid.org/developer-tools` with the
+redirect URI `http://127.0.0.1:7860/api/sign-in/callback`, and sign in with a sandbox account
+(#178). A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in for ORCID.
+
+- The app runs the authorisation-code flow itself (`src/dd_app/signin.py`), asks for the `openid`
+  scope alone, and verifies the ID token with the harness's `verify_id_token`. It keeps the
+  principal in a server-side session (`src/dd_app/sessions.py`) and no token. The browser holds an
+  opaque `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Browsers treat `127.0.0.1` as secure, so
+  this works over plain HTTP locally; a deployment needs HTTPS (#155).
+- Every `/api` route that runs or reads anything answers `401` with an `unauthenticated` problem
+  when there is no session, and the shell then shows its sign-in page. `/api/about`,
+  `/api/session` and the sign-in routes are open.
+- Sessions are held in memory, so restarting the app signs everyone out.
+- Signing out ends the session here. ORCID offers no sign-out for the app, so the person may still
+  be signed in at ORCID, and the signed-out page says so.
+- TODO(#153): every signed-in person still sees every run and conversation.
+
+Without `DD_OIDC_ISSUER` the app is a development server. `DD_PRINCIPAL_ID` and
+`DD_PRINCIPAL_NAME` are then required, every run acts for this operator, not for the person
+using the page (ADR-0018), and the banner says on every page that nobody is signed in. Setting
+both a provider and an operator principal stops start-up.
 
 ### Version and problem reports
 
@@ -171,8 +204,8 @@ so and links to the agent directory; it does not fall back to another agent.
 ## Layout and styles
 
 Every page is the same frame (`web/src/components/frame/Frame.tsx`): a banner holding the name,
-the main navigation and the dark mode switch, identical on every page so that nothing in it
-moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
+the main navigation, who is signed in and the dark mode switch, identical on every page so that
+nothing in it moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
 before the content). What a page acts for is said in the page, not in the banner.
 
 Styles are plain CSS in cascade layers, declared once in `web/src/styles/index.css`:

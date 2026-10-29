@@ -43,7 +43,9 @@ def doctor() -> int:
             problems.append(str(exc))
     try:
         env = {**os.environ, **app_env()}
-        if not (env.get("DD_PRINCIPAL_ID") and env.get("DD_PRINCIPAL_NAME")):
+        if not env.get("DD_OIDC_ISSUER") and not (
+            env.get("DD_PRINCIPAL_ID") and env.get("DD_PRINCIPAL_NAME")
+        ):
             print(
                 "note: no principal is set; `start` will use the example (run setup to set yours)"
             )

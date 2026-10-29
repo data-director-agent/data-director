@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 import threading
 import webbrowser
@@ -22,7 +21,14 @@ import uvicorn
 from a2a.helpers import get_data_parts
 from a2a.types import TaskState
 from starlette.testclient import TestClient
-from support import APP_URL, configure_env, dist_dir, new_governance, with_standards
+from support import (
+    APP_URL,
+    check_fixture,
+    configure_env,
+    dist_dir,
+    new_governance,
+    with_standards,
+)
 
 from dd_agent_director.agent import build as build_director
 from dd_agent_hello.agent import build as build_hello
@@ -33,7 +39,7 @@ from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import Governance
 from dd_harness.conductor import Conductor
-from dd_harness.identity import IdentityError
+from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
@@ -53,11 +59,9 @@ from dd_sdk.agent import Agent
 from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
 from dd_sdk.process_flow import ENTRIES, PHASES
 
-# The shell's component and browser tests are drawn from these, so each must be what the server
-# says. `DD_WRITE_FIXTURES=1 uv run pytest app/tests` rewrites them. `agents.json` is the
-# reference set; `agents-several.json` is five agents of different grounding modes and payload
-# shapes under the permissive test profile, which does not list the standards advisor.
-FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
+# The fixtures (`support.check_fixture`): `agents.json` is the reference set;
+# `agents-several.json` is five agents of different grounding modes and payload shapes under the
+# permissive test profile, which does not list the standards advisor.
 STANDARDS_AGENT_ID = "standards.advisor"
 
 
@@ -129,7 +133,8 @@ def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
     governance = Governance.create(settings_from_env(), APP_URL)
     assert governance.conductor.registry.ids() == []
     assert governance.conductor.profile.profile_id == "data-director-app"
-    assert governance.acting_for == TEST_PRINCIPAL
+    # A development server: every request acts for the operator's assertion (ADR-0029).
+    assert governance.authenticator.principal_for({}) == TEST_PRINCIPAL
 
 
 def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
@@ -198,16 +203,6 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
     assert "standards" in governance.conductor.registry.unavailable
 
 
-def check_fixture(name: str, body: dict[str, Any]) -> None:
-    path = FIXTURES / name
-    text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    if os.environ.get("DD_WRITE_FIXTURES") == "1":
-        path.write_text(text, encoding="utf-8")
-    assert path.read_text(encoding="utf-8") == text, (
-        f"{path} is stale; rerun with DD_WRITE_FIXTURES=1"
-    )
-
-
 def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):
     check_fixture("agents.json", agents_response(governance, dist))
 
@@ -235,7 +230,8 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
         standards.build(),
     ]
     governance = Governance(
-        make_conductor(env, *agents, remote=False, profile=PERMISSIVE), TEST_PRINCIPAL
+        make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
+        OperatorAssertion(TEST_PRINCIPAL),
     )
     check_fixture("agents-several.json", agents_response(governance, dist))
 
@@ -388,7 +384,7 @@ def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
         registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
     )
     conductor.harness_url = APP_URL
-    governance = Governance(conductor, TEST_PRINCIPAL)
+    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL))
     served["app"] = build_app(governance, dist)
     yield governance, served["app"]
 
@@ -579,12 +575,12 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
 
     async def scenario() -> dict[str, Any]:
         first = asyncio.create_task(
-            governance.turn(conversation_id, "director.stub", "hello world")
+            governance.turn(conversation_id, "director.stub", "hello world", TEST_PRINCIPAL)
         )
         await asyncio.to_thread(entered.wait, 30)
         first.cancel()
         second = asyncio.create_task(
-            governance.turn(conversation_id, "director.stub", "hello again")
+            governance.turn(conversation_id, "director.stub", "hello again", TEST_PRINCIPAL)
         )
         await asyncio.sleep(0.1)
         assert not second.done()  # waiting for the cancelled turn, not running past it

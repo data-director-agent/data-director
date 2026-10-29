@@ -114,7 +114,10 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
     ensure_local_tree()
     base = workspace_env()
     app = app_env()
-    if not (app.get("DD_PRINCIPAL_ID") and app.get("DD_PRINCIPAL_NAME")):
+    # An app that signs people in acts for no operator, and refuses one (ADR-0029).
+    if app.get("DD_OIDC_ISSUER"):
+        print(f"The app signs people in with {app['DD_OIDC_ISSUER']}.")
+    elif not (app.get("DD_PRINCIPAL_ID") and app.get("DD_PRINCIPAL_NAME")):
         app |= EXAMPLE_PRINCIPAL
         print(
             f"No principal is set, so runs act for the example, {EXAMPLE_PRINCIPAL['DD_PRINCIPAL_NAME']}. "
