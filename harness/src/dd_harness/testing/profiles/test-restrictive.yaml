@@ -6,7 +6,7 @@ description: Enables only the stub, and requires approval even for advice.
 agents:
   stub.abstain: advise
   # Assigned a class its card does not declare, to exercise action-class-mismatch.
-  quality.reviewer: deposit
+  advisor.quality: deposit
 
 actions_requiring_approval:
   - advise

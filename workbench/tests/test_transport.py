@@ -14,11 +14,11 @@ from a2a.client import ClientConfig, create_client
 from a2a.helpers import get_data_parts, new_data_part, new_message
 from a2a.types import Role, SendMessageRequest, TaskState
 
-from dd_agent_hello.agent import HelloWorld
-from dd_agent_quality.agent import QualityReviewer
-from dd_agent_quality.classes import MetadataRecord, QualityReview
-from dd_agent_standards.factory import build as build_standards
-from dd_agent_standards.testing import soil_profile
+from dd_agent_advisor_quality.agent import QualityReviewer
+from dd_agent_advisor_quality.classes import MetadataRecord, QualityReview
+from dd_agent_advisor_standards.factory import build as build_standards
+from dd_agent_advisor_standards.testing import soil_profile
+from dd_agent_example_hello.agent import HelloWorld
 from dd_harness.identity import OperatorAssertion
 from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub, make_conductor, request
 from dd_sdk.contract.classes import ClassSchema
@@ -29,7 +29,7 @@ BASE = "http://testserver"
 
 
 def record() -> MetadataRecord:
-    """An input for the real quality.reviewer, in its own class."""
+    """An input for the real advisor.quality, in its own class."""
     return MetadataRecord(
         identifier="https://doi.org/10.15131/shef.data.00000000",
         title="Soil chemistry survey",
@@ -75,9 +75,9 @@ def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) 
     _, app = _app(runs_dir)
     _, card = _get(app, "/.well-known/agent-card.json")
     skills = {s["id"]: s for s in card["skills"]}
-    assert set(skills) == {"quality.reviewer", "standards.advisor", "hello.world", "stub.abstain"}
+    assert set(skills) == {"advisor.quality", "advisor.standards", "example.hello", "stub.abstain"}
     assert {"grounding:input_only", "accepts:MetadataRecord"} <= set(
-        skills["quality.reviewer"]["tags"]
+        skills["advisor.quality"]["tags"]
     )
     assert card["supportedInterfaces"][0]["protocolBinding"] == "JSONRPC"
 
@@ -85,7 +85,7 @@ def test_agent_card_lists_one_skill_per_agent_from_the_manifest(runs_dir: Path) 
 @pytest.mark.requirement("C5.1")
 def test_a2a_message_send_returns_envelope_artifact(runs_dir: Path) -> None:
     conductor, app = _app(runs_dir)
-    resp = asyncio.run(_send_a2a(app, to_document(request("standards.advisor", soil_profile()))))
+    resp = asyncio.run(_send_a2a(app, to_document(request("advisor.standards", soil_profile()))))
     task = resp.task
     assert task.status.state == TaskState.TASK_STATE_COMPLETED
     (envelope,) = get_data_parts(task.artifacts[0].parts)
@@ -98,7 +98,7 @@ def test_a2a_message_send_returns_envelope_artifact(runs_dir: Path) -> None:
 @pytest.mark.requirement("DD-INPUT-ACCEPTS")
 def test_a2a_input_mismatch_is_an_envelope_not_a_transport_failure(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
-    resp = asyncio.run(_send_a2a(app, to_document(request("standards.advisor", record()))))
+    resp = asyncio.run(_send_a2a(app, to_document(request("advisor.standards", record()))))
     assert resp.task.status.state == TaskState.TASK_STATE_COMPLETED
     (envelope,) = get_data_parts(resp.task.artifacts[0].parts)
     assert envelope["outcome"]["status"] == "failed"
@@ -130,7 +130,7 @@ def test_agui_run_and_replay_emit_started_and_finished(runs_dir: Path) -> None:
                 "state": {},
                 "tools": [],
                 "context": [],
-                "forwardedProps": {"request": to_document(request("quality.reviewer", record()))},
+                "forwardedProps": {"request": to_document(request("advisor.quality", record()))},
             }
             r = await hc.post("/agui", json=body)
             live = _sse_events(r.text)
@@ -172,7 +172,7 @@ def test_agui_runs_an_input_written_in_the_shell_form_not_only_a_sample(runs_dir
     # What the viewer's input form sends: the class's required slots, optional ones left out.
     _, app = _app(runs_dir)
     doc = {
-        **to_document(request("hello.world")),
+        **to_document(request("example.hello")),
         "input": {"schema_class": "Salutation", "greeted_name": "Ada"},
     }
 
@@ -192,7 +192,7 @@ def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: 
     _, app = _app(runs_dir)
     conv = new_invocation_id()
     doc = to_document(
-        request("quality.reviewer", record()).model_copy(update={"conversation_id": conv})
+        request("advisor.quality", record()).model_copy(update={"conversation_id": conv})
     )
 
     async def go() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -211,7 +211,7 @@ def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: 
     assert status == 200 and index[0]["conversation_id"] == conv
     status, found = _get(app, f"/conversations/{conv}")
     assert status == 200
-    assert found["turns"][0]["agent_id"] == "quality.reviewer"
+    assert found["turns"][0]["agent_id"] == "advisor.quality"
     assert found["turns"][0]["input"]["schema_class"] == "MetadataRecord"
     status, _ = _get(app, f"/conversations/{new_invocation_id()}")
     assert status == 404
@@ -219,7 +219,7 @@ def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: 
 
 def _naming_a_profile() -> dict[str, Any]:
     """A request that tries to choose its own policy, as one could before ADR-0017."""
-    doc = to_document(request("quality.reviewer", record()))
+    doc = to_document(request("advisor.quality", record()))
     doc["policy_bundle_ref"] = "profile:test-permissive"
     return doc
 
@@ -257,7 +257,7 @@ def test_a2a_fails_a_request_naming_a_profile_and_runs_nothing(runs_dir: Path) -
 
 def _saying_whom_it_acts_for() -> dict[str, Any]:
     """A request that tries to choose its own principal."""
-    doc = to_document(request("quality.reviewer", record()))
+    doc = to_document(request("advisor.quality", record()))
     doc["acting_for"] = {"principal_id": "https://orcid.org/0000-0000-0000-0000", "name": "Else"}
     return doc
 
@@ -281,12 +281,12 @@ def test_a_request_saying_whom_it_acts_for_is_refused_by_both_transports(runs_di
 @pytest.mark.requirement("DD-ACTS-FOR")
 def test_each_transport_records_the_principal_its_authenticator_names(runs_dir: Path) -> None:
     conductor, app = _app(runs_dir)
-    resp = asyncio.run(_send_a2a(app, to_document(request("standards.advisor", soil_profile()))))
+    resp = asyncio.run(_send_a2a(app, to_document(request("advisor.standards", soil_profile()))))
     assert resp.task.status.state == TaskState.TASK_STATE_COMPLETED
 
     async def agui() -> None:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
-            doc = to_document(request("standards.advisor", soil_profile()))
+            doc = to_document(request("advisor.standards", soil_profile()))
             await hc.post("/agui", json=_agui_body(doc, "t1"))
 
     asyncio.run(agui())
@@ -303,7 +303,7 @@ def test_manifest_samples_and_schema_are_served(runs_dir: Path) -> None:
     status, manifest = _get(app, "/agents")
     assert status == 200
     by_id = {m["agent_id"]: m for m in manifest["agents"]}
-    assert by_id["quality.reviewer"]["derivations"]["score"] == {
+    assert by_id["advisor.quality"]["derivations"]["score"] == {
         "how": "lexical",
         "recorded_in": None,
     }
@@ -329,10 +329,10 @@ def test_manifest_samples_and_schema_are_served(runs_dir: Path) -> None:
 @pytest.mark.requirement("DD-REGISTRY")
 def test_agent_detail_serves_the_resolved_spec_and_404s_an_unknown_id(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
-    status, entry = _get(app, "/agents/hello.world")
+    status, entry = _get(app, "/agents/example.hello")
     assert status == 200
-    assert entry["spec"]["agent_id"] == "hello.world"
-    assert entry["card"]["name"] == "hello.world"  # served in-process, but still a RemoteAgent
+    assert entry["spec"]["agent_id"] == "example.hello"
+    assert entry["card"]["name"] == "example.hello"  # served in-process, but still a RemoteAgent
     status, error = _get(app, "/agents/no.such.agent")
     assert status == 404 and "no.such.agent" in error["error"]
 

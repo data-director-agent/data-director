@@ -11,9 +11,9 @@ from typing import Any
 
 import pytest
 
-from dd_agent_standards.agent import StandardsAgent
-from dd_agent_standards.explain import TemplateExplainer
-from dd_agent_standards.fairsharing.snapshot import SnapshotBackend
+from dd_agent_advisor_standards.agent import StandardsAgent
+from dd_agent_advisor_standards.explain import TemplateExplainer
+from dd_agent_advisor_standards.fairsharing.snapshot import SnapshotBackend
 from dd_harness import testing as fakes
 from dd_harness.registry import load_config
 from dd_harness.sources import Sources, check
@@ -41,13 +41,13 @@ def test_the_shipped_config_lists_every_agent_package() -> None:
         set(served)
         == packages
         == {
-            "hello",
-            "quality",
-            "standards",
-            "policy",
-            "repository",
-            "director",
-            "orchestrator",
+            "example-hello",
+            "advisor-quality",
+            "advisor-standards",
+            "advisor-policy",
+            "advisor-repository",
+            "orchestrator-stub",
+            "orchestrator-model",
         }
     )
     assert set(served.values()) == ports

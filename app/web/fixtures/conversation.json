@@ -7,10 +7,10 @@
     },
     {
       "role": "agent",
-      "turn_agent_id": "director.stub",
+      "turn_agent_id": "orchestrator.stub",
       "turn_agent_version": "0.1.0",
       "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
-      "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+      "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
     },
     {
       "role": "user",
@@ -18,10 +18,10 @@
     },
     {
       "role": "agent",
-      "turn_agent_id": "director.stub",
+      "turn_agent_id": "orchestrator.stub",
       "turn_agent_version": "0.1.0",
       "turn_invocation_id": "01900000-0000-7000-8000-000000000003",
-      "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!"
+      "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!"
     }
   ],
   "inputs": {
@@ -38,10 +38,10 @@
         },
         {
           "role": "agent",
-          "turn_agent_id": "director.stub",
+          "turn_agent_id": "orchestrator.stub",
           "turn_agent_version": "0.1.0",
           "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
-          "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+          "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
         }
       ],
       "message_text": "hello again",
@@ -58,7 +58,7 @@
   },
   "turns": [
     {
-      "agent_id": "director.stub",
+      "agent_id": "orchestrator.stub",
       "agent_version": "0.1.0",
       "children": [
         {
@@ -68,7 +68,7 @@
             "principal_id": "https://orcid.org/0000-0002-1825-0097",
             "principal_kind": "person"
           },
-          "agent_id": "hello.world",
+          "agent_id": "example.hello",
           "agent_version": "0.1.0",
           "completed_at": "2026-01-01T00:00:00Z",
           "contract_version": "0.9.0",
@@ -120,7 +120,7 @@
           "principal_id": "https://orcid.org/0000-0002-1825-0097",
           "principal_kind": "person"
         },
-        "agent_id": "director.stub",
+        "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
         "contract_version": "0.9.0",
@@ -128,7 +128,7 @@
         "delegations": [
           {
             "content_hash": "0000000000000000000000000000000000000000000000000000000000000010",
-            "delegated_agent_id": "hello.world",
+            "delegated_agent_id": "example.hello",
             "delegated_agent_version": "0.1.0",
             "delegated_invocation_id": "01900000-0000-7000-8000-000000000004",
             "delegated_status": "succeeded"
@@ -154,7 +154,7 @@
         "input_schema": "0000000000000000000000000000000000000000000000000000000000000012",
         "invocation_id": "01900000-0000-7000-8000-000000000002",
         "outcome": {
-          "statement": "Delegated to hello.world@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+          "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
           "status": "succeeded"
         },
         "payload": {
@@ -169,7 +169,7 @@
             }
           ],
           "reply_derivation": "template",
-          "reply_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!",
+          "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!",
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
@@ -192,7 +192,7 @@
       "turn_index": 0
     },
     {
-      "agent_id": "director.stub",
+      "agent_id": "orchestrator.stub",
       "agent_version": "0.1.0",
       "children": [
         {
@@ -202,7 +202,7 @@
             "principal_id": "https://orcid.org/0000-0002-1825-0097",
             "principal_kind": "person"
           },
-          "agent_id": "hello.world",
+          "agent_id": "example.hello",
           "agent_version": "0.1.0",
           "completed_at": "2026-01-01T00:00:00Z",
           "contract_version": "0.9.0",
@@ -254,7 +254,7 @@
           "principal_id": "https://orcid.org/0000-0002-1825-0097",
           "principal_kind": "person"
         },
-        "agent_id": "director.stub",
+        "agent_id": "orchestrator.stub",
         "agent_version": "0.1.0",
         "completed_at": "2026-01-01T00:00:00Z",
         "contract_version": "0.9.0",
@@ -262,7 +262,7 @@
         "delegations": [
           {
             "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
-            "delegated_agent_id": "hello.world",
+            "delegated_agent_id": "example.hello",
             "delegated_agent_version": "0.1.0",
             "delegated_invocation_id": "01900000-0000-7000-8000-000000000005",
             "delegated_status": "succeeded"
@@ -288,7 +288,7 @@
         "input_schema": "0000000000000000000000000000000000000000000000000000000000000012",
         "invocation_id": "01900000-0000-7000-8000-000000000003",
         "outcome": {
-          "statement": "Delegated to hello.world@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+          "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
           "status": "succeeded"
         },
         "payload": {
@@ -303,7 +303,7 @@
             }
           ],
           "reply_derivation": "template",
-          "reply_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
+          "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
@@ -324,10 +324,10 @@
           },
           {
             "role": "agent",
-            "turn_agent_id": "director.stub",
+            "turn_agent_id": "orchestrator.stub",
             "turn_agent_version": "0.1.0",
             "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
-            "turn_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+            "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
           }
         ],
         "message_text": "hello again",

@@ -28,12 +28,12 @@ rests on, and the steps that produced it. Each step of a run answers one questio
 | 6. Validate and store | Is the response well formed, and can someone audit it later? |
 
 The agent's author writes none of these steps. An agent is a specification and a `run`
-function (see `agents/hello/`). The conductor applies every step, in the same way, to every agent
+function (see `agents/example-hello/`). The conductor applies every step, in the same way, to every agent
 and from every front end.
 
 ## The example
 
-`standards.advisor` recommends vocabularies, ontologies and formats for a dataset from a
+`advisor.standards` recommends vocabularies, ontologies and formats for a dataset from a
 snapshot of the FAIRsharing registry. It is a `retrieval` agent: it fetches records, then
 reasons over them. The input is
 [`samples/soil-chemistry.profile.json`](../samples/soil-chemistry.profile.json), a description of
@@ -54,7 +54,7 @@ With the agents running (`scripts/run-agents.sh`) and `DD_PRINCIPAL_ID` and `DD_
 set (see the [README](../README.md#who-an-invocation-acts-for)), from `workbench/`:
 
 ```sh
-uv run workbench invoke --agent standards.advisor --input samples/soil-chemistry.profile.json
+uv run workbench invoke --agent advisor.standards --input samples/soil-chemistry.profile.json
 ```
 
 The CLI wraps the input in a request, giving it a new `invocation_id`, and hands it to the
@@ -82,7 +82,7 @@ recorded inside it.
 ## 1. Policy gate
 
 The conductor asks the deployment's institutional profile (`profiles/default.yaml` unless
-another is configured) whether `standards.advisor` is enabled, whether it declares the action class
+another is configured) whether `advisor.standards` is enabled, whether it declares the action class
 the profile assigns it, and whether that class needs a data steward's approval.
 
 Here it is enabled and needs no approval, so the run continues. Had it not been enabled, the
@@ -92,23 +92,23 @@ digest are recorded on every envelope, so a reader can see which rules applied.
 
 ## 2. Input check
 
-`standards.advisor` declares that it reads `DatasetProfile`. The input is a `DatasetProfile`, so
+`advisor.standards` declares that it reads `DatasetProfile`. The input is a `DatasetProfile`, so
 the run continues.
 
 Sending it the wrong kind of input shows what a refusal looks like:
 
 ```sh
-uv run workbench invoke --agent standards.advisor --input samples/hello.salutation.json
+uv run workbench invoke --agent advisor.standards --input samples/hello.salutation.json
 ```
 
 ```json
 "outcome": {
   "status": "failed",
-  "statement": "standards.advisor accepts DatasetProfile, not Salutation. The agent was not run."
+  "statement": "advisor.standards accepts DatasetProfile, not Salutation. The agent was not run."
 },
 "problem": {
   "type": "https://w3id.org/data-director/problems/input-not-accepted",
-  "detail": "Agent 'standards.advisor' accepts DatasetProfile; the request carried 'Salutation'."
+  "detail": "Agent 'advisor.standards' accepts DatasetProfile; the request carried 'Salutation'."
 }
 ```
 
@@ -153,7 +153,7 @@ recommendation. One recommendation, abridged:
 The conductor adds the agent's spans to the run's trace. The finished tree, abridged:
 
 ```text
-invoke_agent   standards.advisor, mode retrieval, input hash 8cda4f3c…   (conductor)
+invoke_agent   advisor.standards, mode retrieval, input hash 8cda4f3c…   (conductor)
 ├── policy_gate                                                           (conductor)
 ├── retrieval  FAIRsharing.TrcBD2, hash 60d47253…                         (agent)
 ├── retrieval  FAIRsharing.OsiqlF, hash c9b3d4ff…                         (agent)
@@ -263,7 +263,7 @@ The envelope returned to the caller brings the pieces together. Abridged:
 ```json
 {
   "invocation_id": "01a15ee0-4e05-769d-926e-a918903e19ea",
-  "agent_id": "standards.advisor",
+  "agent_id": "advisor.standards",
   "agent_version": "0.2.0",
   "grounding_mode": "retrieval",
   "policy_bundle_ref": "profile:default@v2",
@@ -298,8 +298,8 @@ rules the linter applies ([`grounding.md`](../../harness/docs/grounding.md#groun
 
 - `input_only` and `none` agents may not retrieve anything, and cite only the input, by the
   `input:<invocation_id>` id and the input hash the conductor computed. `none` agents may not
-  call a model either. `hello.world` is the simplest example.
-- `delegation` agents, such as the orchestrator `director.stub`, ask the workbench to run other
+  call a model either. `example.hello` is the simplest example.
+- `delegation` agents, such as the orchestrator `orchestrator.stub`, ask the workbench to run other
   agents for them. Each of those runs goes through every step on this page as a run of its own,
   and the orchestrator may cite only runs the conductor recorded
   ([ADR-0012](../../docs/adr/0012-conversation-and-orchestration.md)).

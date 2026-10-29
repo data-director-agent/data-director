@@ -8,18 +8,18 @@
 # TODO(#246): a resolver for the standards advisor's `live` route (the FAIRsharing API needs credentials and network).
 sources:
   - snapshot_refs: ["snapshot:2026-09-04", "snapshot:2026-09-04 (stale)"]
-    path: ../agents/standards/data/fairsharing/snapshot.jsonl
+    path: ../agents/advisor-standards/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: 969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1
   - snapshot_refs: ["re3data:snapshot:2026-10-29", "re3data:snapshot:2026-10-29 (stale)"]
-    path: ../agents/repository/data/re3data/snapshot.jsonl
+    path: ../agents/advisor-repository/data/re3data/snapshot.jsonl
     id_field: re3data_id
     sha256: 84949843c4adf9812463eeb602da152d1001646fd744b9f1a46bad5eb36551b5
   - snapshot_refs: ["fairsharing:snapshot:2026-10-29", "fairsharing:snapshot:2026-10-29 (stale)"]
-    path: ../agents/repository/data/fairsharing/snapshot.jsonl
+    path: ../agents/advisor-repository/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: cca3c0b34ec9510002308fe2b6309ba8f9e8e158070bcdafb9facc7aefff3a87
   - snapshot_refs: ["fairsharing-policy:snapshot:2026-10-29", "fairsharing-policy:snapshot:2026-10-29 (stale)"]
-    path: ../agents/policy/data/fairsharing/snapshot.jsonl
+    path: ../agents/advisor-policy/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: 828c6229b341ba4864c3af414f9a6be5b8bc32fcc0393babea187a6012a0426f

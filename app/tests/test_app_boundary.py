@@ -38,6 +38,6 @@ def test_the_app_imports_no_agent_and_not_the_workbench() -> None:
 
 
 def test_the_check_sees_a_forbidden_import() -> None:
-    assert _forbidden("dd_agent_standards.factory")
+    assert _forbidden("dd_agent_advisor_standards.factory")
     assert _forbidden("workbench.testing")
     assert not _forbidden("dd_harness.conductor")

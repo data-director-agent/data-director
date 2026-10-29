@@ -24,7 +24,10 @@ from devstack.common import (
 KEYS_URL = "https://console.anthropic.com/settings/keys"
 FAIRSHARING_URL = "https://fairsharing.org/accounts/signup"
 # The agents given the FAIRsharing login, and the setting that turns on their live search.
-FAIRSHARING_AGENTS = (("standards", "DD_STANDARDS_RETRIEVAL"), ("policy", "DD_POLICY_RETRIEVAL"))
+FAIRSHARING_AGENTS = (
+    ("advisor-standards", "DD_STANDARDS_RETRIEVAL"),
+    ("advisor-policy", "DD_POLICY_RETRIEVAL"),
+)
 ORCID_ID = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
 
 
@@ -127,9 +130,9 @@ def read_key(agent: str) -> str:
 
 def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     """Ask for a model key and give it to the agents that use one. Whether one is set."""
-    current = read_key("orchestrator")
+    current = read_key("orchestrator-model")
     print(
-        "\nAn Anthropic API key (optional). Without one, the home page talks to director.stub, a\n"
+        "\nAn Anthropic API key (optional). Without one, the home page talks to orchestrator.stub, a\n"
         "rule-based agent, and everything else works. With one, the model-backed orchestrator can\n"
         f"hold the conversation. Create a key at {KEYS_URL}. It is stored only in the files of\n"
         "the agents that use it (config/local/credentials/), which git ignores."
@@ -139,15 +142,15 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     if not key:
         return False
     if key != current:
-        write_key("orchestrator", key, changes)
+        write_key("orchestrator-model", key, changes)
     if prompt.yes("Let the standards advisor use the model to explain its advice too?", False):
-        write_key("standards", key, changes, {"DD_STANDARDS_EXPLAINER": "anthropic"})
+        write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "anthropic"})
     return True
 
 
 def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
     """Ask for a FAIRsharing account and give it to the agents that search FAIRsharing live."""
-    current = read_env(paths.AGENT_ENV_DIR / "standards.env")
+    current = read_env(paths.AGENT_ENV_DIR / "advisor-standards.env")
     print(
         "\nA FAIRsharing account (optional). Without one, the standards and policy advisors search\n"
         f"their bundled snapshots. With one, they search FAIRsharing itself. Sign up at\n"

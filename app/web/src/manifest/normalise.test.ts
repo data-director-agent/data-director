@@ -15,7 +15,7 @@ function entry(overrides: Partial<RawManifestEntry>): RawManifestEntry {
 describe("normalise", () => {
   it("draws the reference set: the standards advisor, permitted, as the profile assigns it", () => {
     const directory = normalise(referenceSet);
-    expect(directory.agents.map((a) => a.id)).toEqual(["standards.advisor"]);
+    expect(directory.agents.map((a) => a.id)).toEqual(["advisor.standards"]);
     expect(directory.agents[0]?.gate).toEqual({ kind: "permitted", actionClass: "advise" });
     expect(directory.profileRef).toBe("profile:data-director-app@v6");
     expect(directory.actingFor.assurance).toBe("asserted");
@@ -24,9 +24,9 @@ describe("normalise", () => {
   it("keeps every agent of different shapes and names none specially", () => {
     const directory = normalise(severalAgents);
     expect(directory.agents.map((a) => [a.id, a.groundingMode, a.payload])).toEqual([
-      ["hello.world", "none", "Greeting"],
-      ["quality.reviewer", "input_only", "QualityReview"],
-      ["standards.advisor", "retrieval", "Recommendations"],
+      ["advisor.quality", "input_only", "QualityReview"],
+      ["advisor.standards", "retrieval", "Recommendations"],
+      ["example.hello", "none", "Greeting"],
       ["stub.abstain", "none", null],
     ]);
   });

@@ -30,7 +30,7 @@ uv run scripts/dev.py start           # the agents, the app and the shell; Ctrl-
 
 `setup` asks for your name and ORCID iD, because every run acts for a named person, and,
 optionally, for an Anthropic API key and a FAIRsharing login (for the standards advisor's live
-search; without one it searches its bundled snapshot). Without a key, the app converses with `director.stub`, a
+search; without one it searches its bundled snapshot). Without a key, the app converses with `orchestrator.stub`, a
 rule-based agent, and everything else works. `setup` writes each answer to the file it belongs in,
 so you never edit a settings file by hand: your name in `config/local/app.env`, and the key only in
 the credential file of the agent that uses it (`config/local/credentials/`), never in a file every agent
@@ -83,10 +83,10 @@ under `unavailable`, with the reason. For hot reload, run `npm run dev` in `app/
 open <http://localhost:5173>; it proxies `/api` to the app (set `DD_APP_URL` if the app is at
 another address).
 
-To give the orchestrator a model key by hand, copy `config/examples/agents/orchestrator.env` to
-`config/local/agents/orchestrator.env`, put the key in `config/local/credentials/orchestrator-anthropic-api-key`, and name `orchestrator.model`
+To give the orchestrator a model key by hand, copy `config/examples/agents/orchestrator-model.env` to
+`config/local/agents/orchestrator-model.env`, put the key in `config/local/credentials/orchestrator-model-anthropic-api-key`, and name `orchestrator.model`
 in your profile (see [`app/README.md`](app/README.md#choosing-the-orchestrator)). The file is
-ignored by git. On a server the same settings live in `/etc/data-director/agents/orchestrator.env`
+ignored by git. On a server the same settings live in `/etc/data-director/agents/orchestrator-model.env`
 (see [`deploy/README.md`](deploy/README.md)).
 
 ### Develop and test agents

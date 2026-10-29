@@ -7,36 +7,36 @@
 # The standards advisor's evaluations and test kit live in its wheel but use the workbench and
 # the harness. TODO(#275): move them out of src/, or declare an extra.
 [[exception]]
-path = "agents/standards/src/dd_agent_standards/evals/scorers.py"
+path = "agents/advisor-standards/src/dd_agent_advisor_standards/evals/scorers.py"
 problem = "imports workbench"
 
 [[exception]]
-path = "agents/standards/src/dd_agent_standards/evals/seeded.py"
+path = "agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py"
 problem = "imports workbench"
 
 [[exception]]
-path = "agents/standards/src/dd_agent_standards/evals/seeded.py"
+path = "agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py"
 problem = "imports dd_harness"
 
 [[exception]]
-path = "agents/standards/src/dd_agent_standards/testing.py"
+path = "agents/advisor-standards/src/dd_agent_advisor_standards/testing.py"
 problem = "imports workbench"
 
 [[exception]]
-path = "agents/standards/src/dd_agent_standards/testing.py"
+path = "agents/advisor-standards/src/dd_agent_advisor_standards/testing.py"
 problem = "imports dd_harness"
 
 # Sample inputs are read from workbench/samples. TODO(#275): each agent owns its samples.
 [[exception]]
-path = "agents/standards/src/dd_agent_standards/testing.py"
+path = "agents/advisor-standards/src/dd_agent_advisor_standards/testing.py"
 problem = "reads outside"
 
 [[exception]]
-path = "agents/hello/tests/test_hello.py"
+path = "agents/example-hello/tests/test_hello.py"
 problem = "reads outside"
 
 [[exception]]
-path = "agents/quality/tests/test_quality.py"
+path = "agents/advisor-quality/tests/test_quality.py"
 problem = "reads outside"
 
 # The app reads REVISION and runs git at the repository root, with DD_REVISION as the fallback.

@@ -26,6 +26,19 @@ describe("Frame", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("links to the user guide in a new tab", () => {
+    render(
+      <Frame current="/">
+        <p>Content</p>
+      </Frame>,
+    );
+    expect(screen.getByRole("link", { name: "User guide" })).toHaveAttribute(
+      "href",
+      "https://data-director-agent.github.io/data-director/user-guide/",
+    );
+    expect(screen.getByRole("link", { name: "User guide" })).toHaveAttribute("target", "_blank");
+  });
+
   it("holds the same things in the banner on every page", () => {
     const banners = ["/", "/agents"].map((current) => {
       const { unmount } = render(

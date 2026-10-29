@@ -23,10 +23,10 @@ import pytest
 import uvicorn
 from playwright.sync_api import Browser, ConsoleMessage, Error, Page, Route
 
-from dd_agent_director.agent import build as build_director
-from dd_agent_hello.agent import HelloWorld
-from dd_agent_quality.agent import QualityReviewer
-from dd_agent_standards.factory import build as build_standards
+from dd_agent_advisor_quality.agent import QualityReviewer
+from dd_agent_advisor_standards.factory import build as build_standards
+from dd_agent_example_hello.agent import HelloWorld
+from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_harness.identity import OperatorAssertion
 from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub, make_conductor
 from workbench.transport.app import build_app

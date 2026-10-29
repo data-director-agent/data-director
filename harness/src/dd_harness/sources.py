@@ -26,7 +26,7 @@ error. Configuration shape:
 
     sources:
       - snapshot_refs: ["snapshot:2026-09-04"]   # evidence snapshot_ref values this copy serves
-        path: ../agents/standards/data/fairsharing/snapshot.jsonl   # relative to this file
+        path: ../agents/advisor-standards/data/fairsharing/snapshot.jsonl   # relative to this file
         id_field: fairsharing_id                 # the record field that is the source_id
         sha256: 9696…                            # of the file's bytes
 

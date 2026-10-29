@@ -30,22 +30,27 @@ lists an agent built against an incompatible one as **incompatible**.
 
 | Package | Agent id | Accepts | Mode | Payload | Serve | Status |
 |---|---|---|---|---|---|---|
-| `quality/` | `quality.reviewer` | `MetadataRecord` | `input_only` | `QualityReview` | `dd-quality`, port 8102 | Demonstration: weighted completeness from `checks.yaml`. |
-| `hello/` | `hello.world` | `Salutation` | `none` | `Greeting` | `dd-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
-| `director/` | `director.stub` | `Message` | `delegation` | `Reply` | `dd-director`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012), or lists the steps from the researcher's Blueprint entry point (ADR-0028). |
-| `orchestrator/` | `orchestrator.model` | `Message` | `delegation` | `Reply` | `dd-orchestrator`, port 8107 | The model-backed orchestrator (#21): Claude decides which agents to ask, from the manifest the harness publishes, and writes the reply. It has no tools except those delegations: no MCP server, web search or Skills (ADR-0012 decision 15). Needs a model key (`orchestrator/README.md`). |
-| `standards/` | `standards.advisor` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`r3/src/dd_agent_standards/README.md`). |
-| `policy/` | `policy.advisor` | `PolicyContext` | `retrieval` | `PolicyChecks` | `dd-policy`, port 8108 | **Alpha.** Phase 2: checks what funder, journal and institutional data policies ask, from FAIRsharing's policy records, and flags where they differ; also names any repository they require for Phase 3 (`policy/README.md`). |
-| `repository/` | `repository.advisor` | `RepositoryNeeds` | `retrieval` | `RepositoryOptions` | `dd-repository`, port 8109 | **Alpha.** Phase 3: recommends repositories from re3data, or describes the mandated ones, with PIDs, access, costs and certification as re3data and FAIRsharing record them (`repository/README.md`). |
+| `advisor-quality/` | `advisor.quality` | `MetadataRecord` | `input_only` | `QualityReview` | `dd-advisor-quality`, port 8102 | Demonstration: weighted completeness from `checks.yaml`. |
+| `example-hello/` | `example.hello` | `Salutation` | `none` | `Greeting` | `dd-example-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
+| `orchestrator-stub/` | `orchestrator.stub` | `Message` | `delegation` | `Reply` | `dd-orchestrator-stub`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012), or lists the steps from the researcher's Blueprint entry point (ADR-0028). |
+| `orchestrator-model/` | `orchestrator.model` | `Message` | `delegation` | `Reply` | `dd-orchestrator-model`, port 8107 | The model-backed orchestrator (#21): Claude decides which agents to ask, from the manifest the harness publishes, and writes the reply. It has no tools except those delegations: no MCP server, web search or Skills (ADR-0012 decision 15). Needs a model key (`orchestrator-model/README.md`). |
+| `advisor-standards/` | `advisor.standards` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-advisor-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`advisor-standards/src/dd_agent_advisor_standards/README.md`). |
+| `advisor-policy/` | `advisor.policy` | `PolicyContext` | `retrieval` | `PolicyChecks` | `dd-advisor-policy`, port 8108 | **Alpha.** Phase 2: checks what funder, journal and institutional data policies ask, from FAIRsharing's policy records, and flags where they differ; also names any repository they require for Phase 3 (`advisor-policy/README.md`). |
+| `advisor-repository/` | `advisor.repository` | `RepositoryNeeds` | `retrieval` | `RepositoryOptions` | `dd-advisor-repository`, port 8109 | **Alpha.** Phase 3: recommends repositories from re3data, or describes the mandated ones, with PIDs, access, costs and certification as re3data and FAIRsharing record them (`advisor-repository/README.md`). |
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
-`uv run dd-hello serve --port 8101`. The script restarts an agent when a file in its package
+`uv run dd-example-hello serve --port 8101`. The script restarts an agent when a file in its package
 changes, its `system_prompt.md` included, unless `scripts/dev.py start` is given `--no-reload`;
 `serve --reload` does the same for one agent.
 
-## Start from `hello/`
+An agent id is `<group>.<name>`. The groups are `orchestrator` (agents a person converses with,
+which delegate to others), `advisor` (agents that answer one kind of question) and `example`
+(templates). A directory, package and serve command spell the id with hyphens or underscores:
+`advisor.policy` is `advisor-policy/`, `dd_agent_advisor_policy` and `dd-advisor-policy`.
 
-`hello/src/dd_agent_hello/agent.py` is the smallest agent that walks the whole of the recipe
+## Start from `example-hello/`
+
+`example-hello/src/dd_agent_example_hello/agent.py` is the smallest agent that walks the whole of the recipe
 below with no domain logic in the way. It has:
 
 - its own input class and its own payload class;
@@ -59,14 +64,14 @@ below with no domain logic in the way. It has:
 It is commented against the numbered steps. Copy the directory, rename it, and delete the
 greeting.
 
-It is also the check on the claim in the last line of this file. `hello.world` has no reason to
+It is also the check on the claim in the last line of this file. `example.hello` has no reason to
 fail other than the harness. If adding an agent ever needs an edit to the conductor, linter,
 CLI, transports or viewer, this agent will show it.
 
 ## Adding an agent
 
 1. **Declare what it reads and returns.** A conversational agent can use the core's `Message`
-   and `Reply`. Any other class belongs to the agent. `hello/` is the worked example:
+   and `Reply`. Any other class belongs to the agent. `example-hello/` is the worked example:
    - `src/dd_agent_<name>/schema/<name>.yaml` declares the classes in LinkML. It imports
      `linkml:types` and `data_director` (the core), and has its own `id` and prefix. An input
      class carries the slot `schema_class`; a payload class carries `schema_class` and
@@ -99,14 +104,14 @@ CLI, transports or viewer, this agent will show it.
      `ctx.delegate(agent_id, input)`, never another agent directly; the workbench runs the child
      and returns a `Delegated` whose `ref` and `evidence` are what the payload cites for it
      (ADR-0012). `ctx.delegate` is `None` when no grant was issued (for example under
-     `workbench invoke`); handle that as an outcome. `director/` is the worked example.
+     `workbench invoke`); handle that as an outcome. `orchestrator-stub/` is the worked example.
 
    In `input_only` and `none`, `grounded_on` and `evidence` cite `ctx.input_ref` /
    `ctx.input_hash` and nothing else. Always use `ctx.tracer`. A span started some other way is
    outside the invocation's trace, and the linter's G0 rule withholds the output.
 3. **Hash what you retrieved** with a registered canonicalisation from `dd_sdk.evidence`
    (ADR-0009). Register a new name there if none fits; never invent one in the agent.
-4. **Write the package.** Copy `hello/`. You need:
+4. **Write the package.** Copy `example-hello/`. You need:
    - `pyproject.toml` depending on `data-director-sdk`, with a console script
      `dd-<name> = "dd_agent_<name>.agent:main"`;
    - a class with `spec = AgentSpec(...)` and `run`;
@@ -118,7 +123,7 @@ CLI, transports or viewer, this agent will show it.
    An agent that calls a model keeps its system prompt in `system_prompt.md` beside the module
    that sends it, and reads it with `Path(__file__).with_name("system_prompt.md")`, so the prompt
    can be read and reviewed as prose. CI treats that file as the agent's code, not as prose.
-   `orchestrator/` and `standards/` are the examples.
+   `orchestrator-model/` and `advisor-standards/` are the examples.
 
    An agent that is exploratory — not yet validated, likely to change shape — ships with a
    pre-release version (`version = "0.1.0a1"`, PEP 440) instead of the usual `0.1.0`, and its
@@ -148,7 +153,7 @@ CLI, transports or viewer, this agent will show it.
    claim a Blueprint `R` a demonstration does not meet.
 10. **Optionally, evaluate it** (ADR-0013). Put an Inspect AI task in `<package>/evals/`, built
     on `workbench.evaluation.invoke_agent` and its generic scorers, with the agent's own cases
-    and scorers beside it and a committed `baseline.json`. `dd_agent_standards.evals` is the worked
+    and scorers beside it and a committed `baseline.json`. `dd_agent_advisor_standards.evals` is the worked
     example.
 
 Nothing in the SDK, conductor, linter, CLI, transports or viewer is edited.

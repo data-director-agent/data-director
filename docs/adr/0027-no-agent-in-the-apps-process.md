@@ -14,7 +14,7 @@ in-process agents for tests only, and it rejected a second way of reaching an ag
 would then be two sets of behaviour to keep conformant.
 
 The app broke that rule. When it was first routed through the conductor (#60, #63), it had no
-agent services to reach, so it imported `dd_agent_standards` and registered the standards
+agent services to reach, so it imported `dd_agent_advisor_standards` and registered the standards
 advisor in its own process. A deployment that listed `standards` was reached over A2A instead. The
 app kept the in-process path after it gained `hello`, `quality` and `director` over A2A, and three
 consequences followed:
@@ -42,7 +42,7 @@ does not use it.
 
 ## Dependencies introduced
 
-None. The app drops its dependency on `data-director-agent-standards`.
+None. The app drops its dependency on `data-director-agent-advisor-standards`.
 
 ## Consequences
 
@@ -50,7 +50,7 @@ None. The app drops its dependency on `data-director-agent-standards`.
   so the app never holds a model key. Giving the standards advisor a model is a change to its
   own settings and key only.
 - One agent list serves development and deployment, and `deploy/agents.yaml` is removed. The
-  deployment always runs `data-director-agent@standards` and the app waits for port 8105.
+  deployment always runs `data-director-agent@advisor-standards` and the app waits for port 8105.
 - The app lists no available agent until the agent services are running
   (`scripts/run-agents.sh` in development).
 - Integers in an agent's payload arrive as floats over A2A. That was already true of every agent
