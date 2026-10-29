@@ -1,0 +1,212 @@
+# The input and payload classes of repository.advisor, owned by this package (ADR-0019). It
+# imports the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/repository/src/dd_agent_repository/schema/repository.yaml` to
+# regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted.
+id: https://w3id.org/data-director/agents/repository
+name: dd_agent_repository
+title: repository.advisor classes
+description: >-
+  What a dataset needs of a repository, and the repositories recommended or described for it
+  (Phase 3 of the Blueprint's process flow).
+version: 0.1.0
+license: MIT
+
+prefixes:
+  repository: https://w3id.org/data-director/agents/repository/
+  linkml: https://w3id.org/linkml/
+  dcterms: http://purl.org/dc/terms/
+  dcat: http://www.w3.org/ns/dcat#
+  schema: http://schema.org/
+default_prefix: repository
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  RepositoryNeeds:
+    description: >-
+      What a dataset needs of a repository. With mandated repositories, the agent describes
+      them; with none, it shortlists. The mandate and the access constraint come from Phase 2
+      (governance), usually by way of the orchestrator.
+    slots:
+      - schema_class
+      - themes
+      - data_kinds
+      - access
+      - mandated
+      - affiliation
+
+  RepositoryRef:
+    description: >-
+      A repository named by a funder, journal, institution or the researcher. The re3data
+      identifier is used when given; otherwise the name is looked up.
+    slots:
+      - name
+      - re3data_id
+
+  Affiliation:
+    description: The researcher's institution, matched against the institutions a registry lists.
+    class_uri: schema:Organization
+    slots:
+      - name
+      - ror
+
+  RepositoryOptions:
+    description: >-
+      The repository advisor payload. Repositories recommended or described, each grounded on
+      its registry records. The researcher selects; the agent does not.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - candidates
+      - not_found
+      - searched
+
+  RepositoryCandidate:
+    description: >-
+      One repository. It is named only in grounded_on; its name, PID systems, access and upload
+      conditions, certificates and metadata standards are in the cited evidence items' content
+      (ADR-0015). The judgements here are read from those records or compared with the needs.
+    mixins:
+      - Grounded
+    slots:
+      - basis
+      - score
+      - assigns_pids
+      - commercial
+      - fee_required
+      - meets
+      - misses
+      - notes
+      - rationale
+      - rationale_derivation
+
+  SearchedSummary:
+    description: >-
+      What was looked for, so a reader can judge an abstention as well as a recommendation.
+    slots:
+      - queries
+      - snapshot_ref
+      - candidates_retrieved
+      - candidates_qualifying
+
+slots:
+
+  themes:
+    description: Discipline or subject, as free text.
+    slot_uri: dcat:theme
+    multivalued: true
+  data_kinds:
+    description: What the data is, e.g. interview transcripts or household survey microdata.
+    multivalued: true
+  access:
+    description: >-
+      How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet
+      decided, and no access need is checked.
+    range: AccessNeed
+  mandated:
+    range: RepositoryRef
+    multivalued: true
+    inlined_as_list: true
+  affiliation:
+    range: Affiliation
+    inlined: true
+
+  name:
+    slot_uri: schema:name
+    required: true
+  re3data_id:
+    description: The re3data identifier, e.g. r3d100010230.
+    pattern: "^r3d\\d+$"
+  ror:
+    description: The organisation's ROR identifier.
+
+  candidates:
+    range: RepositoryCandidate
+    multivalued: true
+    inlined_as_list: true
+  not_found:
+    description: Mandated repositories for which no registry record was found.
+    multivalued: true
+  searched:
+    range: SearchedSummary
+    inlined: true
+
+  basis:
+    range: CandidateBasis
+    required: true
+  score:
+    range: float
+  assigns_pids:
+    description: >-
+      Whether the registry lists a persistent identifier system the repository uses. re3data
+      does not say whether assignment is automatic.
+    range: Answer
+    required: true
+  commercial:
+    description: Whether an institution responsible for the repository is listed as commercial.
+    range: Answer
+    required: true
+  fee_required:
+    description: Whether the registry lists a fee as a condition of depositing data.
+    range: Answer
+    required: true
+  meets:
+    description: The needs this repository meets, as recorded by its registry entries.
+    multivalued: true
+  misses:
+    description: >-
+      The needs this repository does not meet, or that its records leave open. Flagged for the
+      researcher; never resolved by the agent.
+    multivalued: true
+  notes:
+    description: >-
+      Facts the researcher should weigh that are neither met nor missed needs: fees, a commercial
+      platform, the deposit conditions FAIRsharing's curators record.
+    multivalued: true
+  rationale:
+    required: true
+  rationale_derivation:
+    range: Derivation
+    required: true
+
+  queries:
+    multivalued: true
+  snapshot_ref:
+    description: Which copies of the registries answered, e.g. re3data:snapshot:2026-10-29.
+  candidates_retrieved:
+    range: integer
+  candidates_qualifying:
+    range: integer
+
+enums:
+
+  AccessNeed:
+    permissible_values:
+      open:
+        description: Anyone may download the data.
+      embargoed:
+        description: The data is released after an embargo period.
+      restricted:
+        description: >-
+          Access is controlled, for example to registered or approved users, as for sensitive
+          data.
+
+  CandidateBasis:
+    permissible_values:
+      mandated:
+        description: Named in the input as mandated by a funder, journal or institution.
+      recommended:
+        description: Shortlisted by the agent from the registries.
+
+  Answer:
+    permissible_values:
+      "yes":
+      "no":
+      unstated:
+        description: The registry records do not say.

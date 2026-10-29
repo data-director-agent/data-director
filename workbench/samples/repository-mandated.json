@@ -1,0 +1,10 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "access": "embargoed",
+  "mandated": [
+    {
+      "name": "UK Data Service",
+      "re3data_id": "r3d100010230"
+    }
+  ]
+}

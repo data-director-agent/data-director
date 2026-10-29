@@ -1,6 +1,6 @@
 # Default institutional profile. See README.md in this directory for what each key means.
 profile_id: default
-version: 3
+version: 4
 description: Development profile for the workbench; enables every in-tree agent, requires approval for writes.
 
 # Each agent that may run, and the action class the steward assigns it. An agent whose card
@@ -8,6 +8,7 @@ description: Development profile for the workbench; enables every in-tree agent,
 agents:
   quality.reviewer: advise
   standards.advisor: advise
+  repository.advisor: advise
   hello.world: advise
   director.stub: advise
   orchestrator.model: advise

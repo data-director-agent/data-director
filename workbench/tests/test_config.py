@@ -37,7 +37,18 @@ def test_the_shipped_config_lists_every_agent_package() -> None:
     ports = {int(e["url"].rsplit(":", 1)[1]) for e in load_config(DEFAULT_AGENTS_CONFIG)}
     served = {a.name: a.port for a in load_agents(root / "app" / "config" / "agents.yaml")}
     packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
-    assert set(served) == packages == {"hello", "quality", "standards", "director", "orchestrator"}
+    assert (
+        set(served)
+        == packages
+        == {
+            "hello",
+            "quality",
+            "standards",
+            "repository",
+            "director",
+            "orchestrator",
+        }
+    )
     assert set(served.values()) == ports
 
 

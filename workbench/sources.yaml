@@ -11,3 +11,11 @@ sources:
     path: ../agents/standards/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: 969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1
+  - snapshot_refs: ["re3data:snapshot:2026-10-29", "re3data:snapshot:2026-10-29 (stale)"]
+    path: ../agents/repository/data/re3data/snapshot.jsonl
+    id_field: re3data_id
+    sha256: 84949843c4adf9812463eeb602da152d1001646fd744b9f1a46bad5eb36551b5
+  - snapshot_refs: ["fairsharing:snapshot:2026-10-29", "fairsharing:snapshot:2026-10-29 (stale)"]
+    path: ../agents/repository/data/fairsharing/snapshot.jsonl
+    id_field: fairsharing_id
+    sha256: cca3c0b34ec9510002308fe2b6309ba8f9e8e158070bcdafb9facc7aefff3a87

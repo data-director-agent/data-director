@@ -800,9 +800,9 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "dc6854d4155f739f9d644811a78a625c92d49c6bc22f5fd3789bb53e303da536",
+    "digest": "044e45ffc4a84a517a34c78683313429e5ecae1b1230e81f64324b57fac4a4ec",
     "orchestrator": null,
-    "ref": "profile:test-permissive@v4"
+    "ref": "profile:test-permissive@v5"
   },
   "unavailable": {}
 }

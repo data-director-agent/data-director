@@ -1,0 +1,9 @@
+{
+  "fetched_at": "2026-10-29T14:30:31+00:00",
+  "source": "https://www.re3data.org/api/v1/repository/{id}",
+  "requested": 29,
+  "records": 29,
+  "missing": [],
+  "licence": "CC0 1.0 (re3data metadata) — see LICENCE.md",
+  "sha256": "84949843c4adf9812463eeb602da152d1001646fd744b9f1a46bad5eb36551b5"
+}

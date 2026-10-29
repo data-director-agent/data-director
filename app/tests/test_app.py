@@ -105,11 +105,13 @@ def test_the_reference_set_lists_and_enables_every_in_tree_agent():
         ("hello", "http://127.0.0.1:8101"),
         ("quality", "http://127.0.0.1:8102"),
         ("standards", "http://127.0.0.1:8105"),
+        ("repository", "http://127.0.0.1:8109"),
         ("director", "http://127.0.0.1:8106"),
         ("orchestrator", "http://127.0.0.1:8107"),
     ]
     enabled = (
         STANDARDS_AGENT_ID,
+        "repository.advisor",
         "hello.world",
         "quality.reviewer",
         "director.stub",
@@ -141,7 +143,7 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v4"
+    assert body["profile"]["ref"] == "profile:data-director-app@v5"
     assert body["profile"]["orchestrator"] == "director.stub"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 

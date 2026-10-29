@@ -1,0 +1,23 @@
+# How repository.advisor shortlists repositories when none is mandated. Read by rank.py.
+#
+# Certification carries no weight. Figure 3 says the agent should not weight paid certification
+# above free evaluation, and re3data seldom names a certificate, so the fair weight is none.
+# A commercial operator is never dropped; at an equal score it is listed after the others.
+
+# At most this many repositories are recommended, besides those the researcher's own institution
+# operates.
+max_candidates: 5
+# Records retrieved per query. Each live hit costs one request to re3data (Blueprint P14).
+search_limit: 10
+# The score a repository needs to be recommended.
+confidence_floor: 0.3
+
+weights:
+  # Fit to the themes and kinds of data, scaled so that the best hit of the query scores 1.
+  subject: 1.0
+  # Operated by the researcher's institution. Enough on its own to reach the floor and exempt
+  # from the cap, so the institutional repository is always offered (R1, affiliation-based
+  # suggestions) unless it lacks the access the data needs.
+  affiliation: 0.3
+  # The access the data needs (Phase 2) is not listed.
+  access_unmet: -0.5

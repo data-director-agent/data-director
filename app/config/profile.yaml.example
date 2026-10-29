@@ -2,11 +2,12 @@
 # names another (ADR-0017, ADR-0022). Keys are as in workbench/profiles/README.md.
 # TODO(#225): how a steward edits and reviews this profile in a deployment (#41).
 profile_id: data-director-app
-version: 4
+version: 5
 description: Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.
 
 agents:
   standards.advisor: advise
+  repository.advisor: advise
   hello.world: advise
   quality.reviewer: advise
   director.stub: advise
