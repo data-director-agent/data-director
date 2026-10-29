@@ -4,6 +4,7 @@ payload class."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -88,7 +89,7 @@ def build_app(
         return JSONResponse(json.loads(UISCHEMA.read_text(encoding="utf-8")))
 
     async def agents(request: Request) -> Response:
-        conductor.registry.refresh()
+        await asyncio.to_thread(conductor.registry.refresh)  # reads cards with asyncio.run
         return JSONResponse(conductor.registry.listing())
 
     async def agent_detail(request: Request) -> Response:
