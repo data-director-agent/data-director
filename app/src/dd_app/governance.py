@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections import defaultdict
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -61,10 +62,9 @@ class Governance:
     # store (ADR-0012 §4): once a turn is stored the store holds the conversation, and an id
     # never used is forgotten when the app stops.
     _started: set[str] = field(default_factory=set, repr=False)
-    # One lock per conversation, held from reading its history until its turn is stored.
-    _turn_locks: defaultdict[str, asyncio.Lock] = field(
-        default_factory=lambda: defaultdict(asyncio.Lock), repr=False
-    )
+    # One lock per conversation, held from reading its history until its turn is stored, with
+    # the number of turns holding or waiting for it; the entry goes when that reaches nought.
+    _turn_locks: dict[str, tuple[asyncio.Lock, int]] = field(default_factory=dict, repr=False)
 
     @classmethod
     def create(cls, settings: Settings, base_url: str) -> Governance:
@@ -124,7 +124,7 @@ class Governance:
                 f"not {agent_id!r}."
             )
 
-        async with self._turn_locks[conversation_id]:
+        async with self._turn_lock(conversation_id):
             found = await asyncio.to_thread(self._conversation, conversation_id)
             if found is None:
                 raise UnknownConversationError(conversation_id)
@@ -133,11 +133,36 @@ class Governance:
                 "message_text": message_text,
                 "history": found["history"],
             }
-            envelope = await self.invoke(
-                InvocationRequest(agent_id=agent_id, conversation_id=conversation_id, input=message)
+            run = asyncio.ensure_future(
+                self.invoke(
+                    InvocationRequest(
+                        agent_id=agent_id, conversation_id=conversation_id, input=message
+                    )
+                )
             )
+            try:
+                envelope = await asyncio.shield(run)
+            except asyncio.CancelledError:
+                # The invocation runs on in its thread whatever happens to this turn, so the
+                # lock is kept until it is stored: the next turn must be shown this one.
+                await asyncio.wait({run})
+                raise
         self._started.discard(conversation_id)
         return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
+
+    @asynccontextmanager
+    async def _turn_lock(self, conversation_id: str) -> AsyncIterator[None]:
+        lock, count = self._turn_locks.get(conversation_id, (asyncio.Lock(), 0))
+        self._turn_locks[conversation_id] = (lock, count + 1)
+        try:
+            async with lock:
+                yield
+        finally:
+            lock, count = self._turn_locks[conversation_id]
+            if count == 1:
+                del self._turn_locks[conversation_id]
+            else:
+                self._turn_locks[conversation_id] = (lock, count - 1)
 
     def conversations(self) -> list[dict[str, Any]]:
         """Every stored conversation, most recently active first (`GET /api/conversations`). One

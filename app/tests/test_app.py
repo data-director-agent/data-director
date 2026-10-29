@@ -6,9 +6,11 @@ An alpha substantiates no requirement, so these tests carry no requirement marke
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
+import threading
 import webbrowser
 from collections.abc import Iterator
 from pathlib import Path
@@ -553,6 +555,51 @@ def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, An
     assert (listed["conversation_id"], listed["turns"]) == (conversation_id, 2)
     check_fixture("conversation-turn.json", normalised_conversation(second.json()))
     check_fixture("conversation.json", normalised_conversation(found))
+
+
+def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governance, Any]):
+    """A turn cancelled (the client went away) runs on to the end in the conductor's thread, so
+    the next turn to the conversation waits for it and is shown it."""
+    governance, _app = delegating
+    conductor = governance.conductor
+    entered, release = threading.Event(), threading.Event()
+    invoke = conductor.invoke
+
+    def held_first(request: InvocationRequest, **kwargs: Any) -> Any:
+        if not entered.is_set():
+            entered.set()
+            release.wait(timeout=30)
+        return invoke(request, **kwargs)
+
+    conductor.invoke = held_first  # type: ignore[method-assign]
+    conversation_id = governance.start_conversation()
+
+    async def scenario() -> dict[str, Any]:
+        first = asyncio.create_task(
+            governance.turn(conversation_id, "director.stub", "hello world")
+        )
+        await asyncio.to_thread(entered.wait, 30)
+        first.cancel()
+        second = asyncio.create_task(
+            governance.turn(conversation_id, "director.stub", "hello again")
+        )
+        await asyncio.sleep(0.1)
+        assert not second.done()  # waiting for the cancelled turn, not running past it
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        return await second
+
+    try:
+        second = asyncio.run(scenario())
+    finally:
+        release.set()
+        conductor.close()
+
+    shown = (conductor.store.get_request(second["envelope"]["invocation_id"]) or {})["input"]
+    user, _agent = shown["history"]
+    assert user["turn_text"] == "hello world"
+    assert governance._turn_locks == {}  # nothing kept for a conversation with no turn running
 
 
 @pytest.mark.parametrize(
