@@ -27,7 +27,8 @@ The conversation sits in the centre of a workspace (ADR-0024 §18):
 - across the top, whom the work acts for and whose policy applies, then the project's dataset,
   phase, repository and governance flags, which are not built yet (#160);
 - on the left, the Blueprint's six phases and their steps, from `GET /api/process-flow`, each step
-  naming the agents here whose manifest `serves` its requirements (ADR-0028);
+  naming the agents here whose manifest `serves` the step or its requirements (ADR-0028,
+  ADR-0032);
 - on the right, the project's documents, which are not built yet (#160), and what the
   orchestrator is and what it has not declared;
 - beneath, the activity log, which needs streamed runs (#68, #69).

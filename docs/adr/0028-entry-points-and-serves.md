@@ -3,6 +3,9 @@
 **Status:** Proposed
 **Date:** 2026-10-22
 
+Decisions 2 and 3 are amended by [ADR-0032](0032-agents-serve-process-steps.md): an agent may
+also serve a step by its id.
+
 Amends [ADR-0012](0012-conversation-and-orchestration.md) (decisions 11 and 13) and
 [ADR-0011](0011-remote-agents.md) (the manifest gains `serves`).
 

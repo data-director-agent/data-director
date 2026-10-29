@@ -4,6 +4,7 @@ linter on a model's reply, and the turn limits."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -149,6 +150,14 @@ def test_a_tool_says_which_blueprint_requirements_its_agent_serves(runs_dir: Pat
     tools = {t["name"]: t for t in model.sent[0]["tools"]}
     assert tools["standards_advisor"]["description"].endswith("Serves Blueprint requirement(s) R3.")
     assert "Serves" not in tools["hello_world"]["description"]
+
+
+def test_a_tool_says_which_steps_its_agent_serves_apart_from_requirements() -> None:
+    entry = describe(dataclasses.replace(HelloWorld.spec, serves=("governance.policies", "R1")))
+    [tool] = tools_from_manifest([entry])
+    assert tool.definition["description"].endswith(
+        "Serves Blueprint requirement(s) R1. Serves step(s) governance.policies."
+    )
 
 
 def test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent() -> None:

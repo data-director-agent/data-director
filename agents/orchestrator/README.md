@@ -19,7 +19,8 @@ grounding mode `delegation`, with `reply_derivation` `model`.
    model one tool per input class of each agent, leaving out delegation agents, itself included.
    No list of agents is configured here, so an agent registered with the harness can be asked as
    soon as the profile permits it.
-   Each tool's description also names the Blueprint requirements its agent `serves`. The system
+   Each tool's description also names the Blueprint requirements and the steps its agent
+   `serves` (ADR-0032). The system
    prompt carries the Blueprint's process flow (`dd_sdk.process_flow`): on a first turn that
    does not say, the model asks which of the three entry points applies, then takes the
    researcher through the steps from there, naming any step no tool serves with its requirement

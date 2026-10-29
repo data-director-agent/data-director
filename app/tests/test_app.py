@@ -217,6 +217,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
     assert [p["number"] for p in body["phases"]] == [p.number for p in PHASES]
     assert [e["starts_at"] for e in body["entries"]] == [e.starts_at for e in ENTRIES]
     assert body["phases"][0]["steps"][1] == {
+        "id": "setup.vocabularies",
         "text": "Select controlled vocabularies and ontologies",
         "requirements": ["R3"],
         "optional": False,

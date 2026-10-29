@@ -21,7 +21,7 @@ describe("servingStep", () => {
   });
 
   it("finds no agent for a step that names no requirement", () => {
-    const step = { text: "Upload the files", requirements: [], optional: false };
+    const step = { id: "deposit.upload", text: "Upload the files", requirements: [], optional: false };
     expect(servingStep(step, servingIndex(directory.agents))).toEqual([]);
   });
 
@@ -29,7 +29,22 @@ describe("servingStep", () => {
     const [first] = directory.agents;
     if (!first) throw new Error("no agent in the fixture");
     const index = servingIndex([{ ...first, serves: ["R2", "R6"] }]);
-    const step = { text: "Complete fields", requirements: ["R2", "R6"], optional: false };
+    const step = {
+      id: "preparation.metadata",
+      text: "Complete fields",
+      requirements: ["R2", "R6"],
+      optional: false,
+    };
     expect(servingStep(step, index)).toEqual([first.id]);
+  });
+
+  it("joins a step that names no requirement to an agent serving its id", () => {
+    const [first] = directory.agents;
+    if (!first) throw new Error("no agent in the fixture");
+    const index = servingIndex([{ ...first, serves: ["governance.policies"] }]);
+    const policies = FLOW.phases[1]?.steps[0];
+    if (!policies) throw new Error("no first step in Phase 2");
+    expect(policies.requirements).toEqual([]);
+    expect(servingStep(policies, index)).toEqual([first.id]);
   });
 });

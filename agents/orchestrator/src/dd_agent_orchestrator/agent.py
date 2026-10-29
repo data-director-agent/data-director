@@ -48,6 +48,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
+from dd_sdk.process_flow import REQUIREMENTS
 from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
 
 AGENT_ID = "orchestrator.model"
@@ -88,8 +89,12 @@ def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) 
             name = base if len(accepts) == 1 else f"{base}__{schema_class}"
             description = str(entry.get("description") or agent_id)
             serves = [str(r) for r in entry.get("serves") or []]
-            if serves:
-                description += f" Serves Blueprint requirement(s) {', '.join(serves)}."
+            requirements = [r for r in serves if r in REQUIREMENTS]
+            steps = [r for r in serves if r not in REQUIREMENTS]
+            if requirements:
+                description += f" Serves Blueprint requirement(s) {', '.join(requirements)}."
+            if steps:
+                description += f" Serves step(s) {', '.join(steps)}."
             tools.append(
                 Tool(
                     name=name[:TOOL_NAME_MAX],

@@ -8,7 +8,15 @@ from typing import Any
 import pytest
 import yaml
 
-from dd_sdk.process_flow import ENTRIES, PHASES, REQUIREMENTS, describe_flow, entry, plan
+from dd_sdk.process_flow import (
+    ENTRIES,
+    PHASES,
+    REQUIREMENTS,
+    STEPS,
+    describe_flow,
+    entry,
+    plan,
+)
 
 REGISTER = Path(__file__).resolve().parents[2] / "docs" / "requirements.yaml"
 
@@ -47,6 +55,26 @@ def test_a_plan_runs_from_the_entry_to_the_last_phase_and_names_who_serves_each_
     assert {p.phase.number for p in third} == {3, 4, 5, 6}
 
 
+def test_every_step_has_a_unique_id_under_its_phase_and_none_is_a_requirement() -> None:
+    ids = [s.id for p in PHASES for s in p.steps]
+    assert len(ids) == len(set(ids)) == len(STEPS)
+    assert not STEPS & REQUIREMENTS
+    prefixes = {p.number: {s.id.split(".")[0] for s in p.steps} for p in PHASES}
+    assert all(len(prefix) == 1 for prefix in prefixes.values())
+
+
+def test_an_agent_serving_a_step_id_is_planned_for_that_step_alone() -> None:
+    manifest: list[dict[str, Any]] = [
+        {"agent_id": "policy.advisor", "serves": ["governance.policies", "repository.mandated"]},
+        {"agent_id": "dmp.checker", "serves": ["R8"]},
+    ]
+    by_id = {p.step.id: p.agent_ids for p in plan(entry(2), manifest)}
+    assert by_id["governance.policies"] == ("policy.advisor",)
+    assert by_id["repository.mandated"] == ("policy.advisor",)
+    assert by_id["governance.dmp"] == ("dmp.checker",)
+    assert by_id["governance.embargo"] == ()
+
+
 def test_the_prompt_text_names_every_entry_phase_and_requirement() -> None:
     text = describe_flow()
     for e in ENTRIES:
@@ -55,3 +83,4 @@ def test_the_prompt_text_names_every_entry_phase_and_requirement() -> None:
         assert f"Phase {p.number}: {p.title}" in text
     named = {r for p in PHASES for s in p.steps for r in s.requirements}
     assert all(r in text for r in named)
+    assert all(f"[{s}]" in text for s in STEPS)
