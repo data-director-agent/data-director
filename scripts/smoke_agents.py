@@ -57,6 +57,7 @@ CASES = [
     ("quality.reviewer", "orda-record.metadata.json", "succeeded"),
     ("standards.advisor", "soil-chemistry.profile.json", "succeeded"),
     ("standards.advisor", "empty.profile.json", "abstained"),
+    ("policy.advisor", "policy-context.json", "succeeded"),
     ("repository.advisor", "repository-needs.json", "succeeded"),
     ("repository.advisor", "repository-mandated.json", "succeeded"),
     ("quality.reviewer", "hello.salutation.json", "failed"),

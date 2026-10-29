@@ -96,6 +96,7 @@ nav:
           - Orchestrator: /agents/orchestrator/README.md
           - Standards advisor: /agents/standards/src/dd_agent_standards/README.md
           - Standards evaluations: /agents/standards/src/dd_agent_standards/evals/README.md
+          - Policy advisor: /agents/policy/README.md
           - Repository advisor: /agents/repository/README.md
   - Conformance:
       - Approach: /docs/conformance.md

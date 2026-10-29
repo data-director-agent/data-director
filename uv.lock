@@ -16,6 +16,7 @@ members = [
     "data-director-agent-director",
     "data-director-agent-hello",
     "data-director-agent-orchestrator",
+    "data-director-agent-policy",
     "data-director-agent-quality",
     "data-director-agent-repository",
     "data-director-agent-standards",
@@ -859,6 +860,7 @@ dependencies = [
     { name = "data-director-agent-director" },
     { name = "data-director-agent-hello" },
     { name = "data-director-agent-orchestrator" },
+    { name = "data-director-agent-policy" },
     { name = "data-director-agent-quality" },
     { name = "data-director-agent-repository" },
     { name = "data-director-agent-standards" },
@@ -892,6 +894,7 @@ requires-dist = [
     { name = "data-director-agent-director", editable = "agents/director" },
     { name = "data-director-agent-hello", editable = "agents/hello" },
     { name = "data-director-agent-orchestrator", editable = "agents/orchestrator" },
+    { name = "data-director-agent-policy", editable = "agents/policy" },
     { name = "data-director-agent-quality", editable = "agents/quality" },
     { name = "data-director-agent-repository", editable = "agents/repository" },
     { name = "data-director-agent-standards", editable = "agents/standards" },
@@ -998,6 +1001,38 @@ dev = [
     { name = "data-director-agent-standards", editable = "agents/standards" },
     { name = "data-director-harness", editable = "harness" },
 ]
+
+[[package]]
+name = "data-director-agent-policy"
+version = "0.1.0a0"
+source = { editable = "agents/policy" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "httpx" },
+    { name = "rank-bm25" },
+]
+
+[package.optional-dependencies]
+anthropic = [
+    { name = "anthropic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.50" },
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "rank-bm25", specifier = ">=0.2.2" },
+]
+provides-extras = ["anthropic"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-quality"

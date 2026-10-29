@@ -86,6 +86,13 @@
       "exclude-paths": [
         "agents/repository/tests"
       ]
+    },
+    "agents/policy": {
+      "component": "agent-policy",
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/policy/tests"
+      ]
     }
   }
 }

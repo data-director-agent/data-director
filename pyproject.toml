@@ -19,6 +19,7 @@ dependencies = [
   "data-director-agent-quality",
   "data-director-agent-standards",
   "data-director-agent-repository",
+  "data-director-agent-policy",
   "data-director-agent-director",
   "data-director-agent-orchestrator",
   "data-director-app",
@@ -58,6 +59,7 @@ data-director-agent-hello = { workspace = true }
 data-director-agent-quality = { workspace = true }
 data-director-agent-standards = { workspace = true }
 data-director-agent-repository = { workspace = true }
+data-director-agent-policy = { workspace = true }
 data-director-agent-director = { workspace = true }
 data-director-agent-orchestrator = { workspace = true }
 data-director-app = { workspace = true }
@@ -71,7 +73,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_repository", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_repository", "dd_agent_policy", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -86,6 +88,7 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_
 "sdk/src/dd_sdk/delegate.py" = ["N818"]
 "agents/standards/src/dd_agent_standards/retrieve.py" = ["N818"]
 "agents/repository/src/dd_agent_repository/retrieve.py" = ["N818"]
+"agents/policy/src/dd_agent_policy/retrieve.py" = ["N818"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
@@ -108,7 +111,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_repository", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_repository", "dd_agent_policy", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
 relative_files = true
 
 [tool.coverage.report]
@@ -126,13 +129,13 @@ output = "coverage.xml"
 python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
-  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/standards/scripts", "agents/repository/scripts",
+  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/standards/scripts", "agents/repository/scripts", "agents/policy/scripts",
   "app/src", "app/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
-  "agents/quality/src", "agents/standards/src", "agents/repository/src",
+  "agents/quality/src", "agents/standards/src", "agents/repository/src", "agents/policy/src",
   "agents/director/src", "agents/orchestrator/src", "app/src", "app/tests",
 ]
 strict = true

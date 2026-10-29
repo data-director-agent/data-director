@@ -13,8 +13,8 @@ The repository advisor helps with Phase 3 of the Blueprint's process flow, repos
 | `repository.certification` | Reports the certificates re3data lists. They carry no weight in ranking. |
 
 The fifth step, `repository.mandated`, is a policy question. It is answered from funder, journal
-and institutional policy records by `policy.advisor` (#324), and passed to this agent as
-`RepositoryNeeds.mandated`. The two agents split R1's "flag conflicts" between them:
+and institutional policy records by `policy.advisor` (`agents/policy/`), and passed to this agent
+as `RepositoryNeeds.mandated`. The two agents split R1's "flag conflicts" between them:
 `policy.advisor` flags policies that disagree, and this agent flags a mandated repository that
 does not meet a need, such as one that offers no embargo. Neither resolves a conflict. The
 researcher chooses the repository (#199); the agent never does.

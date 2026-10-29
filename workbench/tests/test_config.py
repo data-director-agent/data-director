@@ -44,6 +44,7 @@ def test_the_shipped_config_lists_every_agent_package() -> None:
             "hello",
             "quality",
             "standards",
+            "policy",
             "repository",
             "director",
             "orchestrator",

@@ -1,0 +1,300 @@
+{
+   "$comment": "Generated from policy.yaml by `uv run dd-gen-schema <path to policy.yaml>`. Do not edit.",
+   "$defs": {
+      "ActorRole": {
+         "description": "",
+         "enum": [
+            "funder",
+            "journal",
+            "institution"
+         ],
+         "title": "ActorRole",
+         "type": "string"
+      },
+      "Derivation": {
+         "description": "",
+         "enum": [
+            "template",
+            "model",
+            "lexical",
+            "registry"
+         ],
+         "title": "Derivation",
+         "type": "string"
+      },
+      "GroundingRef": {
+         "additionalProperties": false,
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "properties": {
+            "source_id": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "source_id",
+            "content_hash"
+         ],
+         "title": "GroundingRef",
+         "type": "object"
+      },
+      "MatchedPolicy": {
+         "additionalProperties": false,
+         "description": "One policy record matched to an actor. It is named only in grounded_on; the record's name, clauses and relations are in the cited evidence item's content (ADR-0015).",
+         "properties": {
+            "actor": {
+               "description": "The name of the actor, as given in the input, that this policy was matched to.",
+               "type": "string"
+            },
+            "role": {
+               "$ref": "#/$defs/ActorRole"
+            },
+            "obligations": {
+               "items": {
+                  "$ref": "#/$defs/Obligation"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "notes": {
+               "description": "Facts to weigh beside the obligations, such as a policy subject outside the discipline or a policy dated after the publication.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "rationale": {
+               "type": "string"
+            },
+            "rationale_derivation": {
+               "$ref": "#/$defs/Derivation"
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "actor",
+            "role",
+            "rationale",
+            "rationale_derivation",
+            "grounded_on"
+         ],
+         "title": "MatchedPolicy",
+         "type": "object"
+      },
+      "Obligation": {
+         "additionalProperties": false,
+         "description": "What a policy record says about one kind of obligation, read from a curated field by a fixed rule.",
+         "properties": {
+            "kind": {
+               "$ref": "#/$defs/ObligationKind"
+            },
+            "strength": {
+               "$ref": "#/$defs/Strength"
+            },
+            "recorded_as": {
+               "description": "The value FAIRsharing's curators recorded, such as \"suggested\" or \"no\", kept so that an unstated strength does not hide what the record says.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "kind",
+            "strength"
+         ],
+         "title": "Obligation",
+         "type": "object"
+      },
+      "ObligationKind": {
+         "description": "",
+         "enum": [
+            "deposit",
+            "data_availability_statement",
+            "repository",
+            "standard",
+            "embargo",
+            "licence",
+            "timing"
+         ],
+         "title": "ObligationKind",
+         "type": "string"
+      },
+      "PolicyConflict": {
+         "additionalProperties": false,
+         "description": "Matched policies that state one kind of obligation differently. Grounded on every policy involved, and flagged for human review.",
+         "properties": {
+            "kind": {
+               "$ref": "#/$defs/ObligationKind"
+            },
+            "description": {
+               "type": "string"
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "kind",
+            "description",
+            "grounded_on"
+         ],
+         "title": "PolicyConflict",
+         "type": "object"
+      },
+      "RepositoryRef": {
+         "additionalProperties": false,
+         "description": "A repository a policy requires, in the form repository.advisor takes as RepositoryNeeds.mandated.",
+         "properties": {
+            "name": {
+               "type": "string"
+            },
+            "re3data_id": {
+               "description": "The re3data identifier, e.g. r3d100010230.",
+               "pattern": "^r3d\\d+$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "RepositoryRef",
+         "type": "object"
+      },
+      "SearchedSummary": {
+         "additionalProperties": false,
+         "description": "What was looked for, so a reader can judge an abstention as well as a match.",
+         "properties": {
+            "queries": {
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "snapshot_ref": {
+               "description": "Which copy of the registry answered, e.g. fairsharing-policy:snapshot:2026-10-29.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "policies_retrieved": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "title": "SearchedSummary",
+         "type": "object"
+      },
+      "Strength": {
+         "description": "",
+         "enum": [
+            "required",
+            "recommended",
+            "unstated"
+         ],
+         "title": "Strength",
+         "type": "string"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/policy/PolicyChecks",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The policy advisor payload. The policies matched to each actor, what each asks, where they differ, and the actors with no policy record. Conflicts are flagged for human review; the agent does not resolve them.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "PolicyChecks"
+         ],
+         "type": "string"
+      },
+      "policies": {
+         "items": {
+            "$ref": "#/$defs/MatchedPolicy"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "conflicts": {
+         "items": {
+            "$ref": "#/$defs/PolicyConflict"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "mandated_repositories": {
+         "description": "Repositories a matched policy requires, as FAIRsharing relates them. Empty when no policy record names one, which is not evidence that none is mandated.",
+         "items": {
+            "$ref": "#/$defs/RepositoryRef"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "no_record": {
+         "description": "Actors for which no FAIRsharing policy record was found.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "searched": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/SearchedSummary"
+            },
+            {
+               "type": "null"
+            }
+         ]
+      },
+      "grounded_on": {
+         "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+         "items": {
+            "$ref": "#/$defs/GroundingRef"
+         },
+         "type": "array"
+      }
+   },
+   "required": [
+      "schema_class",
+      "grounded_on"
+   ],
+   "title": "PolicyChecks",
+   "type": "object"
+}
