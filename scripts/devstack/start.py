@@ -109,7 +109,7 @@ class Stack:
                     os.killpg(service.proc.pid, signal.SIGKILL)
 
 
-def start(agents_only: bool, web: bool) -> int:
+def start(agents_only: bool, web: bool, reload: bool = True) -> int:
     base = workspace_env() | shared_env()
     if not (base.get("DD_PRINCIPAL_ID") and base.get("DD_PRINCIPAL_NAME")):
         base |= EXAMPLE_PRINCIPAL
@@ -141,14 +141,16 @@ def start(agents_only: bool, web: bool) -> int:
                     f"(run setup, or set it in {agent.env_file.relative_to(paths.ROOT)})"
                 )
                 continue
-            service = Service(
-                agent.name, ["uv", "run", agent.script, "serve", "--port", str(agent.port)], env
-            )
+            cmd = ["uv", "run", agent.script, "serve", "--port", str(agent.port)]
+            service = Service(agent.name, cmd + (["--reload"] if reload else []), env)
             stack.start(service)
             started.append((agent, service))
         for agent, service in started:
             if stack.wait_for(service, f"{agent.url}/.well-known/agent-card.json"):
-                stack.say(agent.name, f"ready at {agent.url}")
+                stack.say(
+                    agent.name,
+                    f"ready at {agent.url}" + (" (reloads as you edit it)" if reload else ""),
+                )
 
         if not agents_only:
             app = Service(
