@@ -72,10 +72,10 @@ nav:
       - Glossary: /docs/glossary.md
       - Repository: /README.md
       - UI best practices: /docs/ui/best-practices.md
-  - Decisions:
-      - /docs/adr/README.md
-      - /docs/adr/*.md
-      - Template: /docs/adr/0000-template.md
+      - Decisions:
+          - /docs/adr/README.md
+          - /docs/adr/*.md
+          - Template: /docs/adr/0000-template.md
   - Packages:
       - SDK: /sdk/README.md
       - Harness:
