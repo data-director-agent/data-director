@@ -1,0 +1,48 @@
+---
+title: "Phase 6: Post-Publication"
+---
+flowchart TD
+    sub["Data Publication Workflow | Closes the loop back to planning"]:::subtitle
+    r10["<b>R10 (Horizontal Requirement — all phases):</b> Track provenance of all AI agent actions on data and metadata. Record all actions so they can be verified, validated and audited."]:::horizontal
+    sub ~~~ r10 ~~~ phase6
+
+    phase6["PHASE 6: POST-PUBLICATION (closes the loop back to planning)"]:::phase
+    note["Note: 'publication' in this phase refers specifically to journal article publication unless otherwise stated."]:::note
+    exists{"Does a related journal article publication exist?"}:::decision
+    flag["Flag as forward action: include data citation in related journal article when it is submitted or published<br><br><b>Guidance note:</b> The agent could record this as a pending task and remind the researcher at article submission stage."]:::step
+    proceed["A related journal article publication exists — continue below"]:::step
+    updatable{"Can the related journal article publication be updated?"}:::decision
+    include["Include data citation in related journal article publication"]:::step
+    relation["Note relationship in dataset metadata (isReferencedBy / isSupplementTo)<br><br><b>Guidance note:</b> The agent could capture the link between the dataset and the journal article even where the article cannot be updated."]:::step
+    dmp["Update Data Management Plan (DMP) to reflect data published (mandatory where funders require)"]:::step
+    cris["Record deposit in institutional systems (CRIS) — OPTIONAL<br><br><b>Guidance note:</b> This only applies where a CRIS system exists and deposit is required. The agent could identify whether this applies and provide guidance to help the researcher."]:::step
+    monitor["Monitor access requests, downloads and citations"]:::step
+    embargo["Check embargo status: has the related journal article been published? If yes, release dataset to public access<br><br><b>Guidance note:</b> Embargoed datasets are often not released to public access after the related journal article is published. The agent could monitor and alert the researcher when the dataset should be released."]:::step
+    discover["Discover related datasets relevant to a research project<br><br><b>R12:</b> Discover related datasets relevant to a research project"]:::step
+    fair["Evaluate the FAIRness of published digital objects (e.g. FAIRassist.org)"]:::step
+    retrofit["Retrofit FAIR-aligned metadata for already-published datasets and supplementary materials<br><br><b>R9:</b> Retrofit FAIR-aligned metadata for already-published datasets and supplementary materials"]:::step
+    outputs["Link datasets to related research outputs including journal article publications, people, grants and software<br><br><b>R11:</b> Link datasets to related research outputs including journal article publications, people, grants and software"]:::step
+    finish(["End"]):::terminal
+
+    phase6 ~~~ note
+    phase6 --> exists
+    exists -- NO --> flag
+    exists -- YES --> proceed
+    flag --> updatable
+    proceed --> updatable
+    updatable -- YES --> include
+    updatable -- NO --> relation
+    include --> dmp
+    relation --> dmp
+    dmp --> cris --> monitor --> embargo --> discover --> fair --> retrofit --> outputs --> finish
+
+    classDef subtitle fill:none,stroke:none,color:#555
+    classDef horizontal fill:#fff5f5,stroke:#c00,color:#c00
+    classDef entry fill:#005a4e,stroke:#005a4e,color:#fff
+    classDef phase fill:#fff8e1,stroke:#c9a54a,color:#c66a00
+    classDef step fill:#fff,stroke:#999,color:#111
+    classDef optional fill:#fff,stroke:#999,color:#111,stroke-dasharray:4 3
+    classDef decision fill:#fff8e1,stroke:#e08a00,color:#c66a00,stroke-dasharray:5 3
+    classDef link fill:none,stroke:none,color:#005a4e
+    classDef note fill:none,stroke:none,color:#555
+    classDef terminal fill:#c0392b,stroke:#c0392b,color:#fff

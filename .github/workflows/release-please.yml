@@ -6,7 +6,8 @@ name: release-please
 # version in .release-please-manifest.json, so every version there must have its tag. It keeps
 # one release PR open for every package with a pending release, so that a release starts one CI
 # run rather than one per package, and tags each `<component>-v<version>` when that PR is merged. The PR's title
-# starts `chore(main): release `, which the sign-off check in ci.yml exempts.
+# starts `chore(main): release `, which the sign-off check in ci.yml exempts. Merging it also
+# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml).
 on:
   push:
     branches: [main]
@@ -27,6 +28,7 @@ jobs:
       pull-requests: write # to open and update the release PRs
     outputs:
       prs: ${{ steps.release.outputs.prs }}
+      releases_created: ${{ steps.release.outputs.releases_created }}
     steps:
       # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -67,3 +69,14 @@ jobs:
           git add uv.lock
           git commit -s -m "chore: refresh uv.lock for release"
           git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
+
+  # One Zenodo version per merged release PR, however many packages it released.
+  zenodo:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
+    permissions:
+      contents: read
+    # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
+    uses: ./.github/workflows/zenodo.yml # zizmor: ignore[self-repository]
+    with:
+      ref: ${{ github.sha }}

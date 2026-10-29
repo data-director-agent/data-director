@@ -1,0 +1,28 @@
+---
+title: "Phase 5: Deposit and Submit"
+---
+flowchart TD
+    sub["Data Publication Workflow"]:::subtitle
+    r10["<b>R10 (Horizontal Requirement — all phases):</b> Track provenance of all AI agent actions on data and metadata. Record all actions so they can be verified, validated and audited."]:::horizontal
+    sub ~~~ r10 ~~~ phase5
+
+    phase5["PHASE 5: DEPOSIT AND SUBMIT"]:::phase
+    validate["Validate metadata quality and produce standardised assessments, recommendations and standards<br><br><b>Guidance note:</b> Metadata quality should be validated before the researcher submits the data, not after it has been deposited.<br><br><b>R4:</b> Validate metadata quality and produce standardised records assessed against community best practices, recommendations and standards"]:::step
+    licence["Assign a licence for data reuse (CC BY/CC0) (often mandated by funder or journal)"]:::step
+    link["Link to related outputs (publication DOI, ORCID, ROR, Grant ID)<br><br><b>Guidance note:</b> The agent could support linking to source code repositories (e.g. GitHub), institutional PIDs, Handles and FAIR Digital Objects (FDOs) — not only journal article publication DOIs.<br><br><b>R7:</b> Support assignment of persistent identifiers (PIDs) at point of publication"]:::step
+    access["Set access restrictions (open / restricted / embargoed)"]:::step
+    review["Generate private review link for manuscript peer reviewers (OPTIONAL)"]:::step
+    upload["Upload files to repository"]:::step
+    finalise["Review and finalise submission<br><br><b>Guidance note:</b> The researcher is responsible for the final data submission. The agent could suggest finalisation steps and point to repository-specific submission instructions."]:::step
+    next["→ Continues to Phase 6: Post-Publication (see next page)"]:::link
+
+    phase5 --> validate --> licence --> link --> access --> review --> upload --> finalise --> next
+
+    classDef subtitle fill:none,stroke:none,color:#555
+    classDef horizontal fill:#fff5f5,stroke:#c00,color:#c00
+    classDef entry fill:#005a4e,stroke:#005a4e,color:#fff
+    classDef phase fill:#fff8e1,stroke:#c9a54a,color:#c66a00
+    classDef step fill:#fff,stroke:#999,color:#111
+    classDef optional fill:#fff,stroke:#999,color:#111,stroke-dasharray:4 3
+    classDef decision fill:#fff8e1,stroke:#e08a00,color:#c66a00,stroke-dasharray:5 3
+    classDef link fill:none,stroke:none,color:#005a4e

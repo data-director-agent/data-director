@@ -9,10 +9,15 @@
  *   until it is hovered or focused.
  * - `danger`: an action that removes something the reader entered.
  *
+ * An `icon` (a Lucide icon component, ISC licence) is drawn before the label. It is decoration:
+ * hidden from screen readers, so the label must still say what the button does.
+ *
  * A button whose action is under way takes `isPending`: it keeps its focus, says it is busy to
  * screen readers and cannot be pressed again, where `isDisabled` would drop the focus.
  */
 
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   Button as AriaButton,
   ToggleButton as AriaToggleButton,
@@ -29,6 +34,7 @@ export type ButtonSize = "medium" | "small";
 interface Look {
   variant?: ButtonVariant | undefined;
   size?: ButtonSize | undefined;
+  icon?: LucideIcon | undefined;
 }
 
 function classes({ variant = "secondary", size = "medium" }: Look, extra?: string): string {
@@ -39,22 +45,47 @@ function classes({ variant = "secondary", size = "medium" }: Look, extra?: strin
 
 export interface ButtonProps extends AriaButtonProps, Look {}
 
-export function Button({ variant, size, className, ...props }: ButtonProps) {
+/** The icon, sized in `em` so that it follows the button's font size. */
+function withIcon<T>(
+  Icon: LucideIcon | undefined,
+  children: ReactNode | ((values: T & { defaultChildren: ReactNode }) => ReactNode),
+) {
+  if (!Icon) return children;
+  return composeRenderProps(children, (content) => (
+    <>
+      <Icon className="button-icon" size="1.125em" aria-hidden="true" />
+      {content}
+    </>
+  ));
+}
+
+export function Button({ variant, size, icon, className, children, ...props }: ButtonProps) {
   return (
     <AriaButton
       {...props}
       className={composeRenderProps(className, (extra) => classes({ variant, size }, extra))}
-    />
+    >
+      {withIcon(icon, children)}
+    </AriaButton>
   );
 }
 
 export interface ToggleButtonProps extends AriaToggleButtonProps, Look {}
 
-export function ToggleButton({ variant, size, className, ...props }: ToggleButtonProps) {
+export function ToggleButton({
+  variant,
+  size,
+  icon,
+  className,
+  children,
+  ...props
+}: ToggleButtonProps) {
   return (
     <AriaToggleButton
       {...props}
       className={composeRenderProps(className, (extra) => classes({ variant, size }, extra))}
-    />
+    >
+      {withIcon(icon, children)}
+    </AriaToggleButton>
   );
 }

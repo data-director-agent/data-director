@@ -14,7 +14,7 @@ authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 # The harness imports `dd_sdk` and these libraries only, never the workbench, the app or an
 # agent (ADR-0022; enforced by tests/test_harness_boundary.py).
 dependencies = [
-  "data-director-sdk",
+  "data-director-sdk>=0.2.0a0",
   "httpx>=0.28",
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
@@ -32,6 +32,13 @@ dd-harness = "dd_harness.server:main"
 # `dd-harness serve` (#55). An extra, so a way in that serves itself (the workbench) or embeds
 # the conductor as a library (the app) does not need it.
 serve = ["uvicorn>=0.30"]
+
+# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+[dependency-groups]
+dev = [
+  "data-director-agent-hello",
+  "data-director-agent-quality",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_harness"]

@@ -12,8 +12,8 @@ license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 
 dependencies = [
-  "data-director-sdk",
-  "data-director-harness",
+  "data-director-sdk>=0.2.0a0",
+  "data-director-harness>=0.2.0a0",
   "pydantic>=2.14.1,<3",
   "httpx>=0.28",
   "ag-ui-protocol>=1.0.0,<1.1",
@@ -26,6 +26,15 @@ workbench = "workbench.cli:entry"
 [project.optional-dependencies]
 # Evaluation on Inspect AI (ADR-0013): `workbench.evaluation` and each agent's `evals/`.
 eval = ["inspect-ai>=0.3.281"]
+
+# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+[dependency-groups]
+dev = [
+  "data-director-agent-director",
+  "data-director-agent-hello",
+  "data-director-agent-quality",
+  "data-director-agent-standards",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/workbench"]

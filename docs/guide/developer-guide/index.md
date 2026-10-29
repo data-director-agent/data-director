@@ -6,4 +6,5 @@ For people who write agents or work on the repository.
 - [Writing an agent](writing-an-agent.md)
 - [Documentation](documentation.md): how these pages are built and published.
 
-Read `AGENTS.md`, and `workbench/AGENTS.md` before changing the workbench or harness.
+Read [working in the repository](../../../AGENTS.md), and
+[working on the workbench](../../../workbench/AGENTS.md) before changing the workbench or harness.

@@ -1,13 +1,15 @@
 # Reference
 
-These documents are kept with the code they govern, and are read on GitHub.
+These documents are kept with the code they govern and published here from where they are.
 
-- [Architecture](https://github.com/data-director-agent/data-director/blob/main/docs/architecture.md)
-- [Contract](https://github.com/data-director-agent/data-director/blob/main/docs/contract.md)
-- [Glossary](https://github.com/data-director-agent/data-director/blob/main/docs/glossary.md)
-- [Architecture decision records](https://github.com/data-director-agent/data-director/tree/main/docs/adr)
-- [Requirements register](https://github.com/data-director-agent/data-director/blob/main/docs/requirements.yaml)
-- [Conformance report](https://github.com/data-director-agent/data-director/blob/main/CONFORMANCE.md)
-- [Harness documentation](https://github.com/data-director-agent/data-director/tree/main/harness/docs)
-- [Blueprint](https://github.com/data-director-agent/data-director/blob/main/docs/BLUEPRINT.md)
-  (RDA, CC BY 4.0; very large)
+- [Architecture](../../architecture.md): the system overview.
+- [Contract](../../contract.md): what an agent and the harness agree to.
+- [Glossary](../../glossary.md)
+- Architecture decision records: the Decisions section, starting with
+  [ADR-0001](../../adr/0001-transport.md).
+- [Requirements register](../../requirements.yaml) (YAML, on GitHub)
+- [Conformance](../../conformance.md), and the generated
+  [conformance report](../../../CONFORMANCE.md).
+- Each package's readme and documents, under Packages, starting with the
+  [harness](../../../harness/README.md).
+- [Blueprint](../../blueprint/README.md) (RDA, CC BY 4.0; one page per chapter)

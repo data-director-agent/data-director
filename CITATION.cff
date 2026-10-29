@@ -1,6 +1,7 @@
 cff-version: 1.2.0
-title: data-director
+title: Data Director Reference Implementation
 type: software
+doi: 10.5281/zenodo.23735877
 message: "If you use this software, please cite it as below."
 abstract: >-
   A proposed reference implementation for the Data Director Agentic AI
@@ -13,3 +14,32 @@ authors:
     orcid: 'https://orcid.org/0000-0001-8733-1117'
 repository-code: 'https://github.com/data-director-agent/data-director/'
 license: MIT
+keywords:
+  - research data management
+  - agentic AI
+  - FAIR data
+  - Research Data Alliance
+references:
+  - type: report
+    title: Data Director Agentic AI Tool Blueprint
+    authors:
+      - name: Research Data Alliance
+    doi: 10.15497/RDA00157
+  - type: report
+    title: >-
+      Global Community Priorities for Agentic AI in Research: Community Consultation Results
+    authors:
+      - family-names: Clare
+        given-names: Connie
+      - family-names: Collinson
+        given-names: Marcy
+      - family-names: Hanahoe
+        given-names: Hilary
+      - family-names: Payton
+        given-names: Ryan
+      - family-names: Sharma
+        given-names: Curtis J. M.
+    publisher:
+      name: Research Data Alliance
+    year: 2025
+    doi: 10.15497/RDA00151

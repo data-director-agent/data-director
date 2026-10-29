@@ -109,6 +109,11 @@ CLI, transports or viewer, this agent will show it.
    Read the agent's own `DD_<AGENT>_*` environment variables in `build`. A content problem is an
    outcome (`abstained` with a reason code), not an exception.
 
+   An agent that calls a model keeps its system prompt in `system_prompt.md` beside the module
+   that sends it, and reads it with `Path(__file__).with_name("system_prompt.md")`, so the prompt
+   can be read and reviewed as prose. CI treats that file as the agent's code, not as prose.
+   `orchestrator/` and `standards/` are the examples.
+
    An agent that is exploratory — not yet validated, likely to change shape — ships with a
    pre-release version (`version = "0.1.0a1"`, PEP 440) instead of the usual `0.1.0`, and its
    `README.md` and its row in the table above say plainly that it is alpha. There is no separate
