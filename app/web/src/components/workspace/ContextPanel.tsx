@@ -9,7 +9,7 @@
 import type { AgentView } from "../../manifest/normalise";
 import { GROUNDING } from "../../manifest/wording";
 import { Link } from "../../route";
-import { Models } from "../capabilities/CapabilitiesPanel";
+import { Models } from "../capabilities/ModelDisclosure";
 import { IssueLinks, NotBuilt } from "../NotBuilt";
 
 export function ContextPanel({ orchestrator }: { orchestrator: AgentView | undefined }) {
@@ -42,7 +42,7 @@ function AgentSummary({ agent }: { agent: AgentView }) {
         <strong>{GROUNDING[agent.groundingMode].label}.</strong>{" "}
         {GROUNDING[agent.groundingMode].explanation}
       </p>
-      <Models models={agent.models} />
+      <Models agent={agent} />
       {undeclared && (
         <p>
           <span className="status status-undeclared">Not declared</span> Its limits,

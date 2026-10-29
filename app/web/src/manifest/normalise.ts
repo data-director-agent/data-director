@@ -52,8 +52,10 @@ export interface AgentView {
   derivations: Derivation[];
   declaredActionClass: string;
   gate: GateStatus;
-  /** The models it sends data to. Empty: it calls none. */
+  /** The models it sends data to. Empty: it calls none (see `modelsDeclared`). */
   models: RawModelUse[];
+  /** False for a card with no `models` key: nothing is known about whether it uses a model. */
+  modelsDeclared: boolean;
   /** The process flow steps it serves, which place it in the flow. Empty: none. */
   serves: string[];
   oversight: Oversight;
@@ -107,6 +109,7 @@ export function normaliseAgent(entry: RawManifestEntry): AgentView {
     declaredActionClass: entry.action_class,
     gate: gateStatus(entry),
     models: (entry.models ?? []).map((m) => ({ ...m })),
+    modelsDeclared: entry.models !== undefined,
     serves: [...(entry.serves ?? [])],
     // No agent carries the oversight extension yet (increment 2).
     oversight: {
