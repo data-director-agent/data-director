@@ -17,7 +17,7 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { FolderOpen, MessageSquarePlus, SendHorizontal, X } from "lucide-react";
-import { useConversationApi } from "../../conversation/api";
+import { Unreachable, useConversationApi } from "../../conversation/api";
 import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
@@ -125,8 +125,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     // box if the send fails, so nothing typed is lost.
     setSent(message);
     setText("");
+    let id = conversationId;
     try {
-      const id = conversationId ?? (await api.create());
+      id ??= await api.create();
       setConversationId(id);
       await api.sendTurn(id, orchestrator.id, message);
       const updated = await api.get(id);
@@ -140,11 +141,20 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       void reloadPast();
     } catch (e) {
       setText(message);
-      setError(
-        e instanceof RunRefused
-          ? `${e.problem.title}: ${e.message}`
-          : `Data Director could not send this: ${errorMessage(e)}`,
-      );
+      if (e instanceof Unreachable) {
+        // The server may have received the turn and be running it, so show what it stored.
+        if (id) api.get(id).then(setConversation, () => undefined);
+        setError(
+          "Data Director could not reach the server, so this message may not have been sent. " +
+            "Your text is kept: check the conversation above, then send it again.",
+        );
+      } else {
+        setError(
+          e instanceof RunRefused
+            ? `${e.problem.title}: ${e.message}`
+            : `Data Director could not send this: ${errorMessage(e)}`,
+        );
+      }
       setAnnouncement("");
     } finally {
       setSent(null);

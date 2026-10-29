@@ -37,6 +37,7 @@ import json
 import logging
 import os
 import sys
+import time
 import webbrowser
 from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
@@ -193,14 +194,28 @@ def build_app(
             return _refused("The message is empty.")
         if governance.conversation(conversation_id) is None:
             return _no_conversation(conversation_id)
+        started = time.monotonic()
+        outcome = "answered"
         try:
             return JSONResponse(
                 await governance.turn(conversation_id, agent_id, message_text, acting_for)
             )
         except UnknownConversationError:
+            outcome = "unknown conversation"
             return _no_conversation(conversation_id)
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
+            outcome = "refused"
             return _refused(str(exc))
+        except BaseException:
+            outcome = "failed or dropped"
+            raise
+        finally:
+            log.info(
+                "data-director: turn %s %s in %.1f s",
+                conversation_id,
+                outcome,
+                time.monotonic() - started,
+            )
 
     async def list_conversations(request: Request, _: Principal) -> Response:
         return JSONResponse(governance.conversations())
