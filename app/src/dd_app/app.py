@@ -273,15 +273,21 @@ def build_app(
         if sign_in is None:
             operator = governance.authenticator.principal_for(None)
             return JSONResponse(
-                {"signs_in": False, "principal": _principal(operator), "expires_at": None}
+                {
+                    "signs_in": False,
+                    "issuer": None,
+                    "principal": _principal(operator),
+                    "expires_at": None,
+                }
             )
         session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
+        body: dict[str, Any] = {"signs_in": True, "issuer": sign_in.issuer}
         if session is None:
-            return JSONResponse({"signs_in": True, "principal": None, "expires_at": None})
+            return JSONResponse({**body, "principal": None, "expires_at": None})
         expires_at = datetime.fromtimestamp(sign_in.store.expires_at(session), UTC)
         return JSONResponse(
             {
-                "signs_in": True,
+                **body,
                 "principal": _principal(session.principal),
                 "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
             }

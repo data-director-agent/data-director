@@ -10,6 +10,7 @@ import { createContext, useContext } from "react";
 
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
+import { checkSignedIn } from "../session/api";
 
 export type FeedbackKind = "bug" | "feature" | "other";
 
@@ -48,6 +49,7 @@ export function describeBuild(about: Pick<About, "app_version" | "commit">): str
 
 async function json<T>(response: Response): Promise<T> {
   if (response.ok) return (await response.json()) as T;
+  checkSignedIn(response);
   const problem = (await response.json().catch(() => null)) as Problem | null;
   if (response.status === 400 && problem) throw new RunRefused(problem);
   throw new Error(problem?.detail ?? `the server answered ${response.status}`);

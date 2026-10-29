@@ -20,7 +20,7 @@ import httpx
 import pytest
 import uvicorn
 from starlette.testclient import TestClient
-from support import configure_env, dist_dir, with_standards
+from support import check_fixture, configure_env, dist_dir, with_standards
 
 from dd_app import app as dd_app
 from dd_app.app import build_app
@@ -151,6 +151,15 @@ def test_a_person_signs_in_and_their_runs_act_for_them(deployment: Deployment):
     }
 
 
+def test_the_session_fixtures_are_what_the_server_says(deployment: Deployment):
+    browser = deployment.browser()
+    check_fixture("session-signed-out.json", browser.get("/api/session").json())
+    sign_in(deployment, browser, name="Josiah Carberry")
+    session = browser.get("/api/session").json()
+    session["expires_at"] = "2099-01-01T00:00:00Z"  # far off, so no notice shows
+    check_fixture("session-signed-in.json", session)
+
+
 def test_the_app_asks_for_openid_alone_and_authenticates_with_its_secret(
     deployment: Deployment,
 ):
@@ -254,6 +263,7 @@ def test_what_the_sign_in_page_needs_is_open(deployment: Deployment):
     browser = deployment.browser()
     assert browser.get("/api/session").json() == {
         "signs_in": True,
+        "issuer": "https://sandbox.orcid.org",
         "principal": None,
         "expires_at": None,
     }
@@ -387,6 +397,7 @@ def test_a_development_server_acts_for_the_operator_and_says_so(env: Path, tmp_p
     assert session["signs_in"] is False
     assert session["principal"]["name"] == TEST_PRINCIPAL.name
     assert session["principal"]["assurance"] == "asserted"
+    check_fixture("session-development.json", session)
     assert browser.get("/api/sign-in", follow_redirects=False).status_code == 404
     assert browser.post("/api/sign-out").status_code == 204
     assert browser.get("/api/agents").status_code == 200

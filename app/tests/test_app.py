@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 import threading
 import webbrowser
@@ -22,7 +21,14 @@ import uvicorn
 from a2a.helpers import get_data_parts
 from a2a.types import TaskState
 from starlette.testclient import TestClient
-from support import APP_URL, configure_env, dist_dir, new_governance, with_standards
+from support import (
+    APP_URL,
+    check_fixture,
+    configure_env,
+    dist_dir,
+    new_governance,
+    with_standards,
+)
 
 from dd_agent_director.agent import build as build_director
 from dd_agent_hello.agent import build as build_hello
@@ -53,11 +59,9 @@ from dd_sdk.agent import Agent
 from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
 from dd_sdk.process_flow import ENTRIES, PHASES
 
-# The shell's component and browser tests are drawn from these, so each must be what the server
-# says. `DD_WRITE_FIXTURES=1 uv run pytest app/tests` rewrites them. `agents.json` is the
-# reference set; `agents-several.json` is five agents of different grounding modes and payload
-# shapes under the permissive test profile, which does not list the standards advisor.
-FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
+# The fixtures (`support.check_fixture`): `agents.json` is the reference set;
+# `agents-several.json` is five agents of different grounding modes and payload shapes under the
+# permissive test profile, which does not list the standards advisor.
 STANDARDS_AGENT_ID = "standards.advisor"
 
 
@@ -195,16 +199,6 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
     governance = Governance.create(settings_from_env(), APP_URL)
     assert governance.conductor.registry.ids() == []
     assert "standards" in governance.conductor.registry.unavailable
-
-
-def check_fixture(name: str, body: dict[str, Any]) -> None:
-    path = FIXTURES / name
-    text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    if os.environ.get("DD_WRITE_FIXTURES") == "1":
-        path.write_text(text, encoding="utf-8")
-    assert path.read_text(encoding="utf-8") == text, (
-        f"{path} is stale; rerun with DD_WRITE_FIXTURES=1"
-    )
 
 
 def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):

@@ -1,0 +1,10 @@
+{
+  "expires_at": null,
+  "issuer": null,
+  "principal": {
+    "assurance": "asserted",
+    "name": "Josiah Carberry",
+    "principal_id": "https://orcid.org/0000-0002-1825-0097"
+  },
+  "signs_in": false
+}

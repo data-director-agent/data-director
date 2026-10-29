@@ -9,6 +9,7 @@ import { createContext, useContext } from "react";
 
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
+import { checkSignedIn } from "../session/api";
 import type { Conversation, ConversationSummary } from "./types";
 
 export interface ConversationApi {
@@ -24,6 +25,7 @@ export interface ConversationApi {
 }
 
 async function json<T>(response: Response): Promise<T> {
+  checkSignedIn(response);
   if (response.status === 400) throw new RunRefused((await response.json()) as Problem);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as T;

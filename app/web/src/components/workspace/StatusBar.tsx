@@ -3,13 +3,14 @@
  * the project) its dataset, phase, repository and open governance flags. Until then those four
  * are drawn as not built, linked to their issues, with no value standing in for them.
  *
- * Until there is authentication (ADR-0018, #17) the principal is the operator's assertion, and
- * the bar says so.
+ * The principal is the signed-in person, with who vouched for them, or on a development server
+ * the operator's assertion, and the bar says which (ADR-0029).
  */
 
 import "./StatusBar.css";
 
 import type { Directory } from "../../manifest/normalise";
+import { assuranceText } from "../../session/api";
 import { IssueLinks } from "../NotBuilt";
 
 const NOT_BUILT: { label: string; issues: number[] }[] = [
@@ -29,11 +30,7 @@ export function StatusBar({ directory }: { directory: Directory }) {
         <div>
           <dt>Acting for</dt>
           <dd>
-            {actingFor.name} (
-            {actingFor.assurance === "asserted"
-              ? "asserted by the operator, not authenticated"
-              : actingFor.assurance}
-            )
+            {actingFor.name} ({assuranceText(actingFor)})
           </dd>
         </div>
         <div>
