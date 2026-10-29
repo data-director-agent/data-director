@@ -70,7 +70,7 @@ def test_defaults_write_the_example_principal_and_no_key(repo: Path) -> None:
 def test_a_bare_orcid_id_is_given_its_prefix_and_a_name_with_a_space_is_quoted(
     repo: Path,
 ) -> None:
-    setup(scripted("Ada Lovelace", "0000-0001-2345-678X", ""), install=False)
+    setup(scripted("Ada Lovelace", "0000-0001-2345-678X", "", ""), install=False)
     text = (repo / "config" / "local" / "app.env").read_text()
     assert 'DD_PRINCIPAL_NAME="Ada Lovelace"' in text
     assert (
@@ -80,13 +80,13 @@ def test_a_bare_orcid_id_is_given_its_prefix_and_a_name_with_a_space_is_quoted(
 
 
 def test_an_invalid_id_is_asked_again(repo: Path) -> None:
-    setup(scripted("Ada", "not an id", "https://ror.org/05krs5044", ""), install=False)
+    setup(scripted("Ada", "not an id", "https://ror.org/05krs5044", "", ""), install=False)
     app = common.read_env(repo / "config" / "local" / "app.env")
     assert app["DD_PRINCIPAL_ID"] == "https://ror.org/05krs5044"
 
 
 def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
-    setup(scripted("", "", KEY, "y", "y"), install=False)
+    setup(scripted("", "", KEY, "y", "y", ""), install=False)
     local = repo / "config" / "local"
     agents, credentials = local / "agents", local / "credentials"
     assert common.read_env(agents / "orchestrator.env") == {
@@ -105,7 +105,7 @@ def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
 
 
 def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(repo: Path) -> None:
-    setup(scripted("", "", KEY, "n", "y"), install=False)
+    setup(scripted("", "", KEY, "n", "y", ""), install=False)
     profile = (repo / "app" / "config" / "profile.yaml").read_text()
     example = (repo / "app" / "config" / "profile.yaml.example").read_text()
     assert "\norchestrator: orchestrator.model\n" in profile
@@ -114,7 +114,7 @@ def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(re
     old = int(found[1])
     assert f"\nversion: {old + 1}\n" in profile
     # A second run finds it already named and leaves the version alone.
-    setup(scripted("", "", "", "n", "y"), install=False)
+    setup(scripted("", "", "", "n", "y", ""), install=False)
     assert (repo / "app" / "config" / "profile.yaml").read_text() == profile
 
 
@@ -130,7 +130,7 @@ def test_a_rerun_keeps_the_key_and_other_lines(repo: Path) -> None:
     (local / "credentials").mkdir()
     (local / "credentials" / "orchestrator-anthropic-api-key").write_text(KEY + "\n")
     asked: list[str] = []
-    setup(scripted("", "", "", "n", "n", asked=asked), install=False)
+    setup(scripted("", "", "", "n", "n", "", asked=asked), install=False)
     assert own.read_text() == text
     assert any(mask(KEY) in q for q in asked) and not any(KEY in q for q in asked)
 
@@ -151,6 +151,26 @@ def test_a_malformed_settings_file_names_its_line(text: str, fragment: str) -> N
 def test_settings_files_read_as_uv_reads_them() -> None:
     text = "# c\nexport A=1\nB='two words'\nC=\"x\" # note\nD=plain # note\n\n"
     assert common.parse_env(text) == {"A": "1", "B": "two words", "C": "x", "D": "plain"}
+
+
+def test_a_fairsharing_login_turns_on_live_search_in_the_standards_file_alone(
+    repo: Path,
+) -> None:
+    setup(scripted("", "", "", "ada", "s3cret"), install=False)
+    local = repo / "config" / "local"
+    assert common.read_env(local / "agents" / "standards.env") == {
+        "DD_STANDARDS_RETRIEVAL": "live",
+        "FAIRSHARING_LOGIN": "ada",
+        "FAIRSHARING_PASSWORD": "s3cret",
+    }
+    assert stat.S_IMODE((local / "agents" / "standards.env").stat().st_mode) == 0o600
+    for other in (local / "app.env", local / "agents.env"):
+        assert "s3cret" not in other.read_text()
+    # A rerun keeps the password when Enter is pressed.
+    asked: list[str] = []
+    setup(scripted("", "", "", "", "", asked=asked), install=False)
+    assert common.read_env(local / "agents" / "standards.env")["FAIRSHARING_PASSWORD"] == "s3cret"
+    assert any(mask("s3cret") in q for q in asked) and not any("s3cret" in q for q in asked)
 
 
 def test_a_key_in_a_shared_file_is_refused(repo: Path) -> None:

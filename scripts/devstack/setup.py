@@ -22,6 +22,7 @@ from devstack.common import (
 )
 
 KEYS_URL = "https://console.anthropic.com/settings/keys"
+FAIRSHARING_URL = "https://fairsharing.org/accounts/signup"
 ORCID_ID = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
 
 
@@ -142,6 +143,36 @@ def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     return True
 
 
+def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
+    """Ask for a FAIRsharing account and give it to the standards advisor for live search."""
+    own = paths.AGENT_ENV_DIR / "standards.env"
+    current = read_env(own)
+    print(
+        "\nA FAIRsharing account (optional). Without one, the standards advisor searches its\n"
+        f"bundled snapshot. With one, it searches FAIRsharing itself. Sign up at {FAIRSHARING_URL}.\n"
+        "FAIRsharing issues its token on sign-in, so the advisor takes the login and password."
+    )
+    login = prompt.text("FAIRsharing login, Enter skips", current.get("FAIRSHARING_LOGIN", ""))
+    if not login:
+        return
+    kept = current.get("FAIRSHARING_PASSWORD", "")
+    shown = f"Enter keeps {mask(kept)}" if kept else "required"
+    password = prompt.secret(f"FAIRsharing password ({shown})") or kept
+    if not password:
+        print("  No password given; FAIRsharing live search is not set up.")
+        return
+    update_env(
+        own,
+        {
+            "DD_STANDARDS_RETRIEVAL": "live",
+            "FAIRSHARING_LOGIN": login,
+            "FAIRSHARING_PASSWORD": password,
+        },
+        "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026).",
+    )
+    changes.note(own)
+
+
 def use_model_orchestrator(changes: Changes) -> None:
     """Name `orchestrator.model` in the local profile, raising its version (app/README.md)."""
     profile = paths.PROFILE
@@ -173,6 +204,7 @@ def setup(prompt: Prompter, install: bool = True) -> int:
         "Make the model-backed orchestrator the one the home page talks to?", True
     ):
         use_model_orchestrator(changes)
+    ask_fairsharing(prompt, changes)
     print("\nWrote " + ", ".join(str(p.relative_to(paths.ROOT)) for p in changes.written) + ".")
     if problems:
         print("Install what is missing above, then run setup again to install and build.")

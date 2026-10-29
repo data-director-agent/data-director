@@ -29,7 +29,8 @@ uv run scripts/dev.py start           # the agents, the app and the shell; Ctrl-
 ```
 
 `setup` asks for your name and ORCID iD, because every run acts for a named person, and,
-optionally, for an Anthropic API key. Without a key, the app converses with `director.stub`, a
+optionally, for an Anthropic API key and a FAIRsharing login (for the standards advisor's live
+search; without one it searches its bundled snapshot). Without a key, the app converses with `director.stub`, a
 rule-based agent, and everything else works. `setup` writes each answer to the file it belongs in,
 so you never edit a settings file by hand: your name in `config/local/app.env`, and the key only in
 the credential file of the agent that uses it (`config/local/credentials/`), never in a file every agent
