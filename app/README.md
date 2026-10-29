@@ -142,9 +142,13 @@ started it, recorded as `authenticated` with the issuer that vouched (ADR-0029):
 | `DD_APP_PUBLIC_URL` | Where people reach the app. The client's redirect URI is this followed by `/api/sign-in/callback`. Defaults to `http://DD_APP_HOST:DD_APP_PORT`. |
 | `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | A session ends after this long unused (8 hours) or this long at most (7 days). |
 
-To try it locally, register a client at `https://sandbox.orcid.org/developer-tools` with the
-redirect URI `http://127.0.0.1:7860/api/sign-in/callback`, and sign in with a sandbox account
-(#178). A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in for ORCID.
+To try it locally, register a client through ORCID's
+[sandbox registration page](https://info.orcid.org/register-a-client-application-sandbox-member-api/)
+with the redirect URI `http://127.0.0.1:7860/api/sign-in/callback`. Sign in with a sandbox account:
+create one at `https://sandbox.orcid.org/register`, using a `@mailinator.com` address, since the
+sandbox only sends email there, and verify it before editing records. Sandbox data is not backed up
+and may be deleted (#178). A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
+for ORCID.
 
 - The app runs the authorisation-code flow itself (`src/dd_app/signin.py`), asks for the `openid`
   scope alone, and verifies the ID token with the harness's `verify_id_token`. It keeps the
