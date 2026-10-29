@@ -188,6 +188,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     <Workspace
       {...frame}
       title="Talk to Data Director"
+      titleHidden
       centre={
         <section aria-labelledby="conversation-heading" className="conversation-main">
           <h2 id="conversation-heading" className="visually-hidden">
