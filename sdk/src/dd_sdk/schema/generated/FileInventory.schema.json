@@ -1,0 +1,169 @@
+{
+   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$defs": {
+      "IdentificationMethod": {
+         "description": "How a file's format was identified, from strongest to weakest (ADR-0034).",
+         "enum": [
+            "signature",
+            "container",
+            "extension",
+            "none"
+         ],
+         "title": "IdentificationMethod",
+         "type": "string"
+      },
+      "InventoryFile": {
+         "additionalProperties": false,
+         "description": "One file of a dataset, as the inventory command found it.",
+         "properties": {
+            "file_path": {
+               "description": "The file's path relative to the dataset's root folder, with forward slashes. Never an absolute path, which would say where the data live.",
+               "pattern": "^[^/]",
+               "type": "string"
+            },
+            "file_size": {
+               "description": "The file's size in bytes.",
+               "type": "integer"
+            },
+            "file_sha256": {
+               "description": "The SHA-256 digest of the file's bytes, in lowercase hex, by which the file deposited can be shown to be the file described.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "file_media_type": {
+               "description": "The file's media type (MIME type), when it could be told.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_pronom_ids": {
+               "description": "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "file_identified_by": {
+               "$ref": "#/$defs/IdentificationMethod",
+               "description": "How the PRONOM identifiers were arrived at."
+            },
+            "file_fields": {
+               "description": "For a table, its fields as a Frictionless Table Schema inferred from a sample of rows.",
+               "items": {
+                  "$ref": "#/$defs/TableField"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "file_path",
+            "file_size",
+            "file_sha256",
+            "file_identified_by"
+         ],
+         "title": "InventoryFile",
+         "type": "object"
+      },
+      "TableField": {
+         "additionalProperties": false,
+         "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).",
+         "properties": {
+            "name": {
+               "type": "string"
+            },
+            "field_type": {
+               "description": "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_format": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_description": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "TableField",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/schema/core/FileInventory",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The facts about a dataset's files that the project holds in place of the files (ADR-0034): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "FileInventory"
+         ],
+         "type": "string"
+      },
+      "inventory_files": {
+         "description": "Every file under the dataset's root folder that the command read, sorted by path.",
+         "items": {
+            "$ref": "#/$defs/InventoryFile"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "inventory_tool": {
+         "description": "The command that made the inventory, such as dd-inventory.",
+         "type": "string"
+      },
+      "inventory_tool_version": {
+         "description": "The version of the command that made the inventory.",
+         "type": "string"
+      },
+      "inventory_identified_with": {
+         "description": "What identified the formats, such as fido 1.6.1 with PRONOM signatures v109, or that only file extensions were used.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "inventory_made_at": {
+         "description": "When the inventory was made.",
+         "format": "date-time",
+         "type": "string"
+      },
+      "inventory_limitations": {
+         "description": "What the inventory left out or could not do, such as files it skipped.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class",
+      "inventory_tool",
+      "inventory_tool_version",
+      "inventory_made_at"
+   ],
+   "title": "FileInventory",
+   "type": "object"
+}

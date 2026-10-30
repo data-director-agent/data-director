@@ -39,19 +39,6 @@ classes:
       - media_types
       - fields
 
-  TableField:
-    description: >-
-      One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
-      Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
-      slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).
-    see_also:
-      - https://datapackage.org/standard/table-schema/#field
-    slots:
-      - name
-      - field_type
-      - field_format
-      - field_description
-
   Recommendations:
     description: The standards advisor payload. Recommended vocabularies, ontologies and formats.
     mixins:
@@ -104,20 +91,6 @@ slots:
     range: TableField
     multivalued: true
     inlined_as_list: true
-
-  name:
-    required: true
-  field_type:
-    description: >-
-      Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
-      geopoint, ...).
-    see_also:
-      - https://datapackage.org/standard/table-schema/#type
-  field_format:
-    see_also:
-      - https://datapackage.org/standard/table-schema/#format
-  field_description:
-    slot_uri: dcterms:description
 
   items:
     range: Recommendation
