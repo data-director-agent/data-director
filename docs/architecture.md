@@ -187,7 +187,11 @@ decision ([ADR-0034](adr/0034-project-and-its-files.md); not built yet, #198).
 A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
 When a run in a project returns one, the conductor adds it to the log as a new version. A
 person's edit is a version too. Each version is proposed, approved or rejected on its own, and
-none is removed ([ADR-0035](adr/0035-project-documents.md); not built yet, #198, #200).
+none is removed ([ADR-0035](adr/0035-project-documents.md); not built yet, #198, #200). A
+person approves or rejects the latest version, with a reason to reject or edit, and the harness
+records the decision in the log under the principal who made it. The app only shows it, and
+nothing resumes a run ([ADR-0036](adr/0036-proposed-changes-and-approval.md); not built yet,
+#201).
 
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
