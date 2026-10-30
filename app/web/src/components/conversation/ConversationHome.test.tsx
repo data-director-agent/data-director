@@ -187,6 +187,29 @@ describe("ConversationHome", () => {
     expect(get).toHaveBeenCalledWith("c1");
   });
 
+  it("reads the reply again when the first read after a turn gets no response", async () => {
+    const get = vi
+      .fn()
+      .mockRejectedValueOnce(new Unreachable())
+      .mockResolvedValue(conversationFixture as Conversation);
+    renderHome(withOrchestrator(), fakeApi({ get }));
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("New reply from orchestrator.stub: Succeeded.")).toBeInTheDocument();
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("does not offer a stored turn to be sent again when its reply cannot be shown", async () => {
+    renderHome(withOrchestrator(), fakeApi({ get: () => Promise.reject(new Unreachable()) }));
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your message was sent and answered, but Data Director could not show the reply",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("");
+  });
+
   it("shows the message and that the orchestrator is working until the reply arrives", async () => {
     let reply: () => void = () => undefined;
     const sendTurn = () => new Promise<void>((resolve) => (reply = resolve));

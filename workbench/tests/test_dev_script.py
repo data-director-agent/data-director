@@ -118,6 +118,26 @@ def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(re
     assert (repo / "app" / "config" / "profile.yaml").read_text() == profile
 
 
+def test_a_local_profile_missing_an_agent_the_example_enables_is_reported(repo: Path) -> None:
+    config = repo / "app" / "config"
+    assert common.profile_omissions({}) == []  # no local copy: the app uses the example
+    example = (config / "profile.yaml.example").read_text()
+    stale = example.replace("  advisor.policy: advise\n", "").replace(
+        "  advisor.repository: advise\n", ""
+    )
+    assert stale != example
+    (config / "profile.yaml").write_text(stale)
+    omitted = common.profile_omissions({})
+    assert omitted == ["advisor.policy", "advisor.repository"]
+    assert "app/config/profile.yaml does not enable advisor.policy, advisor.repository" in (
+        common.omissions_note(omitted)
+    )
+    # A profile chosen with DD_PROFILE is the deployment's choice, and is not compared.
+    assert common.profile_omissions({"DD_PROFILE": str(config / "profile.yaml")}) == []
+    (config / "profile.yaml").write_text(example)
+    assert common.profile_omissions({}) == []
+
+
 def test_a_rerun_keeps_the_key_and_other_lines(repo: Path) -> None:
     local = repo / "config" / "local"
     own = local / "agents" / "orchestrator-model.env"

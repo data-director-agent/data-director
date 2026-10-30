@@ -126,6 +126,10 @@ cp app/config/profile.yaml.example app/config/profile.yaml
 
 Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
+The copy does not follow the example: an agent added to the example later is not enabled in it,
+and the app refuses that agent as not enabled. `scripts/dev.py start` and `doctor` name any agent
+the example enables that the copy omits; add it to the copy, or delete the copy.
+
 The app stops at start-up, with one line, if a setting is unset or wrong, a file is missing or
 malformed, or the shell has not been built.
 
