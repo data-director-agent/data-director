@@ -45,7 +45,7 @@ Each entry of `fields` has:
   depositing by hand puts the value.
 
 A key outside this list is refused. A value the repository's guidance does not state is left out
-with a `TODO(#…)`, never guessed.
+with a marker that cites an issue, never guessed.
 
 ## Files
 

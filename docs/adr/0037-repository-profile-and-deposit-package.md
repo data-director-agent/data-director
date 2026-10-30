@@ -62,7 +62,7 @@ drafter of the metadata record has to know what to write. The harness has to kno
    `required` or `recommended`, and `form_label`, the label of the deposit form's field that the
    value goes in, so that a person depositing by hand knows where to put it. Properties the
    repository fills itself, such as the identifier and the publisher, are not listed. A value the
-   guidance does not state is left out and marked with a TODO, never guessed. The class's LinkML follows this record, as an additive change to the core
+   guidance does not state is left out and marked as undecided with an issue reference, never guessed. The class's LinkML follows this record, as an additive change to the core
    contract (ADR-0019 decision 1).
 
 2. **Profiles are deployment configuration.** A profile is a YAML file that a steward can read and
