@@ -1,14 +1,14 @@
 {
-  "sdk": "0.2.0-alpha",
-  "harness": "0.2.0-alpha",
-  "workbench": "0.2.0-alpha.1",
-  "app": "0.3.0-alpha.3",
-  "agents/orchestrator-stub": "0.1.1-alpha",
+  "sdk": "0.2.0-alpha.1",
+  "harness": "0.2.0-alpha.1",
+  "workbench": "0.2.0-alpha.2",
+  "app": "0.3.0-alpha.4",
+  "agents/orchestrator-stub": "0.1.1-alpha.1",
   "agents/example-hello": "0.1.0",
-  "agents/advisor-quality": "0.1.1-alpha",
-  "agents/advisor-standards": "0.1.1-alpha",
-  "agents/orchestrator-model": "0.1.1-alpha",
-  "agents/advisor-repository": "0.1.0-alpha",
-  "agents/advisor-policy": "0.1.0-alpha",
-  "inventory": "0.1.0-alpha"
+  "agents/advisor-quality": "0.1.1-alpha.1",
+  "agents/advisor-standards": "0.1.1-alpha.1",
+  "agents/orchestrator-model": "0.1.1-alpha.1",
+  "agents/advisor-repository": "0.1.0-alpha.1",
+  "agents/advisor-policy": "0.1.0-alpha.1",
+  "inventory": "0.1.0-alpha.1"
 }

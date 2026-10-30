@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-repository"
-version = "0.1.0-alpha"
+version = "0.1.0-alpha.1"
 description = "advisor.repository: recommends and describes data repositories from re3data and FAIRsharing"
 requires-python = ">=3.14"
 license = "MIT"

@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.2.0-alpha.2](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.1...workbench-v0.2.0-alpha.2) (2026-10-30)
+
+
+### Features
+
+* **agents:** add the policy advisor for phase 2 ([#332](https://github.com/data-director-agent/data-director/issues/332)) ([1f23fb4](https://github.com/data-director-agent/data-director/commit/1f23fb4dc2c28c21d931632edc3bf339bbbc586d))
+* **agents:** add the repository advisor for phase 3 ([#325](https://github.com/data-director-agent/data-director/issues/325)) ([120a8b6](https://github.com/data-director-agent/data-director/commit/120a8b6cee92965ffe30fbd80ab18c302c01fc91))
+* **agents:** sketch every persona of the roster as a served mock ([#364](https://github.com/data-director-agent/data-director/issues/364)) ([e9b81ba](https://github.com/data-director-agent/data-director/commit/e9b81ba0f94af1b7901de8f43704a3000d357933))
+* **inventory:** inventory a dataset's files where they live ([#393](https://github.com/data-director-agent/data-director/issues/393)) ([2238ce6](https://github.com/data-director-agent/data-director/commit/2238ce657e8158931229f4339cafc83a857bbb03))
+* **workbench:** act for an example person by default ([#297](https://github.com/data-director-agent/data-director/issues/297)) ([dd0de8d](https://github.com/data-director-agent/data-director/commit/dd0de8d5eb8e40732a5063c63f1ac9223a16e78c))
+* **workbench:** open the viewer on chat with the orchestrator ([#316](https://github.com/data-director-agent/data-director/issues/316)) ([bb4c8bb](https://github.com/data-director-agent/data-director/commit/bb4c8bb13a63c9cc68e01702dce8b6bd003e4a58))
+
+
+### Bug Fixes
+
+* default the explainer and orchestrator to claude sonnet 5.5 ([#298](https://github.com/data-director-agent/data-director/issues/298)) ([1149b72](https://github.com/data-director-agent/data-director/commit/1149b72190f8bc6a4076143e0edd354f45b4c382))
+
+
+### Documentation
+
+* **adr:** decide the repository profile and the deposit package ([#386](https://github.com/data-director-agent/data-director/issues/386)) ([fd04883](https://github.com/data-director-agent/data-director/commit/fd04883f40d48509550cad74e27ead1340a9028e))
+* **adr:** derive a repository's requirements from its metadata standard ([#402](https://github.com/data-director-agent/data-director/issues/402)) ([e60404f](https://github.com/data-director-agent/data-director/commit/e60404f2a3712fe03b93e6e0b1bc8f8a1929d4e7))
+* **adr:** number the repository profile ADR 0038 ([#397](https://github.com/data-director-agent/data-director/issues/397)) ([eb8d193](https://github.com/data-director-agent/data-director/commit/eb8d193cf2fafb0b2379b30dcdb5ba999c27a229)), closes [#197](https://github.com/data-director-agent/data-director/issues/197)
+* reproduce the published blueprint v1.0 as chaptered markdown ([#286](https://github.com/data-director-agent/data-director/issues/286)) ([15e0094](https://github.com/data-director-agent/data-director/commit/15e00946817f7f132f1f3b8bf52826022d1b43c7))
+
 ## [0.2.0-alpha.1](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha...workbench-v0.2.0-alpha.1) (2026-10-28)
 
 

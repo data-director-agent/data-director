@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-orchestrator-stub"
-version = "0.1.1-alpha"
+version = "0.1.1-alpha.1"
 description = "orchestrator.stub: a rule-based stand-in for the Data Director orchestrator"
 requires-python = ">=3.14"
 license = "MIT"

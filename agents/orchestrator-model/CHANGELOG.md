@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1-alpha.1](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha...agent-orchestrator-model-v0.1.1-alpha.1) (2026-10-30)
+
+
+### Features
+
+* **agents:** sketch every persona of the roster as a served mock ([#364](https://github.com/data-director-agent/data-director/issues/364)) ([e9b81ba](https://github.com/data-director-agent/data-director/commit/e9b81ba0f94af1b7901de8f43704a3000d357933))
+* **agents:** tell the orchestrator who knows what ([#342](https://github.com/data-director-agent/data-director/issues/342)) ([63f4d84](https://github.com/data-director-agent/data-director/commit/63f4d8438822e2a9143eb8e4f27c9da8947e35b9))
+
 ## [0.1.1-alpha](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-v0.1.0...agent-orchestrator-v0.1.1-alpha) (2026-10-23)
 
 
