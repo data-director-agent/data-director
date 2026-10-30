@@ -57,7 +57,7 @@ nav:
       - Configuration: operations/configuration.md
       - Deploying to a VM: /deploy/README.md
       - Institutional profiles: /workbench/profiles/README.md
-      - Repository profiles: /app/config/repositories/README.md
+      - Repository requirements: /app/config/repositories/README.md
   - Developer guide:
       - developer-guide/index.md
       - Setting up: developer-guide/setup.md
