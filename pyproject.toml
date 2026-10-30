@@ -10,7 +10,22 @@
 [project]
 name = "data-director"
 version = "0.0.0"
+description = "Data Director: reference implementation of the RDA Data Director Agentic AI Blueprint (uv workspace root)"
+readme = "README.md"
 requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["research data management", "agentic ai", "fair data", "a2a", "rda"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  # Not a distributable package; stops an accidental upload to PyPI.
+  "Private :: Do Not Upload",
+]
 dependencies = [
   "data-director-sdk",
   "data-director-harness[serve]",
@@ -24,6 +39,13 @@ dependencies = [
   "data-director-agent-orchestrator-model",
   "data-director-app",
 ]
+
+[project.urls]
+Homepage = "https://github.com/data-director-agent/data-director"
+Documentation = "https://github.com/data-director-agent/data-director/tree/main/docs"
+Repository = "https://github.com/data-director-agent/data-director"
+Issues = "https://github.com/data-director-agent/data-director/issues"
+Blueprint = "https://doi.org/10.15497/RDA00157"
 
 [dependency-groups]
 dev = [
