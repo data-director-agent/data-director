@@ -214,7 +214,7 @@ them and writes a SHACL Validation Report. Only from a report with no violation 
 of the dataset that holds the approved documents, the inventory, the report and the audit trail,
 and no data files. The researcher adds the files when depositing
 ([ADR-0038](adr/0038-repository-requirements-and-deposit-package.md)). Recording the choice is
-built; validation and the package are not yet, #19, #202.
+built; validation and the package are not yet, #199, #202.
 
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
