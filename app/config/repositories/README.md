@@ -4,7 +4,7 @@ A repository profile says what one repository requires of a deposit: the metadat
 requires or recommends, the documents it needs, and the formats, sizes and licences it accepts.
 Before it builds a deposit package, the harness checks a project against the profile of the
 repository the researcher chose
-([ADR-0037](../../../docs/adr/0037-repository-profile-and-deposit-package.md)). A drafter is given
+([ADR-0038](../../../docs/adr/0038-repository-profile-and-deposit-package.md)). A drafter is given
 the same profile, so that it knows what to write.
 
 Profiles are YAML so that the people who know the repository, its research data management team
