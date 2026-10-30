@@ -39,6 +39,7 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against. |
 | `DD_RUNS_DIR` | Where runs are written. |
 | `DD_PROJECTS_DIR` | Where project records are kept. Only `dd-harness project` needs it so far. |
+| `DD_REPOSITORIES_DIR` | The requirement sets a chosen repository resolves to: `standards/` and `overrides/` (ADR-0038). Only `dd-harness project choose-repository` needs it so far. |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for on a server that signs no one in, and for callers with no request (the CLI, the evaluation). Recorded as `asserted`. |
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider (for example `https://orcid.org`) and the client ID its ID tokens are issued to. Set, every HTTP caller must send one of its ID tokens, and is recorded as `authenticated` (ADR-0029). It cannot be set beside `DD_PRINCIPAL_ID`. |
 

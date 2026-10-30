@@ -7,8 +7,10 @@ chose ([ADR-0038](../../../docs/adr/0038-repository-requirements-and-deposit-pac
 drafter is given the same requirements, so that it knows what to write.
 
 The sets are YAML so that the people who know a repository, its research data management team
-and the deployment's stewards, can read them and propose changes. None of this is built yet
-(#199, #202).
+and the deployment's stewards, can read them and propose changes. The harness loads them and
+records a researcher's choice (`dd-harness project choose-repository`); checking a project
+against them is not built yet (#199, #202). `app/tests/test_repositories.py` checks that they
+load and that ORDA resolves as intended.
 
 ## Standards and overrides
 

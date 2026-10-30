@@ -1,0 +1,221 @@
+{
+   "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
+   "$defs": {
+      "Any": {
+         "additionalProperties": true,
+         "description": "Placeholder range for slots whose value type is enumerated in any_of.",
+         "title": "Any",
+         "type": [
+            "null",
+            "boolean",
+            "object",
+            "number",
+            "string"
+         ]
+      },
+      "DocumentKind": {
+         "description": "What a project document is for (ADR-0035).",
+         "enum": [
+            "metadata_record",
+            "readme",
+            "data_dictionary",
+            "dmp",
+            "other"
+         ],
+         "title": "DocumentKind",
+         "type": "string"
+      },
+      "Obligation": {
+         "description": "Whether a requirement set's field or document stops a package (ADR-0038).",
+         "enum": [
+            "required",
+            "recommended"
+         ],
+         "title": "Obligation",
+         "type": "string"
+      },
+      "RequirementField": {
+         "additionalProperties": false,
+         "description": "One metadata property a requirement set requires or recommends.",
+         "properties": {
+            "property": {
+               "description": "The schema's property, such as DataCite's titles or types.resourceTypeGeneral.",
+               "type": "string"
+            },
+            "qualifier": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Any"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set."
+            },
+            "schema_org": {
+               "description": "The schema.org term the property maps to, by which the record is read as RDF.",
+               "type": "string"
+            },
+            "obligation": {
+               "$ref": "#/$defs/Obligation"
+            },
+            "form_label": {
+               "description": "An override only: the label of the repository's deposit form field the value goes in.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "property",
+            "schema_org",
+            "obligation"
+         ],
+         "title": "RequirementField",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/schema/core/RequirementSet",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "What a deposit must or should have (ADR-0038). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "RequirementSet"
+         ],
+         "type": "string"
+      },
+      "requirement_set_id": {
+         "description": "Identifies the requirement set, such as datacite-4 or orda.",
+         "pattern": "^[a-z0-9][a-z0-9-]*$",
+         "type": "string"
+      },
+      "version": {
+         "description": "The version of the set, raised on every change.",
+         "type": "integer"
+      },
+      "title": {
+         "description": "What a person calls the standard or the repository.",
+         "type": "string"
+      },
+      "url": {
+         "description": "Where the standard or the repository is described.",
+         "format": "uri",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "conforms_to": {
+         "description": "The URI of the metadata schema. An override names the standard's set it builds on.",
+         "format": "uri",
+         "type": "string"
+      },
+      "re3data_names": {
+         "description": "A standard's set only: the metadataStandardName values in re3data that select it.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "re3data_id": {
+         "description": "An override only: the repository's re3data identifier, such as r3d100012124.",
+         "pattern": "^r3d[0-9]{9}$",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "fields": {
+         "description": "The metadata properties the set requires or recommends.",
+         "items": {
+            "$ref": "#/$defs/RequirementField"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "required_documents": {
+         "description": "The document kinds that must have an approved version before a package is built.",
+         "items": {
+            "$ref": "#/$defs/DocumentKind"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "recommended_documents": {
+         "description": "The document kinds whose absence is a warning.",
+         "items": {
+            "$ref": "#/$defs/DocumentKind"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "media_types": {
+         "description": "An override only: the media types the repository accepts. Empty means any.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "max_file_size": {
+         "description": "An override only: the largest file the repository accepts, in bytes.",
+         "type": [
+            "integer",
+            "null"
+         ]
+      },
+      "max_item_size": {
+         "description": "An override only: the largest deposit the repository accepts, in bytes.",
+         "type": [
+            "integer",
+            "null"
+         ]
+      },
+      "licences": {
+         "description": "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "guidance": {
+         "description": "The pages the set's values were taken from, so that a steward can check them.",
+         "items": {
+            "format": "uri",
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class",
+      "requirement_set_id",
+      "version",
+      "title",
+      "conforms_to"
+   ],
+   "title": "RequirementSet",
+   "type": "object"
+}

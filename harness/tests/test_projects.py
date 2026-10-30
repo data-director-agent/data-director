@@ -8,9 +8,17 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from requirement_sets import override, standard, write
 
 from dd_harness import server
-from dd_harness.projects import INVENTORY_ADDED, PROJECT_CREATED, ProjectError, ProjectStore
+from dd_harness.projects import (
+    INVENTORY_ADDED,
+    PROJECT_CREATED,
+    REPOSITORY_CHOSEN,
+    ProjectError,
+    ProjectStore,
+)
+from dd_harness.requirements import load_requirements
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import FileInventory, IdentificationMethod, InventoryFile
 from dd_sdk.evidence import input_hash
@@ -149,3 +157,61 @@ def test_the_command_refuses_a_file_that_is_not_an_inventory(
     file.write_text("[]", "utf-8")
     with pytest.raises(SystemExit, match="not a JSON object"):
         server.main(["project", "add-inventory", project_id, str(file)])
+
+
+@pytest.fixture
+def repositories(tmp_path: Path) -> Path:
+    return write(tmp_path / "repositories", ("standards", standard()), ("overrides", override()))
+
+
+def test_a_project_records_the_repository_chosen_and_its_requirements(
+    store: ProjectStore, repositories: Path
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert store.requirements(project_id) is None
+    requirements = load_requirements(repositories)
+    elsewhere = requirements.resolve("r3d100000001", "Elsewhere", ["Dublin Core"])
+    store.choose_repository(project_id, elsewhere, acted_for=TEST_PRINCIPAL, caused_by="test")
+    orda = requirements.resolve("r3d100012124", "ORDA", ["Dublin Core"])
+    digest = store.choose_repository(project_id, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+
+    # The last choice counts, and the merged set reads back as it was recorded.
+    assert store.requirements(project_id) == orda.requirements()
+    assert digest == input_hash(orda.requirements())
+    first, last = store.events(project_id)[1:]
+    assert first["event"] == last["event"] == REPOSITORY_CHOSEN
+    assert len(first["warnings"]) == 2
+    assert last["re3data_id"] == "r3d100012124"
+    assert last["declared_standards"] == ["Dublin Core"]
+    assert [s["ref"] for s in last["requirement_sets"]] == ["datacite-4@v1", "orda@v2"]
+    assert last["digest"] == digest
+    assert last["warnings"] == []
+    with pytest.raises(ProjectError, match="no project"):
+        store.choose_repository(
+            "0" * 8 + "-0000-7000-8000-" + "0" * 12, orda, acted_for=TEST_PRINCIPAL, caused_by="t"
+        )
+
+
+def test_the_command_records_a_choice_and_warns_of_what_is_not_checked(
+    operator: Path,
+    repositories: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    server.main(["project", "create"])
+    project_id = capsys.readouterr().out.strip()
+    choose = ["project", "choose-repository", project_id, "--re3data", "r3d100000001"]
+    choose += ["--name", "Elsewhere", "--standard", "DataCite Metadata Schema"]
+    with pytest.raises(SystemExit, match="DD_REPOSITORIES_DIR unset"):
+        server.main(choose)
+    monkeypatch.setenv("DD_REPOSITORIES_DIR", str(repositories))
+    assert server.main(choose) == 0
+    out, err = capsys.readouterr()
+    assert "warning: the deployment has no override for Elsewhere" in err
+    (event,) = [
+        e for e in ProjectStore(operator).events(project_id) if e["event"] == REPOSITORY_CHOSEN
+    ]
+    assert event["digest"] == out.strip()
+    assert event["caused_by"] == "dd-harness project choose-repository"
+    with pytest.raises(SystemExit, match="not a re3data identifier"):
+        server.main([*choose[:4], "orda", *choose[5:]])

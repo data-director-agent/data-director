@@ -14,7 +14,11 @@ What a project holds of its research data is a `FileInventory`, never the files.
 checked against the core class schema before it is added, and kept as its `dd-input-json-v1`
 canonical bytes, so its digest is the input hash the conductor records when an agent is given it.
 
-Only `project_created` and `inventory_added` exist so far; documents (ADR-0035), approvals
+The repository a researcher chose is a `repository_chosen` event. It records each requirement
+set the choice resolved to by reference and digest, and keeps the merged set as a blob, so that a
+drafter and validation read exactly what was chosen (ADR-0038 decision 2). The last choice counts.
+
+Documents (ADR-0035), approvals
 (ADR-0036) and membership (ADR-0037) will be events of the same log. Giving an agent the
 project's facts, and naming the run that caused an event, is TODO(#394); adding an inventory
 from the app is TODO(#395).
@@ -31,6 +35,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from dd_harness.requirements import Resolved
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import UUID7_PATTERN, FileInventory, Principal, new_invocation_id, now
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
@@ -39,6 +44,7 @@ EVENTS_NAME = "events.jsonl"
 BLOBS_DIR = ("blobs", "sha256")
 PROJECT_CREATED = "project_created"
 INVENTORY_ADDED = "inventory_added"
+REPOSITORY_CHOSEN = "repository_chosen"
 PROJECT_ID = re.compile(UUID7_PATTERN)
 
 
@@ -97,6 +103,32 @@ class ProjectStore:
         )
         return digest
 
+    def choose_repository(
+        self, project_id: str, resolved: Resolved, *, acted_for: Principal, caused_by: str
+    ) -> str:
+        """Record the repository a researcher chose, and the requirements it resolved to.
+        Returns the merged set's digest. Raises `ProjectError` for an unknown project."""
+        self._require(project_id)
+        requirements = resolved.requirements()
+        digest = input_hash(requirements)
+        self._keep_blob(project_id, digest, canonicalise(requirements, INPUT_CANONICALISATION))
+        self._append(
+            project_id,
+            REPOSITORY_CHOSEN,
+            acted_for,
+            caused_by,
+            {
+                "re3data_id": resolved.re3data_id,
+                "repository_name": resolved.repository_name,
+                "declared_standards": list(resolved.declared_standards),
+                "requirement_sets": [s.describe() for s in resolved.sets],
+                "digest": digest,
+                "canonicalisation": INPUT_CANONICALISATION,
+                "warnings": list(resolved.warnings),
+            },
+        )
+        return digest
+
     def events(self, project_id: str) -> list[dict[str, Any]]:
         """Every event of the project, oldest first. Raises `ProjectError` for an unknown one."""
         self._require(project_id)
@@ -105,10 +137,18 @@ class ProjectStore:
 
     def inventory(self, project_id: str) -> dict[str, Any] | None:
         """The inventory added last, or None if none has been."""
-        added = [e for e in self.events(project_id) if e["event"] == INVENTORY_ADDED]
-        if not added:
+        return self._latest(project_id, INVENTORY_ADDED)
+
+    def requirements(self, project_id: str) -> dict[str, Any] | None:
+        """The merged requirements of the repository chosen last, or None if none has been."""
+        return self._latest(project_id, REPOSITORY_CHOSEN)
+
+    def _latest(self, project_id: str, kind: str) -> dict[str, Any] | None:
+        """The blob the last event of `kind` kept, or None if there is no such event."""
+        found = [e for e in self.events(project_id) if e["event"] == kind]
+        if not found:
             return None
-        blob = self._blob_path(project_id, added[-1]["digest"])
+        blob = self._blob_path(project_id, found[-1]["digest"])
         data: dict[str, Any] = json.loads(blob.read_bytes())
         return data
 

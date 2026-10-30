@@ -74,6 +74,11 @@ def projects_dir(default: Path | None = None) -> Path:
     return _path("DD_PROJECTS_DIR", default)
 
 
+def repositories_dir(default: Path | None = None) -> Path:
+    """The deployment's requirement sets: `DD_REPOSITORIES_DIR`, which has no default (ADR-0038)."""
+    return _path("DD_REPOSITORIES_DIR", default)
+
+
 def named_principal(
     principal_id: str | None, principal_name: str | None, principal_kind: str
 ) -> Principal:

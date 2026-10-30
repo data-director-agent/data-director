@@ -12,7 +12,7 @@ description: >-
   schema_class (ADR-0007); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.2
+version: 0.9.3
 license: MIT
 
 prefixes:
@@ -201,6 +201,50 @@ classes:
       - file_pronom_ids
       - file_identified_by
       - file_fields
+
+  RequirementSet:
+    description: >-
+      What a deposit must or should have (ADR-0038). A standard's set covers any record in one
+      metadata standard and names it in re3data_names; a repository override adds what one
+      repository asks and names it in re3data_id. The harness merges the two for the repository a
+      researcher chose, checks the project against the result, and gives it to the drafters. Kept
+      as YAML in the deployment's configuration, not sent by agents.
+    slots:
+      - schema_class
+      - requirement_set_id
+      - version
+      - title
+      - url
+      - conforms_to
+      - re3data_names
+      - re3data_id
+      - fields
+      - required_documents
+      - recommended_documents
+      - media_types
+      - max_file_size
+      - max_item_size
+      - licences
+      - guidance
+    slot_usage:
+      version:
+        description: The version of the set, raised on every change.
+      title:
+        description: What a person calls the standard or the repository.
+        required: true
+      conforms_to:
+        description: >-
+          The URI of the metadata schema. An override names the standard's set it builds on.
+        required: true
+
+  RequirementField:
+    description: One metadata property a requirement set requires or recommends.
+    slots:
+      - property
+      - qualifier
+      - schema_org
+      - obligation
+      - form_label
 
   TableField:
     description: >-
@@ -643,6 +687,69 @@ slots:
     range: TableField
     multivalued: true
     inlined_as_list: true
+  requirement_set_id:
+    description: Identifies the requirement set, such as datacite-4 or orda.
+    required: true
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  url:
+    description: Where the standard or the repository is described.
+    slot_uri: schema:url
+    range: uri
+  re3data_names:
+    description: >-
+      A standard's set only: the metadataStandardName values in re3data that select it.
+    multivalued: true
+  re3data_id:
+    description: "An override only: the repository's re3data identifier, such as r3d100012124."
+    pattern: "^r3d[0-9]{9}$"
+  fields:
+    description: The metadata properties the set requires or recommends.
+    range: RequirementField
+    multivalued: true
+    inlined_as_list: true
+  required_documents:
+    description: The document kinds that must have an approved version before a package is built.
+    range: DocumentKind
+    multivalued: true
+  recommended_documents:
+    description: The document kinds whose absence is a warning.
+    range: DocumentKind
+    multivalued: true
+  media_types:
+    description: "An override only: the media types the repository accepts. Empty means any."
+    multivalued: true
+  max_file_size:
+    description: "An override only: the largest file the repository accepts, in bytes."
+    range: integer
+  max_item_size:
+    description: "An override only: the largest deposit the repository accepts, in bytes."
+    range: integer
+  licences:
+    description: >-
+      An override only: the licences the repository offers, each an SPDX identifier or the URL of
+      the repository's own terms.
+    multivalued: true
+  guidance:
+    description: The pages the set's values were taken from, so that a steward can check them.
+    range: uri
+    multivalued: true
+  property:
+    description: The schema's property, such as DataCite's titles or types.resourceTypeGeneral.
+    required: true
+  qualifier:
+    description: >-
+      Values that narrow the property, such as a subjectScheme. Part of what identifies a field
+      when an override is merged with its standard's set.
+    range: Any
+  schema_org:
+    description: The schema.org term the property maps to, by which the record is read as RDF.
+    required: true
+  obligation:
+    range: Obligation
+    required: true
+  form_label:
+    description: >-
+      An override only: the label of the repository's deposit form field the value goes in.
   field_type:
     description: >-
       Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
@@ -690,6 +797,14 @@ slots:
     required: true
 
 enums:
+
+  Obligation:
+    description: Whether a requirement set's field or document stops a package (ADR-0038).
+    permissible_values:
+      required:
+        description: A missing value is an sh:Violation; the package is not built.
+      recommended:
+        description: A missing value is an sh:Warning, shown to the researcher.
 
   IdentificationMethod:
     description: How a file's format was identified, from strongest to weakest (ADR-0034).
