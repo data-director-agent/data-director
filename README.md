@@ -139,6 +139,27 @@ agent's credential file, never in `agents.env`, which every agent reads. If you 
 layout (`.env`, `workbench/.env`, `workbench/agents/*.env`), `dev.py doctor` says where each file's
 settings move.
 
+## Acknowledgements
+
+The Blueprint was written by the RDA Data Director Agentic AI Blueprint Working Group, facilitated
+by Connie Clare (RDA) with support from Trish Radotic (RDA Secretariat). Benjamin Wright-Jones and
+George Earl (Microsoft) developed its reference architecture. Its authors are listed in
+[Appendix C](docs/blueprint/appendix-c-acknowledgements.md).
+
+The design of this implementation has been discussed in the Working Group's reference
+implementation meetings since October 2026. We thank the participants for the ideas they brought:
+
+- Patricia Buendia (Lifetime Omics): a biomedical workflow with human approval gates, and pilot datasets.
+- Lars Eklund (Uppsala University): a versioned requirements specification in the repository, and archiving releases on Zenodo.
+- Seonyoung Kim (Washington University): coordination with the RDA AI in Research Interest Group.
+- Allyson Lister (University of Oxford): the Data Director suggests changes for a person to confirm, rather than changing data itself.
+- Ugochi Okengwu (University of Port Harcourt).
+- Monica Palmero Fernandez (University of Oxford): a joint Sheffield and Oxford implementation (Blueprint [Appendix D](docs/blueprint/appendix-d-implementors.md)).
+- Pengyin Shan (NCSA, University of Illinois Urbana-Champaign): the agreements and approvals needed before real data is used.
+- Slava Tykhonov (CODATA): verified agent identities with signed inputs and outputs, ODRL for policies, and evaluation.
+- Raymond Uzwyshyn (University of California, Riverside): a persona-based design of six agents.
+- Carlo Maria Zwölf (LUX, Observatoire de Paris): a post-mortem of an end-to-end deposit prototype.
+
 ## Contributing
 
 This is a community-driven, open-source project. See:
