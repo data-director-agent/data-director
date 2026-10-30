@@ -1,0 +1,18 @@
+name: Task
+description: A piece of work that is not a new capability, such as a decision record, a spike or maintenance.
+type: Task
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: Task
+      description: What is to be done and why. For a spike, give the timebox and the question it answers.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: What exists when this is finished (a merged change, an ADR, a written note).
+    validations:
+      required: true

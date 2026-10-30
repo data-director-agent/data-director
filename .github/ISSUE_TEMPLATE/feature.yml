@@ -1,0 +1,25 @@
+name: Feature
+description: A capability the system should have.
+type: Feature
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: Who can do what, and why it matters. Cite Blueprint requirements (R3, C2, …) where they apply.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What must be true when this is finished, in terms someone else could check.
+      placeholder: |
+        - [ ] …
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Decisions it depends on, related issues, and anything out of scope.

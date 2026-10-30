@@ -29,3 +29,6 @@ The software is archived on Zenodo, and is cited as
 - **[Developer guide](developer-guide/index.md)**: set up the repository, write an agent and
   work on these pages.
 - **[Reference](reference/index.md)**: the contract, decisions, glossary and conformance report.
+
+To take part without writing code, by reviewing advice, decisions or conformance, see
+[Giving feedback](user-guide/feedback.md).

@@ -10,3 +10,5 @@ governed by the harness and recorded, so you can see what an agent did and why.
 4. [Understanding outcomes](outcomes.md): what succeeded, abstained, referred and failed mean.
 5. [What the Data Director records](records.md): what is kept about each run and conversation,
    where you can see it, and who else can.
+6. [Giving feedback](feedback.md): tell the project where its advice, its decisions or its
+   reading of the Blueprint fall short, without writing code.
