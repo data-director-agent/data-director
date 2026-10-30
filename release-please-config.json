@@ -93,6 +93,13 @@
       "exclude-paths": [
         "agents/advisor-policy/tests"
       ]
+    },
+    "inventory": {
+      "component": "inventory",
+      "release-type": "python",
+      "exclude-paths": [
+        "inventory/tests"
+      ]
     }
   }
 }

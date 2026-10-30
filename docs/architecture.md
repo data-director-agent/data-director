@@ -96,6 +96,7 @@ Solid arrows are calls at run time; dotted arrows are imports.
 | `agents/` | One package and one A2A service per agent. `example-hello/` is the template for a new one. | [`agents/README.md`](../agents/README.md) |
 | `app/` | The Data Director that people use (alpha). A Starlette server (`dd_app`) over the conductor, and a React shell (`app/web`) drawn from each agent's manifest. | [`app/README.md`](../app/README.md), [ADR-0024](adr/0024-app-shell.md) |
 | `workbench/` | The test bed for people who write agents: a CLI, the Inspect and Chat pages, and evaluation. Not part of a deployment. | [`workbench/README.md`](../workbench/README.md) |
+| `inventory/` | `dd-inventory`, the command a researcher runs where their data live. It writes the inventory of a dataset's files (paths, sizes, digests, PRONOM formats, table fields) and needs no other part of Data Director. | [`inventory/README.md`](../inventory/README.md), [ADR-0034](adr/0034-project-and-its-files.md) |
 
 ### The dependency rules
 
@@ -182,7 +183,8 @@ conductor puts them into the input, so the agent never reads the project store i
 added, a document uploaded, a repository chosen) and any uploaded documentation, kept by digest.
 It holds an inventory of the research data files, made where the data live, never the files
 themselves. Which project content may go to an agent that calls a hosted model is the profile's
-decision ([ADR-0034](adr/0034-project-and-its-files.md); not built yet, #198).
+decision ([ADR-0034](adr/0034-project-and-its-files.md)). The inventory is made by
+[`dd-inventory`](../inventory/README.md); the project store is not built yet (#198).
 
 A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
 When a run in a project returns one, the conductor adds it to the log as a new version. A
