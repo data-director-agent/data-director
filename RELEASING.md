@@ -22,6 +22,33 @@ records the last released version of each package.
 - Nothing is tagged or published until the release pull request is merged. Merging it tags each
   package `<component>-v<version>` (for example `harness-v0.2.0-alpha`) and creates a GitHub
   release, marked as a pre-release.
+- If the merge released `sdk` or `harness`, the workflow then builds that package and publishes
+  it to [TestPyPI](https://test.pypi.org/) (see below). No other package is published.
+
+## Publishing to TestPyPI
+
+An agent in another repository needs the SDK, and the harness's test kit, from a package index
+(ADR-0031). Until the release path is proven, they go to TestPyPI only, and install with:
+
+```sh
+pip install --pre --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ data-director-sdk
+```
+
+The `publish-testpypi` job uses trusted publishing: TestPyPI trusts
+`.github/workflows/release-please.yml` running in the `testpypi` environment, and no token is
+stored. A version already on TestPyPI is skipped, so running the workflow again is safe.
+
+Set-up, once, by a maintainer:
+
+1. On TestPyPI, add a pending trusted publisher for each of `data-director-sdk` and
+   `data-director-harness`: owner `data-director-agent`, repository `data-director`, workflow
+   `release-please.yml`, environment `testpypi`.
+2. In this repository's settings, create the environment `testpypi`, limited to the `main`
+   branch.
+
+Publishing to PyPI itself is a separate decision, after the contract reaches 1.0 or sooner
+(TODO(#260, #277)).
 
 ## Version numbers
 
