@@ -177,6 +177,36 @@ OLD_LOCATIONS = {
 }
 
 
+def profile_omissions(app: dict[str, str]) -> list[str]:
+    """The agents the example profile enables that the local copy, when the app uses it, omits.
+
+    The local copy is not committed, so it keeps none of the agents added to the example after it
+    was made, and the gate refuses each of those as not enabled (#343). A profile named by
+    `DD_PROFILE` is chosen on purpose, so it is not compared.
+    """
+    if app.get("DD_PROFILE") or not paths.PROFILE.is_file():
+        return []
+    return sorted(_enabled(paths.PROFILE_EXAMPLE) - _enabled(paths.PROFILE))
+
+
+def omissions_note(omitted: list[str]) -> str:
+    """What `start` and `doctor` say about the agents `profile_omissions` found."""
+    return (
+        f"{paths.PROFILE.relative_to(paths.ROOT)} does not enable {', '.join(omitted)}, which the "
+        "example does, so the app refuses them as not enabled; add them to it, or delete it to "
+        "use the example"
+    )
+
+
+def _enabled(path: Path) -> set[str]:
+    """The agents a profile enables."""
+    try:
+        profile = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        raise DevError(f"{path.relative_to(paths.ROOT)} is not valid YAML: {exc}") from exc
+    return set(dict(profile.get("agents") or {}))
+
+
 def stray_files() -> list[str]:
     """Settings files of the old layout that exist, each with where its settings now go."""
     found = [
