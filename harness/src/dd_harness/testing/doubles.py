@@ -2,10 +2,11 @@
 
 `AbstainingStub` abstains unconditionally under the fixed id `stub.abstain`, which the test
 profiles name, so a test can exercise the gate, the store and the non-success path without
-scripting anything. `ScriptedAgent` is a generic double whose specification and behaviour are set
-per test. It emits the spans a test asks for, then returns (or raises) what it was given, so
-harness and linter behaviour can be pinned for each grounding mode without a retrieval backend or
-a model. Nothing here knows about any real agent.
+scripting anything. `DocumentStub`, under `stub.document`, drafts a placeholder project document
+of whichever kind it is asked for (ADR-0035). `ScriptedAgent` is a generic double whose
+specification and behaviour are set per test. It emits the spans a test asks for, then returns (or
+raises) what it was given, so harness and linter behaviour can be pinned for each grounding mode
+without a retrieval backend or a model. Nothing here knows about any real agent.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from typing import Any
 from dd_harness.testing.classes import (
     ProbeCheck,
     ProbeClaim,
+    ProbeDocumentRequest,
     ProbeProfile,
     ProbeRecord,
     ProbeReview,
@@ -25,6 +27,9 @@ from dd_harness.testing.classes import (
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    Derivation,
+    Document,
+    DocumentKind,
     EvidenceItem,
     GroundingMode,
     GroundingRef,
@@ -35,7 +40,12 @@ from dd_sdk.contract.models import (
     ReasonCode,
     Reply,
 )
-from dd_sdk.evidence import DOCUMENT_CANONICALISATION, HASH_ALGORITHM, content_hash
+from dd_sdk.evidence import (
+    DOCUMENT_CANONICALISATION,
+    HASH_ALGORITHM,
+    INPUT_CANONICALISATION,
+    content_hash,
+)
 from dd_sdk.tracing import chat_span, retrieval_span
 
 Behaviour = AgentResult | Exception | Callable[[InvocationRequest, RunContext], AgentResult]
@@ -165,4 +175,59 @@ class AbstainingStub:
                     "and no model was called."
                 ),
             )
+        )
+
+
+# What `DocumentStub` drafts for each kind: a media type and a placeholder text in it.
+_DRAFTS: dict[DocumentKind, tuple[str, str]] = {
+    DocumentKind.METADATA_RECORD: (
+        "application/json",
+        '{"title": "Untitled dataset", "description": "Drafted by a stub."}',
+    ),
+    DocumentKind.README: ("text/markdown", "# Untitled dataset\n\nDrafted by a stub.\n"),
+    DocumentKind.DATA_DICTIONARY: ("text/csv", "field,description\nid,Drafted by a stub.\n"),
+    DocumentKind.DMP: ("text/markdown", "# Data management plan\n\nDrafted by a stub.\n"),
+    DocumentKind.OTHER: ("text/plain", "Drafted by a stub.\n"),
+}
+
+
+class DocumentStub:
+    """Drafts a placeholder `Document` of the kind a `ProbeDocumentRequest` names, from a fixed
+    template, grounded on its input. It declares grounding mode `none`."""
+
+    spec = AgentSpec(
+        agent_id="stub.document",
+        version="0.1.0",
+        description="Drafts a placeholder project document of the kind it is asked for.",
+        action_class="advise",
+        accepts=(ClassSchema.of(ProbeDocumentRequest),),
+        grounding_mode=GroundingMode.NONE,
+        payload=ClassSchema.of(Document),
+    )
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        asked = request.input
+        assert isinstance(asked, ProbeDocumentRequest)  # the conductor checked spec.accepts
+        kind = asked.document_kind
+        media_type, text = _DRAFTS[kind]
+        return AgentResult(
+            outcome=Outcome(
+                status=OutcomeStatus.SUCCEEDED,
+                statement=f"Drafted a placeholder {kind.value}. No model was called.",
+            ),
+            payload=Document(
+                document_kind=kind,
+                media_type=media_type,
+                document_text=text,
+                document_derivation=Derivation.TEMPLATE,
+                grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
+            ),
+            evidence=[
+                EvidenceItem(
+                    source_id=ctx.input_ref,
+                    hash_algorithm=HASH_ALGORITHM,
+                    canonicalisation=INPUT_CANONICALISATION,
+                    content_hash=ctx.input_hash,
+                )
+            ],
         )

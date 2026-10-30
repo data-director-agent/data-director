@@ -55,6 +55,14 @@ classes:
       - schema_class
       - score
 
+  ProbeDocumentRequest:
+    description: >-
+      Which kind of project document the document double drafts. It returns the core's Document
+      (ADR-0035).
+    slots:
+      - schema_class
+      - document_kind
+
   ProbeCheck:
     description: What a retrieval double returns.
     mixins:

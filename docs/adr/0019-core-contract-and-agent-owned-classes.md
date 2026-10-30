@@ -39,6 +39,8 @@ Three further problems followed from that:
    - telemetry, delegation and the principal;
    - the conversation classes `Message`, `Reply` and `ConversationTurn`, which the conductor's
      conversation index reads (ADR-0012);
+   - the project's `Document` and `DocumentVersionRef`, which the project record and the deposit
+     package read (ADR-0035);
    - the enums those classes use, including `Derivation`, which the manifest's `derivations`
      name.
 
