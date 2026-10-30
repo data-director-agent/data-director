@@ -87,9 +87,9 @@ Four things constrain the answer:
    A later event may make it `approved` or `rejected`, and after that it does not change. A newer
    version does not alter an earlier version's state, so the version a person approved stays
    identifiable. A document's current version is its latest. The deposit package takes each
-   document's latest approved version (#197). A person's edit is a new `proposed` version, and
-   approving it is a separate act. How the decision is made and by whom, including whether an
-   edit and an approval may be one step, is #196's. Until that decision is in place, the app shows
+   document's latest approved version (#197). A person's edit is a new `proposed` version. How a
+   decision is made and by whom, and how an edit and its approval are sent as one step, is
+   [ADR-0036](0036-proposed-changes-and-approval.md). Until it is built (#201), the app shows
    every version as "Proposed, not reviewed".
 
 7. **The core holds the class, the harness holds the record.** The contract gains `Document` and

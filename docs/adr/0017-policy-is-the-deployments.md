@@ -68,9 +68,11 @@ None.
 - Envelopes stored before this change have no `policy_bundle_ref` or `policy_digest` and do not
   validate against the new schema.
 - The gate decides whether the workbench calls an agent. It cannot stop an agent's own service
-  doing something it did not declare. TODO(#196): when agents that write arrive, an agent proposes the
-  write in its payload and the conductor performs it after approval, so no agent holds write
-  credentials (Blueprint P4: "AI agents may draft and suggest"). That needs its own ADR.
+  doing something it did not declare. No agent holds write credentials (Blueprint P4: "AI agents
+  may draft and suggest"). In the MVP an agent proposes only project documents, and a person
+  approves or rejects each version ([ADR-0036](0036-proposed-changes-and-approval.md)).
+  TODO(#72): when an agent would change something outside the project, it proposes the change in
+  its payload and the conductor performs it after approval.
 - TODO(#154): per-user or per-group profiles need an authenticated user (C1), which the workbench does
   not yet have.
 - A future contributor must not reintroduce a way for a request, or an agent, to select or relax
