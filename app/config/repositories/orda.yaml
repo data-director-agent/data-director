@@ -1,0 +1,95 @@
+# The repository profile of ORDA, the University of Sheffield's research data repository
+# (ADR-0037). It says what a deposit to ORDA requires, so that the harness can check a project
+# against it and a drafter knows what to write. Keys are as in README.md beside this file.
+# Taken from public pages only (listed under `guidance`); what they leave open is TODO(#385).
+repository_id: orda
+version: 1
+repository_name: ORDA - The University of Sheffield Research Data Catalogue and Repository
+url: https://orda.shef.ac.uk/
+re3data_id: r3d100012124
+
+# ORDA runs on Figshare, which registers each item's DOI (prefix 10.15131) with DataCite.
+conforms_to: http://datacite.org/schema/kernel-4
+
+# What the depositor supplies. The identifier, publisher and publication year are filled in by
+# ORDA, so they are not listed. Required fields are Figshare's required set; whether ORDA's form
+# marks others as mandatory is TODO(#385).
+fields:
+  - property: titles
+    schema_org: name
+    obligation: required
+    form_label: Title
+  - property: creators
+    schema_org: creator
+    obligation: required
+    form_label: Authors
+  - property: types.resourceTypeGeneral
+    schema_org: additionalType
+    obligation: required
+    form_label: Item type
+  - property: subjects
+    qualifier: {subjectScheme: ANZSRC Fields of Research}
+    schema_org: about
+    obligation: required
+    form_label: Categories
+  # Figshare does not send keywords to DataCite, but its form requires them.
+  - property: subjects
+    schema_org: keywords
+    obligation: required
+    form_label: Keywords
+  - property: descriptions
+    qualifier: {descriptionType: Abstract}
+    schema_org: description
+    obligation: required
+    form_label: Description
+  - property: rightsList
+    schema_org: license
+    obligation: required
+    form_label: License
+  - property: fundingReferences
+    schema_org: funding
+    obligation: recommended
+    form_label: Funding
+  - property: relatedIdentifiers
+    schema_org: citation
+    obligation: recommended
+    form_label: Related materials
+
+required_documents:
+  - metadata_record
+# ORDA recommends an explanatory README file, and its form asks whether headings and units are
+# explained in a file.
+recommended_documents:
+  - readme
+  - data_dictionary
+
+# ORDA accepts any format and asks for open or commonly used ones where possible.
+media_types: []
+
+# max_file_size and max_item_size are left out: ORDA does not publish them. TODO(#385)
+
+# The licences found on ORDA's DataCite records, ORDA's own terms for closed data and for a custom
+# licence among them. ORDA advises that GPL, MIT and Apache licences suit software only. ORDA's
+# own list and its default are TODO(#385).
+licences:
+  - CC-BY-4.0
+  - CC0-1.0
+  - CC-BY-SA-4.0
+  - CC-BY-NC-4.0
+  - CC-BY-NC-SA-4.0
+  - CC-BY-ND-4.0
+  - CC-BY-NC-ND-4.0
+  - MIT
+  - Apache-2.0
+  - GPL-2.0-or-later
+  - GPL-3.0-or-later
+  - https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_closed_data_sensitive_data_not_openly_available_/24878301
+  - https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_content_with_a_custom_licence/26030305
+
+guidance:
+  - https://www.sheffield.ac.uk/library/research-data-management/orda
+  - https://www.sheffield.ac.uk/media/121509/download?attachment
+  - https://www.sheffield.ac.uk/media/107776/download?attachment
+  - https://info.figshare.com/user-guide/figshare-metadata-schema-overview/
+  - https://api.datacite.org/dois?client-id=bl.shef
+  - https://www.re3data.org/repository/r3d100012124
