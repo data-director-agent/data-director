@@ -9,6 +9,22 @@ and the pull request workflow. [Governance](https://github.com/data-director-age
 and the [code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md)
 are also organisation-wide. This file covers what is specific to this repository.
 
+## Contributing without writing code
+
+Much of what the project needs is judgement rather than code: whether advice is right for a
+discipline, whether a decision suits an institution, whether a requirement is met. Each has an
+issue form, chosen when you [open an issue](https://github.com/data-director-agent/data-director/issues/new/choose):
+
+* **Conformance review**: you examined a Blueprint requirement, such as accessibility (C6) or the
+  appropriateness of standards advice (R3), and found it met or not met. A maintainer records it
+  in the review record on your instruction ([the conformance report](docs/conformance.md)).
+* **Decision record feedback**: a question about, or objection to, an
+  [architecture decision record](docs/adr/README.md).
+* **Blueprint reading**: the project reads a [Blueprint](docs/blueprint/README.md) requirement
+  differently from you, or misses one.
+* **Feedback on advice**: an agent's advice was wrong, incomplete or unhelpful, and you can say
+  what good advice would have been.
+
 ## Repository structure
 
 This repository is organised as follow:

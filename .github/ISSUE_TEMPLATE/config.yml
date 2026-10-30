@@ -1,0 +1,11 @@
+# This repository keeps its own issue forms, so the organisation's defaults in
+# data-director-agent/.github do not apply here. bug.yml, feature.yml and task.yml are copies of
+# those defaults; change them there first and copy the result here.
+blank_issues_enabled: true
+contact_links:
+  - name: How work is planned
+    url: https://github.com/data-director-agent/.github/blob/main/PLANNING.md
+    about: How issues move from the Inbox to Done, and what makes an issue ready.
+  - name: How to contribute
+    url: https://github.com/data-director-agent/data-director/blob/main/CONTRIBUTING.md
+    about: Ways to take part, with or without writing code.

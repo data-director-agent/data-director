@@ -12,6 +12,13 @@ evidence canonicalisation or the outcome vocabulary. So does a new dependency, w
 places in a tier with a fallback ([ADR-0006](0006-dependency-tiering.md)), and any other choice
 that a contributor would otherwise have to rediscover from the code.
 
+## Questioning a record
+
+Anyone may question a record or object to it, with or without proposing an alternative, by
+opening a
+[decision record feedback](https://github.com/data-director-agent/data-director/issues/new?template=adr-feedback.yml)
+issue.
+
 ## How a record is made
 
 1. Copy [the template](0000-template.md) to `NNNN-short-title.md`, taking the next unused number.
