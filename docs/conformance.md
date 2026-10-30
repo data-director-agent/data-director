@@ -72,6 +72,11 @@ requirement is met, and is not marked. An evaluation test carries no marker at a
 
 ## Recording a review
 
+A reviewer who does not want to edit the repository opens a
+[conformance review](https://github.com/data-director-agent/data-director/issues/new?template=conformance-review.yml)
+issue instead. The form asks for every field below, and its last checkbox is the reviewer's
+written instruction to a maintainer, who then follows these steps with the issue as the record.
+
 1. Check that the requirement's `assessed_by` includes `review`. If it does not, change the
    register first and say why in the pull request.
 2. Carry out the review against a specific commit and write notes: what was examined, how, and
