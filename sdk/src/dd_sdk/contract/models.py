@@ -112,6 +112,45 @@ class IdentificationMethod(StrEnum):
     NONE = "none"
 
 
+class Obligation(StrEnum):
+    REQUIRED = "required"
+    RECOMMENDED = "recommended"
+
+
+# --- Requirement sets -------------------------------------------------------------------------
+# What a deposit must or should have (ADR-0038): the deployment's configuration, which the harness
+# loads and merges for the repository a researcher chose. Not an input or a payload of any agent.
+
+
+class RequirementField(Frozen):
+    property: str
+    qualifier: dict[str, Any] | None = None
+    schema_org: str
+    obligation: Obligation
+    form_label: str | None = None
+
+
+class RequirementSet(Frozen):
+    """A metadata standard's requirements, or one repository's override of them (ADR-0038)."""
+
+    schema_class: Literal["RequirementSet"] = "RequirementSet"
+    requirement_set_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
+    version: int
+    title: str
+    url: str | None = None
+    conforms_to: str
+    re3data_names: list[str] = Field(default_factory=list)
+    re3data_id: str | None = Field(default=None, pattern=r"^r3d[0-9]{9}$")
+    fields: list[RequirementField] = Field(default_factory=list)
+    required_documents: list[DocumentKind] = Field(default_factory=list)
+    recommended_documents: list[DocumentKind] = Field(default_factory=list)
+    media_types: list[str] = Field(default_factory=list)
+    max_file_size: int | None = None
+    max_item_size: int | None = None
+    licences: list[str] | None = None
+    guidance: list[str] = Field(default_factory=list)
+
+
 # --- Inputs -----------------------------------------------------------------------------------
 # Every input class carries `schema_class` as a type designator with a single literal value. The
 # core defines the conversation's Message and a project's FileInventory; every other input class

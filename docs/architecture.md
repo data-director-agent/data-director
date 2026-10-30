@@ -205,14 +205,16 @@ an edit made from a state of the project that is no longer the latest. Agents se
 only as a pseudonymous label such as "Member 1" ([ADR-0037](adr/0037-shared-projects.md); not
 built yet, #388).
 
-The loop ends with a **deposit package** for the repository the researcher chose. A **repository
-profile**, a YAML file of the deployment's, says what that repository requires: the DataCite
-fields of its metadata record, the documents it needs, and the formats, sizes and licences it
-accepts. The harness, not an agent, checks the project against the profile and writes a SHACL
-Validation Report. Only from a report with no violation does it build the package: an RO-Crate
+The loop ends with a **deposit package** for the repository the researcher chose, which may be
+any repository in re3data. Its **requirements** come from YAML files of the deployment's: the set
+for the metadata standard the repository declares (DataCite for most), and, for the few
+repositories the deployment knows well, an override with the fields its form requires and the
+formats, sizes and licences it accepts. The harness, not an agent, checks the project against
+them and writes a SHACL Validation Report. Only from a report with no violation does it build the package: an RO-Crate
 of the dataset that holds the approved documents, the inventory, the report and the audit trail,
 and no data files. The researcher adds the files when depositing
-([ADR-0038](adr/0038-repository-profile-and-deposit-package.md); not built yet, #199, #202).
+([ADR-0038](adr/0038-repository-requirements-and-deposit-package.md)). Recording the choice is
+built; validation and the package are not yet, #199, #202.
 
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
@@ -282,7 +284,7 @@ The harness ships no profile, agent list or source list. Each comes from the dep
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check uses. |
 | `DD_RUNS_DIR` | Where runs are written. |
 | `DD_PROJECTS_DIR` | Where project records and uploaded documentation are kept (ADR-0034, not built yet). |
-| `DD_REPOSITORIES_DIR` | The repository profiles a researcher may choose from (ADR-0038, not built yet). |
+| `DD_REPOSITORIES_DIR` | The requirement sets for metadata standards and repository overrides (ADR-0038). Only `dd-harness project choose-repository` reads them so far. |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Whom every run acts for where nobody signs in (the CLI, a development server). |
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider people sign in with (ADR-0029). The app also takes the client's secret. |
 

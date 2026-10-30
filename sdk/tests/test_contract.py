@@ -30,6 +30,7 @@ from dd_sdk.contract.models import (
     InventoryFile,
     InvocationRequest,
     Message,
+    Obligation,
     OpenInput,
     OpenPayload,
     Outcome,
@@ -39,6 +40,8 @@ from dd_sdk.contract.models import (
     ProblemDetails,
     ReasonCode,
     Reply,
+    RequirementField,
+    RequirementSet,
     TableField,
     Telemetry,
     TurnRole,
@@ -647,6 +650,42 @@ def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> 
     assert Document.model_validate(revised.model_dump(mode="json")) == revised
     with pytest.raises(ValueError):
         DocumentVersionRef(document_id=new_invocation_id(), version=0)
+
+
+def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
+    """A deposit's requirements come from a metadata standard's set, with an optional override per
+    repository merged on top (ADR-0038). Both are one class, kept as the deployment's YAML."""
+    schema = json.loads((SCHEMA / "generated" / "RequirementSet.schema.json").read_text("utf-8"))
+    assert schema["properties"]["schema_class"]["enum"] == ["RequirementSet"]
+    assert set(schema["$defs"]["Obligation"]["enum"]) == {o.value for o in Obligation}
+    assert schema["additionalProperties"] is False
+
+    override = RequirementSet(
+        requirement_set_id="orda",
+        version=2,
+        title="ORDA",
+        conforms_to="http://datacite.org/schema/kernel-4",
+        re3data_id="r3d100012124",
+        fields=[
+            RequirementField(
+                property="subjects",
+                qualifier={"subjectScheme": "ANZSRC Fields of Research"},
+                schema_org="about",
+                obligation=Obligation.REQUIRED,
+                form_label="Categories",
+            )
+        ],
+        required_documents=[DocumentKind.METADATA_RECORD],
+        licences=["CC-BY-4.0"],
+    )
+    document = override.model_dump(mode="json", exclude_none=True)
+    assert ClassSchema.of(RequirementSet).errors(document) == []
+    assert RequirementSet.model_validate(document) == override
+    assert ClassSchema.of(RequirementSet).errors({**document, "repository_id": "orda"})
+    with pytest.raises(ValueError):
+        RequirementSet(
+            requirement_set_id="orda", version=1, title="x", conforms_to="x", re3data_id="orda"
+        )
 
 
 def test_a_file_inventory_is_a_core_input_that_holds_facts_about_files_not_their_content() -> None:

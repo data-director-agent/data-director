@@ -1,19 +1,22 @@
-# The repository profile of ORDA, the University of Sheffield's research data repository
-# (ADR-0038). It says what a deposit to ORDA requires, so that the harness can check a project
-# against it and a drafter knows what to write. Keys are as in README.md beside this file.
-# Taken from public pages only (listed under `guidance`); what they leave open is TODO(#385).
-repository_id: orda
-version: 1
-repository_name: ORDA - The University of Sheffield Research Data Catalogue and Repository
+# What ORDA, the University of Sheffield's research data repository, asks beyond DataCite's
+# requirement set (ADR-0038). The harness merges it with standards/datacite-4.yaml when a researcher
+# chooses ORDA, so that it can check a project against both and a drafter knows what to write. Keys
+# are as in README.md one folder up. Taken from public pages only (listed under `guidance`); what
+# they leave open is TODO(#385).
+schema_class: RequirementSet
+requirement_set_id: orda
+version: 2
+title: ORDA - The University of Sheffield Research Data Catalogue and Repository
 url: https://orda.shef.ac.uk/
 re3data_id: r3d100012124
 
 # ORDA runs on Figshare, which registers each item's DOI (prefix 10.15131) with DataCite.
 conforms_to: http://datacite.org/schema/kernel-4
 
-# What the depositor supplies. The identifier, publisher and publication year are filled in by
-# ORDA, so they are not listed. Required fields are Figshare's required set; whether ORDA's form
-# marks others as mandatory is TODO(#385).
+# The fields of ORDA's deposit form, with their labels. Those DataCite already requires are listed
+# again for their labels; the rest are required or recommended here although DataCite does not
+# require them. Required fields are Figshare's required set; whether ORDA's form marks others as
+# mandatory is TODO(#385).
 fields:
   - property: titles
     schema_org: name

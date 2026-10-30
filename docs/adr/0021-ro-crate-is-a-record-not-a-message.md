@@ -45,7 +45,7 @@ find out what happened or what was produced.
 
 ## Not yet decided
 
-- The crate for the deliverable is decided by [ADR-0038](0038-repository-profile-and-deposit-package.md)
+- The crate for the deliverable is decided by [ADR-0038](0038-repository-requirements-and-deposit-package.md)
   decision 5. The deposit package is itself an RO-Crate of the dataset. The harness writes it,
   not an agent, and the package carries the Process Run Crate of each run behind an approved
   document. No agent returns `ro-crate-metadata.json` as a payload. Checking the package with the

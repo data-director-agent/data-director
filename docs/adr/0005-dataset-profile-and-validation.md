@@ -33,7 +33,7 @@ a bespoke `ValidationReport` type would be a second thing to maintain.
 |---|---|---|
 | `linkml` (generation) | Evaluation/CI path | The generated JSON Schema and SHACL files are committed; a hand-maintained JSON Schema is the fallback, with the LinkML source kept as documentation. |
 | `jsonschema` (runtime) | Runtime path | `fastjsonschema` or pydantic-only validation; `contract/validate.py` is the single call site. |
-| `pyshacl` | Runtime path, harness only ([ADR-0038](0038-repository-profile-and-deposit-package.md)) | Checks written in Python that emit the same `sh:` vocabulary, behind the harness's one validation module. |
+| `pyshacl` | Runtime path, harness only ([ADR-0038](0038-repository-requirements-and-deposit-package.md)) | Checks written in Python that emit the same `sh:` vocabulary, behind the harness's one validation module. |
 
 ## Consequences
 
