@@ -126,11 +126,20 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setSent(message);
     setText("");
     let id = conversationId;
+    let stored = false;
     try {
       id ??= await api.create();
       setConversationId(id);
       await api.sendTurn(id, orchestrator.id, message);
-      const updated = await api.get(id);
+      // The turn is stored: from here a failure is in showing the reply, not in sending it, so
+      // the message must not come back to the box to be sent twice (#337).
+      stored = true;
+      // Once more if the first read gets no response: the reply is there to be read.
+      const sentTo = id;
+      const updated = await api.get(sentTo).catch((e: unknown) => {
+        if (e instanceof Unreachable) return api.get(sentTo);
+        throw e;
+      });
       setConversation(updated);
       const last = updated.turns[updated.turns.length - 1];
       setAnnouncement(
@@ -140,6 +149,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       );
       void reloadPast();
     } catch (e) {
+      if (stored) {
+        void reloadPast();
+        setError(
+          "Your message was sent and answered, but Data Director could not show the reply " +
+            `(${errorMessage(e)}). Open this conversation from Earlier conversations to see it.`,
+        );
+        setAnnouncement("");
+        return;
+      }
       setText(message);
       if (e instanceof Unreachable) {
         // The server may have received the turn and be running it, so show what it stored.

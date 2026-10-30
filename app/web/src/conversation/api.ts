@@ -43,7 +43,8 @@ export class Unreachable extends Error {
   }
 }
 
-async function post(url: string, init: RequestInit): Promise<Response> {
+/** `fetch`, with a request that got no response raised as `Unreachable`, whichever endpoint. */
+async function request(url: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(url, init);
   } catch (e) {
@@ -55,13 +56,13 @@ async function post(url: string, init: RequestInit): Promise<Response> {
 export const httpConversationApi: ConversationApi = {
   async create(signal) {
     const created = await json<{ conversation_id: string }>(
-      await fetch("/api/conversations", { ...init(signal), method: "POST" }),
+      await request("/api/conversations", { ...init(signal), method: "POST" }),
     );
     return created.conversation_id;
   },
   async sendTurn(conversationId, agentId, messageText, signal) {
     await json(
-      await post(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
+      await request(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
         ...init(signal),
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -70,11 +71,11 @@ export const httpConversationApi: ConversationApi = {
     );
   },
   async list(signal) {
-    return json(await fetch("/api/conversations", init(signal)));
+    return json(await request("/api/conversations", init(signal)));
   },
   async get(conversationId, signal) {
     return json(
-      await fetch(`/api/conversations/${encodeURIComponent(conversationId)}`, init(signal)),
+      await request(`/api/conversations/${encodeURIComponent(conversationId)}`, init(signal)),
     );
   },
 };
