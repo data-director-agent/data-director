@@ -8,6 +8,13 @@ The Blueprint followed an RDA community consultation, reported in
 [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151)
 (<https://doi.org/10.15497/RDA00151>).
 
+Related work:
+
+- [RDA for Artificial Intelligence Cross-fertilisation Summary](https://doi.org/10.15497/RDA00160)
+  (RDA Secretariat, 2026), <https://doi.org/10.15497/RDA00160>.
+- [The Research Data Director: A Persona-Based Agentic AI Blueprint and Application for FAIR Research Data, Metadata, and Schema and Crosswalk Workflows](https://doi.org/10.5281/zenodo.23670411)
+  (Uzwyshyn, 2026), a companion persona-based blueprint, <https://doi.org/10.5281/zenodo.23670411>.
+
 The software is archived on Zenodo, and is cited as
 [doi:10.5281/zenodo.23735878](https://doi.org/10.5281/zenodo.23735878).
 

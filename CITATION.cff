@@ -43,3 +43,21 @@ references:
       name: Research Data Alliance
     year: 2025
     doi: 10.15497/RDA00151
+  - type: report
+    title: RDA for Artificial Intelligence Cross-fertilisation Summary
+    authors:
+      - name: RDA Secretariat
+    publisher:
+      name: Research Data Alliance
+    year: 2026
+    doi: 10.15497/RDA00160
+  - type: poster
+    title: >-
+      The Research Data Director: A Persona-Based Agentic AI Blueprint and Application for FAIR Research Data, Metadata, and Schema and Crosswalk Workflows
+    authors:
+      - family-names: Uzwyshyn
+        given-names: Raymond
+    publisher:
+      name: Zenodo
+    year: 2026
+    doi: 10.5281/zenodo.23670411
