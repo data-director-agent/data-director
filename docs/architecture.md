@@ -31,12 +31,14 @@ flowchart LR
     agents["Agents<br/>(separate services)"]
     sources[("Sources<br/>e.g. FAIRsharing")]
     runs[("Run store<br/>envelopes, traces,<br/>provenance")]
+    projects[("Project store<br/>file inventories,<br/>documents")]
 
     person --> app
     app --> harness
     harness --> agents
     agents --> sources
     harness --> runs
+    harness --> projects
 ```
 
 Three ideas carry through the rest of this page.
@@ -174,6 +176,14 @@ What each step is for:
   request, envelope, trace, both checks' verdicts and a
   [Process Run Crate](adr/0021-ro-crate-is-a-record-not-a-message.md).
 
+A run that belongs to a project is also given the project facts its input class asks for. The
+conductor puts them into the input, so the agent never reads the project store itself. The
+**project store** holds, for each project, an append-only log of what changed (an inventory
+added, a document uploaded, a repository chosen) and any uploaded documentation, kept by digest.
+It holds an inventory of the research data files, made where the data live, never the files
+themselves. Which project content may go to an agent that calls a hosted model is the profile's
+decision ([ADR-0034](adr/0034-project-and-its-files.md); not built yet, #198).
+
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
 identifier, an unknown agent) raises an error instead. The step-by-step table, with each problem
@@ -221,6 +231,9 @@ sequenceDiagram
 - A child is never given a grant, so delegation is one level deep.
 - The app builds each message's history from the stored turns; a caller cannot supply one
   ([ADR-0024](adr/0024-app-shell.md) §17). Conversations are read back from the run store.
+- Each conversation belongs to one project, and a project can have many conversations, so what
+  is known about a project survives a new conversation
+  ([ADR-0034](adr/0034-project-and-its-files.md)).
 
 The rules are in [ADR-0012](adr/0012-conversation-and-orchestration.md) and
 [`conductor.md`](../harness/docs/conductor.md#delegation).
@@ -238,6 +251,7 @@ The harness ships no profile, agent list or source list. Each comes from the dep
 | `DD_AGENTS_CONFIG` | The list of agent URLs to read cards from. |
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check uses. |
 | `DD_RUNS_DIR` | Where runs are written. |
+| `DD_PROJECTS_DIR` | Where project records and uploaded documentation are kept (ADR-0034, not built yet). |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Whom every run acts for where nobody signs in (the CLI, a development server). |
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider people sign in with (ADR-0029). The app also takes the client's secret. |
 
@@ -259,6 +273,7 @@ flowchart LR
         app["data-director-app<br/>127.0.0.1:7860"]
         agents["data-director-agent@…<br/>hello :8101, quality :8102,<br/>standards :8105, director :8106"]
         runs[("/var/lib/data-director/runs")]
+        projects[("/var/lib/data-director/projects")]
         timer["deploy timer<br/>every 5 min"]
     end
     github[("GitHub main<br/>+ CI passed")]
@@ -267,12 +282,15 @@ flowchart LR
     app -- "A2A (loopback)" --> agents
     agents -. "delegation callback" .-> app
     app --> runs
+    app --> projects
     timer -- "fetch, build, switch" --> github
 ```
 
 The app and agents listen on loopback only, and NGINX asks for a password, because callers are
 not yet authenticated: every run acts for the operator configured on the VM (#17). Do not expose
-the app or the agents beyond a trusted network until that is done.
+the app or the agents beyond a trusted network until that is done. The VM holds no research
+data: a project there holds only an inventory of its files and any uploaded documentation
+([ADR-0034](adr/0034-project-and-its-files.md)).
 
 ## Where to go next
 
