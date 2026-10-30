@@ -41,6 +41,8 @@ export interface Oversight {
 
 export interface AgentView {
   id: string;
+  /** The persona's name as a researcher sees it (ADR-0033). Empty: the card names none. */
+  title: string;
   version: string;
   description: string;
   contractVersion: string;
@@ -52,9 +54,11 @@ export interface AgentView {
   derivations: Derivation[];
   declaredActionClass: string;
   gate: GateStatus;
-  /** The models it sends data to. Empty: it calls none. */
+  /** The models it sends data to. Empty: it calls none (see `modelsDeclared`). */
   models: RawModelUse[];
-  /** The Blueprint requirements it serves, which place it in the process flow. Empty: none. */
+  /** False for a card with no `models` key: nothing is known about whether it uses a model. */
+  modelsDeclared: boolean;
+  /** The process flow steps it serves, which place it in the flow. Empty: none. */
   serves: string[];
   oversight: Oversight;
 }
@@ -71,7 +75,7 @@ export interface Directory {
   profileRef: string;
   /** The agent the profile names for the conversation, or null when it names none. */
   orchestratorId: string | null;
-  actingFor: { name: string; assurance: string };
+  actingFor: { name: string; assurance: string; vouchedBy?: string };
 }
 
 const UNDECLARED = { state: "undeclared" } as const;
@@ -87,9 +91,15 @@ export function gateStatus(entry: RawManifestEntry): GateStatus {
     : { kind: "permitted", actionClass: assigned };
 }
 
+/** What to call the agent in prose: its persona title, or its id when it has none. */
+export function agentName(agent: Pick<AgentView, "id" | "title">): string {
+  return agent.title || agent.id;
+}
+
 export function normaliseAgent(entry: RawManifestEntry): AgentView {
   return {
     id: entry.agent_id,
+    title: entry.title ?? "",
     version: entry.version,
     description: entry.description,
     contractVersion: entry.contract_version,
@@ -107,6 +117,7 @@ export function normaliseAgent(entry: RawManifestEntry): AgentView {
     declaredActionClass: entry.action_class,
     gate: gateStatus(entry),
     models: (entry.models ?? []).map((m) => ({ ...m })),
+    modelsDeclared: entry.models !== undefined,
     serves: [...(entry.serves ?? [])],
     // No agent carries the oversight extension yet (increment 2).
     oversight: {
@@ -136,6 +147,10 @@ export function normalise(response: RawAgentsResponse): Directory {
     ],
     profileRef: response.profile.ref,
     orchestratorId: response.profile.orchestrator ?? null,
-    actingFor: response.acting_for,
+    actingFor: {
+      name: response.acting_for.name,
+      assurance: response.acting_for.assurance,
+      ...(response.acting_for.vouched_by ? { vouchedBy: response.acting_for.vouched_by } : {}),
+    },
   };
 }

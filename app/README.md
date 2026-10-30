@@ -27,7 +27,7 @@ The conversation sits in the centre of a workspace (ADR-0024 §18):
 - across the top, whom the work acts for and whose policy applies, then the project's dataset,
   phase, repository and governance flags, which are not built yet (#160);
 - on the left, the Blueprint's six phases and their steps, from `GET /api/process-flow`, each step
-  naming the agents here whose manifest `serves` its requirements (ADR-0028);
+  naming the agents here whose manifest `serves` the step (ADR-0028, ADR-0032);
 - on the right, the project's documents, which are not built yet (#160), and what the
   orchestrator is and what it has not declared;
 - beneath, the activity log, which needs streamed runs (#68, #69).
@@ -88,7 +88,7 @@ npm ci && npm run build            # writes app/web/dist
 Then from the repository root:
 
 ```bash
-export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."   # whom runs act for
+export DD_PRINCIPAL_ID=https://orcid.org/...  DD_PRINCIPAL_NAME="..."   # whom runs act for (or sign in, below)
 uv run data-director               # opens http://127.0.0.1:7860
 ```
 
@@ -126,10 +126,47 @@ cp app/config/profile.yaml.example app/config/profile.yaml
 
 Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
-`DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are required. Until there is authentication (#17),
-every run acts for this operator, not for the person using the page (ADR-0018), and the page
-says so. The app stops at start-up, with one line, if either is unset, a file is missing or
+The app stops at start-up, with one line, if a setting is unset or wrong, a file is missing or
 malformed, or the shell has not been built.
+
+### Who a run acts for: signing in
+
+With `DD_OIDC_ISSUER` set, people sign in with ORCID, and each run acts for the person who
+started it, recorded as `authenticated` with the issuer that vouched (ADR-0029):
+
+| Variable | What it is |
+|---|---|
+| `DD_OIDC_ISSUER` | `https://orcid.org`, or `https://sandbox.orcid.org` for development. |
+| `DD_OIDC_CLIENT_ID` | The ORCID public API client's ID (`APP-…`). |
+| `DD_OIDC_CLIENT_SECRET` or `_FILE` | Its secret, or a file that holds it. |
+| `DD_APP_PUBLIC_URL` | Where people reach the app. The client's redirect URI is this followed by `/api/sign-in/callback`. Defaults to `http://DD_APP_HOST:DD_APP_PORT`. |
+| `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | A session ends after this long unused (8 hours) or this long at most (7 days). |
+
+To try it locally, register a client through ORCID's
+[sandbox registration page](https://info.orcid.org/register-a-client-application-sandbox-member-api/)
+with the redirect URI `http://127.0.0.1:7860/api/sign-in/callback`. Sign in with a sandbox account:
+create one at `https://sandbox.orcid.org/register`, using a `@mailinator.com` address, since the
+sandbox only sends email there, and verify it before editing records. Sandbox data is not backed up
+and may be deleted (#178). A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
+for ORCID.
+
+- The app runs the authorisation-code flow itself (`src/dd_app/signin.py`), asks for the `openid`
+  scope alone, and verifies the ID token with the harness's `verify_id_token`. It keeps the
+  principal in a server-side session (`src/dd_app/sessions.py`) and no token. The browser holds an
+  opaque `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Browsers treat `127.0.0.1` as secure, so
+  this works over plain HTTP locally; a deployment needs HTTPS (#155).
+- Every `/api` route that runs or reads anything answers `401` with an `unauthenticated` problem
+  when there is no session, and the shell then shows its sign-in page. `/api/about`,
+  `/api/session` and the sign-in routes are open.
+- Sessions are held in memory, so restarting the app signs everyone out.
+- Signing out ends the session here. ORCID offers no sign-out for the app, so the person may still
+  be signed in at ORCID, and the signed-out page says so.
+- TODO(#153): every signed-in person still sees every run and conversation.
+
+Without `DD_OIDC_ISSUER` the app is a development server. `DD_PRINCIPAL_ID` and
+`DD_PRINCIPAL_NAME` are then required, every run acts for this operator, not for the person
+using the page (ADR-0018), and the banner says on every page that nobody is signed in. Setting
+both a provider and an operator principal stops start-up.
 
 ### Version and problem reports
 
@@ -151,13 +188,13 @@ the agents' ports, on the host or a private network (ADR-0011). The app warns at
 
 The home page converses with the agent the profile names under `orchestrator` (ADR-0024 §10),
 and the app refuses a conversation turn to any other. The example profile names the
-rule-based `director.stub`, which needs no model key: its replies are templates, and it routes
+rule-based `orchestrator.stub`, which needs no model key: its replies are templates, and it routes
 by its `routing.yaml`.
 
-The model-backed `orchestrator.model` (`agents/orchestrator/`) decides which agents to ask
+The model-backed `orchestrator.model` (`agents/orchestrator-model/`) decides which agents to ask
 from what each one declares, and writes its replies with a model. In development, `uv run scripts/dev.py setup` does
 both steps below when you give it a key. To use it, give it a model key
-(`workbench/agents/orchestrator.env` in development, `deploy/README.md` on a server), and in the
+(`config/local/agents/orchestrator-model.env` in development, `deploy/README.md` on a server), and in the
 profile the app runs under (your local `config/profile.yaml`) set
 
 ```yaml
@@ -171,8 +208,8 @@ so and links to the agent directory; it does not fall back to another agent.
 ## Layout and styles
 
 Every page is the same frame (`web/src/components/frame/Frame.tsx`): a banner holding the name,
-the main navigation and the dark mode switch, identical on every page so that nothing in it
-moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
+the main navigation, who is signed in and the dark mode switch, identical on every page so that
+nothing in it moves, and one `main`. Each page opens with a `PageHeader` (its `h1` and what the reader needs
 before the content). What a page acts for is said in the page, not in the banner.
 
 Styles are plain CSS in cascade layers, declared once in `web/src/styles/index.css`:
@@ -223,7 +260,7 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   replaces it (#68, #69).
 - There is no human review of proposed changes (#72, #73). The standards advisor only advises, so it proposes none.
 - The form checks only required fields and numbers; the conductor's input check decides.
-- The conversation is with the rule-based `director.stub` unless the profile names the
+- The conversation is with the rule-based `orchestrator.stub` unless the profile names the
   model-backed orchestrator, which needs a key (see "Choosing the orchestrator"). Replies are not
   streamed (#159). The agent directory is its own page, `/agents`, reached
   from the navigation and from a delegated child's card (`/agents?agent=<id>` selects an agent).

@@ -84,15 +84,40 @@ class OidcProvider:
     client_id: str
 
 
-def fetch_keys(issuer: str) -> dict[str, Any]:
-    """The issuer's published keys (JWKS), found through its discovery document."""
-    with httpx.Client(timeout=FETCH_TIMEOUT_S) as client:
-        discovery = client.get(issuer.rstrip("/") + DISCOVERY)
+def configuration_url(issuer: str) -> str:
+    """Where an issuer publishes its discovery document (OpenID Connect Discovery §4)."""
+    return issuer.rstrip("/") + DISCOVERY
+
+
+def checked_configuration(issuer: str, document: Any) -> dict[str, Any]:
+    """An issuer's discovery document, once it is checked to be the configured issuer's and to
+    name the endpoints sign-in uses. Raises `ValueError` otherwise."""
+    if not isinstance(document, dict):
+        raise ValueError("the discovery document is not an object")
+    # OpenID Connect Discovery §4.3: the document's issuer is exactly the one configured.
+    if document.get("issuer") != issuer:
+        raise ValueError(f"discovery names issuer {document.get('issuer')!r}")
+    for endpoint in ("authorization_endpoint", "token_endpoint", "jwks_uri"):
+        if not isinstance(document.get(endpoint), str):
+            raise ValueError(f"discovery names no {endpoint}")
+    return document
+
+
+def fetch_configuration(
+    issuer: str, *, transport: httpx.BaseTransport | None = None
+) -> dict[str, Any]:
+    """The issuer's discovery document, checked (`checked_configuration`). `transport` lets a test
+    stand in for the network (`FakeIdentityProvider.transport`)."""
+    with httpx.Client(timeout=FETCH_TIMEOUT_S, transport=transport) as client:
+        discovery = client.get(configuration_url(issuer))
         discovery.raise_for_status()
-        configuration = discovery.json()
-        # OpenID Connect Discovery §4.3: the document's issuer is exactly the one configured.
-        if configuration.get("issuer") != issuer:
-            raise ValueError(f"discovery names issuer {configuration.get('issuer')!r}")
+        return checked_configuration(issuer, discovery.json())
+
+
+def fetch_keys(issuer: str, *, transport: httpx.BaseTransport | None = None) -> dict[str, Any]:
+    """The issuer's published keys (JWKS), found through its discovery document."""
+    configuration = fetch_configuration(issuer, transport=transport)
+    with httpx.Client(timeout=FETCH_TIMEOUT_S, transport=transport) as client:
         keys = client.get(configuration["jwks_uri"])
         keys.raise_for_status()
         document: dict[str, Any] = keys.json()

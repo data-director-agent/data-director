@@ -1,0 +1,11 @@
+{
+  "expires_at": "2099-01-01T00:00:00Z",
+  "issuer": "https://sandbox.orcid.org",
+  "principal": {
+    "assurance": "authenticated",
+    "name": "Josiah Carberry",
+    "principal_id": "https://sandbox.orcid.org/0000-0002-1825-0097",
+    "vouched_by": "https://sandbox.orcid.org"
+  },
+  "signs_in": true
+}

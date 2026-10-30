@@ -22,7 +22,7 @@ TIMEOUT_MS = 15_000
 
 
 def open_inspect(viewer: Page, server_url: str, agent_id: str, sample: str | None) -> None:
-    viewer.goto(f"{server_url}/viewer/")
+    viewer.goto(f"{server_url}/viewer/inspect.html")
     expect(viewer.locator("#status")).to_have_text("Ready.", timeout=TIMEOUT_MS)
     viewer.select_option("#agent-select", agent_id)
     if sample is not None:
@@ -39,11 +39,11 @@ def outcome(viewer: Page, status: str) -> None:
 def test_inspect_runs_hello_world_and_badges_its_template_field(
     viewer: Page, server_url: str
 ) -> None:
-    open_inspect(viewer, server_url, "hello.world", "hello.salutation.json")
+    open_inspect(viewer, server_url, "example.hello", "hello.salutation.json")
     viewer.locator("#run").click()
     expect(viewer.locator("#status")).to_have_text(re.compile(r"^Completed "), timeout=TIMEOUT_MS)
     outcome(viewer, "succeeded")
-    expect(viewer.locator("#facts")).to_contain_text("hello.world@")
+    expect(viewer.locator("#facts")).to_contain_text("example.hello@")
     expect(viewer.locator("#payload-class")).to_have_text("Greeting")
     expect(viewer.locator("#form")).to_contain_text("Hello, world!", timeout=TIMEOUT_MS)
     # greeting_text is declared template, recorded in greeting_derivation, which is hidden.
@@ -64,7 +64,7 @@ def test_inspect_shows_an_abstention_without_a_payload(viewer: Page, server_url:
 
 
 def test_inspect_marks_the_evidence_the_payload_cites(viewer: Page, server_url: str) -> None:
-    open_inspect(viewer, server_url, "standards.advisor", "soil-chemistry.profile.json")
+    open_inspect(viewer, server_url, "advisor.standards", "soil-chemistry.profile.json")
     viewer.locator("#run").click()
     outcome(viewer, "succeeded")
     rows = viewer.locator("#evidence tbody tr")
@@ -75,7 +75,7 @@ def test_inspect_marks_the_evidence_the_payload_cites(viewer: Page, server_url: 
 
 
 def test_a_stored_run_replays_by_invocation_id(viewer: Page, server_url: str) -> None:
-    open_inspect(viewer, server_url, "quality.reviewer", "orda-record.metadata.json")
+    open_inspect(viewer, server_url, "advisor.quality", "orda-record.metadata.json")
     viewer.locator("#run").click()
     outcome(viewer, "succeeded")
     url = viewer.url
@@ -103,7 +103,9 @@ def test_a_stored_run_replays_by_invocation_id(viewer: Page, server_url: str) ->
 def test_a_replay_of_an_unknown_run_says_so(
     viewer: Page, server_url: str, page_errors: list[str]
 ) -> None:
-    viewer.goto(f"{server_url}/viewer/?invocation_id=01a00000-0000-7000-8000-000000000000")
+    viewer.goto(
+        f"{server_url}/viewer/inspect.html?invocation_id=01a00000-0000-7000-8000-000000000000"
+    )
     expect(viewer.locator("#status")).to_have_text(
         re.compile(r"^No stored run "), timeout=TIMEOUT_MS
     )
@@ -116,22 +118,24 @@ def test_a_replay_of_an_unknown_run_says_so(
 
 
 def test_chat_shows_the_orchestrator_delegating(viewer: Page, server_url: str) -> None:
-    viewer.goto(f"{server_url}/viewer/chat.html")
+    viewer.goto(f"{server_url}/viewer/")
     # The orchestrator is chosen by default, by its grounding mode.
-    expect(viewer.locator("#chat-agent-select")).to_have_value("director.stub", timeout=TIMEOUT_MS)
+    expect(viewer.locator("#chat-agent-select")).to_have_value(
+        "orchestrator.stub", timeout=TIMEOUT_MS
+    )
     viewer.locator("#chat-text").fill("hello world")
     viewer.locator("#send").click()
     reply = viewer.locator("#transcript article.card").first
-    expect(reply).to_have_attribute("aria-label", re.compile(r"^director\.stub@.* succeeded$"))
-    expect(reply.locator(".reply")).to_contain_text("hello.world", timeout=TIMEOUT_MS)
+    expect(reply).to_have_attribute("aria-label", re.compile(r"^orchestrator\.stub@.* succeeded$"))
+    expect(reply.locator(".reply")).to_contain_text("example.hello", timeout=TIMEOUT_MS)
     children = reply.get_by_role("list", name="Delegated invocations")
-    expect(children).to_contain_text("hello.world@")
+    expect(children).to_contain_text("example.hello@")
     expect(viewer.locator("#chat-agent-select")).to_be_disabled()
     expect(viewer).to_have_url(re.compile(r"\?conversation_id="))
 
 
 def test_the_glossary_opens_and_closes_from_the_keyboard(viewer: Page, server_url: str) -> None:
-    viewer.goto(f"{server_url}/viewer/")
+    viewer.goto(f"{server_url}/viewer/inspect.html")
     expect(viewer.locator("#status")).to_have_text("Ready.", timeout=TIMEOUT_MS)
     viewer.locator("#open-glossary").click()
     dialog = viewer.get_by_role("dialog", name="Glossary")
@@ -144,10 +148,10 @@ def test_the_glossary_opens_and_closes_from_the_keyboard(viewer: Page, server_ur
 def test_the_agents_page_lists_every_registered_agent(viewer: Page, server_url: str) -> None:
     viewer.goto(f"{server_url}/viewer/agents.html")
     for agent_id in (
-        "director.stub",
-        "hello.world",
-        "quality.reviewer",
-        "standards.advisor",
+        "orchestrator.stub",
+        "example.hello",
+        "advisor.quality",
+        "advisor.standards",
         "stub.abstain",
     ):
         row = viewer.locator(f'#agent-list button[data-id="{agent_id}"]')
@@ -155,7 +159,7 @@ def test_the_agents_page_lists_every_registered_agent(viewer: Page, server_url: 
 
 
 def test_the_agents_page_lays_out_the_agent_card_to_read(viewer: Page, server_url: str) -> None:
-    viewer.goto(f"{server_url}/viewer/agents.html?agent_id=director.stub")
+    viewer.goto(f"{server_url}/viewer/agents.html?agent_id=orchestrator.stub")
     card = viewer.locator("#agent-card .agent-card")
     expect(card).to_be_visible(timeout=TIMEOUT_MS)
     for heading in ("Interfaces", "Capabilities", "Extensions", "Security", "Skills"):

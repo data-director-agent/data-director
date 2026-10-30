@@ -23,10 +23,10 @@ import pytest
 import uvicorn
 from playwright.sync_api import Browser, ConsoleMessage, Error, Page, Route
 
-from dd_agent_director.agent import build as build_director
-from dd_agent_hello.agent import HelloWorld
-from dd_agent_quality.agent import QualityReviewer
-from dd_agent_standards.factory import build as build_standards
+from dd_agent_advisor_quality.agent import QualityReviewer
+from dd_agent_advisor_standards.factory import build as build_standards
+from dd_agent_example_hello.agent import HelloWorld
+from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_harness.identity import OperatorAssertion
 from dd_harness.testing import TEST_PRINCIPAL, AbstainingStub, make_conductor
 from workbench.transport.app import build_app
@@ -35,7 +35,7 @@ HAR = Path(__file__).with_name("esm.sh.har.zip")
 CDN = "https://esm.sh/**"
 # Anything but the app itself.
 REMOTE = re.compile(r"^(?!http://127\.0\.0\.1:\d+/)")
-PAGES = ("/viewer/", "/viewer/chat.html", "/viewer/agents.html")
+PAGES = ("/viewer/", "/viewer/inspect.html", "/viewer/agents.html")
 START_TIMEOUT_S = 10
 
 

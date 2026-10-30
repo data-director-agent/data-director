@@ -17,6 +17,9 @@ from dd_sdk.contract.models import (
     ConversationTurn,
     Delegation,
     Derivation,
+    Document,
+    DocumentKind,
+    DocumentVersionRef,
     Envelope,
     EvidenceItem,
     GroundingMode,
@@ -486,7 +489,7 @@ def test_linkml_source_is_valid_yaml_for_the_generator() -> None:
 def _delegation(child: str, content_hash: str = "c" * 64) -> Delegation:
     return Delegation(
         delegated_invocation_id=child,
-        delegated_agent_id="hello.world",
+        delegated_agent_id="example.hello",
         delegated_agent_version="0.1.0",
         delegated_status=OutcomeStatus.SUCCEEDED,
         content_hash=content_hash,
@@ -511,14 +514,14 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
             ConversationTurn(
                 role=TurnRole.AGENT,
                 turn_text="Hello!",
-                turn_agent_id="director.stub",
+                turn_agent_id="orchestrator.stub",
                 turn_agent_version="0.1.0",
                 turn_invocation_id=new_invocation_id(),
             ),
         ],
     )
     req = InvocationRequest(
-        agent_id="director.stub",
+        agent_id="orchestrator.stub",
         conversation_id=conv,
         input=message,
     )
@@ -615,3 +618,27 @@ def test_envelope_hash_is_reproducible_from_the_stored_document() -> None:
     stored = json.loads(json.dumps(doc, indent=2))  # the store's formatting does not matter
     assert envelope_hash(stored) == envelope_hash(doc)
     assert ENVELOPE_CANONICALISATION in CANONICALISATIONS
+
+
+def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> None:
+    """A project document is text with a media type (ADR-0035). Its class schema is generated
+    with the core's, and a regeneration names the version it replaces."""
+    schema = json.loads((SCHEMA / "generated" / "Document.schema.json").read_text("utf-8"))
+    assert schema["properties"]["schema_class"]["enum"] == ["Document"]
+    assert set(schema["$defs"]["DocumentKind"]["enum"]) == {k.value for k in DocumentKind}
+    assert {"document_kind", "media_type", "document_text", "grounded_on"} <= set(
+        schema["required"]
+    )
+    assert "revises" not in schema["required"]
+
+    revised = Document(
+        document_kind=DocumentKind.README,
+        media_type="text/markdown",
+        document_text="# Soil chemistry survey\n",
+        document_derivation=Derivation.MODEL,
+        revises=DocumentVersionRef(document_id=new_invocation_id(), version=1),
+        grounded_on=[_input_ref()],
+    )
+    assert Document.model_validate(revised.model_dump(mode="json")) == revised
+    with pytest.raises(ValueError):
+        DocumentVersionRef(document_id=new_invocation_id(), version=0)

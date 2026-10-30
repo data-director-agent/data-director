@@ -5,7 +5,8 @@ Import everything from here; the modules are an internal arrangement:
 
 - `serving`: `in_process` and `make_conductor`, which serve agents and the conductor in memory
   over the real A2A wire, and `send_to_harness`.
-- `doubles`: `AbstainingStub` and `ScriptedAgent`, with the spans a scripted agent emits.
+- `doubles`: `AbstainingStub`, `DocumentStub` and `ScriptedAgent`, with the spans a scripted
+  agent emits.
 - `results`: results a scripted agent can return, and the sources they are grounded on.
 - `classes`: the doubles' own `Probe*` classes, declared in `../schema/doubles.yaml`.
 - `fixtures`: the test profiles (in `profiles/`), `TEST_PRINCIPAL` and inputs.
@@ -17,6 +18,7 @@ Nothing here needs the workbench (ADR-0022) or knows about any real agent.
 from dd_harness.testing.classes import (
     ProbeCheck,
     ProbeClaim,
+    ProbeDocumentRequest,
     ProbeProfile,
     ProbeRecord,
     ProbeReview,
@@ -26,6 +28,7 @@ from dd_harness.testing.doubles import (
     AbstainingStub,
     Behaviour,
     Chat,
+    DocumentStub,
     Retrieve,
     ScriptedAgent,
 )
@@ -35,6 +38,7 @@ from dd_harness.testing.fixtures import (
     RESTRICTIVE,
     TEST_PRINCIPAL,
     claim,
+    document_request,
     message,
     profile,
     record,
@@ -71,9 +75,11 @@ __all__ = [
     "AbstainingStub",
     "Behaviour",
     "Chat",
+    "DocumentStub",
     "FakeIdentityProvider",
     "ProbeCheck",
     "ProbeClaim",
+    "ProbeDocumentRequest",
     "ProbeProfile",
     "ProbeRecord",
     "ProbeReview",
@@ -81,6 +87,7 @@ __all__ = [
     "ScriptedAgent",
     "asgi_client_factory",
     "claim",
+    "document_request",
     "fact_check_over",
     "grant_token",
     "in_process",

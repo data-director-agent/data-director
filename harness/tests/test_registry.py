@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
 
-from dd_agent_hello.agent import HelloWorld
-from dd_agent_quality.agent import QualityReviewer
+from dd_agent_advisor_quality.agent import QualityReviewer
+from dd_agent_example_hello.agent import HelloWorld
 from dd_harness.registry import Registry, RegistryError, load_config
 from dd_harness.remote import RemoteAgent
 from dd_harness.testing import AbstainingStub, ScriptedAgent, in_process, review_of_input
@@ -26,7 +28,7 @@ AGENTS: dict[str, Agent] = {
     "http://quality.test": QualityReviewer(),
     "http://stub.test": AbstainingStub(),
 }
-IDS = {"hello.world", "quality.reviewer", "stub.abstain"}
+IDS = {"example.hello", "advisor.quality", "stub.abstain"}
 
 
 def routed(apps: dict[str, Any]) -> Any:
@@ -92,7 +94,7 @@ def test_config_lists_agents_by_url_and_the_registry_reads_each_card(tmp_path: P
 @pytest.mark.requirement("DD-REGISTRY")
 def test_from_url_keeps_the_raw_card_it_fetched(tmp_path: Path) -> None:
     registry = registry_of(tmp_path)
-    agent = registry.get("hello.world")
+    agent = registry.get("example.hello")
     assert isinstance(agent, RemoteAgent)
     assert agent.card == fetch_card(AGENTS["http://hello.test"], "http://hello.test")
 
@@ -125,11 +127,32 @@ def test_refresh_finds_an_agent_that_started_after_the_registry_was_built(tmp_pa
     assert registry.ids() == [] and "hello" in registry.unavailable
     apps["http://hello.test"] = serve.app(HelloWorld(), base_url="http://hello.test")
     registry.refresh()
-    assert registry.ids() == ["hello.world"]
+    assert registry.ids() == ["example.hello"]
     assert registry.unavailable == {}
-    before = registry.get("hello.world")
+    before = registry.get("example.hello")
     registry.refresh()
-    assert registry.get("hello.world") is before  # a registered agent is not read again
+    assert registry.get("example.hello") is before  # a registered agent is not read again
+
+
+@pytest.mark.requirement("DD-REGISTRY")
+def test_refreshes_from_several_threads_register_an_agent_once(tmp_path: Path) -> None:
+    apps: dict[str, Any] = {}
+    config = write_config(tmp_path, [{"name": "hello", "url": "http://hello.test"}])
+    reach = routed(apps)
+
+    def slow(base_url: str, timeout_s: float) -> httpx.AsyncClient:
+        time.sleep(0.05)  # long enough for every thread to be refreshing at once
+        client: httpx.AsyncClient = reach(base_url, timeout_s)
+        return client
+
+    registry = Registry.from_config(config, client_factory=slow)
+    apps["http://hello.test"] = serve.app(HelloWorld(), base_url="http://hello.test")
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for refreshed in [pool.submit(registry.refresh) for _ in range(4)]:
+            refreshed.result()  # raises what the refresh raised
+
+    assert registry.ids() == ["example.hello"]
+    assert registry.unavailable == {}
 
 
 @pytest.mark.requirement("DD-REGISTRY")

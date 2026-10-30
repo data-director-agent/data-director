@@ -2,9 +2,21 @@ site_name: Data Director
 site_description: A reference implementation of the RDA Data Director Agentic AI Blueprint
 site_url: https://data-director-agent.github.io/data-director/
 repo_url: https://github.com/data-director-agent/data-director
-edit_uri: edit/main/docs/guide/
+# Each page's edit link is its path from the repository root (docs/hooks.py sets it).
+edit_uri: edit/main/
 docs_dir: docs/guide
 site_dir: site
+
+# Mounts the repository's other documents at their own paths; see the docstring.
+hooks:
+  - docs/hooks.py
+
+validation:
+  nav:
+    omitted_files: warn
+  links:
+    not_found: warn
+    unrecognized_links: warn
 
 theme:
   name: material
@@ -18,21 +30,91 @@ theme:
 
 markdown_extensions:
   - admonition
+  - footnotes
   - toc:
       permalink: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 
+# A path that starts with / is a file elsewhere in the repository, mounted by docs/hooks.py; a
+# glob takes every match the nav does not name elsewhere. Anything else is in docs/guide/.
 nav:
   - Home: index.md
   - User guide:
       - user-guide/index.md
       - Getting started: user-guide/getting-started.md
+      - The workflow: user-guide/workflow.md
       - Running an agent: user-guide/running-an-agent.md
       - Understanding outcomes: user-guide/outcomes.md
+      - What is recorded: user-guide/records.md
+      - Giving feedback: user-guide/feedback.md
+  - Operations:
+      - operations/index.md
+      - AI models: operations/ai-models.md
+      - Configuration: operations/configuration.md
+      - Deploying to a VM: /deploy/README.md
+      - Institutional profiles: /workbench/profiles/README.md
   - Developer guide:
       - developer-guide/index.md
       - Setting up: developer-guide/setup.md
       - Writing an agent: developer-guide/writing-an-agent.md
       - Documentation: developer-guide/documentation.md
+      - Contributing: /CONTRIBUTING.md
+      - Working in the repository: /AGENTS.md
+      - Releasing: /RELEASING.md
   - Reference:
       - reference/index.md
+      - Architecture: /docs/architecture.md
+      - Contract: /docs/contract.md
+      - Glossary: /docs/glossary.md
+      - Repository: /README.md
+      - UI best practices: /docs/ui/best-practices.md
+      - Decisions:
+          - /docs/adr/README.md
+          - /docs/adr/*.md
+          - Template: /docs/adr/0000-template.md
+  - Packages:
+      - SDK: /sdk/README.md
+      - Harness:
+          - /harness/README.md
+          - /harness/docs/*.md
+      - Workbench:
+          - /workbench/README.md
+          - /workbench/docs/architecture.md
+          - /workbench/docs/walkthrough.md
+          - Working on the workbench: /workbench/AGENTS.md
+          - Samples: /workbench/samples/README.md
+          - Viewer: /workbench/viewer/README.md
+      - App:
+          - /app/README.md
+          - Configuration examples: /app/config/examples/README.md
+      - Agents:
+          - /agents/README.md
+          - Orchestrator: /agents/orchestrator-model/README.md
+          - Standards advisor: /agents/advisor-standards/src/dd_agent_advisor_standards/README.md
+          - Standards evaluations: /agents/advisor-standards/src/dd_agent_advisor_standards/evals/README.md
+          - Policy advisor: /agents/advisor-policy/README.md
+          - Repository advisor: /agents/advisor-repository/README.md
+          - DMP advisor: /agents/advisor-dmp/README.md
+          - Documentation advisor: /agents/advisor-documentation/README.md
+          - Ethics advisor: /agents/advisor-ethics/README.md
+          - FAIRness advisor: /agents/advisor-fairness/README.md
+          - Files advisor: /agents/advisor-files/README.md
+          - Linking advisor: /agents/advisor-linking/README.md
+          - Metadata advisor: /agents/advisor-metadata/README.md
+          - Rights advisor: /agents/advisor-rights/README.md
+  - Conformance:
+      - Approach: /docs/conformance.md
+      - Report: /CONFORMANCE.md
+  - Blueprint:
+      - /docs/blueprint/README.md
+      - /docs/blueprint/*.md
+  - Changelogs:
+      - SDK: /sdk/CHANGELOG.md
+      - Harness: /harness/CHANGELOG.md
+      - Workbench: /workbench/CHANGELOG.md
+      - App: /app/CHANGELOG.md
+      - /agents/*/CHANGELOG.md

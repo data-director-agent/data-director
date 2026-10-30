@@ -1,0 +1,36 @@
+# advisor.linking's whole rule table: the identifier schemes it recognises, tried in this order, so
+# the first whose pattern matches wins. Each pattern is matched against the whole string, case
+# ignored, and its first group is the identifier itself. `prefix` turns that into the canonical
+# https form; `relation` is the DataCite relationType suggested by default, or null where the mock
+# cannot tell; `advice` says how the researcher might record it. `grant` has no canonical form and
+# is tried last: a string is taken for a grant number only when it matches no other scheme, has no
+# spaces or colons, and contains a digit. A mock's table (ADR-0033): nothing is resolved or looked
+# up, and the real adviser replaces it, TODO(#360).
+doi:
+  pattern: '(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/\S+)'
+  prefix: https://doi.org/
+  relation: IsSupplementTo
+  advice: >-
+    Record it as a related identifier. IsSupplementTo suits an article the data underlie; choose
+    another relation if it is software, an earlier version or another dataset.
+orcid:
+  pattern: '(?:https?://orcid\.org/)?(\d{4}-\d{4}-\d{4}-\d{3}[\dX])'
+  prefix: https://orcid.org/
+  relation: null
+  advice: >-
+    Record it as the nameIdentifier of a creator, or of a contributor with a contributorType
+    such as DataCollector or ProjectLeader.
+ror:
+  pattern: '(?:https?://ror\.org/)?(0[a-z0-9]{6}[0-9]{2})'
+  prefix: https://ror.org/
+  relation: null
+  advice: >-
+    Record it as the affiliationIdentifier of a creator or contributor, or as the
+    funderIdentifier of a funding reference if the organisation funded the work.
+grant:
+  pattern: '((?=[^\s:]*\d)[a-z0-9][a-z0-9/._-]{3,39})'
+  prefix: null
+  relation: null
+  advice: >-
+    It may be a grant number. Record it as the awardNumber of a funding reference, with the
+    funder's name and identifier.

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -84,17 +85,17 @@ def test_unknown_canonicalisation_is_a_programmer_error() -> None:
 @pytest.mark.requirement("DD-POLICY")
 def test_gate_matches_the_class_the_profile_assigns_not_the_one_the_agent_declares() -> None:
     permissive = load_profile(PERMISSIVE)
-    assert gate(permissive, "quality.reviewer", "advise").allowed
-    assert not gate(permissive, "quality.reviewer", "advise").requires_approval
+    assert gate(permissive, "advisor.quality", "advise").allowed
+    assert not gate(permissive, "advisor.quality", "advise").requires_approval
     assert not gate(permissive, "unknown.agent", "advise").allowed
     # An agent that declares a class other than the one the steward assigned is refused, not
     # gated on its own claim: here a reviewer that starts declaring writes.
-    upgraded = gate(permissive, "quality.reviewer", "metadata_write")
+    upgraded = gate(permissive, "advisor.quality", "metadata_write")
     assert not upgraded.allowed and upgraded.refusal == "action-class-mismatch"
     restrictive = load_profile(RESTRICTIVE)
     assert gate(restrictive, "stub.abstain", "advise").requires_approval
     # The steward assigned `deposit`; the agent declaring `advise` cannot talk its way down.
-    downgraded = gate(restrictive, "quality.reviewer", "advise")
+    downgraded = gate(restrictive, "advisor.quality", "advise")
     assert not downgraded.allowed and downgraded.refusal == "action-class-mismatch"
 
 
@@ -118,8 +119,8 @@ def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
 def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: Path) -> None:
     base = PERMISSIVE.read_text(encoding="utf-8")
     named = tmp_path / "named.yaml"
-    named.write_text(base + "orchestrator: director.stub\n", encoding="utf-8")
-    assert load_profile(named).orchestrator == "director.stub"
+    named.write_text(base + "orchestrator: orchestrator.stub\n", encoding="utf-8")
+    assert load_profile(named).orchestrator == "orchestrator.stub"
     assert load_profile(PERMISSIVE).orchestrator is None
     stranger = tmp_path / "stranger.yaml"
     stranger.write_text(base + "orchestrator: not.enabled\n", encoding="utf-8")
@@ -143,7 +144,7 @@ def test_an_agent_declaring_another_class_than_assigned_fails_and_is_not_run(
     runs_dir: Path,
 ) -> None:
     agent = ScriptedAgent(
-        GroundingMode.INPUT_ONLY, fakes.review_of_input, agent_id="quality.reviewer"
+        GroundingMode.INPUT_ONLY, fakes.review_of_input, agent_id="advisor.quality"
     )
     env = make_conductor(runs_dir, agent, profile=RESTRICTIVE).invoke(
         request(agent.spec.agent_id), acting_for=TEST_PRINCIPAL
@@ -602,3 +603,36 @@ def test_the_conductor_keeps_no_spans_after_a_run_and_caps_its_reports(
     assert conductor.tracing.imported == {}
     assert list(conductor.grounding_reports) == [second.invocation_id]
     assert (runs_dir / first.invocation_id / "grounding.txt").exists()
+
+
+def test_invocations_side_by_side_are_all_stored_and_the_reports_stay_capped(
+    runs_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("dd_harness.conductor.GROUNDING_REPORTS_KEPT", 1)
+    conductor = make_conductor(runs_dir, ScriptedAgent(GroundingMode.NONE, fakes.review_of_input))
+
+    def run() -> str:
+        env = conductor.invoke(request("fake.none", fakes.record()), acting_for=TEST_PRINCIPAL)
+        return env.invocation_id
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        ids = list(pool.map(lambda _: run(), range(32)))
+
+    assert sorted(e["invocation_id"] for e in conductor.store.iter_envelopes()) == sorted(ids)
+    assert len(conductor.grounding_reports) == 1
+
+
+def test_appends_side_by_side_leave_every_index_line_whole(tmp_path: Path) -> None:
+    store = RunStore(tmp_path)
+    # Larger than a write buffer, so a line written in pieces could interleave with another.
+    padding = "x" * 64 * 1024
+
+    def append(n: int) -> None:
+        store.append({"invocation_id": f"run-{n}", "padding": padding})
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(append, range(64)))
+
+    assert sorted(e["invocation_id"] for e in store.iter_envelopes()) == sorted(
+        f"run-{n}" for n in range(64)
+    )

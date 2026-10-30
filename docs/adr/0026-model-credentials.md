@@ -18,8 +18,8 @@ faults (#133):
   the configuration which credential a run had used.
 - **A missing key failed every run, not start-up.** The agent started and advertised itself, and
   then each run failed at the model call.
-- **Every agent got the key.** `scripts/run-agents.sh` loaded one `workbench/.env` for every agent
-  it started.
+- **Every agent got the key.** The development scripts loaded one shared settings file for every
+  agent they started.
 - **The app could hold it.** The app runs the standards advisor in its own process
   (`app/src/dd_app/governance.py`). An explainer configured there would have put the key in the
   same process that serves the web page, the API and the delegation callback.
@@ -59,11 +59,17 @@ that what leaves the institution be declared and controllable (#40).
    `dd_sdk.serve.main` prints the error as one line and exits with status 2 before any port
    opens. Agent units do not restart on that status (`RestartPreventExitStatus=2`). The app
    treats the error the same way.
-6. **Each agent has its own environment.** In development, `scripts/run-agents.sh` gives each
-   agent `workbench/agents/<name>.env` on top of the shared `workbench/.env`, so a key in one
-   agent's file reaches no other agent. In deployment, each agent unit reads
-   `/etc/data-director/agents/<name>.env`, and its key arrives as a systemd credential, readable
-   only by that unit. All agents run as one user, so a key file readable by that user would be
+6. **Each agent has its own environment, in one layout.** Development and deployment share the
+   same tree: `app.env` for the app, `agents.env` for every agent, `agents/<name>.env` for one
+   agent, and `credentials/` for keys, read through `*_FILE` variables. In deployment the root is
+   `/etc/data-director/`; in development it is the git-ignored `config/local/`, which
+   `scripts/dev.py setup` creates from `config/examples/`. Each agent is given `agents.env` and
+   its own file only, never the app's or another agent's, so a key in one agent's file reaches no
+   other agent. In development `dev.py` sets `CREDENTIALS_DIRECTORY` to `config/local/credentials`,
+   which is where a relative `*_FILE` is read from under systemd too. In deployment each agent
+   unit's key arrives as a systemd credential, readable only by that unit. The harness starts no
+   agent and holds no agent's secrets; the layout is shared, the processes are not. The workbench
+   and the app read the tree and own none of it. All agents run as one user, so a key file readable by that user would be
    readable by every agent.
 7. **Sharing keys.** A deployment may give several agents one key. It should give each agent a
    key of its own, so that one key can be revoked without the others and the provider's usage
@@ -81,8 +87,10 @@ that what leaves the institution be declared and controllable (#40).
    cassette with a sentinel key, and checks that the sentinel appears in no stored file and in
    no manifest.
 
-TODO(#40): a profile rule that refuses an agent's `models`, per data class, enforced by the
-conductor from the manifest before a run is sent.
+[ADR-0034](0034-project-and-its-files.md) decision 7 adds a profile rule for a project's files:
+the classes of project content that may go to an agent declaring a `hosted` model, enforced by the
+conductor from the manifest before a run is sent. The same rule for other data classes is
+TODO(#40).
 
 ## Dependencies introduced
 
@@ -93,7 +101,7 @@ None. `LoadCredential=` is part of systemd from version 247 onwards; Ubuntu 22.0
 - An agent that calls a model checks its key when it starts, and refuses to start without one.
   A deployment can no longer appear healthy while every model-backed run fails.
 - The standards advisor's model mode needs a service of its own in deployment
-  (`data-director-agent@standards`). Its default template mode still runs in the app's process
+  (`data-director-agent@advisor-standards`). Its default template mode still runs in the app's process
   and needs no key.
 - `models` is what the deployment configured, declared by the agent itself. It is not proof.
   #40 decides how a profile enforces it.

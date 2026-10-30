@@ -6,12 +6,12 @@ An alpha substantiates no requirement, so these tests carry no requirement marke
 
 from __future__ import annotations
 
+import asyncio
 import json
-import os
 import re
+import threading
 import webbrowser
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -21,18 +21,25 @@ import uvicorn
 from a2a.helpers import get_data_parts
 from a2a.types import TaskState
 from starlette.testclient import TestClient
-from support import APP_URL, configure_env, dist_dir, new_governance, with_standards
+from support import (
+    APP_URL,
+    check_fixture,
+    configure_env,
+    dist_dir,
+    new_governance,
+    with_standards,
+)
 
-from dd_agent_director.agent import build as build_director
-from dd_agent_hello.agent import build as build_hello
-from dd_agent_quality.agent import build as build_quality
-from dd_agent_standards import factory as standards
+from dd_agent_advisor_quality.agent import build as build_quality
+from dd_agent_advisor_standards import factory as standards
+from dd_agent_example_hello.agent import build as build_hello
+from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import Governance
 from dd_harness.conductor import Conductor
-from dd_harness.identity import IdentityError
+from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
@@ -52,12 +59,10 @@ from dd_sdk.agent import Agent
 from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
 from dd_sdk.process_flow import ENTRIES, PHASES
 
-# The shell's component and browser tests are drawn from these, so each must be what the server
-# says. `DD_WRITE_FIXTURES=1 uv run pytest app/tests` rewrites them. `agents.json` is the
-# reference set; `agents-several.json` is five agents of different grounding modes and payload
-# shapes under the permissive test profile, which does not list the standards advisor.
-FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
-STANDARDS_AGENT_ID = "standards.advisor"
+# The fixtures (`support.check_fixture`): `agents.json` is the reference set;
+# `agents-several.json` is five agents of different grounding modes and payload shapes under the
+# permissive test profile, which does not list the standards advisor.
+STANDARDS_AGENT_ID = "advisor.standards"
 
 
 @pytest.fixture
@@ -101,35 +106,53 @@ def test_api_agents_retries_an_agent_that_was_down_and_still_reports_it(
 def test_the_reference_set_lists_and_enables_every_in_tree_agent():
     entries = load_config(DEFAULT_AGENTS_CONFIG)
     assert [(e["name"], e["url"]) for e in entries] == [
-        ("hello", "http://127.0.0.1:8101"),
-        ("quality", "http://127.0.0.1:8102"),
-        ("standards", "http://127.0.0.1:8105"),
-        ("director", "http://127.0.0.1:8106"),
-        ("orchestrator", "http://127.0.0.1:8107"),
+        ("example-hello", "http://127.0.0.1:8101"),
+        ("advisor-quality", "http://127.0.0.1:8102"),
+        ("advisor-standards", "http://127.0.0.1:8105"),
+        ("advisor-policy", "http://127.0.0.1:8108"),
+        ("advisor-repository", "http://127.0.0.1:8109"),
+        ("advisor-ethics", "http://127.0.0.1:8111"),
+        ("advisor-files", "http://127.0.0.1:8110"),
+        ("advisor-dmp", "http://127.0.0.1:8112"),
+        ("advisor-metadata", "http://127.0.0.1:8113"),
+        ("advisor-documentation", "http://127.0.0.1:8114"),
+        ("advisor-rights", "http://127.0.0.1:8115"),
+        ("advisor-linking", "http://127.0.0.1:8116"),
+        ("advisor-fairness", "http://127.0.0.1:8117"),
+        ("orchestrator-stub", "http://127.0.0.1:8106"),
+        ("orchestrator-model", "http://127.0.0.1:8107"),
     ]
     enabled = (
         STANDARDS_AGENT_ID,
-        "hello.world",
-        "quality.reviewer",
-        "director.stub",
+        "advisor.policy",
+        "advisor.repository",
+        "example.hello",
+        "advisor.quality",
+        "advisor.ethics",
+        "advisor.files",
+        "advisor.dmp",
+        "advisor.metadata",
+        "advisor.documentation",
+        "advisor.rights",
+        "advisor.linking",
+        "advisor.fairness",
+        "orchestrator.stub",
         "orchestrator.model",
     )
     profile = load_profile(DEFAULT_PROFILE)
     assert profile.agents == dict.fromkeys(enabled, "advise")
     # The rule-based stub, which needs no model key, is the conversation until a deployment
     # names another (ADR-0024 §11).
-    assert profile.orchestrator == "director.stub"
+    assert profile.orchestrator == "orchestrator.stub"
 
 
 def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
     # Every agent is a service (ADR-0027): with none listed, the app has none to run.
     governance = Governance.create(settings_from_env(), APP_URL)
-    try:
-        assert governance.conductor.registry.ids() == []
-        assert governance.conductor.profile.profile_id == "data-director-app"
-        assert governance.acting_for == TEST_PRINCIPAL
-    finally:
-        governance.worker.shutdown()
+    assert governance.conductor.registry.ids() == []
+    assert governance.conductor.profile.profile_id == "data-director-app"
+    # A development server: every request acts for the operator's assertion (ADR-0029).
+    assert governance.authenticator.principal_for({}) == TEST_PRINCIPAL
 
 
 def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
@@ -143,8 +166,8 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v4"
-    assert body["profile"]["orchestrator"] == "director.stub"
+    assert body["profile"]["ref"] == "profile:data-director-app@v7"
+    assert body["profile"]["orchestrator"] == "orchestrator.stub"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 
 
@@ -153,10 +176,7 @@ def test_an_agent_the_profile_does_not_list_is_shown_unassigned(
 ):
     monkeypatch.setenv("DD_PROFILE", str(RESTRICTIVE))
     governance = with_standards(Governance.create(settings_from_env(), APP_URL))
-    try:
-        (standards,) = agents_response(governance, dist)["agents"]
-    finally:
-        governance.worker.shutdown()
+    (standards,) = agents_response(governance, dist)["agents"]
     assert standards["assigned_action_class"] is None
     assert standards["requires_approval"] is False
 
@@ -189,7 +209,7 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
 ):
     # The app does not quietly run its own copy in its place.
     agents = env / "with-standards.yaml"
-    agents.write_text("agents:\n  - name: standards\n    url: http://127.0.0.1:9\n")
+    agents.write_text("agents:\n  - name: advisor-standards\n    url: http://127.0.0.1:9\n")
     monkeypatch.setenv("DD_AGENTS_CONFIG", str(agents))
 
     def unreachable(url: str, **_: Any) -> RemoteAgent:
@@ -197,21 +217,8 @@ def test_a_listed_agent_that_is_not_running_is_shown_unavailable(
 
     monkeypatch.setattr(RemoteAgent, "from_url", unreachable)
     governance = Governance.create(settings_from_env(), APP_URL)
-    try:
-        assert governance.conductor.registry.ids() == []
-        assert "standards" in governance.conductor.registry.unavailable
-    finally:
-        governance.worker.shutdown()
-
-
-def check_fixture(name: str, body: dict[str, Any]) -> None:
-    path = FIXTURES / name
-    text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    if os.environ.get("DD_WRITE_FIXTURES") == "1":
-        path.write_text(text, encoding="utf-8")
-    assert path.read_text(encoding="utf-8") == text, (
-        f"{path} is stale; rerun with DD_WRITE_FIXTURES=1"
-    )
+    assert governance.conductor.registry.ids() == []
+    assert "advisor-standards" in governance.conductor.registry.unavailable
 
 
 def test_the_reference_fixture_is_what_the_server_says(governance: Governance, dist: Path):
@@ -225,6 +232,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
     assert [p["number"] for p in body["phases"]] == [p.number for p in PHASES]
     assert [e["starts_at"] for e in body["entries"]] == [e.starts_at for e in ENTRIES]
     assert body["phases"][0]["steps"][1] == {
+        "id": "setup.vocabularies",
         "text": "Select controlled vocabularies and ontologies",
         "requirements": ["R3"],
         "optional": False,
@@ -241,13 +249,9 @@ def test_the_several_agents_fixture_is_what_the_server_says(env: Path, dist: Pat
     ]
     governance = Governance(
         make_conductor(env, *agents, remote=False, profile=PERMISSIVE),
-        TEST_PRINCIPAL,
-        ThreadPoolExecutor(max_workers=1),
+        OperatorAssertion(TEST_PRINCIPAL),
     )
-    try:
-        check_fixture("agents-several.json", agents_response(governance, dist))
-    finally:
-        governance.worker.shutdown()
+    check_fixture("agents-several.json", agents_response(governance, dist))
 
 
 # Runs (`POST /api/runs`, `GET /api/runs`, `GET /api/runs/{id}`) and examples. The run fixtures
@@ -381,7 +385,7 @@ def test_the_examples_name_their_class(governance: Governance, dist: Path):
 
 @pytest.fixture
 def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
-    """The app over the orchestrator and `hello.world`, each reached over in-process A2A, with
+    """The app over the orchestrator and `example.hello`, each reached over in-process A2A, with
     the orchestrator calling back to the app's own routes, under the app's reference profile."""
     served: dict[str, Any] = {}
 
@@ -398,26 +402,25 @@ def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
         registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
     )
     conductor.harness_url = APP_URL
-    governance = Governance(conductor, TEST_PRINCIPAL, ThreadPoolExecutor(max_workers=1))
+    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL))
     served["app"] = build_app(governance, dist)
     yield governance, served["app"]
-    governance.worker.shutdown()
 
 
 def test_the_orchestrator_delegates_through_the_app(delegating: tuple[Governance, Any]):
     _governance, app = delegating
-    response = run(TestClient(app), example("director.message"), agent_id="director.stub")
+    response = run(TestClient(app), example("director.message"), agent_id="orchestrator.stub")
     assert response.status_code == 200
     envelope = response.json()["envelope"]
     assert envelope["outcome"]["status"] == "succeeded"
-    assert [d["delegated_agent_id"] for d in envelope["delegations"]] == ["hello.world"]
+    assert [d["delegated_agent_id"] for d in envelope["delegations"]] == ["example.hello"]
 
 
 def test_the_app_takes_no_a2a_call_but_a_delegation_callback(delegating: tuple[Governance, Any]):
     governance, app = delegating
     card = TestClient(app).get("/.well-known/agent-card.json").json()
     assert card["supportedInterfaces"][0]["url"] == f"{APP_URL}/a2a"
-    request = InvocationRequest(agent_id="hello.world", input=example("hello.salutation"))
+    request = InvocationRequest(agent_id="example.hello", input=example("hello.salutation"))
     task = send_to_harness(app, APP_URL, request)
     assert task.status.state == TaskState.TASK_STATE_FAILED
     assert get_data_parts(task.status.message.parts)[0]["error"] == DELEGATED_ONLY
@@ -504,7 +507,7 @@ def start(client: TestClient) -> str:
 def turn(client: TestClient, conversation_id: str, text: str, **extra: Any) -> Any:
     return client.post(
         f"/api/conversations/{conversation_id}/turns",
-        json={"agent_id": "director.stub", "message_text": text, **extra},
+        json={"agent_id": "orchestrator.stub", "message_text": text, **extra},
     )
 
 
@@ -547,7 +550,7 @@ def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, An
     for envelope in envelopes:
         assert envelope["conversation_id"] == conversation_id
         assert envelope["outcome"]["status"] == "succeeded"
-        assert [d["delegated_agent_id"] for d in envelope["delegations"]] == ["hello.world"]
+        assert [d["delegated_agent_id"] for d in envelope["delegations"]] == ["example.hello"]
 
     store = governance.conductor.store
     shown = [(store.get_request(e["invocation_id"]) or {})["input"] for e in envelopes]
@@ -569,6 +572,51 @@ def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, An
     assert (listed["conversation_id"], listed["turns"]) == (conversation_id, 2)
     check_fixture("conversation-turn.json", normalised_conversation(second.json()))
     check_fixture("conversation.json", normalised_conversation(found))
+
+
+def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governance, Any]):
+    """A turn cancelled (the client went away) runs on to the end in the conductor's thread, so
+    the next turn to the conversation waits for it and is shown it."""
+    governance, _app = delegating
+    conductor = governance.conductor
+    entered, release = threading.Event(), threading.Event()
+    invoke = conductor.invoke
+
+    def held_first(request: InvocationRequest, **kwargs: Any) -> Any:
+        if not entered.is_set():
+            entered.set()
+            release.wait(timeout=30)
+        return invoke(request, **kwargs)
+
+    conductor.invoke = held_first  # type: ignore[method-assign]
+    conversation_id = governance.start_conversation()
+
+    async def scenario() -> dict[str, Any]:
+        first = asyncio.create_task(
+            governance.turn(conversation_id, "orchestrator.stub", "hello world", TEST_PRINCIPAL)
+        )
+        await asyncio.to_thread(entered.wait, 30)
+        first.cancel()
+        second = asyncio.create_task(
+            governance.turn(conversation_id, "orchestrator.stub", "hello again", TEST_PRINCIPAL)
+        )
+        await asyncio.sleep(0.1)
+        assert not second.done()  # waiting for the cancelled turn, not running past it
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        return await second
+
+    try:
+        second = asyncio.run(scenario())
+    finally:
+        release.set()
+        conductor.close()
+
+    shown = (conductor.store.get_request(second["envelope"]["invocation_id"]) or {})["input"]
+    user, _agent = shown["history"]
+    assert user["turn_text"] == "hello world"
+    assert governance._turn_locks == {}  # nothing kept for a conversation with no turn running
 
 
 @pytest.mark.parametrize(
@@ -598,9 +646,9 @@ def test_a_turn_goes_only_to_the_orchestrator_the_profile_names(
 ):
     governance, app = delegating
     client = TestClient(app)
-    response = turn(client, start(client), "hello world", agent_id="hello.world")
+    response = turn(client, start(client), "hello world", agent_id="example.hello")
     assert response.status_code == 400
-    assert "'director.stub', not 'hello.world'" in response.json()["detail"]
+    assert "'orchestrator.stub', not 'example.hello'" in response.json()["detail"]
     assert list(governance.conductor.store.iter_envelopes()) == []
 
 

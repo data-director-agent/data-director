@@ -75,11 +75,11 @@ root.
 | Agent registry | Reads `agents.yaml`, fetches each agent's card and rebuilds its spec. `RemoteAgent` calls the agent over A2A. See [`registry.md`](../../harness/docs/registry.md). | `workbench/agents.yaml`, `harness/src/dd_harness/registry.py`, `remote.py` |
 | Settings | Reads the deployment's configuration from `DD_*` variables, with defaults supplied by the caller, and builds a conductor. The workbench's development set is in `workbench.config`. | `harness/src/dd_harness/settings.py`, `workbench/src/workbench/config.py` |
 | Front ends | The A2A JSON-RPC endpoint (part of the harness), and the workbench's CLI and the AG-UI event stream the viewer uses. | `harness/src/dd_harness/transport/a2a.py`, `workbench/src/workbench/cli.py`, `workbench/src/workbench/transport/` |
-| Viewer | Two read-only browser pages, Inspect and Chat, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
+| Viewer | Read-only browser pages, Chat (the default), Inspect and Agents, that render requests and envelopes from the generated schema. No build step. | `workbench/viewer/` |
 | Test kit | Serves an agent in memory for tests, and a scripted agent for harness tests. | `harness/src/dd_harness/testing/` |
 | Conformance report | Maps passing tests and recorded human reviews to requirements and generates `CONFORMANCE.md`. See [`conformance.md`](../../docs/conformance.md). | `docs/requirements.yaml`, `docs/reviews.yaml`, `scripts/conformance_report.py` |
-| Agents | One package and one service per agent. `hello/` is the template to copy. | `agents/` |
-| FAIRsharing snapshot | The committed copy of FAIRsharing records that the standards advisor uses (CC BY-SA 4.0). | `agents/standards/data/fairsharing/` |
+| Agents | One package and one service per agent. `example-hello/` is the template to copy. | `agents/` |
+| FAIRsharing snapshot | The committed copy of FAIRsharing records that the standards advisor uses (CC BY-SA 4.0). | `agents/advisor-standards/data/fairsharing/` |
 
 ## Design principles
 

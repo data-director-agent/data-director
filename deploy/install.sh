@@ -71,7 +71,7 @@ new_file() { # new_file DEST [SOURCE]
   chmod 0640 "$1"
   echo "created $1"
 }
-new_file "$ETC/app.env" "$SRC/app/env.example"
+new_file "$ETC/app.env" "$SRC/config/examples/app.env"
 new_file "$ETC/agents.env"
 # Each agent's own settings, and model keys (ADR-0026). A key file is root's alone: systemd hands
 # it to the one unit that loads it (LoadCredential=).

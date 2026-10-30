@@ -10,9 +10,10 @@
 
 `setup` writes each setting where it belongs, so nobody has to edit a settings file by hand:
 
-- `.env` at the repository root: whom runs act for. `start` and Docker Compose both read it.
-- `workbench/agents/<name>.env`: an agent's own settings and its model key. A key goes only in the
-  file of the agent that uses it, never in a file every agent reads (ADR-0026).
+- `config/local/`, which mirrors /etc/data-director/ (ADR-0026) and which git ignores: `app.env`
+  (whom runs act for), `agents.env` (shared by every agent), `agents/<name>.env` (one agent's own
+  settings) and `credentials/` (model keys, named by `*_FILE`). A key goes only in the file of the
+  agent that uses it, never in a file every agent reads. `start` and Docker Compose read it.
 - `app/config/profile.yaml`: the local copy of the profile, if the model-backed orchestrator is to
   hold the conversation.
 
@@ -52,13 +53,18 @@ def main(argv: list[str] | None = None) -> int:
     start_cmd.add_argument(
         "--no-web", action="store_true", help="no Vite dev server; use the built shell"
     )
+    start_cmd.add_argument(
+        "--no-reload", action="store_true", help="do not restart an agent when its files change"
+    )
     commands.add_parser("doctor", help="check the toolchain, settings and ports; change nothing")
     args = parser.parse_args(argv)
     try:
         if args.command == "setup":
             return setup(Prompter(accept_defaults=args.yes), install=not args.no_install)
         if args.command == "start":
-            return start(agents_only=args.agents_only, web=not args.no_web)
+            return start(
+                agents_only=args.agents_only, web=not args.no_web, reload=not args.no_reload
+            )
         return doctor()
     except DevError as exc:
         print(f"dev.py: {exc}", file=sys.stderr)

@@ -21,13 +21,14 @@ from devstack.common import (
     WEB_PORT,
     Agent,
     DevError,
+    agent_env,
     answers,
+    app_env,
+    ensure_local_tree,
     has_key,
     load_agents,
     port_free,
     prepare_web,
-    read_env,
-    shared_env,
     workspace_env,
 )
 
@@ -109,10 +110,15 @@ class Stack:
                     os.killpg(service.proc.pid, signal.SIGKILL)
 
 
-def start(agents_only: bool, web: bool) -> int:
-    base = workspace_env() | shared_env()
-    if not (base.get("DD_PRINCIPAL_ID") and base.get("DD_PRINCIPAL_NAME")):
-        base |= EXAMPLE_PRINCIPAL
+def start(agents_only: bool, web: bool, reload: bool = True) -> int:
+    ensure_local_tree()
+    base = workspace_env()
+    app = app_env()
+    # An app that signs people in acts for no operator, and refuses one (ADR-0029).
+    if app.get("DD_OIDC_ISSUER"):
+        print(f"The app signs people in with {app['DD_OIDC_ISSUER']}.")
+    elif not (app.get("DD_PRINCIPAL_ID") and app.get("DD_PRINCIPAL_NAME")):
+        app |= EXAMPLE_PRINCIPAL
         print(
             f"No principal is set, so runs act for the example, {EXAMPLE_PRINCIPAL['DD_PRINCIPAL_NAME']}. "
             "Run `uv run scripts/dev.py setup` to give your own."
@@ -134,31 +140,33 @@ def start(agents_only: bool, web: bool) -> int:
     try:
         started: list[tuple[Agent, Service]] = []
         for agent in agents:
-            env = base | read_env(agent.env_file)
+            env = base | agent_env(agent)
             if agent.name in MODEL_BACKED and not has_key(env):
                 print(
                     f"skip  {agent.script}: no model key "
                     f"(run setup, or set it in {agent.env_file.relative_to(paths.ROOT)})"
                 )
                 continue
-            service = Service(
-                agent.name, ["uv", "run", agent.script, "serve", "--port", str(agent.port)], env
-            )
+            cmd = ["uv", "run", agent.script, "serve", "--port", str(agent.port)]
+            service = Service(agent.name, cmd + (["--reload"] if reload else []), env)
             stack.start(service)
             started.append((agent, service))
         for agent, service in started:
             if stack.wait_for(service, f"{agent.url}/.well-known/agent-card.json"):
-                stack.say(agent.name, f"ready at {agent.url}")
+                stack.say(
+                    agent.name,
+                    f"ready at {agent.url}" + (" (reloads as you edit it)" if reload else ""),
+                )
 
         if not agents_only:
-            app = Service(
+            app_service = Service(
                 "app",
                 ["uv", "run", "data-director"],
                 # The app opens a browser on its own address; the page to open is printed below.
-                base | {"BROWSER": "true"} | read_env(paths.ROOT / "app" / ".env"),
+                base | app | {"BROWSER": "true"},
             )
-            stack.start(app)
-            if not stack.wait_for(app, f"http://127.0.0.1:{APP_PORT}/api/agents"):
+            stack.start(app_service)
+            if not stack.wait_for(app_service, f"http://127.0.0.1:{APP_PORT}/api/agents"):
                 raise DevError("the app did not start; its output is above")
             if web:
                 vite = Service(

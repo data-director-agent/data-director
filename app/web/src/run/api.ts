@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from "react";
 
+import { checkSignedIn } from "../session/api";
 import type { Example, Problem, RunResult, RunRow } from "./types";
 
 /** The server refused the request before any run began (a 400 with Problem Details). */
@@ -24,6 +25,7 @@ export interface RunApi {
 }
 
 async function json<T>(response: Response): Promise<T> {
+  checkSignedIn(response);
   if (response.status === 400) throw new RunRefused((await response.json()) as Problem);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as T;

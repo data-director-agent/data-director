@@ -45,39 +45,53 @@
         "app/tests"
       ]
     },
-    "agents/director": {
-      "component": "agent-director",
+    "agents/orchestrator-stub": {
+      "component": "agent-orchestrator-stub",
       "release-type": "python",
       "exclude-paths": [
-        "agents/director/tests"
+        "agents/orchestrator-stub/tests"
       ]
     },
-    "agents/orchestrator": {
-      "component": "agent-orchestrator",
+    "agents/orchestrator-model": {
+      "component": "agent-orchestrator-model",
       "release-type": "python",
       "exclude-paths": [
-        "agents/orchestrator/tests"
+        "agents/orchestrator-model/tests"
       ]
     },
-    "agents/hello": {
-      "component": "agent-hello",
+    "agents/example-hello": {
+      "component": "agent-example-hello",
       "release-type": "python",
       "exclude-paths": [
-        "agents/hello/tests"
+        "agents/example-hello/tests"
       ]
     },
-    "agents/quality": {
-      "component": "agent-quality",
+    "agents/advisor-quality": {
+      "component": "agent-advisor-quality",
       "release-type": "python",
       "exclude-paths": [
-        "agents/quality/tests"
+        "agents/advisor-quality/tests"
       ]
     },
-    "agents/standards": {
-      "component": "agent-standards",
+    "agents/advisor-standards": {
+      "component": "agent-advisor-standards",
       "release-type": "python",
       "exclude-paths": [
-        "agents/standards/tests"
+        "agents/advisor-standards/tests"
+      ]
+    },
+    "agents/advisor-repository": {
+      "component": "agent-advisor-repository",
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/advisor-repository/tests"
+      ]
+    },
+    "agents/advisor-policy": {
+      "component": "agent-advisor-policy",
+      "release-type": "python",
+      "exclude-paths": [
+        "agents/advisor-policy/tests"
       ]
     }
   }

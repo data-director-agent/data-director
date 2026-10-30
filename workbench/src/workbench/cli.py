@@ -1,12 +1,13 @@
 """Command line: list agents, invoke one, lint a run, check its sources, serve the transports.
 
 The standards advisor's FAIRsharing snapshot is rebuilt by the agent's own script,
-`agents/standards/scripts/build_snapshot.py`; the workbench names no agent."""
+`agents/advisor-standards/scripts/build_snapshot.py`; the workbench names no agent."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -31,7 +32,7 @@ from dd_harness.settings import (
 from dd_harness.sources import SourceConfigError
 from dd_sdk.contract.models import InvocationRequest, OpenInput
 from dd_sdk.tracing import records_from_jsonl
-from workbench.config import DEFAULT_ENV_FILE, settings_from_env
+from workbench.config import CONFIG_DIR_FILES, CONFIG_DIR_VARIABLE, settings_from_env
 
 PROFILE_HELP = "institutional profile file (default: DD_PROFILE, else profiles/default.yaml)"
 ACTING_FOR_ID_HELP = (
@@ -162,7 +163,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
     # The harness's own server builds the same conductor (#55); the workbench adds its routes.
     conductor, authenticator = serving(_settings(args), base_url)
     app = build_app(conductor, authenticator, base_url=base_url)
-    uvicorn.run(app, host=args.host, port=args.port)
+    try:
+        uvicorn.run(app, host=args.host, port=args.port)
+    finally:
+        conductor.close()
     return 0
 
 
@@ -216,10 +220,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def entry() -> int:
-    """Console-script entry: fill unset variables from workbench/.env, then run the CLI.
+    """Console-script entry: fill unset variables from the files in $DD_CONFIG_DIR, then run.
 
-    `main` itself reads only the real environment, so tests that call it see no `.env`."""
-    load_env_file(DEFAULT_ENV_FILE)
+    `main` itself reads only the real environment, so tests that call it see no settings files."""
+    if directory := os.environ.get(CONFIG_DIR_VARIABLE):
+        for name in CONFIG_DIR_FILES:
+            load_env_file(Path(directory) / name)
     return main()
 
 

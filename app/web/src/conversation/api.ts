@@ -9,6 +9,7 @@ import { createContext, useContext } from "react";
 
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
+import { checkSignedIn } from "../session/api";
 import type { Conversation, ConversationSummary } from "./types";
 
 export interface ConversationApi {
@@ -24,6 +25,7 @@ export interface ConversationApi {
 }
 
 async function json<T>(response: Response): Promise<T> {
+  checkSignedIn(response);
   if (response.status === 400) throw new RunRefused((await response.json()) as Problem);
   if (!response.ok) throw new Error(`the server answered ${response.status}`);
   return (await response.json()) as T;
@@ -31,6 +33,23 @@ async function json<T>(response: Response): Promise<T> {
 
 function init(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
+}
+
+/** The request got no HTTP response at all (the browser's `Failed to fetch`), so the server may
+ * not have received it. */
+export class Unreachable extends Error {
+  constructor() {
+    super("the server could not be reached");
+  }
+}
+
+async function post(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    if (e instanceof TypeError) throw new Unreachable();
+    throw e;
+  }
 }
 
 export const httpConversationApi: ConversationApi = {
@@ -42,7 +61,7 @@ export const httpConversationApi: ConversationApi = {
   },
   async sendTurn(conversationId, agentId, messageText, signal) {
     await json(
-      await fetch(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
+      await post(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
         ...init(signal),
         method: "POST",
         headers: { "content-type": "application/json" },

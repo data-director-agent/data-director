@@ -45,7 +45,7 @@ An agent receives an `InvocationRequest`. Its main fields are:
 | Field | Meaning |
 |---|---|
 | `invocation_id` | A UUIDv7 identifier for this run. UUIDv7 values sort by time ([ADR-0004](adr/0004-identifiers-and-problems.md)). |
-| `agent_id` | The agent to run, for example `quality.reviewer`. |
+| `agent_id` | The agent to run, for example `advisor.quality`. |
 | `input` | The input document. |
 | `conversation_id` | Optional. The conversation this run is a turn of (see below). |
 | `parent_invocation_id` | Set only by the conductor, on a run another agent delegated. A caller that sets it is refused. |
@@ -96,6 +96,12 @@ Each payload class is specific to an agent: `Recommendations`, `QualityReview`,
 `Greeting` or `Reply`. Every payload class includes the `Grounded` mixin, which adds a `grounded_on` list.
 Each entry in that list names a source by its identifier and content hash. This is the only
 place a payload may assert which sources it relies on. The grounding linter checks each entry.
+
+Two payload classes belong to the core, because the harness and the app read them without
+knowing the agent: `Reply`, below, and `Document`, a project document such as a metadata record,
+a README or a data dictionary. A `Document` gives its `document_kind`, its `media_type` and its
+`document_text`, and names the version it `revises` when an agent regenerates it
+([ADR-0035](adr/0035-project-documents.md)).
 
 ## Conversations
 

@@ -78,7 +78,7 @@ Several constraints shaped the answer:
 10. **The callback address is the workbench's own.** `workbench serve` uses its host and port;
     `DD_WORKBENCH_URL` overrides it. `workbench invoke` issues no grant, so a delegation agent
     run from the CLI has no `delegate`.
-11. **`director.stub` is the reference orchestrator** (`agents/director/`): rule-based routing
+11. **`orchestrator.stub` is the reference orchestrator** (`agents/orchestrator-stub/`): rule-based routing
     from `routing.yaml`, a template reply, no model. It succeeds once it has delegated and
     relayed, whatever the child's outcome; the child's status is on its own envelope and in
     `delegations`. It also asks a first turn which Blueprint entry point applies, and lists the
@@ -93,8 +93,8 @@ Several constraints shaped the answer:
     agent, input schemas included. `ctx.delegate.manifest()` reads it from the grant's URL, once
     per invocation. The card lists every registered agent, not only those the profile permits;
     the policy gate still refuses a child the profile does not enable, and the orchestrator
-    reports that refusal like any other outcome. `orchestrator.model` (`agents/orchestrator/`,
-    #21) routes this way; `director.stub` keeps its `routing.yaml` as a fixed, model-free
+    reports that refusal like any other outcome. `orchestrator.model` (`agents/orchestrator-model/`,
+    #21) routes this way; `orchestrator.stub` keeps its `routing.yaml` as a fixed, model-free
     reference. Both place agents in the Blueprint's process flow by the manifest's `serves`
     ([ADR-0028](0028-entry-points-and-serves.md)).
 14. **An orchestrator succeeds once it has replied, whatever its children's outcomes.** This
@@ -103,11 +103,26 @@ Several constraints shaped the answer:
     the reply says what went wrong and what to try next. Mirroring the failure on the parent
     would lose that explanation. A parent fails only when it cannot reply at all: for a model,
     when the API fails or the model declines the request.
+15. **An orchestrator has no tools except its delegations.** A model-backed orchestrator is
+    offered one client tool per input class of each agent in the manifest (decision 13), and
+    nothing else: no MCP server, no server tool such as web search, web fetch or code execution,
+    and no Agent Skills. Anything the orchestrator learns about a case comes from a child's
+    result, so it is governed, stored and grounded like any other run. An external source, such
+    as a registry, a PID service or an MCP server, is reached by an agent that the orchestrator
+    delegates to. `agents/orchestrator/tests/test_orchestrator_only_delegates.py` checks that
+    the request to the Messages API carries nothing else, and that the package depends on and
+    imports nothing that could provide it. The orchestrator still needs context about its
+    deployment and the researcher's project. The harness should supply that context (#341,
+    #160), not a tool.
 
 Rejected:
 
 - **The orchestrator calling other agents directly over A2A.** Faster to build, but the children
   would be ungoverned and unstored, and the parent could cite anything it liked.
+- **Tools of the orchestrator's own: MCP servers, web search or Agent Skills** (decision 15). A
+  lookup made that way would pass no policy gate, leave no evidence and no stored run, and be
+  checked by no source check. Agent Skills would also need the code-execution container, which
+  adds egress and does not carry over to a local model.
 - **Declaring `none` or `input_only` for the orchestrator.** Under R2 it could cite only its
   input, so a relayed answer would be ungrounded.
 - **Declaring `retrieval`.** G1 requires a retrieval before any model call; a model-backed

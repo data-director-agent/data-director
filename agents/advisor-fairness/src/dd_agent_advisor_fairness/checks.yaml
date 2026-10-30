@@ -1,0 +1,93 @@
+# advisor.fairness's whole rule table: presence checks of a published record's metadata, each keyed
+# by the FAIR sub-principle it bears on, with the retrofit suggestion given when it is not met.
+# A check's `test` is one of:
+#   present  - `field` is given and not empty
+#   doi      - `field` is a DOI, bare (10.1234/abc) or as a doi.org URL
+#   one_of   - `field`, case ignored, is one of `values`
+#   any_in   - at least one item of the list `field`, case ignored, is one of `values`
+#   covered  - `field` is a non-empty list, with at least as many items in `by`
+# A mock's table (ADR-0033): it looks only at what the researcher gives and is not a FAIRness
+# evaluation (R4). The real assessor replaces it, TODO(#361).
+- principle: F1
+  check: identifier-is-doi
+  test: doi
+  field: identifier
+  recommendation: >-
+    Ask the repository to mint a DOI for the dataset, and give the DOI wherever the data are cited.
+- principle: F2
+  check: title-present
+  test: present
+  field: title
+  recommendation: Add a title that says what the data are, where and when they were collected.
+- principle: F2
+  check: keywords-present
+  test: present
+  field: keywords
+  recommendation: >-
+    Add keywords, preferably terms from a controlled vocabulary used in your discipline.
+- principle: F2
+  check: creators-present
+  test: present
+  field: creators
+  recommendation: Name the people who created the dataset.
+- principle: F3
+  check: identifier-present
+  test: present
+  field: identifier
+  recommendation: Include the dataset's persistent identifier in its metadata record.
+- principle: A1
+  check: access-protocol-open
+  test: one_of
+  field: access_protocol
+  values: [https, http, ftp]
+  recommendation: >-
+    Make the data retrievable by an open, free protocol such as HTTPS, even if access needs
+    authorisation.
+- principle: I1
+  check: open-format
+  test: any_in
+  field: formats
+  values:
+    - text/csv
+    - text/plain
+    - text/tab-separated-values
+    - application/json
+    - application/xml
+    - application/x-netcdf
+    - application/x-hdf5
+    - application/pdf
+    - image/png
+    - image/tiff
+  recommendation: >-
+    Provide at least one file in an open format, such as CSV alongside a spreadsheet.
+- principle: I3
+  check: related-identifiers-present
+  test: present
+  field: related_identifiers
+  recommendation: >-
+    Add the identifiers of related outputs, such as the article that uses the data or the software
+    that produced them.
+- principle: R1
+  check: formats-declared
+  test: present
+  field: formats
+  recommendation: State the media type of each file in the dataset.
+- principle: R1.1
+  check: licence-present
+  test: present
+  field: licence
+  recommendation: Add a licence, so that others know on what terms they may reuse the data.
+- principle: R1.1
+  check: licence-open
+  test: one_of
+  field: licence
+  values: [CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0, ODC-By-1.0, ODbL-1.0, PDDL-1.0]
+  recommendation: >-
+    Consider an open licence, such as CC-BY-4.0 or CC0-1.0, if your obligations allow it, and give
+    it as an SPDX identifier.
+- principle: R1.2
+  check: creators-identified
+  test: covered
+  field: creators
+  by: creator_identifiers
+  recommendation: Add a persistent identifier, such as an ORCID iD, for every creator.

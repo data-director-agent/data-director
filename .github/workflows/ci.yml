@@ -320,12 +320,12 @@ jobs:
           # The whole history, for check_citation.py.
           fetch-depth: 0
       # Relative links and their #fragments only: an external link that goes down is not a
-      # defect in a pull request. docs/BLUEPRINT.md is external material, reproduced verbatim.
+      # defect in a pull request. This covers docs/blueprint/, whose cross-references are links.
       - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           args: >-
             --offline --include-fragments --no-progress
-            --exclude-path docs/BLUEPRINT.md --exclude-path node_modules
+            --exclude-path node_modules
             '**/*.md'
           fail: true
           jobSummary: true
@@ -337,6 +337,9 @@ jobs:
       - run: uv run --python 3.14 scripts/check_citation.py
       # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
+      # Each workspace member imports only what it declares and reads only its own files
+      # (ADR-0031).
+      - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
 
   workflows:
     name: Workflows (actionlint, zizmor)

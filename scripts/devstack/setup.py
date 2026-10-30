@@ -13,6 +13,7 @@ from devstack import paths
 from devstack.common import (
     EXAMPLE_PRINCIPAL,
     DevError,
+    ensure_local_tree,
     prepare_web,
     read_env,
     run,
@@ -21,6 +22,12 @@ from devstack.common import (
 )
 
 KEYS_URL = "https://console.anthropic.com/settings/keys"
+FAIRSHARING_URL = "https://fairsharing.org/accounts/signup"
+# The agents given the FAIRsharing login, and the setting that turns on their live search.
+FAIRSHARING_AGENTS = (
+    ("advisor-standards", "DD_STANDARDS_RETRIEVAL"),
+    ("advisor-policy", "DD_POLICY_RETRIEVAL"),
+)
 ORCID_ID = re.compile(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$")
 
 
@@ -73,7 +80,7 @@ class Changes:
 
 
 def ask_principal(prompt: Prompter, changes: Changes) -> None:
-    current = {**EXAMPLE_PRINCIPAL, **read_env(paths.ROOT_ENV)}
+    current = EXAMPLE_PRINCIPAL | {k: v for k, v in read_env(paths.APP_ENV).items() if v}
     print(
         "\nWhom runs act for. There is no sign-in yet, so every run is recorded as acting for this\n"
         "person (ADR-0018). Give your own name and ORCID iD, or press Enter to keep the value shown."
@@ -88,39 +95,85 @@ def ask_principal(prompt: Prompter, changes: Changes) -> None:
                 raise
             print(f"  {exc}")
     update_env(
-        paths.ROOT_ENV,
+        paths.APP_ENV,
         {"DD_PRINCIPAL_NAME": name, "DD_PRINCIPAL_ID": iri},
-        "# Written by `uv run scripts/dev.py setup`; read by `dev.py start` and Docker Compose.\n"
-        "# Never put a model key here: every agent reads this file (ADR-0026).",
+        "# Written by `uv run scripts/dev.py setup`; read by the app (`dev.py start`, Docker Compose).",
     )
-    changes.note(paths.ROOT_ENV)
+    changes.note(paths.APP_ENV)
+
+
+def key_file(agent: str) -> Path:
+    return paths.CREDENTIALS_DIR / f"{agent}-anthropic-api-key"
+
+
+def write_key(agent: str, key: str, changes: Changes, extra: dict[str, str] | None = None) -> None:
+    """Store `key` as the agent's credential file, and name it in the agent's own settings."""
+    path = key_file(agent)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(mode=0o600)
+    path.chmod(0o600)
+    path.write_text(key + "\n", encoding="utf-8")
+    changes.note(path)
+    env_file = paths.AGENT_ENV_DIR / f"{agent}.env"
+    update_env(
+        env_file,
+        {"ANTHROPIC_API_KEY_FILE": path.name} | (extra or {}),
+        "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026).",
+    )
+    changes.note(env_file)
+
+
+def read_key(agent: str) -> str:
+    path = key_file(agent)
+    return path.read_text(encoding="utf-8").strip() if path.is_file() else ""
 
 
 def ask_model_key(prompt: Prompter, changes: Changes) -> bool:
     """Ask for a model key and give it to the agents that use one. Whether one is set."""
-    orchestrator = paths.AGENT_ENV_DIR / "orchestrator.env"
-    current = read_env(orchestrator).get("ANTHROPIC_API_KEY", "")
+    current = read_key("orchestrator-model")
     print(
-        "\nAn Anthropic API key (optional). Without one, the home page talks to director.stub, a\n"
+        "\nAn Anthropic API key (optional). Without one, the home page talks to orchestrator.stub, a\n"
         "rule-based agent, and everything else works. With one, the model-backed orchestrator can\n"
         f"hold the conversation. Create a key at {KEYS_URL}. It is stored only in the files of\n"
-        "the agents that use it (workbench/agents/), which git ignores."
+        "the agents that use it (config/local/credentials/), which git ignores."
     )
     shown = f"Enter keeps {mask(current)}" if current else "Enter skips"
     key = prompt.secret(f"Anthropic API key ({shown})") or current
     if not key:
         return False
-    header = "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026)."
     if key != current:
-        update_env(orchestrator, {"ANTHROPIC_API_KEY": key}, header)
-        changes.note(orchestrator)
+        write_key("orchestrator-model", key, changes)
     if prompt.yes("Let the standards advisor use the model to explain its advice too?", False):
-        standards = paths.AGENT_ENV_DIR / "standards.env"
-        update_env(
-            standards, {"DD_STANDARDS_EXPLAINER": "anthropic", "ANTHROPIC_API_KEY": key}, header
-        )
-        changes.note(standards)
+        write_key("advisor-standards", key, changes, {"DD_STANDARDS_EXPLAINER": "anthropic"})
     return True
+
+
+def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
+    """Ask for a FAIRsharing account and give it to the agents that search FAIRsharing live."""
+    current = read_env(paths.AGENT_ENV_DIR / "advisor-standards.env")
+    print(
+        "\nA FAIRsharing account (optional). Without one, the standards and policy advisors search\n"
+        f"their bundled snapshots. With one, they search FAIRsharing itself. Sign up at\n"
+        f"{FAIRSHARING_URL}. FAIRsharing issues its token on sign-in, so the advisors take the\n"
+        "login and password."
+    )
+    login = prompt.text("FAIRsharing login, Enter skips", current.get("FAIRSHARING_LOGIN", ""))
+    if not login:
+        return
+    kept = current.get("FAIRSHARING_PASSWORD", "")
+    shown = f"Enter keeps {mask(kept)}" if kept else "required"
+    password = prompt.secret(f"FAIRsharing password ({shown})") or kept
+    if not password:
+        print("  No password given; FAIRsharing live search is not set up.")
+        return
+    for agent, switch in FAIRSHARING_AGENTS:
+        own = paths.AGENT_ENV_DIR / f"{agent}.env"
+        update_env(
+            own,
+            {switch: "live", "FAIRSHARING_LOGIN": login, "FAIRSHARING_PASSWORD": password},
+            "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026).",
+        )
+        changes.note(own)
 
 
 def use_model_orchestrator(changes: Changes) -> None:
@@ -147,11 +200,14 @@ def setup(prompt: Prompter, install: bool = True) -> int:
     for problem in problems:
         print(f"missing: {problem}")
     changes = Changes()
+    for created in ensure_local_tree():
+        changes.note(created)
     ask_principal(prompt, changes)
     if ask_model_key(prompt, changes) and prompt.yes(
         "Make the model-backed orchestrator the one the home page talks to?", True
     ):
         use_model_orchestrator(changes)
+    ask_fairsharing(prompt, changes)
     print("\nWrote " + ", ".join(str(p.relative_to(paths.ROOT)) for p in changes.written) + ".")
     if problems:
         print("Install what is missing above, then run setup again to install and build.")

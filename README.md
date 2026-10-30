@@ -3,10 +3,20 @@
 [![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg)](https://codecov.io/gh/data-director-agent/data-director)
 [![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue)](https://deepwiki.com/data-director-agent/data-director)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23735878.svg)](https://doi.org/10.5281/zenodo.23735878)
 
 The Data Director is an agentic AI tool for research data stewardship. It helps researchers to make their data [FAIR](https://www.go-fair.org/fair-principles/) (Findable, Accessible, Interoperable, and Reusable), select an appropriate data repository for archiving, draft metadata records, a README and data dictionaries, to create deposit-ready packages with an audit trail.
 
 This is proposed _reference implementation_ for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/). The Blueprint followed an RDA community consultation, reported in [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151).
+
+Related work: [RDA for Artificial Intelligence Cross-fertilisation Summary](https://doi.org/10.15497/RDA00160) (RDA Secretariat, 2026), and [The Research Data Director: A Persona-Based Agentic AI Blueprint and Application for FAIR Research Data, Metadata, and Schema and Crosswalk Workflows](https://doi.org/10.5281/zenodo.23670411) (Uzwyshyn, 2026), a companion persona-based blueprint.
+
+> [!NOTE]
+> Please read [the **documentation**](https://data-director-agent.github.io/data-director/):
+> - [**User Guide**](https://data-director-agent.github.io/data-director/user-guide/) is for researchers and data stewards using the Data Director app.
+> - [**Operations Guide**](https://data-director-agent.github.io/data-director/operations/) is for system administrators running the system.
+> - [**Developer Guide**](https://data-director-agent.github.io/data-director/developer-guide/) is for those working on the agents or developing the software in this repository.
+> - [**Data Director Blueprint**](https://data-director-agent.github.io/data-director/docs/blueprint/) is a web-based version of the Data Director Agentic AI Tool Blueprint.
 
 ## Overview
 
@@ -28,16 +38,18 @@ uv run scripts/dev.py start           # the agents, the app and the shell; Ctrl-
 ```
 
 `setup` asks for your name and ORCID iD, because every run acts for a named person, and,
-optionally, for an Anthropic API key. Without a key, the app converses with `director.stub`, a
+optionally, for an Anthropic API key and a FAIRsharing login (for the standards advisor's live
+search; without one it searches its bundled snapshot). Without a key, the app converses with `orchestrator.stub`, a
 rule-based agent, and everything else works. `setup` writes each answer to the file it belongs in,
-so you never edit a settings file by hand: your name in `.env` at the root, and the key only in
-the files of the agents that use it (`workbench/agents/<name>.env`), never in a file every agent
+so you never edit a settings file by hand: your name in `config/local/app.env`, and the key only in
+the credential file of the agent that uses it (`config/local/credentials/`), never in a file every agent
 reads (ADR-0026). Run `setup` again at any time to change an answer; Enter keeps the value shown.
 
 `start` opens nothing itself: open <http://localhost:5173>, which reloads as you edit the shell,
 or <http://127.0.0.1:7860>, the app serving its built shell (`start --no-web` starts only that).
 Each line of output is labelled with the service it came from. An agent that needs a model key
-and has none is skipped, and says so.
+and has none is skipped, and says so. Each agent restarts when a file in its package changes, a prompt
+included (`start --no-reload` turns that off).
 
 If something does not work, run
 
@@ -80,10 +92,10 @@ under `unavailable`, with the reason. For hot reload, run `npm run dev` in `app/
 open <http://localhost:5173>; it proxies `/api` to the app (set `DD_APP_URL` if the app is at
 another address).
 
-To give the orchestrator a model key by hand, copy `workbench/agents/env.example` to
-`workbench/agents/orchestrator.env`, set `ANTHROPIC_API_KEY` in it, and name `orchestrator.model`
+To give the orchestrator a model key by hand, copy `config/examples/agents/orchestrator-model.env` to
+`config/local/agents/orchestrator-model.env`, put the key in `config/local/credentials/orchestrator-model-anthropic-api-key`, and name `orchestrator.model`
 in your profile (see [`app/README.md`](app/README.md#choosing-the-orchestrator)). The file is
-ignored by git. On a server the same settings live in `/etc/data-director/agents/orchestrator.env`
+ignored by git. On a server the same settings live in `/etc/data-director/agents/orchestrator-model.env`
 (see [`deploy/README.md`](deploy/README.md)).
 
 ### Develop and test agents
@@ -95,57 +107,70 @@ scripts/run-agents.sh                 # first terminal; the same as `scripts/dev
 ```
 ```sh
 cd workbench
-uv run workbench serve                # then open http://127.0.0.1:8000/viewer/
+uv run workbench serve --port 8000    # then open http://127.0.0.1:8000/viewer/
 ```
 
 To run the whole development stack in containers instead, you need only Docker with Compose.
 Source is bind-mounted, so edits to Python and to the shell take effect without a rebuild:
 
 ```sh
-uv run scripts/dev.py setup --no-install   # or: cp docker/env.example .env, then edit it
+uv run scripts/dev.py setup --no-install   # or: copy `config/examples/` to `config/local/` and edit it
 docker compose up --build             # app at http://127.0.0.1:7860, shell at :5173
 docker compose --profile workbench up workbench   # viewer at http://127.0.0.1:8000/viewer/
 docker compose --profile llm up       # adds the model-backed orchestrator
 ```
 
 The first start installs the dependencies into a volume, which takes a few minutes. The agents are
-reachable only inside the Compose network. Model keys go in `workbench/agents/<name>.env`, as when
+reachable only inside the Compose network. Model keys go in `config/local/credentials/`, named in `config/local/agents/<name>.env`, as when
 running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_PORT` or
-`DD_WORKBENCH_HOST_PORT` in `.env`. Containers run as uid 1000. This stack is for development only;
+`DD_WORKBENCH_HOST_PORT` in the shell. Containers run as uid 1000. This stack is for development only;
 `deploy/` covers deployment.
 
-### Settings in `workbench/.env`
+### Settings in `config/local/`
 
-`scripts/dev.py start` (and so `scripts/run-agents.sh`) and the workbench read `workbench/.env` if
-it exists (copy `workbench/env.example`); for `dev.py`, the root `.env` that `setup` writes wins
-over it. It is an ordinary dotenv file, so quote a value that contains a space:
-`DD_PRINCIPAL_NAME="Josiah Carberry"`. An unquoted one gives
-"Failed to parse environment file `workbench/.env`", and the file is not applied. Put a model key
-only in that agent's own file, `workbench/agents/<name>.env` (for example `orchestrator.env`),
-never in `workbench/.env`, which every agent reads.
+`scripts/dev.py setup` creates `config/local/`, which mirrors `/etc/data-director/` on a server:
+`app.env` (the app), `agents.env` (every agent), `agents/<name>.env` (one agent) and
+`credentials/` (model keys, named by `*_FILE` variables). `dev.py start` and Docker Compose read
+it, and each agent is given `agents.env` and its own file only. The `workbench` command reads
+`app.env` and `agents.env` from the directory `DD_CONFIG_DIR` names (`DD_CONFIG_DIR=config/local`).
+These are ordinary dotenv files, so quote a value that contains a space: otherwise uv reports
+"Failed to parse environment file", and the file is not applied. Put a model key only in that
+agent's credential file, never in `agents.env`, which every agent reads. If you used the earlier
+layout (`.env`, `workbench/.env`, `workbench/agents/*.env`), `dev.py doctor` says where each file's
+settings move.
 
-[`docs/architecture.md`](docs/architecture.md) explains how the parts fit together. Each part of
-the repository has its own README with the details:
+## Acknowledgements
 
-| Directory | What it is |
-|---|---|
-| [`app/`](app/README.md) | The Data Director app (alpha): a browser shell drawn from each agent's manifest, and its configuration |
-| [`harness/`](harness/README.md) | The governance every invocation goes through, and `dd-harness serve` for deployments |
-| [`workbench/`](workbench/README.md) | The development test bed: the `workbench` CLI, the viewer, samples and profiles |
-| [`agents/`](agents/README.md) | One package and one A2A service per agent, and how to write a new one from `hello/` |
-| [`sdk/`](sdk/README.md) | What agents and the harness share: the contract, evidence, span helpers and the agent server |
+The Blueprint was written by the RDA Data Director Agentic AI Blueprint Working Group, facilitated
+by Connie Clare (RDA) with support from Trish Radotic (RDA Secretariat). Benjamin Wright-Jones and
+George Earl (Microsoft) developed its reference architecture. Its authors are listed in
+[Appendix C](docs/blueprint/appendix-c-acknowledgements.md).
+
+The design of this implementation has been discussed in the Working Group's reference
+implementation meetings since October 2026. We thank the participants for the ideas they brought:
+
+- Patricia Buendia (Lifetime Omics): a biomedical workflow with human approval gates, and pilot datasets.
+- Lars Eklund (Uppsala University): a versioned requirements specification in the repository, and archiving releases on Zenodo.
+- Seonyoung Kim (Washington University): coordination with the RDA AI in Research Interest Group.
+- Allyson Lister (University of Oxford): the Data Director suggests changes for a person to confirm, rather than changing data itself.
+- Ugochi Okengwu (University of Port Harcourt).
+- Monica Palmero Fernandez (University of Oxford): a joint Sheffield and Oxford implementation (Blueprint [Appendix D](docs/blueprint/appendix-d-implementors.md)).
+- Pengyin Shan (NCSA, University of Illinois Urbana-Champaign): the agreements and approvals needed before real data is used.
+- Slava Tykhonov (CODATA): verified agent identities with signed inputs and outputs, ODRL for policies, and evaluation.
+- Raymond Uzwyshyn (University of California, Riverside): a persona-based design of six agents.
+- Carlo Maria Zwölf (LUX, Observatoire de Paris): a post-mortem of an end-to-end deposit prototype.
 
 ## Contributing
 
 This is a community-driven, open-source project. See:
 
-- [Blueprint](docs/BLUEPRINT.md) — the Data Director Agentic AI Tool Blueprint (RDA, CC BY 4.0), reproduced here as Markdown
+- [Blueprint](docs/blueprint/README.md) — the Data Director Agentic AI Tool Blueprint v1.0 (RDA, CC BY 4.0, [doi:10.15497/RDA00157](https://doi.org/10.15497/RDA00157)), reproduced here as Markdown
 - [Project charter](https://github.com/data-director-agent/.github/blob/main/CHARTER.md) — the project's mission and scope
 - [Governance](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md) — how decisions are made and how the maintainer group grows
 - [Releasing](RELEASING.md) — versioning policy and how a release is made
 - [Contribution guide](CONTRIBUTING.md) — this repository's structure and tooling; the organisation-wide [contribution guide](https://github.com/data-director-agent/.github/blob/main/CONTRIBUTING.md) covers RFCs, sign-off and pull requests
+- [AI usage statement](https://github.com/data-director-agent/.github/blob/main/AI_USAGE.md) — how generative AI is used to develop the project, and how that use is attributed and checked
 - [Code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md) — expected standards of behaviour
-- [Software management plan](docs/SOFTWARE_MANAGEMENT_PLAN.md) — the software management plan
 - [App](app/) — the Data Director itself (alpha): a browser shell drawn from each agent's manifest (ADR-0024)
 - [Harness](harness/) — the governance every agent invocation goes through: the policy gate, input check, grounding linter, source check, run store and provenance
 - [Workbench](workbench/) — development environment for building and testing sub-agents: the invocation contract (LinkML), a standards advisor over FAIRsharing, an abstaining stub, and a read-only viewer

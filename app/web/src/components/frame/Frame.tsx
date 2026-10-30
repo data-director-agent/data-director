@@ -1,9 +1,9 @@
 /**
  * The page frame: a skip link, the banner and one main landmark, then a footer that names the build.
  *
- * The banner holds the same three things on every page (the name, the main navigation and the
- * dark mode switch), so nothing in it moves when the page changes. What a page is about, and for
- * whom it acts, is said in the page itself.
+ * The banner holds the same things on every page (the name, the main navigation, who is signed
+ * in and the dark mode switch), so nothing in it moves when the page changes. What a page is
+ * about, and for whom it acts, is said in the page itself.
  */
 
 import "./Frame.css";
@@ -19,17 +19,21 @@ const PAGES = [
   { to: "/agents", label: "Agents" },
 ] as const;
 
+const USER_GUIDE = "https://data-director-agent.github.io/data-director/user-guide/";
+
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
- * was made.
+ * was made. `account` is who is signed in (`session/Account`).
  */
 export function Frame({
   current,
   from = current,
+  account,
   children,
 }: {
   current: string;
   from?: string;
+  account?: ReactNode;
   children: ReactNode;
 }) {
   const run = new URLSearchParams(from.split("?")[1]).get("run");
@@ -60,6 +64,10 @@ export function Frame({
             </ul>
           </nav>
           <div className="app-tools">
+            {account}
+            <a className="app-tool-link" href={USER_GUIDE} target="_blank" rel="noreferrer">
+              User guide
+            </a>
             <Link
               to={report}
               className="app-tool-link"

@@ -18,14 +18,14 @@ import yaml
 
 from devstack import paths
 
-# The example principal the documentation uses (docker/env.example): ORCID's test record.
+# The example principal the documentation uses (config/examples/app.env): ORCID's test record.
 EXAMPLE_PRINCIPAL = {
     "DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097",
     "DD_PRINCIPAL_NAME": "Josiah Carberry",
 }
 KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
 # Agents that stop at start-up without a model key, so `start` skips them when they have none.
-MODEL_BACKED = {"orchestrator"}
+MODEL_BACKED = {"orchestrator-model"}
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")
 APP_PORT = 7860  # dd_app's default (DD_APP_PORT)
 WEB_PORT = 5173  # Vite's default
@@ -118,25 +118,77 @@ def update_env(path: Path, updates: dict[str, str], header: str) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def shared_env() -> dict[str, str]:
-    """What every agent and the app read: `workbench/.env`, then the root `.env`, which wins.
+def _without_key(path: Path) -> dict[str, str]:
+    """The settings in `path`, which every agent reads, so it may hold no model key (ADR-0026)."""
+    found = read_env(path)
+    if leaked := [var for var in KEY_VARS if found.get(var)]:
+        raise DevError(
+            f"{path.relative_to(paths.ROOT)} sets {leaked[0]}, which every agent would read; "
+            f"move it to the agent's own file, config/local/agents/<name>.env (ADR-0026)"
+        )
+    return found
 
-    Neither may hold a model key: every agent would be given it (ADR-0026).
+
+def app_env() -> dict[str, str]:
+    """What the app reads, as under systemd: `config/local/app.env` and nothing of the agents'."""
+    return _without_key(paths.APP_ENV)
+
+
+def agent_env(agent: Agent) -> dict[str, str]:
+    """What one agent reads: `agents.env`, then its own file, and the credentials directory.
+
+    It is given neither the app's settings nor another agent's (ADR-0026).
     """
-    values: dict[str, str] = {}
-    for path in (paths.WORKBENCH_ENV, paths.ROOT_ENV):
-        found = read_env(path)
-        if leaked := [var for var in KEY_VARS if found.get(var)]:
-            raise DevError(
-                f"{path.relative_to(paths.ROOT)} sets {leaked[0]}, which every agent would read; "
-                f"move it to the agent's own file, workbench/agents/<name>.env (ADR-0026)"
-            )
-        values |= found
-    return values
+    return (
+        _without_key(paths.AGENTS_ENV)
+        | read_env(agent.env_file)
+        | {"CREDENTIALS_DIRECTORY": str(paths.CREDENTIALS_DIR)}
+    )
 
 
 def has_key(env: dict[str, str]) -> bool:
     return any(env.get(var) for var in KEY_VARS)
+
+
+def ensure_local_tree() -> list[Path]:
+    """Create `config/local/` as deployment has it, from the committed examples. Never overwrites.
+
+    Returns what it created.
+    """
+    created: list[Path] = []
+    for name in ("app.env", "agents.env"):
+        dest = paths.LOCAL_DIR / name
+        if not dest.exists():
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(paths.EXAMPLES_DIR / name, dest)
+            dest.chmod(0o600)
+            created.append(dest)
+    paths.AGENT_ENV_DIR.mkdir(parents=True, exist_ok=True)
+    paths.CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return created
+
+
+# Where a stray settings file of the old layout moves to (ADR-0026).
+OLD_LOCATIONS = {
+    ".env": "config/local/app.env (DD_PRINCIPAL_*, DD_APP_*) and config/local/agents.env (the rest)",
+    "workbench/.env": "config/local/app.env (DD_PRINCIPAL_*, DD_RUNS_DIR, DD_PROFILE) and "
+    "config/local/agents.env (DD_STANDARDS_*, FAIRSHARING_*)",
+    "app/.env": "config/local/app.env",
+}
+
+
+def stray_files() -> list[str]:
+    """Settings files of the old layout that exist, each with where its settings now go."""
+    found = [
+        f"{old} -> {new}" for old, new in OLD_LOCATIONS.items() if (paths.ROOT / old).is_file()
+    ]
+    old_agents = paths.ROOT / "workbench" / "agents"
+    found += [
+        f"{p.relative_to(paths.ROOT)} -> config/local/agents/{p.name}"
+        f" (a model key goes in config/local/credentials/, named by ANTHROPIC_API_KEY_FILE)"
+        for p in sorted(old_agents.glob("*.env"))
+    ]
+    return found
 
 
 # --- Agents and the shell --------------------------------------------------------------------

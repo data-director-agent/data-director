@@ -39,6 +39,6 @@ without a difference in output.
 
 - An agent whose source records need their own projection registers one (a name and a
   function) in `evidence.py`; it does not invent a name in its own package.
-- `PROJECTED_FIELDS` remains a module constant for `agents/standards/fairsharing/records.py` but now
+- `PROJECTED_FIELDS` remains a module constant for `agents/advisor-standards/fairsharing/records.py` but now
   belongs to the `json-sorted-utf8-v1` entry.
 - A future contributor must not change the bytes a registered name produces.

@@ -1,0 +1,44 @@
+---
+title: "Phase 3: Repository Selection"
+---
+flowchart TD
+    sub["Data Publication Workflow | Entry 3: Ready to deposit data joins here"]:::subtitle
+    r10["<b>R10 (Horizontal Requirement — all phases):</b> Track provenance of all AI agent actions on data and metadata. Record all actions so they can be verified, validated and audited."]:::horizontal
+    sub ~~~ r10 ~~~ entry3
+
+    entry3(["Entry 3: Ready to deposit data — joins here"]):::entry
+    phase3["PHASE 3: REPOSITORY SELECTION"]:::phase
+    assumes["Assumes governance and constraints checks are met"]:::caption
+    mandated{"Is a repository mandated by funder, journal or institution?"}:::decision
+    usemandated["Use mandated repository"]:::step
+    find["Find a suitable repository (domain-specific or generalist)<br><br><b>Guidance note:</b> The agent could suggest options — the researcher selects. The agent distinguishes commercial from open repositories, surfaces deposit fees, and connects to FAIRsharing MCP server and re3data API.<br><br><b>R1:</b> Recommend and select repositories meeting funder, journal, institutional and community requirements"]:::step
+    pids{"Does the repository assign Persistent Identifiers (PIDs) automatically?"}:::decision
+    auto["PID auto-assigned (skip PID step at deposit)"]:::step
+    arrange["Arrange PID assignment (e.g. via DataCite)<br><br><b>Guidance note:</b> The agent could support PID arrangement. PID assignment is the responsibility of the repository, not the researcher. PIDs include Handles and other GUPRIs (Globally Unique, Persistent and Resolvable Identifiers) — not DOIs only.<br><br><b>R7:</b> Support assignment of persistent identifiers (PIDs) at point of publication"]:::step
+    access["Check access options and deposit costs<br><br><b>Guidance note:</b> The agent could surface information on access options, deposit fees and costs for the selected repository."]:::step
+    cert["Check repository certification e.g. CoreTrustSeal (OPTIONAL)<br><br><b>Guidance note:</b> Free evaluation options are available via FAIRsharing and EDEN/FIDELIS for assessing repository quality. The agent should not weight paid certification more highly than free options."]:::optional
+    next["→ Continues to Phase 4: Data Preparation and Metadata Creation (see next page)"]:::link
+
+    entry3 --> phase3
+    phase3 ~~~ assumes
+    assumes --> mandated
+    mandated -- YES --> usemandated
+    mandated -- NO --> find
+    usemandated --> pids
+    find --> pids
+    pids -- YES --> auto
+    pids -- NO --> arrange
+    auto --> access
+    arrange --> access
+    access ~~~ cert
+    cert --> next
+
+    classDef subtitle fill:none,stroke:none,color:#555
+    classDef caption fill:none,stroke:none,color:#555
+    classDef horizontal fill:#fff5f5,stroke:#c00,color:#c00
+    classDef entry fill:#005a4e,stroke:#005a4e,color:#fff
+    classDef phase fill:#fff8e1,stroke:#c9a54a,color:#c66a00
+    classDef step fill:#fff,stroke:#999,color:#111
+    classDef optional fill:#fff,stroke:#999,color:#111,stroke-dasharray:4 3
+    classDef decision fill:#fff8e1,stroke:#e08a00,color:#c66a00,stroke-dasharray:5 3
+    classDef link fill:none,stroke:none,color:#005a4e

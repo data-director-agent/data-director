@@ -1,0 +1,57 @@
+name: Feedback on advice
+description: As a researcher, data steward or librarian, say where Data Director's advice was wrong, incomplete or unhelpful. No code needed.
+type: Bug
+labels: ["evaluation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Data Director's agents advise on standards, repositories, policies and metadata. Your
+        judgement of that advice is how its quality is measured and improved. Do not include
+        personal data, unpublished research or anything confidential.
+  - type: input
+    id: where
+    attributes:
+      label: Where you saw it
+      description: The instance's address and, if shown, the agent or the run identifier.
+  - type: textarea
+    id: asked
+    attributes:
+      label: What you asked or provided
+      description: Your question, or a description of the dataset you described to it.
+    validations:
+      required: true
+  - type: textarea
+    id: advice
+    attributes:
+      label: What Data Director advised
+      description: Paste or summarise the answer, including any sources it cited.
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What was wrong
+      multiple: true
+      options:
+        - It was incorrect
+        - It missed something important
+        - It cited a source that does not support it
+        - It was correct but not appropriate for this discipline or institution
+        - It should have declined or referred me to a person
+        - It was hard to understand
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What good advice would have been
+      description: What you would tell a colleague, and why. Cite a standard, policy or other source where you can.
+    validations:
+      required: true
+  - type: input
+    id: expertise
+    attributes:
+      label: Your role
+      description: Optional. Your role or field, so that the advice can be judged in context.
+      placeholder: Research data manager, life sciences

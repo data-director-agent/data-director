@@ -1,0 +1,8 @@
+{
+  "schema_class": "DocumentationRequest",
+  "title": "Household energy use interviews",
+  "description": "Survey responses and smart-meter readings from 40 households in Sheffield.",
+  "creators": ["A. Researcher", "University of Sheffield"],
+  "files": ["survey_responses.csv", "meter_readings.csv", "interview_guide.pdf"],
+  "fields": ["household_id", "household_size", "kwh_daily", "tariff_type"]
+}

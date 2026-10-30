@@ -155,8 +155,8 @@ activemq-data/
 # Environments
 .env
 .envrc
-# Per-agent settings and model keys for scripts/run-agents.sh (ADR-0026).
-workbench/agents/*.env
+# Local development settings and model keys (ADR-0026).
+config/local/
 # Per-agent env files under agents/ hold API keys; the bare .env rule misses *.env names.
 agents/**/*.env
 agents/**/.env.*
@@ -235,3 +235,6 @@ logs/
 
 # A local copy of the app profile (app/config/profile.yaml.example) for editing.
 app/config/profile.yaml
+
+# Coding agents
+.claude/worktrees/

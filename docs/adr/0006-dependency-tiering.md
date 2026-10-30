@@ -28,16 +28,16 @@ the dependency is in the wrong tier.
 |---|---|---|---|
 | `pydantic` | Runtime | `contract/models.py` | dataclasses + the generated JSON Schema |
 | `jsonschema` | Runtime | `contract/validate.py` | `fastjsonschema` |
-| `httpx` | Runtime | `agents/standards/fairsharing/live.py` | `urllib.request` |
+| `httpx` | Runtime | `agents/advisor-standards/fairsharing/live.py` | `urllib.request` |
 | `opentelemetry-sdk` | Runtime | `tracing.py` | direct JSON-lines writer (ADR-0002) |
-| `rank-bm25` (+ numpy) | Runtime | `agents/standards/fairsharing/snapshot.py` | forty lines of BM25 |
+| `rank-bm25` (+ numpy) | Runtime | `agents/advisor-standards/fairsharing/snapshot.py` | forty lines of BM25 |
 | `a2a-sdk[http-server]` | Runtime | `transport/a2a.py` | hand-written JSON-RPC handler (ADR-0001) |
 | `ag-ui-protocol` | Runtime | `transport/agui.py` | two pydantic models + SSE lines |
 | `rocrate` | Runtime | `provenance.py` | write `ro-crate-metadata.json` directly |
 | `pyyaml` | Runtime | `policy.py` | JSON profiles |
 | `uvicorn` | Runtime | `cli.py serve` | any ASGI server |
 | `python-dotenv` | Runtime | `settings.py::load_env_file` | `uv run --env-file`, or export in the shell |
-| `anthropic` (optional extra of the standards advisor; required by the orchestrator) | Runtime | `agents/standards/explain.py::Explainer`; `agents/orchestrator/model.py::Model` | `TemplateExplainer`, or `director.stub` for the orchestrator; any HTTP client against the Messages API |
+| `anthropic` (optional extra of the standards advisor; required by the orchestrator) | Runtime | `agents/advisor-standards/explain.py::Explainer`; `agents/orchestrator-model/model.py::Model` | `TemplateExplainer`, or `orchestrator.stub` for the orchestrator; any HTTP client against the Messages API |
 | `pytest`, `pytest-recording`, `pytest-json-report`, `linkml`, `ruff`, `mypy` | Evaluation/CI | — | — |
 | `inspect-ai` (workbench `eval` extra; ADR-0013) | Evaluation/CI | `workbench/evaluation.py` | a loop over the case file calling `Conductor.invoke` |
 | OPA/Cedar; in-toto/Sigstore; LangChain/LangGraph and other agent frameworks; a bespoke cassette layer; a bespoke trace format; MCP and Signpost FAIRsharing backends | Rejected | — | — |

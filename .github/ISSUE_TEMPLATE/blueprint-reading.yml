@@ -1,0 +1,43 @@
+name: Blueprint reading
+description: Point out where Data Director reads a Blueprint requirement differently from you, or misses one. No code needed.
+title: "<requirement>: "
+type: Task
+labels: ["blueprint"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Data Director implements the RDA
+        [Data Director Agentic AI Blueprint](https://github.com/data-director-agent/data-director/tree/main/docs/blueprint).
+        Use this form when the project's reading of a requirement differs from yours or from your
+        community's practice. The Blueprint itself is maintained by its RDA working group; to
+        change its text, contact that group.
+  - type: input
+    id: requirement
+    attributes:
+      label: Requirement
+      description: Its identifier in the [functional specification](https://github.com/data-director-agent/data-director/blob/main/docs/blueprint/07-functional-specification.md), or the section of the Blueprint.
+      placeholder: R4
+    validations:
+      required: true
+  - type: textarea
+    id: blueprint
+    attributes:
+      label: What the Blueprint asks for
+      description: Quote the text, or summarise it in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: project
+    attributes:
+      label: What Data Director does or says
+      description: Where you saw it (a page of the app, the documentation, CONFORMANCE.md, an ADR) and what it does.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it matters
+      description: Who is affected, and what a researcher, data steward or institution would expect instead.
+    validations:
+      required: true

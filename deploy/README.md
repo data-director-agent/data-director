@@ -30,8 +30,8 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`, and `@orchestrator` once it has a key. |
-| `systemd/data-director-agent@standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
-| `systemd/data-director-agent@orchestrator.service.d/` | The model-backed orchestrator's key, likewise. |
+| `systemd/data-director-agent@advisor-standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
+| `systemd/data-director-agent@orchestrator-model.service.d/` | The model-backed orchestrator's key, likewise. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
@@ -50,7 +50,7 @@ process (ADR-0027).
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |
-| `/etc/data-director/app.env` | The app's settings (`app/env.example`); `DD_PRINCIPAL_*` are required. |
+| `/etc/data-director/app.env` | The app's settings (`config/examples/app.env`); `DD_PRINCIPAL_*` are required. |
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Model keys, readable by root alone. Never put a key in an `.env` file. |
@@ -176,63 +176,12 @@ carry come from the app's package version and `releases/<sha>/REVISION`.
 
 An agent that calls a hosted model holds the key itself. The app never does, and the key never
 appears in a run, a trace or an export (ADR-0026). Two agents can call a model: the standards
-advisor's optional explainer, which in its default mode uses templates and needs no key, and the
-model-backed orchestrator, which always needs one (see below).
-
-To give it a model:
-
-1. Put the key where only root can read it. Its unit loads it as a credential
-   (`systemd/data-director-agent@standards.service.d/credentials.conf`), so no other agent can
-   read it, although every agent runs as `datadirector`.
-
-   ```bash
-   sudo install -d -m 0700 /etc/data-director/credentials/standards
-   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/standards/anthropic-api-key
-   # paste the key, then Ctrl-D
-   ```
-
-2. Configure the advisor in its own settings file, `/etc/data-director/agents/standards.env`:
-
-   ```bash
-   DD_STANDARDS_EXPLAINER=anthropic
-   DD_MODEL_ID=<model identifier from the provider>
-   ```
-
-3. Restart it:
-
-   ```bash
-   sudo systemctl restart data-director-agent@standards.service
-   ```
-
-If the key is missing or empty, the unit stops at start-up with one line in
-`journalctl -u data-director-agent@standards`, and is not restarted until the configuration is
-fixed. The standards advisor's About tab then names Anthropic and the model.
-
-### The model-backed orchestrator
-
-`orchestrator.model` is not part of `data-director.target`, because it cannot start without a
-key. The app converses with `director.stub` until the profile names the orchestrator. To switch:
-
-1. Install its key as in step 1 above, under `/etc/data-director/credentials/orchestrator/`.
-   Its settings, all optional, go in `/etc/data-director/agents/orchestrator.env`
-   (`workbench/agents/env.example` lists them). It calls a small model by default;
-   `DD_MODEL_ID` selects another (some models are not available to an organisation under zero
-   data retention).
-2. Start it, and have it start with the rest:
-
-   ```bash
-   sudo systemctl enable --now data-director-agent@orchestrator.service
-   ```
-
-3. Add `8107` to `DD_WAIT_PORTS` in a drop-in for `data-director-app.service`, so the app waits
-   for it.
-4. In the deployment's profile, set `orchestrator: orchestrator.model` and raise `version`
-   (`app/README.md`, "Choosing the orchestrator"). Then restart the app.
-
-Give each model-backed agent its own key, so that one key can be revoked without the others and
-the provider's usage reports show each agent separately. Sharing one key is allowed, but
-spending limits are set on the provider's side, for the Console workspace a key belongs to, not
-per key. To rotate a key, replace the file and restart that agent's unit.
+advisor's optional explainer and the model-backed orchestrator, which is not in
+`data-director.target` because it cannot start without a key. The steps to supply a key, turn
+either on, rotate it and read a start-up error are in the operations guide,
+[AI models](../docs/guide/operations/ai-models.md). Each key is loaded as a systemd credential from
+`/etc/data-director/credentials/<name>/`, by the drop-in in
+`systemd/data-director-agent@<name>.service.d/`.
 
 ## Changing the deployment
 

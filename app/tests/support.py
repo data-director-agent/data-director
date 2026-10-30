@@ -2,18 +2,34 @@
 
 from __future__ import annotations
 
+import json
+import os
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-from dd_agent_standards import factory as standards
+from dd_agent_advisor_standards import factory as standards
 from dd_app.config import settings_from_env
 from dd_app.governance import Governance
 from dd_harness.testing import TEST_PRINCIPAL, in_process
 
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 APP_URL = "http://app.test"
+# The shell's component and browser tests are drawn from these, so each must be what the server
+# says. `DD_WRITE_FIXTURES=1 uv run pytest app/tests` rewrites them.
+FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
+
+
+def check_fixture(name: str, body: dict[str, Any]) -> None:
+    path = FIXTURES / name
+    text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+    if os.environ.get("DD_WRITE_FIXTURES") == "1":
+        path.write_text(text, encoding="utf-8")
+    assert path.read_text(encoding="utf-8") == text, (
+        f"{path} is stale; rerun with DD_WRITE_FIXTURES=1"
+    )
 
 
 def with_standards(governance: Governance) -> Governance:
@@ -44,9 +60,7 @@ def configure_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
 
 
 def new_governance() -> Iterator[Governance]:
-    governance = with_standards(Governance.create(settings_from_env(), APP_URL))
-    yield governance
-    governance.worker.shutdown()
+    yield with_standards(Governance.create(settings_from_env(), APP_URL))
 
 
 def dist_dir(tmp_path: Path) -> Path:

@@ -1,0 +1,62 @@
+{
+   "$comment": "Generated from files.yaml by `uv run dd-gen-schema <path to files.yaml>`. Do not edit.",
+   "$defs": {
+      "FileEntry": {
+         "additionalProperties": false,
+         "description": "One file as the researcher lists it.",
+         "properties": {
+            "name": {
+               "description": "The file's name or path, as given.",
+               "type": "string"
+            },
+            "size_bytes": {
+               "description": "The file's size in bytes, when known.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "media_type": {
+               "description": "The file's media type (MIME type), when known.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "FileEntry",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/files/FileList",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The files of a dataset as the researcher lists them: names and, when known, sizes and media types. The files themselves are not sent.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "FileList"
+         ],
+         "type": "string"
+      },
+      "files": {
+         "description": "The files of the dataset.",
+         "items": {
+            "$ref": "#/$defs/FileEntry"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "FileList",
+   "type": "object"
+}

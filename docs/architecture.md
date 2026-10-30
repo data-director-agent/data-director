@@ -31,12 +31,14 @@ flowchart LR
     agents["Agents<br/>(separate services)"]
     sources[("Sources<br/>e.g. FAIRsharing")]
     runs[("Run store<br/>envelopes, traces,<br/>provenance")]
+    projects[("Project store<br/>file inventories,<br/>documents")]
 
     person --> app
     app --> harness
     harness --> agents
     agents --> sources
     harness --> runs
+    harness --> projects
 ```
 
 Three ideas carry through the rest of this page.
@@ -68,10 +70,10 @@ flowchart TB
     harness["harness/ — dd_harness<br/>conductor, policy gate, checks,<br/>run store, provenance"]
 
     subgraph agent_services["agents/ — one service each"]
-        director["director.stub<br/>orchestrator"]
-        standards["standards.advisor"]
-        quality["quality.reviewer"]
-        hello["hello.world<br/>template"]
+        director["orchestrator.stub<br/>orchestrator"]
+        standards["advisor.standards"]
+        quality["advisor.quality"]
+        hello["example.hello<br/>template"]
     end
 
     sdk["sdk/ — dd_sdk<br/>contract, evidence, tracing,<br/>agent server"]
@@ -91,7 +93,7 @@ Solid arrows are calls at run time; dotted arrows are imports.
 |---|---|---|
 | `sdk/` | What agents and the harness share: the contract (in LinkML, with generated JSON Schema), evidence hashing, tracing helpers, and the server that puts an agent behind A2A. | [`sdk/README.md`](../sdk/README.md), [contract](contract.md) |
 | `harness/` | The governance every run goes through. Its centre is the conductor. It also serves its own A2A endpoint (`dd-harness serve`). | [`harness/README.md`](../harness/README.md), [conductor](../harness/docs/conductor.md) |
-| `agents/` | One package and one A2A service per agent. `hello/` is the template for a new one. | [`agents/README.md`](../agents/README.md) |
+| `agents/` | One package and one A2A service per agent. `example-hello/` is the template for a new one. | [`agents/README.md`](../agents/README.md) |
 | `app/` | The Data Director that people use (alpha). A Starlette server (`dd_app`) over the conductor, and a React shell (`app/web`) drawn from each agent's manifest. | [`app/README.md`](../app/README.md), [ADR-0024](adr/0024-app-shell.md) |
 | `workbench/` | The test bed for people who write agents: a CLI, the Inspect and Chat pages, and evaluation. Not part of a deployment. | [`workbench/README.md`](../workbench/README.md) |
 
@@ -174,6 +176,19 @@ What each step is for:
   request, envelope, trace, both checks' verdicts and a
   [Process Run Crate](adr/0021-ro-crate-is-a-record-not-a-message.md).
 
+A run that belongs to a project is also given the project facts its input class asks for. The
+conductor puts them into the input, so the agent never reads the project store itself. The
+**project store** holds, for each project, an append-only log of what changed (an inventory
+added, a document uploaded, a repository chosen) and any uploaded documentation, kept by digest.
+It holds an inventory of the research data files, made where the data live, never the files
+themselves. Which project content may go to an agent that calls a hosted model is the profile's
+decision ([ADR-0034](adr/0034-project-and-its-files.md); not built yet, #198).
+
+A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
+When a run in a project returns one, the conductor adds it to the log as a new version. A
+person's edit is a version too. Each version is proposed, approved or rejected on its own, and
+none is removed ([ADR-0035](adr/0035-project-documents.md); not built yet, #198, #200).
+
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
 identifier, an unknown agent) raises an error instead. The step-by-step table, with each problem
@@ -182,19 +197,21 @@ type, is in [`conductor.md`](../harness/docs/conductor.md#the-steps).
 ## 4. Conversations and delegation
 
 The app opens on a conversation with an orchestrator: the agent whose grounding mode is
-`delegation`. Today that is `director.stub`, a rule-based stand-in that routes each message by the
+`delegation`. Today that is `orchestrator.stub`, a rule-based stand-in that routes each message by the
 patterns in its `routing.yaml`. A first message that matches no pattern is asked which of the
 Blueprint's three entry points applies (before data collection, data being prepared for sharing,
 ready to deposit), and the reply lists the steps from there, each with the agents that serve it or
 "no agent yet" and its requirement ([ADR-0028](adr/0028-entry-points-and-serves.md)). An orchestrator answers by asking other agents, but it never calls them directly. It
-asks the harness, so that every child run passes through every step above.
+asks the harness, so that every child run passes through every step above. A model-backed
+orchestrator has no other tools, no MCP server, web search or Skills, so whatever it says about a
+case comes from a child's result (ADR-0012 decision 15).
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant App as App server
     participant C as Conductor
-    participant D as Orchestrator<br/>(director.stub)
+    participant D as Orchestrator<br/>(orchestrator.stub)
     participant X as Specialist agent
 
     App->>C: Message for the orchestrator
@@ -219,6 +236,9 @@ sequenceDiagram
 - A child is never given a grant, so delegation is one level deep.
 - The app builds each message's history from the stored turns; a caller cannot supply one
   ([ADR-0024](adr/0024-app-shell.md) §17). Conversations are read back from the run store.
+- Each conversation belongs to one project, and a project can have many conversations, so what
+  is known about a project survives a new conversation
+  ([ADR-0034](adr/0034-project-and-its-files.md)).
 
 The rules are in [ADR-0012](adr/0012-conversation-and-orchestration.md) and
 [`conductor.md`](../harness/docs/conductor.md#delegation).
@@ -236,7 +256,9 @@ The harness ships no profile, agent list or source list. Each comes from the dep
 | `DD_AGENTS_CONFIG` | The list of agent URLs to read cards from. |
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check uses. |
 | `DD_RUNS_DIR` | Where runs are written. |
-| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Whom every run acts for, until there is authentication. |
+| `DD_PROJECTS_DIR` | Where project records and uploaded documentation are kept (ADR-0034, not built yet). |
+| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Whom every run acts for where nobody signs in (the CLI, a development server). |
+| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider people sign in with (ADR-0029). The app also takes the client's secret. |
 
 The app's reference set is in `app/config/`; the workbench's development set is in `workbench/`.
 Listing an agent makes it known; only the profile makes it permitted.
@@ -256,6 +278,7 @@ flowchart LR
         app["data-director-app<br/>127.0.0.1:7860"]
         agents["data-director-agent@…<br/>hello :8101, quality :8102,<br/>standards :8105, director :8106"]
         runs[("/var/lib/data-director/runs")]
+        projects[("/var/lib/data-director/projects")]
         timer["deploy timer<br/>every 5 min"]
     end
     github[("GitHub main<br/>+ CI passed")]
@@ -264,12 +287,15 @@ flowchart LR
     app -- "A2A (loopback)" --> agents
     agents -. "delegation callback" .-> app
     app --> runs
+    app --> projects
     timer -- "fetch, build, switch" --> github
 ```
 
 The app and agents listen on loopback only, and NGINX asks for a password, because callers are
 not yet authenticated: every run acts for the operator configured on the VM (#17). Do not expose
-the app or the agents beyond a trusted network until that is done.
+the app or the agents beyond a trusted network until that is done. The VM holds no research
+data: a project there holds only an inventory of its files and any uploaded documentation
+([ADR-0034](adr/0034-project-and-its-files.md)).
 
 ## Where to go next
 

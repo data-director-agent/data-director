@@ -1,0 +1,107 @@
+# The input and payload classes of advisor.dmp, owned by this package (ADR-0019). It imports the
+# core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-dmp/src/dd_agent_advisor_dmp/schema/dmp.yaml` to
+# regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/dmp
+name: dd_agent_advisor_dmp
+title: advisor.dmp classes
+description: >-
+  What a data management plan committed to share and what the researcher now plans to share, and
+  the Data Management Plan Checker's discrepancies in reply.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  dmp: https://w3id.org/data-director/agents/dmp/
+  linkml: https://w3id.org/linkml/
+default_prefix: dmp
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  DmpCommitments:
+    description: >-
+      The outputs a data management plan committed to share, and the outputs the researcher plans
+      to share at publication.
+    slots:
+      - schema_class
+      - dmp_identifier
+      - committed_outputs
+      - planned_outputs
+
+  SharingCommitment:
+    description: One output to be shared, with where, how openly and under what licence.
+    slots:
+      - output
+      - repository
+      - access
+      - licence
+
+  DmpDiscrepancies:
+    description: >-
+      The payload of advisor.dmp: where the planned sharing differs from the plan's commitments,
+      for a person to review (R8). It flags and never enforces; a reviewed decision not to share
+      is a valid outcome.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - discrepancies
+      - limitations
+
+  Discrepancy:
+    description: One difference between what the plan committed to and what is planned.
+    slots:
+      - output
+      - aspect
+      - committed
+      - planned
+      - message
+
+slots:
+
+  dmp_identifier:
+    description: The data management plan's identifier, such as a DOI, if it has one.
+  committed_outputs:
+    description: What the data management plan committed to share.
+    range: SharingCommitment
+    multivalued: true
+    inlined_as_list: true
+  planned_outputs:
+    description: What the researcher now plans to share at publication.
+    range: SharingCommitment
+    multivalued: true
+    inlined_as_list: true
+  output:
+    description: The output, by name, such as a dataset or software.
+    required: true
+  repository:
+    description: The repository the output is or will be deposited in.
+  access:
+    description: How openly the output is shared, e.g. open, restricted or closed.
+  licence:
+    description: The licence the output is shared under.
+  discrepancies:
+    range: Discrepancy
+    multivalued: true
+    inlined_as_list: true
+  aspect:
+    description: >-
+      What differs: missing (committed, not planned), unplanned (planned, not committed),
+      repository, access or licence.
+    required: true
+  committed:
+    description: What the plan committed to for this aspect, if anything.
+  planned:
+    description: What is planned for this aspect, if anything.
+  message:
+    description: The difference, said for a person to review.
+    required: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true

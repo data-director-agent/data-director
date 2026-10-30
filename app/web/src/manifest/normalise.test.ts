@@ -1,6 +1,6 @@
 import reference from "../../fixtures/agents.json";
 import several from "../../fixtures/agents-several.json";
-import { gateStatus, normalise } from "./normalise";
+import { agentName, gateStatus, normalise, normaliseAgent } from "./normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "./types";
 
 const referenceSet = reference as unknown as RawAgentsResponse;
@@ -15,20 +15,29 @@ function entry(overrides: Partial<RawManifestEntry>): RawManifestEntry {
 describe("normalise", () => {
   it("draws the reference set: the standards advisor, permitted, as the profile assigns it", () => {
     const directory = normalise(referenceSet);
-    expect(directory.agents.map((a) => a.id)).toEqual(["standards.advisor"]);
+    expect(directory.agents.map((a) => a.id)).toEqual(["advisor.standards"]);
     expect(directory.agents[0]?.gate).toEqual({ kind: "permitted", actionClass: "advise" });
-    expect(directory.profileRef).toBe("profile:data-director-app@v4");
+    expect(directory.profileRef).toBe("profile:data-director-app@v7");
     expect(directory.actingFor.assurance).toBe("asserted");
   });
 
   it("keeps every agent of different shapes and names none specially", () => {
     const directory = normalise(severalAgents);
     expect(directory.agents.map((a) => [a.id, a.groundingMode, a.payload])).toEqual([
-      ["hello.world", "none", "Greeting"],
-      ["quality.reviewer", "input_only", "QualityReview"],
-      ["standards.advisor", "retrieval", "Recommendations"],
+      ["advisor.quality", "input_only", "QualityReview"],
+      ["advisor.standards", "retrieval", "Recommendations"],
+      ["example.hello", "none", "Greeting"],
       ["stub.abstain", "none", null],
     ]);
+  });
+
+  it("keeps the persona title, and names an agent by its id when the card gives none", () => {
+    const titled = normaliseAgent(entry({ title: "Standards Librarian" }));
+    expect(titled.title).toBe("Standards Librarian");
+    expect(agentName(titled)).toBe("Standards Librarian");
+    const untitled = normaliseAgent(entry({ title: "" }));
+    expect(untitled.title).toBe("");
+    expect(agentName(untitled)).toBe("advisor.standards");
   });
 
   it("marks every oversight field undeclared, never defaulted", () => {

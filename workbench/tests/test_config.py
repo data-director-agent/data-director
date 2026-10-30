@@ -11,9 +11,9 @@ from typing import Any
 
 import pytest
 
-from dd_agent_standards.agent import StandardsAgent
-from dd_agent_standards.explain import TemplateExplainer
-from dd_agent_standards.fairsharing.snapshot import SnapshotBackend
+from dd_agent_advisor_standards.agent import StandardsAgent
+from dd_agent_advisor_standards.explain import TemplateExplainer
+from dd_agent_advisor_standards.fairsharing.snapshot import SnapshotBackend
 from dd_harness import testing as fakes
 from dd_harness.registry import load_config
 from dd_harness.sources import Sources, check
@@ -37,7 +37,27 @@ def test_the_shipped_config_lists_every_agent_package() -> None:
     ports = {int(e["url"].rsplit(":", 1)[1]) for e in load_config(DEFAULT_AGENTS_CONFIG)}
     served = {a.name: a.port for a in load_agents(root / "app" / "config" / "agents.yaml")}
     packages = {d.name for d in (root / "agents").iterdir() if (d / "pyproject.toml").exists()}
-    assert set(served) == packages == {"hello", "quality", "standards", "director", "orchestrator"}
+    assert (
+        set(served)
+        == packages
+        == {
+            "example-hello",
+            "advisor-quality",
+            "advisor-standards",
+            "advisor-policy",
+            "advisor-repository",
+            "advisor-ethics",
+            "advisor-files",
+            "advisor-dmp",
+            "advisor-metadata",
+            "advisor-documentation",
+            "advisor-rights",
+            "advisor-linking",
+            "advisor-fairness",
+            "orchestrator-stub",
+            "orchestrator-model",
+        }
+    )
     assert set(served.values()) == ports
 
 

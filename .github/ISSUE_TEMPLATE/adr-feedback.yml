@@ -1,0 +1,44 @@
+name: Decision record feedback
+description: Question, challenge or add to an architecture decision record (ADR). No code needed.
+title: "ADR-<number>: "
+type: Task
+labels: ["area: docs"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each [architecture decision record](https://github.com/data-director-agent/data-director/tree/main/docs/adr)
+        states one decision about how Data Director is built and why. If a decision looks wrong
+        for your institution, your discipline or your users, or rests on something that is not
+        true, say so here. You do not need to propose an alternative design.
+  - type: input
+    id: adr
+    attributes:
+      label: Decision record
+      description: Its number or a link to it.
+      placeholder: ADR-0034
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of feedback
+      options:
+        - A question about what the decision means
+        - A concern that the decision is wrong or harmful
+        - Something the decision does not consider
+        - The text is unclear or inaccurate
+    validations:
+      required: true
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Feedback
+      description: Quote the passage you mean. Say who would be affected and how, from your own experience where you can.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would you change?
+      description: Optional. A different decision, a condition, or a question the record should answer.

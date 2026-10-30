@@ -2,19 +2,29 @@
 # names another (ADR-0017, ADR-0022). Keys are as in workbench/profiles/README.md.
 # TODO(#225): how a steward edits and reviews this profile in a deployment (#41).
 profile_id: data-director-app
-version: 4
+version: 7
 description: Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.
 
 agents:
-  standards.advisor: advise
-  hello.world: advise
-  quality.reviewer: advise
-  director.stub: advise
+  advisor.standards: advise
+  advisor.policy: advise
+  advisor.repository: advise
+  example.hello: advise
+  advisor.quality: advise
+  advisor.ethics: advise
+  advisor.files: advise
+  advisor.dmp: advise
+  advisor.metadata: advise
+  advisor.documentation: advise
+  advisor.rights: advise
+  advisor.linking: advise
+  advisor.fairness: advise
+  orchestrator.stub: advise
   orchestrator.model: advise
 
 # The agent the home page converses with (ADR-0024 §10). The rule-based stub needs no model key.
 # A deployment with a key names orchestrator.model instead, and raises `version`.
-orchestrator: director.stub
+orchestrator: orchestrator.stub
 
 actions_requiring_approval:
   - deposit

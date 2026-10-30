@@ -1,0 +1,92 @@
+# The input and payload classes of advisor.ethics, owned by this package (ADR-0019). It imports the
+# core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-ethics/src/dd_agent_advisor_ethics/schema/ethics.yaml` to
+# regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/ethics
+name: dd_agent_advisor_ethics
+title: advisor.ethics classes
+description: >-
+  What a researcher says about a dataset that bears on sensitive data and embargo, and the
+  Research Ethics Adviser's flags in reply.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  ethics: https://w3id.org/data-director/agents/ethics/
+  linkml: https://w3id.org/linkml/
+default_prefix: ethics
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  SensitivityContext:
+    description: >-
+      What the researcher has said about the dataset that bears on sensitive data: its field
+      names, whether it involves people, and whether they intend an embargo.
+    slots:
+      - schema_class
+      - title
+      - description
+      - fields
+      - involves_people
+      - embargo_intended
+
+  SensitivityFlags:
+    description: >-
+      The payload of advisor.ethics: fields that may hold sensitive data, for a person to review,
+      and the questions the researcher must answer before sharing. It flags and never decides how
+      sensitive data is treated (C2).
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - flags
+      - questions
+      - limitations
+
+  SensitivityFlag:
+    description: One field that may hold sensitive data.
+    slots:
+      - field
+      - category
+      - matched
+
+slots:
+
+  title:
+    description: The dataset's title.
+  description:
+    description: A short description of the dataset.
+  fields:
+    description: The names of the dataset's fields or columns.
+    multivalued: true
+  involves_people:
+    description: Whether the data were collected from or about people. Unknown if absent.
+    range: boolean
+  embargo_intended:
+    description: Whether the researcher intends an embargo. Unknown if absent.
+    range: boolean
+  flags:
+    range: SensitivityFlag
+    multivalued: true
+    inlined_as_list: true
+  questions:
+    description: What the researcher must answer or confirm, with the people who can help.
+    multivalued: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true
+  field:
+    description: The field name, as given.
+    required: true
+  category:
+    description: The kind of sensitive data the name suggests, e.g. direct identifier.
+    required: true
+  matched:
+    description: The keyword in keywords.yaml that the field name matched.
+    required: true

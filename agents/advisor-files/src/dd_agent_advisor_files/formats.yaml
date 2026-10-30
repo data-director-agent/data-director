@@ -1,0 +1,45 @@
+# advisor.files's whole rule table: file extension (lower case, no dot) to the format it suggests,
+# that format's media type, and whether the format is open (publicly specified and readable
+# without proprietary software). A file is matched on its last extension only. A mock's table
+# (ADR-0033): an extension says nothing certain about a file's content, and the real archivist
+# identifies formats from the content with PRONOM, TODO(#354).
+csv: {format: Comma-separated values, media_type: text/csv, open: true}
+tsv: {format: Tab-separated values, media_type: text/tab-separated-values, open: true}
+txt: {format: Plain text, media_type: text/plain, open: true}
+md: {format: Markdown, media_type: text/markdown, open: true}
+json: {format: JSON, media_type: application/json, open: true}
+jsonld: {format: JSON-LD, media_type: application/ld+json, open: true}
+xml: {format: XML, media_type: application/xml, open: true}
+yaml: {format: YAML, media_type: application/yaml, open: true}
+yml: {format: YAML, media_type: application/yaml, open: true}
+html: {format: HTML, media_type: text/html, open: true}
+pdf: {format: PDF, media_type: application/pdf, open: true}
+odt: {format: OpenDocument Text, media_type: application/vnd.oasis.opendocument.text, open: true}
+ods: {format: OpenDocument Spreadsheet, media_type: application/vnd.oasis.opendocument.spreadsheet, open: true}
+docx: {format: Microsoft Word (OOXML), media_type: application/vnd.openxmlformats-officedocument.wordprocessingml.document, open: true}
+xlsx: {format: Microsoft Excel (OOXML), media_type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, open: true}
+doc: {format: Microsoft Word 97-2003, media_type: application/msword, open: false}
+xls: {format: Microsoft Excel 97-2003, media_type: application/vnd.ms-excel, open: false}
+sav: {format: SPSS data file, media_type: application/x-spss-sav, open: false}
+dta: {format: Stata data file, media_type: application/x-stata-dta, open: false}
+sas7bdat: {format: SAS data set, media_type: application/x-sas-data, open: false}
+rds: {format: R data (RDS), media_type: application/octet-stream, open: false}
+mat: {format: MATLAB MAT-file, media_type: application/x-matlab-data, open: false}
+nc: {format: NetCDF, media_type: application/x-netcdf, open: true}
+h5: {format: HDF5, media_type: application/x-hdf5, open: true}
+hdf5: {format: HDF5, media_type: application/x-hdf5, open: true}
+parquet: {format: Apache Parquet, media_type: application/vnd.apache.parquet, open: true}
+sqlite: {format: SQLite database, media_type: application/vnd.sqlite3, open: true}
+tif: {format: TIFF, media_type: image/tiff, open: true}
+tiff: {format: TIFF, media_type: image/tiff, open: true}
+png: {format: PNG, media_type: image/png, open: true}
+jpg: {format: JPEG, media_type: image/jpeg, open: true}
+jpeg: {format: JPEG, media_type: image/jpeg, open: true}
+svg: {format: SVG, media_type: image/svg+xml, open: true}
+wav: {format: WAVE audio, media_type: audio/wav, open: true}
+flac: {format: FLAC audio, media_type: audio/flac, open: true}
+mp3: {format: MP3 audio, media_type: audio/mpeg, open: true}
+mp4: {format: MPEG-4, media_type: video/mp4, open: false}
+zip: {format: ZIP archive, media_type: application/zip, open: true}
+gz: {format: Gzip, media_type: application/gzip, open: true}
+tar: {format: Tar archive, media_type: application/x-tar, open: true}

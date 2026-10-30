@@ -37,8 +37,10 @@ export interface RawManifestEntry {
   /** Absent on a card written before ADR-0026, which declares no model. */
   models?: RawModelUse[];
   schemas: Record<string, { digest: string; json_schema: unknown }>;
-  /** The Blueprint requirements (R1 to R12) it serves (ADR-0028). Absent on an older card. */
+  /** The process flow step ids it serves (ADR-0028). Absent on an older card. */
   serves?: string[];
+  /** The persona's name as a researcher sees it (ADR-0033). Absent or empty: none. */
+  title?: string;
   assigned_action_class: string | null;
   requires_approval: boolean;
   /** The oversight extension (ADR-0025). No card carries it yet. */
@@ -52,5 +54,5 @@ export interface RawAgentsResponse {
   /** `orchestrator` is the agent the profile names for the conversation (ADR-0024 §10). Absent
    * from a server older than the key; null when the profile names none. */
   profile: { ref: string; digest: string; orchestrator?: string | null };
-  acting_for: { name: string; assurance: string };
+  acting_for: { name: string; assurance: string; vouched_by?: string };
 }

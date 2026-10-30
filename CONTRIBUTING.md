@@ -9,6 +9,22 @@ and the pull request workflow. [Governance](https://github.com/data-director-age
 and the [code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md)
 are also organisation-wide. This file covers what is specific to this repository.
 
+## Contributing without writing code
+
+Much of what the project needs is judgement rather than code: whether advice is right for a
+discipline, whether a decision suits an institution, whether a requirement is met. Each has an
+issue form, chosen when you [open an issue](https://github.com/data-director-agent/data-director/issues/new/choose):
+
+* **Conformance review**: you examined a Blueprint requirement, such as accessibility (C6) or the
+  appropriateness of standards advice (R3), and found it met or not met. A maintainer records it
+  in the review record on your instruction ([the conformance report](docs/conformance.md)).
+* **Decision record feedback**: a question about, or objection to, an
+  [architecture decision record](docs/adr/README.md).
+* **Blueprint reading**: the project reads a [Blueprint](docs/blueprint/README.md) requirement
+  differently from you, or misses one.
+* **Feedback on advice**: an agent's advice was wrong, incomplete or unhelpful, and you can say
+  what good advice would have been.
+
 ## Repository structure
 
 This repository is organised as follow:
@@ -23,6 +39,11 @@ This repository is organised as follow:
 * `workbench/` contains the development environment for building and testing sub-agents
 * `agents/` contains one package per agent, including alpha-versioned experimental ones
   (`agents/README.md`)
+
+Each package keeps to its own directory, so that it can later move to a repository of its own.
+Agent Skills, MCP servers and other resources that do not use the contract belong in their own
+repositories in the organisation. [ADR-0031](docs/adr/0031-ecosystem-and-repository-boundaries.md)
+sets out both.
 
 ## Code style and testing
 
@@ -45,7 +66,7 @@ passes only when every other job has. Each job can be run locally from the repos
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e` |
-| Links and citation file | `lychee --offline --include-fragments --exclude-path docs/BLUEPRINT.md '**/*.md'`, `uvx cffconvert --validate` and `uv run scripts/check_citation.py` |
+| Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
 | Workflows | `uvx zizmor .github` and [actionlint](https://github.com/rhysd/actionlint) |
 | Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
@@ -119,7 +140,7 @@ and affiliation if you have them:
 It matches the email address of each commit's author, and of each `Co-authored-by:` trailer,
 against `email`, or the name against `given-names` and `family-names`. If you commit under
 several names or addresses, add a line to [`.mailmap`](./.mailmap) that maps them to the one in
-the citation file. Bots and AI assistants are not cited. Run it locally in a full clone:
+the citation file. Bots and AI assistants are not cited; the project's [AI usage statement](https://github.com/data-director-agent/.github/blob/main/AI_USAGE.md) discloses their use instead. Run it locally in a full clone:
 
 ```sh
 uv run scripts/check_citation.py

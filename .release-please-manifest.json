@@ -3,9 +3,11 @@
   "harness": "0.2.0-alpha",
   "workbench": "0.2.0-alpha.1",
   "app": "0.3.0-alpha.3",
-  "agents/director": "0.1.1-alpha",
-  "agents/hello": "0.1.0",
-  "agents/quality": "0.1.1-alpha",
-  "agents/standards": "0.1.1-alpha",
-  "agents/orchestrator": "0.1.1-alpha"
+  "agents/orchestrator-stub": "0.1.1-alpha",
+  "agents/example-hello": "0.1.0",
+  "agents/advisor-quality": "0.1.1-alpha",
+  "agents/advisor-standards": "0.1.1-alpha",
+  "agents/orchestrator-model": "0.1.1-alpha",
+  "agents/advisor-repository": "0.1.0-alpha",
+  "agents/advisor-policy": "0.1.0-alpha"
 }

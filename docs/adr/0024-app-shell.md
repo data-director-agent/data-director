@@ -77,7 +77,7 @@ every delegated child is labelled `agent_id@agent_version`.
     raises the profile's `version`, so stored runs say which orchestrator the rules named.
 11. **The default is written in the reference profile, not in code.** The app's reference profile
     (`app/config/profile.yaml.example`) names the orchestrator released in this repository, at present
-    `director.stub`. A deployment that wants another names it in its own profile. Neither the
+    `orchestrator.stub`. A deployment that wants another names it in its own profile. Neither the
     harness nor the shell holds a fallback agent identifier.
 12. **Without a usable orchestrator there is no conversation.** The grounding mode is on the
     agent's card, which can be read only while its service is running, so it is checked when the
@@ -185,7 +185,7 @@ Every dependency's licence is compatible with the repository's MIT licence.
   was shown. The app enforces it: a conversation turn to any other agent is refused. The
   workbench's profiles may leave it out.
 - The model-backed orchestrator, `orchestrator.model` (#21), is released, but the reference
-  profile still names the rule-based `director.stub`, so that the app runs with no model key. A
+  profile still names the rule-based `orchestrator.stub`, so that the app runs with no model key. A
   deployment with a key names `orchestrator.model` in its own profile, in an ordinary profile
   change with a new `version` (`app/README.md`).
 - The JavaScript tests carry no requirement marker and do not feed `CONFORMANCE.md`. TODO(#244):

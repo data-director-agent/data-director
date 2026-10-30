@@ -14,24 +14,27 @@ from devstack.common import (
     MODEL_BACKED,
     WEB_PORT,
     DevError,
+    agent_env,
     answers,
+    app_env,
     has_key,
     load_agents,
     needs_build,
     needs_install,
     port_free,
     read_env,
-    shared_env,
+    stray_files,
     tool_problems,
 )
 
 
 def doctor() -> int:
     problems = tool_problems()
+    for stray in stray_files():
+        problems.append(f"settings file of the old layout, move it: {stray} (ADR-0026)")
     for path in [
-        paths.WORKBENCH_ENV,
-        paths.ROOT_ENV,
-        paths.ROOT / "app" / ".env",
+        paths.APP_ENV,
+        paths.AGENTS_ENV,
         *sorted(paths.AGENT_ENV_DIR.glob("*.env")),
     ]:
         try:
@@ -39,15 +42,22 @@ def doctor() -> int:
         except DevError as exc:
             problems.append(str(exc))
     try:
-        env = {**os.environ, **shared_env()}
-        if not (env.get("DD_PRINCIPAL_ID") and env.get("DD_PRINCIPAL_NAME")):
+        env = {**os.environ, **app_env()}
+        if not env.get("DD_OIDC_ISSUER") and not (
+            env.get("DD_PRINCIPAL_ID") and env.get("DD_PRINCIPAL_NAME")
+        ):
             print(
                 "note: no principal is set; `start` will use the example (run setup to set yours)"
             )
     except DevError as exc:
         problems.append(str(exc))
     for agent in load_agents():
-        if agent.name in MODEL_BACKED and not has_key(read_env(agent.env_file) | dict(os.environ)):
+        try:
+            keyed = has_key(agent_env(agent) | dict(os.environ))
+        except DevError as exc:
+            problems.append(str(exc))
+            continue
+        if agent.name in MODEL_BACKED and not keyed:
             print(f"note: {agent.script} has no model key, so `start` will skip it")
     if needs_install() or needs_build():
         print("note: the shell is not built or is out of date; `start` will build it")

@@ -1,0 +1,123 @@
+# The input and payload classes of advisor.documentation, owned by this package (ADR-0019). It
+# imports the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-documentation/src/dd_agent_advisor_documentation/schema/documentation.yaml`
+# to regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that
+# has drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/documentation
+name: dd_agent_advisor_documentation
+title: advisor.documentation classes
+description: >-
+  What a researcher says about a dataset that a README and data dictionary are drafted from, and
+  the Documentation Editor's draft in reply.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  documentation: https://w3id.org/data-director/agents/documentation/
+  linkml: https://w3id.org/linkml/
+default_prefix: documentation
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  DocumentationRequest:
+    description: >-
+      What the researcher has said about the dataset to be documented: its title and description,
+      its creators, its file names and its field names.
+    slots:
+      - schema_class
+      - title
+      - description
+      - creators
+      - files
+      - fields
+
+  DocumentationDraft:
+    description: >-
+      The payload of advisor.documentation: a README outline and a data dictionary. Each part is
+      drafted from the input or marked for the researcher, who alone can say what the data mean
+      (R5).
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - readme_sections
+      - dictionary
+      - limitations
+
+  ReadmeSection:
+    description: One section of the draft README, in order.
+    slots:
+      - heading
+      - text
+      - draft_status
+
+  DictionaryEntry:
+    description: >-
+      One field of the draft data dictionary. Only the field name is drafted; the rest is for the
+      researcher.
+    slots:
+      - field
+      - definition
+      - unit
+      - missing_values
+      - draft_status
+
+slots:
+
+  title:
+    description: The dataset's title.
+    required: true
+  description:
+    description: A short description of the dataset.
+  creators:
+    description: The people or organisations who created the dataset, as they should be credited.
+    multivalued: true
+  files:
+    description: The names of the dataset's files.
+    multivalued: true
+  fields:
+    description: The names of the dataset's fields or columns.
+    multivalued: true
+  readme_sections:
+    range: ReadmeSection
+    multivalued: true
+    inlined_as_list: true
+  dictionary:
+    range: DictionaryEntry
+    multivalued: true
+    inlined_as_list: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true
+  heading:
+    description: The section's heading.
+    required: true
+  text:
+    description: The section's draft text, copied from the input. Absent when the researcher must write it.
+  draft_status:
+    description: Whether the part was drafted from the input or needs the researcher.
+    range: DraftStatus
+    required: true
+  field:
+    description: The field name, as given.
+    required: true
+  definition:
+    description: What the field records. Always absent from the mock's draft.
+  unit:
+    description: The field's unit of measurement. Always absent from the mock's draft.
+  missing_values:
+    description: The codes that mark a missing value in the field. Always absent from the mock's draft.
+
+enums:
+
+  DraftStatus:
+    permissible_values:
+      drafted:
+        description: Drafted from the input. The researcher still checks it.
+      needs_researcher:
+        description: Only the researcher can write it.

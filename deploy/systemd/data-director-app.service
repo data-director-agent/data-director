@@ -4,7 +4,7 @@
 [Unit]
 Description=Data Director app
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
-After=network-online.target data-director-agent@hello.service data-director-agent@quality.service data-director-agent@standards.service data-director-agent@director.service
+After=network-online.target data-director-agent@example-hello.service data-director-agent@advisor-quality.service data-director-agent@advisor-standards.service data-director-agent@orchestrator-stub.service
 Wants=network-online.target
 PartOf=data-director.target
 

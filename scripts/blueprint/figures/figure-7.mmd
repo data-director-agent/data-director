@@ -1,0 +1,99 @@
+flowchart TB
+    subgraph trust["Data Director Trust Boundary"]
+        researcher(("Researcher")):::actor
+        subgraph presentation["Presentation Layer"]
+            subgraph webapp["Web App"]
+                conversation["Conversation"]:::box
+                feedback["Feedback"]:::box
+            end
+        end
+        subgraph application["Application Layer"]
+            appServices["App Services"]:::box
+            appInsights["App Insights"]:::box
+            appWorkflow["App Workflow"]:::box
+        end
+        aiEngineer(("AI Engineer")):::actor
+        subgraph ai["AI Layer"]
+            orchestration["AI Model Orchestration"]:::box
+            evaluation["AI Model Evaluation"]:::box
+            metrics["Groundness<br>Coherence<br>Fluency<br>Relevance<br>Similarity"]:::annotation
+            development["AI Model Development"]:::box
+            safety["Safety and Content Filtering"]:::box
+            dashboard["AI Dashboard"]:::box
+            subgraph runtime["Model Runtime (Compute, Region)"]
+                planning["Planning Agent"]:::box
+                linking["Linking Agent"]:::box
+                metadataAgent["Metadata Agent"]:::box
+                repository["Repository Agent"]:::box
+                provenance["Provenance Agent"]:::box
+                validation["Validation Agent"]:::box
+            end
+        end
+        subgraph integration["Integration Layer"]
+            apiManagement["API Management"]:::box
+            policy["Policy"]:::box
+            gateway["Gateway"]:::box
+            analytics["Analytics"]:::box
+        end
+        dataEngineer(("Data Engineer")):::actor
+        subgraph data["Data Layer"]
+            metadataManagement["Metadata Management"]:::box
+            lineage["Lineage"]:::box
+            subgraph immutable["Immutable Storage"]
+                auditLogs["Audit Logs"]:::box
+                userFeedback["User Feedback"]:::box
+                telemetry["Agent Telemetry"]:::box
+            end
+            nosql["NoSQL Document Store"]:::box
+            subgraph storage["Storage"]
+                online["Online"]:::box
+                archive["Archive"]:::box
+            end
+            vectorDb["Vector Database"]:::box
+            pipelines["Data Pipelines"]:::box
+        end
+        subgraph platform["Platform Layer"]
+            identity["Identity Management"]:::box
+            siem["Security, Incident & Event Management"]:::box
+            monitoring["Operational Monitoring"]:::box
+            secrets["Secret & Key Management"]:::box
+        end
+        itAdministrator(("IT Administrator")):::actor
+    end
+
+    subgraph external["External System Boundary"]
+        apiInterface["API Interface"]:::box
+        orcid["ORCID"]:::box
+        datacite["DataCite (DOI / ROR)"]:::box
+        zenodo["Zenodo (DOI)"]:::box
+    end
+
+    presentation <--> application
+    appServices --> appInsights
+    application <--> ai
+    ai <--> integration
+    integration <--> external
+    ai <--> data
+
+    evaluation ~~~ metrics
+    researcher ~~~ presentation
+    aiEngineer ~~~ ai
+    dataEngineer ~~~ data
+    platform ~~~ itAdministrator
+
+    classDef box fill:#fff,stroke:#333,color:#111
+    classDef annotation fill:none,stroke:none,color:#111
+    classDef actor fill:#dae8fc,stroke:#6c8ebf,color:#111
+
+    style trust fill:none,stroke:#333,stroke-dasharray:6 3 2 3,color:#111
+    style presentation fill:#ffe599,stroke:#d6b656,color:#111
+    style webapp fill:#fff,stroke:#333,color:#111
+    style application fill:#a9c4eb,stroke:#6c8ebf,color:#111
+    style ai fill:#ffb300,stroke:#d79b00,color:#111
+    style runtime fill:#fff2cc,stroke:#d6b656,stroke-dasharray:4 3,color:#111
+    style integration fill:#b9e0a5,stroke:#82b366,color:#111
+    style data fill:#e6a0c4,stroke:#996185,color:#111
+    style storage fill:#fff,stroke:#333,color:#111
+    style immutable fill:#fff,stroke:#333,color:#111
+    style platform fill:#d5d5d5,stroke:#666,color:#111
+    style external fill:#f19c99,stroke:#b85450,stroke-dasharray:6 3,color:#111

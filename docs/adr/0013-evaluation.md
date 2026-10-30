@@ -34,8 +34,8 @@ four) is the case for this design.
 3. **What is common lives in the workbench; what an agent should recommend lives with the
    agent.** `workbench.evaluation` holds the solver, the scorers that apply to every agent
    (`outcome_matches`, `stopped_correctly`, `grounding_passed`) and the run comparison. An
-   agent's own cases, defects and scorers are in its package (for the standards advisor, `dd_agent_standards.evals`),
-   which imports the workbench lazily, as `dd_agent_standards.testing` does. `src/workbench/` still
+   agent's own cases, defects and scorers are in its package (for the standards advisor, `dd_agent_advisor_standards.evals`),
+   which imports the workbench lazily, as `dd_agent_advisor_standards.testing` does. `src/workbench/` still
    imports no agent.
 4. **Stopping is scored as its own answer.** `stopped_correctly` asks whether the agent stopped
    exactly when the case expects it to. Stopping when it should have answered and answering when
@@ -46,7 +46,7 @@ four) is the case for this design.
    NOANSWER, and `mean_applicable` leaves that case out. Inspect's own `mean` would count it as
    zero, contrary to the rule that a missing input is `None`, never `0.0`.
 6. **A defect is registered and never changes.** Defects are named functions in a registry
-   (`dd_agent_standards.evals.defects.DEFECTS`), under the rule `CANONICALISATIONS` follows. A new
+   (`dd_agent_advisor_standards.evals.defects.DEFECTS`), under the rule `CANONICALISATIONS` follows. A new
    mutation is a new name.
 7. **A run records what produced it.** `AgentSpec.version` is set by hand and does not change
    when ranking rules, a snapshot or an explainer change. The task's `metadata["identity"]`
@@ -83,9 +83,9 @@ four) is the case for this design.
 - Inspect AI leaves one of its own memory streams unclosed. The evaluation test modules ignore
   that single `ResourceWarning` and force garbage collection at teardown, so that the warning
   does not fail an unrelated later test.
-- A conductor must be built on the thread that uses it: one used across threads leaks its
-  in-memory A2A streams. `invoke_agent` therefore runs every case on one worker thread and calls
-  the conductor factory there.
+- `invoke_agent` builds each case's conductor off Inspect's event loop and awaits it through
+  `Conductor.ainvoke`. (Amended by #171: it first ran every case on one worker thread, on the
+  belief that a conductor used across threads leaked its in-memory A2A streams.)
 - Do not add a requirement marker to an evaluation test. Do not change what a registered
   defect does. Do not blend scores into one figure.
 - TODO(#7): Exercise 4 workshop materials ("Should it have stopped?") can build on

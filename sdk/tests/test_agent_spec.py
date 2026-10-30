@@ -157,11 +157,11 @@ def test_a_description_without_models_declares_none() -> None:
     assert spec_from_description(entry).models == ()
 
 
-def test_the_requirements_an_agent_serves_round_trip_through_the_manifest() -> None:
-    spec = dataclasses.replace(SPEC, serves=("R3", "R4"))
+def test_the_steps_an_agent_serves_round_trip_through_the_manifest() -> None:
+    spec = dataclasses.replace(SPEC, serves=("governance.policies", "deposit.validate"))
     entry = describe(spec)
-    assert entry["serves"] == ["R3", "R4"]
-    assert spec_from_description(entry).serves == ("R3", "R4")
+    assert entry["serves"] == ["governance.policies", "deposit.validate"]
+    assert spec_from_description(entry).serves == ("governance.policies", "deposit.validate")
 
 
 def test_a_description_without_serves_serves_nothing() -> None:
@@ -170,15 +170,26 @@ def test_a_description_without_serves_serves_nothing() -> None:
     assert spec_from_description(entry).serves == ()
 
 
-@pytest.mark.parametrize("serves", [("R13",), ("C1",), ("R3.1",)])
-def test_serving_something_other_than_a_functional_requirement_is_refused(
-    serves: tuple[str, ...],
-) -> None:
-    with pytest.raises(SpecError, match="not Blueprint functional requirements"):
+def test_the_persona_title_round_trips_through_the_manifest() -> None:
+    spec = dataclasses.replace(SPEC, title="Metadata Librarian")
+    entry = describe(spec)
+    assert entry["title"] == "Metadata Librarian"
+    assert spec_from_description(entry).title == "Metadata Librarian"
+
+
+def test_a_description_without_a_title_has_none() -> None:
+    entry = describe(SPEC)
+    del entry["title"]
+    assert spec_from_description(entry).title == ""
+
+
+@pytest.mark.parametrize("serves", [("R3",), ("R13",), ("C1",), ("R3.1",), ("governance.unknown",)])
+def test_serving_anything_but_a_step_is_refused(serves: tuple[str, ...]) -> None:
+    with pytest.raises(SpecError, match="not process flow steps"):
         dataclasses.replace(SPEC, serves=serves)
     entry = describe(SPEC)
     entry["serves"] = list(serves)
-    with pytest.raises(SpecError, match="not Blueprint functional requirements"):
+    with pytest.raises(SpecError, match="not process flow steps"):
         spec_from_description(entry)
 
 

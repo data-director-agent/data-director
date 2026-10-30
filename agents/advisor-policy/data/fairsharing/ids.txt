@@ -1,0 +1,21 @@
+# FAIRsharing policy records kept in snapshot.jsonl: one identifier per line, then a comment.
+# Chosen for the UK social science case the agent was designed from, and for common funders and
+# journals. Rebuild with scripts/build_snapshot.py.
+FAIRsharing.636kdn  Economic and Social Research Council research data policy (funder)
+FAIRsharing.p26wg1  EPSRC Policy Framework on Research Data (funder)
+FAIRsharing.d6c68e  Science and Technology Facilities Council scientific data policy (funder)
+FAIRsharing.1b3a37  Health Data Research UK - Open Access Statement (funder)
+FAIRsharing.pj0zsn  Wellcome's data, software and materials management and sharing policy (funder)
+FAIRsharing.mrrnp0  Wellcome Trust: Sharing research data to improve public health (funder)
+FAIRsharing.iKa3Xm  Open Research Data and Data Management Plans for ERC grantees (funder)
+FAIRsharing.7861ef  2023 Final NIH Policy for Data Management and Sharing (funder)
+FAIRsharing.e081af  University of Sheffield - Research Data Management Policy (institution)
+FAIRsharing.bda5cb  CLS Data Access Framework (institution)
+FAIRsharing.cg2j1y  Wellcome Trust Sanger Institute - Open Access Science (institution)
+FAIRsharing.t2exm   PLOS - Data Availability (journal publisher)
+FAIRsharing.a82a6d  PLOS - PLOS ONE - Data Availability (journal)
+FAIRsharing.ec8d62  PLOS - PLOS Biology - Data Availability (journal)
+FAIRsharing.wf9q40  Wellcome Open Research - Open Data, Software and Code Guidelines (journal)
+FAIRsharing.w4k4nr  Nature - Nature Scientific Data - Data Repository Guidance (journal)
+FAIRsharing.0e7ead  Nature - Scientific Reports - Availability of materials and data (journal)
+FAIRsharing.0dc50f  Concordat on Open Research Data (society)

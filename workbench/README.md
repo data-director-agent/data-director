@@ -11,7 +11,7 @@ did and why.
 The [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157), adopted by the
 Research Data Alliance (RDA), describes an assistant made of sub-agents that help researchers
 manage their data. This repository is a proposed reference implementation of it; the Blueprint is
-reproduced in [`../docs/BLUEPRINT.md`](../docs/BLUEPRINT.md) and its requirements are cited by ID
+reproduced in [`../docs/blueprint/`](../docs/blueprint/README.md) and its requirements are cited by ID
 (`R3`, `P14`, …).
 
 The workbench is not the reference implementation itself, and it contains no agent code. Each
@@ -61,25 +61,27 @@ terminal in `workbench/`, name the person the invocations act for (see
 ```sh
 ../scripts/run-agents.sh                               # in the first terminal
 
+# optional; without these runs act for the example person, Josiah Carberry
 export DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097   # your ORCID iD, or another IRI
 export DD_PRINCIPAL_NAME="Josiah Carberry"                     # your name
 uv run workbench agents                                # what is registered, what each accepts
-uv run workbench invoke --agent quality.reviewer --input samples/orda-record.metadata.json
-uv run workbench invoke --agent standards.advisor --input samples/soil-chemistry.profile.json
-uv run workbench invoke --agent hello.world      --input samples/hello.salutation.json
-uv run workbench invoke --agent quality.reviewer --input samples/hello.salutation.json   # failed: input-not-accepted
-uv run workbench invoke --agent standards.advisor --input samples/empty.profile.json   # abstained
+uv run workbench invoke --agent advisor.quality --input samples/orda-record.metadata.json
+uv run workbench invoke --agent advisor.standards --input samples/soil-chemistry.profile.json
+uv run workbench invoke --agent example.hello      --input samples/hello.salutation.json
+uv run workbench invoke --agent advisor.quality --input samples/hello.salutation.json   # failed: input-not-accepted
+uv run workbench invoke --agent advisor.standards --input samples/empty.profile.json   # abstained
 uv run workbench serve                                 # then open http://127.0.0.1:8000/viewer/
 ```
 
 ### The viewer
 
-The viewer has two pages, reached by the tabs under its header.
+The viewer has three pages, reached by the tabs under its header. It opens on Chat.
 
-- **Inspect** runs one agent over a sample and shows the run.
-- **Chat** (`http://127.0.0.1:8000/viewer/chat.html`) holds a conversation with the orchestrator,
-  `director.stub`, which hands each message to other agents and shows their replies inside its
+- **Chat** (`http://127.0.0.1:8000/viewer/`) holds a conversation with the orchestrator,
+  `orchestrator.stub`, which hands each message to other agents and shows their replies inside its
   own ([ADR-0012](../docs/adr/0012-conversation-and-orchestration.md)).
+- **Inspect** (`/viewer/inspect.html`) runs one agent over a sample and shows the run.
+- **Agents** (`/viewer/agents.html`) lists the registered agents and their cards.
 
 Only `serve` can run the orchestrator: `invoke` does not grant the permission it needs to call
 other agents, so `samples/director.message.json` has to go through the viewer or the conversation
@@ -106,7 +108,7 @@ Every response has one of five outcomes: `succeeded`, `abstained`, `referred`, `
 
 The defaults run entirely offline, and nothing needs configuring to run the tests. To invoke an
 agent, from the command line or through `serve`, the workbench must be told who the invocation
-acts for; it will not start `invoke` or `serve` without that. The workbench is configured in
+acts for. Unless told otherwise it acts for an example person, Josiah Carberry. The workbench is configured in
 three places.
 
 ### Who an invocation acts for
@@ -118,7 +120,10 @@ one person in its configuration, and every invocation is recorded as acting for 
 `assurance: asserted` to show that nobody's identity was checked. On a shared `workbench serve`,
 every caller is therefore recorded as the operator.
 
-Set both of these before running `invoke` or `serve`:
+To act for yourself, set both of these before running `invoke` or `serve`. With neither set, every
+invocation is recorded as acting for Josiah Carberry
+(`https://orcid.org/0000-0002-1825-0097`), the fictitious researcher ORCID publishes for examples.
+Setting only one is an error: the workbench does not complete half a principal.
 
 | Variable | Meaning |
 |---|---|
@@ -127,20 +132,20 @@ Set both of these before running `invoke` or `serve`:
 | `DD_PRINCIPAL_KIND` | Optional. `person` (the default), or `accountable_role` when the principal is a role rather than an individual. |
 
 `--acting-for-id` and `--acting-for-name` on `invoke` or `serve` take the place of the first two
-for one command. If either is missing, the command stops with
+for one command. If only one of them is set, the command stops with
 `DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset`; if the identifier is not an IRI, it stops with
 `the configured principal is malformed`.
 
 ### Environment variables
 
-The workbench reads these from the environment when it starts. For local development, copy
-[`env.example`](env.example) to `workbench/.env`: the `workbench` command loads it at start-up,
-from whichever directory it is run. A variable already set in the environment takes precedence
-over the file. `scripts/run-agents.sh` passes the same file to the agents.
+The workbench reads these from the environment when it starts. For local development, set
+`DD_CONFIG_DIR=config/local` (the tree `scripts/dev.py setup` creates, which the workbench does not
+own): the `workbench` command loads `app.env` and `agents.env` from it at start-up. A variable
+already set in the environment takes precedence over the files.
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | none; required | Who every invocation acts for; see [above](#who-an-invocation-acts-for). |
+| `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME` | Josiah Carberry, `https://orcid.org/0000-0002-1825-0097` | Who every invocation acts for; see [above](#who-an-invocation-acts-for). |
 | `DD_PRINCIPAL_KIND` | `person` | `person` or `accountable_role`. |
 | `DD_RUNS_DIR` | `runs` | Where each run's folder is written. |
 | `DD_WRITE_CRATE` | `1` | `0` stops the provenance record (Process Run Crate) being written. |
@@ -153,7 +158,7 @@ These defaults are the workbench's development set (`src/workbench/config.py`), 
 `workbench/`. The harness has no defaults of its own, so another way in names these files itself
 (ADR-0022). Each agent is a separate process and reads
 its own variables, such as the standards advisor retrieval backend or a model API key, where it runs;
-[`env.example`](env.example) lists them.
+[`config/examples/`](../config/examples/) lists them.
 
 ### Agent registry
 
@@ -182,8 +187,8 @@ pass `--profile <path>` to `invoke` or `serve`, to use another. The format is de
 
 ## Troubleshooting
 
-- **`invoke` or `serve` will not start: `DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset`.** Name
-  the person the invocations act for; see
+- **`invoke` or `serve` will not start: `DD_PRINCIPAL_NAME unset` (or `DD_PRINCIPAL_ID unset`).**
+  Only one of the pair is set. Set both, or neither to act for the example person; see
   [Who an invocation acts for](#who-an-invocation-acts-for).
 - **`the configured principal is malformed`.** `DD_PRINCIPAL_ID` must be an absolute IRI, such
   as `https://orcid.org/…`, and `DD_PRINCIPAL_KIND` must be `person` or `accountable_role`.
@@ -199,7 +204,7 @@ pass `--profile <path>` to `invoke` or `serve`, to use another. The format is de
   the profile assigns it, usually because the agent changed. The steward updates the profile.
 - **The workbench will not start: `has keys nothing enforces`.** The profile uses a key outside
   its vocabulary; see [`profiles/README.md`](profiles/README.md).
-- **`director.stub` cannot reach other agents from `invoke`.** `invoke` issues no delegation
+- **`orchestrator.stub` cannot reach other agents from `invoke`.** `invoke` issues no delegation
   grant, so the orchestrator has no way to call them. Use `workbench serve`; see
   [The viewer](#the-viewer).
 

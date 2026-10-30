@@ -8,7 +8,9 @@ import time
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlencode, urlsplit
 
+import httpx
 import pytest
 from a2a.helpers import get_data_parts
 from a2a.types import TaskState
@@ -21,6 +23,9 @@ from dd_harness.identity import (
     IssuerKeys,
     OperatorAssertion,
     Unauthenticated,
+    checked_configuration,
+    fetch_configuration,
+    fetch_keys,
     verify_id_token,
 )
 from dd_harness.settings import Settings, build_authenticator
@@ -161,6 +166,61 @@ def test_keys_that_cannot_be_fetched_refuse_the_caller(idp: FakeIdentityProvider
     keys = IssuerKeys(idp.issuer, fetch=unreachable)
     with pytest.raises(Unauthenticated, match="could not be fetched"):
         verify_id_token(idp.id_token(), idp.provider, keys)
+
+
+def test_the_keys_are_found_through_the_discovery_document(idp: FakeIdentityProvider) -> None:
+    transport = idp.transport()
+    configuration = fetch_configuration(idp.issuer, transport=transport)
+    assert configuration["token_endpoint"] == f"{idp.issuer}/oauth/token"
+    keys = IssuerKeys(idp.issuer, fetch=lambda issuer: fetch_keys(issuer, transport=transport))
+    assert verify_id_token(idp.id_token(), idp.provider, keys).vouched_by == idp.issuer
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"issuer": "https://orcid.org"}, {"token_endpoint": None}, {"jwks_uri": 7}],
+    ids=["another issuer", "no token endpoint", "no key set"],
+)
+def test_a_discovery_document_for_another_issuer_or_without_endpoints_is_refused(
+    idp: FakeIdentityProvider, change: dict[str, Any]
+) -> None:
+    document = {**idp.discovery(), **change}
+    with pytest.raises(ValueError, match="discovery names"):
+        checked_configuration(idp.issuer, document)
+
+
+# --- The fake provider's authorisation-code flow ------------------------------------------------
+
+
+def test_the_fake_provider_redeems_an_approved_code_once(idp: FakeIdentityProvider) -> None:
+    query = {
+        "client_id": idp.client_id,
+        "response_type": "code",
+        "scope": "openid",
+        "redirect_uri": "https://app.test/back",
+        "state": "the-state",
+        "nonce": "the-nonce",
+    }
+    back = idp.approve(f"{idp.issuer}/oauth/authorize?{urlencode(query)}")
+    sent = parse_qs(urlsplit(back).query)
+    assert back.startswith("https://app.test/back?") and sent["state"] == ["the-state"]
+    form = {
+        "grant_type": "authorization_code",
+        "code": sent["code"][0],
+        "redirect_uri": "https://app.test/back",
+        "client_id": idp.client_id,
+        "client_secret": idp.client_secret,
+    }
+    with httpx.Client(transport=idp.transport()) as client:
+        answer = client.post(f"{idp.issuer}/oauth/token", data=form)
+        again = client.post(f"{idp.issuer}/oauth/token", data=form)
+        wrong = client.post(f"{idp.issuer}/oauth/token", data={**form, "client_secret": "no"})
+    principal = verify_id_token(
+        answer.json()["id_token"], idp.provider, idp.keys(), nonce="the-nonce"
+    )
+    assert principal.principal_id == "https://sandbox.orcid.org/0000-0002-1825-0097"
+    assert again.json() == {"error": "invalid_grant"}
+    assert wrong.status_code == 401
 
 
 # --- The bearer-token authenticator -------------------------------------------------------------

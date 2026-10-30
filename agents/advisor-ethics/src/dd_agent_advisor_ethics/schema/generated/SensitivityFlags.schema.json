@@ -1,0 +1,104 @@
+{
+   "$comment": "Generated from ethics.yaml by `uv run dd-gen-schema <path to ethics.yaml>`. Do not edit.",
+   "$defs": {
+      "GroundingRef": {
+         "additionalProperties": false,
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "properties": {
+            "source_id": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "source_id",
+            "content_hash"
+         ],
+         "title": "GroundingRef",
+         "type": "object"
+      },
+      "SensitivityFlag": {
+         "additionalProperties": false,
+         "description": "One field that may hold sensitive data.",
+         "properties": {
+            "field": {
+               "description": "The field name, as given.",
+               "type": "string"
+            },
+            "category": {
+               "description": "The kind of sensitive data the name suggests, e.g. direct identifier.",
+               "type": "string"
+            },
+            "matched": {
+               "description": "The keyword in keywords.yaml that the field name matched.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "field",
+            "category",
+            "matched"
+         ],
+         "title": "SensitivityFlag",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/ethics/SensitivityFlags",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The payload of advisor.ethics: fields that may hold sensitive data, for a person to review, and the questions the researcher must answer before sharing. It flags and never decides how sensitive data is treated (C2).",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "SensitivityFlags"
+         ],
+         "type": "string"
+      },
+      "flags": {
+         "items": {
+            "$ref": "#/$defs/SensitivityFlag"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "questions": {
+         "description": "What the researcher must answer or confirm, with the people who can help.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "limitations": {
+         "description": "What this mock does not yet do.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "grounded_on": {
+         "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+         "items": {
+            "$ref": "#/$defs/GroundingRef"
+         },
+         "type": "array"
+      }
+   },
+   "required": [
+      "schema_class",
+      "grounded_on"
+   ],
+   "title": "SensitivityFlags",
+   "type": "object"
+}

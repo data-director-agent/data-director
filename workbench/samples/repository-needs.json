@@ -1,0 +1,15 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "themes": [
+    "social science"
+  ],
+  "data_kinds": [
+    "interview transcripts",
+    "household survey"
+  ],
+  "access": "restricted",
+  "affiliation": {
+    "name": "University of Sheffield",
+    "ror": "https://ror.org/05krs5044"
+  }
+}

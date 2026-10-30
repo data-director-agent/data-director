@@ -1,0 +1,236 @@
+# The input and payload classes of advisor.policy, owned by this package (ADR-0019). It imports
+# the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-policy/src/dd_agent_advisor_policy/schema/policy.yaml` to regenerate
+# generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
+id: https://w3id.org/data-director/agents/policy
+name: dd_agent_advisor_policy
+title: advisor.policy classes
+description: >-
+  The funders, journals and institutions behind a dataset, and what their data policies ask of
+  it (Phase 2 of the Blueprint's process flow).
+version: 0.1.0
+license: MIT
+
+prefixes:
+  policy: https://w3id.org/data-director/agents/policy/
+  linkml: https://w3id.org/linkml/
+  dcterms: http://purl.org/dc/terms/
+  dcat: http://www.w3.org/ns/dcat#
+  schema: http://schema.org/
+default_prefix: policy
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  PolicyContext:
+    description: >-
+      Who funds, publishes and hosts the research, and what the data is. The agent looks up each
+      actor's data policy.
+    slots:
+      - schema_class
+      - actors
+      - disciplines
+      - data_kinds
+      - publication_date
+
+  Actor:
+    description: >-
+      A funder, journal or institution. The FAIRsharing identifier of its policy is used when
+      given; otherwise the name is looked up.
+    slots:
+      - role
+      - name
+      - fairsharing_id
+
+  PolicyChecks:
+    description: >-
+      The policy advisor payload. The policies matched to each actor, what each asks, where they
+      differ, and the actors with no policy record. Conflicts are flagged for human review; the
+      agent does not resolve them.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - policies
+      - conflicts
+      - mandated_repositories
+      - no_record
+      - searched
+
+  MatchedPolicy:
+    description: >-
+      One policy record matched to an actor. It is named only in grounded_on; the record's name,
+      clauses and relations are in the cited evidence item's content (ADR-0015).
+    mixins:
+      - Grounded
+    slots:
+      - actor
+      - role
+      - obligations
+      - notes
+      - rationale
+      - rationale_derivation
+
+  Obligation:
+    description: >-
+      What a policy record says about one kind of obligation, read from a curated field by a
+      fixed rule.
+    slots:
+      - kind
+      - strength
+      - recorded_as
+
+  PolicyConflict:
+    description: >-
+      Matched policies that state one kind of obligation differently. Grounded on every policy
+      involved, and flagged for human review.
+    mixins:
+      - Grounded
+    slots:
+      - kind
+      - description
+
+  RepositoryRef:
+    description: >-
+      A repository a policy requires, in the form advisor.repository takes as
+      RepositoryNeeds.mandated.
+    slots:
+      - name
+      - re3data_id
+
+  SearchedSummary:
+    description: >-
+      What was looked for, so a reader can judge an abstention as well as a match.
+    slots:
+      - queries
+      - snapshot_ref
+      - policies_retrieved
+
+slots:
+
+  actors:
+    range: Actor
+    multivalued: true
+    inlined_as_list: true
+  disciplines:
+    description: Discipline or subject, as free text.
+    slot_uri: dcat:theme
+    multivalued: true
+  data_kinds:
+    description: What the data is, e.g. interview transcripts or household survey microdata.
+    multivalued: true
+  publication_date:
+    description: >-
+      When the work the data supports is, or will be, published (YYYY, YYYY-MM or YYYY-MM-DD).
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+
+  role:
+    range: ActorRole
+    required: true
+  name:
+    slot_uri: schema:name
+    required: true
+  fairsharing_id:
+    description: The FAIRsharing identifier of the actor's policy, e.g. FAIRsharing.636kdn.
+    pattern: "^FAIRsharing\\.\\S+$"
+  re3data_id:
+    description: The re3data identifier, e.g. r3d100010230.
+    pattern: "^r3d\\d+$"
+
+  policies:
+    range: MatchedPolicy
+    multivalued: true
+    inlined_as_list: true
+  conflicts:
+    range: PolicyConflict
+    multivalued: true
+    inlined_as_list: true
+  mandated_repositories:
+    description: >-
+      Repositories a matched policy requires, as FAIRsharing relates them. Empty when no policy
+      record names one, which is not evidence that none is mandated.
+    range: RepositoryRef
+    multivalued: true
+    inlined_as_list: true
+  no_record:
+    description: Actors for which no FAIRsharing policy record was found.
+    multivalued: true
+  searched:
+    range: SearchedSummary
+    inlined: true
+
+  actor:
+    description: The name of the actor, as given in the input, that this policy was matched to.
+    required: true
+  obligations:
+    range: Obligation
+    multivalued: true
+    inlined_as_list: true
+  notes:
+    description: >-
+      Facts to weigh beside the obligations, such as a policy subject outside the discipline or a
+      policy dated after the publication.
+    multivalued: true
+  rationale:
+    required: true
+  rationale_derivation:
+    range: Derivation
+    required: true
+
+  kind:
+    range: ObligationKind
+    required: true
+  strength:
+    range: Strength
+    required: true
+  recorded_as:
+    description: >-
+      The value FAIRsharing's curators recorded, such as "suggested" or "no", kept so that an
+      unstated strength does not hide what the record says.
+  description:
+    required: true
+
+  queries:
+    multivalued: true
+  snapshot_ref:
+    description: Which copy of the registry answered, e.g. fairsharing-policy:snapshot:2026-10-29.
+  policies_retrieved:
+    range: integer
+
+enums:
+
+  ActorRole:
+    permissible_values:
+      funder:
+      journal:
+        description: A journal or its publisher.
+      institution:
+        description: The researcher's university or research organisation.
+
+  ObligationKind:
+    permissible_values:
+      deposit:
+        description: Sharing the data, usually by depositing it.
+      data_availability_statement:
+        description: A statement in the publication of where and how the data can be accessed.
+      repository:
+        description: Depositing in a particular repository.
+      standard:
+        description: Using a particular metadata or data standard.
+      embargo:
+        description: How long the data may be withheld.
+      licence:
+        description: The licence the outputs are released under.
+      timing:
+        description: When the data must be shared.
+
+  Strength:
+    permissible_values:
+      required:
+      recommended:
+      unstated:
+        description: The policy record does not say.

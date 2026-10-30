@@ -49,7 +49,8 @@ def test_unreferenced(line: str) -> None:
 @pytest.mark.parametrize(
     ("path", "skipped"),
     [
-        ("docs/BLUEPRINT.md", True),
+        ("docs/blueprint/07-functional-specification.md", True),
+        ("docs/blueprint-notes.md", False),
         ("sdk/CHANGELOG.md", True),
         ("app/web/node_modules/x/README.md", True),
         ("docs/adr/0021-ro-crate-is-a-record-not-a-message.md", False),

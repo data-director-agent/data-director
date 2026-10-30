@@ -10,18 +10,50 @@
 [project]
 name = "data-director"
 version = "0.0.0"
+description = "Data Director: reference implementation of the RDA Data Director Agentic AI Blueprint (uv workspace root)"
+readme = "README.md"
 requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["research data management", "agentic ai", "fair data", "a2a", "rda"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  # Not a distributable package; stops an accidental upload to PyPI.
+  "Private :: Do Not Upload",
+]
 dependencies = [
   "data-director-sdk",
   "data-director-harness[serve]",
   "data-director-workbench",
-  "data-director-agent-hello",
-  "data-director-agent-quality",
-  "data-director-agent-standards",
-  "data-director-agent-director",
-  "data-director-agent-orchestrator",
+  "data-director-agent-example-hello",
+  "data-director-agent-advisor-quality",
+  "data-director-agent-advisor-standards",
+  "data-director-agent-advisor-repository",
+  "data-director-agent-advisor-ethics",
+  "data-director-agent-advisor-files",
+  "data-director-agent-advisor-dmp",
+  "data-director-agent-advisor-metadata",
+  "data-director-agent-advisor-documentation",
+  "data-director-agent-advisor-rights",
+  "data-director-agent-advisor-linking",
+  "data-director-agent-advisor-fairness",
+  "data-director-agent-advisor-policy",
+  "data-director-agent-orchestrator-stub",
+  "data-director-agent-orchestrator-model",
   "data-director-app",
 ]
+
+[project.urls]
+Homepage = "https://github.com/data-director-agent/data-director"
+Documentation = "https://github.com/data-director-agent/data-director/tree/main/docs"
+Repository = "https://github.com/data-director-agent/data-director"
+Issues = "https://github.com/data-director-agent/data-director/issues"
+Blueprint = "https://doi.org/10.15497/RDA00157"
 
 [dependency-groups]
 dev = [
@@ -53,11 +85,21 @@ members = ["sdk", "harness", "workbench", "agents/*", "app"]
 data-director-sdk = { workspace = true }
 data-director-harness = { workspace = true }
 data-director-workbench = { workspace = true }
-data-director-agent-hello = { workspace = true }
-data-director-agent-quality = { workspace = true }
-data-director-agent-standards = { workspace = true }
-data-director-agent-director = { workspace = true }
-data-director-agent-orchestrator = { workspace = true }
+data-director-agent-example-hello = { workspace = true }
+data-director-agent-advisor-quality = { workspace = true }
+data-director-agent-advisor-standards = { workspace = true }
+data-director-agent-advisor-repository = { workspace = true }
+data-director-agent-advisor-ethics = { workspace = true }
+data-director-agent-advisor-files = { workspace = true }
+data-director-agent-advisor-dmp = { workspace = true }
+data-director-agent-advisor-metadata = { workspace = true }
+data-director-agent-advisor-documentation = { workspace = true }
+data-director-agent-advisor-rights = { workspace = true }
+data-director-agent-advisor-linking = { workspace = true }
+data-director-agent-advisor-fairness = { workspace = true }
+data-director-agent-advisor-policy = { workspace = true }
+data-director-agent-orchestrator-stub = { workspace = true }
+data-director-agent-orchestrator-model = { workspace = true }
 data-director-app = { workspace = true }
 
 [tool.ruff]
@@ -69,7 +111,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -82,14 +124,16 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_
 "harness/src/dd_harness/identity.py" = ["N818"]
 "sdk/src/dd_sdk/contract/validate.py" = ["N818"]
 "sdk/src/dd_sdk/delegate.py" = ["N818"]
-"agents/standards/src/dd_agent_standards/retrieve.py" = ["N818"]
+"agents/advisor-standards/src/dd_agent_advisor_standards/retrieve.py" = ["N818"]
+"agents/advisor-repository/src/dd_agent_advisor_repository/retrieve.py" = ["N818"]
+"agents/advisor-policy/src/dd_agent_advisor_policy/retrieve.py" = ["N818"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
-# `dd_agent_standards.testing`, not in a test directory.
+# `dd_agent_advisor_standards.testing`, not in a test directory.
 addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network"
 filterwarnings = [
   "error",
@@ -105,7 +149,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_hello", "dd_agent_quality", "dd_agent_standards", "dd_agent_director", "dd_agent_orchestrator", "dd_app"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app"]
 relative_files = true
 
 [tool.coverage.report]
@@ -123,14 +167,14 @@ output = "coverage.xml"
 python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
-  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/standards/scripts",
+  "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/advisor-standards/scripts", "agents/advisor-repository/scripts", "agents/advisor-policy/scripts",
   "app/src", "app/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
-  "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/hello/src",
-  "agents/quality/src", "agents/standards/src",
-  "agents/director/src", "agents/orchestrator/src", "app/src", "app/tests",
+  "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/example-hello/src",
+  "agents/advisor-quality/src", "agents/advisor-standards/src", "agents/advisor-repository/src", "agents/advisor-policy/src",
+  "agents/advisor-ethics/src", "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests",
 ]
 strict = true
 warn_unreachable = true
@@ -141,6 +185,6 @@ module = ["a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "go
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_feedback", "support"]
+module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_feedback", "test_sign_in", "test_orchestrator", "test_orchestrator_stub", "test_standards_evals", "test_standards_harness", "support"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

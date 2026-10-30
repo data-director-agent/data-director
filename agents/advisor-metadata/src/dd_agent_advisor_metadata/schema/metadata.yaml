@@ -1,0 +1,100 @@
+# The input and payload classes of advisor.metadata, owned by this package (ADR-0019). It imports
+# the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-metadata/src/dd_agent_advisor_metadata/schema/metadata.yaml`
+# to regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that
+# has drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/metadata
+name: dd_agent_advisor_metadata
+title: advisor.metadata classes
+description: >-
+  What a researcher has said about a dataset that a metadata record needs, and the Metadata
+  Librarian's draft record in reply.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  metadata: https://w3id.org/data-director/agents/metadata/
+  linkml: https://w3id.org/linkml/
+default_prefix: metadata
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  MetadataDraftRequest:
+    description: >-
+      What the researcher has said about the dataset that a metadata record needs, and the
+      metadata standard they want the record in, if any.
+    slots:
+      - schema_class
+      - title
+      - description
+      - creators
+      - keywords
+      - publication_year
+      - target_standard
+
+  MetadataDraft:
+    description: >-
+      The payload of advisor.metadata: a draft record in one metadata standard, with each
+      property either filled from the researcher's input or left for the researcher. It is a
+      draft for the researcher to review before submission (R2), never a finished record.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - standard
+      - standard_reason
+      - fields
+      - limitations
+
+  DraftField:
+    description: One property of the standard, and what the draft holds for it.
+    slots:
+      - name
+      - value
+      - status
+
+slots:
+
+  title:
+    description: The dataset's title.
+  description:
+    description: A short description of the dataset.
+  creators:
+    description: The people or organisations who made the dataset, as the researcher names them.
+    multivalued: true
+  keywords:
+    description: Words or phrases that describe the dataset's subject.
+    multivalued: true
+  publication_year:
+    description: The year the dataset is or will be published.
+    range: integer
+  target_standard:
+    description: The metadata standard the researcher wants, e.g. DataCite, Dublin Core or DDI.
+  standard:
+    description: The metadata standard the draft follows.
+    required: true
+  standard_reason:
+    description: Why the draft follows that standard.
+    required: true
+  fields:
+    range: DraftField
+    multivalued: true
+    inlined_as_list: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true
+  name:
+    description: The standard's name for the property.
+    required: true
+  value:
+    description: The value taken from the input. Absent when the researcher must supply it.
+  status:
+    description: >-
+      filled when the value was taken from the input, needs_researcher when the researcher must
+      supply it.
+    required: true

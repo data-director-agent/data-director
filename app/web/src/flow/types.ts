@@ -4,6 +4,8 @@
  */
 
 export interface FlowStep {
+  /** A stable label, `<phase>.<step>`, that an agent's `serves` names (ADR-0028). */
+  id: string;
   text: string;
   /** The Blueprint requirements applied at this step; empty when the figure names none. */
   requirements: string[];

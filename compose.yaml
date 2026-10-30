@@ -1,7 +1,9 @@
 # Local development stack: agents, the app and its Vite dev server. See README.md, "With Docker
 # Compose". For development only; deployment is in deploy/. Ports are published on loopback only,
-# because the app does not authenticate callers. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
-# DD_WORKBENCH_HOST_PORT in .env if a port is taken. The agents are reached only inside the network.
+# because the app does not authenticate callers. Settings are read from config/local/, which
+# `uv run scripts/dev.py setup` creates, as in deployment. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
+# DD_WORKBENCH_HOST_PORT in the shell if a port is taken. The agents are reached only inside the
+# network.
 
 x-python: &python
   build:
@@ -13,9 +15,9 @@ x-python: &python
     - venv:/venv
     - uv-cache:/uv-cache
   environment: &python-env
-    DD_PRINCIPAL_ID: ${DD_PRINCIPAL_ID:?set DD_PRINCIPAL_ID in .env (see docker/env.example)}
-    DD_PRINCIPAL_NAME: ${DD_PRINCIPAL_NAME:?set DD_PRINCIPAL_NAME in .env (see docker/env.example)}
     DD_AGENTS_CONFIG: /workspace/docker/agents.yaml
+    # Where a relative *_FILE is read from, as under systemd (ADR-0026).
+    CREDENTIALS_DIRECTORY: /workspace/config/local/credentials
 
 x-agent: &agent
   <<: *python
@@ -39,57 +41,67 @@ services:
     <<: *python
     command: uv sync --all-packages --all-extras
 
-  hello:
+  example-hello:
     <<: *agent
-    command: uv run --no-sync dd-hello serve --host 0.0.0.0 --port 8101 --public-url http://hello:8101
+    command: uv run --no-sync dd-example-hello serve --host 0.0.0.0 --port 8101 --public-url http://example-hello:8101
     environment:
       <<: *python-env
       PORT: "8101"
     env_file:
-      - path: workbench/agents/hello.env
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/example-hello.env
         required: false
 
-  quality:
+  advisor-quality:
     <<: *agent
-    command: uv run --no-sync dd-quality serve --host 0.0.0.0 --port 8102 --public-url http://quality:8102
+    command: uv run --no-sync dd-advisor-quality serve --host 0.0.0.0 --port 8102 --public-url http://advisor-quality:8102
     environment:
       <<: *python-env
       PORT: "8102"
     env_file:
-      - path: workbench/agents/quality.env
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-quality.env
         required: false
 
-  standards:
+  advisor-standards:
     <<: *agent
-    command: uv run --no-sync dd-standards serve --host 0.0.0.0 --port 8105 --public-url http://standards:8105
+    command: uv run --no-sync dd-advisor-standards serve --host 0.0.0.0 --port 8105 --public-url http://advisor-standards:8105
     environment:
       <<: *python-env
       PORT: "8105"
     env_file:
-      - path: workbench/agents/standards.env
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-standards.env
         required: false
 
-  director:
+  orchestrator-stub:
     <<: *agent
-    command: uv run --no-sync dd-director serve --host 0.0.0.0 --port 8106 --public-url http://director:8106
+    command: uv run --no-sync dd-orchestrator-stub serve --host 0.0.0.0 --port 8106 --public-url http://orchestrator-stub:8106
     environment:
       <<: *python-env
       PORT: "8106"
     env_file:
-      - path: workbench/agents/director.env
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/orchestrator-stub.env
         required: false
 
   # Model-backed, so it is opt-in: `docker compose --profile llm up`. It exits at start-up
-  # without ANTHROPIC_API_KEY in workbench/agents/orchestrator.env.
-  orchestrator:
+  # without a model key (ANTHROPIC_API_KEY_FILE) in config/local/agents/orchestrator-model.env.
+  orchestrator-model:
     <<: *agent
     profiles: [llm]
-    command: uv run --no-sync dd-orchestrator serve --host 0.0.0.0 --port 8107 --public-url http://orchestrator:8107
+    command: uv run --no-sync dd-orchestrator-model serve --host 0.0.0.0 --port 8107 --public-url http://orchestrator-model:8107
     environment:
       <<: *python-env
       PORT: "8107"
     env_file:
-      - path: workbench/agents/orchestrator.env
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/orchestrator-model.env
         required: false
 
   # Builds the shell once: the app will not start without app/web/dist.
@@ -111,15 +123,18 @@ services:
         condition: service_completed_successfully
       web-build:
         condition: service_completed_successfully
-      hello:
+      example-hello:
         condition: service_healthy
-      quality:
+      advisor-quality:
         condition: service_healthy
-      standards:
+      advisor-standards:
         condition: service_healthy
-      director:
+      orchestrator-stub:
         condition: service_healthy
     command: uv run --no-sync data-director
+    env_file:
+      - path: config/local/app.env
+        required: false
     healthcheck:
       test:
         - CMD
@@ -169,13 +184,13 @@ services:
     depends_on:
       deps:
         condition: service_completed_successfully
-      hello:
+      example-hello:
         condition: service_healthy
-      quality:
+      advisor-quality:
         condition: service_healthy
-      standards:
+      advisor-standards:
         condition: service_healthy
-      director:
+      orchestrator-stub:
         condition: service_healthy
     working_dir: /workspace/workbench
     command: uv run --no-sync workbench serve --host 0.0.0.0 --port 8000
@@ -184,7 +199,7 @@ services:
       DD_HARNESS_URL: http://workbench:8000
       DD_RUNS_DIR: /runs
     env_file:
-      - path: workbench/.env
+      - path: config/local/app.env
         required: false
     volumes:
       - .:/workspace

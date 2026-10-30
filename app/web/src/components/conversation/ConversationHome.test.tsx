@@ -5,7 +5,7 @@ import { axe } from "jest-axe";
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
 import flowFixture from "../../../fixtures/process-flow.json";
-import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
+import { type ConversationApi, ConversationApiContext, Unreachable } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import type { ProcessFlow } from "../../flow/types";
@@ -26,10 +26,10 @@ if (!template) throw new Error("no agent in the fixture");
 function withOrchestrator(assigned: string | null = "advise"): Directory {
   return normalise({
     ...raw,
-    profile: { ...raw.profile, orchestrator: "director.stub" },
+    profile: { ...raw.profile, orchestrator: "orchestrator.stub" },
     agents: [
       ...raw.agents,
-      { ...(template as RawManifestEntry), agent_id: "director.stub", grounding_mode: "delegation", assigned_action_class: assigned },
+      { ...(template as RawManifestEntry), agent_id: "orchestrator.stub", grounding_mode: "delegation", assigned_action_class: assigned },
     ],
   });
 }
@@ -86,7 +86,7 @@ describe("ConversationHome", () => {
     const directory = normalise({
       ...raw,
       profile: { ...raw.profile, orchestrator: "orchestrator.model" },
-      agents: [...raw.agents, { ...delegation, agent_id: "director.stub" }, { ...delegation, agent_id: "orchestrator.model" }],
+      agents: [...raw.agents, { ...delegation, agent_id: "orchestrator.stub" }, { ...delegation, agent_id: "orchestrator.model" }],
     });
     renderHome(directory, fakeApi({ sendTurn }));
     await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
@@ -96,7 +96,7 @@ describe("ConversationHome", () => {
 
   it("says when the profile does not permit the orchestrator", () => {
     renderHome(withOrchestrator(null), fakeApi());
-    expect(screen.getByText(/does not permit director.stub/)).toBeVisible();
+    expect(screen.getByText(/does not permit orchestrator.stub/)).toBeVisible();
   });
 
   it("sends a turn, labels replies and children, and returns focus to the message box", async () => {
@@ -107,11 +107,11 @@ describe("ConversationHome", () => {
     await userEvent.type(box, "hello world");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(sendTurn).toHaveBeenCalledWith("c1", "director.stub", "hello world");
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello world");
     const transcript = await screen.findByRole("list", { name: "Conversation" });
-    expect(within(transcript).getAllByText("director.stub@0.1.0")).toHaveLength(2);
-    expect(within(transcript).getAllByText("hello.world@0.1.0")).toHaveLength(2);
-    expect(screen.getByRole("status")).toHaveTextContent("New reply from director.stub: Succeeded.");
+    expect(within(transcript).getAllByText("orchestrator.stub@0.1.0")).toHaveLength(2);
+    expect(within(transcript).getAllByText("example.hello@0.1.0")).toHaveLength(2);
+    expect(screen.getByRole("status")).toHaveTextContent("New reply from orchestrator.stub: Succeeded.");
     expect(box).toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -124,13 +124,13 @@ describe("ConversationHome", () => {
     expect(sendTurn).not.toHaveBeenCalled();
     await userEvent.type(box, "hello");
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
-    expect(sendTurn).toHaveBeenCalledWith("c1", "director.stub", "hello");
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello");
   });
 
   it("marks a version change between turns", async () => {
     const changed: Conversation = {
       ...CONVERSATION,
-      version_changes: [{ turn_index: 1, agent_id: "director.stub", from: "0.1.0", to: "0.2.0" }],
+      version_changes: [{ turn_index: 1, agent_id: "orchestrator.stub", from: "0.1.0", to: "0.2.0" }],
     };
     renderHome(withOrchestrator(), fakeApi({ get: () => Promise.resolve(changed) }));
     await userEvent.type(screen.getByRole("textbox"), "hi");
@@ -167,12 +167,47 @@ describe("ConversationHome", () => {
     await userEvent.type(screen.getByRole("textbox"), "hi");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("the server answered 500");
+    // The message returns to the box and the waiting sign goes.
+    expect(screen.getByRole("textbox")).toHaveValue("hi");
+    expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
+  });
+
+  it("says the server could not be reached, keeps the text and reloads what was stored", async () => {
+    const get = vi.fn().mockResolvedValue(conversationFixture as Conversation);
+    renderHome(
+      withOrchestrator(),
+      fakeApi({ sendTurn: () => Promise.reject(new Unreachable()), get }),
+    );
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "could not reach the server, so this message may not have been sent",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("hi");
+    expect(get).toHaveBeenCalledWith("c1");
+  });
+
+  it("shows the message and that the orchestrator is working until the reply arrives", async () => {
+    let reply: () => void = () => undefined;
+    const sendTurn = () => new Promise<void>((resolve) => (reply = resolve));
+    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    await userEvent.type(screen.getByRole("textbox"), "hello world");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const transcript = await screen.findByRole("list", { name: "Conversation" });
+    expect(within(transcript).getByText("hello world")).toBeVisible();
+    expect(within(transcript).getByText(/is working on a reply/)).toBeVisible();
+    expect(screen.getByRole("textbox")).toHaveValue("");
+
+    reply();
+    await screen.findByText("New reply from orchestrator.stub: Succeeded.");
+    expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
   });
 
   it("reopens a past conversation and starts a new one", async () => {
     const list = () =>
       Promise.resolve([
-        { conversation_id: "c9", agent_id: "director.stub", turns: 2, started_at: "2026-01-01" },
+        { conversation_id: "c9", agent_id: "orchestrator.stub", turns: 2, started_at: "2026-01-01" },
       ]);
     renderHome(withOrchestrator(), fakeApi({ list }));
     await userEvent.click(await screen.findByRole("button", { name: /2026-01-01 \(2 turns\)/ }));
@@ -192,12 +227,12 @@ describe("ConversationHome", () => {
       const step = within(phases).getByText("Select controlled vocabularies and ontologies").closest("li");
       if (!step) throw new Error("no step");
       expect(within(step).getByText(/Requirements: R3/)).toBeVisible();
-      expect(within(step).getByRole("link", { name: "standards.advisor" })).toHaveAttribute(
+      expect(within(step).getByRole("link", { name: "Standards Librarian" })).toHaveAttribute(
         "href",
-        "/agents?agent=standards.advisor",
+        "/agents?agent=advisor.standards",
       );
       const unserved = within(phases)
-        .getByText("Create a new Data Management Plan or review the existing one")
+        .getByText("Draft the data documentation")
         .closest("li");
       if (!unserved) throw new Error("no step");
       expect(within(unserved).getByText(/No agent here serves this step/)).toBeVisible();
@@ -220,11 +255,11 @@ describe("ConversationHome", () => {
       const panel = screen.getByRole("region", { name: "Project documents" });
       expect(within(panel).getByText("Not built yet")).toBeVisible();
       expect(within(panel).getByRole("link", { name: "#160" })).toBeVisible();
-      expect(within(panel).getByText("director.stub@0.1.0")).toBeVisible();
+      expect(within(panel).getByText("orchestrator.stub@0.1.0")).toBeVisible();
       expect(within(panel).getByText("Not declared")).toBeVisible();
       expect(within(panel).getByRole("link", { name: "Its full capabilities and limits" })).toHaveAttribute(
         "href",
-        "/agents?agent=director.stub",
+        "/agents?agent=orchestrator.stub",
       );
     });
 

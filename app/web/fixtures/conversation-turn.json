@@ -16,15 +16,15 @@
       "principal_id": "https://orcid.org/0000-0002-1825-0097",
       "principal_kind": "person"
     },
-    "agent_id": "director.stub",
+    "agent_id": "orchestrator.stub",
     "agent_version": "0.1.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.9.0",
+    "contract_version": "0.9.1",
     "conversation_id": "01900000-0000-7000-8000-000000000001",
     "delegations": [
       {
         "content_hash": "0000000000000000000000000000000000000000000000000000000000000004",
-        "delegated_agent_id": "hello.world",
+        "delegated_agent_id": "example.hello",
         "delegated_agent_version": "0.1.0",
         "delegated_invocation_id": "01900000-0000-7000-8000-000000000002",
         "delegated_status": "succeeded"
@@ -50,7 +50,7 @@
     "input_schema": "0000000000000000000000000000000000000000000000000000000000000006",
     "invocation_id": "01900000-0000-7000-8000-000000000003",
     "outcome": {
-      "statement": "Delegated to hello.world@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+      "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
       "status": "succeeded"
     },
     "payload": {
@@ -65,11 +65,11 @@
         }
       ],
       "reply_derivation": "template",
-      "reply_text": "Routed to hello.world@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
+      "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
       "schema_class": "Reply"
     },
     "payload_schema": "0000000000000000000000000000000000000000000000000000000000000007",
-    "policy_bundle_ref": "profile:data-director-app@v4",
+    "policy_bundle_ref": "profile:data-director-app@v7",
     "policy_digest": "0000000000000000000000000000000000000000000000000000000000000008",
     "requires_human_review": true,
     "telemetry": {

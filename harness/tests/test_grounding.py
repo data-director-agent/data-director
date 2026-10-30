@@ -278,7 +278,7 @@ def delegation_envelope(
     env["delegations"] = [
         {
             "delegated_invocation_id": CHILD,
-            "delegated_agent_id": "hello.world",
+            "delegated_agent_id": "example.hello",
             "delegated_agent_version": "0.1.0",
             "delegated_status": "succeeded",
             "content_hash": H_CHILD,

@@ -16,10 +16,10 @@
       "principal_id": "https://orcid.org/0000-0002-1825-0097",
       "principal_kind": "person"
     },
-    "agent_id": "standards.advisor",
+    "agent_id": "advisor.standards",
     "agent_version": "0.2.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.9.0",
+    "contract_version": "0.9.1",
     "evidence": [
       {
         "canonicalisation": "json-sorted-utf8-v1",
@@ -738,8 +738,8 @@
       }
     },
     "payload_schema": "7b1bbd3ddcf6004b17b955641ed5bebb01cb35756ef4cae2fed19c74cb79c5cf",
-    "policy_bundle_ref": "profile:data-director-app@v4",
-    "policy_digest": "925abd06964afd7f6df18ce787fd0f985111fa1f35c6eb01f6bb7a16b518414c",
+    "policy_bundle_ref": "profile:data-director-app@v7",
+    "policy_digest": "1f2f86475a8dcbc44c6e823b0fdef556ba148030c670075261fd8474f57fa7b7",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,
