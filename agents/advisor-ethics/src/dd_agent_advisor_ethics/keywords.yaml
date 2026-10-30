@@ -1,0 +1,42 @@
+# advisor.ethics's whole rule table: field-name keywords that suggest sensitive data, by category.
+# A field name matches a keyword when the keyword is one of its words (split on non-letters, case
+# ignored). A mock's table (ADR-0033): it misses most sensitive data, and the real adviser replaces
+# it, TODO(#355).
+direct identifier:
+  - name
+  - surname
+  - email
+  - phone
+  - address
+  - postcode
+  - zip
+  - nhs
+  - passport
+  - ip
+indirect identifier:
+  - dob
+  - birth
+  - age
+  - gender
+  - sex
+  - ethnicity
+  - occupation
+  - employer
+  - school
+special category:
+  - health
+  - diagnosis
+  - religion
+  - sexuality
+  - disability
+  - genetic
+  - biometric
+  - criminal
+  - political
+location:
+  - latitude
+  - longitude
+  - lat
+  - lon
+  - gps
+  - location

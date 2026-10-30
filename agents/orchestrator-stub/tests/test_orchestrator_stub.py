@@ -171,8 +171,8 @@ def test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps(runs_dir
     text = payload.reply_text
     assert "Phase 1," not in text
     assert all(f"Phase {n}," in text for n in range(2, 7))
-    assert "Validate metadata quality (R4): advisor.quality" in text
-    assert "Recommend open formats (R3): advisor.standards" in text
+    assert "Validate metadata quality (R4): Metadata Reviewer (advisor.quality)" in text
+    assert "Recommend open formats (R3): Standards Librarian (advisor.standards)" in text
     assert "no agent yet (R8)" in text
     assert "no agent yet (R1)" in text
     assert env.delegations == []
@@ -187,7 +187,10 @@ def test_entry_one_starts_before_collection_and_names_the_documentation_gap(
     text = env.payload_as(Reply).reply_text
     assert text.startswith("Entry point 1")
     assert "Draft the data documentation: no agent yet (R5)." in text
-    assert "advisor.standards, for example 'standards for soil chemistry'" in text
+    assert (
+        "Standards Librarian (advisor.standards), for example 'standards for soil chemistry'"
+        in text
+    )
 
 
 @pytest.mark.requirement("DD-ENTRY-POINTS")

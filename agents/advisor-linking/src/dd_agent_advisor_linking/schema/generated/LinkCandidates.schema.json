@@ -1,0 +1,31 @@
+{
+   "$comment": "Generated from linking.yaml by `uv run dd-gen-schema <path to linking.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/linking/LinkCandidates",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "Identifiers of the publications, people, organisations, grants and software a researcher wants to link a dataset to, as they were given: DOIs, ORCID iDs, ROR ids, grant numbers or anything else.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "LinkCandidates"
+         ],
+         "type": "string"
+      },
+      "identifiers": {
+         "description": "The identifiers to link, each as given.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "LinkCandidates",
+   "type": "object"
+}

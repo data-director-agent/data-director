@@ -62,6 +62,7 @@ def _matched(actors: list[Actor], source: Policies) -> list[tuple[Actor, list[Po
 class PolicyAgent:
     spec = AgentSpec(
         agent_id="advisor.policy",
+        title="Policy Adviser",
         version="0.1.0-alpha",
         description=(
             "Checks what the data policies of a project's funders, journals and institution ask "

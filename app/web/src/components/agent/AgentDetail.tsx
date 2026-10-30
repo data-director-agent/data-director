@@ -24,7 +24,13 @@ export function AgentDetail({ agent }: { agent: AgentView }) {
   return (
     <section className="agent-detail" aria-labelledby={headingId}>
       <h2 id={headingId}>
-        <code>{agent.id}</code>
+        {agent.title ? (
+          <>
+            {agent.title} <code>{agent.id}</code>
+          </>
+        ) : (
+          <code>{agent.id}</code>
+        )}
       </h2>
       <p>{agent.description}</p>
       <p>

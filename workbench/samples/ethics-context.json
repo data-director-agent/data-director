@@ -1,0 +1,8 @@
+{
+  "schema_class": "SensitivityContext",
+  "title": "Household energy use interviews",
+  "description": "Survey responses and smart-meter readings from 40 households in Sheffield.",
+  "fields": ["participant_id", "postcode", "date_of_birth", "household_size", "kwh_daily", "health_conditions"],
+  "involves_people": true,
+  "embargo_intended": false
+}

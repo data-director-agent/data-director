@@ -39,6 +39,38 @@ problem = "reads outside"
 path = "agents/advisor-quality/tests/test_quality.py"
 problem = "reads outside"
 
+[[exception]]
+path = "agents/advisor-dmp/tests/test_dmp_agent.py"
+problem = "reads outside"
+
+[[exception]]
+path = "agents/advisor-documentation/tests/test_documentation_agent.py"
+problem = "reads outside"
+
+[[exception]]
+path = "agents/advisor-ethics/tests/test_ethics_agent.py"
+problem = "reads outside"
+
+[[exception]]
+path = "agents/advisor-fairness/tests/test_fairness_agent.py"
+problem = "reads outside"
+
+[[exception]]
+path = "agents/advisor-files/tests/test_files_agent.py"
+problem = "reads outside"
+
+[[exception]]
+path = "agents/advisor-linking/tests/test_linking_agent.py"
+problem = "reads outside"
+
+[[exception]]
+path = "agents/advisor-metadata/tests/test_metadata_agent.py"
+problem = "reads outside"
+
+[[exception]]
+path = "agents/advisor-rights/tests/test_rights_agent.py"
+problem = "reads outside"
+
 # The app reads REVISION and runs git at the repository root, with DD_REVISION as the fallback.
 # TODO(#275): take the revision from the environment or the package metadata only.
 [[exception]]

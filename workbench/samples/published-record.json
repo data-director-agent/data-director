@@ -1,0 +1,12 @@
+{
+  "schema_class": "PublishedRecord",
+  "identifier": "https://data.example.ac.uk/datasets/household-energy-2024",
+  "title": "Household energy use in Sheffield, 2024",
+  "licence": "CC-BY-4.0",
+  "keywords": ["energy demand", "smart meters", "households"],
+  "creators": ["Ada Byron", "Charles Babbage"],
+  "creator_identifiers": ["https://orcid.org/0000-0002-1825-0097"],
+  "formats": ["application/vnd.ms-excel", "text/csv"],
+  "related_identifiers": [],
+  "access_protocol": "https"
+}

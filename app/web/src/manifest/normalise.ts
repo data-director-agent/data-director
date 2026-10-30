@@ -41,6 +41,8 @@ export interface Oversight {
 
 export interface AgentView {
   id: string;
+  /** The persona's name as a researcher sees it (ADR-0033). Empty: the card names none. */
+  title: string;
   version: string;
   description: string;
   contractVersion: string;
@@ -89,9 +91,15 @@ export function gateStatus(entry: RawManifestEntry): GateStatus {
     : { kind: "permitted", actionClass: assigned };
 }
 
+/** What to call the agent in prose: its persona title, or its id when it has none. */
+export function agentName(agent: Pick<AgentView, "id" | "title">): string {
+  return agent.title || agent.id;
+}
+
 export function normaliseAgent(entry: RawManifestEntry): AgentView {
   return {
     id: entry.agent_id,
+    title: entry.title ?? "",
     version: entry.version,
     description: entry.description,
     contractVersion: entry.contract_version,

@@ -1,0 +1,49 @@
+{
+   "$comment": "Generated from rights.yaml by `uv run dd-gen-schema <path to rights.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/rights/RightsContext",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "What the researcher has said about the dataset that bears on its licence and access: the reuse they want to allow, whether the data are sensitive, any licence they are required to use, and whether the data include content from third parties.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "RightsContext"
+         ],
+         "type": "string"
+      },
+      "reuse_wanted": {
+         "description": "The reuse the researcher wants to allow, e.g. any, attribution, share-alike or non-commercial. Unknown if absent.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "sensitive": {
+         "description": "Whether the data hold personal or otherwise sensitive information. Unknown if absent.",
+         "type": [
+            "boolean",
+            "null"
+         ]
+      },
+      "mandated_licence": {
+         "description": "The SPDX identifier of a licence that a funder, journal or institution requires, if any.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "third_party_content": {
+         "description": "Whether the data include content whose rights belong to others. Unknown if absent.",
+         "type": [
+            "boolean",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "RightsContext",
+   "type": "object"
+}

@@ -1,0 +1,63 @@
+{
+   "$comment": "Generated from documentation.yaml by `uv run dd-gen-schema <path to documentation.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/documentation/DocumentationRequest",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "What the researcher has said about the dataset to be documented: its title and description, its creators, its file names and its field names.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "DocumentationRequest"
+         ],
+         "type": "string"
+      },
+      "title": {
+         "description": "The dataset's title.",
+         "type": "string"
+      },
+      "description": {
+         "description": "A short description of the dataset.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "creators": {
+         "description": "The people or organisations who created the dataset, as they should be credited.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "files": {
+         "description": "The names of the dataset's files.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "fields": {
+         "description": "The names of the dataset's fields or columns.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class",
+      "title"
+   ],
+   "title": "DocumentationRequest",
+   "type": "object"
+}

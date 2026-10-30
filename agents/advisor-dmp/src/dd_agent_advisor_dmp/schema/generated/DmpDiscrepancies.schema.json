@@ -1,0 +1,108 @@
+{
+   "$comment": "Generated from dmp.yaml by `uv run dd-gen-schema <path to dmp.yaml>`. Do not edit.",
+   "$defs": {
+      "Discrepancy": {
+         "additionalProperties": false,
+         "description": "One difference between what the plan committed to and what is planned.",
+         "properties": {
+            "output": {
+               "description": "The output, by name, such as a dataset or software.",
+               "type": "string"
+            },
+            "aspect": {
+               "description": "What differs: missing (committed, not planned), unplanned (planned, not committed), repository, access or licence.",
+               "type": "string"
+            },
+            "committed": {
+               "description": "What the plan committed to for this aspect, if anything.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "planned": {
+               "description": "What is planned for this aspect, if anything.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "message": {
+               "description": "The difference, said for a person to review.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "output",
+            "aspect",
+            "message"
+         ],
+         "title": "Discrepancy",
+         "type": "object"
+      },
+      "GroundingRef": {
+         "additionalProperties": false,
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "properties": {
+            "source_id": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "source_id",
+            "content_hash"
+         ],
+         "title": "GroundingRef",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/dmp/DmpDiscrepancies",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "DmpDiscrepancies"
+         ],
+         "type": "string"
+      },
+      "discrepancies": {
+         "items": {
+            "$ref": "#/$defs/Discrepancy"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "limitations": {
+         "description": "What this mock does not yet do.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "grounded_on": {
+         "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+         "items": {
+            "$ref": "#/$defs/GroundingRef"
+         },
+         "type": "array"
+      }
+   },
+   "required": [
+      "schema_class",
+      "grounded_on"
+   ],
+   "title": "DmpDiscrepancies",
+   "type": "object"
+}

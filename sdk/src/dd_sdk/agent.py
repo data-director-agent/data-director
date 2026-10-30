@@ -93,6 +93,9 @@ class AgentSpec:
     # place it in the flow (`dd_sdk.process_flow`, ADR-0028). The requirements it bears on follow
     # from the steps; whether it meets them is for the requirements register. Empty: none.
     serves: tuple[str, ...] = ()
+    # The persona's name as a researcher sees it ("Metadata Librarian", ADR-0033). Empty: the
+    # app and the orchestrators show `agent_id` instead.
+    title: str = ""
 
     def __post_init__(self) -> None:
         unknown = sorted(set(self.serves) - STEPS)
@@ -206,6 +209,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             {"provider": m.provider, "model": m.model, "hosting": m.hosting} for m in spec.models
         ],
         "serves": list(spec.serves),
+        "title": spec.title,
         "schemas": {c.name: c.describe() for c in spec.schemas()},
     }
 
@@ -271,6 +275,10 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     serves = entry.get("serves", ())
     if not isinstance(serves, list | tuple):
         raise SpecError(f"agent {agent_id!r}: serves is not a list")
+    # `title` may be absent: a card written before ADR-0033 names no persona.
+    title = entry.get("title") or ""
+    if not isinstance(title, str):
+        raise SpecError(f"agent {agent_id!r}: title is not a string")
     return AgentSpec(
         agent_id=agent_id,
         version=str(entry["version"]),
@@ -283,6 +291,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         contract_version=declared,
         models=models,
         serves=tuple(str(r) for r in serves),
+        title=title,
     )
 
 

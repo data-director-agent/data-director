@@ -28,6 +28,11 @@
     outline-offset: -3px;
   }
 
+  .agent-option-title {
+    display: block;
+    font-weight: var(--font-weight-strong);
+  }
+
   .agent-option-id {
     display: block;
     font-family: var(--font-mono);

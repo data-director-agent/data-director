@@ -1,0 +1,59 @@
+{
+   "$comment": "Generated from ethics.yaml by `uv run dd-gen-schema <path to ethics.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/ethics/SensitivityContext",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "What the researcher has said about the dataset that bears on sensitive data: its field names, whether it involves people, and whether they intend an embargo.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "SensitivityContext"
+         ],
+         "type": "string"
+      },
+      "title": {
+         "description": "The dataset's title.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "description": {
+         "description": "A short description of the dataset.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "fields": {
+         "description": "The names of the dataset's fields or columns.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "involves_people": {
+         "description": "Whether the data were collected from or about people. Unknown if absent.",
+         "type": [
+            "boolean",
+            "null"
+         ]
+      },
+      "embargo_intended": {
+         "description": "Whether the researcher intends an embargo. Unknown if absent.",
+         "type": [
+            "boolean",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "SensitivityContext",
+   "type": "object"
+}

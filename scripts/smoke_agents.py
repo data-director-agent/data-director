@@ -60,6 +60,14 @@ CASES = [
     ("advisor.policy", "policy-context.json", "succeeded"),
     ("advisor.repository", "repository-needs.json", "succeeded"),
     ("advisor.repository", "repository-mandated.json", "succeeded"),
+    ("advisor.ethics", "ethics-context.json", "succeeded"),
+    ("advisor.files", "files-list.json", "succeeded"),
+    ("advisor.dmp", "dmp-commitments.json", "succeeded"),
+    ("advisor.fairness", "published-record.json", "succeeded"),
+    ("advisor.metadata", "metadata-draft-request.json", "succeeded"),
+    ("advisor.documentation", "documentation-request.json", "succeeded"),
+    ("advisor.rights", "rights-context.json", "succeeded"),
+    ("advisor.linking", "link-candidates.json", "succeeded"),
     ("advisor.quality", "hello.salutation.json", "failed"),
 ]
 

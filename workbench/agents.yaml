@@ -12,6 +12,14 @@ agents:
   - url: http://127.0.0.1:8105
   - url: http://127.0.0.1:8108
   - url: http://127.0.0.1:8109
+  - url: http://127.0.0.1:8111
+  - url: http://127.0.0.1:8110
+  - url: http://127.0.0.1:8112
+  - url: http://127.0.0.1:8113
+  - url: http://127.0.0.1:8114
+  - url: http://127.0.0.1:8115
+  - url: http://127.0.0.1:8116
+  - url: http://127.0.0.1:8117
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
   # theirs (ADR-0012).
   - url: http://127.0.0.1:8106

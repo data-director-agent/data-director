@@ -39,6 +39,8 @@ export interface RawManifestEntry {
   schemas: Record<string, { digest: string; json_schema: unknown }>;
   /** The process flow step ids it serves (ADR-0028). Absent on an older card. */
   serves?: string[];
+  /** The persona's name as a researcher sees it (ADR-0033). Absent or empty: none. */
+  title?: string;
   assigned_action_class: string | null;
   requires_approval: boolean;
   /** The oversight extension (ADR-0025). No card carries it yet. */

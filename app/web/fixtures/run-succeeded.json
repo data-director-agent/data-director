@@ -738,8 +738,8 @@
       }
     },
     "payload_schema": "7b1bbd3ddcf6004b17b955641ed5bebb01cb35756ef4cae2fed19c74cb79c5cf",
-    "policy_bundle_ref": "profile:data-director-app@v6",
-    "policy_digest": "da9ee05d448a2cb1253c25424bdeabc3ae2c930a866cefc9c875e614b82d75a6",
+    "policy_bundle_ref": "profile:data-director-app@v7",
+    "policy_digest": "1f2f86475a8dcbc44c6e823b0fdef556ba148030c670075261fd8474f57fa7b7",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

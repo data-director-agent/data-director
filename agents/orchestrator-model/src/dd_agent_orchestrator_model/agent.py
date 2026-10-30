@@ -88,6 +88,10 @@ def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) 
             base = TOOL_NAME_UNSAFE.sub("_", agent_id)
             name = base if len(accepts) == 1 else f"{base}__{schema_class}"
             description = str(entry.get("description") or agent_id)
+            title = str(entry.get("title") or "")
+            if title:
+                # The persona's name, so the reply can name who was asked (ADR-0033).
+                description = f"The {title}. {description}"
             steps = [str(s) for s in entry.get("serves") or []]
             if steps:
                 description += f" Serves step(s) {', '.join(steps)}."
@@ -155,6 +159,7 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
 class ModelOrchestrator:
     spec = AgentSpec(
         agent_id=AGENT_ID,
+        title="Data Director",
         version="0.1.0",
         description=(
             "The model-backed Data Director orchestrator. Talks with a researcher, and hands "

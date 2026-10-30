@@ -13,9 +13,17 @@ resolution-markers = [
 [manifest]
 members = [
     "data-director",
+    "data-director-agent-advisor-dmp",
+    "data-director-agent-advisor-documentation",
+    "data-director-agent-advisor-ethics",
+    "data-director-agent-advisor-fairness",
+    "data-director-agent-advisor-files",
+    "data-director-agent-advisor-linking",
+    "data-director-agent-advisor-metadata",
     "data-director-agent-advisor-policy",
     "data-director-agent-advisor-quality",
     "data-director-agent-advisor-repository",
+    "data-director-agent-advisor-rights",
     "data-director-agent-advisor-standards",
     "data-director-agent-example-hello",
     "data-director-agent-orchestrator-model",
@@ -857,9 +865,17 @@ name = "data-director"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "data-director-agent-advisor-dmp" },
+    { name = "data-director-agent-advisor-documentation" },
+    { name = "data-director-agent-advisor-ethics" },
+    { name = "data-director-agent-advisor-fairness" },
+    { name = "data-director-agent-advisor-files" },
+    { name = "data-director-agent-advisor-linking" },
+    { name = "data-director-agent-advisor-metadata" },
     { name = "data-director-agent-advisor-policy" },
     { name = "data-director-agent-advisor-quality" },
     { name = "data-director-agent-advisor-repository" },
+    { name = "data-director-agent-advisor-rights" },
     { name = "data-director-agent-advisor-standards" },
     { name = "data-director-agent-example-hello" },
     { name = "data-director-agent-orchestrator-model" },
@@ -891,9 +907,17 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-agent-advisor-dmp", editable = "agents/advisor-dmp" },
+    { name = "data-director-agent-advisor-documentation", editable = "agents/advisor-documentation" },
+    { name = "data-director-agent-advisor-ethics", editable = "agents/advisor-ethics" },
+    { name = "data-director-agent-advisor-fairness", editable = "agents/advisor-fairness" },
+    { name = "data-director-agent-advisor-files", editable = "agents/advisor-files" },
+    { name = "data-director-agent-advisor-linking", editable = "agents/advisor-linking" },
+    { name = "data-director-agent-advisor-metadata", editable = "agents/advisor-metadata" },
     { name = "data-director-agent-advisor-policy", editable = "agents/advisor-policy" },
     { name = "data-director-agent-advisor-quality", editable = "agents/advisor-quality" },
     { name = "data-director-agent-advisor-repository", editable = "agents/advisor-repository" },
+    { name = "data-director-agent-advisor-rights", editable = "agents/advisor-rights" },
     { name = "data-director-agent-advisor-standards", editable = "agents/advisor-standards" },
     { name = "data-director-agent-example-hello", editable = "agents/example-hello" },
     { name = "data-director-agent-orchestrator-model", editable = "agents/orchestrator-model" },
@@ -922,6 +946,167 @@ docs = [
     { name = "mkdocs", specifier = ">=1.6" },
     { name = "mkdocs-material", specifier = ">=9.5" },
 ]
+
+[[package]]
+name = "data-director-agent-advisor-dmp"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-dmp" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-advisor-documentation"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-documentation" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-advisor-ethics"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-ethics" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-advisor-fairness"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-fairness" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-advisor-files"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-files" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-advisor-linking"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-linking" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-advisor-metadata"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-metadata" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-policy"
@@ -1008,6 +1193,29 @@ requires-dist = [
     { name = "rank-bm25", specifier = ">=0.2.2" },
 ]
 provides-extras = ["anthropic"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
+
+[[package]]
+name = "data-director-agent-advisor-rights"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-rights" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
 
 [package.metadata.requires-dev]
 dev = [{ name = "data-director-harness", editable = "harness" }]

@@ -1,0 +1,111 @@
+# The input and payload classes of advisor.rights, owned by this package (ADR-0019). It imports the
+# core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-rights/src/dd_agent_advisor_rights/schema/rights.yaml` to
+# regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/rights
+name: dd_agent_advisor_rights
+title: advisor.rights classes
+description: >-
+  What a researcher says about a dataset that bears on its licence and access, and the Rights and
+  Licensing Adviser's options in reply.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  rights: https://w3id.org/data-director/agents/rights/
+  linkml: https://w3id.org/linkml/
+default_prefix: rights
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  RightsContext:
+    description: >-
+      What the researcher has said about the dataset that bears on its licence and access: the
+      reuse they want to allow, whether the data are sensitive, any licence they are required to
+      use, and whether the data include content from third parties.
+    slots:
+      - schema_class
+      - reuse_wanted
+      - sensitive
+      - mandated_licence
+      - third_party_content
+
+  RightsOptions:
+    description: >-
+      The payload of advisor.rights: licences and access levels for the researcher to choose
+      from, and the questions to answer first. It lists options and never chooses one.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - licences
+      - access_levels
+      - questions
+      - limitations
+
+  LicenceOption:
+    description: One licence the researcher could choose.
+    slots:
+      - spdx_id
+      - name
+      - url
+      - note
+
+  AccessOption:
+    description: One access level the researcher could set, and when it applies.
+    slots:
+      - level
+      - when
+
+slots:
+
+  reuse_wanted:
+    description: >-
+      The reuse the researcher wants to allow, e.g. any, attribution, share-alike or
+      non-commercial. Unknown if absent.
+  sensitive:
+    description: Whether the data hold personal or otherwise sensitive information. Unknown if absent.
+    range: boolean
+  mandated_licence:
+    description: >-
+      The SPDX identifier of a licence that a funder, journal or institution requires, if any.
+  third_party_content:
+    description: Whether the data include content whose rights belong to others. Unknown if absent.
+    range: boolean
+  licences:
+    range: LicenceOption
+    multivalued: true
+    inlined_as_list: true
+  access_levels:
+    range: AccessOption
+    multivalued: true
+    inlined_as_list: true
+  questions:
+    description: What the researcher must answer or confirm, with the people who can help.
+    multivalued: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true
+  spdx_id:
+    description: The licence's SPDX identifier.
+    required: true
+  name:
+    description: The licence's full name.
+    required: true
+  url:
+    description: Where the licence text is published.
+    required: true
+  note:
+    description: What the researcher should know about this licence, if anything.
+  level:
+    description: The access level, one of open, embargoed, restricted or closed.
+    required: true
+  when:
+    description: When this access level applies, as a fixed sentence.
+    required: true

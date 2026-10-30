@@ -1,0 +1,14 @@
+{
+  "schema_class": "DmpCommitments",
+  "dmp_identifier": "example-dmp-energy-001",
+  "committed_outputs": [
+    {"output": "Household energy survey responses", "repository": "UK Data Service", "access": "restricted", "licence": "UK Data Service End User Licence"},
+    {"output": "Smart-meter readings", "repository": "ORDA", "access": "open", "licence": "CC BY 4.0"},
+    {"output": "Interview transcripts", "repository": "UK Data Service", "access": "restricted"}
+  ],
+  "planned_outputs": [
+    {"output": "Household energy survey responses", "repository": "UK Data Service", "access": "restricted", "licence": "UK Data Service End User Licence"},
+    {"output": "smart-meter readings", "repository": "ORDA", "access": "restricted", "licence": "CC BY 4.0"},
+    {"output": "Analysis code", "repository": "GitHub", "access": "open", "licence": "MIT"}
+  ]
+}
