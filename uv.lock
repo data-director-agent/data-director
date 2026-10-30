@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1113,7 +1113,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-policy"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "agents/advisor-policy" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1145,7 +1145,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-quality"
-version = "0.1.1a0"
+version = "0.1.1a1"
 source = { editable = "agents/advisor-quality" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1168,7 +1168,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-repository"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "agents/advisor-repository" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1225,7 +1225,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-standards"
-version = "0.1.1a0"
+version = "0.1.1a1"
 source = { editable = "agents/advisor-standards" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1282,7 +1282,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-orchestrator-model"
-version = "0.1.1a0"
+version = "0.1.1a1"
 source = { editable = "agents/orchestrator-model" }
 dependencies = [
     { name = "anthropic" },
@@ -1311,7 +1311,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-orchestrator-stub"
-version = "0.1.1a0"
+version = "0.1.1a1"
 source = { editable = "agents/orchestrator-stub" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1342,7 +1342,7 @@ dev = [
 
 [[package]]
 name = "data-director-app"
-version = "0.3.0a3"
+version = "0.3.0a4"
 source = { editable = "app" }
 dependencies = [
     { name = "data-director-harness" },
@@ -1379,7 +1379,7 @@ dev = [
 
 [[package]]
 name = "data-director-harness"
-version = "0.2.0a0"
+version = "0.2.0a1"
 source = { editable = "harness" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -1427,7 +1427,7 @@ dev = [
 
 [[package]]
 name = "data-director-inventory"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "inventory" }
 dependencies = [
     { name = "frictionless" },
@@ -1450,7 +1450,7 @@ dev = [{ name = "data-director-sdk", editable = "sdk" }]
 
 [[package]]
 name = "data-director-sdk"
-version = "0.2.0a0"
+version = "0.2.0a1"
 source = { editable = "sdk" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -1473,7 +1473,7 @@ requires-dist = [
 
 [[package]]
 name = "data-director-workbench"
-version = "0.2.0a1"
+version = "0.2.0a2"
 source = { editable = "workbench" }
 dependencies = [
     { name = "ag-ui-protocol" },
@@ -1834,8 +1834,8 @@ name = "httpcore2"
 version = "2.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "h11", marker = "sys_platform != 'emscripten'" },
-    { name = "truststore", marker = "sys_platform != 'emscripten'" },
+    { name = "h11" },
+    { name = "truststore" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cb/f3/1db7aa2bc2524062192bb0e0323969492d1883152a232fe36eea65f4e35c/httpcore2-2.13.1.tar.gz", hash = "sha256:e0aa977abe17e69a3b820a24542a6fa88702676d83880b8d194dcd18408e5103", size = 68071, upload-time = "2026-09-23T07:47:22.372Z" }
 wheels = [
