@@ -67,7 +67,8 @@ credentials of its own (ADR-0017).
 
 These arrive with the agent that enforces them, and not before:
 
-- approved repositories, for repository recommendation (R1);
+- approved repositories, for repository recommendation (R1). What each repository requires is
+  not a key here but a repository profile of its own (ADR-0037); the approved list is #320;
 - accepted persistent identifier systems (R7);
 - which external registries agents may consult.
 
