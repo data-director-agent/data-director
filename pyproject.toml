@@ -178,6 +178,7 @@ mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/example-hello/src",
   "agents/advisor-quality/src", "agents/advisor-standards/src", "agents/advisor-repository/src", "agents/advisor-policy/src",
   "agents/advisor-ethics/src", "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "inventory/src",
+  "harness/tests",
 ]
 strict = true
 warn_unreachable = true

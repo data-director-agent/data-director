@@ -11,7 +11,8 @@ No `.env` file is read.
 
 `dd-harness project` keeps a project's record under `DD_PROJECTS_DIR` for the operator's
 principal (ADR-0034): `create`, `add-inventory` for a `FileInventory` that `dd-inventory` wrote,
-and `events`.
+`choose-repository` with the requirement sets under `DD_REPOSITORIES_DIR` (ADR-0038), and
+`events`.
 
 There is no authentication of callers yet (ADR-0018, #17, #43): every invocation acts for the
 operator's principal, whoever sent it. Do not expose this server beyond a trusted network.
@@ -31,6 +32,7 @@ from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.policy import PolicyError
 from dd_harness.projects import ProjectError, ProjectStore
 from dd_harness.registry import RegistryError
+from dd_harness.requirements import RequirementsError, load_requirements
 from dd_harness.settings import (
     Settings,
     SettingsError,
@@ -38,6 +40,7 @@ from dd_harness.settings import (
     build_conductor,
     principal_from_env,
     projects_dir,
+    repositories_dir,
 )
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
@@ -119,6 +122,21 @@ def cmd_project_add_inventory(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_project_choose_repository(args: argparse.Namespace) -> int:
+    store = ProjectStore(projects_dir())
+    resolved = load_requirements(repositories_dir()).resolve(args.re3data, args.name, args.standard)
+    digest = store.choose_repository(
+        args.project_id,
+        resolved,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="choose-repository"),
+    )
+    for warning in resolved.warnings:
+        sys.stderr.write(f"dd-harness: warning: {warning}\n")
+    sys.stdout.write(digest + "\n")
+    return 0
+
+
 def cmd_project_events(args: argparse.Namespace) -> int:
     for event in ProjectStore(projects_dir()).events(args.project_id):
         sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
@@ -147,6 +165,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project_id")
     p.add_argument("file", help="the inventory's JSON file")
     p.set_defaults(func=cmd_project_add_inventory)
+    p = project.add_parser(
+        "choose-repository",
+        help="record the repository chosen, and print the digest of its requirements",
+    )
+    p.add_argument("project_id")
+    p.add_argument("--re3data", required=True, help="the repository's re3data identifier")
+    p.add_argument("--name", required=True, help="the repository's name")
+    p.add_argument(
+        "--standard",
+        action="append",
+        default=[],
+        help="a metadata standard its re3data record declares, as re3data names it; repeatable",
+    )
+    p.set_defaults(func=cmd_project_choose_repository)
     p = project.add_parser("events", help="print the project's events, oldest first, as JSONL")
     p.add_argument("project_id")
     p.set_defaults(func=cmd_project_events)
@@ -156,7 +188,8 @@ def main(argv: list[str] | None = None) -> int:
         result: int = args.func(args)
     # No principal (ADR-0018), a path the deployment must name (ADR-0022), or a profile, agent
     # list or source list that is missing or malformed: nothing may be served. An unknown
-    # project, or an inventory its class schema refuses, changes nothing.
+    # project, an inventory its class schema refuses, or requirement sets that are malformed or
+    # contradict one another, change nothing.
     except (
         IdentityError,
         SettingsError,
@@ -164,6 +197,7 @@ def main(argv: list[str] | None = None) -> int:
         RegistryError,
         SourceConfigError,
         ProjectError,
+        RequirementsError,
     ) as exc:
         sys.exit(f"dd-harness: {exc}")
     return result
