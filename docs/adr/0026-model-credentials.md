@@ -87,8 +87,10 @@ that what leaves the institution be declared and controllable (#40).
    cassette with a sentinel key, and checks that the sentinel appears in no stored file and in
    no manifest.
 
-TODO(#40): a profile rule that refuses an agent's `models`, per data class, enforced by the
-conductor from the manifest before a run is sent.
+[ADR-0034](0034-project-and-its-files.md) decision 7 adds a profile rule for a project's files:
+the classes of project content that may go to an agent declaring a `hosted` model, enforced by the
+conductor from the manifest before a run is sent. The same rule for other data classes is
+TODO(#40).
 
 ## Dependencies introduced
 
