@@ -27,7 +27,17 @@ references:
   - type: report
     title: Data Director Agentic AI Tool Blueprint
     authors:
-      - name: Research Data Alliance
+      - family-names: Clare
+        given-names: Connie
+      - family-names: Earl
+        given-names: George
+      - family-names: Radotic
+        given-names: Trish
+      - family-names: Wright-Jones
+        given-names: Benjamin
+    publisher:
+      name: Research Data Alliance
+    year: 2026
     doi: 10.15497/RDA00157
   - type: report
     title: >-
