@@ -45,13 +45,11 @@ find out what happened or what was produced.
 
 ## Not yet decided
 
-- TODO(#202): a crate for the deliverable. The metadata a Data Director run produces for a dataset
-  could itself be packaged as an RO-Crate and checked with the RO-Crate validator (R4). Which
-  agent or component would write it, and how it would refer to the Process Run Crates of the
-  runs that produced it, are not settled.
-- TODO(#202): whether an agent whose payload describes a research object may return
-  `ro-crate-metadata.json` as that payload. It would travel inside an envelope, as any payload
-  does, and would not change the message format above.
+- The crate for the deliverable is decided by [ADR-0037](0037-repository-profile-and-deposit-package.md)
+  decision 5. The deposit package is itself an RO-Crate of the dataset. The harness writes it,
+  not an agent, and the package carries the Process Run Crate of each run behind an approved
+  document. No agent returns `ro-crate-metadata.json` as a payload. Checking the package with the
+  RO-Crate validator (R4) is TODO(#202).
 - TODO(#26): the Process Run Crate names the workbench's own files as the action's object and
   result, not the records the agent read or the metadata it changed. The evidence items
   (ADR-0015) are the obvious source for those entities.
