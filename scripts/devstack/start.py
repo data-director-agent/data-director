@@ -27,8 +27,10 @@ from devstack.common import (
     ensure_local_tree,
     has_key,
     load_agents,
+    omissions_note,
     port_free,
     prepare_web,
+    profile_omissions,
     workspace_env,
 )
 
@@ -123,6 +125,8 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
             f"No principal is set, so runs act for the example, {EXAMPLE_PRINCIPAL['DD_PRINCIPAL_NAME']}. "
             "Run `uv run scripts/dev.py setup` to give your own."
         )
+    if omitted := profile_omissions({**os.environ, **app}):
+        print(f"Note: {omissions_note(omitted)}.")
     agents = load_agents()
     ports = [a.port for a in agents] + (
         [] if agents_only else [APP_PORT] + ([WEB_PORT] if web else [])
