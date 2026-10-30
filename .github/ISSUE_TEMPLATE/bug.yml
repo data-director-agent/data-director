@@ -1,0 +1,29 @@
+name: Bug
+description: Something does not behave as documented or as intended.
+type: Bug
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: The smallest set of steps, inputs or commands that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Version or commit, operating system, and how you ran it.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Remove personal data and secrets before pasting.
+      render: text

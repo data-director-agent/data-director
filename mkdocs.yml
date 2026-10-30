@@ -50,6 +50,7 @@ nav:
       - Running an agent: user-guide/running-an-agent.md
       - Understanding outcomes: user-guide/outcomes.md
       - What is recorded: user-guide/records.md
+      - Giving feedback: user-guide/feedback.md
   - Operations:
       - operations/index.md
       - AI models: operations/ai-models.md
