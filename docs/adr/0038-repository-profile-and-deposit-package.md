@@ -1,4 +1,4 @@
-# ADR-0037: The repository profile and the deposit package
+# ADR-0038: The repository profile and the deposit package
 
 **Status:** Proposed
 **Date:** 2026-10-30
@@ -6,7 +6,8 @@
 Answers #197. Builds on [ADR-0005](0005-dataset-profile-and-validation.md),
 [ADR-0017](0017-policy-is-the-deployments.md),
 [ADR-0021](0021-ro-crate-is-a-record-not-a-message.md),
-[ADR-0034](0034-project-and-its-files.md) and [ADR-0035](0035-project-documents.md).
+[ADR-0034](0034-project-and-its-files.md), [ADR-0035](0035-project-documents.md) and
+[ADR-0036](0036-proposed-changes-and-approval.md).
 
 ## Context
 
@@ -24,7 +25,8 @@ Several decisions already constrain the answer:
 - **Documents are text with a schema.** A project document is a `Document` payload whose
   `conforms_to` names the schema it follows. Checking it against that schema is the validator's
   work, not the contract's (ADR-0035 decision 2). The package takes each document's latest
-  approved version (ADR-0035 decision 6). How a version is approved is #196's.
+  approved version (ADR-0035 decision 6). How a version is approved is decided by
+  [ADR-0036](0036-proposed-changes-and-approval.md).
 - **The validation format is fixed.** Structured validation output is a SHACL Validation Report,
   with a Frictionless report for tables. No bespoke report type is defined (ADR-0005).
 - **The crate for the deliverable was left open.** ADR-0021 decided that the Process Run Crate is a
