@@ -20,11 +20,12 @@ one of them, used for developing and testing agents
 | `grounding.py` | The grounding linter (ADR-0008, ADR-0012). |
 | `sources.py` | The source check against pinned copies (ADR-0016). |
 | `store.py`, `provenance.py`, `conversations.py` | The JSONL run store, Process Run Crates, and conversations derived from the store. |
+| `projects.py` | The project record: an append-only log per project that holds its file inventory ([`docs/projects.md`](docs/projects.md), ADR-0034). |
 | `registry.py`, `remote.py` | The agent registry and the A2A client for agents (ADR-0010, ADR-0011). |
 | `identity.py` | The authentication boundary that names whom an invocation acts for (ADR-0018). |
 | `settings.py` | Settings from the environment, and the factory that builds a conductor. |
 | `transport/a2a.py` | The A2A JSON-RPC endpoint that serves the conductor to other systems. |
-| `server.py` | `dd-harness serve`: the A2A endpoint and the agent card in one process, for deployments. |
+| `server.py` | `dd-harness serve`: the A2A endpoint and the agent card in one process, for deployments. `dd-harness project`: create a project, add an inventory, list its events. |
 
 ## Configuration belongs to the deployment
 
@@ -37,6 +38,7 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 | `DD_AGENTS_CONFIG` | The YAML list of agent base URLs. |
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against. |
 | `DD_RUNS_DIR` | Where runs are written. |
+| `DD_PROJECTS_DIR` | Where project records are kept. Only `dd-harness project` needs it so far. |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for on a server that signs no one in, and for callers with no request (the CLI, the evaluation). Recorded as `asserted`. |
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider (for example `https://orcid.org`) and the client ID its ID tokens are issued to. Set, every HTTP caller must send one of its ID tokens, and is recorded as `authenticated` (ADR-0029). It cannot be set beside `DD_PRINCIPAL_ID`. |
 

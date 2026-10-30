@@ -69,6 +69,44 @@ def _path(variable: str, default: Path | None) -> Path:
     return default
 
 
+def projects_dir(default: Path | None = None) -> Path:
+    """Where project records are kept: `DD_PROJECTS_DIR`, which has no default (ADR-0034)."""
+    return _path("DD_PROJECTS_DIR", default)
+
+
+def named_principal(
+    principal_id: str | None, principal_name: str | None, principal_kind: str
+) -> Principal:
+    """The principal the operator names. Raises `IdentityError` if it is unset or malformed."""
+    missing = [
+        var
+        for var, value in (("DD_PRINCIPAL_ID", principal_id), ("DD_PRINCIPAL_NAME", principal_name))
+        if not value
+    ]
+    if missing:
+        raise IdentityError(
+            f"{' and '.join(missing)} unset: every invocation acts for a named human "
+            "(Blueprint §5.4, ADR-0018); see env.example"
+        )
+    try:
+        return Principal(
+            principal_id=str(principal_id),
+            name=str(principal_name),
+            principal_kind=PrincipalKind(principal_kind),
+        )
+    except ValueError as exc:  # pydantic's ValidationError is a ValueError
+        raise IdentityError(f"the configured principal is malformed: {exc}") from exc
+
+
+def principal_from_env() -> Principal:
+    """The operator's principal from `DD_PRINCIPAL_*`, for a caller with no other settings."""
+    return named_principal(
+        os.environ.get("DD_PRINCIPAL_ID") or None,
+        os.environ.get("DD_PRINCIPAL_NAME") or None,
+        os.environ.get("DD_PRINCIPAL_KIND") or PrincipalKind.PERSON.value,
+    )
+
+
 @dataclass(frozen=True)
 class Settings:
     runs_dir: Path
@@ -94,27 +132,7 @@ class Settings:
 
     def principal(self) -> Principal:
         """The configured principal. Raises `IdentityError` if it is unset or malformed."""
-        missing = [
-            var
-            for var, value in (
-                ("DD_PRINCIPAL_ID", self.principal_id),
-                ("DD_PRINCIPAL_NAME", self.principal_name),
-            )
-            if not value
-        ]
-        if missing:
-            raise IdentityError(
-                f"{' and '.join(missing)} unset: every invocation acts for a named human "
-                "(Blueprint §5.4, ADR-0018); see env.example"
-            )
-        try:
-            return Principal(
-                principal_id=str(self.principal_id),
-                name=str(self.principal_name),
-                principal_kind=PrincipalKind(self.principal_kind),
-            )
-        except ValueError as exc:  # pydantic's ValidationError is a ValueError
-            raise IdentityError(f"the configured principal is malformed: {exc}") from exc
+        return named_principal(self.principal_id, self.principal_name, self.principal_kind)
 
     @classmethod
     def from_env(

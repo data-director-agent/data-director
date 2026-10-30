@@ -184,7 +184,9 @@ added, a document uploaded, a repository chosen) and any uploaded documentation,
 It holds an inventory of the research data files, made where the data live, never the files
 themselves. Which project content may go to an agent that calls a hosted model is the profile's
 decision ([ADR-0034](adr/0034-project-and-its-files.md)). The inventory is made by
-[`dd-inventory`](../inventory/README.md); the project store is not built yet (#198).
+[`dd-inventory`](../inventory/README.md) and kept in the project store
+([projects](../harness/docs/projects.md)); giving agents the project's facts is not built yet
+(#394).
 
 A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
 When a run in a project returns one, the conductor adds it to the log as a new version. A
