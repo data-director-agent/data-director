@@ -11,7 +11,7 @@
       "action_class": "advise",
       "agent_id": "advisor.quality",
       "assigned_action_class": "advise",
-      "contract_version": "0.9.0",
+      "contract_version": "0.9.1",
       "derivations": {
         "findings.message": {
           "how": "lexical",
@@ -240,7 +240,7 @@
       "action_class": "advise",
       "agent_id": "advisor.standards",
       "assigned_action_class": "advise",
-      "contract_version": "0.9.0",
+      "contract_version": "0.9.1",
       "derivations": {
         "items.kind": {
           "how": "lexical",
@@ -562,7 +562,7 @@
       "action_class": "advise",
       "agent_id": "example.hello",
       "assigned_action_class": "advise",
-      "contract_version": "0.9.0",
+      "contract_version": "0.9.1",
       "derivations": {
         "greeting_text": {
           "how": "template",
@@ -697,7 +697,7 @@
       "action_class": "advise",
       "agent_id": "stub.abstain",
       "assigned_action_class": "advise",
-      "contract_version": "0.9.0",
+      "contract_version": "0.9.1",
       "derivations": {},
       "description": "Abstains unconditionally; exercises the non-success path.",
       "grounding_mode": "none",
@@ -804,9 +804,9 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "dec510a2fd5210d5c65ef46e60e086279ebe63d93b37ea03316fc0f8c8dbeb5e",
+    "digest": "10648fba894881f48d5fab42b8e6ee06031adfbfade7dfbb0ca06b95e40296e8",
     "orchestrator": null,
-    "ref": "profile:test-permissive@v7"
+    "ref": "profile:test-permissive@v8"
   },
   "unavailable": {}
 }

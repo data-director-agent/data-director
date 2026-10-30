@@ -97,6 +97,12 @@ Each payload class is specific to an agent: `Recommendations`, `QualityReview`,
 Each entry in that list names a source by its identifier and content hash. This is the only
 place a payload may assert which sources it relies on. The grounding linter checks each entry.
 
+Two payload classes belong to the core, because the harness and the app read them without
+knowing the agent: `Reply`, below, and `Document`, a project document such as a metadata record,
+a README or a data dictionary. A `Document` gives its `document_kind`, its `media_type` and its
+`document_text`, and names the version it `revises` when an agent regenerates it
+([ADR-0035](adr/0035-project-documents.md)).
+
 ## Conversations
 
 A conversation is a sequence of runs that share a `conversation_id`. Each turn is one ordinary

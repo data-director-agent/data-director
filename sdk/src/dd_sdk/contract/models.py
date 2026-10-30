@@ -67,6 +67,14 @@ class Derivation(StrEnum):
     REGISTRY = "registry"
 
 
+class DocumentKind(StrEnum):
+    METADATA_RECORD = "metadata_record"
+    README = "readme"
+    DATA_DICTIONARY = "data_dictionary"
+    DMP = "dmp"
+    OTHER = "other"
+
+
 class EnergyMethod(StrEnum):
     NOT_MEASURED = "not_measured"
     ESTIMATED = "estimated"
@@ -212,7 +220,8 @@ AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_p
 
 # --- Payloads -------------------------------------------------------------------------------
 # Every payload class carries `schema_class` and mixes in Grounded. The core defines only the
-# conversation's Reply; every other payload class belongs to its agent (ADR-0019).
+# conversation's Reply and the project's Document; every other payload class belongs to its agent
+# (ADR-0019, ADR-0035).
 
 
 class Reply(Grounded):
@@ -221,6 +230,26 @@ class Reply(Grounded):
     schema_class: Literal["Reply"] = "Reply"
     reply_text: str
     reply_derivation: Derivation
+
+
+class DocumentVersionRef(Frozen):
+    """One version of a project document, numbered from 1 within it (ADR-0035)."""
+
+    document_id: str = Field(pattern=UUID7_PATTERN)
+    version: int = Field(ge=1)  # not in the schema (#333)
+
+
+class Document(Grounded):
+    """A project document an agent drafts or regenerates, as text (ADR-0035)."""
+
+    schema_class: Literal["Document"] = "Document"
+    document_kind: DocumentKind
+    document_title: str | None = None
+    media_type: str
+    conforms_to: str | None = None
+    document_text: str
+    document_derivation: Derivation
+    revises: DocumentVersionRef | None = None
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

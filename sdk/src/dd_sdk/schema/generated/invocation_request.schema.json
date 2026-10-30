@@ -106,6 +106,110 @@
          "title": "Derivation",
          "type": "string"
       },
+      "Document": {
+         "additionalProperties": false,
+         "description": "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (ADR-0035). The only payload class that becomes a project document.",
+         "properties": {
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "Document"
+               ],
+               "type": "string"
+            },
+            "document_kind": {
+               "$ref": "#/$defs/DocumentKind"
+            },
+            "document_title": {
+               "description": "A short name a person can tell documents apart by, such as README for raw/.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "conforms_to": {
+               "description": "The schema or profile document_text follows, such as a repository's metadata schema.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            },
+            "document_derivation": {
+               "$ref": "#/$defs/Derivation",
+               "description": "How document_text came about."
+            },
+            "revises": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/DocumentVersionRef"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The version this document replaces, when an agent regenerates it. Absent for a new document, for which the conductor mints a document_id."
+            },
+            "grounded_on": {
+               "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+               "items": {
+                  "$ref": "#/$defs/GroundingRef"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "schema_class",
+            "document_kind",
+            "media_type",
+            "document_text",
+            "document_derivation",
+            "grounded_on"
+         ],
+         "title": "Document",
+         "type": "object"
+      },
+      "DocumentKind": {
+         "description": "What a project document is for (ADR-0035).",
+         "enum": [
+            "metadata_record",
+            "readme",
+            "data_dictionary",
+            "dmp",
+            "other"
+         ],
+         "title": "DocumentKind",
+         "type": "string"
+      },
+      "DocumentVersionRef": {
+         "additionalProperties": false,
+         "description": "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1.",
+         "properties": {
+            "document_id": {
+               "description": "The identifier the conductor minted for the document, a UUIDv7.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "version": {
+               "description": "The number of a version within its document, counted from 1.",
+               "type": "integer"
+            }
+         },
+         "required": [
+            "document_id",
+            "version"
+         ],
+         "title": "DocumentVersionRef",
+         "type": "object"
+      },
       "EnergyMethod": {
          "description": "",
          "enum": [
@@ -858,5 +962,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.0"
+   "version": "0.9.1"
 }

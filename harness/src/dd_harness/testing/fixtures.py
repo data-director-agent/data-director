@@ -8,8 +8,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from dd_harness.testing.classes import ProbeClaim, ProbeProfile, ProbeRecord
-from dd_sdk.contract.models import Frozen, InvocationRequest, Message, Principal
+from dd_harness.testing.classes import (
+    ProbeClaim,
+    ProbeDocumentRequest,
+    ProbeProfile,
+    ProbeRecord,
+)
+from dd_sdk.contract.models import DocumentKind, Frozen, InvocationRequest, Message, Principal
 
 PROFILES_DIR = Path(__file__).resolve().parent / "profiles"
 PERMISSIVE = PROFILES_DIR / "test-permissive.yaml"
@@ -41,6 +46,10 @@ def claim() -> ProbeClaim:
 
 def profile() -> ProbeProfile:
     return ProbeProfile(title="Soil chemistry survey")
+
+
+def document_request(kind: DocumentKind = DocumentKind.README) -> ProbeDocumentRequest:
+    return ProbeDocumentRequest(document_kind=kind)
 
 
 def request(agent_id: str, input: Frozen | None = None) -> InvocationRequest:

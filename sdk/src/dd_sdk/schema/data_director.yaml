@@ -12,7 +12,7 @@ description: >-
   schema_class (ADR-0007); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.0
+version: 0.9.1
 license: MIT
 
 prefixes:
@@ -233,6 +233,31 @@ classes:
       - schema_class
       - reply_text
       - reply_derivation
+
+  Document:
+    description: >-
+      The payload of an agent that drafts or regenerates a project document: a metadata record, a
+      README, a data dictionary or another document, as text (ADR-0035). The only payload class
+      that becomes a project document.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - document_kind
+      - document_title
+      - media_type
+      - conforms_to
+      - document_text
+      - document_derivation
+      - revises
+
+  DocumentVersionRef:
+    description: >-
+      One version of a project document: the document the conductor minted an identifier for, and
+      the version's number within it, counted from 1.
+    slots:
+      - document_id
+      - version
 
   EvidenceItem:
     description: >-
@@ -477,6 +502,44 @@ slots:
     description: How reply_text came about. template for a rule-based agent, model for a model.
     range: Derivation
     required: true
+  document_kind:
+    range: DocumentKind
+    required: true
+  document_title:
+    description: A short name a person can tell documents apart by, such as README for raw/.
+    slot_uri: dcterms:title
+  media_type:
+    description: The media type of document_text, such as text/markdown or application/json.
+    slot_uri: dcterms:format
+    required: true
+  conforms_to:
+    description: The schema or profile document_text follows, such as a repository's metadata schema.
+    slot_uri: dcterms:conformsTo
+    range: uri
+  document_text:
+    description: The content of the document, as text; a structured record is serialised.
+    required: true
+  document_derivation:
+    description: How document_text came about.
+    range: Derivation
+    required: true
+  revises:
+    description: >-
+      The version this document replaces, when an agent regenerates it. Absent for a new document,
+      for which the conductor mints a document_id.
+    slot_uri: prov:wasRevisionOf
+    range: DocumentVersionRef
+    inlined: true
+  document_id:
+    description: The identifier the conductor minted for the document, a UUIDv7.
+    required: true
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  version:
+    # No minimum_value: a card's schemas cross A2A as a protobuf Struct, which turns the bound
+    # into a double and breaks the schema's digest (#333).
+    description: The number of a version within its document, counted from 1.
+    range: integer
+    required: true
 
   name:
     required: true
@@ -571,6 +634,20 @@ enums:
         description: Produced by a keyword rule over retrieved fields.
       registry:
         description: Read directly from a curated registry field.
+
+  DocumentKind:
+    description: What a project document is for (ADR-0035).
+    permissible_values:
+      metadata_record:
+        description: A record of the dataset in a repository's metadata schema.
+      readme:
+        description: A README for the dataset or one of its folders.
+      data_dictionary:
+        description: The fields of the dataset's tables and what each means.
+      dmp:
+        description: A data management plan.
+      other:
+        description: Any other documentation of the dataset.
 
   GroundingMode:
     description: >-
