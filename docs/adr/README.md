@@ -32,10 +32,3 @@ issue.
 A record is not rewritten after it is accepted. A later decision that changes it says so in its
 own status line (`Accepted (amends ADR-0003)`), and the earlier record gains a matching note
 (`amended by ADR-0017`) or, if replaced outright, the status **Superseded by ADR-NNNN**.
-
-## Numbering
-
-Numbers are not reused. Two records share 0016, from before this rule was written; cite either by
-its file name. `scripts/check_adr_numbers.py` enforces this in CI and allows only that pair.
-ADR-0025, the oversight extension on agent cards, is cited in the code but not yet
-written, TODO(#67).
