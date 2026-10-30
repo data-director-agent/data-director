@@ -349,7 +349,7 @@ test("the workspace at 1280px: phases, conversation and the project's documents 
   const first = phases.locator("summary").first();
   await first.focus();
   await page.keyboard.press("Enter");
-  await expect(phases.getByRole("link", { name: "advisor.standards" }).first()).toBeVisible();
+  await expect(phases.getByRole("link", { name: "Standards Librarian" }).first()).toBeVisible();
 
   // An open run sits inside its card in the transcript, and the documents stay beside it.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
