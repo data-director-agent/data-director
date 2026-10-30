@@ -1,5 +1,5 @@
 # The repository profile of ORDA, the University of Sheffield's research data repository
-# (ADR-0037). It says what a deposit to ORDA requires, so that the harness can check a project
+# (ADR-0038). It says what a deposit to ORDA requires, so that the harness can check a project
 # against it and a drafter knows what to write. Keys are as in README.md beside this file.
 # Taken from public pages only (listed under `guidance`); what they leave open is TODO(#385).
 repository_id: orda
