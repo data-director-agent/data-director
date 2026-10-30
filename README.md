@@ -9,6 +9,13 @@ The Data Director is an agentic AI tool for research data stewardship. It helps 
 
 This is proposed _reference implementation_ for the [Data Director Agentic AI Blueprint](https://doi.org/10.15497/RDA00157) developed under the coordination of the [Research Data Alliance Data Director Working Group](https://www.rd-alliance.org/groups/data-director-agentic-ai-blueprint/activity/). The Blueprint followed an RDA community consultation, reported in [Global Community Priorities for Agentic AI in Research. Community Consultation Results](https://doi.org/10.15497/RDA00151).
 
+> [!NOTE]
+> Please read [the **documentation**](https://data-director-agent.github.io/data-director/):
+> - [**User Guide**](https://data-director-agent.github.io/data-director/user-guide/) is for researchers and data stewards using the Data Director app.
+> - [**Operations Guide**](https://data-director-agent.github.io/data-director/operations/) is for system administrators running the system.
+> - [**Developer Guide**](https://data-director-agent.github.io/data-director/developer-guide/) is for those working on the agents or developing the software in this repository.
+> - [**Data Director Blueprint**](https://data-director-agent.github.io/data-director/docs/blueprint/) is a web-based version of the Data Director Agentic AI Tool Blueprint.
+
 ## Overview
 
 [![Towards a Data Director reference implementation — video](https://cdnapisec.kaltura.com/p/2103181/sp/210318100/thumbnail/entry_id/1_f0c1kkwg/width/640)](https://digitalmedia.sheffield.ac.uk/media/Towards+a+Data+Director+reference+implementation/1_f0c1kkwg)
