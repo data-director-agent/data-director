@@ -140,7 +140,7 @@ and affiliation if you have them:
 It matches the email address of each commit's author, and of each `Co-authored-by:` trailer,
 against `email`, or the name against `given-names` and `family-names`. If you commit under
 several names or addresses, add a line to [`.mailmap`](./.mailmap) that maps them to the one in
-the citation file. Bots and AI assistants are not cited. Run it locally in a full clone:
+the citation file. Bots and AI assistants are not cited; the project's [AI usage statement](https://github.com/data-director-agent/.github/blob/main/AI_USAGE.md) discloses their use instead. Run it locally in a full clone:
 
 ```sh
 uv run scripts/check_citation.py
