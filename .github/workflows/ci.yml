@@ -337,6 +337,8 @@ jobs:
       - run: uv run --python 3.14 scripts/check_citation.py
       # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
+      # No two decision records share a number (docs/adr/README.md, Numbering).
+      - run: uv run --no-project --python 3.14 scripts/check_adr_numbers.py
       # Each workspace member imports only what it declares and reads only its own files
       # (ADR-0031).
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
