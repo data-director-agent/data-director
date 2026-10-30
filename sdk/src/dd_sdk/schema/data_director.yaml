@@ -12,7 +12,7 @@ description: >-
   schema_class (ADR-0007); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.10.0
+version: 0.9.1
 license: MIT
 
 prefixes:
