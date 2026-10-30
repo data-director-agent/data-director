@@ -12,6 +12,10 @@ authors:
     email: j.heffer@sheffield.ac.uk
     affiliation: University of Sheffield
     orcid: 'https://orcid.org/0000-0001-8733-1117'
+  - given-names: Raymond
+    family-names: Uzwyshyn
+    affiliation: 'University of California, Riverside'
+    orcid: 'https://orcid.org/0009-0002-3697-8548'
 repository-code: 'https://github.com/data-director-agent/data-director/'
 license: MIT
 keywords:
