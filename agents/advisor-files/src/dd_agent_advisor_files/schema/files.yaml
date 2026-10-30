@@ -1,5 +1,5 @@
-# The input and payload classes of advisor.files, owned by this package (ADR-0019). It imports the
-# core contract as `data_director`. After an edit, run
+# The payload class of advisor.files, owned by this package (ADR-0019). It imports the core
+# contract as `data_director`, whose FileInventory is the agent's input. After an edit, run
 # `uv run dd-gen-schema agents/advisor-files/src/dd_agent_advisor_files/schema/files.yaml` to
 # regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
 # drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
@@ -7,9 +7,9 @@ id: https://w3id.org/data-director/agents/files
 name: dd_agent_advisor_files
 title: advisor.files classes
 description: >-
-  The files a researcher lists for a dataset, and the File Archivist's inventory of their formats
-  in reply.
-version: 0.1.0
+  The File Archivist's assessment, in reply to a project's file inventory, of whether each file's
+  format is open.
+version: 0.2.0
 license: MIT
 
 prefixes:
@@ -24,70 +24,63 @@ imports:
 
 classes:
 
-  FileList:
+  FormatAssessment:
     description: >-
-      The files of a dataset as the researcher lists them: names and, when known, sizes and media
-      types. The files themselves are not sent.
-    slots:
-      - schema_class
-      - files
-
-  FileEntry:
-    description: One file as the researcher lists it.
-    slots:
-      - name
-      - size_bytes
-      - media_type
-
-  FileInventory:
-    description: >-
-      The payload of advisor.files: each listed file with the format its extension suggests, and
-      whether that format is open. It identifies nothing from the files' content.
+      The payload of advisor.files: each file of the inventory with the format it is judged to
+      be, and whether that format is open. It judges from the inventory alone and reads no file.
     mixins:
       - Grounded
     slots:
       - schema_class
-      - entries
+      - assessments
       - limitations
 
-  InventoryEntry:
-    description: One listed file and the format its extension suggests.
+  FileAssessment:
+    description: One file of the inventory and the format it is judged to be.
     slots:
-      - name
+      - path
       - extension
       - format_name
       - media_type
       - open_format
+      - judged_by
 
 slots:
 
-  files:
-    description: The files of the dataset.
-    range: FileEntry
+  assessments:
+    range: FileAssessment
     multivalued: true
     inlined_as_list: true
-  name:
-    description: The file's name or path, as given.
+  path:
+    description: The file's path in the inventory (file_path).
     required: true
-  size_bytes:
-    description: The file's size in bytes, when known.
-    range: integer
-  media_type:
-    description: The file's media type (MIME type), when known.
-  entries:
-    range: InventoryEntry
-    multivalued: true
-    inlined_as_list: true
   extension:
     description: The file name's last extension, lower case and without the dot; empty if none.
     required: true
   format_name:
-    description: The format the extension suggests, from formats.yaml, or unknown.
+    description: The format the file is judged to be, from formats.yaml, or unknown.
     required: true
+  media_type:
+    description: The format's media type, from the inventory if it gave one, else from formats.yaml.
   open_format:
     description: Whether formats.yaml records the format as open. False for an unknown format.
     range: boolean
     required: true
+  judged_by:
+    description: What the judgement rests on.
+    range: JudgedBy
+    required: true
   limitations:
     description: What this mock does not yet do.
     multivalued: true
+
+enums:
+
+  JudgedBy:
+    permissible_values:
+      media_type:
+        description: The media type the inventory gives, which fido may have read from content.
+      extension:
+        description: The file name's extension; the inventory's media type was absent or unknown.
+      nothing:
+        description: Neither the media type nor the extension is in formats.yaml.

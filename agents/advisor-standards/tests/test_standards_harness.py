@@ -14,11 +14,10 @@ from dd_agent_advisor_standards.classes import (
     DatasetProfile,
     RecommendationKind,
     Recommendations,
-    TableField,
 )
 from dd_harness import grounding
 from dd_harness.testing import TEST_PRINCIPAL
-from dd_sdk.contract.models import InvocationRequest, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import InvocationRequest, OutcomeStatus, ReasonCode, TableField
 from dd_sdk.evidence import verify
 from dd_sdk.tracing import records_from_jsonl
 
