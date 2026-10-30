@@ -56,6 +56,7 @@ def _present(value: Any) -> bool:
 class QualityReviewer:
     spec = AgentSpec(
         agent_id="advisor.quality",
+        title="Metadata Reviewer",
         version="0.1.0",
         description="Scores the completeness of a metadata record against fixed criteria.",
         action_class="advise",

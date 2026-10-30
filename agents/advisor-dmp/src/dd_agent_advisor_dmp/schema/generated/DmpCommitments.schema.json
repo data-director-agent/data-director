@@ -1,0 +1,86 @@
+{
+   "$comment": "Generated from dmp.yaml by `uv run dd-gen-schema <path to dmp.yaml>`. Do not edit.",
+   "$defs": {
+      "SharingCommitment": {
+         "additionalProperties": false,
+         "description": "One output to be shared, with where, how openly and under what licence.",
+         "properties": {
+            "output": {
+               "description": "The output, by name, such as a dataset or software.",
+               "type": "string"
+            },
+            "repository": {
+               "description": "The repository the output is or will be deposited in.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "access": {
+               "description": "How openly the output is shared, e.g. open, restricted or closed.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "licence": {
+               "description": "The licence the output is shared under.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "output"
+         ],
+         "title": "SharingCommitment",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/dmp/DmpCommitments",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The outputs a data management plan committed to share, and the outputs the researcher plans to share at publication.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "DmpCommitments"
+         ],
+         "type": "string"
+      },
+      "dmp_identifier": {
+         "description": "The data management plan's identifier, such as a DOI, if it has one.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "committed_outputs": {
+         "description": "What the data management plan committed to share.",
+         "items": {
+            "$ref": "#/$defs/SharingCommitment"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "planned_outputs": {
+         "description": "What the researcher now plans to share at publication.",
+         "items": {
+            "$ref": "#/$defs/SharingCommitment"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "DmpCommitments",
+   "type": "object"
+}

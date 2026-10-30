@@ -1,0 +1,41 @@
+# advisor.metadata's whole rule table: for each metadata standard it drafts, the names it answers
+# to and its properties, in order, each with the input field that fills it (`from`), or null when
+# only the researcher can supply it. Names are matched with case, spaces, hyphens and underscores
+# ignored. The first standard is the default. A mock's table (ADR-0033): it covers a handful of
+# properties of three standards, and the real librarian replaces it, TODO(#357).
+DataCite:
+  aliases: [datacite, datacite metadata schema]
+  # The six mandatory properties, then two recommended ones the input can fill.
+  properties:
+    - {name: Identifier, from: null}
+    - {name: Creator, from: creators}
+    - {name: Title, from: title}
+    - {name: Publisher, from: null}
+    - {name: PublicationYear, from: publication_year}
+    - {name: ResourceType, from: null}
+    - {name: Subject, from: keywords}
+    - {name: Description, from: description}
+Dublin Core:
+  aliases: [dublin core, dc, dcmes, dublin core metadata element set]
+  # A subset of the fifteen core elements.
+  properties:
+    - {name: identifier, from: null}
+    - {name: title, from: title}
+    - {name: creator, from: creators}
+    - {name: subject, from: keywords}
+    - {name: description, from: description}
+    - {name: publisher, from: null}
+    - {name: date, from: publication_year}
+    - {name: type, from: null}
+    - {name: rights, from: null}
+DDI-Codebook:
+  aliases: [ddi, ddi codebook, ddi-c, ddi 2.5]
+  # A minimal study description: the elements of stdyDscr a citation needs.
+  properties:
+    - {name: titl, from: title}
+    - {name: IDNo, from: null}
+    - {name: AuthEnty, from: creators}
+    - {name: producer, from: null}
+    - {name: prodDate, from: publication_year}
+    - {name: keyword, from: keywords}
+    - {name: abstract, from: description}

@@ -51,6 +51,7 @@ from dd_sdk.tracing import retrieval_span
 class StandardsAgent:
     spec = AgentSpec(
         agent_id="advisor.standards",
+        title="Standards Librarian",
         version="0.2.0",
         description=(
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "

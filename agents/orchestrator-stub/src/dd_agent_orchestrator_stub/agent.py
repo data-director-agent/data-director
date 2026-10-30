@@ -152,6 +152,7 @@ def route(text: str, rules: list[Rule]) -> Route | str:
 class DirectorStub:
     spec = AgentSpec(
         agent_id="orchestrator.stub",
+        title="Data Director",
         version="0.1.0",
         description=(
             "A rule-based stand-in for the Data Director orchestrator. Routes each message to "
@@ -241,6 +242,13 @@ class DirectorStub:
 
     def _plan_text(self, start: Entry, manifest: list[dict[str, Any]]) -> str:
         examples = {r.agent_id: r.example for r in self.rules}
+        # The persona's title where its card gives one (ADR-0033), with the id to @-mention it by.
+        names = {
+            str(e.get("agent_id")): f"{e['title']} ({e.get('agent_id')})"
+            if e.get("title")
+            else str(e.get("agent_id"))
+            for e in manifest
+        }
         lines = [f"Entry point {start.number}: {start.text}. The steps from here:"]
         phase = None
         for planned in plan(start, manifest):
@@ -252,7 +260,9 @@ class DirectorStub:
             requirements = ", ".join(step.requirements) or "no Blueprint requirement"
             if planned.agent_ids:
                 asks = "; ".join(
-                    f"{a}, for example {examples[a]!r}" if a in examples else a
+                    f"{names.get(a, a)}, for example {examples[a]!r}"
+                    if a in examples
+                    else names.get(a, a)
                     for a in planned.agent_ids
                 )
                 lines.append(f"- {label} ({requirements}): {asks}.")

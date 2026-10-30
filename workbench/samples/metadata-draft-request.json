@@ -1,0 +1,9 @@
+{
+  "schema_class": "MetadataDraftRequest",
+  "title": "Household energy use in Sheffield, 2025",
+  "description": "Daily smart-meter readings and survey responses from 40 households in Sheffield.",
+  "creators": ["Smith, Alex", "University of Sheffield"],
+  "keywords": ["energy use", "smart meters", "households"],
+  "publication_year": 2026,
+  "target_standard": "DataCite"
+}

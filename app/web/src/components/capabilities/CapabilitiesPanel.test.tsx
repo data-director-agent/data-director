@@ -28,7 +28,7 @@ describe("CapabilitiesPanel", () => {
 
   it("names the agent in a heading and shows what it takes and returns", () => {
     render(<CapabilitiesPanel agent={agent("advisor.quality")} />);
-    expect(screen.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer advisor.quality" })).toBeVisible();
     expect(screen.getByText("metadata record")).toBeVisible();
     expect(screen.getByText("quality review")).toBeVisible();
   });
@@ -118,16 +118,16 @@ describe("AgentDirectory", () => {
   it("selects an agent from the keyboard and shows its panel", async () => {
     const user = userEvent.setup();
     render(<AgentDirectory directory={directory} />);
-    expect(screen.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer advisor.quality" })).toBeVisible();
 
     await user.tab();
-    expect(screen.getByRole("option", { name: /^advisor\.quality/ })).toHaveFocus();
+    expect(screen.getByRole("option", { name: /^Metadata Reviewer/ })).toHaveFocus();
     await user.keyboard("{ArrowDown}");
-    expect(screen.getByRole("option", { name: /^advisor\.standards/ })).toHaveAttribute(
+    expect(screen.getByRole("option", { name: /^Standards Librarian/ })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { level: 2, name: "advisor.standards" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Standards Librarian advisor.standards" })).toBeVisible();
   });
 
   it("lists agents that could not be registered", async () => {
@@ -158,7 +158,7 @@ describe("App", () => {
     );
     // The reference set has no orchestrator, so the home page points to the directory.
     await userEvent.click(await screen.findByRole("link", { name: "Open the agent directory" }));
-    expect(await screen.findByRole("heading", { name: "advisor.standards" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Standards Librarian advisor.standards" })).toBeVisible();
     expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });

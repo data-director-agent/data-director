@@ -9,7 +9,7 @@ import "./AgentDirectory.css";
 import { useState } from "react";
 import { ListBox, ListBoxItem, type Selection } from "react-aria-components";
 
-import type { Directory } from "../../manifest/normalise";
+import { agentName, type Directory } from "../../manifest/normalise";
 import { AgentDetail } from "../agent/AgentDetail";
 import { ModelTag } from "./ModelDisclosure";
 
@@ -45,7 +45,8 @@ export function AgentDirectory({
               }}
             >
               {(a) => (
-                <ListBoxItem id={a.id} textValue={a.id} className="agent-option">
+                <ListBoxItem id={a.id} textValue={agentName(a)} className="agent-option">
+                  {a.title && <span className="agent-option-title">{a.title}</span>}
                   <span className="agent-option-id">{a.id}</span>
                   <br />
                   <ModelTag agent={a} />

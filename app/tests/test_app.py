@@ -111,6 +111,14 @@ def test_the_reference_set_lists_and_enables_every_in_tree_agent():
         ("advisor-standards", "http://127.0.0.1:8105"),
         ("advisor-policy", "http://127.0.0.1:8108"),
         ("advisor-repository", "http://127.0.0.1:8109"),
+        ("advisor-ethics", "http://127.0.0.1:8111"),
+        ("advisor-files", "http://127.0.0.1:8110"),
+        ("advisor-dmp", "http://127.0.0.1:8112"),
+        ("advisor-metadata", "http://127.0.0.1:8113"),
+        ("advisor-documentation", "http://127.0.0.1:8114"),
+        ("advisor-rights", "http://127.0.0.1:8115"),
+        ("advisor-linking", "http://127.0.0.1:8116"),
+        ("advisor-fairness", "http://127.0.0.1:8117"),
         ("orchestrator-stub", "http://127.0.0.1:8106"),
         ("orchestrator-model", "http://127.0.0.1:8107"),
     ]
@@ -120,6 +128,14 @@ def test_the_reference_set_lists_and_enables_every_in_tree_agent():
         "advisor.repository",
         "example.hello",
         "advisor.quality",
+        "advisor.ethics",
+        "advisor.files",
+        "advisor.dmp",
+        "advisor.metadata",
+        "advisor.documentation",
+        "advisor.rights",
+        "advisor.linking",
+        "advisor.fairness",
         "orchestrator.stub",
         "orchestrator.model",
     )
@@ -150,7 +166,7 @@ def test_api_agents_gives_each_manifest_beside_what_the_profile_assigns(
     assert standards["requires_approval"] is False
     assert standards["grounding_mode"] == "retrieval"
     assert body["unavailable"] == {} and body["incompatible"] == {}
-    assert body["profile"]["ref"] == "profile:data-director-app@v6"
+    assert body["profile"]["ref"] == "profile:data-director-app@v7"
     assert body["profile"]["orchestrator"] == "orchestrator.stub"
     assert body["acting_for"] == {"name": TEST_PRINCIPAL.name, "assurance": "asserted"}
 

@@ -33,7 +33,13 @@ export function CapabilitiesPanel({ agent, embedded = false }: { agent: AgentVie
       {!embedded && (
         <>
           <h2 id={headingId}>
-            <code>{agent.id}</code>
+            {agent.title ? (
+              <>
+                {agent.title} <code>{agent.id}</code>
+              </>
+            ) : (
+              <code>{agent.id}</code>
+            )}
           </h2>
           <p>{agent.description}</p>
         </>

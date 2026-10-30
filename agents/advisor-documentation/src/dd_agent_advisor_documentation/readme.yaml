@@ -1,0 +1,17 @@
+# advisor.documentation's whole rule table: the draft README's sections, in order. `from` names the
+# DocumentationRequest slot a section is drafted from, by copying it (a list becomes one line per
+# item); a section without `from`, or whose slot is empty, is left for the researcher. A mock's
+# table (ADR-0033): it writes no prose of its own, and the real editor replaces it, TODO(#358).
+- heading: Title
+  from: title
+- heading: Description
+  from: description
+- heading: Creators
+  from: creators
+- heading: Files
+  from: files
+- heading: Methods
+- heading: Variables
+  from: fields
+- heading: Licence
+- heading: How to cite

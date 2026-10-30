@@ -1,0 +1,140 @@
+{
+   "$comment": "Generated from rights.yaml by `uv run dd-gen-schema <path to rights.yaml>`. Do not edit.",
+   "$defs": {
+      "AccessOption": {
+         "additionalProperties": false,
+         "description": "One access level the researcher could set, and when it applies.",
+         "properties": {
+            "level": {
+               "description": "The access level, one of open, embargoed, restricted or closed.",
+               "type": "string"
+            },
+            "when": {
+               "description": "When this access level applies, as a fixed sentence.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "level",
+            "when"
+         ],
+         "title": "AccessOption",
+         "type": "object"
+      },
+      "GroundingRef": {
+         "additionalProperties": false,
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "properties": {
+            "source_id": {
+               "type": "string"
+            },
+            "content_hash": {
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "source_id",
+            "content_hash"
+         ],
+         "title": "GroundingRef",
+         "type": "object"
+      },
+      "LicenceOption": {
+         "additionalProperties": false,
+         "description": "One licence the researcher could choose.",
+         "properties": {
+            "spdx_id": {
+               "description": "The licence's SPDX identifier.",
+               "type": "string"
+            },
+            "name": {
+               "description": "The licence's full name.",
+               "type": "string"
+            },
+            "url": {
+               "description": "Where the licence text is published.",
+               "type": "string"
+            },
+            "note": {
+               "description": "What the researcher should know about this licence, if anything.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "spdx_id",
+            "name",
+            "url"
+         ],
+         "title": "LicenceOption",
+         "type": "object"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/rights/RightsOptions",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The payload of advisor.rights: licences and access levels for the researcher to choose from, and the questions to answer first. It lists options and never chooses one.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "RightsOptions"
+         ],
+         "type": "string"
+      },
+      "licences": {
+         "items": {
+            "$ref": "#/$defs/LicenceOption"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "access_levels": {
+         "items": {
+            "$ref": "#/$defs/AccessOption"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "questions": {
+         "description": "What the researcher must answer or confirm, with the people who can help.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "limitations": {
+         "description": "What this mock does not yet do.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "grounded_on": {
+         "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
+         "items": {
+            "$ref": "#/$defs/GroundingRef"
+         },
+         "type": "array"
+      }
+   },
+   "required": [
+      "schema_class",
+      "grounded_on"
+   ],
+   "title": "RightsOptions",
+   "type": "object"
+}

@@ -14,6 +14,22 @@ agents:
     url: http://127.0.0.1:8108
   - name: advisor-repository
     url: http://127.0.0.1:8109
+  - name: advisor-ethics
+    url: http://127.0.0.1:8111
+  - name: advisor-files
+    url: http://127.0.0.1:8110
+  - name: advisor-dmp
+    url: http://127.0.0.1:8112
+  - name: advisor-metadata
+    url: http://127.0.0.1:8113
+  - name: advisor-documentation
+    url: http://127.0.0.1:8114
+  - name: advisor-rights
+    url: http://127.0.0.1:8115
+  - name: advisor-linking
+    url: http://127.0.0.1:8116
+  - name: advisor-fairness
+    url: http://127.0.0.1:8117
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
   # theirs (ADR-0012). It calls them back through the app's own A2A endpoint under its grant.
   - name: orchestrator-stub

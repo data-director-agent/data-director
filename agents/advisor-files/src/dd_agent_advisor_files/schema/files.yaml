@@ -1,0 +1,93 @@
+# The input and payload classes of advisor.files, owned by this package (ADR-0019). It imports the
+# core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-files/src/dd_agent_advisor_files/schema/files.yaml` to
+# regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/files
+name: dd_agent_advisor_files
+title: advisor.files classes
+description: >-
+  The files a researcher lists for a dataset, and the File Archivist's inventory of their formats
+  in reply.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  files: https://w3id.org/data-director/agents/files/
+  linkml: https://w3id.org/linkml/
+default_prefix: files
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  FileList:
+    description: >-
+      The files of a dataset as the researcher lists them: names and, when known, sizes and media
+      types. The files themselves are not sent.
+    slots:
+      - schema_class
+      - files
+
+  FileEntry:
+    description: One file as the researcher lists it.
+    slots:
+      - name
+      - size_bytes
+      - media_type
+
+  FileInventory:
+    description: >-
+      The payload of advisor.files: each listed file with the format its extension suggests, and
+      whether that format is open. It identifies nothing from the files' content.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - entries
+      - limitations
+
+  InventoryEntry:
+    description: One listed file and the format its extension suggests.
+    slots:
+      - name
+      - extension
+      - format_name
+      - media_type
+      - open_format
+
+slots:
+
+  files:
+    description: The files of the dataset.
+    range: FileEntry
+    multivalued: true
+    inlined_as_list: true
+  name:
+    description: The file's name or path, as given.
+    required: true
+  size_bytes:
+    description: The file's size in bytes, when known.
+    range: integer
+  media_type:
+    description: The file's media type (MIME type), when known.
+  entries:
+    range: InventoryEntry
+    multivalued: true
+    inlined_as_list: true
+  extension:
+    description: The file name's last extension, lower case and without the dot; empty if none.
+    required: true
+  format_name:
+    description: The format the extension suggests, from formats.yaml, or unknown.
+    required: true
+  open_format:
+    description: Whether formats.yaml records the format as open. False for an unknown format.
+    range: boolean
+    required: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true

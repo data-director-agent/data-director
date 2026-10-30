@@ -38,6 +38,7 @@ export function PhaseTracker({ load, agents }: { load: FlowLoad; agents: AgentVi
 
 function Phases({ flow, agents }: { flow: ProcessFlow; agents: AgentView[] }) {
   const index = servingIndex(agents);
+  const titles = new Map(agents.map((a) => [a.id, a.title]));
   return (
     <ol className="phase-list">
       {flow.phases.map((phase) => {
@@ -72,7 +73,7 @@ function Phases({ flow, agents }: { flow: ProcessFlow; agents: AgentView[] }) {
                               <span key={id}>
                                 {i > 0 && ", "}
                                 <Link to={`/agents?agent=${encodeURIComponent(id)}`}>
-                                  <code>{id}</code>
+                                  {titles.get(id) || <code>{id}</code>}
                                 </Link>
                               </span>
                             ))}

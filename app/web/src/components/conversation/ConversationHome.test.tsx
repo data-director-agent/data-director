@@ -227,7 +227,7 @@ describe("ConversationHome", () => {
       const step = within(phases).getByText("Select controlled vocabularies and ontologies").closest("li");
       if (!step) throw new Error("no step");
       expect(within(step).getByText(/Requirements: R3/)).toBeVisible();
-      expect(within(step).getByRole("link", { name: "advisor.standards" })).toHaveAttribute(
+      expect(within(step).getByRole("link", { name: "Standards Librarian" })).toHaveAttribute(
         "href",
         "/agents?agent=advisor.standards",
       );

@@ -33,6 +33,7 @@ function AgentSummary({ agent }: { agent: AgentView }) {
     <>
       <h3>Who you are talking to</h3>
       <p>
+        {agent.title && <>{agent.title}, </>}
         <code>
           {agent.id}@{agent.version}
         </code>

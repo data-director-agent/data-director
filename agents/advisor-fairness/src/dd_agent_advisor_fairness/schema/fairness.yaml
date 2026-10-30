@@ -1,0 +1,108 @@
+# The input and payload classes of advisor.fairness, owned by this package (ADR-0019). It imports
+# the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-fairness/src/dd_agent_advisor_fairness/schema/fairness.yaml`
+# to regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/fairness
+name: dd_agent_advisor_fairness
+title: advisor.fairness classes
+description: >-
+  What a researcher says about a dataset that is already published, and the FAIR Assessor's
+  checks of that description in reply.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  fairness: https://w3id.org/data-director/agents/fairness/
+  linkml: https://w3id.org/linkml/
+default_prefix: fairness
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  PublishedRecord:
+    description: >-
+      The metadata of a dataset that is already published, as the researcher gives it: its
+      identifier, title, licence, keywords, creators, formats, related outputs and how it is
+      accessed.
+    slots:
+      - schema_class
+      - identifier
+      - title
+      - licence
+      - keywords
+      - creators
+      - creator_identifiers
+      - formats
+      - related_identifiers
+      - access_protocol
+
+  FairnessReport:
+    description: >-
+      The payload of advisor.fairness: which of a short list of FAIR-related checks the record
+      meets, with a suggestion for each that it does not. It is advisory and changes no record
+      (R9, R12); the researcher decides what to submit to the repository.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - checks
+      - limitations
+
+  FairCheck:
+    description: One check of the record against a FAIR sub-principle.
+    slots:
+      - principle
+      - check
+      - met
+      - recommendation
+
+slots:
+
+  identifier:
+    description: The dataset's persistent identifier or landing page, e.g. a DOI or URL.
+  title:
+    description: The dataset's title.
+  licence:
+    description: The dataset's licence, e.g. an SPDX identifier such as CC-BY-4.0.
+  keywords:
+    description: The dataset's keywords or subjects.
+    multivalued: true
+  creators:
+    description: The names of the dataset's creators.
+    multivalued: true
+  creator_identifiers:
+    description: Identifiers of the creators, e.g. ORCID iDs.
+    multivalued: true
+  formats:
+    description: The media types of the dataset's files, e.g. text/csv.
+    multivalued: true
+  related_identifiers:
+    description: Identifiers of related outputs, e.g. the DOI of an article that uses the data.
+    multivalued: true
+  access_protocol:
+    description: The protocol by which the data are retrieved, e.g. https.
+  checks:
+    range: FairCheck
+    multivalued: true
+    inlined_as_list: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true
+  principle:
+    description: The FAIR sub-principle the check bears on, e.g. F1 or R1.1.
+    required: true
+  check:
+    description: The check's short identifier in checks.yaml, e.g. identifier-is-doi.
+    required: true
+  met:
+    description: Whether the record, as given, meets the check.
+    range: boolean
+    required: true
+  recommendation:
+    description: >-
+      A suggestion for retrofitting the record when the check is not met. Absent when it is met.

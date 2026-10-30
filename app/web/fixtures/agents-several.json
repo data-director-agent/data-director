@@ -230,6 +230,7 @@
       "serves": [
         "deposit.validate"
       ],
+      "title": "Metadata Reviewer",
       "version": "0.1.0"
     },
     {
@@ -551,6 +552,7 @@
         "setup.vocabularies",
         "preparation.formats"
       ],
+      "title": "Standards Librarian",
       "version": "0.2.0"
     },
     {
@@ -685,6 +687,7 @@
         }
       },
       "serves": [],
+      "title": "",
       "version": "0.1.0"
     },
     {
@@ -795,14 +798,15 @@
         }
       },
       "serves": [],
+      "title": "",
       "version": "0.3.0"
     }
   ],
   "incompatible": {},
   "profile": {
-    "digest": "d2591619dba837999c81ad40c3630f493a1e03ec990eca10b1e750c255689b3a",
+    "digest": "dec510a2fd5210d5c65ef46e60e086279ebe63d93b37ea03316fc0f8c8dbeb5e",
     "orchestrator": null,
-    "ref": "profile:test-permissive@v6"
+    "ref": "profile:test-permissive@v7"
   },
   "unavailable": {}
 }

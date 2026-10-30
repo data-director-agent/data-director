@@ -1,0 +1,99 @@
+{
+   "$comment": "Generated from fairness.yaml by `uv run dd-gen-schema <path to fairness.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/fairness/PublishedRecord",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "The metadata of a dataset that is already published, as the researcher gives it: its identifier, title, licence, keywords, creators, formats, related outputs and how it is accessed.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "PublishedRecord"
+         ],
+         "type": "string"
+      },
+      "identifier": {
+         "description": "The dataset's persistent identifier or landing page, e.g. a DOI or URL.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "title": {
+         "description": "The dataset's title.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "licence": {
+         "description": "The dataset's licence, e.g. an SPDX identifier such as CC-BY-4.0.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "keywords": {
+         "description": "The dataset's keywords or subjects.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "creators": {
+         "description": "The names of the dataset's creators.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "creator_identifiers": {
+         "description": "Identifiers of the creators, e.g. ORCID iDs.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "formats": {
+         "description": "The media types of the dataset's files, e.g. text/csv.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "related_identifiers": {
+         "description": "Identifiers of related outputs, e.g. the DOI of an article that uses the data.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "access_protocol": {
+         "description": "The protocol by which the data are retrieved, e.g. https.",
+         "type": [
+            "string",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "PublishedRecord",
+   "type": "object"
+}

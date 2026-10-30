@@ -19,6 +19,14 @@ dependencies = [
   "data-director-agent-advisor-quality",
   "data-director-agent-advisor-standards",
   "data-director-agent-advisor-repository",
+  "data-director-agent-advisor-ethics",
+  "data-director-agent-advisor-files",
+  "data-director-agent-advisor-dmp",
+  "data-director-agent-advisor-metadata",
+  "data-director-agent-advisor-documentation",
+  "data-director-agent-advisor-rights",
+  "data-director-agent-advisor-linking",
+  "data-director-agent-advisor-fairness",
   "data-director-agent-advisor-policy",
   "data-director-agent-orchestrator-stub",
   "data-director-agent-orchestrator-model",
@@ -59,6 +67,14 @@ data-director-agent-example-hello = { workspace = true }
 data-director-agent-advisor-quality = { workspace = true }
 data-director-agent-advisor-standards = { workspace = true }
 data-director-agent-advisor-repository = { workspace = true }
+data-director-agent-advisor-ethics = { workspace = true }
+data-director-agent-advisor-files = { workspace = true }
+data-director-agent-advisor-dmp = { workspace = true }
+data-director-agent-advisor-metadata = { workspace = true }
+data-director-agent-advisor-documentation = { workspace = true }
+data-director-agent-advisor-rights = { workspace = true }
+data-director-agent-advisor-linking = { workspace = true }
+data-director-agent-advisor-fairness = { workspace = true }
 data-director-agent-advisor-policy = { workspace = true }
 data-director-agent-orchestrator-stub = { workspace = true }
 data-director-agent-orchestrator-model = { workspace = true }
@@ -73,7 +89,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -111,7 +127,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app"]
 relative_files = true
 
 [tool.coverage.report]
@@ -136,7 +152,7 @@ explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/example-hello/src",
   "agents/advisor-quality/src", "agents/advisor-standards/src", "agents/advisor-repository/src", "agents/advisor-policy/src",
-  "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests",
+  "agents/advisor-ethics/src", "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests",
 ]
 strict = true
 warn_unreachable = true

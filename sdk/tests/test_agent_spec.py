@@ -170,6 +170,19 @@ def test_a_description_without_serves_serves_nothing() -> None:
     assert spec_from_description(entry).serves == ()
 
 
+def test_the_persona_title_round_trips_through_the_manifest() -> None:
+    spec = dataclasses.replace(SPEC, title="Metadata Librarian")
+    entry = describe(spec)
+    assert entry["title"] == "Metadata Librarian"
+    assert spec_from_description(entry).title == "Metadata Librarian"
+
+
+def test_a_description_without_a_title_has_none() -> None:
+    entry = describe(SPEC)
+    del entry["title"]
+    assert spec_from_description(entry).title == ""
+
+
 @pytest.mark.parametrize("serves", [("R3",), ("R13",), ("C1",), ("R3.1",), ("governance.unknown",)])
 def test_serving_anything_but_a_step_is_refused(serves: tuple[str, ...]) -> None:
     with pytest.raises(SpecError, match="not process flow steps"):

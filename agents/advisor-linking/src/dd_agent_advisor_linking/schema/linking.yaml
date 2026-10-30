@@ -1,0 +1,91 @@
+# The input and payload classes of advisor.linking, owned by this package (ADR-0019). It imports the
+# core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-linking/src/dd_agent_advisor_linking/schema/linking.yaml` to
+# regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has
+# drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+id: https://w3id.org/data-director/agents/linking
+name: dd_agent_advisor_linking
+title: advisor.linking classes
+description: >-
+  Identifiers a researcher wants to link a dataset to, and the Linking Adviser's suggested
+  related identifiers in reply, for the researcher to review.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  linking: https://w3id.org/data-director/agents/linking/
+  linkml: https://w3id.org/linkml/
+default_prefix: linking
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  LinkCandidates:
+    description: >-
+      Identifiers of the publications, people, organisations, grants and software a researcher
+      wants to link a dataset to, as they were given: DOIs, ORCID iDs, ROR ids, grant numbers or
+      anything else.
+    slots:
+      - schema_class
+      - identifiers
+
+  RelatedIdentifiers:
+    description: >-
+      The payload of advisor.linking: each identifier recognised, checked for form and put in
+      canonical form, with a suggested way to record it. It suggests linking metadata for the
+      researcher to review; registering the links stays with the researcher and the repository
+      (R11).
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - links
+      - limitations
+
+  RelatedLink:
+    description: One identifier as given, and what the adviser made of it.
+    slots:
+      - given
+      - scheme
+      - normalised
+      - relation
+      - valid
+      - message
+
+slots:
+
+  identifiers:
+    description: The identifiers to link, each as given.
+    multivalued: true
+  links:
+    range: RelatedLink
+    multivalued: true
+    inlined_as_list: true
+  limitations:
+    description: What this mock does not yet do.
+    multivalued: true
+  given:
+    description: The identifier, as given.
+    required: true
+  scheme:
+    description: The scheme it was recognised as, from schemes.yaml (doi, orcid, ror, grant), or unknown.
+    required: true
+  normalised:
+    description: The identifier's canonical https form, for a DOI, ORCID iD or ROR id.
+  relation:
+    description: >-
+      A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm.
+      Absent where the mock cannot tell.
+  valid:
+    description: >-
+      Whether the identifier is well formed for its scheme. True does not mean it exists: nothing
+      was resolved.
+    range: boolean
+    required: true
+  message:
+    description: What the researcher should check or do with the identifier.
+    required: true

@@ -323,14 +323,15 @@
         "setup.vocabularies",
         "preparation.formats"
       ],
+      "title": "Standards Librarian",
       "version": "0.2.0"
     }
   ],
   "incompatible": {},
   "profile": {
-    "digest": "da9ee05d448a2cb1253c25424bdeabc3ae2c930a866cefc9c875e614b82d75a6",
+    "digest": "1f2f86475a8dcbc44c6e823b0fdef556ba148030c670075261fd8474f57fa7b7",
     "orchestrator": "orchestrator.stub",
-    "ref": "profile:data-director-app@v6"
+    "ref": "profile:data-director-app@v7"
   },
   "unavailable": {}
 }

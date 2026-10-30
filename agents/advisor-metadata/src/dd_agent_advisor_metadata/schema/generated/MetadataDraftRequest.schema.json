@@ -1,0 +1,69 @@
+{
+   "$comment": "Generated from metadata.yaml by `uv run dd-gen-schema <path to metadata.yaml>`. Do not edit.",
+   "$id": "https://w3id.org/data-director/agents/metadata/MetadataDraftRequest",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "What the researcher has said about the dataset that a metadata record needs, and the metadata standard they want the record in, if any.",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "MetadataDraftRequest"
+         ],
+         "type": "string"
+      },
+      "title": {
+         "description": "The dataset's title.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "description": {
+         "description": "A short description of the dataset.",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
+      "creators": {
+         "description": "The people or organisations who made the dataset, as the researcher names them.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "keywords": {
+         "description": "Words or phrases that describe the dataset's subject.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "publication_year": {
+         "description": "The year the dataset is or will be published.",
+         "type": [
+            "integer",
+            "null"
+         ]
+      },
+      "target_standard": {
+         "description": "The metadata standard the researcher wants, e.g. DataCite, Dublin Core or DDI.",
+         "type": [
+            "string",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "MetadataDraftRequest",
+   "type": "object"
+}

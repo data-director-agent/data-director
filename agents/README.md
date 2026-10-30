@@ -37,6 +37,14 @@ lists an agent built against an incompatible one as **incompatible**.
 | `advisor-standards/` | `advisor.standards` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-advisor-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`advisor-standards/src/dd_agent_advisor_standards/README.md`). |
 | `advisor-policy/` | `advisor.policy` | `PolicyContext` | `retrieval` | `PolicyChecks` | `dd-advisor-policy`, port 8108 | **Alpha.** Phase 2: checks what funder, journal and institutional data policies ask, from FAIRsharing's policy records, and flags where they differ; also names any repository they require for Phase 3 (`advisor-policy/README.md`). |
 | `advisor-repository/` | `advisor.repository` | `RepositoryNeeds` | `retrieval` | `RepositoryOptions` | `dd-advisor-repository`, port 8109 | **Alpha.** Phase 3: recommends repositories from re3data, or describes the mandated ones, with PIDs, access, costs and certification as re3data and FAIRsharing record them (`advisor-repository/README.md`). |
+| `advisor-ethics/` | `advisor.ethics` | `SensitivityContext` | `none` | `SensitivityFlags` | `dd-advisor-ethics`, port 8111 | **Mock.** Flags field names that suggest sensitive data and asks what must be confirmed about consent and embargo; never decides how the data are treated. |
+| `advisor-files/` | `advisor.files` | `FileList` | `none` | `FileInventory` | `dd-advisor-files`, port 8110 | **Mock.** Lists a dataset's files with the format each file's extension suggests and whether that format is open, without reading any file. |
+| `advisor-dmp/` | `advisor.dmp` | `DmpCommitments` | `none` | `DmpDiscrepancies` | `dd-advisor-dmp`, port 8112 | **Mock.** Compares what a data management plan committed to share with what is planned at publication, and flags each difference for human review without enforcing it. |
+| `advisor-fairness/` | `advisor.fairness` | `PublishedRecord` | `none` | `FairnessReport` | `dd-advisor-fairness`, port 8117 | **Mock.** Checks a published dataset's metadata against a short list of FAIR-related presence checks and suggests what to retrofit, without retrieving anything or giving a FAIRness evaluation. |
+| `advisor-metadata/` | `advisor.metadata` | `MetadataDraftRequest` | `none` | `MetadataDraft` | `dd-advisor-metadata`, port 8113 | **Mock.** Drafts a DataCite, Dublin Core or DDI-Codebook record from what the researcher gives, marking every property it cannot fill for the researcher and never inventing a value. |
+| `advisor-documentation/` | `advisor.documentation` | `DocumentationRequest` | `none` | `DocumentationDraft` | `dd-advisor-documentation`, port 8114 | **Mock.** Drafts a README outline and data dictionary by copying the title, creators, file and field names given, and leaves definitions, units, missing value codes, methods, licence and citation to the researcher. |
+| `advisor-rights/` | `advisor.rights` | `RightsContext` | `none` | `RightsOptions` | `dd-advisor-rights`, port 8115 | **Mock.** Lists data licences that fit the reuse wanted, and access levels with when each applies, for the researcher to choose from; never chooses. |
+| `advisor-linking/` | `advisor.linking` | `LinkCandidates` | `none` | `RelatedIdentifiers` | `dd-advisor-linking`, port 8116 | **Mock.** Recognises DOIs, ORCID iDs, ROR IDs and grant numbers by form, checks ORCID checksums, gives canonical https forms and suggests how to record each link, resolving nothing. |
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
 `uv run dd-example-hello serve --port 8101`. The script restarts an agent when a file in its package
@@ -44,8 +52,9 @@ changes, its `system_prompt.md` included, unless `scripts/dev.py start` is given
 `serve --reload` does the same for one agent.
 
 An agent id is `<group>.<name>`. The groups are `orchestrator` (agents a person converses with,
-which delegate to others), `advisor` (agents that answer one kind of question) and `example`
-(templates). A directory, package and serve command spell the id with hyphens or underscores:
+which delegate to others), `advisor` (agents that answer one kind of question, each a persona from
+the roster in [ADR-0033](../docs/adr/0033-agent-roster.md) with a `title` that people see) and
+`example` (templates). A directory, package and serve command spell the id with hyphens or underscores:
 `advisor.policy` is `advisor-policy/`, `dd_agent_advisor_policy` and `dd-advisor-policy`.
 
 ## Start from `example-hello/`

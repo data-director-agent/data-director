@@ -1,0 +1,46 @@
+# advisor.rights's whole rule table: a short fixed list of data licences, each with the values of
+# `reuse_wanted` it fits, and the access levels with the sentence saying when each applies. Access
+# levels are listed in the order the adviser offers them when the data are not sensitive. A mock's
+# table (ADR-0033): it leaves out most licences, and the real adviser replaces it with the SPDX
+# licence list, funder mandates and the repository's own options, TODO(#359).
+licences:
+  - spdx_id: CC0-1.0
+    name: Creative Commons Zero v1.0 Universal
+    url: https://creativecommons.org/publicdomain/zero/1.0/
+    fits: [any]
+    note: >-
+      Waives all rights, so anyone may reuse the data for any purpose without conditions.
+      Attribution is then a matter of scholarly norms, not of the licence.
+  - spdx_id: CC-BY-4.0
+    name: Creative Commons Attribution 4.0 International
+    url: https://creativecommons.org/licenses/by/4.0/
+    fits: [any, attribution]
+  - spdx_id: ODC-By-1.0
+    name: Open Data Commons Attribution License v1.0
+    url: https://opendatacommons.org/licenses/by/1-0/
+    fits: [any, attribution]
+    note: Written for databases; it covers the database as a whole as well as its contents.
+  - spdx_id: ODbL-1.0
+    name: Open Data Commons Open Database License v1.0
+    url: https://opendatacommons.org/licenses/odbl/1-0/
+    fits: [share-alike]
+    note: >-
+      Requires attribution, and requires that adapted databases be shared under the same licence.
+  - spdx_id: CC-BY-NC-4.0
+    name: Creative Commons Attribution Non Commercial 4.0 International
+    url: https://creativecommons.org/licenses/by-nc/4.0/
+    fits: [non-commercial]
+    note: >-
+      Non-commercial terms limit reuse: they are hard to interpret, can exclude some research and
+      teaching, and some funders and repositories do not accept them as open.
+access_levels:
+  open: Anyone may download the data. Fits when nothing in them is sensitive and no embargo applies.
+  embargoed: >-
+    The data are withheld for a fixed period, for example until an article is published, and then
+    opened. The metadata are public from deposit.
+  restricted: >-
+    The data are shared only on request and under conditions, for example a data access agreement.
+    Fits when they hold personal or otherwise sensitive information that may be shared safely.
+  closed: >-
+    The data are not shared and only the metadata are published. Fits when no conditions would
+    make sharing them safe or lawful.
