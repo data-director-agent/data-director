@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-inventory"
-version = "0.1.0-alpha"
+version = "0.1.0-alpha.1"
 description = "Data Director inventory: a command that describes a dataset's files where they live (path, size, digest, PRONOM format, table fields) without sending them anywhere (ADR-0034)"
 readme = "README.md"
 requires-python = ">=3.14"

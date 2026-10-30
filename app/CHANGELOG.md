@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.3.0-alpha.4](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.3...app-v0.3.0-alpha.4) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** the contract version is 0.10.0; agents declaring 0.9.x are reported as incompatible until rebuilt.
+* **sdk:** an agent card that declares R1 to R12 in `serves` is refused; name the steps instead.
+
+### Features
+
+* **agents:** add the policy advisor for phase 2 ([#332](https://github.com/data-director-agent/data-director/issues/332)) ([1f23fb4](https://github.com/data-director-agent/data-director/commit/1f23fb4dc2c28c21d931632edc3bf339bbbc586d))
+* **agents:** add the repository advisor for phase 3 ([#325](https://github.com/data-director-agent/data-director/issues/325)) ([120a8b6](https://github.com/data-director-agent/data-director/commit/120a8b6cee92965ffe30fbd80ab18c302c01fc91))
+* **agents:** sketch every persona of the roster as a served mock ([#364](https://github.com/data-director-agent/data-director/issues/364)) ([e9b81ba](https://github.com/data-director-agent/data-director/commit/e9b81ba0f94af1b7901de8f43704a3000d357933))
+* **app:** add a favicon ([#315](https://github.com/data-director-agent/data-director/issues/315)) ([b4d54e4](https://github.com/data-director-agent/data-director/commit/b4d54e413ea1ac401be46ee293fa7353c3baa4b1))
+* **app:** add Lucide icons to the action buttons ([#267](https://github.com/data-director-agent/data-director/issues/267)) ([4a5ad81](https://github.com/data-director-agent/data-director/commit/4a5ad81406b67191bd10ba772809dfa2624ab5e5))
+* **app:** link to the user guide from every page ([#344](https://github.com/data-director-agent/data-director/issues/344)) ([8c6b459](https://github.com/data-director-agent/data-director/commit/8c6b4594885829955a1124c02ba075d83d7dacf1))
+* **app:** send the chat message with Ctrl+Enter ([#268](https://github.com/data-director-agent/data-director/issues/268)) ([8212eb4](https://github.com/data-director-agent/data-director/commit/8212eb4c27481dfcb1b1299bfd92d0891ec12547))
+* **app:** show that the orchestrator is working on a reply ([#334](https://github.com/data-director-agent/data-director/issues/334)) ([1d1ed80](https://github.com/data-director-agent/data-director/commit/1d1ed80007eb849c5414cc4d5c59bd50954870f9))
+* **app:** show what powers each agent, and whether it is local or remote ([#317](https://github.com/data-director-agent/data-director/issues/317)) ([f4e7777](https://github.com/data-director-agent/data-director/commit/f4e7777b2e81fe474761569e9c17074539db2d4b))
+* **app:** sign people in with ORCID and act for each of them ([#326](https://github.com/data-director-agent/data-director/issues/326)) ([4c53421](https://github.com/data-director-agent/data-director/commit/4c534212040fe3b7163a02ec28cb2023936a479f))
+* **harness:** record the repository a researcher chose ([#405](https://github.com/data-director-agent/data-director/issues/405)) ([6b5f52f](https://github.com/data-director-agent/data-director/commit/6b5f52f32b263dff1d101f9cfcb8bfda7a131582))
+* **inventory:** inventory a dataset's files where they live ([#393](https://github.com/data-director-agent/data-director/issues/393)) ([2238ce6](https://github.com/data-director-agent/data-director/commit/2238ce657e8158931229f4339cafc83a857bbb03))
+* **sdk:** add the core document payload class ([#379](https://github.com/data-director-agent/data-director/issues/379)) ([2d58112](https://github.com/data-director-agent/data-director/commit/2d581126c2fb92adfcbe9a629c5b9433ec4ae8f1))
+* **sdk:** let an agent serve steps of the process flow, not requirements ([#307](https://github.com/data-director-agent/data-director/issues/307)) ([5d8a535](https://github.com/data-director-agent/data-director/commit/5d8a535900518241e1963ad0ac5deac886256314))
+
+
+### Bug Fixes
+
+* **app:** keep a stored turn from being sent again ([#387](https://github.com/data-director-agent/data-director/issues/387)) ([925c5fb](https://github.com/data-director-agent/data-director/commit/925c5fb74ae8e3ce2cadb51d7f5f30583740da82)), closes [#337](https://github.com/data-director-agent/data-director/issues/337)
+* **app:** report agents the local profile omits but the example enables ([#384](https://github.com/data-director-agent/data-director/issues/384)) ([af93775](https://github.com/data-director-agent/data-director/commit/af93775f7d480452756593a42addd7a32a5c6fbd)), closes [#343](https://github.com/data-director-agent/data-director/issues/343)
+* **app:** say when the server cannot be reached and log each turn ([#339](https://github.com/data-director-agent/data-director/issues/339)) ([14cc21b](https://github.com/data-director-agent/data-director/commit/14cc21b85def850ade3c7b25bc0022fe1cc1525f)), closes [#337](https://github.com/data-director-agent/data-director/issues/337)
+* **orchestrator:** stop offering to create a data management plan ([#271](https://github.com/data-director-agent/data-director/issues/271)) ([f115f78](https://github.com/data-director-agent/data-director/commit/f115f784f556ee813768409525df9939818f6c54))
+
+
+### Documentation
+
+* **adr:** decide the repository profile and the deposit package ([#386](https://github.com/data-director-agent/data-director/issues/386)) ([fd04883](https://github.com/data-director-agent/data-director/commit/fd04883f40d48509550cad74e27ead1340a9028e))
+* **adr:** derive a repository's requirements from its metadata standard ([#402](https://github.com/data-director-agent/data-director/issues/402)) ([e60404f](https://github.com/data-director-agent/data-director/commit/e60404f2a3712fe03b93e6e0b1bc8f8a1929d4e7))
+* **adr:** number the repository profile ADR 0038 ([#397](https://github.com/data-director-agent/data-director/issues/397)) ([eb8d193](https://github.com/data-director-agent/data-director/commit/eb8d193cf2fafb0b2379b30dcdb5ba999c27a229)), closes [#197](https://github.com/data-director-agent/data-director/issues/197)
+* **app:** point local ORCID sandbox sign-in at ORCID's registration page ([#345](https://github.com/data-director-agent/data-director/issues/345)) ([520ca3e](https://github.com/data-director-agent/data-director/commit/520ca3ee4eaae8041027b9faae8ecfe7d32e9c59))
+
 ## [0.3.0-alpha.3](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.2...app-v0.3.0-alpha.3) (2026-10-28)
 
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-policy"
-version = "0.1.0-alpha"
+version = "0.1.0-alpha.1"
 description = "advisor.policy: checks funder, journal and institutional data policies from FAIRsharing"
 requires-python = ">=3.14"
 license = "MIT"

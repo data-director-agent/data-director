@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-quality"
-version = "0.1.1-alpha"
+version = "0.1.1-alpha.1"
 description = "advisor.quality: a demonstration metadata-completeness agent"
 requires-python = ">=3.14"
 license = "MIT"
