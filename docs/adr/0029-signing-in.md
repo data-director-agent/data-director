@@ -18,8 +18,8 @@ The Blueprint asks for more. Under §5.4, "all agent actions must be executed on
 identified human user". C1 asks for access to be "role-based, token-verified and auditable". P5
 prefers persistent identifiers such as ORCID for people. #149 tracks the move to several people,
 each signing in as themselves. This ADR settles how a person is established and how that is
-recorded. Roles (#154), ownership of conversations and runs (#153) and personal data (#156) have
-their own issues.
+recorded. Roles (#154), who may see a project ([ADR-0037](0037-shared-projects.md)) and runs
+outside one (#153), and personal data (#156) are settled elsewhere.
 
 ORCID publishes an OpenID Connect discovery document at
 `https://orcid.org/.well-known/openid-configuration`, and the sandbox publishes one at

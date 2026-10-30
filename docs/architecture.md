@@ -193,6 +193,14 @@ records the decision in the log under the principal who made it. The app only sh
 nothing resumes a run ([ADR-0036](adr/0036-proposed-changes-and-approval.md); not built yet,
 #201).
 
+A project is shared by its **members**, recorded in the same log. An owner adds and removes
+members by their ORCID iD, and decides on document versions. Any member may read the whole
+project, run agents in it and add a turn to any of its conversations, each turn acting for
+whoever sent it. The harness checks membership before every run and read, and refuses a turn or
+an edit made from a state of the project that is no longer the latest. Agents see each person
+only as a pseudonymous label such as "Member 1" ([ADR-0037](adr/0037-shared-projects.md); not
+built yet, #388).
+
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
 identifier, an unknown agent) raises an error instead. The step-by-step table, with each problem

@@ -71,9 +71,10 @@ Four things constrain the answer:
 
    - **An agent drafts it**: a run with no `revises`.
    - **An agent regenerates it**: a run whose payload names `revises`.
-   - **A person edits it**: the app sends the new text and the version it was edited from, and the
-     harness records a version that names the principal and the parent version. It names no run
-     and is not grounded, since a person wrote it.
+   - **A person edits it**: a member of the project (ADR-0037) sends the new text and the version
+     it was edited from, and the harness records a version that names the principal and the
+     parent version. It names no run and is not grounded, since a person wrote it. An edit whose
+     parent is not the document's latest version is refused (ADR-0037 decision 9).
 
    An agent's version names the run's `invocation_id`, so its grounding, evidence and trace are
    found in the run store. Deleting versions is TODO(#141), with the project itself.
