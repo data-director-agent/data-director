@@ -1,6 +1,8 @@
-# What any metadata record in the DataCite Metadata Schema must or should have (ADR-0038). Every
-# repository a researcher chooses is checked against it, with the repository's override, if the
-# deployment has one, merged on top. Keys are as in README.md one folder up.
+# What any metadata record in the DataCite Metadata Schema must or should have (ADR-0038). A chosen
+# repository is checked against it when its override names DataCite, when its re3data record
+# declares DataCite, or when no other standard's set applies, with the repository's override, if
+# the deployment has one, merged on top. Keys are as in README.md one folder up.
+schema_class: RequirementSet
 requirement_set_id: datacite-4
 version: 1
 title: DataCite Metadata Schema 4

@@ -3,6 +3,7 @@
 # chooses ORDA, so that it can check a project against both and a drafter knows what to write. Keys
 # are as in README.md one folder up. Taken from public pages only (listed under `guidance`); what
 # they leave open is TODO(#385).
+schema_class: RequirementSet
 requirement_set_id: orda
 version: 2
 title: ORDA - The University of Sheffield Research Data Catalogue and Repository

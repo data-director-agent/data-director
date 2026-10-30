@@ -101,10 +101,13 @@ drafter of the metadata record has to know what to write. The harness has to kno
    `advisor.repository`'s shortlist, and the choice carries the metadata standards its re3data
    record declares. The harness resolves the choice:
 
-   - **the standard's set** is the one whose `re3data_names` include a declared standard. When none
-     does, it is DataCite's, with a warning that the repository does not list DataCite, because
-     every repository that mints DataCite DOIs accepts a DataCite record;
    - **the override** is the one whose `re3data_id` is the repository's, if there is one;
+   - **the standard's set** is the one the override names in `conforms_to`, because a steward who
+     wrote the override knows the repository better than its registry record does. re3data lists
+     only Dublin Core for ORDA, which registers its DOIs with DataCite. Without an override, it is
+     the set whose `re3data_names` include a declared standard. When none does, it is DataCite's,
+     with a warning that the repository does not list DataCite, because every repository that
+     mints DataCite DOIs accepts a DataCite record;
    - **merged**, a field is identified by its property, qualifier and schema.org term. An
      override's field adds to the standard's or, for the same field, raises its obligation from
      `recommended` to `required` and gives its `form_label`. An override that lowers an obligation

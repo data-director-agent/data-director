@@ -16,13 +16,16 @@ The researcher may choose any repository in [re3data](https://www.re3data.org/),
 `advisor.repository`'s shortlist. Nobody has to write a file for it first. Its requirements come
 from two kinds of set:
 
-- `standards/` holds one set per metadata standard: what any record in that standard needs. The
-  harness picks the one whose `re3data_names` include a standard the repository's re3data record
-  declares. When none does, it uses DataCite's and warns. DataCite is the only standard so far;
-  others are #401.
+- `standards/` holds one set per metadata standard: what any record in that standard needs.
+  DataCite is the only standard so far; others are #401.
 - `overrides/` holds what one repository asks beyond its standard, such as the fields its deposit
   form requires and the licences it offers. Write one only for a repository the deployment knows
   well. A repository without one is checked against its standard alone, with a warning.
+
+An override names its standard in `conforms_to`, and that is the standard used: re3data lists
+only Dublin Core for ORDA, which registers its DOIs with DataCite. Without an override, the
+harness picks the standard whose `re3data_names` include one the repository's re3data record
+declares. When none does, it uses DataCite's and warns.
 
 The harness merges the two. A field is identified by its `property`, `qualifier` and
 `schema_org`. An override may add a field, or raise one from `recommended` to `required` and give
@@ -37,6 +40,7 @@ SHA-256 of the file, so a later reader can tell which requirements a package was
 
 | Key | Meaning |
 |---|---|
+| `schema_class` | Always `RequirementSet`. |
 | `requirement_set_id`, `version` | Identify the set. Raise `version` on every change. |
 | `title`, `url` | What people call the standard or the repository, and where it is described. |
 | `conforms_to` | The URI of the metadata schema. An override names the standard it builds on. |
