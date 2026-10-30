@@ -169,6 +169,7 @@ This is a community-driven, open-source project. See:
 - [Governance](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md) — how decisions are made and how the maintainer group grows
 - [Releasing](RELEASING.md) — versioning policy and how a release is made
 - [Contribution guide](CONTRIBUTING.md) — this repository's structure and tooling; the organisation-wide [contribution guide](https://github.com/data-director-agent/.github/blob/main/CONTRIBUTING.md) covers RFCs, sign-off and pull requests
+- [AI usage statement](https://github.com/data-director-agent/.github/blob/main/AI_USAGE.md) — how generative AI is used to develop the project, and how that use is attributed and checked
 - [Code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md) — expected standards of behaviour
 - [App](app/) — the Data Director itself (alpha): a browser shell drawn from each agent's manifest (ADR-0024)
 - [Harness](harness/) — the governance every agent invocation goes through: the policy gate, input check, grounding linter, source check, run store and provenance
