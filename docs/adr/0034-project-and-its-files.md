@@ -60,8 +60,9 @@ of each table. It does not need the bytes.
    never their content. Each entry gives a path relative to the dataset's root folder, the size,
    the SHA-256 digest, the media type and the PRONOM identifier, and for a table its fields as a
    Frictionless schema. The inventory names the tool and version that made it and when. It is a
-   core contract class, `FileInventory`, whose LinkML arrives with #198. Its slots follow
-   ADR-0005: each names its external URI and the agent that reads it.
+   core contract class, `FileInventory`, and every PRONOM identifier a file matched is kept with
+   how it was found, since one file often matches several. Its slots follow ADR-0005: each names
+   its external URI, and advisor.files reads them.
 
 4. **The inventory is made where the data live.** A local command, in a workspace member of its own
    that does not need the contract to run (ADR-0031 decision 7), reads a folder and writes the

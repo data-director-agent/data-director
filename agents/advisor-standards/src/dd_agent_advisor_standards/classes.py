@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded, TableField
 
 
 class RecommendationKind(StrEnum):
@@ -20,13 +20,6 @@ class RecommendationKind(StrEnum):
     TERMINOLOGY_UNCLASSIFIED = "terminology_unclassified"
     DATA_FORMAT = "data_format"
     FIELD_FORMAT = "field_format"
-
-
-class TableField(Frozen):
-    name: str
-    field_type: str | None = None
-    field_format: str | None = None
-    field_description: str | None = None
 
 
 class DatasetProfile(Frozen):

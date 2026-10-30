@@ -105,10 +105,17 @@ class TurnRole(StrEnum):
     AGENT = "agent"
 
 
+class IdentificationMethod(StrEnum):
+    SIGNATURE = "signature"
+    CONTAINER = "container"
+    EXTENSION = "extension"
+    NONE = "none"
+
+
 # --- Inputs -----------------------------------------------------------------------------------
 # Every input class carries `schema_class` as a type designator with a single literal value. The
-# core defines only the conversation's Message; every other input class belongs to its agent
-# (ADR-0019), and the harness holds such an input as an `OpenInput`.
+# core defines the conversation's Message and a project's FileInventory; every other input class
+# belongs to its agent (ADR-0019), and the harness holds such an input as an `OpenInput`.
 
 
 class ConversationTurn(Frozen):
@@ -125,6 +132,37 @@ class Message(Frozen):
     schema_class: Literal["Message"] = "Message"
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
+
+
+class TableField(Frozen):
+    """One field of a table, as a Frictionless Table Schema field descriptor."""
+
+    name: str
+    field_type: str | None = None
+    field_format: str | None = None
+    field_description: str | None = None
+
+
+class InventoryFile(Frozen):
+    file_path: str = Field(pattern=r"^[^/]")
+    file_size: int
+    file_sha256: str = Field(pattern=SHA256_PATTERN)
+    file_media_type: str | None = None
+    file_pronom_ids: list[str] = Field(default_factory=list)
+    file_identified_by: IdentificationMethod
+    file_fields: list[TableField] = Field(default_factory=list)
+
+
+class FileInventory(Frozen):
+    """The facts about a dataset's files a project holds in place of the files (ADR-0034)."""
+
+    schema_class: Literal["FileInventory"] = "FileInventory"
+    inventory_files: list[InventoryFile] = Field(default_factory=list)
+    inventory_tool: str
+    inventory_tool_version: str
+    inventory_identified_with: str | None = None
+    inventory_made_at: datetime
+    inventory_limitations: list[str] = Field(default_factory=list)
 
 
 class OpenInput(Frozen):

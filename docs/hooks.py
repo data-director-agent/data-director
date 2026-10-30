@@ -48,6 +48,8 @@ UNPUBLISHED = (
     "agents/*/data/*",
     # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.
     "scripts/blueprint/index-header.md",
+    # A fixture dataset for the inventory's tests, which stands in for a researcher's files.
+    "inventory/tests/data/*",
 )
 
 # Where a document is mounted when its repository path cannot be its place on the site. The

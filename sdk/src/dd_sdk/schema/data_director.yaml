@@ -12,7 +12,7 @@ description: >-
   schema_class (ADR-0007); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.1
+version: 0.9.2
 license: MIT
 
 prefixes:
@@ -22,6 +22,7 @@ prefixes:
   dcat: http://www.w3.org/ns/dcat#
   schema: http://schema.org/
   prov: http://www.w3.org/ns/prov#
+  spdx: http://spdx.org/rdf/terms#
 default_prefix: dd
 default_range: string
 
@@ -175,6 +176,44 @@ classes:
       - turn_agent_id
       - turn_agent_version
       - turn_invocation_id
+
+  FileInventory:
+    description: >-
+      The facts about a dataset's files that the project holds in place of the files (ADR-0034):
+      for each file its path, size, digest and format, and for a table its fields. Made by a
+      command run where the data live; it never contains a file's content. advisor.files reads it.
+    slots:
+      - schema_class
+      - inventory_files
+      - inventory_tool
+      - inventory_tool_version
+      - inventory_identified_with
+      - inventory_made_at
+      - inventory_limitations
+
+  InventoryFile:
+    description: One file of a dataset, as the inventory command found it.
+    slots:
+      - file_path
+      - file_size
+      - file_sha256
+      - file_media_type
+      - file_pronom_ids
+      - file_identified_by
+      - file_fields
+
+  TableField:
+    description: >-
+      One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
+      Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
+      slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#field
+    slots:
+      - name
+      - field_type
+      - field_format
+      - field_description
 
   # --- Grounding ------------------------------------------------------------------------------
 
@@ -543,6 +582,78 @@ slots:
 
   name:
     required: true
+  inventory_files:
+    description: Every file under the dataset's root folder that the command read, sorted by path.
+    range: InventoryFile
+    multivalued: true
+    inlined_as_list: true
+  inventory_tool:
+    description: The command that made the inventory, such as dd-inventory.
+    slot_uri: prov:wasGeneratedBy
+    required: true
+  inventory_tool_version:
+    description: The version of the command that made the inventory.
+    required: true
+  inventory_identified_with:
+    description: >-
+      What identified the formats, such as fido 1.6.1 with PRONOM signatures v109, or that only
+      file extensions were used.
+  inventory_made_at:
+    description: When the inventory was made.
+    slot_uri: prov:generatedAtTime
+    range: datetime
+    required: true
+  inventory_limitations:
+    description: What the inventory left out or could not do, such as files it skipped.
+    multivalued: true
+  file_path:
+    description: >-
+      The file's path relative to the dataset's root folder, with forward slashes. Never an
+      absolute path, which would say where the data live.
+    required: true
+    pattern: "^[^/]"
+  file_size:
+    description: The file's size in bytes.
+    slot_uri: dcat:byteSize
+    range: integer
+    required: true
+  file_sha256:
+    description: >-
+      The SHA-256 digest of the file's bytes, in lowercase hex, by which the file deposited can be
+      shown to be the file described.
+    slot_uri: spdx:checksumValue
+    required: true
+    pattern: "^[0-9a-f]{64}$"
+  file_media_type:
+    description: The file's media type (MIME type), when it could be told.
+    slot_uri: dcat:mediaType
+  file_pronom_ids:
+    description: >-
+      Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than
+      one means the identification is ambiguous; none means the format is unknown.
+    see_also:
+      - https://www.nationalarchives.gov.uk/PRONOM/
+    multivalued: true
+  file_identified_by:
+    description: How the PRONOM identifiers were arrived at.
+    range: IdentificationMethod
+    required: true
+  file_fields:
+    description: For a table, its fields as a Frictionless Table Schema inferred from a sample of rows.
+    range: TableField
+    multivalued: true
+    inlined_as_list: true
+  field_type:
+    description: >-
+      Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
+      geopoint, ...).
+    see_also:
+      - https://datapackage.org/standard/table-schema/#type
+  field_format:
+    see_also:
+      - https://datapackage.org/standard/table-schema/#format
+  field_description:
+    slot_uri: dcterms:description
   snapshot_ref:
     description: Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.
   source_id:
@@ -579,6 +690,18 @@ slots:
     required: true
 
 enums:
+
+  IdentificationMethod:
+    description: How a file's format was identified, from strongest to weakest (ADR-0034).
+    permissible_values:
+      signature:
+        description: A PRONOM byte signature matched the file's content.
+      container:
+        description: A PRONOM container signature matched the files inside an archive.
+      extension:
+        description: Only the file name's extension was matched; the content was not recognised.
+      none:
+        description: Nothing matched.
 
   OutcomeStatus:
     description: >-

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-inventory"
+version = "0.1.0-alpha"
+description = "Data Director inventory: a command that describes a dataset's files where they live (path, size, digest, PRONOM format, table fields) without sending them anywhere (ADR-0034)"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+
+# No workspace member: the command runs without the contract (ADR-0031 decision 7). What it
+# writes is a core `FileInventory`, which the tests check against the contract's schema.
+dependencies = [
+  # fido 1.6.1's library defaults name a signature file its wheel does not ship; identify.py
+  # reads the shipped versions.xml instead. Check that still holds before allowing a newer fido.
+  "opf-fido==1.6.1",
+  "frictionless>=5.18,<6",
+]
+
+[project.scripts]
+dd-inventory = "dd_inventory.cli:main"
+
+# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+[dependency-groups]
+dev = ["data-director-sdk"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_inventory"]

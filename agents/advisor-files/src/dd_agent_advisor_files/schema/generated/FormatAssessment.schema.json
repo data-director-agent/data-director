@@ -1,6 +1,48 @@
 {
    "$comment": "Generated from files.yaml by `uv run dd-gen-schema <path to files.yaml>`. Do not edit.",
    "$defs": {
+      "FileAssessment": {
+         "additionalProperties": false,
+         "description": "One file of the inventory and the format it is judged to be.",
+         "properties": {
+            "path": {
+               "description": "The file's path in the inventory (file_path).",
+               "type": "string"
+            },
+            "extension": {
+               "description": "The file name's last extension, lower case and without the dot; empty if none.",
+               "type": "string"
+            },
+            "format_name": {
+               "description": "The format the file is judged to be, from formats.yaml, or unknown.",
+               "type": "string"
+            },
+            "media_type": {
+               "description": "The format's media type, from the inventory if it gave one, else from formats.yaml.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "open_format": {
+               "description": "Whether formats.yaml records the format as open. False for an unknown format.",
+               "type": "boolean"
+            },
+            "judged_by": {
+               "$ref": "#/$defs/JudgedBy",
+               "description": "What the judgement rests on."
+            }
+         },
+         "required": [
+            "path",
+            "extension",
+            "format_name",
+            "open_format",
+            "judged_by"
+         ],
+         "title": "FileAssessment",
+         "type": "object"
+      },
       "GroundingRef": {
          "additionalProperties": false,
          "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
@@ -20,59 +62,32 @@
          "title": "GroundingRef",
          "type": "object"
       },
-      "InventoryEntry": {
-         "additionalProperties": false,
-         "description": "One listed file and the format its extension suggests.",
-         "properties": {
-            "name": {
-               "description": "The file's name or path, as given.",
-               "type": "string"
-            },
-            "extension": {
-               "description": "The file name's last extension, lower case and without the dot; empty if none.",
-               "type": "string"
-            },
-            "format_name": {
-               "description": "The format the extension suggests, from formats.yaml, or unknown.",
-               "type": "string"
-            },
-            "media_type": {
-               "description": "The file's media type (MIME type), when known.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "open_format": {
-               "description": "Whether formats.yaml records the format as open. False for an unknown format.",
-               "type": "boolean"
-            }
-         },
-         "required": [
-            "name",
+      "JudgedBy": {
+         "description": "",
+         "enum": [
+            "media_type",
             "extension",
-            "format_name",
-            "open_format"
+            "nothing"
          ],
-         "title": "InventoryEntry",
-         "type": "object"
+         "title": "JudgedBy",
+         "type": "string"
       }
    },
-   "$id": "https://w3id.org/data-director/agents/files/FileInventory",
+   "$id": "https://w3id.org/data-director/agents/files/FormatAssessment",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The payload of advisor.files: each listed file with the format its extension suggests, and whether that format is open. It identifies nothing from the files' content.",
+   "description": "The payload of advisor.files: each file of the inventory with the format it is judged to be, and whether that format is open. It judges from the inventory alone and reads no file.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
          "enum": [
-            "FileInventory"
+            "FormatAssessment"
          ],
          "type": "string"
       },
-      "entries": {
+      "assessments": {
          "items": {
-            "$ref": "#/$defs/InventoryEntry"
+            "$ref": "#/$defs/FileAssessment"
          },
          "type": [
             "array",
@@ -101,6 +116,6 @@
       "schema_class",
       "grounded_on"
    ],
-   "title": "FileInventory",
+   "title": "FormatAssessment",
    "type": "object"
 }

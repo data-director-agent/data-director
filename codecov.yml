@@ -30,6 +30,8 @@ flag_management:
       paths: [app/src/]
     - name: agents
       paths: [agents/]
+    - name: inventory
+      paths: [inventory/]
     - name: web
       paths: [app/web/]
 comment:

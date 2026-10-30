@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from dd_sdk.contract import validate
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Assurance,
     ConversationTurn,
@@ -22,8 +23,11 @@ from dd_sdk.contract.models import (
     DocumentVersionRef,
     Envelope,
     EvidenceItem,
+    FileInventory,
     GroundingMode,
     GroundingRef,
+    IdentificationMethod,
+    InventoryFile,
     InvocationRequest,
     Message,
     OpenInput,
@@ -35,6 +39,7 @@ from dd_sdk.contract.models import (
     ProblemDetails,
     ReasonCode,
     Reply,
+    TableField,
     Telemetry,
     TurnRole,
     input_source_id,
@@ -642,3 +647,44 @@ def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> 
     assert Document.model_validate(revised.model_dump(mode="json")) == revised
     with pytest.raises(ValueError):
         DocumentVersionRef(document_id=new_invocation_id(), version=0)
+
+
+def test_a_file_inventory_is_a_core_input_that_holds_facts_about_files_not_their_content() -> None:
+    """The project holds an inventory of its data files in place of the files (ADR-0034). Each
+    file has a relative path, a size and a digest; ambiguous PRONOM matches are all kept."""
+    schema = json.loads((SCHEMA / "generated" / "FileInventory.schema.json").read_text("utf-8"))
+    assert schema["properties"]["schema_class"]["enum"] == ["FileInventory"]
+    assert set(schema["$defs"]["IdentificationMethod"]["enum"]) == {
+        m.value for m in IdentificationMethod
+    }
+    entry = schema["$defs"]["InventoryFile"]
+    assert {"file_path", "file_size", "file_sha256", "file_identified_by"} == set(entry["required"])
+    assert "grounded_on" not in schema["properties"]
+
+    inventory = FileInventory(
+        inventory_tool="dd-inventory",
+        inventory_tool_version="0.1.0",
+        inventory_made_at=datetime(2026, 10, 30, tzinfo=UTC),
+        inventory_files=[
+            InventoryFile(
+                file_path="data/readings.csv",
+                file_size=31,
+                file_sha256="0" * 64,
+                file_media_type="text/csv",
+                file_pronom_ids=["x-fmt/18"],
+                file_identified_by=IdentificationMethod.EXTENSION,
+                file_fields=[TableField(name="site", field_type="string")],
+            )
+        ],
+    )
+    document = inventory.model_dump(mode="json", exclude_none=True)
+    assert ClassSchema.of(FileInventory).errors(document) == []
+    assert FileInventory.model_validate(document) == inventory
+    for path in ("/home/someone/data.csv", ""):
+        with pytest.raises(ValueError):
+            InventoryFile(
+                file_path=path,
+                file_size=0,
+                file_sha256="0" * 64,
+                file_identified_by=IdentificationMethod.NONE,
+            )
