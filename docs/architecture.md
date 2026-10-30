@@ -184,6 +184,11 @@ It holds an inventory of the research data files, made where the data live, neve
 themselves. Which project content may go to an agent that calls a hosted model is the profile's
 decision ([ADR-0034](adr/0034-project-and-its-files.md); not built yet, #198).
 
+A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
+When a run in a project returns one, the conductor adds it to the log as a new version. A
+person's edit is a version too. Each version is proposed, approved or rejected on its own, and
+none is removed ([ADR-0035](adr/0035-project-documents.md); not built yet, #198, #200).
+
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused
 identifier, an unknown agent) raises an error instead. The step-by-step table, with each problem
