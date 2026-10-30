@@ -39,16 +39,18 @@ of each table. It does not need the bytes.
 ## Decision
 
 1. **The project is the unit of work.** A project is a record of its own that outlives any one
-   conversation. A conversation belongs to exactly one project, and a project may have many. The
+   conversation. A conversation belongs to exactly one project, and a project may have many. A
+   project is shared by its members ([ADR-0037](0037-shared-projects.md)). The
    app mints a `project_id` (UUIDv7) as it mints conversation identifiers (ADR-0024 §17). The
    request and the envelope gain an optional `project_id`, which the conductor fills from the
    conversation and a caller cannot set. This is a change to the core contract (ADR-0019
    decision 1).
 
 2. **The project record is an append-only log kept by the harness.** Each event says what changed:
-   the project was created, an inventory or a document was added, a repository was chosen. Each
-   event names the run or the request that caused it and whom it acted for. Document versions
-   (#195) and approval decisions (#196) are events of the same log. The record lives under
+   the project was created, an inventory or a document was added, a repository was chosen, a
+   member was added. Each event names the run or the request that caused it and whom it acted
+   for. Document versions (#195), approval decisions (#196) and changes of membership (ADR-0037)
+   are events of the same log. The record lives under
    `DD_PROJECTS_DIR`, which has no default (ADR-0022): `<project_id>/events.jsonl`, with uploaded
    content kept once by digest under `<project_id>/blobs/sha256/<digest>`, as schemas are in the
    run store (ADR-0019 decision 7). The run store is unchanged. Conversations are still derived
@@ -125,8 +127,9 @@ Rejected:
 - The right panel, the phase tracker and the status bar can draw from the project record, and
   the orchestrator can be given the project instead of re-deriving it from the conversation
   (#160, #341).
-- Who owns a project and who else may see it are TODO(#153). How long a project is kept, and what
-  deleting one removes, are TODO(#141), together with the conversations that belong to it.
+- Who may see and change a project is settled by ADR-0037: its members. How long a project is
+  kept, and what deleting one removes, are TODO(#141), together with the conversations that
+  belong to it.
 - A future contributor must not accept data files into the project, give an agent access to the
   project store, or send `documentation` to a hosted model by default, without revisiting this
   decision.

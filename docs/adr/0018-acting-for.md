@@ -81,8 +81,8 @@ None.
   schema. The viewer shows no principal for them.
 - Every call to `Conductor.invoke` names a principal. An agent's own tests pass
   `acting_for=TEST_PRINCIPAL`.
-- TODO(#153): once there is more than one principal, bind a `conversation_id` to the principal that
-  started it, so that one person cannot continue another's conversation.
+- Who may continue a conversation is settled by [ADR-0037](0037-shared-projects.md): any member of
+  its project. Each turn acts for the member who sent it.
 - TODO(#26): Process Run Crate has no convention for an accountable role. Until one is settled, a role
   is recorded as a `Person` whose description states its kind.
 - The generated request schema's root was open when this was decided, so the JSON Schema alone

@@ -81,8 +81,9 @@ draft.
 5. **The decider is the principal the authentication boundary names.** The harness takes it from
    the authenticator (ADR-0018, ADR-0029) as it takes `acting_for` for a run. A decision request
    cannot name a decider. While sign-in is deferred, the decider is the deployment's operator
-   principal, recorded with `assurance: asserted`. Which roles may decide is TODO(#154). A data
-   steward deciding on a researcher's behalf is TODO(#372).
+   principal, recorded with `assurance: asserted`. Within a project, its owners decide
+   ([ADR-0037](0037-shared-projects.md) decision 3). Whether a deployment role may also decide is
+   TODO(#154). A data steward deciding on a researcher's behalf is TODO(#372).
 
 6. **The harness decides and records, and the app renders.** The harness appends a
    `document_version_decided` event to the project log. The event holds:

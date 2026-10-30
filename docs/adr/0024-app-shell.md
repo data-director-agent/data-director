@@ -108,7 +108,9 @@ every delegated child is labelled `agent_id@agent_version`.
     (`dd_harness.conversations`). A turn gives only the agent and the message text; a request
     that gives a history is refused. The input hash then covers what the agent was really shown,
     and a browser cannot put words in an earlier turn (#130). This settles, for the app,
-    ADR-0012's open question of checking a caller's history against the store.
+    ADR-0012's open question of checking a caller's history against the store. A turn names the
+    turn it follows, and the history labels each person's turns pseudonymously, because any
+    member of the project may add a turn ([ADR-0037](0037-shared-projects.md) decisions 6 to 8).
 
 ### The workspace
 
