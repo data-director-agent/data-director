@@ -10,6 +10,10 @@ until runs stream over AG-UI (#68, #69).
 one message, answered as a run is, or refused with `409` unless it follows the latest turn
 (docs/specs/orchestration.md); `GET /api/conversations` and `GET /api/conversations/{id}`
 read them back as the harness derives them from the run store (docs/specs/orchestration.md, #130).
+`GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
+rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
+approves or rejects the latest version, or approves an edit of it, for the person signed in, and
+answers `409` if that version is no longer the latest or undecided (docs/specs/projects.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (docs/specs/orchestration.md, #129).
 `GET /api/about` names the build (version and commit) and says whether reports can be filed;
@@ -56,7 +60,7 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Re
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_app import feedback
+from dd_app import documents, feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.governance import (
@@ -70,6 +74,7 @@ from dd_app.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.conductor import UnknownAgent
 from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
+from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal, UnknownProjectError
 from dd_harness.registry import RegistryError
 from dd_harness.server import LOOPBACK
 from dd_harness.settings import SettingsError
@@ -85,6 +90,7 @@ log = logging.getLogger(__name__)
 Handler = Callable[[Request, Principal], Awaitable[Response]]
 
 FEEDBACK_REFUSED = "Data Director could not file this report"
+DECISION_REFUSED = "Data Director could not record this decision"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -248,6 +254,48 @@ def build_app(
             return _no_conversation(conversation_id)
         return JSONResponse(found)
 
+    async def get_documents(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        if governance.projects is None:
+            return _no_project(project_id)
+        try:
+            found = await run_in_threadpool(documents.view, governance.projects, project_id)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        return JSONResponse(found)
+
+    async def decide(request: Request, decider: Principal) -> Response:
+        # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", DECISION_REFUSED)
+        try:
+            decision = documents.parse_decision(request.path_params["document_id"], body)
+        except documents.DecisionRequestError as exc:
+            return _refused(str(exc), DECISION_REFUSED)
+        try:
+            decided = await run_in_threadpool(
+                lambda: store.decide(
+                    project_id, decision, acted_for=decider, caused_by=f"POST {request.url.path}"
+                )
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ChangeRefusedError as exc:
+            if exc.refusal is Refusal.NO_DOCUMENT:
+                return _problem(404, exc.refusal.value, "No such document", exc.detail)
+            return _problem(409, exc.refusal.value, "The document has moved on", exc.detail)
+        except ProjectError as exc:
+            return _refused(str(exc), DECISION_REFUSED)
+        found = await run_in_threadpool(documents.view, store, project_id)
+        return JSONResponse({**found, "decided": decided.model_dump()}, status_code=201)
+
     async def list_examples(request: Request, _: Principal) -> Response:
         return JSONResponse(examples(examples_dir))
 
@@ -405,6 +453,16 @@ def build_app(
                 signed_in(send_turn),
                 methods=["POST"],
             ),
+            Route(
+                "/api/projects/{project_id}/documents",
+                signed_in(get_documents),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/documents/{document_id}/decisions",
+                signed_in(decide),
+                methods=["POST"],
+            ),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/about", get_about, methods=["GET"]),
@@ -416,6 +474,7 @@ def build_app(
             *delegation,
             Route("/agents", shell, methods=["GET"]),
             Route("/feedback", shell, methods=["GET"]),
+            Route("/projects/{project_id}", shell, methods=["GET"]),
             Route("/sign-in", shell, methods=["GET"]),
             Route("/signed-out", shell, methods=["GET"]),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
@@ -469,6 +528,10 @@ def _no_conversation(conversation_id: str) -> Response:
         "No such conversation",
         f"No conversation {conversation_id!r}.",
     )
+
+
+def _no_project(project_id: str) -> Response:
+    return _problem(404, "project-not-found", "No such project", f"No project {project_id!r}.")
 
 
 def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:

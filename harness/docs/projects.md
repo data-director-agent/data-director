@@ -23,12 +23,12 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `inventory_added` or `repository_chosen`. |
+| `event` | What happened: `project_created`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided` or `document_change_refused`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
 | `acted_for` | The `Principal` the change was made for ([Policy and identity](../../docs/specs/policy-and-identity.md)). |
-| `caused_by` | What caused it: the command a person ran, such as `dd-harness project add-inventory`. |
+| `caused_by` | What caused it: the command a person ran, such as `dd-harness project add-inventory`; the request, such as `POST /api/projects/…/decisions`; or the `invocation_id` of the run that drafted a version. |
 
 `inventory_added` also gives:
 
@@ -50,9 +50,8 @@ Every event has these members:
 | `canonicalisation` | `dd-input-json-v1`. |
 | `warnings` | What the researcher was told: that the repository does not list DataCite, or that the deployment has no override for it. |
 
-Documents ([Projects](../../docs/specs/projects.md)), approval decisions
-([Projects](../../docs/specs/projects.md)) and changes of membership
-([Projects](../../docs/specs/projects.md)) will be events of the same log.
+Changes of membership ([Projects](../../docs/specs/projects.md)) will be events of the same
+log, TODO(#389).
 
 ## The inventory
 
@@ -87,8 +86,55 @@ $ uv run dd-harness project choose-repository 0192f3a4-… --re3data r3d10001212
     --name ORDA --standard "Dublin Core"
 ```
 
+## Documents and decisions
+
+A document is a sequence of versions; a person decides on each ([Projects](../../docs/specs/projects.md)).
+`ProjectStore` adds a version in one of two ways:
+
+- `record_draft(project_id, envelope)` takes a succeeded run's `Document` payload. A draft that
+  revises nothing is version 1 of a new document; one whose `revises` names a version of this
+  project is the next version of that document. Anything else is refused and nothing is
+  recorded. The event acts for whom the run acted for and its `caused_by` is the run's
+  `invocation_id`.
+- `edit(...)` takes a person's text and the version and digest they edited. It names no run.
+
+`decide(project_id, decision, acted_for=…, caused_by=…)` records a `Decision`: the version, the
+digest of the text shown, `approved` or `rejected`, a reason, and to approve an edit, the edited
+text. Whoever `acted_for` names decided: a `Decision` cannot name a decider. A rejection, or
+an approval of an edit, needs a reason of at most `REASON_MAX_LENGTH` (2,000) characters;
+`review_rules()` states that rule for the app to draw. An edit and its approval are appended
+in one write.
+
+`document_version_added` also gives:
+
+| Member | What it is |
+|---|---|
+| `document_id`, `version` | The version: the document's UUIDv7, and a number counted from 1 within it. |
+| `digest` | The SHA-256 of the text as UTF-8, under which the text is kept as a blob. |
+| `document_kind`, `media_type` | As the `Document` gave them; a person's version keeps its parent's. |
+| `document_title`, `conforms_to` | As the `Document` gave them, if it did. |
+| `revises` | `{document_id, version}` of the version it replaces or was edited from, if any. |
+| `drafted_by` | For an agent's version only: `agent_id`, `agent_version`, `invocation_id` and `document_derivation`. |
+
+`document_version_decided` also gives `document_id`, `version`, `digest`, `decision`
+(`approved` or `rejected`) and, if one was given, `reason`. Its `acted_for` is the decider.
+
+`document_change_refused` records a decision or edit refused because it named no document of the
+project (`document-not-found`), not the latest version (`version-not-latest`), a version
+already decided (`version-decided`) or another text (`digest-mismatch`). It gives
+`document_id`, `version` and `digest` as sent, the `refusal`, and the `latest_version` if
+there is one. A decision malformed in itself, such as a rejection without a reason, is refused
+with `ProjectError` and records nothing.
+
+`documents(project_id)` folds the log into each document, in the order first drafted, with every
+version oldest first, its text and its `state` (`proposed`, `approved` or `rejected`) with the
+`decision` on it. It is what the app serves at `GET /api/projects/{id}/documents`.
+
 ## Not yet built
 
+- The conductor does not yet record a run's draft (`record_draft`), so a version reaches a
+  project only from code that calls the store, TODO(#394).
+- Only owners are to decide, and membership is not built, TODO(#389).
 - The request and the envelope do not carry a `project_id` yet, and the conductor does not give
   an agent its project's facts or apply `hosted_models` ([Projects](../../docs/specs/projects.md)),
   TODO(#394).

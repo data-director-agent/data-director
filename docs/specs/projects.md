@@ -28,9 +28,10 @@ Out of scope: research data files, which are never uploaded or read by the platf
 anything outside the project, which no agent performs; a steward's route into a project, which is
 an escalation and a deployment role, not membership, TODO(#372).
 
-What is built: the project log with its creation, inventory and repository choice events, kept by
-`dd_harness.projects` and reached only through the `dd-harness project` command; the inventory
-command; and the core classes `FileInventory` and `Document`. The rest of this spec is the
+What is built: the project log with its creation, inventory and repository choice events, reached
+through the `dd-harness project` command; document versions and a person's decision on each,
+which the app shows and takes at `/projects/{project_id}`; the inventory command; and the core
+classes `FileInventory` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
 
 ## Invariants
@@ -72,31 +73,37 @@ intended design, and each part says where it is not built yet.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload
-   class never becomes a document. Not built yet, TODO(#394).
+   class never becomes a document. The store refuses anything else
+   (`ProjectStore.record_draft`, `harness/tests/test_project_documents.py`); the conductor
+   calling it for each run in a project is not built yet, TODO(#394).
 10. **A document has its own identity; a version is `{document_id, version}`.** The conductor
     mints a `document_id` (UUIDv7) for a `Document` with no `revises`; versions are numbered from
     1 within the document. A `revises` that names no version of the run's project is refused with
-    a Problem Details response and recorded. Not built yet, TODO(#394).
+    a Problem Details response and recorded. The store mints the identity, numbers the versions
+    and refuses such a `revises`; the conductor's Problem Details response and record of it are
+    not built yet, TODO(#394).
 11. **A version's state is its own and final once decided.** Every version begins `proposed`; one
     later event may make it `approved` or `rejected`, and then it never changes. A newer version
     leaves an earlier one's state as it was, so the version a person approved stays identifiable.
     A document's current version is its latest; the deposit package takes its latest approved
-    version. Until decisions are built the app shows every version as proposed and not reviewed,
-    TODO(#201).
+    version. Enforced by `ProjectStore.decide` (`harness/tests/test_project_documents.py`).
 12. **A decision or an edit names exactly what its sender saw.** A decision names the version and
     the SHA-256 of the text shown, and is refused if the version is not the document's latest,
-    is already decided, has another digest, or is not in the request's project. An edit names the
-    version it was edited from and is refused (409) if that is not the latest. A turn names the
-    turn it follows and is refused (409) if that is not the conversation's latest turn, or while
-    another turn of it is running. Nothing is merged. Each refusal is recorded. Not built yet,
-    TODO(#201, #390).
+    is already decided, has another digest, or is not in the request's project (409, or 404 for
+    a document not in it). An edit names the version it was edited from and the digest of its
+    text, and is refused (409) if that is not the latest. A turn names the turn it follows and is
+    refused (409) if that is not the conversation's latest turn, or while another turn of it is
+    running. Nothing is merged. Each refusal of a decision or an edit is a
+    `document_change_refused` event; a request malformed in itself, such as a rejection without
+    a reason, records nothing. Recording a refused turn is not built yet, TODO(#390).
 13. **A departure from the draft carries a reason.** Rejecting needs a reason; editing and
     approving in one step needs a reason; a plain approval may carry one. A reason is non-empty
-    free text within a length the harness sets. The harness refuses a decision without a reason
-    it requires. Not built yet, TODO(#201).
+    free text of at most 2,000 characters. The harness refuses a decision without a reason it
+    requires, and publishes the rule (`review_rules`) so that the app states it rather than
+    holding its own.
 14. **Edit-then-approve is one request and two events, written together or not at all**: the
-    person's version, then the approval of it. The version edited from keeps its own state. Not
-    built yet, TODO(#201).
+    person's version, then the approval of it, appended in one write. The version edited from
+    keeps its own state.
 15. **No request names who made it.** The decider, the editor, the person who changes membership
     and the principal of each turn are the principal the authentication boundary names
     ([Policy and identity](policy-and-identity.md)), never a field of the request body.

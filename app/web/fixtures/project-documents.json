@@ -1,0 +1,92 @@
+{
+  "decided": {
+    "document_id": "01900000-0000-7000-8000-000000000001",
+    "version": 1
+  },
+  "documents": [
+    {
+      "document_id": "01900000-0000-7000-8000-000000000002",
+      "document_kind": "readme",
+      "document_title": null,
+      "versions": [
+        {
+          "added_at": "2026-01-01T00:00:00Z",
+          "added_by": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "conforms_to": null,
+          "decision": null,
+          "digest": "b04ab7d4e3815605c46456d58f2fa25d125343365a5eec88d4a55f211ead28ca",
+          "document_id": "01900000-0000-7000-8000-000000000002",
+          "document_kind": "readme",
+          "document_title": null,
+          "drafted_by": {
+            "agent_id": "stub.document",
+            "agent_version": "0.1.0",
+            "document_derivation": "template",
+            "invocation_id": "01900000-0000-7000-8000-000000000003"
+          },
+          "media_type": "text/markdown",
+          "revises": null,
+          "state": "proposed",
+          "text": "# Untitled dataset\n\nDrafted by a stub.\n",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "document_id": "01900000-0000-7000-8000-000000000001",
+      "document_kind": "data_dictionary",
+      "document_title": null,
+      "versions": [
+        {
+          "added_at": "2026-01-01T00:00:00Z",
+          "added_by": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "conforms_to": null,
+          "decision": {
+            "decided_at": "2026-01-01T00:00:00Z",
+            "decided_by": {
+              "assurance": "asserted",
+              "name": "Josiah Carberry",
+              "principal_id": "https://orcid.org/0000-0002-1825-0097",
+              "principal_kind": "person"
+            },
+            "reason": null
+          },
+          "digest": "e490bfa0e2a2fa8d55568d5ac7539ff0f996f21468146fb6af6b1dbb5ce1fa69",
+          "document_id": "01900000-0000-7000-8000-000000000001",
+          "document_kind": "data_dictionary",
+          "document_title": null,
+          "drafted_by": {
+            "agent_id": "stub.document",
+            "agent_version": "0.1.0",
+            "document_derivation": "template",
+            "invocation_id": "01900000-0000-7000-8000-000000000004"
+          },
+          "media_type": "text/csv",
+          "revises": null,
+          "state": "approved",
+          "text": "field,description\nid,Drafted by a stub.\n",
+          "version": 1
+        }
+      ]
+    }
+  ],
+  "project_id": "01900000-0000-7000-8000-000000000005",
+  "review": {
+    "reason_max_length": 2000,
+    "reason_required": {
+      "approved": false,
+      "edited_and_approved": true,
+      "rejected": true
+    }
+  }
+}

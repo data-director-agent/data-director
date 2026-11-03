@@ -160,6 +160,10 @@ requirements:
     source: project
     parent: C13
     title: The policy gate refuses an agent the profile does not permit and refers an action requiring approval to a named human role; what happens after referral is not exercised (#16)
+  - id: C13.3
+    source: project
+    parent: C13
+    title: A person approves, edits then approves, or rejects each document version an agent drafts, with a reason for any departure from the draft; the harness records who decided, when and why, and refuses a decision on text other than the undecided latest version; that review is mandatory before deposit is not exercised (#197)
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions
