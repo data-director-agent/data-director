@@ -28,7 +28,7 @@ The software is archived on Zenodo, and is cited as
   including the AI models it may call.
 - **[Developer guide](developer-guide/index.md)**: set up the repository, write an agent and
   work on these pages.
-- **[Reference](reference/index.md)**: the contract, decisions, glossary and conformance report.
+- **[Reference](reference/index.md)**: the contract, specifications, glossary and conformance report.
 
-To take part without writing code, by reviewing advice, decisions or conformance, see
+To take part without writing code, by reviewing advice, specifications or conformance, see
 [Giving feedback](user-guide/feedback.md).

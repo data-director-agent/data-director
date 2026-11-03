@@ -35,8 +35,7 @@ To change the contract:
 4. Run `uv run pytest sdk`. The tests check that the generated files match a fresh generation
    and that every model validates against the schema.
 
-A change to a fixed format, such as a slot, a required field or the outcome vocabulary, needs an
-ADR.
+A change to a fixed format, such as a slot, a required field or the outcome vocabulary, changes a spec ([Contract](specs/contract.md)).
 
 ## The request
 

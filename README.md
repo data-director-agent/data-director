@@ -174,4 +174,4 @@ This is a community-driven, open-source project. See:
 - [App](app/) — the Data Director itself (alpha): a browser shell drawn from each agent's manifest ([The app](docs/specs/app.md))
 - [Harness](harness/) — the governance every agent invocation goes through: the policy gate, input check, grounding linter, source check, run store and provenance
 - [Workbench](workbench/) — development environment for building and testing sub-agents: the invocation contract (LinkML), a standards advisor over FAIRsharing, an abstaining stub, and a read-only viewer
-- [specifications](docs/specs/README.md) — the architecture decisions that govern every package, with the requirements register and the generated [`CONFORMANCE.md`](CONFORMANCE.md)
+- [specifications](docs/specs/README.md) — how each part of Data Director is meant to work, for every package, with the requirements register and the generated [`CONFORMANCE.md`](CONFORMANCE.md)

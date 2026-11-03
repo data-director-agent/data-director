@@ -5,8 +5,8 @@ These documents are kept with the code they govern and published here from where
 - [Architecture](../../architecture.md): the system overview.
 - [Contract](../../contract.md): what an agent and the harness agree to.
 - [Glossary](../../glossary.md)
-- [specifications](../../specs/README.md): the Decisions section below, collapsed
-  in the navigation, starting with [Transport and tracing](../../specs/transport.md).
+- [Specifications](../../specs/README.md): how each part of Data Director is meant to work,
+  in the navigation under Specifications, starting with [Transport and tracing](../../specs/transport.md).
 - [Requirements register](../../requirements.yaml) (YAML, on GitHub)
 - [Conformance](../../conformance.md), and the generated
   [conformance report](../../../CONFORMANCE.md).

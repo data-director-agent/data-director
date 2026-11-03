@@ -45,6 +45,15 @@ Agent Skills, MCP servers and other resources that do not use the contract belon
 repositories in the organisation. [System and boundaries](docs/specs/system.md)
 sets out both.
 
+## Changing the design
+
+A [specification](docs/specs/README.md) states how one part is meant to work today, so a change to
+the design changes its spec in the same pull request, edited to say what is now true rather than
+amended. A change to a fixed format (the schema, the `dd.*` trace attributes, evidence
+canonicalisation or the outcome vocabulary) always changes a spec. An issue that proposes one
+carries the `needs spec` label. The history of the repository, its pull requests and its RFC
+issues are the record of how the design got here; the spec is the result.
+
 ## Code style and testing
 
 The Python packages use Python 3.14 and [uv](https://docs.astral.sh/uv/); `app/web` uses Node 22

@@ -11,7 +11,7 @@ Do not include personal data, unpublished research or anything confidential.
 |---|---|
 | Say that an agent's advice was wrong, incomplete or unhelpful, and what good advice would have been | [Feedback on advice](https://github.com/data-director-agent/data-director/issues/new?template=advice-feedback.yml) |
 | Report a review of whether a requirement is met, such as accessibility or the quality of standards advice | [Conformance review](https://github.com/data-director-agent/data-director/issues/new?template=conformance-review.yml) |
-| Question or object to a decision about how Data Director is built | [Spec feedback](https://github.com/data-director-agent/data-director/issues/new?template=spec-feedback.yml) |
+| Question or object to how a specification says Data Director is built | [Spec feedback](https://github.com/data-director-agent/data-director/issues/new?template=spec-feedback.yml) |
 | Point out where Data Director reads the Blueprint differently from you, or misses a requirement | [Blueprint reading](https://github.com/data-director-agent/data-director/issues/new?template=blueprint-reading.yml) |
 | Report something that does not work, or ask for something new | [Bug](https://github.com/data-director-agent/data-director/issues/new?template=bug.yml) or [Feature](https://github.com/data-director-agent/data-director/issues/new?template=feature.yml), or **Report a problem** in the app |
 
@@ -25,7 +25,7 @@ adds it to the review record on your instruction, and it appears in the
 [How conformance is assessed](../../conformance.md) explains what a review can and cannot show.
 A finding that a requirement is not met is as useful as one that it is.
 
-## Decisions and the Blueprint
+## Specifications and the Blueprint
 
 The project's [specifications](../../specs/README.md) say how Data Director is built and why.
 You do not need to propose an alternative design to object to one: saying who would be affected,
