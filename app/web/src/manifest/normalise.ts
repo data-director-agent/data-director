@@ -16,7 +16,7 @@ import type {
 
 export type Declared<T> = { state: "declared"; value: T } | { state: "undeclared" };
 
-/** What the deployment's policy gate will do with a run of this agent (ADR-0017). */
+/** What the deployment's policy gate will do with a run of this agent (docs/specs/policy-and-identity.md). */
 export type GateStatus =
   | { kind: "permitted"; actionClass: string }
   | { kind: "needs-approval"; actionClass: string }
@@ -30,7 +30,7 @@ export interface Derivation {
   recordedIn?: string;
 }
 
-/** The oversight declaration (ADR-0025). Its fields are undeclared until an agent sends one. */
+/** The oversight declaration (#67). Its fields are undeclared until an agent sends one. */
 export interface Oversight {
   actions: Declared<unknown>;
   limits: Declared<unknown>;
@@ -41,7 +41,7 @@ export interface Oversight {
 
 export interface AgentView {
   id: string;
-  /** The persona's name as a researcher sees it (ADR-0033). Empty: the card names none. */
+  /** The persona's name as a researcher sees it (docs/specs/agents.md). Empty: the card names none. */
   title: string;
   version: string;
   description: string;

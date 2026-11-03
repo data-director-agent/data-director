@@ -1,4 +1,4 @@
-# What any metadata record in the DataCite Metadata Schema must or should have (ADR-0038). A chosen
+# What any metadata record in the DataCite Metadata Schema must or should have (docs/specs/deposit.md). A chosen
 # repository is checked against it when its override names DataCite, when its re3data record
 # declares DataCite, or when no other standard's set applies, with the repository's override, if
 # the deployment has one, merged on top. Keys are as in README.md one folder up.

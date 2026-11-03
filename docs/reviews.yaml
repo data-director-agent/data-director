@@ -1,7 +1,7 @@
 # Review record.
 #
 # The conformance report (scripts/conformance_report.py) reads this file for the review lane of
-# every requirement whose `assessed_by` in requirements.yaml names `review` (ADR-0014). The
+# every requirement whose `assessed_by` in requirements.yaml names `review` (docs/specs/evaluation.md). The
 # latest review of a requirement gives its review verdict; on the same date, the later entry in
 # this file wins. A requirement with no entry is rendered "unsubstantiated".
 #

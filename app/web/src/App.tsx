@@ -34,7 +34,7 @@ export async function fetchDirectory(signal?: AbortSignal): Promise<Directory> {
 }
 
 /**
- * The shell. It asks the server who is signed in before anything else (ADR-0029): where the
+ * The shell. It asks the server who is signed in before anything else (docs/specs/policy-and-identity.md): where the
  * server signs people in and nobody is, it shows the sign-in page and loads nothing more. Any
  * request the server refuses with `401` later brings the sign-in page back. The server decides;
  * the shell shows what it says.

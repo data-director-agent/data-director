@@ -208,7 +208,7 @@ def test_a_key_in_a_shared_file_is_refused(repo: Path) -> None:
     local = repo / "config" / "local"
     local.mkdir(parents=True)
     (local / "agents.env").write_text(f"ANTHROPIC_API_KEY={KEY}\n")
-    with pytest.raises(common.DevError, match="ADR-0026"):
+    with pytest.raises(common.DevError, match=r"docs/specs/policy-and-identity\.md"):
         common.agent_env(common.Agent("example-hello", 8101))
 
 

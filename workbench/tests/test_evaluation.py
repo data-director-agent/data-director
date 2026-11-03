@@ -1,4 +1,5 @@
-"""The evaluation solver, scorers and run comparison, over a scripted agent (ADR-0013).
+"""The evaluation solver, scorers and run comparison, over a scripted agent
+(docs/specs/evaluation.md).
 
 These test the machinery. They substantiate no requirement: an evaluation result is not a
 conformance claim, so nothing here carries a requirement marker.

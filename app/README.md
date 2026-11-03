@@ -3,7 +3,7 @@
 [![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=app)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=app)
 
 **Alpha** (`0.2.0a1`). This is the Data Director that people use: a browser shell drawn from each
-agent's manifest, over the harness (ADR-0024). It is exploratory, and its shape will change.
+agent's manifest, over the harness ([The app](../docs/specs/app.md)). It is exploratory, and its shape will change.
 
 The shell names no agent. It shows every agent the harness has registered, each with three tabs:
 
@@ -18,16 +18,16 @@ The shell names no agent. It shows every agent the harness has registered, each 
 - **History**: its stored runs, each of which reopens in the same view.
 
 The app opens on a conversation with the orchestrator, the agent whose grounding mode is
-`delegation` (ADR-0024). Each reply and each delegated child is labelled `agent_id@agent_version`,
+`delegation` ([The app](../docs/specs/app.md)). Each reply and each delegated child is labelled `agent_id@agent_version`,
 a child opens its run, and past conversations reopen. Without a permitted orchestrator the page
 says so and links to the pages above, which are one step away (#131).
 
-The conversation sits in the centre of a workspace (ADR-0024 §18):
+The conversation sits in the centre of a workspace ([The app](../docs/specs/app.md)):
 
 - across the top, whom the work acts for and whose policy applies, then the project's dataset,
   phase, repository and governance flags, which are not built yet (#160);
 - on the left, the Blueprint's six phases and their steps, from `GET /api/process-flow`, each step
-  naming the agents here whose manifest `serves` the step (ADR-0028, ADR-0032);
+  naming the agents here whose manifest `serves` the step ([Orchestration](../docs/specs/orchestration.md));
 - on the right, the project's documents, which are not built yet (#160), and what the
   orchestrator is and what it has not declared;
 - beneath, the activity log, which needs streamed runs (#68, #69).
@@ -56,18 +56,18 @@ It is built from:
   - `POST /api/conversations/{id}/turns` (`{agent_id, message_text, follows}`): sends one
     `Message` to the agent through the conductor and answers as `POST /api/runs` does. The server
     builds the message's history from the stored turns; a request that gives one is refused
-    (ADR-0024 §17). `follows` is the `invocation_id` of the latest turn, or null for the first:
+    (docs/specs/app.md). `follows` is the `invocation_id` of the latest turn, or null for the first:
     a turn that does not follow the latest, or that arrives while another turn of the
-    conversation is running, is refused with a 409 `turn-conflict` and nothing runs (ADR-0037
-    decision 7), so a message sent again after a dropped connection is never run twice;
+    conversation is running, is refused with a 409 `turn-conflict` and nothing runs
+    (docs/specs/orchestration.md), so a message sent again after a dropped connection is never run twice;
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
-    takes a delegation agent's call back under its grant (ADR-0012) and refuses every other
+    takes a delegation agent's call back under its grant ([Orchestration](../docs/specs/orchestration.md)) and refuses every other
     request, so the app is no general A2A way in;
 - the harness (`harness/`, `dd_harness`), whose conductor governs every run. The app runs no agent
-  in its own process; it reaches each over A2A (ADR-0027).
+  in its own process; it reaches each over A2A ([The app](../docs/specs/app.md)).
 
 ## Run it
 
@@ -110,7 +110,7 @@ elsewhere).
 
 ## Configuration
 
-The app supplies its own configuration to the harness (ADR-0022). Its reference set is in
+The app supplies its own configuration to the harness ([System and boundaries](../docs/specs/system.md)). Its reference set is in
 `config/`:
 
 | File | What it is | Override |
@@ -140,7 +140,7 @@ malformed, or the shell has not been built.
 ### Who a run acts for: signing in
 
 With `DD_OIDC_ISSUER` set, people sign in with ORCID, and each run acts for the person who
-started it, recorded as `authenticated` with the issuer that vouched (ADR-0029):
+started it, recorded as `authenticated` with the issuer that vouched ([Policy and identity](../docs/specs/policy-and-identity.md)):
 
 | Variable | What it is |
 |---|---|
@@ -173,7 +173,7 @@ for ORCID.
 
 Without `DD_OIDC_ISSUER` the app is a development server. `DD_PRINCIPAL_ID` and
 `DD_PRINCIPAL_NAME` are then required, every run acts for this operator, not for the person
-using the page (ADR-0018), and the banner says on every page that nobody is signed in. Setting
+using the page ([Policy and identity](../docs/specs/policy-and-identity.md)), and the banner says on every page that nobody is signed in. Setting
 both a provider and an operator principal stops start-up.
 
 ### Version and problem reports
@@ -182,19 +182,19 @@ both a provider and an operator principal stops start-up.
 else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
 footer of every page shows it, and the
 "Report a problem" page, linked from the banner, shows it too and files a GitHub issue through
-`POST /api/feedback` (ADR-0030). It is on only if `DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) is
+`POST /api/feedback` ([The app](../docs/specs/app.md)). It is on only if `DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) is
 set; `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
 build, the page, and, if they agree, the identifiers of the run and conversation, never their
 inputs or results.
 
 A delegation grant is a bearer token: whoever holds it may run agents for the operator while
 the run that issued it lasts. Until callers are authenticated (#17), keep the app's port, like
-the agents' ports, on the host or a private network (ADR-0011). The app warns at start-up if
+the agents' ports, on the host or a private network ([Agents](../docs/specs/agents.md)). The app warns at start-up if
 `DD_APP_HOST` is not a loopback address.
 
 ### Choosing the orchestrator
 
-The home page converses with the agent the profile names under `orchestrator` (ADR-0024 §10),
+The home page converses with the agent the profile names under `orchestrator` ([The app](../docs/specs/app.md)),
 and the app refuses a conversation turn to any other. The example profile names the
 rule-based `orchestrator.stub`, which needs no model key: its replies are templates, and it routes
 by its `routing.yaml`.
@@ -234,7 +234,7 @@ layers, not selector specificity, decides which rule wins.
   (`[aria-current="page"]`, `[data-selected]`), not modifier classes. A selected item is marked by
   colour and a bar, never by a change of weight, so selecting it does not shift its neighbours.
 - **Values.** Every colour, size, weight, shadow and font is a token from
-  `web/src/tokens/neutral.css` (ADR-0024 §5). Stylelint (`web/.stylelintrc.json`, part of
+  `web/src/tokens/neutral.css` ([The app](../docs/specs/app.md)). Stylelint (`web/.stylelintrc.json`, part of
   `npm run lint`) rejects a literal colour outside the token file. The typeface, Inter, is
   self-hosted from `@fontsource-variable/inter`; no font is fetched from a third party.
 - **Icons.** Icons are [Lucide](https://lucide.dev) (`lucide-react`, ISC licence), bundled with
@@ -273,6 +273,6 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   streamed (#159). The agent directory is its own page, `/agents`, reached
   from the navigation and from a delegated child's card (`/agents?agent=<id>` selects an agent).
 - No agent declares its limits, reliability or data handling yet. That needs the oversight
-  extension (ADR-0025), TODO(#67).
+  extension, TODO(#67).
 
 This package substantiates no Blueprint requirement, and its tests carry no requirement marker.

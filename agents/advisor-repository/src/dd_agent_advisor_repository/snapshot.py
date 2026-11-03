@@ -1,9 +1,9 @@
 """Snapshot backends: committed JSON Lines copies of both registries.
 
-Used in CI and offline, and as the fallback when a live route fails. Each line is a record's
-whole document, as hashed, so the harness's source check can use the same file (ADR-0016).
+Used in CI and offline, and as the fallback when a live route fails. Each line is a record's whole
+document, as hashed, so the harness's source check can use the same file (docs/specs/grounding.md).
 re3data records are searched lexically with `rank_bm25`; this module is its only importer
-(ADR-0006).
+(docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

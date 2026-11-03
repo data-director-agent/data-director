@@ -116,7 +116,7 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
     ensure_local_tree()
     base = workspace_env()
     app = app_env()
-    # An app that signs people in acts for no operator, and refuses one (ADR-0029).
+    # An app that signs people in acts for no operator, and refuses one (docs/specs/policy-and-identity.md).
     if app.get("DD_OIDC_ISSUER"):
         print(f"The app signs people in with {app['DD_OIDC_ISSUER']}.")
     elif not (app.get("DD_PRINCIPAL_ID") and app.get("DD_PRINCIPAL_NAME")):

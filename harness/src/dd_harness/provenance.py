@@ -1,9 +1,9 @@
 """Process Run Crate for one invocation (R10), written with ro-crate-py.
 
-One `CreateAction` per invocation: the agent is the instrument, the human it acted for the
-agent (Blueprint §5.4, ADR-0018), the request the object, the envelope and the span file the
-results. Profile: https://w3id.org/ro/wfrun/process/0.5.
-This module is the only importer of `rocrate` (ADR-0006).
+One `CreateAction` per invocation: the agent is the instrument, the human it acted for the agent
+(Blueprint §5.4, docs/specs/policy-and-identity.md), the request the object, the envelope and the
+span file the results. Profile: https://w3id.org/ro/wfrun/process/0.5. This module is the only
+importer of `rocrate` (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations
@@ -17,7 +17,8 @@ from rocrate.rocrate import ROCrate
 
 PROCESS_RUN_CRATE = "https://w3id.org/ro/wfrun/process/0.5"
 AGENT_BASE = "https://w3id.org/data-director/agents/"
-# The contract's `vouched_by` slot (dd:vouched_by), a term of the crate's context (ADR-0029).
+# The contract's `vouched_by` slot (dd:vouched_by), a term of the crate's context
+# (docs/specs/policy-and-identity.md).
 VOUCHED_BY = "vouchedBy"
 VOUCHED_BY_IRI = "https://w3id.org/data-director/vouched_by"
 
@@ -61,7 +62,7 @@ def write_process_run_crate(
             },
         )
     )
-    # An authenticated principal names the issuer that vouched (ADR-0029).
+    # An authenticated principal names the issuer that vouched (docs/specs/policy-and-identity.md).
     if issuer_id := principal.get("vouched_by"):
         crate.metadata.extra_terms[VOUCHED_BY] = VOUCHED_BY_IRI
         issuer = crate.add(

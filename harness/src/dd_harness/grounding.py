@@ -1,12 +1,12 @@
-"""The grounding linter: bespoke rules over a generic trace substrate (ADR-0008).
+"""The grounding linter: bespoke rules over a generic trace substrate (docs/specs/grounding.md).
 
-The linter is a consistency check (ADR-0016). It compares the agent's account of its run with
-itself and with what the conductor recorded. The conductor records the root span's attributes
-(mode, input hash, outcome) and `delegations`. The agent declares its `retrieval` and `chat`
-spans, their timing, `grounded_on` and evidence. The spans are written in the agent's process
-and sent back over A2A (ADR-0011). So G1-G3 show that the agent's declared retrievals agree with
-what it cites, not that it retrieved anything; `dd_harness.sources` re-hashes what it cites
-against the source. R2 and D1-D2 check citations against hashes the conductor computed.
+The linter is a consistency check (docs/specs/grounding.md). It compares the agent's account of its
+run with itself and with what the conductor recorded. The conductor records the root span's
+attributes (mode, input hash, outcome) and `delegations`. The agent declares its `retrieval` and
+`chat` spans, their timing, `grounded_on` and evidence. The spans are written in the agent's process
+and sent back over A2A (docs/specs/agents.md). So G1-G3 show that the agent's declared retrievals
+agree with what it cites, not that it retrieved anything; `dd_harness.sources` re-hashes what it
+cites against the source. R2 and D1-D2 check citations against hashes the conductor computed.
 
 The linter reads the span tree of one `invoke_agent` and the envelope it produced, and applies
 the rule set for the grounding mode the envelope declares. It never needs to know the payload
@@ -19,11 +19,11 @@ Structural, every mode (G0):
   `dd.input_hash`, `dd.outcome`); the envelope's `grounding_mode` is valid and equals the root
   span's `dd.grounding_mode`; a payload, if present, has `schema_class` and a root `grounded_on`;
   every grounding reference is well formed. The span checks matter because an agent's spans are
-  recorded in the agent's process and sent back over A2A (ADR-0011): a span outside the tree
-  would otherwise escape the mode rules, and one carrying a conductor attribute would be the
+  recorded in the agent's process and sent back over A2A (docs/specs/agents.md): a span outside the
+  tree would otherwise escape the mode rules, and one carrying a conductor attribute would be the
   agent labelling its own run.
 
-Evidence, every mode (E1, ADR-0015):
+Evidence, every mode (E1, docs/specs/grounding.md):
   E1 every evidence item that carries `content` hashes to its `content_hash` under its
      `canonicalisation`. What a reader is shown about a cited record is what the hash covers.
      E1 knows no payload class; a payload names a record only in `grounded_on`, and the reader
@@ -48,7 +48,7 @@ Evidence, every mode (E1, ADR-0015):
   N1 no `chat` span exists.
 
 `delegation` — the agent works over its input and the envelopes of the invocations it delegated
-through the harness (ADR-0012); it may call a model. R1, G4 and
+through the harness (docs/specs/orchestration.md); it may call a model. R1, G4 and
   D1 every `grounded_on` entry cites the input (as R2) or a delegation the conductor recorded in
      the envelope's `delegations`: `source_id` `invocation:<child_id>` and `content_hash` that
      child's `dd-envelope-json-v1` hash. The agent's own account of what it delegated is not

@@ -1,4 +1,4 @@
-"""OpenTelemetry setup and the owned attribute set (ADR-0002).
+"""OpenTelemetry setup and the owned attribute set (docs/specs/transport.md).
 
 This is the only module that imports the OpenTelemetry SDK. Everything else asks for a
 `Tracer` and uses the span helpers below, which fix the span names and attribute keys so an
@@ -38,7 +38,8 @@ POLICY_GATE = "policy_gate"
 RETRIEVAL = "retrieval"
 CHAT = "chat"
 EXECUTE_TOOL = "execute_tool"
-DELEGATE = "delegate"  # ADR-0012: an agent asks the harness to invoke another agent
+# An agent asks the harness to invoke another agent (docs/specs/orchestration.md).
+DELEGATE = "delegate"
 
 # --- Owned attributes (the linter reads only these) -------------------------------------------
 
@@ -50,8 +51,10 @@ ATTR_MODEL_ID = "dd.model_id"
 ATTR_INPUT_TOKENS = "dd.input_tokens"
 ATTR_OUTPUT_TOKENS = "dd.output_tokens"
 ATTR_OUTCOME = "dd.outcome"
-ATTR_GROUNDING_MODE = "dd.grounding_mode"  # ADR-0008: the mode the linter must apply
-ATTR_INPUT_HASH = "dd.input_hash"  # ADR-0009: what an input_only agent's evidence must equal
+# The mode the linter must apply, and what an input_only agent's evidence must equal
+# (docs/specs/grounding.md).
+ATTR_GROUNDING_MODE = "dd.grounding_mode"
+ATTR_INPUT_HASH = "dd.input_hash"
 
 OWNED_ATTRIBUTES = frozenset(
     {
@@ -268,7 +271,7 @@ def invoke_agent_span(
 
     A delegated invocation passes `link`, the delegating agent's `delegate` span: the child then
     starts a trace of its own, linked to that span rather than nested in it, so each invocation
-    is linted over its own tree (ADR-0012).
+    is linted over its own tree (docs/specs/orchestration.md).
     """
     kwargs: dict[str, Any] = {}
     if link is not None:

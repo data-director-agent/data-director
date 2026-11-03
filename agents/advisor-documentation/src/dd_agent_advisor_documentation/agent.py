@@ -1,11 +1,11 @@
-"""advisor.documentation: the Documentation Editor persona (ADR-0033). A mock, and the stub drafter
-of the project's README and data dictionary (#200).
+"""advisor.documentation: the Documentation Editor persona (docs/specs/agents.md). A mock,
+and the stub drafter of the project's README and data dictionary (#200).
 
 Serves `setup.documentation` and `preparation.documentation` (R5). Given a `DraftRequest` for a
-`readme` or a `data_dictionary`, it drafts a project document (ADR-0035) from the project's
-inventory: the files and the tables' fields are drafted, and what only the researcher knows, such
-as the methods, each field's definition, unit and missing value codes, the licence and the
-citation, is marked for them.
+`readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
+project's inventory: the files and the tables' fields are drafted, and what only the researcher
+knows, such as the methods, each field's definition, unit and missing value codes, the licence and
+the citation, is marked for them.
 
 The README's sections are those of `readme.yaml`. The mock writes no prose of its own, reads no
 file, consults no source and calls no model, so its grounding mode is `none` and it cites only its
@@ -57,7 +57,7 @@ TITLES = {DocumentKind.README: "README", DocumentKind.DATA_DICTIONARY: "Data dic
 MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONARY: "text/csv"}
 
 # What the mock does not do, said in every outcome: its payload is the core Document, which has
-# no room for a list of limitations (ADR-0033 decision 5).
+# no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
     "This is a mock: it copies the inventory's file and field names and writes no prose of its "
     "own. It does not open the files, infers no definitions, units or missing value codes, and "

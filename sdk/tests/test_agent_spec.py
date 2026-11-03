@@ -1,5 +1,5 @@
 """`AgentSpec`: derivations checked against the payload class and carried through the manifest,
-and the contract version a description declares (ADR-0019)."""
+and the contract version a description declares (docs/specs/contract.md)."""
 
 from __future__ import annotations
 
@@ -33,9 +33,9 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
 
-# The SDK knows no agent's classes, so this module brings its own, as an agent would (ADR-0019):
-# an input class and a payload class with nested items and an optional nested object, written as
-# `dd-gen-schema` would write them.
+# The SDK knows no agent's classes, so this module brings its own, as an agent would
+# (docs/specs/contract.md): an input class and a payload class with nested items and an optional
+# nested object, written as `dd-gen-schema` would write them.
 DERIVATION = {"enum": [d.value for d in Derivation], "type": "string"}
 GROUNDING_REF = {
     "additionalProperties": False,
@@ -212,7 +212,7 @@ def test_a_derivation_outside_the_contract_enum_is_refused_from_a_card() -> None
         spec_from_description(entry)
 
 
-# --- The contract version (ADR-0019) ---------------------------------------------------------
+# --- The contract version (docs/specs/contract.md) ------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -255,7 +255,7 @@ def test_a_description_under_another_contract_is_a_contract_mismatch(
         spec_from_description(entry)
 
 
-# --- Class schemas carried by the card (ADR-0019) --------------------------------------------
+# --- Class schemas carried by the card (docs/specs/contract.md) -----------------------------------
 
 
 def test_a_description_carries_each_class_schema_pinned_by_its_digest() -> None:

@@ -1,5 +1,6 @@
-"""Signing in (ADR-0029, #152): a person signs in through the OpenID Connect provider, each
-request acts for the person its session names, and a request with no session is refused.
+"""Signing in (docs/specs/policy-and-identity.md, #152): a person signs in through the OpenID
+Connect provider, each request acts for the person its session names, and a request with no session
+is refused.
 
 The provider is `FakeIdentityProvider`, so no test needs the network or an ORCID account.
 """

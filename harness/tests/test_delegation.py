@@ -1,5 +1,6 @@
-"""Delegation through the workbench (ADR-0012): a delegation agent's call back to the workbench,
-over the in-memory A2A wire, runs a governed and stored child invocation that the parent records.
+"""Delegation through the workbench (docs/specs/orchestration.md): a delegation agent's call back to
+the workbench, over the in-memory A2A wire, runs a governed and stored child invocation that the
+parent records.
 """
 
 from __future__ import annotations

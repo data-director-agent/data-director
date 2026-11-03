@@ -7,7 +7,7 @@ the template rationale is used instead and the substitution is noted in the text
 
 `TemplateExplainer` is the default and needs no credentials. `AnthropicExplainer` is selected
 with `DD_REPOSITORY_EXPLAINER=anthropic` and is the only importer of the `anthropic` SDK
-(ADR-0006). It is sent registry text and the needs, never research data.
+(docs/specs/dependencies.md). It is sent registry text and the needs, never research data.
 """
 
 from __future__ import annotations
@@ -116,7 +116,8 @@ class AnthropicExplainer:
         api_key: str | None = None,
     ) -> None:
         """Give a `client` (tests) or an `api_key` (`dd_sdk.credentials.api_key`). The key is
-        always passed explicitly, so the SDK's own credential chain is never used (ADR-0026)."""
+        always passed explicitly, so the SDK's own credential chain is never used
+        (docs/specs/policy-and-identity.md)."""
         if client is None:
             if not api_key:
                 raise ValueError("AnthropicExplainer needs a client or an api_key")

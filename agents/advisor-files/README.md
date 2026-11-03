@@ -2,7 +2,7 @@
 
 **Alpha** (`0.1.0a1`), and a **mock**: it does not yet do the File Archivist's real work.
 
-The File Archivist is one of the personas of the agent roster (ADR-0033). It serves one step of the
+The File Archivist is one of the personas of the agent roster ([Agents](../../docs/specs/agents.md)). It serves one step of the
 Blueprint's process flow:
 
 | Step | What the mock does |
@@ -12,7 +12,7 @@ Blueprint's process flow:
 ## Input and output
 
 The input is the core contract's `FileInventory`: what `dd-inventory` wrote for the dataset's
-folder ([`inventory/`](../../inventory/README.md), ADR-0034), with each file's path, size, digest,
+folder ([`inventory/`](../../inventory/README.md), [Projects](../../docs/specs/projects.md)), with each file's path, size, digest,
 media type, PRONOM identifiers and, for a table, its fields. The files themselves are never sent.
 
 `FormatAssessment` holds one `FileAssessment` per file, in the inventory's order, with its `path`,

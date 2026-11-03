@@ -1,4 +1,4 @@
-"""The input and payload classes of advisor.standards, as Pydantic models (ADR-0019).
+"""The input and payload classes of advisor.standards, as Pydantic models (docs/specs/contract.md).
 
 `schema/standards.yaml` is the source; `ClassSchema.of` compares each model with the schema
 generated from it.
@@ -33,7 +33,8 @@ class DatasetProfile(Frozen):
 
 
 class Recommendation(Grounded):
-    """Names its resource only in `grounded_on`; the description is in evidence (ADR-0015)."""
+    """Names its resource only in `grounded_on`; the description is in evidence
+    (docs/specs/grounding.md)."""
 
     kind: RecommendationKind
     target: str

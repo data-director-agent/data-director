@@ -1,4 +1,5 @@
-"""How an `AgentResult` and an `AgentSpec` cross A2A between the harness and an agent (ADR-0011).
+"""How an `AgentResult` and an `AgentSpec` cross A2A between the harness and an agent
+(docs/specs/agents.md).
 
 Harness → agent: one A2A user message. Its single data part is the `InvocationRequest`
 document; its `metadata` carries `dd.input_ref`, `dd.input_hash` and the W3C `traceparent` of the
@@ -12,10 +13,12 @@ builds that.
 
 The agent card declares the extension `EXTENSION_URI`, whose `params` are `describe(spec)`. The
 harness's own card declares `MANIFEST_EXTENSION_URI`, whose `params` are `{"agents": [...]}`, one
-`describe(spec)` per registered agent: what a delegation agent may ask it to invoke (ADR-0012).
+`describe(spec)` per registered agent: what a delegation agent may ask it to invoke
+(docs/specs/orchestration.md).
 
-A delegation agent's request back to the harness (ADR-0012) carries `dd.delegation_token` and
-a `traceparent` in its metadata, and is answered with an `envelope-json` artifact.
+A delegation agent's request back to the harness (docs/specs/orchestration.md) carries
+`dd.delegation_token` and a `traceparent` in its metadata, and is answered with an `envelope-json`
+artifact.
 
 Both sides import this module, so the keys are spelt in one place.
 """
@@ -36,8 +39,9 @@ MANIFEST_EXTENSION_URI = "https://w3id.org/data-director/a2a/manifest/v0"
 META_INPUT_REF = "dd.input_ref"
 META_INPUT_HASH = "dd.input_hash"
 META_TRACEPARENT = "traceparent"
-# ADR-0012: sent by the harness only to an agent in grounding mode delegation. The URL is the
-# harness's own A2A endpoint; the token is the grant a delegated request must present.
+# docs/specs/orchestration.md: sent by the harness only to an agent in grounding mode delegation.
+# The URL is the harness's own A2A endpoint; the token is the grant a delegated request must
+# present.
 META_DELEGATE_URL = "dd.delegate_url"
 META_DELEGATION_TOKEN = "dd.delegation_token"
 
@@ -63,8 +67,8 @@ def reply_from_document(body: dict[str, Any]) -> tuple[AgentResult, tuple[dict[s
     """Rebuild the `AgentResult` and the span documents from the `agent-result` data part.
 
     The payload is held as an `OpenPayload`: whether it conforms to its class is the conductor's
-    payload check, against the class schema the agent's card carries (ADR-0019). Raises
-    `WireError` for a body the core contract does not admit.
+    payload check, against the class schema the agent's card carries (docs/specs/contract.md).
+    Raises `WireError` for a body the core contract does not admit.
     """
     spans = body.get("spans", [])
     if not isinstance(spans, list) or not all(isinstance(s, str) for s in spans):

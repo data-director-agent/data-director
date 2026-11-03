@@ -1,5 +1,5 @@
-"""advisor.documentation through the conductor: the Documentation Editor mock (ADR-0033) as the
-stub drafter of the README and the data dictionary (#200)."""
+"""advisor.documentation through the conductor: the Documentation Editor mock
+(docs/specs/agents.md) as the stub drafter of the README and the data dictionary (#200)."""
 
 from __future__ import annotations
 

@@ -1,12 +1,12 @@
-"""advisor.metadata: the Metadata Librarian persona (ADR-0033). A mock, and the stub drafter of the
-project's metadata record (#200).
+"""advisor.metadata: the Metadata Librarian persona (docs/specs/agents.md). A mock, and the
+stub drafter of the project's metadata record (#200).
 
 Serves `preparation.metadata-standard` and `preparation.metadata` (R2). Given a `DraftRequest` for
-a `metadata_record`, it drafts a project document (ADR-0035): a DataCite record in DataCite's JSON
-form, with `conforms_to` set to the chosen repository's (ADR-0038 decision 3). Every property the
-repository's requirements list is written, with its qualifier, and its value left null for the
-researcher. The mock fills only what holds for any deposit, that the resource is a dataset, and
-what the inventory states: the files' formats and sizes.
+a `metadata_record`, it drafts a project document (docs/specs/projects.md): a DataCite record in
+DataCite's JSON form, with `conforms_to` set to the chosen repository's (docs/specs/deposit.md).
+Every property the repository's requirements list is written, with its qualifier, and its value
+left null for the researcher. The mock fills only what holds for any deposit, that the resource
+is a dataset, and what the inventory states: the files' formats and sizes.
 
 It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
 vocabulary, maps nothing between schemas (R6) and calls no model, so its grounding mode is `none`
@@ -46,12 +46,12 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
-# The schema every record follows in the MVP (ADR-0038 decision 3).
+# The schema every record follows in the MVP (docs/specs/deposit.md).
 DATACITE = "http://datacite.org/schema/kernel-4"
 MEDIA_TYPE = "application/json"
 
 # What the mock does not do, said in every outcome: its payload is the core Document, which has
-# no room for a list of limitations (ADR-0033 decision 5).
+# no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
     "This is a mock: it writes the properties the repository asks for and fills none that only "
     "you can, uses no controlled vocabularies, maps nothing between schemas, and reads neither an "

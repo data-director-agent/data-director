@@ -1,5 +1,5 @@
-"""advisor.metadata through the conductor: the Metadata Librarian mock (ADR-0033) as the stub
-drafter of the metadata record (#200)."""
+"""advisor.metadata through the conductor: the Metadata Librarian mock
+(docs/specs/agents.md) as the stub drafter of the metadata record (#200)."""
 
 from __future__ import annotations
 

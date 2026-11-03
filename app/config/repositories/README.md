@@ -3,7 +3,7 @@
 A requirement set says what a deposit must or should have: the metadata fields, the documents,
 and, for one repository, the formats, sizes and licences it accepts. Before it builds a deposit
 package, the harness checks a project against the requirements of the repository the researcher
-chose ([ADR-0038](../../../docs/adr/0038-repository-requirements-and-deposit-package.md)). A
+chose ([Deposit](../../../docs/specs/deposit.md)). A
 drafter is given the same requirements, so that it knows what to write.
 
 The sets are YAML so that the people who know a repository, its research data management team

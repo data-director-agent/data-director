@@ -4,7 +4,7 @@ Two things happen here that the conformance report depends on:
 
 - the `requirement` marker is checked against docs/requirements.yaml at collection
   time, so a test cannot claim to substantiate an identifier nobody has registered, or one the
-  register assesses by human review only (ADR-0014);
+  register assesses by human review only (docs/specs/evaluation.md);
 - `pytest_json_runtest_metadata` copies the marker's identifiers into the pytest-json-report
   record, which is what scripts/conformance_report.py reads.
 """
@@ -41,7 +41,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             if untestable:
                 raise pytest.UsageError(
                     f"{item.nodeid}: requirement marker names {untestable}, which the register "
-                    "assesses by review only; see docs/adr/0014-assessment-lanes.md"
+                    "assesses by review only; see docs/specs/evaluation.md"
                 )
 
 

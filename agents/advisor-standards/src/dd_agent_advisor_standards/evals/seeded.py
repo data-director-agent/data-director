@@ -12,7 +12,7 @@ that file lists; cases needing a backend the evaluation cannot control there (`b
 unavailable`) are left out.
 
 The evaluation acts for whoever runs it, named by `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME`
-as for any invocation (ADR-0018); it does not start without them.
+as for any invocation (docs/specs/policy-and-identity.md); it does not start without them.
 
 The task's metadata records what produced the run, so two logs can be told apart: the git
 revision, the standards advisor's configuration variables, and the hashes of the ranking rules, the

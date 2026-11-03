@@ -1,5 +1,5 @@
 # advisor.metadata's rule table: how a DataCite property is written in DataCite's JSON form, the
-# form of the DataCite REST API's attributes (ADR-0038 decision 3). A mock's table (ADR-0033); the
+# form of the DataCite REST API's attributes (docs/specs/deposit.md). A mock's table (docs/specs/agents.md); the
 # real librarian replaces it, TODO(#357).
 #
 # `value` is the key that holds the value in each entry of a property whose value is a list of

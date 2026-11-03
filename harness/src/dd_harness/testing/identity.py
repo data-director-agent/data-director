@@ -1,4 +1,4 @@
-"""A fake OpenID Connect provider (ADR-0029).
+"""A fake OpenID Connect provider (docs/specs/policy-and-identity.md).
 
 `FakeIdentityProvider` stands in for an OpenID Connect provider such as ORCID: a local signing
 key, its published keys, and ID tokens built to order, so that a test of sign-in needs no network
@@ -124,7 +124,9 @@ class FakeIdentityProvider:
         assert authorize_url.startswith(self.discovery()["authorization_endpoint"] + "?")
         assert query.get("client_id") == self.client_id, "another client"
         assert query.get("response_type") == "code", "not the authorisation-code flow"
-        assert query.get("scope") == "openid", "a scope beyond openid (ADR-0029)"
+        assert query.get("scope") == "openid", (
+            "a scope beyond openid (docs/specs/policy-and-identity.md)"
+        )
         assert query.get("state") and query.get("nonce"), "no state or no nonce"
         token.setdefault("nonce", query["nonce"])
         code = secrets.token_urlsafe(16)

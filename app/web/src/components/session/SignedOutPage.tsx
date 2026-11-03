@@ -1,7 +1,7 @@
 /**
  * Where a person lands once they have signed out. Signing out ends the session on the server,
  * but the provider offers no sign-out for the app, so the person may still be signed in there,
- * and the page says so (ADR-0029).
+ * and the page says so (docs/specs/policy-and-identity.md).
  */
 
 import "./Session.css";

@@ -24,7 +24,7 @@ The contract exists in three forms:
 LinkML is needed only to regenerate the schemas. It is not a runtime dependency. Some rules
 cannot be stated in JSON Schema, such as "a `succeeded` outcome carries a payload". The LinkML
 source states these rules in prose and `dd_sdk/contract/validate.py` enforces them.
-[ADR-0020](adr/0020-linkml-as-contract-source.md) records why LinkML was chosen and what else was
+[Contract](specs/contract.md) records why LinkML was chosen and what else was
 considered.
 
 To change the contract:
@@ -35,8 +35,7 @@ To change the contract:
 4. Run `uv run pytest sdk`. The tests check that the generated files match a fresh generation
    and that every model validates against the schema.
 
-A change to a fixed format, such as a slot, a required field or the outcome vocabulary, needs an
-ADR.
+A change to a fixed format, such as a slot, a required field or the outcome vocabulary, changes a spec ([Contract](specs/contract.md)).
 
 ## The request
 
@@ -44,22 +43,22 @@ An agent receives an `InvocationRequest`. Its main fields are:
 
 | Field | Meaning |
 |---|---|
-| `invocation_id` | A UUIDv7 identifier for this run. UUIDv7 values sort by time ([ADR-0004](adr/0004-identifiers-and-problems.md)). |
+| `invocation_id` | A UUIDv7 identifier for this run. UUIDv7 values sort by time ([Contract](specs/contract.md)). |
 | `agent_id` | The agent to run, for example `advisor.quality`. |
 | `input` | The input document. |
 | `conversation_id` | Optional. The conversation this run is a turn of (see below). |
 | `parent_invocation_id` | Set only by the conductor, on a run another agent delegated. A caller that sets it is refused. |
 
 A request does not name an institutional profile. The deployment chooses one, and a request that
-carries `policy_bundle_ref` fails validation ([ADR-0017](adr/0017-policy-is-the-deployments.md)).
+carries `policy_bundle_ref` fails validation ([Policy and identity](specs/policy-and-identity.md)).
 
 The input is one of several input classes: `DatasetProfile`, `MetadataRecord`, `Claim`,
 `Salutation`, `Message`, `FileInventory` or `DraftRequest`. Its `schema_class` field says which one it is
-([ADR-0007](adr/0007-polymorphic-contract.md)).
+([Contract](specs/contract.md)).
 
 Three input classes belong to the core. `Message` is described under conversations, below.
 `FileInventory` is what a project holds in place of its data files
-([ADR-0034](adr/0034-project-and-its-files.md)). For each file it gives the path relative to the
+([Projects](specs/projects.md)). For each file it gives the path relative to the
 dataset's root folder, the size, the SHA-256 digest, the media type and every PRONOM identifier
 the file matched, with how they were found. For a table it also gives the fields as a
 Frictionless Table Schema (`TableField`). It is made by `dd-inventory`, a command run where the
@@ -68,7 +67,7 @@ data live ([`inventory/`](../inventory/README.md)), and it never holds a file's 
 `DraftRequest` is what every drafter accepts: an agent that returns a `Document` is asked for one
 `document_kind` and given the project's facts. These are the `inventory`, the `requirements` of
 the repository chosen (`RepositoryRequirements`, the merged set of
-[ADR-0038](adr/0038-repository-requirements-and-deposit-package.md) decision 2) and, to
+[Deposit](specs/deposit.md)) and, to
 regenerate a document, its `current_version`. A `CurrentVersion` gives the version as a
 `DocumentVersionRef`, its text and media type, its `version_state` (`proposed`, `approved` or
 `rejected`) and the `decision_reason` a person gave, and the drafter names that version in its
@@ -84,9 +83,9 @@ An agent's response is wrapped in an `Envelope`. Every envelope contains:
 |---|---|
 | `outcome` | What happened. Its `status` is one of the five values below. |
 | `payload` | The agent's result. Present only when the status is `succeeded`. |
-| `evidence` | The source records the result rests on. Each item carries a content hash and names the canonicalisation used to compute it ([ADR-0009](adr/0009-evidence-canonicalisations.md)). |
+| `evidence` | The source records the result rests on. Each item carries a content hash and names the canonicalisation used to compute it ([Evidence and grounding](specs/grounding.md)). |
 | `grounding_mode` | The grounding mode the agent declared ([`grounding.md`](../harness/docs/grounding.md)). |
-| `policy_bundle_ref`, `policy_digest` | The institutional profile the conductor applied, as `profile:<id>@v<version>`, and the SHA-256 of its file ([ADR-0017](adr/0017-policy-is-the-deployments.md)). |
+| `policy_bundle_ref`, `policy_digest` | The institutional profile the conductor applied, as `profile:<id>@v<version>`, and the SHA-256 of its file ([Policy and identity](specs/policy-and-identity.md)). |
 | `telemetry` | The trace id, the model id, token counts, and energy fields. The energy fields are always empty for now (`not_measured`). |
 | `requires_human_review` | Always `true`. The schema fixes it as a constant, so no envelope can claim otherwise. |
 | `problem` | Details of the problem, when the status is `failed` or `suspended`. |
@@ -120,13 +119,13 @@ Two payload classes belong to the core, because the harness and the app read the
 knowing the agent: `Reply`, below, and `Document`, a project document such as a metadata record,
 a README or a data dictionary. A `Document` gives its `document_kind`, its `media_type` and its
 `document_text`, and names the version it `revises` when an agent regenerates it
-([ADR-0035](adr/0035-project-documents.md)).
+([Projects](specs/projects.md)).
 
 ## Conversations
 
 A conversation is a sequence of runs that share a `conversation_id`. Each turn is one ordinary
 run with its own envelope, so every check applies to it
-([ADR-0012](adr/0012-conversation-and-orchestration.md)).
+([Orchestration](specs/orchestration.md)).
 
 A conversational agent accepts `Message`: the text of this turn (`message_text`) and the
 conversation so far (`history`, a list of `ConversationTurn`). Each agent turn in the history

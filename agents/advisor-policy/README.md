@@ -23,7 +23,7 @@ of data and the publication date.
 `PolicyChecks` holds:
 
 - `policies`: one entry per policy record matched to an actor. The record is named only in
-  `grounded_on`; its name, clauses and relations are the evidence `content` (ADR-0015). Each
+  `grounded_on`; its name, clauses and relations are the evidence `content` ([Evidence and grounding](../../docs/specs/grounding.md)). Each
   entry has one obligation per kind (`deposit`, `data_availability_statement`, `repository`,
   `standard`, `embargo`, `licence`, `timing`), each `required`, `recommended` or `unstated`,
   with the value the curators recorded in `recorded_as`. It also has notes and a rationale.
@@ -65,7 +65,7 @@ Retrieval comes first, and no model matches a policy or states an obligation:
   `uv run scripts/dev.py setup` writes them when it is given a login. With `live`, the agent
   falls back to the snapshot, marked stale, when the route fails.
 - `DD_POLICY_EXPLAINER`: `template` (the default) or `anthropic`, with `DD_MODEL_ID` and the
-  key as for the standards advisor (ADR-0026).
+  key as for the standards advisor ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Sources
 
@@ -73,7 +73,7 @@ Retrieval comes first, and no model matches a policy or states an obligation:
 Its label, `fairsharing-policy:snapshot:<date>`, differs from the repository advisor's copy of
 FAIRsharing's database records. It is pinned in `workbench/sources.yaml` and
 `app/config/sources.yaml`, so the harness's source check verifies the evidence against it
-(ADR-0016). The identifiers kept are listed in `data/fairsharing/ids.txt`. To rebuild, run
+([Agents](../../docs/specs/agents.md)). The identifiers kept are listed in `data/fairsharing/ids.txt`. To rebuild, run
 `uv run python agents/advisor-policy/scripts/build_policy_snapshot.py` with the FAIRsharing login set, then pin
 the new file.
 
@@ -91,4 +91,4 @@ the new file.
 - Differences are found between strengths only. Two policies that require different
   repositories are not yet compared. TODO(#331)
 - The FAIRsharing client is a copy of the standards advisor's, since an agent may not import
-  another (ADR-0031). TODO(#280)
+  another ([System and boundaries](../../docs/specs/system.md)). TODO(#280)

@@ -2,7 +2,7 @@
 
 Most of Data Director runs without a model. Two agents can call a hosted AI model, and an operator
 decides whether they do, which model they call, and whose key pays for it. This page covers those
-decisions. [ADR-0026](../../adr/0026-model-credentials.md) records why the key is handled as it is.
+decisions. [Policy and identity](../../specs/policy-and-identity.md) records why the key is handled as it is.
 
 ## Which agents call a model
 
@@ -105,7 +105,7 @@ per agent needs a workspace per agent.
 
 3. Restart it: `sudo systemctl restart data-director-agent@advisor-standards.service`.
 
-The app runs no agent in its own process, so there is nothing to change in the app (ADR-0027).
+The app runs no agent in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
 
 ## Turn on the model-backed orchestrator
 

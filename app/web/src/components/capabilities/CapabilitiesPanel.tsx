@@ -131,7 +131,7 @@ function OversightFact({ label, value }: { label: string; value: Declared<unknow
         {value.state === "undeclared" ? (
           <span className="status status-undeclared">Not declared</span>
         ) : (
-          // TODO(#67): render each declared field (increment 2, ADR-0025).
+          // TODO(#67): render each declared field (increment 2, #67).
           <span>Declared</span>
         )}
       </dd>

@@ -103,7 +103,8 @@ def test_spec_declares_what_the_conductor_enforces() -> None:
 
 
 def test_its_own_classes_are_generated_from_its_linkml_and_carried_by_its_card() -> None:
-    # Recipe step 1: the agent owns its classes (ADR-0019). The generated schemas are current...
+    # Recipe step 1: the agent owns its classes (docs/specs/contract.md). The generated schemas are
+    # current...
     assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
     # ...and the card carries them, so the workbench needs no copy of its own.
     entry = describe(HelloWorld.spec)

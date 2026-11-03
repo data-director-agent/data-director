@@ -2,9 +2,9 @@
  * The conversation endpoints, behind one interface so tests can stand in for the server.
  *
  * A turn sends only the agent, the message and the turn it follows: the server builds the history
- * from what it stored (ADR-0024 §17) and refuses one the page sends. A turn that does not follow
+ * from what it stored (docs/specs/app.md) and refuses one the page sends. A turn that does not follow
  * the latest stored turn, or that arrives while another is running, is refused with a 409 and
- * nothing runs (ADR-0037 decision 7), so a message sent again after a dropped connection is never
+ * nothing runs (docs/specs/orchestration.md), so a message sent again after a dropped connection is never
  * run twice (#337).
  */
 

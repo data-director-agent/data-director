@@ -1,4 +1,5 @@
-"""orchestrator.model: the model-backed Data Director orchestrator (ADR-0012, #21).
+"""orchestrator.model: the model-backed Data Director orchestrator (docs/specs/orchestration.md,
+#21).
 
 The Blueprint's Data Director is one agent a person converses with, which hands work to
 specialist agents (§9.3, "AI Model Orchestration"). `orchestrator.stub` routes by fixed rules; this
@@ -16,9 +17,10 @@ current message. Every turn is still covered by the input hash; what was sent fo
 input and the setting.
 
 The parent succeeds once the model has replied, whatever its children's outcomes were. A failed
-child is on the parent's `delegations` and its own envelope, and the reply reports it (ADR-0012,
-"Discovery and failed children"). A turn the model declines, or an API failure, raises, and the
-conductor records failed(agent-error): a model-derived reply is never replaced by a template.
+child is on the parent's `delegations` and its own envelope, and the reply reports it
+(docs/specs/orchestration.md, "Discovery and failed children"). A turn the model declines, or an API
+failure, raises, and the conductor records failed(agent-error): a model-derived reply is never
+replaced by a template.
 """
 
 from __future__ import annotations
@@ -90,7 +92,7 @@ def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) 
             description = str(entry.get("description") or agent_id)
             title = str(entry.get("title") or "")
             if title:
-                # The persona's name, so the reply can name who was asked (ADR-0033).
+                # The persona's name, so the reply can name who was asked (docs/specs/agents.md).
                 description = f"The {title}. {description}"
             steps = [str(s) for s in entry.get("serves") or []]
             if steps:
@@ -127,7 +129,7 @@ def tool_schema(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 def _integral(value: Any) -> Any:
-    # protobuf's Struct has only floating-point numbers (ADR-0027).
+    # protobuf's Struct has only floating-point numbers (docs/specs/app.md).
     if isinstance(value, float) and value.is_integer():
         return int(value)
     if isinstance(value, dict):

@@ -1,4 +1,4 @@
-"""Generate JSON Schema (and, for the core, SHACL) from a LinkML source (ADR-0019).
+"""Generate JSON Schema (and, for the core, SHACL) from a LinkML source (docs/specs/contract.md).
 
 `dd-gen-schema` with no argument regenerates the core contract, `data_director.yaml`, into
 `generated/` beside it: the envelope and request schemas, the SHACL shapes, and one class schema
@@ -10,8 +10,8 @@ A class schema is self-contained: its `$defs` hold only the definitions the clas
 `$comment` names the source and the command, and the tests byte-compare every generated file
 against a fresh generation, so a hand edit fails the suite rather than taking effect.
 
-LinkML is a development dependency (ADR-0007): it is needed to regenerate a schema, never to
-load one.
+LinkML is a development dependency (docs/specs/contract.md): it is needed to regenerate a schema,
+never to load one.
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def designated_classes(source: Path, view: Any) -> list[str]:
 
 
 def _open_classes(view: Any) -> set[str]:
-    """Classes annotated `open: true`: the core's `Input` and `Payload` (ADR-0019)."""
+    """Classes annotated `open: true`: the core's `Input` and `Payload` (docs/specs/contract.md)."""
     found = set()
     for name, cls in view.all_classes().items():
         note = cls.annotations.get(OPEN) if cls.annotations else None
@@ -135,14 +135,14 @@ def _repair(schema: dict[str, Any], top_class: str, view: Any) -> dict[str, Any]
     2. A polymorphic slot (`range: Any` + `any_of`) that is required is emitted as
        `{"$ref": "#/$defs/Any", "anyOf": [...]}`. Under Draft 7, `$ref` overrides every sibling
        keyword, so the `anyOf` would never be checked and any object would validate. The `$ref`
-       is dropped; the `anyOf` alone is the constraint (ADR-0007).
+       is dropped; the `anyOf` alone is the constraint (docs/specs/contract.md).
     3. Properties are emitted in alphabetical order. They are put back in the order the LinkML
        source gives a class's slots, own slots before mixins, which is the order a reader meets
-       them in the viewer (ADR-0016). Property order carries no meaning in JSON Schema.
+       them in the viewer (docs/specs/agents.md). Property order carries no meaning in JSON Schema.
     4. A class annotated `open: true` is emitted closed, with its designator fixed to its own
        name. LinkML cannot say "any object that names its class". It is opened: any further
        property is allowed, and `schema_class` is any string. The agent's class schema checks
-       the rest (ADR-0019).
+       the rest (docs/specs/contract.md).
     """
     holders = [(top_class, schema), *schema.get("$defs", {}).items()]
     classes = view.all_classes()

@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-harness"
 version = "0.2.0-alpha"
-description = "Data Director harness: the conductor, policy gate, grounding linter, source check, run store and provenance, with an A2A way in (ADR-0022)"
+description = "Data Director harness: the conductor, policy gate, grounding linter, source check, run store and provenance, with an A2A way in (docs/specs/system.md)"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 
 # The harness imports `dd_sdk` and these libraries only, never the workbench, the app or an
-# agent (ADR-0022; enforced by tests/test_harness_boundary.py).
+# agent (docs/specs/system.md; enforced by tests/test_harness_boundary.py).
 dependencies = [
   "data-director-sdk>=0.2.0a0",
   "httpx>=0.28",
@@ -33,7 +33,7 @@ dd-harness = "dd_harness.server:main"
 # the conductor as a library (the app) does not need it.
 serve = ["uvicorn>=0.30"]
 
-# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+# What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
   "data-director-agent-example-hello",

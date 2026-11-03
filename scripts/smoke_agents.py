@@ -7,7 +7,7 @@ the outcome it is documented to reach through `workbench invoke`, that `workbenc
 on each envelope, and that the orchestrator delegates over AG-UI. Runs are written to a temporary
 directory, never to `workbench/runs/`.
 
-An agent that calls a model stops at start-up without a key (ADR-0026). When no key is set for
+An agent that calls a model stops at start-up without a key (docs/specs/policy-and-identity.md). When no key is set for
 it, the script skips that agent and says so, so the smoke test needs no model key. Given a key,
 the agent must answer and register like the rest. The script makes no model call either way.
 

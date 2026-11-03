@@ -1,4 +1,5 @@
-"""Model credentials are read once, explicitly, and never echoed (ADR-0026)."""
+"""Model credentials are read once, explicitly, and never echoed
+(docs/specs/policy-and-identity.md)."""
 
 from __future__ import annotations
 

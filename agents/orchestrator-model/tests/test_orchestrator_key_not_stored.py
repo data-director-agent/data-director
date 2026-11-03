@@ -1,6 +1,6 @@
 """The orchestrator through the real Anthropic client, replayed from a cassette: the tool loop
 delegates and replies, and the model key reaches no envelope, span, RO-Crate or manifest
-(ADR-0026, #43)."""
+(docs/specs/policy-and-identity.md, #43)."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 # advisor.documentation
 
-**Mock, alpha** (`0.1.0a1`): a placeholder for a persona of the agent roster (ADR-0033), and the
+**Mock, alpha** (`0.1.0a1`): a placeholder for a persona of the agent roster (docs/specs/agents.md), and the
 stub drafter of a project's README and data dictionary (#200). It gives no real advice and is
 likely to change shape.
 
@@ -15,7 +15,7 @@ serves two steps of the process flow:
 ## Input and output
 
 It accepts the core `DraftRequest` and returns the core `Document`, so its drafts become project
-documents ([ADR-0035](../../docs/adr/0035-project-documents.md)) and the real editor can replace it
+documents ([Projects](../../docs/specs/projects.md)) and the real editor can replace it
 without its caller changing. A request names the `document_kind`:
 
 - `readme`: a Markdown README with the sections of `readme.yaml`. Each section shows, in italics,
@@ -36,7 +36,7 @@ dictionary is asked for and no file in the inventory has fields. It abstains wit
 drafts afresh, names that version in `revises` and keeps its title.
 
 Its grounding mode is `none`: it cites only its input. The core `Document` has no `limitations`
-slot, so the outcome's statement says what the mock does not do (ADR-0033 decision 5).
+slot, so the outcome's statement says what the mock does not do (docs/specs/agents.md).
 
 ## What it does not do
 

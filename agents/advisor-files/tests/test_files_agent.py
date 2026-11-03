@@ -1,4 +1,4 @@
-"""advisor.files through the conductor: the File Archivist mock (ADR-0033)."""
+"""advisor.files through the conductor: the File Archivist mock (docs/specs/agents.md)."""
 
 from __future__ import annotations
 

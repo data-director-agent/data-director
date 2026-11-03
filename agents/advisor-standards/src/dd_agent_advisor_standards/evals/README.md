@@ -1,7 +1,7 @@
 # The standards advisor evaluation
 
 A seeded-defect evaluation of `advisor.standards` on Inspect AI
-([ADR-0013](../../../../../docs/adr/0013-evaluation.md)). Each case takes the
+([Evaluation and conformance](../../../../../docs/specs/evaluation.md)). Each case takes the
 soil-chemistry sample profile, breaks it in one registered way (`defects.py`), and states what the standards advisor
 should then do (`cases.yaml`). Every case goes through the workbench conductor, so the policy
 gate, the input check and the grounding linter run as they do in any other invocation.

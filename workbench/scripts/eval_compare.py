@@ -1,4 +1,4 @@
-"""Compare evaluation runs case by case (ADR-0013).
+"""Compare evaluation runs case by case (docs/specs/evaluation.md).
 
     eval_compare.py OLD NEW                      what changed between two runs
     eval_compare.py --baseline BASELINE.json NEW exit 1 if any case scores lower than the baseline

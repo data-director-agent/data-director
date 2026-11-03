@@ -1,4 +1,4 @@
-"""Who is signed in: the app's server-side sessions (ADR-0029).
+"""Who is signed in: the app's server-side sessions (docs/specs/policy-and-identity.md).
 
 The browser holds an opaque, random session identifier in a cookie and nothing else. The store
 keeps, for each session, the `Principal` and the session's times, and nothing more: no token
@@ -31,7 +31,8 @@ SESSION_COOKIE = "dd_session"
 # Binds a sign-in's `state` to the browser that started it, so a callback carried to another
 # browser (login CSRF) is refused.
 SIGN_IN_COOKIE = "dd_sign_in"
-# ADR-0029's proposed defaults: an idle timeout of 8 hours and a lifetime of 7 days.
+# The defaults (docs/specs/policy-and-identity.md): an idle timeout of 8 hours and a lifetime of 7
+# days.
 DEFAULT_IDLE_S = 8 * 60 * 60
 DEFAULT_LIFETIME_S = 7 * 24 * 60 * 60
 # How long a person has to sign in at the provider before the sign-in must be started again.
@@ -134,8 +135,9 @@ def cookie(headers: Mapping[str, str] | None, name: str) -> str | None:
 
 @dataclass(frozen=True)
 class SessionAuthenticator:
-    """The person a request's session cookie names (ADR-0029). A request with no session, or one
-    that has ended, is refused; it is never given the operator's principal."""
+    """The person a request's session cookie names (docs/specs/policy-and-identity.md). A request
+    with no session, or one that has ended, is refused; it is never given the operator's
+    principal."""
 
     store: SessionStore
 

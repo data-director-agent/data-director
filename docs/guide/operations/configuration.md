@@ -19,7 +19,7 @@ only its own agent can read.
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
 | Who may use the site | `/etc/nginx/data-director.htpasswd` | none | NGINX |
 
-The app and the harness hold no model key (ADR-0026), so the first two rows never contain one.
+The app and the harness hold no model key ([Policy and identity](../../specs/policy-and-identity.md)), so the first two rows never contain one.
 
 ## The three files that define an instance
 
@@ -39,7 +39,7 @@ request cannot name a profile; only the operator chooses it
 ## Who a run acts for
 
 The app can sign people in with ORCID, so that each run acts for the person who started it and
-records that ORCID vouched for them (ADR-0029). Register an ORCID public API client for the
+records that ORCID vouched for them ([Policy and identity](../../specs/policy-and-identity.md)). Register an ORCID public API client for the
 deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, then set:
 
 | Variable | What it is |

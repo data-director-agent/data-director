@@ -1,4 +1,4 @@
-# The input and payload classes of advisor.quality, owned by this package (ADR-0019). It
+# The input and payload classes of advisor.quality, owned by this package (docs/specs/contract.md). It
 # imports the core contract as `data_director`. After an edit, run
 # `uv run dd-gen-schema agents/advisor-quality/src/dd_agent_advisor_quality/schema/quality.yaml` to regenerate
 # generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.

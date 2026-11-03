@@ -4,9 +4,9 @@ Grounding invariant: retrieval precedes any model call, and the model never dete
 identity of a recommendation. The explainer sees already-ranked records and writes rationale;
 the workbench's linter checks the trace afterwards (mode `retrieval`: G1-G4).
 
-A recommendation names its record once, in `grounded_on`. What the reader is shown about the
-record (name, status, DOI) is the evidence item's `content`: the projection its hash covers,
-which the linter re-hashes (E1, ADR-0015). There is no second copy to disagree with the first.
+A recommendation names its record once, in `grounded_on`. What the reader is shown about the record
+(name, status, DOI) is the evidence item's `content`: the projection its hash covers, which the
+linter re-hashes (E1, docs/specs/grounding.md). There is no second copy to disagree with the first.
 """
 
 from __future__ import annotations

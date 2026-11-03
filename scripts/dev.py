@@ -10,7 +10,7 @@
 
 `setup` writes each setting where it belongs, so nobody has to edit a settings file by hand:
 
-- `config/local/`, which mirrors /etc/data-director/ (ADR-0026) and which git ignores: `app.env`
+- `config/local/`, which mirrors /etc/data-director/ (docs/specs/policy-and-identity.md) and which git ignores: `app.env`
   (whom runs act for), `agents.env` (shared by every agent), `agents/<name>.env` (one agent's own
   settings) and `credentials/` (model keys, named by `*_FILE`). A key goes only in the file of the
   agent that uses it, never in a file every agent reads. `start` and Docker Compose read it.

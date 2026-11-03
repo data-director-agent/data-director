@@ -58,7 +58,7 @@
          "type": "object"
       },
       "DocumentKind": {
-         "description": "What a project document is for (ADR-0035).",
+         "description": "What a project document is for (docs/specs/projects.md).",
          "enum": [
             "metadata_record",
             "readme",
@@ -92,7 +92,7 @@
       },
       "FileInventory": {
          "additionalProperties": false,
-         "description": "The facts about a dataset's files that the project holds in place of the files (ADR-0034): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
+         "description": "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -152,7 +152,7 @@
          "type": "object"
       },
       "IdentificationMethod": {
-         "description": "How a file's format was identified, from strongest to weakest (ADR-0034).",
+         "description": "How a file's format was identified, from strongest to weakest (docs/specs/projects.md).",
          "enum": [
             "signature",
             "container",
@@ -222,7 +222,7 @@
          "type": "object"
       },
       "Obligation": {
-         "description": "Whether a requirement set's field or document stops a package (ADR-0038).",
+         "description": "Whether a requirement set's field or document stops a package (docs/specs/deposit.md).",
          "enum": [
             "required",
             "recommended"

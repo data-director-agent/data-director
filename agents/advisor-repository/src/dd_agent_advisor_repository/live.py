@@ -7,7 +7,7 @@ account.
 - FAIRsharing fetch: `GET https://fairsharing.org/<id>` with `Accept: application/json`.
 
 Any transport failure raises `RegistryUnavailable`; the agent then falls back to the snapshot
-and marks it stale. This module is the only importer of `httpx` (ADR-0006).
+and marks it stale. This module is the only importer of `httpx` (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

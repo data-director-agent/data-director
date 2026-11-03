@@ -1,6 +1,6 @@
 # advisor.fairness
 
-**Alpha** (`0.1.0a1`), and a **mock** (ADR-0033): it shows where the FAIR Assessor sits in the
+**Alpha** (`0.1.0a1`), and a **mock** ([Agents](../../docs/specs/agents.md)): it shows where the FAIR Assessor sits in the
 process flow, and gives no real assessment.
 
 The FAIR Assessor looks at a dataset that is already published. It serves two steps of the

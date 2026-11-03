@@ -4,7 +4,7 @@
  * are drawn as not built, linked to their issues, with no value standing in for them.
  *
  * The principal is the signed-in person, with who vouched for them, or on a development server
- * the operator's assertion, and the bar says which (ADR-0029).
+ * the operator's assertion, and the bar says which (docs/specs/policy-and-identity.md).
  */
 
 import "./StatusBar.css";

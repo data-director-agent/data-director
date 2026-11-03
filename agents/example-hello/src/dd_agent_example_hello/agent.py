@@ -12,10 +12,10 @@ It also keeps the workbench's modularity claim honest: if adding an agent ever s
 an edit to the conductor, linter, CLI, transport or viewer, this agent will be the one that shows
 it, because it has no other reason to fail.
 
-Grounding mode `none` (ADR-0008): deterministic over the input, no retrieval and no model call.
-The linter applies R1 (no retrieval span), R2 (everything cites the input), R3 (a succeeded run
-cites the input) and N1 (no chat span). The single legal citation is the input itself, whose
-source id and content hash the conductor computed and handed over in `ctx`.
+Grounding mode `none` (docs/specs/grounding.md): deterministic over the input, no retrieval and no
+model call. The linter applies R1 (no retrieval span), R2 (everything cites the input), R3 (a
+succeeded run cites the input) and N1 (no chat span). The single legal citation is the input itself,
+whose source id and content hash the conductor computed and handed over in `ctx`.
 """
 
 from __future__ import annotations
@@ -107,8 +107,8 @@ class HelloWorld:
                 greeting_derivation=Derivation.TEMPLATE,
                 grounded_on=[ref],
             ),
-            # Step 3: the canonicalisation is a registered name from `dd_sdk.evidence` (ADR-0009),
-            # never a literal invented here.
+            # Step 3: the canonicalisation is a registered name from `dd_sdk.evidence`
+            # (docs/specs/grounding.md), never a literal invented here.
             evidence=[
                 EvidenceItem(
                     source_id=ctx.input_ref,

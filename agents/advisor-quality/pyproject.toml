@@ -14,7 +14,7 @@ dependencies = ["data-director-sdk>=0.2.0a0", "pyyaml>=6.0"]
 [project.scripts]
 dd-advisor-quality = "dd_agent_advisor_quality.agent:main"
 
-# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+# What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
   "data-director-harness",

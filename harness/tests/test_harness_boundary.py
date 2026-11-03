@@ -1,5 +1,5 @@
-"""The harness stands on its own (ADR-0022): it imports the SDK and third-party libraries, never
-a way in to it (the workbench, the app), an agent, or the evaluation framework."""
+"""The harness stands on its own (docs/specs/system.md): it imports the SDK and third-party
+libraries, never a way in to it (the workbench, the app), an agent, or the evaluation framework."""
 
 from __future__ import annotations
 

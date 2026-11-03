@@ -1,6 +1,6 @@
 # The core Data Director contract: the fixed format the harness governs every agent by.
-# Owned by the SDK; changing it is an ADR. `version` is the contract version agent cards declare
-# (ADR-0019). After an edit, run `uv run dd-gen-schema` to regenerate generated/, and keep
+# Owned by the SDK; changing it changes the contract spec. `version` is the contract version agent cards declare
+# (docs/specs/contract.md). After an edit, run `uv run dd-gen-schema` to regenerate generated/, and keep
 # ../contract/models.py in step; sdk/tests/test_contract.py checks both.
 id: https://w3id.org/data-director/schema/core
 name: data_director_core
@@ -9,8 +9,8 @@ description: >-
   The invocation contract the Data Director harness governs every agent by: the request an agent
   receives, the envelope it returns, the outcome vocabulary, the input classes agents read and the
   payload classes they return. Input and payload are polymorphic unions discriminated by
-  schema_class (ADR-0007); every payload mixes in Grounded so the grounding linter can check it
-  without knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
+  schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
+  without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
 version: 0.9.4
 license: MIT
@@ -39,7 +39,7 @@ classes:
     description: >-
       What the conductor hands to an agent. One request produces exactly one Envelope. A
       conversation is the set of top-level invocations sharing a conversation_id; each turn is
-      one request and one envelope (ADR-0012).
+      one request and one envelope (docs/specs/orchestration.md).
     slots:
       - invocation_id
       - agent_id
@@ -83,7 +83,7 @@ classes:
   Delegation:
     description: >-
       One child invocation an agent in grounding mode delegation made through the harness
-      (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the
+      (docs/specs/orchestration.md). Recorded by the conductor from its own run of the child, never reported by the
       agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a
       relayed reply cites.
     slots:
@@ -98,7 +98,7 @@ classes:
     description: >-
       The human an invocation acted for (Blueprint §5.4), or the accountable human role where it
       acted for an institution. Named by the deployment's authentication boundary and recorded
-      by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018).
+      by the conductor; a request cannot name one, and an agent is never sent one (docs/specs/policy-and-identity.md).
     slots:
       - principal_id
       - name
@@ -110,7 +110,7 @@ classes:
         description: How the person or role is named to a reader of the record.
         pattern: "\\S"
     rules:
-      - description: An authenticated principal names the issuer that vouched (ADR-0029).
+      - description: An authenticated principal names the issuer that vouched (docs/specs/policy-and-identity.md).
         preconditions:
           slot_conditions:
             assurance:
@@ -119,7 +119,7 @@ classes:
           slot_conditions:
             vouched_by:
               required: true
-      - description: An asserted principal was vouched for by nobody (ADR-0029).
+      - description: An asserted principal was vouched for by nobody (docs/specs/policy-and-identity.md).
         preconditions:
           slot_conditions:
             assurance:
@@ -179,7 +179,7 @@ classes:
 
   FileInventory:
     description: >-
-      The facts about a dataset's files that the project holds in place of the files (ADR-0034):
+      The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md):
       for each file its path, size, digest and format, and for a table its fields. Made by a
       command run where the data live; it never contains a file's content. advisor.files reads it.
     slots:
@@ -204,7 +204,7 @@ classes:
 
   RequirementSet:
     description: >-
-      What a deposit must or should have (ADR-0038). A standard's set covers any record in one
+      What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one
       metadata standard and names it in re3data_names; a repository override adds what one
       repository asks and names it in re3data_id. The harness merges the two for the repository a
       researcher chose, checks the project against the result, and gives it to the drafters. Kept
@@ -331,7 +331,7 @@ classes:
       The identity and content hash of one retrieved thing a payload rests on. The only way a
       payload may name an external resource as a decided identity, and the only place it names
       it: what the reference identifies is read from the evidence item with the same source_id
-      and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval
+      and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval
       span on both fields.
     slots:
       - source_id
@@ -350,7 +350,7 @@ classes:
     abstract: true
     description: >-
       Any input: an object that names its class in schema_class. The core checks nothing else;
-      the class schema of the agent's accepted input class does (ADR-0019).
+      the class schema of the agent's accepted input class does (docs/specs/contract.md).
     annotations:
       open: true
     slots:
@@ -360,7 +360,7 @@ classes:
     abstract: true
     description: >-
       Any payload: an object that names its class in schema_class and mixes in Grounded. The core
-      checks nothing else; the class schema of the agent's payload class does (ADR-0019).
+      checks nothing else; the class schema of the agent's payload class does (docs/specs/contract.md).
     annotations:
       open: true
     mixins:
@@ -385,7 +385,7 @@ classes:
   Document:
     description: >-
       The payload of an agent that drafts or regenerates a project document: a metadata record, a
-      README, a data dictionary or another document, as text (ADR-0035). The only payload class
+      README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class
       that becomes a project document.
     mixins:
       - Grounded
@@ -458,7 +458,7 @@ slots:
   policy_bundle_ref:
     description: >-
       The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The
-      deployment chooses the profile; a request cannot name one (ADR-0017).
+      deployment chooses the profile; a request cannot name one (docs/specs/policy-and-identity.md).
     required: true
     pattern: "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
   policy_digest:
@@ -467,24 +467,24 @@ slots:
     pattern: "^[0-9a-f]{64}$"
   contract_version:
     description: >-
-      The version of this core contract the conductor governed the invocation under (ADR-0019).
+      The version of this core contract the conductor governed the invocation under (docs/specs/contract.md).
     required: true
     pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
   input_schema:
     description: >-
       The digest of the class schema the input was checked against, as the agent's card carried
-      it. Absent when the agent does not accept the input's class (ADR-0019).
+      it. Absent when the agent does not accept the input's class (docs/specs/contract.md).
     pattern: "^[0-9a-f]{64}$"
   payload_schema:
     description: >-
       The digest of the class schema the payload was checked against, as the agent's card
       carried it. Present exactly when there is a payload; the run store keeps the schema under
-      this digest, so a stored run renders with the schema it was checked against (ADR-0019).
+      this digest, so a stored run renders with the schema it was checked against (docs/specs/contract.md).
     pattern: "^[0-9a-f]{64}$"
   acting_for:
     description: >-
       The human this invocation acted for. Filled by the conductor from the authentication
-      boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018).
+      boundary, never from the request; a delegated invocation acts for its parent's (docs/specs/policy-and-identity.md).
     range: Principal
     required: true
     inlined: true
@@ -506,7 +506,7 @@ slots:
     description: >-
       The IRI of the identity provider's issuer that vouched for the principal, for example
       https://orcid.org, so that a reader can weigh the claim by who made it. Required when
-      assurance is authenticated and absent when it is asserted (ADR-0029).
+      assurance is authenticated and absent when it is asserted (docs/specs/policy-and-identity.md).
     range: uri
     slot_uri: dd:vouched_by
     pattern: "^[a-z][a-z0-9+.-]*:\\S+$"
@@ -514,7 +514,7 @@ slots:
     description: >-
       What the agent is asked to work on: an instance of one of the input classes the agent
       accepts, named by schema_class. The class schema the agent's card carries checks the rest
-      (ADR-0019).
+      (docs/specs/contract.md).
     range: Input
     required: true
     inlined: true
@@ -539,7 +539,7 @@ slots:
     description: >-
       Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload
       class the agent declares, named by schema_class; every payload class mixes in Grounded.
-      The class schema the agent's card carries checks the rest (ADR-0019).
+      The class schema the agent's card carries checks the rest (docs/specs/contract.md).
     range: Payload
     inlined: true
   grounded_on:
@@ -893,7 +893,7 @@ slots:
   content:
     description: >-
       The document the named canonicalisation turns into bytes, already projected, so that a
-      reader or the linter (E1) can recompute content_hash from the envelope alone (ADR-0015).
+      reader or the linter (E1) can recompute content_hash from the envelope alone (docs/specs/grounding.md).
       Where a payload cites this item from grounded_on, this is what the citation identifies.
     range: Any
 
@@ -913,7 +913,7 @@ slots:
 enums:
 
   Obligation:
-    description: Whether a requirement set's field or document stops a package (ADR-0038).
+    description: Whether a requirement set's field or document stops a package (docs/specs/deposit.md).
     permissible_values:
       required:
         description: A missing value is an sh:Violation; the package is not built.
@@ -921,7 +921,7 @@ enums:
         description: A missing value is an sh:Warning, shown to the researcher.
 
   IdentificationMethod:
-    description: How a file's format was identified, from strongest to weakest (ADR-0034).
+    description: How a file's format was identified, from strongest to weakest (docs/specs/projects.md).
     permissible_values:
       signature:
         description: A PRONOM byte signature matched the file's content.
@@ -988,7 +988,7 @@ enums:
         description: Read directly from a curated registry field.
 
   DocumentKind:
-    description: What a project document is for (ADR-0035).
+    description: What a project document is for (docs/specs/projects.md).
     permissible_values:
       metadata_record:
         description: A record of the dataset in a repository's metadata schema.
@@ -1016,7 +1016,7 @@ enums:
   GroundingMode:
     description: >-
       The grounding contract an agent declares. The linter applies a rule set per mode
-      (ADR-0008); an envelope always records which one applied.
+      (docs/specs/grounding.md); an envelope always records which one applied.
     permissible_values:
       retrieval:
         description: >-
@@ -1034,7 +1034,7 @@ enums:
         description: >-
           The agent works over its input and the envelopes of invocations it delegated through
           the harness. No retrieval span may appear; a model may be called; every grounding
-          reference is the input hash or a recorded delegation (rules R1, D1–D3, ADR-0012).
+          reference is the input hash or a recorded delegation (rules R1, D1–D3, docs/specs/orchestration.md).
 
   PrincipalKind:
     permissible_values:
@@ -1047,7 +1047,7 @@ enums:
 
   Assurance:
     description: >-
-      How the harness came to know the principal (ADR-0018, ADR-0029).
+      How the harness came to know the principal (docs/specs/policy-and-identity.md).
     permissible_values:
       asserted:
         description: >-

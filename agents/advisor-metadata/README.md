@@ -1,6 +1,6 @@
 # advisor.metadata
 
-**Alpha** (`0.1.0a1`) and a **mock** (ADR-0033), and the stub drafter of a project's metadata
+**Alpha** (`0.1.0a1`) and a **mock** (docs/specs/agents.md), and the stub drafter of a project's metadata
 record (#200). It gives no real advice, and its results say so.
 
 The Metadata Librarian drafts a metadata record for a dataset, for the researcher to review before
@@ -8,14 +8,14 @@ submission (R2). It serves two steps of the Blueprint's process flow (§8.2):
 
 | Step | What the mock does |
 |---|---|
-| `preparation.metadata-standard` | Follows the standard of the repository chosen. In the MVP that is always DataCite (ADR-0038 decision 3). |
+| `preparation.metadata-standard` | Follows the standard of the repository chosen. In the MVP that is always DataCite (docs/specs/deposit.md). |
 | `preparation.metadata` | Drafts a record in it with every property the repository requires or recommends. |
 
 ## Input and output
 
 It accepts the core `DraftRequest` with `document_kind: metadata_record`, and returns the core
 `Document`, so its draft becomes a project document
-([ADR-0035](../../docs/adr/0035-project-documents.md)) and the real librarian can replace it
+([Projects](../../docs/specs/projects.md)) and the real librarian can replace it
 without its caller changing.
 
 The record is DataCite's JSON form, the form of the DataCite REST API's attributes, with
@@ -37,7 +37,7 @@ schema other than DataCite, and with `outside_agent_scope` for any other kind. W
 gives a `current_version`, the mock drafts afresh and names that version in `revises`.
 
 Its grounding mode is `none`: it cites only its input. The core `Document` has no `limitations`
-slot, so the outcome's statement says what the mock does not do (ADR-0033 decision 5).
+slot, so the outcome's statement says what the mock does not do (docs/specs/agents.md).
 
 ## What it does not do
 

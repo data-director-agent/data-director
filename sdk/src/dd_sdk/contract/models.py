@@ -27,7 +27,7 @@ class Frozen(BaseModel):
 
 
 def new_invocation_id() -> str:
-    """UUIDv7 (RFC 9562), from the standard library. ADR-0004."""
+    """UUIDv7 (RFC 9562), from the standard library. docs/specs/contract.md."""
     return str(uuid.uuid7())
 
 
@@ -76,7 +76,7 @@ class DocumentKind(StrEnum):
 
 
 class VersionState(StrEnum):
-    """The state of one version of a project document (ADR-0035 decision 6)."""
+    """The state of one version of a project document (docs/specs/projects.md)."""
 
     PROPOSED = "proposed"
     APPROVED = "approved"
@@ -90,7 +90,7 @@ class EnergyMethod(StrEnum):
 
 
 class GroundingMode(StrEnum):
-    """The grounding contract an agent declares (ADR-0008)."""
+    """The grounding contract an agent declares (docs/specs/grounding.md)."""
 
     RETRIEVAL = "retrieval"
     INPUT_ONLY = "input_only"
@@ -126,8 +126,9 @@ class Obligation(StrEnum):
 
 
 # --- Requirement sets -------------------------------------------------------------------------
-# What a deposit must or should have (ADR-0038): the deployment's configuration, which the harness
-# loads and merges for the repository a researcher chose. Not an input or a payload of any agent.
+# What a deposit must or should have (docs/specs/deposit.md): the deployment's configuration, which
+# the harness loads and merges for the repository a researcher chose. Not an input or a payload of
+# any agent.
 
 
 class RequirementField(Frozen):
@@ -139,7 +140,8 @@ class RequirementField(Frozen):
 
 
 class RequirementSet(Frozen):
-    """A metadata standard's requirements, or one repository's override of them (ADR-0038)."""
+    """A metadata standard's requirements, or one repository's override of them
+    (docs/specs/deposit.md)."""
 
     schema_class: Literal["RequirementSet"] = "RequirementSet"
     requirement_set_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*$")
@@ -165,7 +167,7 @@ class RequirementSetUse(Frozen):
 
 
 class RepositoryRequirements(Frozen):
-    """The merged requirements of the repository a researcher chose (ADR-0038 decision 2)."""
+    """The merged requirements of the repository a researcher chose (docs/specs/deposit.md)."""
 
     re3data_id: str = Field(pattern=r"^r3d[0-9]{9}$")
     repository_name: str
@@ -184,8 +186,8 @@ class RepositoryRequirements(Frozen):
 # --- Inputs -----------------------------------------------------------------------------------
 # Every input class carries `schema_class` as a type designator with a single literal value. The
 # core defines the conversation's Message, a project's FileInventory and the drafters'
-# DraftRequest (below); every other input class
-# belongs to its agent (ADR-0019), and the harness holds such an input as an `OpenInput`.
+# DraftRequest (below); every other input class belongs to its agent (docs/specs/contract.md), and
+# the harness holds such an input as an `OpenInput`.
 
 
 class ConversationTurn(Frozen):
@@ -197,7 +199,7 @@ class ConversationTurn(Frozen):
 
 
 class Message(Frozen):
-    """One conversational turn and the conversation so far (ADR-0012)."""
+    """One conversational turn and the conversation so far (docs/specs/orchestration.md)."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -224,7 +226,8 @@ class InventoryFile(Frozen):
 
 
 class FileInventory(Frozen):
-    """The facts about a dataset's files a project holds in place of the files (ADR-0034)."""
+    """The facts about a dataset's files a project holds in place of the files
+    (docs/specs/projects.md)."""
 
     schema_class: Literal["FileInventory"] = "FileInventory"
     inventory_files: list[InventoryFile] = Field(default_factory=list)
@@ -238,8 +241,9 @@ class FileInventory(Frozen):
 class OpenInput(Frozen):
     """An input held as the document it is, checked against its class schema, not a model.
 
-    What the harness reads a request's input as: it knows an agent's classes only by their
-    schemas (ADR-0019). An agent's own run sees its own model instead (`ClassSchema.parse_input`).
+    What the harness reads a request's input as: it knows an agent's classes only by their schemas
+    (docs/specs/contract.md). An agent's own run sees its own model instead
+    (`ClassSchema.parse_input`).
     """
 
     model_config = ConfigDict(frozen=True, extra="allow")
@@ -260,7 +264,7 @@ class InvocationRequest(Frozen):
     requirement_ids: list[str] = Field(default_factory=list)
     issued_at: datetime = Field(default_factory=now)
     conversation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
-    # Set only by the conductor, from a delegation grant (ADR-0012).
+    # Set only by the conductor, from a delegation grant (docs/specs/orchestration.md).
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     input: AnyInputDocument
 
@@ -289,7 +293,8 @@ class ProblemDetails(Frozen):
 
 
 class GroundingRef(Frozen):
-    """Identity and content hash of one retrieved thing a payload rests on (ADR-0008)."""
+    """Identity and content hash of one retrieved thing a payload rests on
+    (docs/specs/grounding.md)."""
 
     source_id: str
     content_hash: str = Field(pattern=SHA256_PATTERN)
@@ -307,12 +312,14 @@ def input_source_id(invocation_id: str) -> str:
 
 
 def invocation_source_id(invocation_id: str) -> str:
-    """The `source_id` a delegation agent cites for a child envelope it relays (ADR-0012)."""
+    """The `source_id` a delegation agent cites for a child envelope it relays
+    (docs/specs/orchestration.md)."""
     return f"invocation:{invocation_id}"
 
 
 class OpenPayload(Grounded):
-    """A payload held as the document it is, checked against its class schema (ADR-0019)."""
+    """A payload held as the document it is, checked against its class schema
+    (docs/specs/contract.md)."""
 
     model_config = ConfigDict(frozen=True, extra="allow")
     schema_class: str
@@ -329,11 +336,11 @@ AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_p
 # --- Payloads -------------------------------------------------------------------------------
 # Every payload class carries `schema_class` and mixes in Grounded. The core defines only the
 # conversation's Reply and the project's Document; every other payload class belongs to its agent
-# (ADR-0019, ADR-0035).
+# (docs/specs/contract.md, docs/specs/projects.md).
 
 
 class Reply(Grounded):
-    """The payload of a conversational agent (ADR-0012)."""
+    """The payload of a conversational agent (docs/specs/orchestration.md)."""
 
     schema_class: Literal["Reply"] = "Reply"
     reply_text: str
@@ -341,14 +348,14 @@ class Reply(Grounded):
 
 
 class DocumentVersionRef(Frozen):
-    """One version of a project document, numbered from 1 within it (ADR-0035)."""
+    """One version of a project document, numbered from 1 within it (docs/specs/projects.md)."""
 
     document_id: str = Field(pattern=UUID7_PATTERN)
     version: int = Field(ge=1)  # not in the schema (#333)
 
 
 class Document(Grounded):
-    """A project document an agent drafts or regenerates, as text (ADR-0035)."""
+    """A project document an agent drafts or regenerates, as text (docs/specs/projects.md)."""
 
     schema_class: Literal["Document"] = "Document"
     document_kind: DocumentKind
@@ -361,7 +368,7 @@ class Document(Grounded):
 
 
 # --- Drafting ---------------------------------------------------------------------------------
-# The input every drafter accepts (ADR-0035, ADR-0036 decision 7). A core input class, like
+# The input every drafter accepts (docs/specs/projects.md). A core input class, like
 # Message, so that one drafter can replace another without its caller changing.
 
 
@@ -377,7 +384,7 @@ class CurrentVersion(Frozen):
 
 
 class DraftRequest(Frozen):
-    """A project document of one kind to draft from the project's facts (ADR-0035)."""
+    """A project document of one kind to draft from the project's facts (docs/specs/projects.md)."""
 
     schema_class: Literal["DraftRequest"] = "DraftRequest"
     document_kind: DocumentKind
@@ -397,7 +404,8 @@ class EvidenceItem(Frozen):
     hash_algorithm: str = "sha256"
     canonicalisation: str
     content_hash: str = Field(pattern=SHA256_PATTERN)
-    # What the hash covers, already projected; the linter re-hashes it (E1, ADR-0015).
+    # What the hash covers, already projected; the linter re-hashes it (E1,
+    # docs/specs/grounding.md).
     content: dict[str, Any] | None = None
 
 
@@ -414,7 +422,7 @@ class Telemetry(Frozen):
 
 
 class Delegation(Frozen):
-    """One child invocation, as the conductor recorded it (ADR-0012)."""
+    """One child invocation, as the conductor recorded it (docs/specs/orchestration.md)."""
 
     delegated_invocation_id: str = Field(pattern=UUID7_PATTERN)
     delegated_agent_id: str
@@ -424,13 +432,14 @@ class Delegation(Frozen):
 
 
 class Principal(Frozen):
-    """The human an invocation acted for (Blueprint §5.4, ADR-0018)."""
+    """The human an invocation acted for (Blueprint §5.4, docs/specs/policy-and-identity.md)."""
 
     principal_id: str = Field(pattern=IRI_PATTERN)
     name: str = Field(pattern=r"\S")
     principal_kind: PrincipalKind = PrincipalKind.PERSON
     assurance: Assurance = Assurance.ASSERTED
-    # The issuer that vouched: required when authenticated, absent when asserted (ADR-0029).
+    # The issuer that vouched: required when authenticated, absent when asserted
+    # (docs/specs/policy-and-identity.md).
     vouched_by: str | None = Field(default=None, pattern=IRI_PATTERN)
 
     @model_validator(mode="after")
@@ -450,13 +459,15 @@ class Envelope(Frozen):
     agent_version: str
     completed_at: datetime
     grounding_mode: GroundingMode
-    # The profile the conductor applied; the deployment's, never the request's (ADR-0017).
+    # The profile the conductor applied; the deployment's, never the request's
+    # (docs/specs/policy-and-identity.md).
     policy_bundle_ref: str = Field(pattern=POLICY_BUNDLE_REF_PATTERN)
     policy_digest: str = Field(pattern=SHA256_PATTERN)
-    # Named by the authentication boundary, never by the request (ADR-0018).
+    # Named by the authentication boundary, never by the request
+    # (docs/specs/policy-and-identity.md).
     acting_for: Principal
     # The core contract, and the class schemas the card carried, that the run was checked
-    # against (ADR-0019). The digests name schemas the run store keeps.
+    # against (docs/specs/contract.md). The digests name schemas the run store keeps.
     contract_version: str = Field(pattern=VERSION_PATTERN)
     input_schema: str | None = Field(default=None, pattern=SHA256_PATTERN)
     outcome: Outcome
@@ -471,7 +482,7 @@ class Envelope(Frozen):
     delegations: list[Delegation] = Field(default_factory=list)
 
     def payload_as[P: Grounded](self, model: type[P]) -> P:
-        """The payload as `model`, the reader's own model of its class (ADR-0019).
+        """The payload as `model`, the reader's own model of its class (docs/specs/contract.md).
 
         The harness holds a payload as an `OpenPayload`; a reader that knows the class, such as
         the agent's own tests or an orchestrator relaying a child, parses it here. Raises
@@ -495,7 +506,8 @@ class Envelope(Frozen):
         doc = to_document(self)
         doc["telemetry"].setdefault("energy_estimate_j", None)
         if not doc["delegations"]:
-            del doc["delegations"]  # only a delegation agent's envelope lists them (ADR-0012)
+            # Only a delegation agent's envelope lists them (docs/specs/orchestration.md).
+            del doc["delegations"]
         return doc
 
 

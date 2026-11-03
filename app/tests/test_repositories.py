@@ -1,5 +1,5 @@
 """The app's repository requirements load, and a choice of ORDA resolves as its steward meant
-(ADR-0038)."""
+(docs/specs/deposit.md)."""
 
 from __future__ import annotations
 

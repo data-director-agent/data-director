@@ -1,4 +1,4 @@
-"""The project record: an append-only log of what changed in a project (ADR-0034 decision 2).
+"""The project record: an append-only log of what changed in a project (docs/specs/projects.md).
 
 A project is a record of its own that outlives any conversation. The harness keeps it under
 `DD_PROJECTS_DIR`:
@@ -8,7 +8,7 @@ A project is a record of its own that outlives any conversation. The harness kee
 
 An event is never changed or removed. Each names whom it acted for and what caused it: the run
 or request, or the command a person ran. The run store is separate: conversations are still
-derived from it (ADR-0012 decision 4), and the project is not.
+derived from it (docs/specs/orchestration.md), and the project is not.
 
 What a project holds of its research data is a `FileInventory`, never the files. An inventory is
 checked against the core class schema before it is added, and kept as its `dd-input-json-v1`
@@ -16,12 +16,11 @@ canonical bytes, so its digest is the input hash the conductor records when an a
 
 The repository a researcher chose is a `repository_chosen` event. It records each requirement
 set the choice resolved to by reference and digest, and keeps the merged set as a blob, so that a
-drafter and validation read exactly what was chosen (ADR-0038 decision 2). The last choice counts.
+drafter and validation read exactly what was chosen (docs/specs/deposit.md). The last choice counts.
 
-Documents (ADR-0035), approvals
-(ADR-0036) and membership (ADR-0037) will be events of the same log. Giving an agent the
-project's facts, and naming the run that caused an event, is TODO(#394); adding an inventory
-from the app is TODO(#395).
+Documents (docs/specs/projects.md), approvals (docs/specs/projects.md) and membership
+(docs/specs/projects.md) will be events of the same log. Giving an agent the project's facts, and
+naming the run that caused an event, is TODO(#394); adding an inventory from the app is TODO(#395).
 """
 
 from __future__ import annotations

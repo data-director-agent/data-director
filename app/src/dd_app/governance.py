@@ -1,11 +1,12 @@
 """The conductor the app runs agents through, and how it learns whom each run acts for.
 
-Every agent is a separate service that the conductor reaches over A2A (ADR-0011, ADR-0027), so
-each run passes the policy gate, the input check, the grounding linter and the source check, and
-is stored with whom it acted for (ADR-0018). Whom a run acts for comes from the request that
-started it, through the `Authenticator`: the signed-in person's session (ADR-0029), or on a
-development server the operator's assertion. The app runs no agent in its own process, so it never
-holds an agent's model key (ADR-0026).
+Every agent is a separate service that the conductor reaches over A2A (docs/specs/agents.md,
+docs/specs/app.md), so each run passes the policy gate, the input check, the grounding linter and
+the source check, and is stored with whom it acted for (docs/specs/policy-and-identity.md). Whom a
+run acts for comes from the request that started it, through the `Authenticator`: the signed-in
+person's session (docs/specs/policy-and-identity.md), or on a development server the operator's
+assertion. The app runs no agent in its own process, so it never holds an agent's model key
+(docs/specs/policy-and-identity.md).
 """
 
 from __future__ import annotations
@@ -40,7 +41,7 @@ class UnknownConversationError(LookupError):
 
 class TurnConflictError(Exception):
     """A turn that does not follow the conversation's latest turn, or that arrives while another
-    turn of the conversation is still running (ADR-0037 decision 7). Nothing was run."""
+    turn of the conversation is still running (docs/specs/orchestration.md). Nothing was run."""
 
     def __init__(self, detail: str) -> None:
         super().__init__(detail)
@@ -63,16 +64,16 @@ class Governance:
     `create` builds them at start-up, so a bad setting stops the app before it serves a page.
     Runs are awaited through `Conductor.ainvoke`, so several may run at once.
 
-    The conductor's delegation callback (`conductor.harness_url`, ADR-0012) is the app itself,
-    which serves the conductor's A2A routes for delegation callbacks only (#129). A delegated
-    child comes in over those routes, as under `dd-harness serve`.
+    The conductor's delegation callback (`conductor.harness_url`, docs/specs/orchestration.md) is
+    the app itself, which serves the conductor's A2A routes for delegation callbacks only (#129). A
+    delegated child comes in over those routes, as under `dd-harness serve`.
     """
 
     conductor: Conductor
     authenticator: Authenticator
-    # Conversations started in this process that have no turn yet. There is no conversation
-    # store (ADR-0012 §4): once a turn is stored the store holds the conversation, and an id
-    # never used is forgotten when the app stops.
+    # Conversations started in this process that have no turn yet. There is no conversation store
+    # (docs/specs/orchestration.md): once a turn is stored the store holds the conversation, and an
+    # id never used is forgotten when the app stops.
     _started: set[str] = field(default_factory=set, repr=False)
     # One lock per conversation, held from reading its history until its turn is stored, with
     # the number of turns holding or waiting for it; the entry goes when that reaches nought.
@@ -85,7 +86,7 @@ class Governance:
         """`base_url` is where the app is reached; `DD_HARNESS_URL` (`settings.harness_url`)
         overrides it as the delegation callback. `authenticator` is the sign-in's
         (`dd_app.signin.SignIn`). Without one the app is a development server, and every run
-        acts for the operator's assertion (ADR-0029)."""
+        acts for the operator's assertion (docs/specs/policy-and-identity.md)."""
         if authenticator is None:
             if settings.oidc_issuer is not None:
                 raise IdentityError(
@@ -132,21 +133,21 @@ class Governance:
         `Message` to `agent_id`, answered as `run` answers.
 
         The history is built here from the stored turns, never taken from the caller, so the
-        input hash covers what the agent was really shown (ADR-0024 §17). It is read under the
+        input hash covers what the agent was really shown (docs/specs/app.md). It is read under the
         conversation's lock, held until the turn is stored, even if the request that sent it has
         gone; turns to different conversations run side by side.
 
         A turn names the turn it `follows` by that turn's `invocation_id`, or None for the first
-        (ADR-0037 decision 7). One that does not follow the latest stored turn, or that arrives
-        while another turn of the conversation is still running, is refused with
+        (docs/specs/orchestration.md). One that does not follow the latest stored turn, or that
+        arrives while another turn of the conversation is still running, is refused with
         `TurnConflictError` before anything runs. So a message sent again after a dropped
         connection runs only if the first attempt never arrived (#337), and two windows cannot
         fork a conversation.
 
-        A turn goes only to the orchestrator the profile names (ADR-0024 §10); a turn to any other
-        agent, or under a profile that names none, is refused with `ValueError` before anything
-        runs. Raises `UnknownConversationError`, or what `Conductor.invoke` raises for a request
-        it refuses before running.
+        A turn goes only to the orchestrator the profile names (docs/specs/app.md); a turn to any
+        other agent, or under a profile that names none, is refused with `ValueError` before
+        anything runs. Raises `UnknownConversationError`, or what `Conductor.invoke` raises for a
+        request it refuses before running.
         """
         orchestrator = self.conductor.profile.orchestrator
         if orchestrator is None:
@@ -283,11 +284,12 @@ class Governance:
         """What the shell's capabilities panel is drawn from (`GET /api/agents`).
 
         Each registered agent's manifest, as its card declares it, beside what this deployment's
-        profile assigns it: the action class, and whether that class needs approval (ADR-0017).
-        An agent the profile does not list is shown with `assigned_action_class: null`; the gate
-        refuses it. The profile and `acting_for`, the caller's principal, are named so the page
-        can say whose rules apply and whom runs act for, and the profile's `orchestrator` so the
-        home page converses with that agent and no other (ADR-0024 §10).
+        profile assigns it: the action class, and whether that class needs approval
+        (docs/specs/policy-and-identity.md). An agent the profile does not list is shown with
+        `assigned_action_class: null`; the gate refuses it. The profile and `acting_for`, the
+        caller's principal, are named so the page can say whose rules apply and whom runs act for,
+        and the profile's `orchestrator` so the home page converses with that agent and no other
+        (docs/specs/app.md).
         """
         profile = self.conductor.profile
         self.conductor.registry.refresh()  # an agent started since the app was is found now

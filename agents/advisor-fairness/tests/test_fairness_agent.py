@@ -1,4 +1,4 @@
-"""advisor.fairness through the conductor: the FAIR Assessor mock (ADR-0033)."""
+"""advisor.fairness through the conductor: the FAIR Assessor mock (docs/specs/agents.md)."""
 
 from __future__ import annotations
 
