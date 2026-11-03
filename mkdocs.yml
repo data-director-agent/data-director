@@ -28,6 +28,12 @@ theme:
     - content.code.copy
     - search.highlight
 
+# Where the theme falls short of WCAG 2.2 AA; scripts/check_site_accessibility.py checks the site.
+extra_css:
+  - stylesheets/accessibility.css
+extra_javascript:
+  - javascripts/accessibility.js
+
 markdown_extensions:
   - admonition
   - footnotes

@@ -226,7 +226,10 @@ jobs:
       # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
       # Headless runs need only chromium-headless-shell, not the full browser.
       - run: uv run playwright install --with-deps --only-shell chromium
-      - run: uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
+      # The viewer's accessibility checks run in accessibility.yml.
+      - run: >-
+          uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
+          --ignore=workbench/browser_tests/test_viewer_accessibility.py
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

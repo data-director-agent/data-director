@@ -126,7 +126,10 @@ references exists, and that every `esm.sh` module is pinned and recorded for the
 `browser_tests/` loads the pages in Chromium with Playwright (#9) against the workbench app over
 in-memory agents: a run on Inspect with its outcome, derivation badges and cited evidence; an
 abstention; a replay by `?invocation_id=` from the run store; an unknown run; a delegated Chat
-turn; the Glossary from the keyboard; and the Agents page. A test fails on any script error,
+turn; the Glossary from the keyboard; and the Agents page. `test_viewer_accessibility.py` checks
+Chat, Inspect after a run, the Glossary and the Agents page against WCAG 2.2 AA with axe-core, in
+light and dark, and for reflow at 320 CSS pixels (#85); `.github/workflows/accessibility.yml`
+runs it. A test fails on any script error,
 console error or request that leaves the machine. The `esm.sh` modules are replayed from
 `browser_tests/esm.sh.har.zip`, so the tests need no network; after changing a pinned version,
 re-record it, which does reach `esm.sh`:
