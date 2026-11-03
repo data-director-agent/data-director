@@ -244,7 +244,7 @@ function DecisionForm({
       const request: DecisionRequest = {
         version: n,
         // The text this page showed, as it showed it.
-        digest: await digestOf(version.text),
+        digest: digestOf(version.text),
         decision: choice === "reject" ? "rejected" : "approved",
         ...(reason.trim() ? { reason } : {}),
         ...(choice === "edit" ? { edited_text: edited } : {}),

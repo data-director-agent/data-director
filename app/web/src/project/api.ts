@@ -7,6 +7,8 @@
  * names who decided: the server knows who is signed in.
  */
 
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { createContext, useContext } from "react";
 
 import { RunRefused } from "../run/api";
@@ -92,10 +94,13 @@ export interface ProjectApi {
   decide(projectId: string, documentId: string, request: DecisionRequest): Promise<ProjectDocuments>;
 }
 
-/** The SHA-256 of `text` as UTF-8, in hex: how a decision names the text that was shown. */
-export async function digestOf(text: string): Promise<string> {
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
+/**
+ * The SHA-256 of `text` as UTF-8, in hex: how a decision names the text that was shown. It is
+ * computed in JavaScript rather than with Web Crypto, which a browser offers only in a secure
+ * context, so that deciding works however the shell is served.
+ */
+export function digestOf(text: string): string {
+  return bytesToHex(sha256(utf8ToBytes(text)));
 }
 
 async function json<T>(response: Response): Promise<T> {

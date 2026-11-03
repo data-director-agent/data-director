@@ -57,8 +57,17 @@ async function readme() {
 }
 
 describe("digestOf", () => {
-  it("is the SHA-256 the harness records for the text", async () => {
-    expect(await digestOf(DRAFT.text)).toBe(DRAFT.digest);
+  it("is the SHA-256 the harness records for the text", () => {
+    expect(digestOf(DRAFT.text)).toBe(DRAFT.digest);
+  });
+
+  it("needs no Web Crypto, which exists only in a secure context", () => {
+    vi.stubGlobal("crypto", {});
+    try {
+      expect(digestOf(DRAFT.text)).toBe(DRAFT.digest);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
