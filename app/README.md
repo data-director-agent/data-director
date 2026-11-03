@@ -63,6 +63,15 @@ It is built from:
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;
+  - `GET /api/projects/{id}/documents`: a project's documents, each version with its text and
+    state as the project log records it, and the harness's rule for when a decision needs a
+    reason. The shell draws it at `/projects/{id}`;
+  - `POST /api/projects/{id}/documents/{document_id}/decisions`
+    (`{version, digest, decision, reason?, edited_text?}`): approves or rejects the latest
+    version, or approves an edit of it, for the person signed in; a body that names a decider is
+    refused. A decision on a version that is no longer the latest or undecided, or whose
+    `digest` is not that of its text, is a 409 and is recorded as refused
+    ([Projects](../docs/specs/projects.md));
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant ([Orchestration](../docs/specs/orchestration.md)) and refuses every other
     request, so the app is no general A2A way in;
@@ -120,6 +129,7 @@ The app supplies its own configuration to the harness ([System and boundaries](.
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
 | `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
+| `projects/` (not committed) | Each project's log, with its documents and the decisions on them. | `DD_PROJECTS_DIR` |
 
 To change the profile for your own machine, copy the example. `config/profile.yaml` is not
 committed, and the app uses it in place of the example when it exists:
@@ -266,7 +276,9 @@ shapes, under a profile that does not list the standards advisor, so the shell i
 - A run is one request that answers when the run has ended, so the stages are read back
   afterwards rather than watched, and a run cannot be cancelled. Streaming runs over AG-UI
   replaces it (#68, #69).
-- There is no human review of proposed changes (#72, #73). The standards advisor only advises, so it proposes none.
+- A person can approve, edit then approve, or reject a project's documents at `/projects/{id}`,
+  but no run adds a document to a project yet (#394), nothing links to that page, and anyone
+  signed in can decide (#389). Risk tiers and batching for review are #72 and #73.
 - The form checks only required fields and numbers; the conductor's input check decides.
 - The conversation is with the rule-based `orchestrator.stub` unless the profile names the
   model-backed orchestrator, which needs a key (see "Choosing the orchestrator"). Replies are not

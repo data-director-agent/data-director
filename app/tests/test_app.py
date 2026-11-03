@@ -43,6 +43,7 @@ from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
+from dd_harness.settings import SettingsError
 from dd_harness.store import RunStore
 from dd_harness.testing import (
     PERMISSIVE,
@@ -202,6 +203,17 @@ def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path)
 def test_no_principal_stops_start_up(env: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("DD_PRINCIPAL_ID")
     with pytest.raises(IdentityError, match="DD_PRINCIPAL_ID"):
+        Governance.create(settings_from_env(), APP_URL)
+
+
+def test_a_projects_directory_that_cannot_be_made_stops_start_up(
+    env: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    # A SettingsError, which `main` turns into one line, not a traceback.
+    blocker = tmp_path / "a-file"
+    blocker.write_text("")
+    monkeypatch.setenv("DD_PROJECTS_DIR", str(blocker / "projects"))
+    with pytest.raises(SettingsError, match=r"DD_PROJECTS_DIR .* cannot be used"):
         Governance.create(settings_from_env(), APP_URL)
 
 

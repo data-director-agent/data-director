@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -68,6 +69,21 @@ def test_a_project_holds_the_inventory_it_was_given(store: ProjectStore) -> None
         assert event["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
         assert event["caused_by"] == "test"
     assert created["event_id"] < added["event_id"]  # UUIDv7: in the order they happened
+
+
+def test_a_read_waits_for_its_project_and_not_for_another(store: ProjectStore) -> None:
+    """A read never sees part of an append, and one project's change never waits on another's."""
+    busy = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    idle = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    read: list[str] = []
+    with store._lock(busy):
+        reader = threading.Thread(target=lambda: read.append(store.events(busy)[0]["event"]))
+        reader.start()
+        assert [e["event"] for e in store.events(idle)] == [PROJECT_CREATED]
+        reader.join(timeout=0.2)
+        assert reader.is_alive() and read == []
+    reader.join(timeout=5)
+    assert read == [PROJECT_CREATED]
 
 
 def test_the_log_is_appended_to_and_the_latest_inventory_wins(store: ProjectStore) -> None:

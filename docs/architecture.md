@@ -191,11 +191,11 @@ decision ([Projects](specs/projects.md)). The inventory is made by
 A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
 When a run in a project returns one, the conductor adds it to the log as a new version. A
 person's edit is a version too. Each version is proposed, approved or rejected on its own, and
-none is removed ([Projects](specs/projects.md); not built yet, #198, #200). A
-person approves or rejects the latest version, with a reason to reject or edit, and the harness
-records the decision in the log under the principal who made it. The app only shows it, and
-nothing resumes a run ([Projects](specs/projects.md); not built yet,
-#201).
+none is removed ([Projects](specs/projects.md); the conductor recording a run's draft is not
+built yet, #394). A person approves or rejects the latest version, with a reason to reject or
+edit, and the harness records the decision in the log under the principal who made it. The app
+only shows it, at `/projects/{project_id}`, and nothing resumes a run
+([Projects](specs/projects.md)).
 
 A project is shared by its **members**, recorded in the same log. An owner adds and removes
 members by their ORCID iD, and decides on document versions. Any member may read the whole

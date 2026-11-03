@@ -19,10 +19,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from dd_app.config import DEFAULT_PROJECTS_DIR
 from dd_harness import conversations
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
-from dd_harness.settings import Settings, build_conductor
+from dd_harness.projects import ProjectStore
+from dd_harness.settings import Settings, SettingsError, build_conductor, projects_dir
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
     Envelope,
@@ -71,6 +73,9 @@ class Governance:
 
     conductor: Conductor
     authenticator: Authenticator
+    # The projects' logs, which the harness alone writes (docs/specs/projects.md). None where the
+    # app keeps no projects, as in a test that needs none.
+    projects: ProjectStore | None = None
     # Conversations started in this process that have no turn yet. There is no conversation store
     # (docs/specs/orchestration.md): once a turn is stored the store holds the conversation, and an
     # id never used is forgotten when the app stops.
@@ -96,7 +101,15 @@ class Governance:
             authenticator = OperatorAssertion(settings.principal())
         conductor = build_conductor(settings)
         conductor.harness_url = settings.harness_url or base_url
-        return cls(conductor, authenticator)
+        root = projects_dir(DEFAULT_PROJECTS_DIR)
+        try:
+            projects = ProjectStore(root)
+        except OSError as exc:
+            # One line at start-up, like any other setting that is wrong.
+            raise SettingsError(
+                f"DD_PROJECTS_DIR {root} cannot be used: {exc.strerror or exc}"
+            ) from exc
+        return cls(conductor, authenticator, projects)
 
     async def invoke(self, request: InvocationRequest, acting_for: Principal) -> Envelope:
         return await self.conductor.ainvoke(request, acting_for=acting_for)

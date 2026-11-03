@@ -40,7 +40,7 @@ def with_standards(governance: Governance) -> Governance:
 
 
 def configure_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    """The app's reference set, a principal, and runs written under `tmp_path`.
+    """The app's reference set, a principal, and runs and projects written under `tmp_path`.
 
     The reference agent list names services these tests do not start, and whether one happens to
     be running would change what the server says, so it is replaced by an empty list. A test
@@ -56,6 +56,7 @@ def configure_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
     monkeypatch.setenv("DD_PRINCIPAL_NAME", TEST_PRINCIPAL.name)
     monkeypatch.setenv("DD_RUNS_DIR", str(tmp_path))
+    monkeypatch.setenv("DD_PROJECTS_DIR", str(tmp_path / "projects"))
     return tmp_path
 
 

@@ -1,0 +1,26 @@
+/* A project's documents, one after another, each with its decision form (ProjectPage.tsx). */
+
+.document-review {
+  max-width: var(--measure);
+  padding-top: var(--space-4);
+  margin-bottom: var(--space-6);
+  border-top: var(--border-width) solid var(--color-border-subtle);
+}
+
+/* The stored text, wrapped (`.json-view`) rather than widening the page or scrolling within it. */
+.document-text {
+  margin-bottom: var(--space-4);
+}
+
+.document-edit {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-small);
+}
+
+.decision-form {
+  margin-bottom: var(--space-4);
+}
+
+.document-history ol {
+  margin-top: var(--space-2);
+}

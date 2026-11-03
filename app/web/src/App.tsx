@@ -4,6 +4,7 @@ import { AgentDirectory } from "./components/capabilities/AgentDirectory";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { ProjectPage } from "./components/project/ProjectPage";
 import { PageHeader } from "./components/frame/PageHeader";
 import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
@@ -19,6 +20,9 @@ import {
   checkSignedIn,
   useSessionApi,
 } from "./session/api";
+
+// A project's documents: `/projects/{project_id}` (docs/specs/projects.md).
+const PROJECT_PREFIX = "/projects/";
 
 type Load<T> = { state: "loading" } | { state: "failed"; message: string } | { state: "loaded"; value: T };
 
@@ -47,6 +51,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const [path = "/", query] = location.split("?");
   const onAgents = path === "/agents";
   const onFeedback = path === "/feedback";
+  const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -111,6 +116,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       );
     }
     if (onFeedback) return <FeedbackPage query={query ?? ""} />;
+    if (projectId) return <ProjectPage projectId={projectId} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {
       return (

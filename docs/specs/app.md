@@ -34,7 +34,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 2. **The shell holds no policy.** Whether an agent may run, which agent is the orchestrator, and
    (once built) whether an action needs review are decided by the harness and sent to the shell,
    which renders them. The server's `GET /api/agents` gives each manifest beside what the
-   profile assigns it.
+   profile assigns it. A project's documents page (`/projects/{id}`) draws each version's state
+   as the project log records it, and takes whether a decision needs a reason from the
+   harness's rule in `GET /api/projects/{id}/documents`; the harness alone records a decision,
+   and the server gives it the decider from the authenticator, never from the request
+   ([Projects](projects.md), `app/tests/test_document_decisions.py`).
 3. **The shell does not route.** It never classifies a message or sends it to a sub-agent.
    Each turn is one invocation of the orchestrator through the conductor, and each hand-off a
    child invocation under the conductor's grant
