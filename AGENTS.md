@@ -75,7 +75,7 @@ issue is a parent with sub-issues. Labels say where and what about:
 - `area: …` — the part touched: `sdk`, `harness`, `workbench`, `app`, `agents`, `docs`, `ci`.
   One or more per issue.
 - Themes: `blueprint` (review or conformance against the Blueprint), `security`, `evaluation`,
-  `accessibility`, and `needs ADR` for a change to a fixed format.
+  `accessibility`, and `needs spec` for a change to a fixed format.
 - `good first issue`, `help wanted` and `blocked` (waiting on something outside the project).
 
 Pull requests carry their kind and scope in the Conventional Commit title, so they take no labels
