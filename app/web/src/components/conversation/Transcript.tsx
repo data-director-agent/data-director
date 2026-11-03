@@ -1,6 +1,6 @@
 /**
  * The transcript: an ordered list of turns. Each reply is labelled `agent_id@agent_version`,
- * a change of version since an earlier turn is marked (ADR-0012 §12), and each delegated child
+ * a change of version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
  * replies use the run view's outcome wording, not a generic error.
  */

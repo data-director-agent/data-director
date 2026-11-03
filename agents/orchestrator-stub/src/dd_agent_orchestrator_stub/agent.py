@@ -1,4 +1,5 @@
-"""orchestrator.stub: a rule-based stand-in for the Data Director orchestrator (ADR-0012).
+"""orchestrator.stub: a rule-based stand-in for the Data Director orchestrator
+(docs/specs/orchestration.md).
 
 The Blueprint's Data Director is an orchestrator: one agent a person converses with, which hands
 work to specialist agents. This package is the smallest agent that exercises that shape through
@@ -13,20 +14,20 @@ invocation and records it), and replies with a template sentence naming the agen
 that answered.
 
 A message no rule matches may name one of the Blueprint's three entry points (§8.1): before data
-collection, data collected and being prepared for sharing, or ready to deposit. The reply then
-lists every step from that entry's phase to the last, with the agents whose manifest entry
-serves the step, and says "no agent yet" with the step's requirement where none does (ADR-0028).
-On a first turn that names neither a rule nor an entry, it asks which entry applies. Otherwise it
-reads only the current message: `Message.history` is covered by the input hash, and used only to
-tell a first turn.
+collection, data collected and being prepared for sharing, or ready to deposit. The reply then lists
+every step from that entry's phase to the last, with the agents whose manifest entry serves the
+step, and says "no agent yet" with the step's requirement where none does
+(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, it asks which
+entry applies. Otherwise it reads only the current message: `Message.history` is covered by the
+input hash, and used only to tell a first turn.
 
 Grounding mode `delegation`: the reply cites the input and each child envelope it relays, and
 the linter checks those citations against the delegations the conductor recorded (R1, D1-D3,
 G4). This agent calls no model, so its telemetry carries none.
 
 The parent succeeds when it has delegated and relayed the child's outcome, whatever that outcome
-was; the child's own status is on its envelope and on the parent's `delegations` (ADR-0012
-decision 14).
+was; the child's own status is on its envelope and on the parent's `delegations`
+(docs/specs/orchestration.md decision 14).
 """
 
 from __future__ import annotations
@@ -242,7 +243,8 @@ class DirectorStub:
 
     def _plan_text(self, start: Entry, manifest: list[dict[str, Any]]) -> str:
         examples = {r.agent_id: r.example for r in self.rules}
-        # The persona's title where its card gives one (ADR-0033), with the id to @-mention it by.
+        # The persona's title where its card gives one (docs/specs/agents.md), with the id to
+        # @-mention it by.
         names = {
             str(e.get("agent_id")): f"{e['title']} ({e.get('agent_id')})"
             if e.get("title")

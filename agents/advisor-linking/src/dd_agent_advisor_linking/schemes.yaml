@@ -4,7 +4,7 @@
 # https form; `relation` is the DataCite relationType suggested by default, or null where the mock
 # cannot tell; `advice` says how the researcher might record it. `grant` has no canonical form and
 # is tried last: a string is taken for a grant number only when it matches no other scheme, has no
-# spaces or colons, and contains a digit. A mock's table (ADR-0033): nothing is resolved or looked
+# spaces or colons, and contains a digit. A mock's table (docs/specs/agents.md): nothing is resolved or looked
 # up, and the real adviser replaces it, TODO(#360).
 doi:
   pattern: '(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/\S+)'

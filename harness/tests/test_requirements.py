@@ -1,5 +1,5 @@
 """Repository requirements: a standard's set, an optional override, and what a choice resolves to
-(ADR-0038)."""
+(docs/specs/deposit.md)."""
 
 from __future__ import annotations
 

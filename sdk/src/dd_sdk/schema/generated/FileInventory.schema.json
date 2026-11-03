@@ -2,7 +2,7 @@
    "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
       "IdentificationMethod": {
-         "description": "How a file's format was identified, from strongest to weakest (ADR-0034).",
+         "description": "How a file's format was identified, from strongest to weakest (docs/specs/projects.md).",
          "enum": [
             "signature",
             "container",
@@ -108,7 +108,7 @@
    "$id": "https://w3id.org/data-director/schema/core/FileInventory",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The facts about a dataset's files that the project holds in place of the files (ADR-0034): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
+   "description": "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",

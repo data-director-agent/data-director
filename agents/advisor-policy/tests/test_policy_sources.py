@@ -149,7 +149,7 @@ def test_the_snapshot_matches_its_manifest_and_is_labelled_by_kind() -> None:
         == f"fairsharing-policy:snapshot:{manifest['fetched_at'][:10]}"
     )
     for record in snapshot.records:
-        # Each line is the record's document as hashed (ADR-0016).
+        # Each line is the record's document as hashed (docs/specs/agents.md).
         assert record.document() == json.loads(json.dumps(record.document()))
 
 

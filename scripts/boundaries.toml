@@ -1,4 +1,4 @@
-# Known exceptions to the package boundary rule (ADR-0031), read by scripts/check_boundaries.py.
+# Known exceptions to the package boundary rule (docs/specs/system.md), read by scripts/check_boundaries.py.
 #
 # Each entry names a file and the start of the problem reported for it. An entry that no longer
 # matches anything is itself reported, so this list only shrinks. Do not add to it to make a new

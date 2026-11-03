@@ -190,7 +190,7 @@ def test_the_envelope_records_whom_the_invocation_acted_for(runs_dir: Path) -> N
         assert stored["acting_for"]["assurance"] == "asserted"
 
 
-# --- The schemas a run was checked against (ADR-0019) -----------------------------------------
+# --- The schemas a run was checked against (docs/specs/contract.md) -------------------------------
 
 
 @pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
@@ -301,7 +301,7 @@ def test_payload_of_the_wrong_class_is_a_failed_outcome(runs_dir: Path) -> None:
 
 
 def test_payload_its_class_schema_does_not_admit_is_a_failed_outcome(runs_dir: Path) -> None:
-    """The payload check reads the class schema, not a Python type (ADR-0019)."""
+    """The payload check reads the class schema, not a Python type (docs/specs/contract.md)."""
 
     def hollow(request: InvocationRequest, ctx: RunContext) -> AgentResult:
         good = fakes.fact_check_over(SOURCE_A)
@@ -586,7 +586,8 @@ def test_scripted_specs_accept_what_their_tests_assume() -> None:
 
 
 def test_the_doubles_classes_are_generated_from_their_own_linkml() -> None:
-    """The doubles bring their classes as any agent does (ADR-0019); the core has none of them."""
+    """The doubles bring their classes as any agent does (docs/specs/contract.md); the core has none
+    of them."""
     source = Path(fakes.__file__).parents[1] / "schema" / "doubles.yaml"
     assert gen.stale(source) == [], f"run `uv run dd-gen-schema {source}`"
 

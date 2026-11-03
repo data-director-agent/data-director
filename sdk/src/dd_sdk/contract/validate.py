@@ -73,13 +73,16 @@ def conditional_errors(envelope: dict[str, Any]) -> list[str]:
     if status not in (OutcomeStatus.FAILED, OutcomeStatus.SUSPENDED) and has_problem:
         errors.append(f"outcome.status={status} must not carry a problem")
     if has_payload != ("payload_schema" in envelope):
-        errors.append("a payload requires payload_schema, and payload_schema a payload (ADR-0019)")
+        errors.append(
+            "a payload requires payload_schema, and payload_schema a payload "
+            "(docs/specs/contract.md)"
+        )
     errors.extend(grounding_errors(envelope))
     return errors
 
 
 def grounding_errors(envelope: dict[str, Any]) -> list[str]:
-    """Self-consistency between grounding_mode, payload and evidence (ADR-0008, ADR-0009).
+    """Self-consistency between grounding_mode, payload and evidence (docs/specs/grounding.md).
 
     Agreement with the trace is the linter's job; these rules hold on the document alone.
     """

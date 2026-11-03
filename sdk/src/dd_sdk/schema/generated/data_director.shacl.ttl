@@ -10,7 +10,7 @@
 @prefix linkml: <https://w3id.org/linkml/> .
 @prefix schema1: <http://schema.org/> .
 prov:Agent a sh:NodeShape ;
-	rdfs:comment "The human an invocation acted for (Blueprint §5.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018)." ;
+	rdfs:comment "The human an invocation acted for (Blueprint §5.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (docs/specs/policy-and-identity.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n2 ;
 	sh:property _:c14n101 , _:c14n116 , _:c14n45 , _:c14n54 , _:c14n60 ;
@@ -22,13 +22,13 @@ dd:ConversationTurn a sh:NodeShape ;
 	sh:property _:c14n0 , _:c14n107 , _:c14n11 , _:c14n144 , _:c14n6 ;
 	sh:targetClass dd:ConversationTurn .
 dd:Delegation a sh:NodeShape ;
-	rdfs:comment "One child invocation an agent in grounding mode delegation made through the harness (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites." ;
+	rdfs:comment "One child invocation an agent in grounding mode delegation made through the harness (docs/specs/orchestration.md). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n5 ;
 	sh:property _:c14n112 , _:c14n132 , _:c14n17 , _:c14n47 , _:c14n97 ;
 	sh:targetClass dd:Delegation .
 dd:Document a sh:NodeShape ;
-	rdfs:comment "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (ADR-0035). The only payload class that becomes a project document." ;
+	rdfs:comment "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n83 ;
 	sh:property _:c14n113 , _:c14n118 , _:c14n125 , _:c14n126 , _:c14n141 , _:c14n148 , _:c14n35 , _:c14n55 , _:c14n61 ;
@@ -52,7 +52,7 @@ dd:EvidenceItem a sh:NodeShape ;
 	sh:property _:c14n10 , _:c14n12 , _:c14n136 , _:c14n27 , _:c14n29 , _:c14n38 , _:c14n44 , _:c14n70 ;
 	sh:targetClass dd:EvidenceItem .
 dd:FileInventory a sh:NodeShape ;
-	rdfs:comment "The facts about a dataset's files that the project holds in place of the files (ADR-0034): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
+	rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n23 ;
 	sh:property _:c14n140 , _:c14n143 , _:c14n161 , _:c14n176 , _:c14n53 , _:c14n88 , _:c14n95 ;
@@ -64,13 +64,13 @@ dd:Grounded a sh:NodeShape ;
 	sh:property _:c14n87 ;
 	sh:targetClass dd:Grounded .
 dd:GroundingRef a sh:NodeShape ;
-	rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields." ;
+	rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n157 ;
 	sh:property _:c14n1 , _:c14n16 ;
 	sh:targetClass dd:GroundingRef .
 dd:Input a sh:NodeShape ;
-	rdfs:comment "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (ADR-0019)." ;
+	rdfs:comment "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (docs/specs/contract.md)." ;
 	sh:closed false ;
 	sh:ignoredProperties _:c14n28 ;
 	sh:property _:c14n32 ;
@@ -82,7 +82,7 @@ dd:InventoryFile a sh:NodeShape ;
 	sh:property _:c14n13 , _:c14n150 , _:c14n18 , _:c14n21 , _:c14n82 , _:c14n86 , _:c14n94 ;
 	sh:targetClass dd:InventoryFile .
 dd:InvocationRequest a sh:NodeShape ;
-	rdfs:comment "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012)." ;
+	rdfs:comment "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (docs/specs/orchestration.md)." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n79 ;
 	sh:property _:c14n122 , _:c14n14 , _:c14n154 , _:c14n172 , _:c14n30 , _:c14n51 , _:c14n81 ;
@@ -100,7 +100,7 @@ dd:Outcome a sh:NodeShape ;
 	sh:property _:c14n151 , _:c14n158 , _:c14n165 , _:c14n62 ;
 	sh:targetClass dd:Outcome .
 dd:Payload a sh:NodeShape ;
-	rdfs:comment "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (ADR-0019)." ;
+	rdfs:comment "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (docs/specs/contract.md)." ;
 	sh:closed false ;
 	sh:ignoredProperties _:c14n24 ;
 	sh:property _:c14n121 , _:c14n130 ;
@@ -124,7 +124,7 @@ dd:RequirementField a sh:NodeShape ;
 	sh:property _:c14n156 , _:c14n163 , _:c14n66 , _:c14n75 , _:c14n9 ;
 	sh:targetClass dd:RequirementField .
 dd:RequirementSet a sh:NodeShape ;
-	rdfs:comment "What a deposit must or should have (ADR-0038). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents." ;
+	rdfs:comment "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents." ;
 	sh:closed true ;
 	sh:ignoredProperties _:c14n40 ;
 	sh:property _:c14n106 , _:c14n117 , _:c14n135 , _:c14n149 , _:c14n159 , _:c14n169 , _:c14n175 , _:c14n19 , _:c14n22 , _:c14n26 , _:c14n33 , _:c14n34 , _:c14n52 , _:c14n71 , _:c14n76 , _:c14n98 ;
@@ -234,7 +234,7 @@ _:c14n114 rdf:first "none" ;
 	rdf:rest rdf:nil .
 _:c14n115 rdf:first "signature" ;
 	rdf:rest _:c14n78 .
-_:c14n116 sh:description "The IRI of the identity provider's issuer that vouched for the principal, for example https://orcid.org, so that a reader can weigh the claim by who made it. Required when assurance is authenticated and absent when it is asserted (ADR-0029)." ;
+_:c14n116 sh:description "The IRI of the identity provider's issuer that vouched for the principal, for example https://orcid.org, so that a reader can weigh the claim by who made it. Required when assurance is authenticated and absent when it is asserted (docs/specs/policy-and-identity.md)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI ;
 	sh:order 4 ;
@@ -251,7 +251,7 @@ _:c14n118 sh:description "The schema or profile document_text follows, such as a
 	sh:path dcterms:conformsTo .
 _:c14n119 rdf:first "delegation" ;
 	rdf:rest rdf:nil .
-_:c14n12 sh:description "The document the named canonicalisation turns into bytes, already projected, so that a reader or the linter (E1) can recompute content_hash from the envelope alone (ADR-0015). Where a payload cites this item from grounded_on, this is what the citation identifies." ;
+_:c14n12 sh:description "The document the named canonicalisation turns into bytes, already projected, so that a reader or the linter (E1) can recompute content_hash from the envelope alone (docs/specs/grounding.md). Where a payload cites this item from grounded_on, this is what the citation identifies." ;
 	sh:maxCount 1 ;
 	sh:order 7 ;
 	sh:path dd:content .
@@ -447,7 +447,7 @@ _:c14n154 sh:datatype xsd:string ;
 	sh:path dd:conversation_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
 _:c14n155 sh:datatype xsd:string ;
-	sh:description "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017)." ;
+	sh:description "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (docs/specs/policy-and-identity.md)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
@@ -524,7 +524,7 @@ _:c14n167 sh:datatype xsd:dateTime ;
 	sh:order 3 ;
 	sh:path dd:completed_at .
 _:c14n168 sh:datatype xsd:string ;
-	sh:description "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (ADR-0019)." ;
+	sh:description "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (docs/specs/contract.md)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 12 ;
@@ -649,7 +649,7 @@ _:c14n199 rdf:first "dmp" ;
 _:c14n2 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n20 sh:datatype xsd:string ;
-	sh:description "The version of this core contract the conductor governed the invocation under (ADR-0019)." ;
+	sh:description "The version of this core contract the conductor governed the invocation under (docs/specs/contract.md)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;
@@ -735,7 +735,7 @@ _:c14n3 sh:datatype xsd:string ;
 	sh:path dd:invocation_id ;
 	sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" .
 _:c14n30 sh:class dd:Input ;
-	sh:description "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (ADR-0019)." ;
+	sh:description "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (docs/specs/contract.md)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
@@ -776,7 +776,7 @@ _:c14n35 sh:description "How document_text came about." ;
 _:c14n36 rdf:first rdf:type ;
 	rdf:rest rdf:nil .
 _:c14n37 sh:datatype xsd:string ;
-	sh:description "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (ADR-0019)." ;
+	sh:description "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (docs/specs/contract.md)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:Literal ;
 	sh:order 9 ;
@@ -1024,7 +1024,7 @@ _:c14n83 rdf:first rdf:type ;
 _:c14n84 rdf:first "capability_not_implemented" ;
 	rdf:rest _:c14n93 .
 _:c14n85 sh:class prov:Agent ;
-	sh:description "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018)." ;
+	sh:description "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (docs/specs/policy-and-identity.md)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
@@ -1059,7 +1059,7 @@ _:c14n9 sh:in _:c14n123 ;
 	sh:order 3 ;
 	sh:path dd:obligation .
 _:c14n90 sh:class dd:Payload ;
-	sh:description "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (ADR-0019)." ;
+	sh:description "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (docs/specs/contract.md)." ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:order 11 ;

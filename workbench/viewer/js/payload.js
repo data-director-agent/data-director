@@ -49,7 +49,7 @@ function DerivationBadge(props) {
 }
 function PlainValue(props) { return valueNode(props.value, props.schema); }
 
-// --- Grounding references, resolved through evidence (ADR-0015) --------------------------
+// --- Grounding references, resolved through evidence (docs/specs/grounding.md) --------------------------
 // A payload names a record only in `grounded_on`. What a reference names is the `content` of
 // the evidence item with the same source_id and content_hash, which the linter has re-hashed
 // (E1). `payloadUi` shows an item's references with `"ui:field": "groundedOn"`.
@@ -151,7 +151,7 @@ function ObjectFieldTemplate(props) {
 function BaseInputTemplate(props) { return valueNode(props.value, props.schema); }
 const templates = { FieldTemplate, ArrayFieldTemplate, ArrayFieldItemTemplate, ObjectFieldTemplate, BaseInputTemplate };
 
-// --- The payload's uiSchema, worked out rather than shipped (ADR-0016) -------------------
+// --- The payload's uiSchema, worked out rather than shipped (docs/specs/agents.md) -------------------
 // From the payload class's schema and the agent's manifest `derivations` (field path -> how,
 // recorded_in). Fields keep schema order, which is the LinkML slot order. `schema_class` is
 // hidden, and so is the payload's own `grounded_on`, which the evidence table shows. An item's

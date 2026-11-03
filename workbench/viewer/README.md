@@ -22,9 +22,9 @@ and the styles in `viewer.css`:
 Paths are absolute under `/viewer/`, because Chat is also served at `/`. The pages load React and
 react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
 contract's generated JSON Schema (`/schema/envelope.schema.json`). The agent and sample pickers are
-filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the viewer names
+filled from `GET /agents` (the registry's manifest, [Agents](../../docs/specs/agents.md)) and `GET /samples`; the viewer names
 no agent. A new agent's payload renders as soon as its class is in the LinkML schema; its badges come from
-the agent's `derivations` in the manifest (ADR-0016).
+the agent's `derivations` in the manifest ([Agents](../../docs/specs/agents.md)).
 
 Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/viewer/>. The pages need
 network access to `esm.sh` for the libraries; everything else is local. Each library is pinned to

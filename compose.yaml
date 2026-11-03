@@ -16,7 +16,7 @@ x-python: &python
     - uv-cache:/uv-cache
   environment: &python-env
     DD_AGENTS_CONFIG: /workspace/docker/agents.yaml
-    # Where a relative *_FILE is read from, as under systemd (ADR-0026).
+    # Where a relative *_FILE is read from, as under systemd (docs/specs/policy-and-identity.md).
     CREDENTIALS_DIRECTORY: /workspace/config/local/credentials
 
 x-agent: &agent

@@ -1,6 +1,6 @@
 """The test kit, re-exported for the workbench's own tests.
 
-The kit is `dd_harness.testing` (ADR-0022): the scripted doubles, `in_process` and
+The kit is `dd_harness.testing` (docs/specs/system.md): the scripted doubles, `in_process` and
 `make_conductor` need nothing from the workbench, so a way in other than the workbench can test
 against a conductor too.
 """

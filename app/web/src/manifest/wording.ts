@@ -4,7 +4,7 @@
  * Kept in step with the LinkML descriptions in sdk/src/dd_sdk/schema/data_director.yaml and
  * with the linter's rules (harness/src/dd_harness/grounding.py). The wording states what the
  * harness checks and no more: a grounding check is a consistency check, not proof that an
- * agent retrieved anything (ADR-0016).
+ * agent retrieved anything (docs/specs/grounding.md).
  */
 
 import type { StageState } from "../run/stages";

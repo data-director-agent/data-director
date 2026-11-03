@@ -148,5 +148,5 @@ here that serve it. It does not yet show where your own project has reached in t
 ## Where this is defined
 
 The entry points and phases are data in the SDK (`dd_sdk.process_flow`), the same for every agent
-and deployment. [ADR-0028](../../adr/0028-entry-points-and-serves.md) records the decision; the
+and deployment. [Orchestration](../../specs/orchestration.md) records the decision; the
 [Blueprint chapter](../../blueprint/08-process-flow.md) is the source.

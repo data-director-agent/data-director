@@ -1,4 +1,5 @@
-"""The source check (ADR-0016): cited records re-hashed against a pinned copy of the source."""
+"""The source check (docs/specs/grounding.md): cited records re-hashed against a pinned copy of the
+source."""
 
 from __future__ import annotations
 

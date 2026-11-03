@@ -1,4 +1,4 @@
-# Independent copies of the sources the app's agents cite (ADR-0016), unless DD_SOURCES_CONFIG
+# Independent copies of the sources the app's agents cite (docs/specs/grounding.md), unless DD_SOURCES_CONFIG
 # names another list. Paths are relative to this file; each copy is pinned by sha256, and a
 # file that no longer matches its pin stops the app from starting. Format as in
 # workbench/sources.yaml.

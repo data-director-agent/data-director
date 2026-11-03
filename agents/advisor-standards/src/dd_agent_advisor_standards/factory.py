@@ -9,7 +9,7 @@
 - `DD_STANDARDS_EXPLAINER`: `template` (default) or `anthropic`.
 - `DD_MODEL_ID`: the model the Anthropic explainer calls.
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the Anthropic
-  explainer's key, read at start-up (`dd_sdk.credentials`, ADR-0026).
+  explainer's key, read at start-up (`dd_sdk.credentials`, docs/specs/policy-and-identity.md).
 - `DD_SNAPSHOT_PATH`: the snapshot file. The default is the committed one.
 
 An unknown value, or the Anthropic explainer with no key, is a configuration error

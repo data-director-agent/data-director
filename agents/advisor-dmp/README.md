@@ -3,7 +3,7 @@
 **Mock, alpha** (`0.1.0a1`). It gives no real advice: it compares two lists it is given. The
 real checker is TODO(#356).
 
-The Data Management Plan Checker is one persona of the agent roster (ADR-0033). It serves one
+The Data Management Plan Checker is one persona of the agent roster ([Agents](../../docs/specs/agents.md)). It serves one
 step of the Blueprint's process flow:
 
 | Step | What the mock does |

@@ -1,5 +1,5 @@
 """A2A and AG-UI bindings, the agent manifest and the samples listing, driven in-process with an
-httpx ASGI transport (ADR-0001). Nothing here names a payload class."""
+httpx ASGI transport (docs/specs/transport.md). Nothing here names a payload class."""
 
 from __future__ import annotations
 
@@ -218,7 +218,8 @@ def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: 
 
 
 def _naming_a_profile() -> dict[str, Any]:
-    """A request that tries to choose its own policy, as one could before ADR-0017."""
+    """A request that tries to choose its own policy, as one could before
+    docs/specs/policy-and-identity.md."""
     doc = to_document(request("advisor.quality", record()))
     doc["policy_bundle_ref"] = "profile:test-permissive"
     return doc

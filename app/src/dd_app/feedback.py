@@ -4,7 +4,7 @@ The server holds one fine-grained token (Issues: write, this repository only) an
 issue for the reporter, who needs no GitHub account. The issue is public, so the page says so and
 shows what will be sent. The server adds the build's version and commit itself, and for a run or
 conversation the reporter chose to include, only its identifiers, agents, versions and outcome:
-never a payload, an input or evidence. Without a token the feature is off (ADR-0030).
+never a payload, an input or evidence. Without a token the feature is off (docs/specs/app.md).
 """
 
 from __future__ import annotations

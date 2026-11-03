@@ -1,6 +1,6 @@
 /**
  * A warning before a session ends for want of use, with a way to keep it going (WCAG 2.2.1,
- * ADR-0029).
+ * docs/specs/policy-and-identity.md).
  *
  * The server says when the session ends (`expiresAt`). Every request restarts that clock, so
  * shortly before the time the page asks again, without restarting it. If the end is still near,

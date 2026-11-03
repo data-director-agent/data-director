@@ -18,8 +18,8 @@ issue form, chosen when you [open an issue](https://github.com/data-director-age
 * **Conformance review**: you examined a Blueprint requirement, such as accessibility (C6) or the
   appropriateness of standards advice (R3), and found it met or not met. A maintainer records it
   in the review record on your instruction ([the conformance report](docs/conformance.md)).
-* **Decision record feedback**: a question about, or objection to, an
-  [architecture decision record](docs/adr/README.md).
+* **Spec feedback**: a question about, or objection to, how one of the
+  [specifications](docs/specs/README.md) says Data Director is built.
 * **Blueprint reading**: the project reads a [Blueprint](docs/blueprint/README.md) requirement
   differently from you, or misses one.
 * **Feedback on advice**: an agent's advice was wrong, incomplete or unhelpful, and you can say
@@ -29,20 +29,20 @@ issue form, chosen when you [open an issue](https://github.com/data-director-age
 
 This repository is organised as follow:
 
-* `docs/` contains what governs every package: the Blueprint, the decision records (`docs/adr/`),
+* `docs/` contains what governs every package: the Blueprint, the specifications (`docs/specs/`),
   the contract, the glossary, the requirements register and the review record. A package's own
   documents are in its own `docs/` (`harness/docs/`, `workbench/docs/`)
 * `app/` contains the Data Director app that people use (alpha); its browser shell in `app/web`
   needs Node 22 or later and npm (`app/README.md`)
 * `sdk/` contains what agents and the harness share: the contract, evidence and the agent server
-* `harness/` contains the governance every agent invocation goes through (ADR-0022)
+* `harness/` contains the governance every agent invocation goes through ([System and boundaries](docs/specs/system.md))
 * `workbench/` contains the development environment for building and testing sub-agents
 * `agents/` contains one package per agent, including alpha-versioned experimental ones
   (`agents/README.md`)
 
 Each package keeps to its own directory, so that it can later move to a repository of its own.
 Agent Skills, MCP servers and other resources that do not use the contract belong in their own
-repositories in the organisation. [ADR-0031](docs/adr/0031-ecosystem-and-repository-boundaries.md)
+repositories in the organisation. [System and boundaries](docs/specs/system.md)
 sets out both.
 
 ## Code style and testing

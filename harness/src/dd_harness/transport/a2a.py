@@ -1,12 +1,13 @@
-"""A2A JSON-RPC binding (ADR-0001). The only importer of `a2a` (ADR-0006).
+"""A2A JSON-RPC binding (docs/specs/transport.md). The only importer of `a2a`
+(docs/specs/dependencies.md).
 
-The request is an `InvocationRequest` carried as a data part of the user message; the response
-is the `Envelope` carried as a data part of the task's single artifact. Whom the invocation acts
-for comes from the `Authenticator`, given the HTTP request's headers, never from the message
-(ADR-0018); a delegation callback acts for its parent's principal, whoever sent it. Routes built
-without an authenticator accept delegation callbacks only, so a server that exists to receive them
-(the app's, #129) is not also a way in for anyone else. `a2a-sdk` 1.x is protobuf-based, so
-documents cross as `google.protobuf.Struct` values via the SDK helpers.
+The request is an `InvocationRequest` carried as a data part of the user message; the response is
+the `Envelope` carried as a data part of the task's single artifact. Whom the invocation acts for
+comes from the `Authenticator`, given the HTTP request's headers, never from the message
+(docs/specs/policy-and-identity.md); a delegation callback acts for its parent's principal, whoever
+sent it. Routes built without an authenticator accept delegation callbacks only, so a server that
+exists to receive them (the app's, #129) is not also a way in for anyone else. `a2a-sdk` 1.x is
+protobuf-based, so documents cross as `google.protobuf.Struct` values via the SDK helpers.
 """
 
 from __future__ import annotations
@@ -54,7 +55,8 @@ PROTOCOL_VERSION = "1.0"
 
 def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
     """The harness's card. One skill per registered agent, and the manifest extension that a
-    delegation agent routes from: each agent's `describe(spec)`, schemas included (ADR-0012)."""
+    delegation agent routes from: each agent's `describe(spec)`, schemas included
+    (docs/specs/orchestration.md)."""
     manifest = conductor.registry.manifest()
     skills = [
         AgentSkill(
@@ -104,7 +106,8 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
 
 
 DELEGATED_ONLY = (
-    "this endpoint accepts only a delegation agent's callback under a live grant (ADR-0012)"
+    "this endpoint accepts only a delegation agent's callback under a live grant "
+    "(docs/specs/orchestration.md)"
 )
 
 
@@ -139,7 +142,7 @@ class ConductorExecutor(AgentExecutor):
         try:
             request = InvocationRequest.model_validate(inputs[0])
             if token:
-                # A delegation agent calling back under its grant (ADR-0012).
+                # A delegation agent calling back under its grant (docs/specs/orchestration.md).
                 envelope = await self.conductor.ainvoke_delegated(
                     request,
                     str(token),
@@ -155,9 +158,10 @@ class ConductorExecutor(AgentExecutor):
                 acting_for = await asyncio.to_thread(self.authenticator.principal_for, headers)
                 envelope = await self.conductor.ainvoke(request, acting_for=acting_for)
         except Unauthenticated as exc:
-            # Refused in the task, with the problem document ADR-0029 sets. TODO(#17): answer the
-            # HTTP request itself with 401 and WWW-Authenticate, which needs the credential checked
-            # before the JSON-RPC handler, where a delegation callback cannot yet be told apart.
+            # Refused in the task, with the problem document docs/specs/policy-and-identity.md sets.
+            # TODO(#17): answer the HTTP request itself with 401 and WWW-Authenticate, which needs
+            # the credential checked before the JSON-RPC handler, where a delegation callback cannot
+            # yet be told apart.
             refusal = {"error": str(exc), "problem": to_document(unauthenticated(str(exc)))}
             await updater.failed(updater.new_agent_message([new_data_part(refusal)]))
             return

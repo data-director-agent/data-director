@@ -1,7 +1,7 @@
 /**
- * Reading a class's JSON Schema (as `dd-gen-schema` writes it, ADR-0020) for its shape: what the
+ * Reading a class's JSON Schema (as `dd-gen-schema` writes it, docs/specs/contract.md) for its shape: what the
  * run form asks for and how a result is laid out. Presentation comes from the schema and the
- * manifest's derivations, never from a per-agent layout (ADR-0016).
+ * manifest's derivations, never from a per-agent layout (docs/specs/agents.md).
  *
  * Only the shapes the generated schemas use are recognised: `$ref` into `$defs`, `anyOf` with
  * null, nullable `type` arrays, enums, arrays and objects. Anything else is "other".

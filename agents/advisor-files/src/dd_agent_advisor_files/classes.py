@@ -1,7 +1,7 @@
-"""The payload class of advisor.files, as Pydantic models (ADR-0019).
+"""The payload class of advisor.files, as Pydantic models (docs/specs/contract.md).
 
 `schema/files.yaml` is the source; `ClassSchema.of` compares each model with the schema generated
-from it. The input is the core contract's `FileInventory` (ADR-0034).
+from it. The input is the core contract's `FileInventory` (docs/specs/projects.md).
 """
 
 from __future__ import annotations

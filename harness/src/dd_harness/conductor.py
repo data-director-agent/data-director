@@ -2,30 +2,29 @@
 validation → store → provenance.
 
 `invoke` is a plain function. Every transport (CLI, A2A, AG-UI) is a wrapper around it
-(ADR-0001). It fills in everything an agent must not decide about itself: identifiers,
-timestamps, telemetry, the grounding mode and input hash it is held to, the human it acted for,
-and whether the output passed the grounding check and the source check. It knows nothing about
-any payload class.
+(docs/specs/transport.md). It fills in everything an agent must not decide about itself:
+identifiers, timestamps, telemetry, the grounding mode and input hash it is held to, the human it
+acted for, and whether the output passed the grounding check and the source check. It knows nothing
+about any payload class.
 
 The grounding linter checks the agent's account of its run for consistency; the source check
-re-hashes what the evidence cites against a copy of the source the harness holds (ADR-0016).
-A violation of either withholds a succeeded result. Their verdicts are stored separately, in
-`grounding.txt` and `sources.txt`.
+re-hashes what the evidence cites against a copy of the source the harness holds
+(docs/specs/grounding.md). A violation of either withholds a succeeded result. Their verdicts are
+stored separately, in `grounding.txt` and `sources.txt`.
 
-Delegation (ADR-0012). When the conductor runs a remote agent in grounding mode `delegation`,
-and it knows its own A2A address (`harness_url`), it issues that invocation a grant: a random
-token, sent with the request (never in `RunContext`), that the agent may present while the
-invocation runs to ask the harness to invoke another agent. `invoke_delegated` runs such a
-request as an ordinary invocation, sets its lineage from the grant, and records the child
-against the parent. The parent's envelope lists those records in `delegations`, which is what
-the linter checks a relayed reply against. Delegation is one level deep: a child is never issued
-a grant.
+Delegation (docs/specs/orchestration.md). When the conductor runs a remote agent in grounding mode
+`delegation`, and it knows its own A2A address (`harness_url`), it issues that invocation a grant: a
+random token, sent with the request (never in `RunContext`), that the agent may present while the
+invocation runs to ask the harness to invoke another agent. `invoke_delegated` runs such a request
+as an ordinary invocation, sets its lineage from the grant, and records the child against the
+parent. The parent's envelope lists those records in `delegations`, which is what the linter checks
+a relayed reply against. Delegation is one level deep: a child is never issued a grant.
 
-The human (ADR-0018). Every invocation acts for a principal, which the transport takes from its
-authentication boundary and passes to `invoke`; the conductor keeps none of its own, so an
-invocation without one cannot be written. A delegated child acts for its parent's principal,
-carried on the grant: the caller on that path is an agent, not the human. The principal is
-recorded in the envelope and the crate and is never sent to the agent.
+The human (docs/specs/policy-and-identity.md). Every invocation acts for a principal, which the
+transport takes from its authentication boundary and passes to `invoke`; the conductor keeps none of
+its own, so an invocation without one cannot be written. A delegated child acts for its parent's
+principal, carried on the grant: the caller on that path is an agent, not the human. The principal
+is recorded in the envelope and the crate and is never sent to the agent.
 
 Threads (#171). `invoke` may be called from any thread, and several invocations may run at
 once. Async code calls `ainvoke` and `ainvoke_delegated` instead, which keep the one rule that
@@ -123,13 +122,14 @@ class Conductor:
     registry: Registry
     store: RunStore
     # The deployment's institutional profile, loaded once by whoever builds the conductor. Every
-    # invocation, delegated or not, is gated by it; a request cannot name another (ADR-0017).
+    # invocation, delegated or not, is gated by it; a request cannot name another
+    # (docs/specs/policy-and-identity.md).
     profile: policy.Profile
     tracing: Tracing = field(default_factory=make_tracing)
     write_crate: bool = True
     grounding_reports: dict[str, grounding.GroundingReport] = field(default_factory=dict)
-    # The copies of sources the source check resolves evidence against (ADR-0016). None held
-    # means every externally sourced evidence item is reported as unresolved.
+    # The copies of sources the source check resolves evidence against (docs/specs/grounding.md).
+    # None held means every externally sourced evidence item is reported as unresolved.
     sources: source_check.Sources = field(default_factory=source_check.Sources.none)
     # The harness's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
@@ -328,7 +328,8 @@ class Conductor:
                 )
                 prob = None
             elif refused := _input_refusal(spec, request_doc["input"]):
-                # 2. Input check, against the class schema the agent's card carries (ADR-0019).
+                # 2. Input check, against the class schema the agent's card carries
+                # (docs/specs/contract.md).
                 # A valid request addressed to an agent that does not read this input is an
                 # outcome, not an exception: the caller, the store and a reviewer all see the
                 # refusal as an envelope, as they do a policy refusal.
@@ -378,7 +379,7 @@ class Conductor:
                 else:
                     from_agent = True
                     # A remote agent's spans were recorded in its own process; bring them into
-                    # this trace so the linter reads one tree (ADR-0011).
+                    # this trace so the linter reads one tree (docs/specs/agents.md).
                     self.tracing.import_spans(trace_id, received.spans)
                     result = received.result
                     # An agent that returns a payload other than the class it declared, or one
@@ -437,7 +438,8 @@ class Conductor:
                 self.grounding_reports[request.invocation_id] = report
                 while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
                     del self.grounding_reports[next(iter(self.grounding_reports))]
-            # 4a. Source check, over the evidence the linter has just read (ADR-0016).
+            # 4a. Source check, over the evidence the linter has just read
+            # (docs/specs/grounding.md).
             source_report = source_check.check(envelope.to_document(), self.sources)
             withheld = [
                 (check, found)
@@ -489,7 +491,8 @@ class Conductor:
                     )
                     doc = envelope.to_document()
             validate.validate_envelope(doc)
-            # The schemas the run was checked against, kept by digest for the viewer (ADR-0019).
+            # The schemas the run was checked against, kept by digest for the viewer
+            # (docs/specs/contract.md).
             checked = [accepted] if accepted else []
             if envelope.payload is not None and spec.payload is not None:
                 checked.append(spec.payload)

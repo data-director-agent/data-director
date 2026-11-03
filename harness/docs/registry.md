@@ -2,8 +2,8 @@
 
 The registry is the workbench's list of agents it can call. The conductor, the CLI, the
 transports and the viewer all read the agent list from it. None of them names an agent in code.
-The decision behind this design is [ADR-0011](../../docs/adr/0011-remote-agents.md). It replaced the
-entry-point discovery of [ADR-0010](../../docs/adr/0010-agent-registry.md).
+The decision behind this design is [Agents](../../docs/specs/agents.md). It replaced the
+entry-point discovery of [Agents](../../docs/specs/agents.md).
 
 The code is in `harness/src/dd_harness/registry.py`. The A2A client it uses is in `remote.py`.
 
@@ -24,7 +24,7 @@ Set `DD_AGENTS_CONFIG` to use a different file, for example one per deployment.
 The file holds only addresses. Everything else about an agent comes from the agent itself:
 its identifier, version, the input classes it reads, its payload class, its grounding mode, its
 action class, its requirement identifiers, how it derives each payload field (`derivations`) and
-the models it sends data to (`models`, ADR-0026).
+the models it sends data to (`models`, [Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## What happens at start-up
 
@@ -35,7 +35,7 @@ The workbench builds the registry once, when it starts. For each entry in `agent
    card's capabilities;
 3. rebuilds the agent's `AgentSpec` from the extension's parameters: the class schemas the
    card carries, each checked against its digest, and the contract version, checked for
-   compatibility (ADR-0019);
+   compatibility ([Contract](../../docs/specs/contract.md));
 4. registers the agent under the `agent_id` from the spec.
 
 The `agent_id` comes from the card, not from `name` in `agents.yaml`. Requests, profiles and
@@ -54,8 +54,8 @@ Some problems stop the workbench from starting. Others affect only one agent.
 | `agents.yaml` is missing, has no top-level `agents:` list, or an entry has no `url` | `RegistryError`. The workbench does not start. |
 | Two cards declare the same `agent_id` | `RegistryError`. The workbench does not start. |
 | The card cannot be fetched (the service is down, the URL is wrong, or the request times out) | The agent is recorded as **unavailable**, with the reason. The other agents still load. |
-| The card has no Data Director extension; names a class it carries no schema for; carries a schema that does not match its digest; or declares a payload class that does not mix in `Grounded` | The agent is recorded as unavailable, with the reason. A class the harness has not seen before is not a reason: the card carries its schema ([ADR-0019](../../docs/adr/0019-core-contract-and-agent-owned-classes.md)). |
-| The card declares a `contract_version` this harness cannot govern, or none | The agent is recorded as **incompatible**, with both versions. The other agents still load ([ADR-0019](../../docs/adr/0019-core-contract-and-agent-owned-classes.md)). |
+| The card has no Data Director extension; names a class it carries no schema for; carries a schema that does not match its digest; or declares a payload class that does not mix in `Grounded` | The agent is recorded as unavailable, with the reason. A class the harness has not seen before is not a reason: the card carries its schema ([Contract](../../docs/specs/contract.md)). |
+| The card declares a `contract_version` this harness cannot govern, or none | The agent is recorded as **incompatible**, with both versions. The other agents still load ([Contract](../../docs/specs/contract.md)). |
 | A request names an agent that is not registered | The conductor raises `UnknownAgent`. The message lists the registered agents and the reason each unavailable or incompatible one is missing. No envelope is written, because no agent ran. |
 | A registered agent cannot be reached when a request is sent, times out, or answers outside the contract | The run ends `failed`, with problem type `agent-error`, and the envelope is stored as usual. |
 
@@ -70,7 +70,7 @@ the core schema, `sdk/src/dd_sdk/schema/data_director.yaml`.
 ## Registration is not permission
 
 The registry says which agents can be reached. The policy profile named in each request decides
-which of them may run ([ADR-0003](../../docs/adr/0003-policy-profiles.md)). A registered agent that the
+which of them may run ([Policy and identity](../../docs/specs/policy-and-identity.md)). A registered agent that the
 profile does not enable is refused at the policy gate, and the refusal is recorded in an
 envelope. See [`conductor.md`](conductor.md).
 
@@ -106,7 +106,7 @@ agent, without a network.
 
 ## Not yet decided
 
-- Authentication between the workbench and its agents. TODO(#17) (ADR-0011). Until it exists, do not
+- Authentication between the workbench and its agents. TODO(#17) ([Agents](../../docs/specs/agents.md)). Until it exists, do not
   expose agent ports beyond the host or a private network.
 - Reloading the registry, or checking agent health, while the workbench runs. TODO(#251).
-- Container images and a `compose.yaml` for running the agents. TODO(#223, #224) (ADR-0011).
+- Container images and a `compose.yaml` for running the agents. TODO(#223, #224) ([Agents](../../docs/specs/agents.md)).

@@ -1,4 +1,4 @@
-"""advisor.metadata: the Metadata Librarian persona (ADR-0033). A mock.
+"""advisor.metadata: the Metadata Librarian persona (docs/specs/agents.md). A mock.
 
 Serves `preparation.metadata-standard` and `preparation.metadata`. It picks a metadata standard,
 the one the researcher asked for if it knows it and DataCite otherwise, and drafts a record in it

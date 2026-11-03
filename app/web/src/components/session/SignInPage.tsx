@@ -1,5 +1,5 @@
 /**
- * The page a person sees when the server signs people in and they are not signed in (ADR-0029).
+ * The page a person sees when the server signs people in and they are not signed in (docs/specs/policy-and-identity.md).
  *
  * Signing in is a real link to the server, which sends the browser to the provider and back; the
  * shell holds no token and decides nothing about identity. A sign-in that came back without a

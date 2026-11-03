@@ -1,5 +1,5 @@
 # The input and payload classes of the example.hello template agent, owned by this package
-# (ADR-0019). It imports the core contract as `data_director`. After an edit, run
+# (docs/specs/contract.md). It imports the core contract as `data_director`. After an edit, run
 # `uv run dd-gen-schema agents/example-hello/src/dd_agent_example_hello/schema/hello.yaml` to regenerate
 # generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
 id: https://w3id.org/data-director/agents/hello

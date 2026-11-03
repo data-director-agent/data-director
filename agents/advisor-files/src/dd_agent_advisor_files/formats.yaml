@@ -1,7 +1,7 @@
 # advisor.files's whole rule table: file extension (lower case, no dot) to the format it suggests,
 # that format's media type, and whether the format is open (publicly specified and readable
 # without proprietary software). A file is matched on its last extension only. A mock's table
-# (ADR-0033): an extension says nothing certain about a file's content, and the real archivist
+# (docs/specs/agents.md): an extension says nothing certain about a file's content, and the real archivist
 # identifies formats from the content with PRONOM, TODO(#354).
 csv: {format: Comma-separated values, media_type: text/csv, open: true}
 tsv: {format: Tab-separated values, media_type: text/tab-separated-values, open: true}

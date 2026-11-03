@@ -2,7 +2,7 @@
  * The conversation endpoints, behind one interface so tests can stand in for the server.
  *
  * A turn sends only the agent and the message: the server builds the history from what it
- * stored (ADR-0024 §17) and refuses one the page sends.
+ * stored (docs/specs/app.md) and refuses one the page sends.
  */
 
 import { createContext, useContext } from "react";

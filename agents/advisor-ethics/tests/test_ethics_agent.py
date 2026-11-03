@@ -1,4 +1,4 @@
-"""advisor.ethics through the conductor: the Research Ethics Adviser mock (ADR-0033)."""
+"""advisor.ethics through the conductor: the Research Ethics Adviser mock (docs/specs/agents.md)."""
 
 from __future__ import annotations
 

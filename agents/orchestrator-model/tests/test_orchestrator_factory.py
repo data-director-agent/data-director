@@ -1,5 +1,5 @@
 """The orchestrator's configuration: its model is declared, and a bad setting stops it at
-start-up (ADR-0026)."""
+start-up (docs/specs/policy-and-identity.md)."""
 
 from __future__ import annotations
 

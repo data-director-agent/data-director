@@ -1,6 +1,6 @@
 /**
  * The Blueprint's six phases (§8.2), each with its steps, the requirements applied at each, and
- * which of the agents here serve them (ADR-0028). The phases come from the server's process flow
+ * which of the agents here serve them (docs/specs/orchestration.md). The phases come from the server's process flow
  * and the agents from the manifest; the tracker names no agent of its own.
  *
  * Where the researcher stands in these phases is not known yet: that needs a record of the

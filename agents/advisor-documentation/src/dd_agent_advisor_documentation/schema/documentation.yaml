@@ -1,8 +1,8 @@
-# The input and payload classes of advisor.documentation, owned by this package (ADR-0019). It
+# The input and payload classes of advisor.documentation, owned by this package (docs/specs/contract.md). It
 # imports the core contract as `data_director`. After an edit, run
 # `uv run dd-gen-schema agents/advisor-documentation/src/dd_agent_advisor_documentation/schema/documentation.yaml`
 # to regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that
-# has drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+# has drifted. These classes are a mock's sketch (docs/specs/agents.md), not a settled format.
 id: https://w3id.org/data-director/agents/documentation
 name: dd_agent_advisor_documentation
 title: advisor.documentation classes

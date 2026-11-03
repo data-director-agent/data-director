@@ -1,7 +1,7 @@
 # advisor.metadata's whole rule table: for each metadata standard it drafts, the names it answers
 # to and its properties, in order, each with the input field that fills it (`from`), or null when
 # only the researcher can supply it. Names are matched with case, spaces, hyphens and underscores
-# ignored. The first standard is the default. A mock's table (ADR-0033): it covers a handful of
+# ignored. The first standard is the default. A mock's table (docs/specs/agents.md): it covers a handful of
 # properties of three standards, and the real librarian replaces it, TODO(#357).
 DataCite:
   aliases: [datacite, datacite metadata schema]

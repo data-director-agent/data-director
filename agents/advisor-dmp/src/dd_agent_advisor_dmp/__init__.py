@@ -1,1 +1,1 @@
-"""advisor.dmp: the Data Management Plan Checker persona (ADR-0033). A mock."""
+"""advisor.dmp: the Data Management Plan Checker persona (docs/specs/agents.md). A mock."""

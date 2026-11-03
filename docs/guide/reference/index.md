@@ -5,8 +5,8 @@ These documents are kept with the code they govern and published here from where
 - [Architecture](../../architecture.md): the system overview.
 - [Contract](../../contract.md): what an agent and the harness agree to.
 - [Glossary](../../glossary.md)
-- [Architecture decision records](../../adr/README.md): the Decisions section below, collapsed
-  in the navigation, starting with [ADR-0001](../../adr/0001-transport.md).
+- [specifications](../../specs/README.md): the Decisions section below, collapsed
+  in the navigation, starting with [Transport and tracing](../../specs/transport.md).
 - [Requirements register](../../requirements.yaml) (YAML, on GitHub)
 - [Conformance](../../conformance.md), and the generated
   [conformance report](../../../CONFORMANCE.md).

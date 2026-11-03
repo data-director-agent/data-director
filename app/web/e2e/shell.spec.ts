@@ -62,7 +62,7 @@ async function gotoDirectory(page: Page) {
   await page.goto("/agents");
 }
 
-/** The several-agents set plus an orchestrator, named by the profile (ADR-0024 §10). */
+/** The several-agents set plus an orchestrator, named by the profile (docs/specs/app.md). */
 const withOrchestrator = {
   ...several,
   profile: { ...several.profile, orchestrator: "orchestrator.stub" },
@@ -437,7 +437,7 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-// Signing in (ADR-0029). The server decides; the shell shows the sign-in page when it says nobody
+// Signing in (docs/specs/policy-and-identity.md). The server decides; the shell shows the sign-in page when it says nobody
 // is signed in, or when any request is refused with 401.
 
 test("signed out: the sign-in page, by keyboard, with no axe violations, at 320px", async ({

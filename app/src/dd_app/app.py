@@ -1,24 +1,24 @@
-"""The app's web server: the shell's API beside the built shell (ADR-0024).
+"""The app's web server: the shell's API beside the built shell (docs/specs/app.md).
 
 `GET /api/agents` is what the shell draws its capabilities panel from. `POST /api/runs` runs an
-agent through the conductor and answers when the run has ended, with its envelope and the
-checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples`
-lists example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
-(`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
-until runs stream over AG-UI (#68, #69).
-`POST /api/conversations` starts a conversation and `POST /api/conversations/{id}/turns` sends it
-one message, answered as a run is; `GET /api/conversations` and `GET /api/conversations/{id}`
-read them back as the harness derives them from the run store (ADR-0012, #130).
-`POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
-delegation agent's callback under a live grant and nothing else (ADR-0012, #129).
-`GET /api/about` names the build (version and commit) and says whether reports can be filed;
-`POST /api/feedback` files a problem report or feature request as a GitHub issue (ADR-0030).
-`GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through the configured
-OpenID Connect provider, `POST /api/sign-out` ends their session, and `GET /api/session` says who
-is signed in, until when, and whether this server signs anyone in (ADR-0029, `dd_app.signin`);
-`POST /api/session` says the same and keeps the session going.
-Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
-The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
+agent through the conductor and answers when the run has ended, with its envelope and the checks'
+reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples` lists
+example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
+(`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap until
+runs stream over AG-UI (#68, #69). `POST /api/conversations` starts a conversation and `POST
+/api/conversations/{id}/turns` sends it one message, answered as a run is; `GET /api/conversations`
+and `GET /api/conversations/{id}` read them back as the harness derives them from the run store
+(docs/specs/orchestration.md, #130). `POST /a2a` and `GET /.well-known/agent-card.json` are the
+conductor's A2A routes, which accept a delegation agent's callback under a live grant and nothing
+else (docs/specs/orchestration.md, #129). `GET /api/about` names the build (version and commit) and
+says whether reports can be filed; `POST /api/feedback` files a problem report or feature request as
+a GitHub issue (docs/specs/app.md). `GET /api/sign-in` and `GET /api/sign-in/callback` sign a person
+in through the configured OpenID Connect provider, `POST /api/sign-out` ends their session, and `GET
+/api/session` says who is signed in, until when, and whether this server signs anyone in
+(docs/specs/policy-and-identity.md, `dd_app.signin`); `POST /api/session` says the same and keeps
+the session going. Every other path serves the shell built from `app/web` (`npm run build` writes
+`app/web/dist`). The app stops at start-up, with one line, if a setting is wrong or the shell has
+not been built.
 
 Every `/api` route that runs or reads anything acts for the person the request's session names,
 and answers `401` with an `unauthenticated` problem when there is none. `/api/about`,
@@ -82,7 +82,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
     "data-director: warning: serving on {host}. A delegation grant is a bearer token and callers "
-    "are not authenticated; expose the app to the host or a private network only (ADR-0011).\n"
+    "are not authenticated; expose the app to the host or a private network only "
+    "(docs/specs/agents.md).\n"
 )
 # Why a sign-in came back to `/sign-in` without opening a session, for the shell to say.
 SIGN_IN_DECLINED = "declined"
@@ -120,7 +121,7 @@ def build_app(
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
         """`handler`, given the principal the request acts for; a request with none is refused
-        with `401` (ADR-0029), and never given a default."""
+        with `401` (docs/specs/policy-and-identity.md), and never given a default."""
 
         async def endpoint(request: Request) -> Response:
             try:
@@ -363,7 +364,8 @@ def build_app(
         return FileResponse(web_dist / "index.html")
 
     callback = governance.conductor.harness_url
-    # No authenticator: delegation callbacks only, so the app is no other way in (ADR-0012).
+    # No authenticator: delegation callbacks only, so the app is no other way in
+    # (docs/specs/orchestration.md).
     delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
     return Starlette(
         routes=[
@@ -401,9 +403,9 @@ def build_app(
     )
 
 
-# ADR-0029: the session cookie is opaque, unreadable by script, sent only over HTTPS, and `Lax`
-# because the provider sends the person back across sites. A browser treats `127.0.0.1` and
-# `localhost` as secure, so a development sign-in over plain HTTP still works.
+# docs/specs/policy-and-identity.md: the session cookie is opaque, unreadable by script, sent only
+# over HTTPS, and `Lax` because the provider sends the person back across sites. A browser treats
+# `127.0.0.1` and `localhost` as secure, so a development sign-in over plain HTTP still works.
 _SESSION: dict[str, Any] = {"path": "/", "secure": True, "httponly": True, "samesite": "lax"}
 _SIGN_IN_COOKIE: dict[str, Any] = {**_SESSION, "path": "/api/sign-in"}
 
@@ -413,7 +415,8 @@ def _principal(principal: Principal) -> dict[str, Any]:
 
 
 def process_flow() -> dict[str, Any]:
-    """The Blueprint's entry points and phases, the same for every deployment (ADR-0028)."""
+    """The Blueprint's entry points and phases, the same for every deployment
+    (docs/specs/orchestration.md)."""
     return {
         "entries": [dataclasses.asdict(e) for e in ENTRIES],
         "phases": [dataclasses.asdict(p) for p in PHASES],
@@ -482,9 +485,10 @@ def main() -> int:
         governance = Governance.create(
             settings, base_url, sign_in.authenticator if sign_in is not None else None
         )
-    # No principal (ADR-0018), a provider set wrongly or beside an operator (ADR-0029), or a
-    # profile, agent list or source list that is unset, missing or malformed (ADR-0022), or an
-    # agent in this process configured wrongly: nothing may run.
+    # No principal (docs/specs/policy-and-identity.md), a provider set wrongly or beside an operator
+    # (docs/specs/policy-and-identity.md), or a profile, agent list or source list that is unset,
+    # missing or malformed (docs/specs/system.md), or an agent in this process configured wrongly:
+    # nothing may run.
     except (
         IdentityError,
         SettingsError,

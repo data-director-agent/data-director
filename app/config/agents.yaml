@@ -1,6 +1,6 @@
-# The agents the app reaches over A2A (ADR-0011), unless DD_AGENTS_CONFIG names another list.
+# The agents the app reaches over A2A (docs/specs/agents.md), unless DD_AGENTS_CONFIG names another list.
 # Every in-tree agent is listed, on the port `scripts/run-agents.sh` starts it on; the app runs
-# none in its own process (ADR-0027). One that is not running is shown as unavailable and the
+# none in its own process (docs/specs/app.md). One that is not running is shown as unavailable and the
 # rest still run. The profile still decides whether each may run.
 # Format as in workbench/agents.yaml.
 agents:
@@ -31,7 +31,7 @@ agents:
   - name: advisor-fairness
     url: http://127.0.0.1:8117
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
-  # theirs (ADR-0012). It calls them back through the app's own A2A endpoint under its grant.
+  # theirs (docs/specs/orchestration.md). It calls them back through the app's own A2A endpoint under its grant.
   - name: orchestrator-stub
     url: http://127.0.0.1:8106
     timeout_s: 120

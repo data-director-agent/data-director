@@ -1,4 +1,4 @@
-"""Conversations, derived from the invocation store (ADR-0012).
+"""Conversations, derived from the invocation store (docs/specs/orchestration.md).
 
 A conversation is the set of top-level invocations sharing a `conversation_id`. There is no
 conversation store: each turn is an ordinary invocation, so everything here is read back from

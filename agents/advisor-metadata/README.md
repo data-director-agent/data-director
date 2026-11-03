@@ -1,6 +1,6 @@
 # advisor.metadata
 
-**Alpha** (`0.1.0a1`) and a **mock** (ADR-0033): it gives no real advice, and its results say so.
+**Alpha** (`0.1.0a1`) and a **mock** ([Agents](../../docs/specs/agents.md)): it gives no real advice, and its results say so.
 
 The Metadata Librarian drafts a metadata record for a dataset, for the researcher to review before
 submission (R2). It serves two steps of the Blueprint's process flow (§8.2):

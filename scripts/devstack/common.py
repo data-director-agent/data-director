@@ -119,12 +119,12 @@ def update_env(path: Path, updates: dict[str, str], header: str) -> None:
 
 
 def _without_key(path: Path) -> dict[str, str]:
-    """The settings in `path`, which every agent reads, so it may hold no model key (ADR-0026)."""
+    """The settings in `path`, which every agent reads, so it may hold no model key (docs/specs/policy-and-identity.md)."""
     found = read_env(path)
     if leaked := [var for var in KEY_VARS if found.get(var)]:
         raise DevError(
             f"{path.relative_to(paths.ROOT)} sets {leaked[0]}, which every agent would read; "
-            f"move it to the agent's own file, config/local/agents/<name>.env (ADR-0026)"
+            f"move it to the agent's own file, config/local/agents/<name>.env (docs/specs/policy-and-identity.md)"
         )
     return found
 
@@ -137,7 +137,7 @@ def app_env() -> dict[str, str]:
 def agent_env(agent: Agent) -> dict[str, str]:
     """What one agent reads: `agents.env`, then its own file, and the credentials directory.
 
-    It is given neither the app's settings nor another agent's (ADR-0026).
+    It is given neither the app's settings nor another agent's (docs/specs/policy-and-identity.md).
     """
     return (
         _without_key(paths.AGENTS_ENV)
@@ -168,7 +168,7 @@ def ensure_local_tree() -> list[Path]:
     return created
 
 
-# Where a stray settings file of the old layout moves to (ADR-0026).
+# Where a stray settings file of the old layout moves to (docs/specs/policy-and-identity.md).
 OLD_LOCATIONS = {
     ".env": "config/local/app.env (DD_PRINCIPAL_*, DD_APP_*) and config/local/agents.env (the rest)",
     "workbench/.env": "config/local/app.env (DD_PRINCIPAL_*, DD_RUNS_DIR, DD_PROFILE) and "

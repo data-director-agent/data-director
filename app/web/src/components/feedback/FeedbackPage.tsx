@@ -1,5 +1,5 @@
 /**
- * Report a problem or ask for a feature. The server files a GitHub issue (ADR-0030).
+ * Report a problem or ask for a feature. The server files a GitHub issue (docs/specs/app.md).
  *
  * The page says that the issue is public, and shows exactly what will be sent beside the form:
  * the words typed, the build's version and commit, and, if the reporter agrees, the identifiers

@@ -6,9 +6,9 @@
   account needed. `from_fairsharing_json` keeps the database fields re3data does not have.
 
 Each record is stored in the snapshot exactly as it is hashed: the whole JSON document, under
-`dd-json-document-v1` (ADR-0009). Lists are sorted when the record is made, so the hash does not
-depend on the order a source happens to list things in. Evidence `content` is the same document,
-so what the reader is shown is what the hash covers (ADR-0015).
+`dd-json-document-v1` (docs/specs/grounding.md). Lists are sorted when the record is made, so the
+hash does not depend on the order a source happens to list things in. Evidence `content` is the same
+document, so what the reader is shown is what the hash covers (docs/specs/grounding.md).
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Delegation: an agent asks the harness to invoke another agent (ADR-0012).
+"""Delegation: an agent asks the harness to invoke another agent (docs/specs/orchestration.md).
 
 An agent in grounding mode `delegation` never calls another agent directly. It calls
 `ctx.delegate(agent_id, input)`, which sends an `InvocationRequest` back to the harness's A2A

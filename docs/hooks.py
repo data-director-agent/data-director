@@ -4,7 +4,7 @@ The guide (`docs/guide/`) is the site's `docs_dir`. Every other document stays w
 next to what it describes, and is mounted on the site at its repository path:
 
 - A `nav` entry that starts with `/` names a file by its path from the repository root, as a
-  GitHub link does. It may be a glob (`/docs/adr/*.md`), which expands in order to every match
+  GitHub link does. It may be a glob (`/docs/specs/*.md`), which expands in order to every match
   that the nav does not name elsewhere, each titled by its first heading.
 - A link inside a published document is resolved against the document's place in the
   repository. One to another published document goes to its page; one to anything else (a YAML

@@ -22,7 +22,7 @@ returns `Recommendations`. Serve it with `uv run dd-advisor-standards serve --po
 An unknown value is a configuration error and stops the service at start-up. So is the Anthropic
 explainer without exactly one of the two key variables. The key is passed to the Anthropic client
 explicitly: the SDK's own credential chain, such as an `ant auth login`, is never used
-(ADR-0026). In development, put the key in `config/local/credentials/` and name it in
+([Policy and identity](../../../../docs/specs/policy-and-identity.md)). In development, put the key in `config/local/credentials/` and name it in
 `config/local/agents/advisor-standards.env`, which only this agent reads. In deployment, the key is loaded as a systemd credential (`deploy/README.md`).
 
 With the Anthropic explainer the advisor sends Anthropic the dataset profile's title,
@@ -37,7 +37,7 @@ service.
 Each `Recommendation` carries one `GroundingRef` for the FAIRsharing record it recommends, and
 names the record nowhere else. The record's name, status and DOI are in the matching evidence
 item's `content`, the `json-sorted-utf8-v1` projection its hash covers. The linter re-hashes
-that content (E1, ADR-0015), so what a reader is shown is what was retrieved. The root
+that content (E1, [Evidence and grounding](../../../../docs/specs/grounding.md)), so what a reader is shown is what was retrieved. The root
 `Recommendations.grounded_on` lists every cited record once.
 
 ## Honest limits

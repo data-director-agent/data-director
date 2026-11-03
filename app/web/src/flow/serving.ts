@@ -1,6 +1,6 @@
 /**
  * Which agents serve a step of the process flow: those whose manifest entry `serves` the step's id
- * (ADR-0028). The same join as `plan` in `dd_sdk.process_flow`, so the shell keeps no map of
+ * (docs/specs/orchestration.md). The same join as `plan` in `dd_sdk.process_flow`, so the shell keeps no map of
  * agents to phases.
  */
 

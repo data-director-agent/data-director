@@ -140,7 +140,7 @@ def test_each_actor_is_matched_and_every_record_is_evidence(runs_dir: Path) -> N
         ("University of Testing", "FAIRsharing.test-university"),
     ]
     for ev in env.evidence:
-        # What the reader is shown is what the hash covers (E1, ADR-0015).
+        # What the reader is shown is what the hash covers (E1, docs/specs/grounding.md).
         assert ev.content is not None and verify(ev.content, ev.canonicalisation, ev.content_hash)
     evidenced = {(e.source_id, e.content_hash) for e in env.evidence}
     for p in checks.policies:

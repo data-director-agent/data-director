@@ -155,7 +155,7 @@ activemq-data/
 # Environments
 .env
 .envrc
-# Local development settings and model keys (ADR-0026).
+# Local development settings and model keys (docs/specs/policy-and-identity.md).
 config/local/
 # Per-agent env files under agents/ hold API keys; the bare .env rule misses *.env names.
 agents/**/*.env
@@ -227,7 +227,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Inspect AI evaluation logs (ADR-0013)
+# Inspect AI evaluation logs (docs/specs/evaluation.md)
 logs/
 
 # MkDocs build output

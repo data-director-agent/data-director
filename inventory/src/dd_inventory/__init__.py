@@ -1,4 +1,5 @@
-"""Describe a dataset's files where they live, without sending them anywhere (ADR-0034).
+"""Describe a dataset's files where they live, without sending them anywhere
+(docs/specs/projects.md).
 
 `dd-inventory ROOT` walks a folder and writes a `FileInventory`: for each file its path relative
 to ROOT, its size, its SHA-256 digest, its format identified against PRONOM, and for a table its

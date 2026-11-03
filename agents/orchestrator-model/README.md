@@ -1,6 +1,6 @@
 # orchestrator.model
 
-The model-backed Data Director orchestrator (#21, ADR-0012). It is the agent a researcher
+The model-backed Data Director orchestrator (#21, [Orchestration](../../docs/specs/orchestration.md)). It is the agent a researcher
 converses with. It hands each request to the specialist agents through the harness, and writes
 the reply with a model. It has `orchestrator.stub`'s specification: `Message` in, `Reply` out,
 grounding mode `delegation`, with `reply_derivation` `model`.
@@ -14,7 +14,7 @@ grounding mode `delegation`, with `reply_derivation` `model`.
 
 ## What it cannot do
 
-**The orchestrator has no tools except its delegations** ([ADR-0012](../../docs/adr/0012-conversation-and-orchestration.md)
+**The orchestrator has no tools except its delegations** ([Orchestration](../../docs/specs/orchestration.md)
 decision 15). The model is offered one tool per input class of each agent in the harness's
 manifest, and nothing else: no MCP server, no web search or fetch, no code execution and no Agent
 Skills. Every lookup is therefore a child run that the harness governs, stores and grounds.
@@ -42,17 +42,17 @@ the project is for the harness to supply (#341, #160).
 
 ## How a turn runs
 
-1. It reads the harness's manifest (`ctx.delegate.manifest()`, ADR-0012 decision 13). This is
+1. It reads the harness's manifest (`ctx.delegate.manifest()`, [Orchestration](../../docs/specs/orchestration.md)). This is
    the list of agents the harness has registered, with each agent's input schemas. It offers the
    model one tool per input class of each agent, leaving out delegation agents, itself included.
    No list of agents is configured here, so an agent registered with the harness can be asked as
    soon as the profile permits it.
    Each tool's description also names the steps its agent `serves` and the requirements those
-   steps apply (ADR-0032). The system
+   steps apply ([Orchestration](../../docs/specs/orchestration.md)). The system
    prompt carries the Blueprint's process flow (`dd_sdk.process_flow`): on a first turn that
    does not say, the model asks which of the three entry points applies, then takes the
    researcher through the steps from there, naming any step no tool serves with its requirement
-   (ADR-0028).
+   ([Orchestration](../../docs/specs/orchestration.md)).
 2. It sends the model the last `DD_ORCHESTRATOR_HISTORY` turns of the conversation, then the
    current message. Turns before the first user turn in that window are dropped. The whole
    history is still covered by the input hash.
@@ -66,7 +66,7 @@ the project is for the harness to supply (#341, #160).
 5. The reply cites the input and every child it delegated to. The linter's `delegation` rules
    check those citations against what the conductor recorded.
 
-The run succeeds once the model has replied, whatever its children's outcomes were (ADR-0012
+The run succeeds once the model has replied, whatever its children's outcomes were ([Orchestration](../../docs/specs/orchestration.md)
 decision 14). It fails, as `failed(agent-error)`, only when it cannot reply: the Messages API
 failed, or the model declined the request after the server-side fallback
 (`fallbacks: "default"`). Its reply is never replaced by a template.
@@ -75,7 +75,7 @@ Each model call is a `chat` span with its tokens. Cached input counts as input r
 
 ## Settings
 
-Read at start-up by `factory.build`. A bad value stops the service with one line (ADR-0026).
+Read at start-up by `factory.build`. A bad value stops the service with one line ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 | Variable | Default | Meaning |
 |---|---|---|

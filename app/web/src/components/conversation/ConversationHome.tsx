@@ -1,13 +1,13 @@
 /**
- * The home page: a conversation with the orchestrator (ADR-0024 §9-17), in the centre of the
+ * The home page: a conversation with the orchestrator (docs/specs/app.md), in the centre of the
  * workspace (§18), with the Blueprint's phases on one side and the project's documents on the
  * other. A delegated run opens inside its card in the transcript (§14).
  *
- * The orchestrator is the agent the profile names (ADR-0024 §10), never one the shell picks.
+ * The orchestrator is the agent the profile names (docs/specs/app.md), never one the shell picks.
  * When the profile names none, the named agent is not running, its card does not declare
  * `delegation` grounding, or the policy does not permit it, the page says which and links to the
  * directory (§12). The server builds each turn's history; the page sends the agent and the message.
- * Until there is authentication (#17) the conversation acts for the operator (ADR-0018).
+ * Until there is authentication (#17) the conversation acts for the operator (docs/specs/policy-and-identity.md).
  *
  * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
  * orchestrator is working. A new reply is announced in a polite live region, the busy state is

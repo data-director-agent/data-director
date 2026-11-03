@@ -83,7 +83,7 @@ def ask_principal(prompt: Prompter, changes: Changes) -> None:
     current = EXAMPLE_PRINCIPAL | {k: v for k, v in read_env(paths.APP_ENV).items() if v}
     print(
         "\nWhom runs act for. There is no sign-in yet, so every run is recorded as acting for this\n"
-        "person (ADR-0018). Give your own name and ORCID iD, or press Enter to keep the value shown."
+        "person (docs/specs/policy-and-identity.md). Give your own name and ORCID iD, or press Enter to keep the value shown."
     )
     name = prompt.text("Your name", current["DD_PRINCIPAL_NAME"])
     while True:
@@ -118,7 +118,7 @@ def write_key(agent: str, key: str, changes: Changes, extra: dict[str, str] | No
     update_env(
         env_file,
         {"ANTHROPIC_API_KEY_FILE": path.name} | (extra or {}),
-        "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026).",
+        "# Written by `uv run scripts/dev.py setup`: this agent's own settings (docs/specs/policy-and-identity.md).",
     )
     changes.note(env_file)
 
@@ -171,7 +171,7 @@ def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
         update_env(
             own,
             {switch: "live", "FAIRSHARING_LOGIN": login, "FAIRSHARING_PASSWORD": password},
-            "# Written by `uv run scripts/dev.py setup`: this agent's own settings (ADR-0026).",
+            "# Written by `uv run scripts/dev.py setup`: this agent's own settings (docs/specs/policy-and-identity.md).",
         )
         changes.note(own)
 

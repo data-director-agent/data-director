@@ -2,7 +2,7 @@
 
 Used in CI and offline, and as the fallback when the live route fails. Lexical scoring uses
 `rank_bm25`; ranking proper is bespoke and lives in `agents/advisor-standards/rank.py`. This
-module is the only importer of `rank_bm25` (ADR-0006).
+module is the only importer of `rank_bm25` (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

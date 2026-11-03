@@ -1,4 +1,4 @@
-"""advisor.metadata through the conductor: the Metadata Librarian mock (ADR-0033)."""
+"""advisor.metadata through the conductor: the Metadata Librarian mock (docs/specs/agents.md)."""
 
 from __future__ import annotations
 

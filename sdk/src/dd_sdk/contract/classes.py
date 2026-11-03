@@ -1,4 +1,4 @@
-"""Input and payload classes, carried as JSON Schema pinned by digest (ADR-0019).
+"""Input and payload classes, carried as JSON Schema pinned by digest (docs/specs/contract.md).
 
 An agent owns its input and payload classes. It declares each in its own LinkML file,
 `dd-gen-schema` generates a self-contained JSON Schema for it into the agent's package, and the
@@ -112,7 +112,8 @@ class ClassSchema:
 
     @property
     def grounded(self) -> bool:
-        """Whether the class mixes in `Grounded`, as every payload class must (ADR-0007)."""
+        """Whether the class mixes in `Grounded`, as every payload class must
+        (docs/specs/contract.md)."""
         return GROUNDED_SLOT in self.required
 
     def describe(self) -> dict[str, Any]:

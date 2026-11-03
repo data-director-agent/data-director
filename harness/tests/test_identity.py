@@ -1,5 +1,5 @@
-"""Whom an invocation acts for (ADR-0018): the configured principal, and the refusal to start
-without one."""
+"""Whom an invocation acts for (docs/specs/policy-and-identity.md): the configured principal, and
+the refusal to start without one."""
 
 from __future__ import annotations
 

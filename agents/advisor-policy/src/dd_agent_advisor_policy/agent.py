@@ -7,9 +7,9 @@ institution mandates a repository. The repositories a policy requires are return
 
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 policies are matched or what any obligation is. A matched policy names its record once, in
-`grounded_on`; what the reader is shown about it is the evidence item's `content`, which the
-linter re-hashes (E1, ADR-0015). Where policies differ, the agent flags it for human review and
-never decides which applies.
+`grounded_on`; what the reader is shown about it is the evidence item's `content`, which the linter
+re-hashes (E1, docs/specs/grounding.md). Where policies differ, the agent flags it for human review
+and never decides which applies.
 """
 
 from __future__ import annotations

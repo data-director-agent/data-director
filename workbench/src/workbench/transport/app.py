@@ -60,7 +60,7 @@ def build_app(
                 "agent_id": e["agent_id"],
                 "status": e["outcome"]["status"],
                 "completed_at": e["completed_at"],
-                # Runs stored before ADR-0018 name no principal.
+                # Runs stored before docs/specs/policy-and-identity.md name no principal.
                 "acting_for": (e.get("acting_for") or {}).get("name"),
             }
             for e in conductor.store.iter_envelopes()
@@ -78,7 +78,8 @@ def build_app(
         return JSONResponse(found)
 
     async def class_schema(request: Request) -> Response:
-        """A class schema a stored run was checked against, by its digest (ADR-0019)."""
+        """A class schema a stored run was checked against, by its digest
+        (docs/specs/contract.md)."""
         digest = request.path_params["digest"]
         found = conductor.store.get_schema(digest)
         if found is None:

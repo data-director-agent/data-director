@@ -1,21 +1,22 @@
-"""The harness's own server: the conductor over A2A, and nothing else (#55, ADR-0022).
+"""The harness's own server: the conductor over A2A, and nothing else (#55, docs/specs/system.md).
 
-`dd-harness serve` is for deployments. It serves the A2A JSON-RPC endpoint and the agent card,
-with no viewer, AG-UI, run index, test kit or Inspect AI. Other systems call it: an app, another
-Data Director instance, or a delegation agent calling back under its grant (ADR-0012).
+`dd-harness serve` is for deployments. It serves the A2A JSON-RPC endpoint and the agent card, with
+no viewer, AG-UI, run index, test kit or Inspect AI. Other systems call it: an app, another Data
+Director instance, or a delegation agent calling back under its grant (docs/specs/orchestration.md).
 `workbench serve` builds the same conductor with `serving` and adds its own routes.
 
 Every setting comes from the real environment (`Settings.from_env()` with no defaults): an unset
 `DD_PROFILE`, `DD_AGENTS_CONFIG`, `DD_SOURCES_CONFIG`, `DD_RUNS_DIR` or principal stops start-up.
 No `.env` file is read.
 
-`dd-harness project` keeps a project's record under `DD_PROJECTS_DIR` for the operator's
-principal (ADR-0034): `create`, `add-inventory` for a `FileInventory` that `dd-inventory` wrote,
-`choose-repository` with the requirement sets under `DD_REPOSITORIES_DIR` (ADR-0038), and
-`events`.
+`dd-harness project` keeps a project's record under `DD_PROJECTS_DIR` for the operator's principal
+(docs/specs/projects.md): `create`, `add-inventory` for a `FileInventory` that `dd-inventory` wrote,
+`choose-repository` with the requirement sets under `DD_REPOSITORIES_DIR` (docs/specs/deposit.md),
+and `events`.
 
-There is no authentication of callers yet (ADR-0018, #17, #43): every invocation acts for the
-operator's principal, whoever sent it. Do not expose this server beyond a trusted network.
+There is no authentication of callers yet (docs/specs/policy-and-identity.md, #17, #43): every
+invocation acts for the operator's principal, whoever sent it. Do not expose this server beyond a
+trusted network.
 """
 
 from __future__ import annotations
@@ -57,8 +58,9 @@ UNTRUSTED_WARNING = (
 def serving(settings: Settings, base_url: str) -> tuple[Conductor, Authenticator]:
     """A conductor and authenticator for a server reached at `base_url`.
 
-    The conductor's delegation callback is `DD_HARNESS_URL` if set, else `base_url` (ADR-0012).
-    An unset principal or a missing or malformed file raises here, before anything is served."""
+    The conductor's delegation callback is `DD_HARNESS_URL` if set, else `base_url`
+    (docs/specs/orchestration.md). An unset principal or a missing or malformed file raises here,
+    before anything is served."""
     authenticator = build_authenticator(settings)
     conductor = build_conductor(settings)
     conductor.harness_url = settings.harness_url or base_url
@@ -91,7 +93,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
-# What a project event names as its cause when a person ran a command (ADR-0034 decision 2).
+# What a project event names as its cause when a person ran a command (docs/specs/projects.md).
 CAUSED_BY_COMMAND = "dd-harness project {command}"
 
 
@@ -155,7 +157,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)
 
-    p = sub.add_parser("project", help="keep a project's record under DD_PROJECTS_DIR (ADR-0034)")
+    p = sub.add_parser(
+        "project", help="keep a project's record under DD_PROJECTS_DIR (docs/specs/projects.md)"
+    )
     project = p.add_subparsers(dest="project_command", required=True)
     p = project.add_parser("create", help="create a project and print its identifier")
     p.set_defaults(func=cmd_project_create)
@@ -186,10 +190,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         result: int = args.func(args)
-    # No principal (ADR-0018), a path the deployment must name (ADR-0022), or a profile, agent
-    # list or source list that is missing or malformed: nothing may be served. An unknown
-    # project, an inventory its class schema refuses, or requirement sets that are malformed or
-    # contradict one another, change nothing.
+    # No principal (docs/specs/policy-and-identity.md), a path the deployment must name
+    # (docs/specs/system.md), or a profile, agent list or source list that is missing or malformed:
+    # nothing may be served. An unknown project, an inventory its class schema refuses, or
+    # requirement sets that are malformed or contradict one another, change nothing.
     except (
         IdentityError,
         SettingsError,

@@ -4,7 +4,8 @@
 (`config/examples/agents/orchestrator-model.env`):
 
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the key, read at
-  start-up (`dd_sdk.credentials`, ADR-0026). There is no default: this agent is a model.
+  start-up (`dd_sdk.credentials`, docs/specs/policy-and-identity.md). There is no default: this
+  agent is a model.
 - `DD_MODEL_ID`: the model it calls. Claude Sonnet 5.5 by default;
   a deployment may name a smaller or a more capable one.
 - `DD_ORCHESTRATOR_EFFORT`: `low`, `medium`, `high` (default), `xhigh` or `max`.

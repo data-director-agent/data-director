@@ -73,7 +73,7 @@ new_file() { # new_file DEST [SOURCE]
 }
 new_file "$ETC/app.env" "$SRC/config/examples/app.env"
 new_file "$ETC/agents.env"
-# Each agent's own settings, and model keys (ADR-0026). A key file is root's alone: systemd hands
+# Each agent's own settings, and model keys (docs/specs/policy-and-identity.md). A key file is root's alone: systemd hands
 # it to the one unit that loads it (LoadCredential=).
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
 install -d -o root -g root -m 0700 "$ETC/credentials"

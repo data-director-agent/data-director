@@ -1,4 +1,4 @@
-# The uv workspace (ADR-0011). Not a package: it pins the members together, holds the shared
+# The uv workspace (docs/specs/agents.md). Not a package: it pins the members together, holds the shared
 # development tooling, and runs one test session so the conformance report sees every test.
 #
 #   sdk/         data-director-sdk        the contract, evidence, trace helpers, A2A agent server

@@ -179,7 +179,8 @@ def _input_evidence() -> EvidenceItem:
     )
 
 
-PAYLOAD_SCHEMA = "c" * 64  # the digest a conductor records beside a payload (ADR-0019)
+# The digest a conductor records beside a payload (docs/specs/contract.md).
+PAYLOAD_SCHEMA = "c" * 64
 
 
 def _succeeded(**overrides: object) -> Envelope:
@@ -215,7 +216,7 @@ def _reply(*grounded_on: GroundingRef) -> Reply:
 @pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
 def test_a_payload_of_any_class_validates_with_grounded_on() -> None:
     """The core admits any payload that names its class and mixes in Grounded; the class
-    schema the agent's card carries checks the rest (ADR-0019)."""
+    schema the agent's card carries checks the rest (docs/specs/contract.md)."""
     ref = GroundingRef(source_id="FAIRsharing.b44s4", content_hash="a" * 64)
     ev = EvidenceItem(
         source_id="FAIRsharing.b44s4", canonicalisation="json-sorted-utf8-v1", content_hash="a" * 64
@@ -491,7 +492,7 @@ def test_linkml_source_is_valid_yaml_for_the_generator() -> None:
     assert result.returncode == 0, result.stderr
 
 
-# --- Conversation and delegation (ADR-0012) ---------------------------------------------------
+# --- Conversation and delegation (docs/specs/orchestration.md) ------------------------------------
 
 
 def _delegation(child: str, content_hash: str = "c" * 64) -> Delegation:
@@ -598,7 +599,8 @@ def test_delegation_evidence_must_be_the_input_or_a_recorded_delegation() -> Non
 @pytest.mark.requirement("DD-EVIDENCE")
 @pytest.mark.parametrize("name", sorted(CANONICALISATIONS))
 def test_evidence_content_reproduces_its_hash(name: str) -> None:
-    """ADR-0015: the projection is what is hashed, and survives the envelope round trip."""
+    """docs/specs/grounding.md: the projection is what is hashed, and survives the envelope round
+    trip."""
     record = {"fairsharing_id": "FAIRsharing.b44s4", "name": "ISO 8601", "subjects": ["b", "a"]}
     digest = content_hash(record, name)
     content = project(record, name)
@@ -629,8 +631,8 @@ def test_envelope_hash_is_reproducible_from_the_stored_document() -> None:
 
 
 def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> None:
-    """A project document is text with a media type (ADR-0035). Its class schema is generated
-    with the core's, and a regeneration names the version it replaces."""
+    """A project document is text with a media type (docs/specs/projects.md). Its class schema is
+    generated with the core's, and a regeneration names the version it replaces."""
     schema = json.loads((SCHEMA / "generated" / "Document.schema.json").read_text("utf-8"))
     assert schema["properties"]["schema_class"]["enum"] == ["Document"]
     assert set(schema["$defs"]["DocumentKind"]["enum"]) == {k.value for k in DocumentKind}
@@ -654,7 +656,8 @@ def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> 
 
 def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
     """A deposit's requirements come from a metadata standard's set, with an optional override per
-    repository merged on top (ADR-0038). Both are one class, kept as the deployment's YAML."""
+    repository merged on top (docs/specs/deposit.md). Both are one class, kept as the deployment's
+    YAML."""
     schema = json.loads((SCHEMA / "generated" / "RequirementSet.schema.json").read_text("utf-8"))
     assert schema["properties"]["schema_class"]["enum"] == ["RequirementSet"]
     assert set(schema["$defs"]["Obligation"]["enum"]) == {o.value for o in Obligation}
@@ -689,8 +692,9 @@ def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
 
 
 def test_a_file_inventory_is_a_core_input_that_holds_facts_about_files_not_their_content() -> None:
-    """The project holds an inventory of its data files in place of the files (ADR-0034). Each
-    file has a relative path, a size and a digest; ambiguous PRONOM matches are all kept."""
+    """The project holds an inventory of its data files in place of the files
+    (docs/specs/projects.md). Each file has a relative path, a size and a digest; ambiguous PRONOM
+    matches are all kept."""
     schema = json.loads((SCHEMA / "generated" / "FileInventory.schema.json").read_text("utf-8"))
     assert schema["properties"]["schema_class"]["enum"] == ["FileInventory"]
     assert set(schema["$defs"]["IdentificationMethod"]["enum"]) == {

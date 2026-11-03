@@ -1,4 +1,4 @@
-"""Signing a person in through OpenID Connect (ADR-0029, #152).
+"""Signing a person in through OpenID Connect (docs/specs/policy-and-identity.md, #152).
 
 The app is the relying party and a confidential client. `GET /api/sign-in` sends the browser to
 the provider's authorisation endpoint with a fresh `state` and `nonce`, asking for the `openid`
@@ -156,7 +156,8 @@ class SignIn:
             {
                 "client_id": self.settings.provider.client_id,
                 "response_type": "code",
-                # ADR-0029: `openid` only, which yields the iD and the name, and no email address.
+                # docs/specs/policy-and-identity.md: `openid` only, which yields the iD and the
+                # name, and no email address.
                 "scope": "openid",
                 "redirect_uri": self.settings.redirect_uri,
                 "state": state,
@@ -187,7 +188,8 @@ class SignIn:
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": self.settings.redirect_uri,
-            # ORCID authenticates a client by `client_secret_post` only (ADR-0029).
+            # ORCID authenticates a client by `client_secret_post` only
+            # (docs/specs/policy-and-identity.md).
             "client_id": self.settings.provider.client_id,
             "client_secret": self.settings.client_secret,
         }

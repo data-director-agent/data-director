@@ -1,9 +1,9 @@
-# The agents this workbench calls (ADR-0011). Each is a separate service; start them with
+# The agents this workbench calls (docs/specs/agents.md). Each is a separate service; start them with
 # `uv run dd-<agent> serve --port N` from the repository root, or all at once with
 # `scripts/run-agents.sh`.
 # The workbench reads each agent's card at start-up. One that cannot be reached is listed as
 # unavailable by `workbench agents`, and one built against another contract version as
-# incompatible (ADR-0019); the rest still run. Each card carries its agent's class schemas, so
+# incompatible (docs/specs/contract.md); the rest still run. Each card carries its agent's class schemas, so
 # adding an agent is one entry here. Override the path with DD_AGENTS_CONFIG.
 # See ../harness/docs/registry.md.
 agents:
@@ -21,7 +21,7 @@ agents:
   - url: http://127.0.0.1:8116
   - url: http://127.0.0.1:8117
   # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
-  # theirs (ADR-0012).
+  # theirs (docs/specs/orchestration.md).
   - url: http://127.0.0.1:8106
     timeout_s: 120
   # The model-backed orchestrator (#21). It needs a model key (config/local/agents/orchestrator-model.env),

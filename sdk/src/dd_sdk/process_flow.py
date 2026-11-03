@@ -6,10 +6,10 @@ at its own phase and continues through the same final phases. Each step names th
 requirements (§7.1) the Blueprint applies at that point, or none.
 
 This is Blueprint data, the same for every agent. Which steps an agent serves is the agent's own
-declaration, `AgentSpec.serves`, carried on its manifest entry (ADR-0028); `plan` joins the two,
-so an orchestrator keeps no map of agents. An agent names steps, not requirements: the
-requirements it bears on follow from its steps' `requirements`. A step's `id` is this repository's
-label, not the Blueprint's. Governance as the entry point is deferred to the
+declaration, `AgentSpec.serves`, carried on its manifest entry (docs/specs/orchestration.md); `plan`
+joins the two, so an orchestrator keeps no map of agents. An agent names steps, not requirements:
+the requirements it bears on follow from its steps' `requirements`. A step's `id` is this
+repository's label, not the Blueprint's. Governance as the entry point is deferred to the
 Blueprint's v2.0 (Appendix G, comment 1) and is not here.
 
 Creating, reviewing and updating a Data Management Plan are out of scope for the initial phase, so
@@ -29,7 +29,8 @@ from typing import Any
 
 @dataclass(frozen=True)
 class Step:
-    # A stable label, `<phase>.<step>`, that `AgentSpec.serves` may name (ADR-0032).
+    # A stable label, `<phase>.<step>`, that `AgentSpec.serves` may name
+    # (docs/specs/orchestration.md).
     id: str
     text: str
     # The Blueprint requirements applied at this step; empty when the figure names none.
@@ -69,7 +70,8 @@ PHASES: tuple[Phase, ...] = (
                 "Check funder, journal and institutional data sharing policies",
             ),
             # Figure 2 has one step, "identifying and handling sensitive data". It is split here so
-            # that an agent can flag sensitive data without deciding how it is treated (ADR-0032).
+            # that an agent can flag sensitive data without deciding how it is treated
+            # (docs/specs/orchestration.md).
             Step("governance.sensitive-data-identify", "Identify sensitive data"),
             Step("governance.sensitive-data-handle", "Handle sensitive data"),
             Step("governance.embargo", "Confirm whether an embargo is required"),
@@ -165,7 +167,7 @@ ENTRIES: tuple[Entry, ...] = (
 # The functional requirements of §7.1.
 REQUIREMENTS: frozenset[str] = frozenset(f"R{n}" for n in range(1, 13))
 
-# The steps' ids, which `AgentSpec.serves` names (ADR-0028).
+# The steps' ids, which `AgentSpec.serves` names (docs/specs/orchestration.md).
 STEPS: frozenset[str] = frozenset(s.id for p in PHASES for s in p.steps)
 
 

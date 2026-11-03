@@ -142,16 +142,17 @@ def test_the_reference_set_lists_and_enables_every_in_tree_agent():
     profile = load_profile(DEFAULT_PROFILE)
     assert profile.agents == dict.fromkeys(enabled, "advise")
     # The rule-based stub, which needs no model key, is the conversation until a deployment
-    # names another (ADR-0024 §11).
+    # names another (docs/specs/app.md).
     assert profile.orchestrator == "orchestrator.stub"
 
 
 def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
-    # Every agent is a service (ADR-0027): with none listed, the app has none to run.
+    # Every agent is a service (docs/specs/app.md): with none listed, the app has none to run.
     governance = Governance.create(settings_from_env(), APP_URL)
     assert governance.conductor.registry.ids() == []
     assert governance.conductor.profile.profile_id == "data-director-app"
-    # A development server: every request acts for the operator's assertion (ADR-0029).
+    # A development server: every request acts for the operator's assertion
+    # (docs/specs/policy-and-identity.md).
     assert governance.authenticator.principal_for({}) == TEST_PRINCIPAL
 
 
@@ -463,7 +464,7 @@ def test_the_configured_url_is_the_callback(
 
 
 # Conversations (#130): a turn is one invocation of the orchestrator with a `conversation_id`,
-# and the server, not the caller, builds its history from the stored turns (ADR-0024 §17).
+# and the server, not the caller, builds its history from the stored turns (docs/specs/app.md).
 
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 SHA256 = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")

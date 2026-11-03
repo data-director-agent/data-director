@@ -33,7 +33,9 @@ from devstack.common import (
 def doctor() -> int:
     problems = tool_problems()
     for stray in stray_files():
-        problems.append(f"settings file of the old layout, move it: {stray} (ADR-0026)")
+        problems.append(
+            f"settings file of the old layout, move it: {stray} (docs/specs/policy-and-identity.md)"
+        )
     for path in [
         paths.APP_ENV,
         paths.AGENTS_ENV,

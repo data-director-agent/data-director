@@ -5,15 +5,15 @@
 #   pattern       a Python regular expression; its named groups fill `input`
 #   input         the child input document; "{group}" placeholders are filled from the match;
 #                 it names a class of the target agent's own; the workbench checks it against
-#                 the class schema that agent's card carries (ADR-0019)
+#                 the class schema that agent's card carries (docs/specs/contract.md)
 #   mention_input the child input for "@<agent_id> <text>"; "{rest}" is the text
 #   relay_field   the child payload field quoted in the reply, if the child succeeded
 #   example       shown to the user when nothing matches
 #
 # A new agent is routable only once a rule names it. The model-backed orchestrator,
-# orchestrator.model, routes from the harness's manifest instead (ADR-0012 decision 13).
+# orchestrator.model, routes from the harness's manifest instead (docs/specs/orchestration.md).
 #
-# entries: how a message names one of the Blueprint's three entry points (§8.1, ADR-0028), tried
+# entries: how a message names one of the Blueprint's three entry points (§8.1, docs/specs/orchestration.md), tried
 # in order with re.search, ignoring case, after the rules above found nothing. A message that
 # names one is answered with the steps from that entry, each with the agents whose manifest
 # entry serves its requirement (dd_sdk.process_flow). Entry 1 is tried before Entry 2 so that

@@ -52,7 +52,7 @@ def test_standards_recommends_across_kinds_with_evidence(runs_dir: Path) -> None
     assert {e.source_id for e in env.evidence} == cited
     evidenced = {(e.source_id, e.content_hash) for e in env.evidence}
     for ev in env.evidence:
-        # What the reader is shown is what the hash covers (E1, ADR-0015).
+        # What the reader is shown is what the hash covers (E1, docs/specs/grounding.md).
         assert ev.content is not None and verify(ev.content, ev.canonicalisation, ev.content_hash)
     for item in payload.items:
         assert len(item.grounded_on) == 1
@@ -145,7 +145,8 @@ def test_ungrounded_identifier_in_output_is_withheld(runs_dir: Path) -> None:
             result = super().run(req, ctx)
             assert isinstance(result.payload, Recommendations)
             first = result.payload.items[0]
-            # grounded_on is the only place a recommendation names its record (ADR-0015).
+            # grounded_on is the only place a recommendation names its record
+            # (docs/specs/grounding.md).
             item = first.model_copy(
                 update={
                     "grounded_on": [
@@ -174,7 +175,8 @@ def test_ungrounded_identifier_in_output_is_withheld(runs_dir: Path) -> None:
 def test_a_relabelled_record_is_withheld(runs_dir: Path) -> None:
     """Changing what the reader is shown about a cited record, and nothing else, fails E1.
 
-    Before ADR-0015 the reader's copy of a record sat in the payload, unchecked, and this passed.
+    Before docs/specs/grounding.md the reader's copy of a record sat in the payload, unchecked, and
+    this passed.
     """
 
     class Relabeller(StandardsAgent):

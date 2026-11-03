@@ -1,4 +1,5 @@
-"""advisor.documentation through the conductor: the Documentation Editor mock (ADR-0033)."""
+"""advisor.documentation through the conductor: the Documentation Editor mock
+(docs/specs/agents.md)."""
 
 from __future__ import annotations
 

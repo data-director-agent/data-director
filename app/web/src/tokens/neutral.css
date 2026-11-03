@@ -1,5 +1,5 @@
 /*
- * The neutral theme: the shell's default design tokens (ADR-0024).
+ * The neutral theme: the shell's default design tokens (docs/specs/app.md).
  *
  * Components use these custom properties and no literal colour, size or font. A theme is a
  * file like this one that redefines them; nothing else changes. The scheme is light unless

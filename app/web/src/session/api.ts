@@ -1,5 +1,5 @@
 /**
- * Who is signed in, behind one interface so tests can stand in for the server (ADR-0029).
+ * Who is signed in, behind one interface so tests can stand in for the server (docs/specs/policy-and-identity.md).
  *
  * The server decides who a request acts for; the shell only shows it. `GET /api/session` says
  * whether this server signs anyone in, who is signed in and when their session ends, and does not
@@ -121,7 +121,7 @@ export function assuranceText({ assurance, vouchedBy }: Pick<SessionPrincipal, "
 }
 
 /**
- * The provider's name for a person to recognise: "ORCID" for ORCID and its sandbox (ADR-0029),
+ * The provider's name for a person to recognise: "ORCID" for ORCID and its sandbox (docs/specs/policy-and-identity.md),
  * otherwise the issuer's host. The shell names no provider of its own accord.
  */
 export function providerName(issuer: string | null): string {

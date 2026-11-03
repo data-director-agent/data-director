@@ -1,5 +1,5 @@
-"""Serve one agent over A2A (ADR-0011). With `dd_sdk.delegate`, one of the SDK's two importers of
-`a2a` (ADR-0012).
+"""Serve one agent over A2A (docs/specs/agents.md). With `dd_sdk.delegate`, one of the SDK's two
+importers of `a2a` (docs/specs/orchestration.md).
 
 `app(agent, base_url)` is a Starlette application with the agent card at
 `/.well-known/agent-card.json` and the JSON-RPC binding at `/a2a`. `main(build)` is the console
@@ -108,9 +108,9 @@ def run_traced(
 ) -> dict[str, Any]:
     """Run the agent under a tracer parented to the caller's span; return the artifact body.
 
-    If the harness sent a delegation grant (ADR-0012), the agent's context carries a
-    `delegate` bound to it. An exception from the agent propagates; the executor turns it into a
-    failed task.
+    If the harness sent a delegation grant (docs/specs/orchestration.md), the agent's context
+    carries a `delegate` bound to it. An exception from the agent propagates; the executor turns it
+    into a failed task.
     """
     tracing = make_tracing(service_name=agent.spec.agent_id)
     parent = TraceContextTextMapPropagator().extract(

@@ -1,4 +1,5 @@
-"""Evaluation on Inspect AI (ADR-0013): an agent run over a fixed case set, each case scored.
+"""Evaluation on Inspect AI (docs/specs/evaluation.md): an agent run over a fixed case set, each
+case scored.
 
 This module holds what is common to every agent's evaluation:
 
@@ -114,9 +115,9 @@ def answered_needlessly() -> Metric:
 @solver
 def invoke_agent(conductor_for: ConductorFor, agent_id: str, acting_for: Principal) -> Solver:
     """Invoke `agent_id` on the case's input through the conductor, on behalf of `acting_for`
-    (whoever runs the evaluation, ADR-0018), and keep the envelope and the linter's report in the
-    sample's metadata. No model is called. The profile applied is the one each conductor was
-    built with (ADR-0017).
+    (whoever runs the evaluation, docs/specs/policy-and-identity.md), and keep the envelope and the
+    linter's report in the sample's metadata. No model is called. The profile applied is the one
+    each conductor was built with (docs/specs/policy-and-identity.md).
 
     `conductor_for` runs off Inspect's event loop, since building a conductor may read agent
     cards with an event loop of its own; the invocation is awaited through `Conductor.ainvoke`."""

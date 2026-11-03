@@ -16,8 +16,8 @@ connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
 ```
 
 The app is alpha and has no authentication (#17): every run acts for the operator named in
-`/etc/data-director/app.env`, not for the person using the page (ADR-0018). NGINX therefore asks
-for a password, and the app and agents listen on loopback only (ADR-0011). Keep it that way until
+`/etc/data-director/app.env`, not for the person using the page ([Policy and identity](../docs/specs/policy-and-identity.md)). NGINX therefore asks
+for a password, and the app and agents listen on loopback only ([Agents](../docs/specs/agents.md)). Keep it that way until
 #17 is done.
 
 ## What is here
@@ -38,7 +38,7 @@ for a password, and the app and agents listen on loopback only (ADR-0011). Keep 
 | `nginx/data-director.conf` | The reverse proxy: HTTPS only, password, long timeouts for runs, `/a2a` closed from outside. |
 
 Every agent, the standards advisor included, is a service of its own; the app runs none in its
-process (ADR-0027).
+process ([The app](../docs/specs/app.md)).
 
 ## Layout on the VM
 
@@ -147,7 +147,7 @@ release, stop the timer: `sudo systemctl disable --now data-director-deploy.time
 ## Problem reports
 
 The app's "Report a problem" page files a GitHub issue for the person, who needs no GitHub
-account (ADR-0030). It is off until the app holds a token, and the page says so. The token is
+account ([The app](../docs/specs/app.md)). It is off until the app holds a token, and the page says so. The token is
 a fine-grained personal access token for this repository only, with Issues: write and nothing
 else. Issues are public.
 
@@ -175,7 +175,7 @@ carry come from the app's package version and `releases/<sha>/REVISION`.
 ## A model key
 
 An agent that calls a hosted model holds the key itself. The app never does, and the key never
-appears in a run, a trace or an export (ADR-0026). Two agents can call a model: the standards
+appears in a run, a trace or an export ([Policy and identity](../docs/specs/policy-and-identity.md)). Two agents can call a model: the standards
 advisor's optional explainer and the model-backed orchestrator, which is not in
 `data-director.target` because it cannot start without a key. The steps to supply a key, turn
 either on, rotate it and read a start-up error are in the operations guide,

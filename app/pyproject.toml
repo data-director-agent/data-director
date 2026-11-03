@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "data-director-app"
 # Alpha: exploratory (README.md).
 version = "0.3.0-alpha.3"
-description = "An alpha Data Director: a browser shell drawn from each agent's manifest, over the harness (ADR-0024)"
+description = "An alpha Data Director: a browser shell drawn from each agent's manifest, over the harness (docs/specs/app.md)"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
@@ -21,7 +21,7 @@ dependencies = [
 [project.scripts]
 data-director = "dd_app.app:main"
 
-# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+# What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
   "data-director-agent-orchestrator-stub",

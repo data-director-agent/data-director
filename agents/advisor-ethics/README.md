@@ -2,7 +2,7 @@
 
 **Alpha** (`0.1.0a1`), and a **mock**: it does not yet do the Research Ethics Adviser's real work.
 
-The Research Ethics Adviser is one of the personas of the agent roster (ADR-0033). It serves two
+The Research Ethics Adviser is one of the personas of the agent roster ([Agents](../../docs/specs/agents.md)). It serves two
 steps of the Blueprint's process flow:
 
 | Step | What the mock does |
@@ -11,7 +11,7 @@ steps of the Blueprint's process flow:
 | `governance.embargo` (confirm whether an embargo is required) | Asks whether an embargo is needed, or asks the researcher to check an intended one against their policies. |
 
 It flags and stops there. How sensitive data is treated, `governance.sensitive-data-handle`, is a
-person's decision, and no agent serves it (ADR-0033 decision 2, C2). The adviser never suggests
+person's decision, and no agent serves it ([Agents](../../docs/specs/agents.md), C2). The adviser never suggests
 anonymisation.
 
 ## Input and output

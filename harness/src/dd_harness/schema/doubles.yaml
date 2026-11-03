@@ -1,6 +1,6 @@
 # Input and payload classes of the harness's test doubles (dd_harness.testing), and nothing
 # else: no real agent reads or returns them. They exist so that the harness is tested against
-# classes it knows only from a card, as it will be for every real agent (ADR-0019, decision 10).
+# classes it knows only from a card, as it will be for every real agent (docs/specs/contract.md).
 # After an edit, run `uv run dd-gen-schema harness/src/dd_harness/schema/doubles.yaml` and keep
 # the Probe* models in ../testing/classes.py in step; ClassSchema.of refuses a model that has
 # drifted.
@@ -58,7 +58,7 @@ classes:
   ProbeDocumentRequest:
     description: >-
       Which kind of project document the document double drafts. It returns the core's Document
-      (ADR-0035).
+      (docs/specs/projects.md).
     slots:
       - schema_class
       - document_kind
