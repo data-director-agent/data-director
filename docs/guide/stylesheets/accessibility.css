@@ -1,0 +1,39 @@
+/*
+ * Where the Material theme's defaults fall short of WCAG 2.2 AA. Each rule names the success
+ * criterion it meets; scripts/check_site_accessibility.py checks the built site against them all.
+ */
+
+:root {
+  /* 1.4.3 Contrast (Minimum): the theme draws comments, variables, operators, punctuation and
+   * program output in code at 54% black, about 4.4:1 on the code background. 70% black is
+   * above 7:1. */
+  --dd-code-muted: #000000b3;
+  --md-code-hl-comment-color: var(--dd-code-muted);
+  --md-code-hl-generic-color: var(--dd-code-muted);
+  --md-code-hl-operator-color: var(--dd-code-muted);
+  --md-code-hl-punctuation-color: var(--dd-code-muted);
+  --md-code-hl-variable-color: var(--dd-code-muted);
+}
+
+/* 1.4.3 Contrast (Minimum): the copyright line was 45% white on the footer, 4.47:1. */
+.md-copyright {
+  color: var(--md-footer-fg-color--light);
+}
+
+/* 1.4.1 Use of Color: a link in running text is underlined, not told apart by colour alone. */
+.md-typeset a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* Headings' permalinks and the buttons the theme draws as links keep their own look. */
+.md-typeset .headerlink,
+.md-typeset .md-button {
+  text-decoration: none;
+}
+
+/* 2.5.8 Target Size (Minimum): each link in the navigation is at least 24 CSS pixels high. */
+.md-nav__link {
+  min-height: 24px;
+  align-items: center;
+}
