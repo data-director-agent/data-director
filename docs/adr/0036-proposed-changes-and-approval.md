@@ -103,8 +103,8 @@ draft.
    run waits for approval. A decision acts on the project, not on a run, and it is not an
    invocation of an agent. Regenerating a rejected document is a new run. The conductor gives the
    agent the version and the decision on it, reason included, in its input (ADR-0034 decision 6),
-   and the agent names that version in `revises`. The input's shape arrives with the drafting
-   agents (#200).
+   and the agent names that version in `revises`. The input is the core `DraftRequest`, whose
+   `current_version` holds the version, its state and the reason (#200).
 
 8. **The policy gate is unchanged.** `referred(policy_requires_approval)` still means that an
    agent did not run because its action class needs approval first. Approving such a run and

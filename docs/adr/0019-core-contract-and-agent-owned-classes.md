@@ -43,6 +43,8 @@ Three further problems followed from that:
      package read (ADR-0035);
    - the project's `FileInventory`, `InventoryFile` and `TableField`, which the project record
      holds in place of the data files (ADR-0034);
+   - the drafters' `DraftRequest`, with `CurrentVersion` and `RepositoryRequirements`, which the
+     conductor fills from the project record so that one drafter can replace another (#200);
    - the enums those classes use, including `Derivation`, which the manifest's `derivations`
      name.
 

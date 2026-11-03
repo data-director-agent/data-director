@@ -63,6 +63,50 @@
          "title": "ConversationTurn",
          "type": "object"
       },
+      "CurrentVersion": {
+         "additionalProperties": false,
+         "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises.",
+         "properties": {
+            "version_ref": {
+               "$ref": "#/$defs/DocumentVersionRef",
+               "description": "The version, by its document and number."
+            },
+            "document_title": {
+               "description": "A short name a person can tell documents apart by, such as README for raw/.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            },
+            "version_state": {
+               "$ref": "#/$defs/VersionState",
+               "description": "Whether a person has approved or rejected the version, or not yet decided."
+            },
+            "decision_reason": {
+               "description": "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "version_ref",
+            "media_type",
+            "document_text",
+            "version_state"
+         ],
+         "title": "CurrentVersion",
+         "type": "object"
+      },
       "Delegation": {
          "additionalProperties": false,
          "description": "One child invocation an agent in grounding mode delegation made through the harness (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
@@ -208,6 +252,62 @@
             "version"
          ],
          "title": "DocumentVersionRef",
+         "type": "object"
+      },
+      "DraftRequest": {
+         "additionalProperties": false,
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (ADR-0035, ADR-0036 decision 7). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. The conductor puts them in from the project (ADR-0034 decision 6, TODO(#394)); until it does, the caller sends them.",
+         "properties": {
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "DraftRequest"
+               ],
+               "type": "string"
+            },
+            "document_kind": {
+               "$ref": "#/$defs/DocumentKind",
+               "description": "The kind of document to draft."
+            },
+            "inventory": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileInventory"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The project's inventory, the latest added (ADR-0034 decision 3)."
+            },
+            "requirements": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/RepositoryRequirements"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The requirements of the repository chosen last (ADR-0038 decision 2)."
+            },
+            "current_version": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/CurrentVersion"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The document's latest version, when the drafter is to regenerate it. Absent for a new document."
+            }
+         },
+         "required": [
+            "schema_class",
+            "document_kind"
+         ],
+         "title": "DraftRequest",
          "type": "object"
       },
       "EnergyMethod": {
@@ -989,6 +1089,115 @@
          "title": "Reply",
          "type": "object"
       },
+      "RepositoryRequirements": {
+         "additionalProperties": false,
+         "description": "The requirements of the repository a researcher chose: its standard's set with the repository's override, if there is one, merged on top (ADR-0038 decision 2). The harness makes it when the choice is recorded, keeps it among the project's blobs, gives it to the drafters and checks the project against it. Not a set of the deployment's configuration, so it has no requirement_set_id of its own; requirement_sets names the sets it was merged from.",
+         "properties": {
+            "re3data_id": {
+               "description": "The repository's re3data identifier, such as r3d100012124.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": "string"
+            },
+            "repository_name": {
+               "description": "What the researcher calls the repository chosen, such as ORDA.",
+               "type": "string"
+            },
+            "conforms_to": {
+               "description": "The URI of the metadata schema of the standard's set.",
+               "format": "uri",
+               "type": "string"
+            },
+            "requirement_sets": {
+               "description": "The sets the requirements were merged from, the standard's first.",
+               "items": {
+                  "$ref": "#/$defs/RequirementSetUse"
+               },
+               "type": "array"
+            },
+            "fields": {
+               "description": "The metadata properties the set requires or recommends.",
+               "items": {
+                  "$ref": "#/$defs/RequirementField"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "required_documents": {
+               "description": "The document kinds that must have an approved version before a package is built.",
+               "items": {
+                  "$ref": "#/$defs/DocumentKind"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "recommended_documents": {
+               "description": "The document kinds whose absence is a warning.",
+               "items": {
+                  "$ref": "#/$defs/DocumentKind"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "media_types": {
+               "description": "An override only: the media types the repository accepts. Empty means any.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "max_file_size": {
+               "description": "An override only: the largest file the repository accepts, in bytes.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "max_item_size": {
+               "description": "An override only: the largest deposit the repository accepts, in bytes.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "licences": {
+               "description": "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "warnings": {
+               "description": "What the researcher was told when the repository was chosen, such as that it does not list DataCite.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "re3data_id",
+            "repository_name",
+            "conforms_to",
+            "requirement_sets"
+         ],
+         "title": "RepositoryRequirements",
+         "type": "object"
+      },
       "RequirementField": {
          "additionalProperties": false,
          "description": "One metadata property a requirement set requires or recommends.",
@@ -1172,6 +1381,28 @@
          "title": "RequirementSet",
          "type": "object"
       },
+      "RequirementSetUse": {
+         "additionalProperties": false,
+         "description": "One requirement set a choice of repository was merged from, as the deployment held it.",
+         "properties": {
+            "ref": {
+               "description": "A requirement set, as <requirement_set_id>@v<version>.",
+               "pattern": "^[a-z0-9][a-z0-9-]*@v[0-9]+$",
+               "type": "string"
+            },
+            "sha256": {
+               "description": "The SHA-256 digest of the set's file, in lowercase hex.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "ref",
+            "sha256"
+         ],
+         "title": "RequirementSetUse",
+         "type": "object"
+      },
       "TableField": {
          "additionalProperties": false,
          "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).",
@@ -1257,6 +1488,16 @@
             "agent"
          ],
          "title": "TurnRole",
+         "type": "string"
+      },
+      "VersionState": {
+         "description": "The state of one version of a project document (ADR-0035 decision 6). Every version begins proposed; once approved or rejected, it does not change.",
+         "enum": [
+            "proposed",
+            "approved",
+            "rejected"
+         ],
+         "title": "VersionState",
          "type": "string"
       }
    },
@@ -1405,5 +1646,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.3"
+   "version": "0.9.4"
 }

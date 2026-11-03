@@ -54,16 +54,27 @@ A request does not name an institutional profile. The deployment chooses one, an
 carries `policy_bundle_ref` fails validation ([ADR-0017](adr/0017-policy-is-the-deployments.md)).
 
 The input is one of several input classes: `DatasetProfile`, `MetadataRecord`, `Claim`,
-`Salutation`, `Message` or `FileInventory`. Its `schema_class` field says which one it is
+`Salutation`, `Message`, `FileInventory` or `DraftRequest`. Its `schema_class` field says which one it is
 ([ADR-0007](adr/0007-polymorphic-contract.md)).
 
-Two input classes belong to the core. `Message` is described under conversations, below.
+Three input classes belong to the core. `Message` is described under conversations, below.
 `FileInventory` is what a project holds in place of its data files
 ([ADR-0034](adr/0034-project-and-its-files.md)). For each file it gives the path relative to the
 dataset's root folder, the size, the SHA-256 digest, the media type and every PRONOM identifier
 the file matched, with how they were found. For a table it also gives the fields as a
 Frictionless Table Schema (`TableField`). It is made by `dd-inventory`, a command run where the
 data live ([`inventory/`](../inventory/README.md)), and it never holds a file's content.
+
+`DraftRequest` is what every drafter accepts: an agent that returns a `Document` is asked for one
+`document_kind` and given the project's facts. These are the `inventory`, the `requirements` of
+the repository chosen (`RepositoryRequirements`, the merged set of
+[ADR-0038](adr/0038-repository-requirements-and-deposit-package.md) decision 2) and, to
+regenerate a document, its `current_version`. A `CurrentVersion` gives the version as a
+`DocumentVersionRef`, its text and media type, its `version_state` (`proposed`, `approved` or
+`rejected`) and the `decision_reason` a person gave, and the drafter names that version in its
+payload's `revises`. Because the class is the core's, a drafter can be replaced without its
+caller changing. The conductor is to fill the facts from the project, TODO(#394). Until it does,
+the caller sends them.
 
 ## The envelope
 

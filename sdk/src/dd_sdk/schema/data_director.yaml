@@ -12,7 +12,7 @@ description: >-
   schema_class (ADR-0007); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (ADR-0008). Formats here are fixed; see docs/adr/ for the decisions.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.3
+version: 0.9.4
 license: MIT
 
 prefixes:
@@ -246,6 +246,40 @@ classes:
       - obligation
       - form_label
 
+  RepositoryRequirements:
+    description: >-
+      The requirements of the repository a researcher chose: its standard's set with the
+      repository's override, if there is one, merged on top (ADR-0038 decision 2). The harness
+      makes it when the choice is recorded, keeps it among the project's blobs, gives it to the
+      drafters and checks the project against it. Not a set of the deployment's configuration, so
+      it has no requirement_set_id of its own; requirement_sets names the sets it was merged from.
+    slots:
+      - re3data_id
+      - repository_name
+      - conforms_to
+      - requirement_sets
+      - fields
+      - required_documents
+      - recommended_documents
+      - media_types
+      - max_file_size
+      - max_item_size
+      - licences
+      - warnings
+    slot_usage:
+      re3data_id:
+        description: The repository's re3data identifier, such as r3d100012124.
+        required: true
+      conforms_to:
+        description: The URI of the metadata schema of the standard's set.
+        required: true
+
+  RequirementSetUse:
+    description: One requirement set a choice of repository was merged from, as the deployment held it.
+    slots:
+      - ref
+      - sha256
+
   TableField:
     description: >-
       One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
@@ -258,6 +292,37 @@ classes:
       - field_type
       - field_format
       - field_description
+
+  DraftRequest:
+    description: >-
+      What a drafter is asked for: a project document of one kind, drafted from the project's
+      facts (ADR-0035, ADR-0036 decision 7). Every agent that returns a Document accepts it, so an
+      agent that drafts a document can replace another without its caller changing. The project's
+      facts are the inventory, the requirements of the repository chosen and, to regenerate a
+      document, its current version with any decision on it. The conductor puts them in from the
+      project (ADR-0034 decision 6, TODO(#394)); until it does, the caller sends them.
+    slots:
+      - schema_class
+      - document_kind
+      - inventory
+      - requirements
+      - current_version
+    slot_usage:
+      document_kind:
+        description: The kind of document to draft.
+
+  CurrentVersion:
+    description: >-
+      The version of a project document that a drafter is to regenerate: the document's latest,
+      its text, and its state with the reason a person gave for any decision on it (ADR-0036
+      decision 7). A drafter that regenerates it names version_ref in its payload's revises.
+    slots:
+      - version_ref
+      - document_title
+      - media_type
+      - document_text
+      - version_state
+      - decision_reason
 
   # --- Grounding ------------------------------------------------------------------------------
 
@@ -623,6 +688,33 @@ slots:
     description: The number of a version within its document, counted from 1.
     range: integer
     required: true
+  inventory:
+    description: The project's inventory, the latest added (ADR-0034 decision 3).
+    range: FileInventory
+    inlined: true
+  requirements:
+    description: The requirements of the repository chosen last (ADR-0038 decision 2).
+    range: RepositoryRequirements
+    inlined: true
+  current_version:
+    description: >-
+      The document's latest version, when the drafter is to regenerate it. Absent for a new
+      document.
+    range: CurrentVersion
+    inlined: true
+  version_ref:
+    description: The version, by its document and number.
+    range: DocumentVersionRef
+    inlined: true
+    required: true
+  version_state:
+    description: Whether a person has approved or rejected the version, or not yet decided.
+    range: VersionState
+    required: true
+  decision_reason:
+    description: >-
+      The reason the person gave for their decision, in their words. Present for a rejection,
+      and for an approval only if they gave one.
 
   name:
     required: true
@@ -750,6 +842,28 @@ slots:
   form_label:
     description: >-
       An override only: the label of the repository's deposit form field the value goes in.
+  repository_name:
+    description: What the researcher calls the repository chosen, such as ORDA.
+    required: true
+  requirement_sets:
+    description: The sets the requirements were merged from, the standard's first.
+    range: RequirementSetUse
+    multivalued: true
+    inlined_as_list: true
+    required: true
+  ref:
+    description: A requirement set, as <requirement_set_id>@v<version>.
+    required: true
+    pattern: "^[a-z0-9][a-z0-9-]*@v[0-9]+$"
+  sha256:
+    description: The SHA-256 digest of the set's file, in lowercase hex.
+    required: true
+    pattern: "^[0-9a-f]{64}$"
+  warnings:
+    description: >-
+      What the researcher was told when the repository was chosen, such as that it does not list
+      DataCite.
+    multivalued: true
   field_type:
     description: >-
       Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
@@ -886,6 +1000,18 @@ enums:
         description: A data management plan.
       other:
         description: Any other documentation of the dataset.
+
+  VersionState:
+    description: >-
+      The state of one version of a project document (ADR-0035 decision 6). Every version begins
+      proposed; once approved or rejected, it does not change.
+    permissible_values:
+      proposed:
+        description: No person has decided on the version yet.
+      approved:
+        description: A person approved the version.
+      rejected:
+        description: A person rejected the version, and gave a reason.
 
   GroundingMode:
     description: >-

@@ -94,6 +94,7 @@ $ uv run dd-harness project choose-repository 0192f3a4-… --re3data r3d10001212
   an agent its project's facts or apply `hosted_models` (ADR-0034 decisions 1, 6 and 7),
   TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
-- A drafter is not yet given the merged requirements (TODO(#394)), and nothing checks a project
-  against them, TODO(#19, #202).
+- A drafter reads the merged requirements as `DraftRequest.requirements`, a core
+  `RepositoryRequirements`, but the conductor does not yet put them in (TODO(#394)). Nothing
+  checks a project against them, TODO(#19, #202).
 - How long a project is kept, and what deleting one removes, TODO(#141).

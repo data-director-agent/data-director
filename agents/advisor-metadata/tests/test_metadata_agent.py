@@ -1,89 +1,108 @@
-"""advisor.metadata through the conductor: the Metadata Librarian mock (ADR-0033)."""
+"""advisor.metadata through the conductor: the Metadata Librarian mock (ADR-0033) as the stub
+drafter of the metadata record (#200)."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
-import dd_agent_advisor_metadata
-from dd_agent_advisor_metadata.agent import FILLED, NEEDS_RESEARCHER, MetadataLibrarian
-from dd_agent_advisor_metadata.classes import MetadataDraft, MetadataDraftRequest
+from dd_agent_advisor_metadata.agent import DATACITE, MetadataLibrarian
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
-from dd_sdk.contract.models import GroundingMode, OutcomeStatus, ReasonCode
-from dd_sdk.schema import gen
+from dd_sdk.contract.models import (
+    CurrentVersion,
+    Document,
+    DocumentKind,
+    DocumentVersionRef,
+    DraftRequest,
+    Envelope,
+    GroundingMode,
+    OutcomeStatus,
+    ReasonCode,
+    VersionState,
+    new_invocation_id,
+)
 
 SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
-SCHEMA = Path(dd_agent_advisor_metadata.__file__).parent / "schema" / "metadata.yaml"
 
 
-def sample() -> MetadataDraftRequest:
-    return MetadataDraftRequest.model_validate(
-        json.loads((SAMPLES / "metadata-draft-request.json").read_text(encoding="utf-8"))
-    )
+def sample() -> DraftRequest:
+    path = SAMPLES / "soil-survey.metadata-record.draft.json"
+    return DraftRequest.model_validate_json(path.read_text(encoding="utf-8"))
 
 
-def draft(runs_dir: Path, request_input: MetadataDraftRequest) -> MetadataDraft:
-    env = make_conductor(runs_dir, MetadataLibrarian()).invoke(
-        request("advisor.metadata", request_input), acting_for=TEST_PRINCIPAL
-    )
-    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    return env.payload_as(MetadataDraft)
+def draft(runs_dir: Path, asked: DraftRequest) -> tuple[Envelope, bool]:
+    conductor = make_conductor(runs_dir, MetadataLibrarian())
+    env = conductor.invoke(request("advisor.metadata", asked), acting_for=TEST_PRINCIPAL)
+    return env, conductor.grounding_reports[env.invocation_id].passed
 
 
 @pytest.mark.requirement("DD-GROUNDING-MODE", "DD-GROUNDED-PAYLOAD")
-def test_drafts_datacite_and_leaves_the_rest_to_the_researcher(runs_dir: Path) -> None:
-    conductor = make_conductor(runs_dir, MetadataLibrarian())
-    env = conductor.invoke(request("advisor.metadata", sample()), acting_for=TEST_PRINCIPAL)
+def test_drafts_a_datacite_record_with_every_property_the_repository_asks_for(
+    runs_dir: Path,
+) -> None:
+    asked = sample()
+    env, grounded = draft(runs_dir, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE
-    payload = env.payload_as(MetadataDraft)
-    assert payload.standard == "DataCite"
-    assert payload.standard_reason.startswith("Requested")
-    assert [(f.name, f.value, f.status) for f in payload.fields] == [
-        ("Identifier", None, NEEDS_RESEARCHER),
-        ("Creator", "Smith, Alex; University of Sheffield", FILLED),
-        ("Title", "Household energy use in Sheffield, 2025", FILLED),
-        ("Publisher", None, NEEDS_RESEARCHER),
-        ("PublicationYear", "2026", FILLED),
-        ("ResourceType", None, NEEDS_RESEARCHER),
-        ("Subject", "energy use; smart meters; households", FILLED),
-        (
-            "Description",
-            "Daily smart-meter readings and survey responses from 40 households in Sheffield.",
-            FILLED,
-        ),
-    ]
-    assert payload.limitations
-    assert conductor.grounding_reports[env.invocation_id].passed
+    assert env.grounding_mode == GroundingMode.NONE and grounded
+    document = env.payload_as(Document)
+    assert document.document_kind == DocumentKind.METADATA_RECORD
+    assert (document.media_type, document.conforms_to) == ("application/json", DATACITE)
+    record: dict[str, Any] = json.loads(document.document_text)
+
+    assert asked.requirements is not None
+    for field in asked.requirements.fields:
+        assert field.property.split(".")[0] in record, field.property
+    # The mock fills only what holds for any deposit and what the inventory states.
+    assert record["types"] == {"resourceTypeGeneral": "Dataset"}
+    assert record["titles"] == [{"title": None}]
+    assert {"subject": None, "subjectScheme": "ANZSRC Fields of Research"} in record["subjects"]
+    assert {"subject": None} in record["subjects"]
+    assert record["descriptions"] == [{"description": None, "descriptionType": "Abstract"}]
+    assert asked.inventory is not None
+    files = asked.inventory.inventory_files
+    assert record["sizes"] == [f"{len(files)} files", f"{sum(f.file_size for f in files)} bytes"]
+    assert record["formats"] == sorted({f.file_media_type for f in files if f.file_media_type})
+    assert record["schemaVersion"] == DATACITE
+    assert "ORDA" in (document.document_title or "")
+
+
+def test_regenerating_names_the_version_it_replaces(runs_dir: Path) -> None:
+    previous = DocumentVersionRef(document_id=new_invocation_id(), version=1)
+    asked = sample().model_copy(
+        update={
+            "current_version": CurrentVersion(
+                version_ref=previous,
+                media_type="application/json",
+                document_text="{}",
+                version_state=VersionState.PROPOSED,
+            )
+        }
+    )
+    env, _ = draft(runs_dir, asked)
+    assert env.payload_as(Document).revises == previous
 
 
 @pytest.mark.requirement("DD-OUTCOME")
-def test_no_title_abstains(runs_dir: Path) -> None:
-    env = make_conductor(runs_dir, MetadataLibrarian()).invoke(
-        request("advisor.metadata", MetadataDraftRequest(creators=["Smith, Alex"])),
-        acting_for=TEST_PRINCIPAL,
-    )
-    assert env.outcome.status == OutcomeStatus.ABSTAINED
-    assert env.outcome.reason_code == ReasonCode.INSUFFICIENT_INPUT
-
-
-def test_a_named_standard_is_used_and_nothing_is_invented(runs_dir: Path) -> None:
-    payload = draft(
-        runs_dir, MetadataDraftRequest(title="Soil cores", target_standard="dublin-core")
-    )
-    assert payload.standard == "Dublin Core"
-    filled = [f.name for f in payload.fields if f.status == FILLED]
-    assert filled == ["title"]
-    assert all(f.value is None for f in payload.fields if f.status == NEEDS_RESEARCHER)
-
-
-def test_an_unknown_standard_falls_back_to_datacite_and_says_so(runs_dir: Path) -> None:
-    payload = draft(runs_dir, MetadataDraftRequest(title="Soil cores", target_standard="EML"))
-    assert payload.standard == "DataCite"
-    assert "'EML'" in payload.standard_reason
+def test_abstains_without_a_repository_or_for_another_kind_or_standard(runs_dir: Path) -> None:
+    asked = sample()
+    assert asked.requirements is not None
+    other = asked.requirements.model_copy(update={"conforms_to": "http://example.org/ddi"})
+    cases = [
+        (asked.model_copy(update={"requirements": None}), ReasonCode.INSUFFICIENT_INPUT),
+        (
+            asked.model_copy(update={"document_kind": DocumentKind.README}),
+            ReasonCode.OUTSIDE_AGENT_SCOPE,
+        ),
+        (asked.model_copy(update={"requirements": other}), ReasonCode.CAPABILITY_NOT_IMPLEMENTED),
+    ]
+    for case, reason in cases:
+        env, _ = draft(runs_dir, case)
+        assert env.outcome.status == OutcomeStatus.ABSTAINED
+        assert env.outcome.reason_code == reason
 
 
 def test_the_card_names_the_persona_and_its_steps() -> None:
@@ -92,7 +111,3 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
     assert entry["description"].startswith("Mock.")
     assert entry["serves"] == ["preparation.metadata-standard", "preparation.metadata"]
     json.dumps(entry)
-
-
-def test_its_classes_are_generated_from_its_linkml() -> None:
-    assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"

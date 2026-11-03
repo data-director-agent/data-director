@@ -10,6 +10,7 @@ import pytest
 from requirement_sets import ELSEWHERE, ORDA, override, standard, write
 
 from dd_harness.requirements import DATACITE, RequirementsError, load_requirements
+from dd_sdk.contract.models import RepositoryRequirements
 
 
 @pytest.fixture
@@ -46,6 +47,22 @@ def test_without_an_override_the_declared_standard_applies_and_the_researcher_is
     merged = resolved.requirements()
     assert [f["obligation"] for f in merged["fields"]] == ["required", "recommended"]
     assert "licences" not in merged and "media_types" not in merged
+
+
+@pytest.mark.parametrize(
+    ("re3data_id", "name", "declared"),
+    [(ORDA, "ORDA", ["Dublin Core"]), (ELSEWHERE, "Elsewhere", ["Dublin Core"])],
+)
+def test_the_merged_set_is_the_core_class_a_drafter_is_given(
+    sets: Path, re3data_id: str, name: str, declared: list[str]
+) -> None:
+    """A drafter reads the merged set as `DraftRequest.requirements` (#200), so it must parse as
+    the core `RepositoryRequirements`, which forbids any key it does not name."""
+    merged = load_requirements(sets).resolve(re3data_id, name, declared).requirements()
+    parsed = RepositoryRequirements.model_validate(merged)
+    assert parsed.model_dump(mode="json", exclude_none=True, exclude_defaults=True).items() <= (
+        merged.items()
+    )
 
 
 def test_a_repository_that_declares_no_known_standard_is_checked_against_datacite(

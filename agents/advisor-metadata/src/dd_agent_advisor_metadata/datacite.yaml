@@ -1,0 +1,30 @@
+# advisor.metadata's rule table: how a DataCite property is written in DataCite's JSON form, the
+# form of the DataCite REST API's attributes (ADR-0038 decision 3). A mock's table (ADR-0033); the
+# real librarian replaces it, TODO(#357).
+#
+# `value` is the key that holds the value in each entry of a property whose value is a list of
+# objects. A property in the requirements that this table does not name is written as null.
+# `filled` gives a value the mock writes itself, because it holds for whatever the project
+# deposits: the resource is a dataset.
+titles:
+  value: title
+creators:
+  value: name
+contributors:
+  value: name
+subjects:
+  value: subject
+descriptions:
+  value: description
+dates:
+  value: date
+rightsList:
+  value: rights
+fundingReferences:
+  value: funderName
+relatedIdentifiers:
+  value: relatedIdentifier
+geoLocations:
+  value: geoLocationPlace
+types.resourceTypeGeneral:
+  filled: Dataset

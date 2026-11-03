@@ -1,87 +1,83 @@
-"""advisor.metadata: the Metadata Librarian persona (ADR-0033). A mock.
+"""advisor.metadata: the Metadata Librarian persona (ADR-0033). A mock, and the stub drafter of the
+project's metadata record (#200).
 
-Serves `preparation.metadata-standard` and `preparation.metadata`. It picks a metadata standard,
-the one the researcher asked for if it knows it and DataCite otherwise, and drafts a record in it
-for the researcher to review before submission (R2). It copies what the researcher gave into the
-standard's properties and never invents a value: a property the input cannot fill is left empty
-and marked for the researcher.
+Serves `preparation.metadata-standard` and `preparation.metadata` (R2). Given a `DraftRequest` for
+a `metadata_record`, it drafts a project document (ADR-0035): a DataCite record in DataCite's JSON
+form, with `conforms_to` set to the chosen repository's (ADR-0038 decision 3). Every property the
+repository's requirements list is written, with its qualifier, and its value left null for the
+researcher. The mock fills only what holds for any deposit, that the resource is a dataset, and
+what the inventory states: the files' formats and sizes.
 
-The mock reads its standards from `standards.yaml`. It consults no source, uses no controlled
+It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
 vocabulary, maps nothing between schemas (R6) and calls no model, so its grounding mode is `none`
-and it cites only its input. The real librarian is TODO(#357).
+and it cites only its input. Regenerating a record drafts it afresh, and names the version it
+replaces in `revises`. The real librarian is TODO(#357).
 """
 
 from __future__ import annotations
 
-import re
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
-from dd_agent_advisor_metadata.classes import DraftField, MetadataDraft, MetadataDraftRequest
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
+    Document,
+    DocumentKind,
+    DraftRequest,
     EvidenceItem,
+    FileInventory,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
+    Obligation,
     Outcome,
     OutcomeStatus,
     ReasonCode,
+    RepositoryRequirements,
 )
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
-STANDARDS = Path(__file__).with_name("standards.yaml")
-IGNORED = re.compile(r"[\s_-]+")
-# The input fields a property may be filled from: the slots of MetadataDraftRequest that hold a
-# description of the dataset.
-SOURCES = frozenset({"title", "description", "creators", "keywords", "publication_year"})
-# How a list from the input (creators, keywords) is written as one property value.
-SEPARATOR = "; "
+DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
+# The schema every record follows in the MVP (ADR-0038 decision 3).
+DATACITE = "http://datacite.org/schema/kernel-4"
+MEDIA_TYPE = "application/json"
 
-FILLED = "filled"
-NEEDS_RESEARCHER = "needs_researcher"
-
+# What the mock does not do, said in every outcome: its payload is the core Document, which has
+# no room for a list of limitations (ADR-0033 decision 5).
 LIMITATIONS = (
-    "This is a mock: it copies your input into a fixed list of properties and checks nothing.",
-    "It knows only a few properties of DataCite, Dublin Core and DDI-Codebook, not whole schemas.",
-    "It does not choose a standard for your discipline; it uses the one you name, or DataCite.",
-    "It uses no controlled vocabularies and does not split names into given and family names.",
-    "It does not map a record from one schema to another.",
-    "Properties marked needs_researcher are left empty for you to fill, not found to be unknown.",
+    "This is a mock: it writes the properties the repository asks for and fills none that only "
+    "you can, uses no controlled vocabularies, maps nothing between schemas, and reads neither an "
+    "earlier version nor the reason given for a decision on it."
 )
 
 
 @dataclass(frozen=True, slots=True)
-class Standard:
-    name: str
-    aliases: frozenset[str]
-    properties: tuple[tuple[str, str | None], ...]
+class Form:
+    """How one DataCite property is written: the key of its value in a list entry, or a value
+    the mock fills itself."""
+
+    value: str | None = None
+    filled: str | None = None
 
 
-def normalise(name: str) -> str:
-    return IGNORED.sub(" ", name.strip().lower())
-
-
-def load_standards(path: Path = STANDARDS) -> tuple[Standard, ...]:
+def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
     with path.open(encoding="utf-8") as fh:
         table = yaml.safe_load(fh)
-    standards = []
-    for name, entry in table.items():
-        properties = tuple((str(p["name"]), p["from"]) for p in entry["properties"])
-        unknown = {source for _, source in properties if source is not None} - SOURCES
-        if unknown:
-            raise ValueError(f"{path}: {name} fills from unknown input fields {sorted(unknown)}")
-        aliases = frozenset(normalise(a) for a in [name, *entry.get("aliases", [])])
-        standards.append(Standard(str(name), aliases, properties))
-    if not standards:
-        raise ValueError(f"{path}: no standards")
-    return tuple(standards)
+    form = {}
+    for prop, entry in table.items():
+        unknown = set(entry) - {"value", "filled"}
+        if unknown or len(entry) != 1:
+            raise ValueError(f"{path}: {prop} needs exactly one of value or filled")
+        form[str(prop)] = Form(**entry)
+    return form
 
 
 class MetadataLibrarian:
@@ -90,59 +86,68 @@ class MetadataLibrarian:
         version="0.1.0a1",
         title="Metadata Librarian",
         description=(
-            "Mock. Drafts a metadata record in DataCite, Dublin Core or DDI-Codebook from what the "
-            "researcher gives, and marks every property it cannot fill for the researcher. Never "
-            "invents a value, and the researcher reviews the draft before submission."
+            "Mock. Drafts a project's metadata record in DataCite's JSON form, with every property "
+            "the chosen repository requires or recommends, filling only the resource type and the "
+            "formats and sizes the file inventory gives. The researcher writes the rest."
         ),
         action_class="advise",
-        accepts=(ClassSchema.of(MetadataDraftRequest),),
+        accepts=(ClassSchema.of(DraftRequest),),
         grounding_mode=GroundingMode.NONE,
-        payload=ClassSchema.of(MetadataDraft),
+        payload=ClassSchema.of(Document),
         derivations={
-            "standard": Derived(Derivation.TEMPLATE),
-            "standard_reason": Derived(Derivation.TEMPLATE),
-            "fields.name": Derived(Derivation.TEMPLATE),
-            "fields.value": Derived(Derivation.LEXICAL),
-            "fields.status": Derived(Derivation.TEMPLATE),
-            "limitations": Derived(Derivation.TEMPLATE),
+            "document_title": Derived(Derivation.TEMPLATE),
+            "document_text": Derived(Derivation.TEMPLATE),
         },
         serves=("preparation.metadata-standard", "preparation.metadata"),
     )
 
-    def __init__(self, standards: tuple[Standard, ...] | None = None) -> None:
-        self.standards = standards if standards is not None else load_standards()
+    def __init__(self, form: dict[str, Form] | None = None) -> None:
+        self.form = form if form is not None else load_form()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        draft = request.input
-        assert isinstance(draft, MetadataDraftRequest)  # the conductor checked spec.accepts
-        if not (draft.title and draft.title.strip()):
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement="Give the dataset's title: every standard the mock drafts needs one.",
-                )
+        asked = request.input
+        assert isinstance(asked, DraftRequest)  # the conductor checked spec.accepts
+        if asked.document_kind != DocumentKind.METADATA_RECORD:
+            return _abstain(
+                ReasonCode.OUTSIDE_AGENT_SCOPE,
+                "The Metadata Librarian drafts a metadata record, not a "
+                f"{asked.document_kind.value}.",
+            )
+        requirements = asked.requirements
+        if requirements is None:
+            return _abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                "Choose a repository first: the record has the properties it asks for.",
+            )
+        if requirements.conforms_to != DATACITE:
+            return _abstain(
+                ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+                f"The mock drafts DataCite records only, not {requirements.conforms_to}.",
             )
 
-        standard, reason = self._choose(draft.target_standard)
-        fields = [self._field(draft, name, source) for name, source in standard.properties]
-        filled = sum(f.status == FILLED for f in fields)
+        record, filled = self._record(requirements, asked.inventory)
+        required = sum(f.obligation == Obligation.REQUIRED for f in requirements.fields)
+        statement = (
+            f"Mock: a DataCite record for {requirements.repository_name} with the "
+            f"{len(requirements.fields)} properties it asks for ({required} required). Filled: "
+            f"{', '.join(filled) or 'nothing'}. Every null value is for you to write."
+        )
+        current = asked.current_version
+        if current is not None:
+            statement += f" It replaces version {current.version_ref.version} of the document."
 
         ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         return AgentResult(
-            outcome=Outcome(
-                status=OutcomeStatus.SUCCEEDED,
-                statement=(
-                    f"Mock: a {standard.name} draft with {filled} of {len(fields)} properties "
-                    "filled from your input. You must supply the rest and review every value "
-                    "before submission."
-                ),
-            ),
-            payload=MetadataDraft(
-                standard=standard.name,
-                standard_reason=reason,
-                fields=fields,
-                limitations=list(LIMITATIONS),
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
+            payload=Document(
+                document_kind=DocumentKind.METADATA_RECORD,
+                document_title=(current.document_title if current else None)
+                or f"Metadata record for {requirements.repository_name}",
+                media_type=MEDIA_TYPE,
+                conforms_to=requirements.conforms_to,
+                document_text=json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+                document_derivation=Derivation.TEMPLATE,
+                revises=current.version_ref if current else None,
                 grounded_on=[ref],
             ),
             evidence=[
@@ -156,34 +161,42 @@ class MetadataLibrarian:
             ],
         )
 
-    def _choose(self, requested: str | None) -> tuple[Standard, str]:
-        default = self.standards[0]
-        if not (requested and requested.strip()):
-            return (
-                default,
-                f"No standard was requested, so the mock uses its default, {default.name}.",
-            )
-        wanted = normalise(requested)
-        for standard in self.standards:
-            if wanted in standard.aliases:
-                return standard, f"Requested: {requested.strip()}."
-        return default, (
-            f"The mock does not know the requested standard, {requested.strip()!r}, so it uses its "
-            f"default, {default.name}. Check with your repository which standard it expects."
-        )
+    def _record(
+        self, requirements: RepositoryRequirements, inventory: FileInventory | None
+    ) -> tuple[dict[str, Any], list[str]]:
+        """The record, and the properties the mock filled."""
+        record: dict[str, Any] = {}
+        filled: list[str] = []
+        for field in requirements.fields:
+            form = self.form.get(field.property, Form())
+            *parents, last = field.property.split(".")
+            node = record
+            for part in parents:
+                node = node.setdefault(part, {})
+            if form.filled is not None:
+                node[last] = form.filled
+                filled.append(field.property)
+            elif form.value is not None:
+                entry = {form.value: None, **(field.qualifier or {})}
+                node.setdefault(last, []).append(entry)
+            else:
+                node.setdefault(last, None)
+        if inventory is not None and inventory.inventory_files:
+            files = inventory.inventory_files
+            record["formats"] = sorted({f.file_media_type for f in files if f.file_media_type})
+            total = sum(f.file_size for f in files)
+            record["sizes"] = [f"{len(files)} files", f"{total} bytes"]
+            filled += ["formats", "sizes"] if record["formats"] else ["sizes"]
+            if not record["formats"]:
+                del record["formats"]
+        record["schemaVersion"] = requirements.conforms_to
+        return record, filled
 
-    @staticmethod
-    def _field(draft: MetadataDraftRequest, name: str, source: str | None) -> DraftField:
-        value = None if source is None else getattr(draft, source)
-        if isinstance(value, list):
-            value = SEPARATOR.join(v.strip() for v in value if v.strip()) or None
-        elif isinstance(value, str):
-            value = value.strip() or None
-        elif value is not None:
-            value = str(value)
-        if value is None:
-            return DraftField(name=name, status=NEEDS_RESEARCHER)
-        return DraftField(name=name, value=value, status=FILLED)
+
+def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
+    return AgentResult(
+        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
+    )
 
 
 def build() -> MetadataLibrarian:

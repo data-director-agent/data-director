@@ -16,11 +16,13 @@ from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Assurance,
     ConversationTurn,
+    CurrentVersion,
     Delegation,
     Derivation,
     Document,
     DocumentKind,
     DocumentVersionRef,
+    DraftRequest,
     Envelope,
     EvidenceItem,
     FileInventory,
@@ -40,11 +42,14 @@ from dd_sdk.contract.models import (
     ProblemDetails,
     ReasonCode,
     Reply,
+    RepositoryRequirements,
     RequirementField,
     RequirementSet,
+    RequirementSetUse,
     TableField,
     Telemetry,
     TurnRole,
+    VersionState,
     input_source_id,
     invocation_source_id,
     new_invocation_id,
@@ -686,6 +691,47 @@ def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
         RequirementSet(
             requirement_set_id="orda", version=1, title="x", conforms_to="x", re3data_id="orda"
         )
+
+
+def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
+    """A drafter is asked for one kind of document and given the project's facts: the inventory,
+    the merged requirements and, to regenerate, the current version with its decision (#200)."""
+    schema = json.loads((SCHEMA / "generated" / "DraftRequest.schema.json").read_text("utf-8"))
+    assert schema["properties"]["schema_class"]["enum"] == ["DraftRequest"]
+    assert set(schema["required"]) == {"schema_class", "document_kind"}
+    assert set(schema["$defs"]["VersionState"]["enum"]) == {s.value for s in VersionState}
+    assert {"version_ref", "media_type", "document_text", "version_state"} == set(
+        schema["$defs"]["CurrentVersion"]["required"]
+    )
+
+    asked = DraftRequest(
+        document_kind=DocumentKind.METADATA_RECORD,
+        requirements=RepositoryRequirements(
+            re3data_id="r3d100012124",
+            repository_name="ORDA",
+            conforms_to="http://datacite.org/schema/kernel-4",
+            requirement_sets=[RequirementSetUse(ref="datacite-4@v1", sha256="0" * 64)],
+            fields=[
+                RequirementField(
+                    property="titles", schema_org="name", obligation=Obligation.REQUIRED
+                )
+            ],
+            required_documents=[DocumentKind.METADATA_RECORD],
+        ),
+        current_version=CurrentVersion(
+            version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=1),
+            media_type="application/json",
+            document_text="{}",
+            version_state=VersionState.REJECTED,
+            decision_reason="The title is wrong.",
+        ),
+    )
+    document = asked.model_dump(mode="json", exclude_none=True)
+    assert ClassSchema.of(DraftRequest).errors(document) == []
+    assert DraftRequest.model_validate(document) == asked
+    assert ClassSchema.of(DraftRequest).errors({**document, "project_id": "x"})
+    bare = {"schema_class": "DraftRequest", "document_kind": "readme"}
+    assert ClassSchema.of(DraftRequest).errors(bare) == []
 
 
 def test_a_file_inventory_is_a_core_input_that_holds_facts_about_files_not_their_content() -> None:
