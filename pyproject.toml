@@ -64,6 +64,7 @@ dev = [
   "pytest-json-report>=1.5",
   # The viewer's browser tests (workbench/browser_tests/); browsers come from `playwright install`.
   "pytest-playwright>=0.7",
+  {include-group = "accessibility"},
   "linkml>=1.12.1",
   "ruff>=0.17.0",
   "mypy>=2.4.0",
@@ -75,6 +76,12 @@ dev = [
 docs = [
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",
+]
+# axe-core in a Playwright browser: the documentation site's check
+# (scripts/check_site_accessibility.py) and the viewer's browser tests.
+accessibility = [
+  "axe-playwright-python>=0.1.8",
+  "playwright>=1.55",
 ]
 
 [tool.uv]
@@ -185,7 +192,7 @@ warn_unreachable = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*", "linkml_runtime.*"]
+module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*", "linkml_runtime.*", "axe_playwright_python.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
