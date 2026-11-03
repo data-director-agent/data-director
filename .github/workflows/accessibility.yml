@@ -1,0 +1,97 @@
+name: Accessibility
+
+# What people read and use, checked against WCAG 2.2 AA in a browser: axe-core with the rule tags
+# wcag2a, wcag2aa, wcag21a, wcag21aa and wcag22aa, and reflow at 320 CSS pixels (WCAG 1.4.10).
+# docs/ui/best-practices.md says why; automated checks find perhaps a third of the barriers, so
+# they do not replace testing with assistive technology and with the people who use it (#74).
+#
+#   Documentation site: every page mkdocs builds, by scripts/check_site_accessibility.py (#429)
+#   Workbench viewer: Chat, Inspect, the Glossary and the Agents page, light and dark, by
+#     workbench/browser_tests/test_viewer_accessibility.py (#85)
+#
+# The app shell's checks (jsx-a11y, jest-axe, and Playwright with axe, keyboard-only use and
+# reflow) stay in ci.yml's "App shell" job, because they share their specs with its behaviour.
+#
+# Every pull request runs every job, without a path filter, so that "Accessibility passed" can be
+# a required check. The weekly run catches what changes without a commit: the theme, axe-core and
+# the browser.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  FORCE_COLOR: "1"
+  UV_LOCKED: "1"
+
+jobs:
+  site:
+    name: Documentation site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          cache-dependency-glob: uv.lock
+      # The site as docs.yml builds and publishes it.
+      - run: uv run --only-group docs mkdocs build --strict
+      # Headless runs need only chromium-headless-shell, not the full browser.
+      - run: uv run --only-group accessibility playwright install --with-deps --only-shell chromium
+      - run: >-
+          uv run --only-group docs --only-group accessibility
+          scripts/check_site_accessibility.py site --summary "$GITHUB_STEP_SUMMARY"
+
+  viewer:
+    name: Workbench viewer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      - run: uv run playwright install --with-deps --only-shell chromium
+      - run: >-
+          uv run pytest workbench/browser_tests/test_viewer_accessibility.py
+          --tracing=retain-on-failure --output=test-results
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: viewer-accessibility-traces
+          path: test-results
+          retention-days: 14
+
+  # --- The one check to require ----------------------------------------------------------------
+
+  accessibility-passed:
+    name: Accessibility passed
+    if: always()
+    needs: [site, viewer]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in success) ;; *) exit 1 ;; esac
+          done
