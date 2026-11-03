@@ -53,9 +53,13 @@ It is built from:
   - `GET /api/examples`: the example inputs in `config/examples/`;
   - `GET /api/process-flow`: the Blueprint's entry points and phases (`dd_sdk.process_flow`);
   - `POST /api/conversations`: starts a conversation and gives its `conversation_id`;
-  - `POST /api/conversations/{id}/turns` (`{agent_id, message_text}`): sends one `Message` to
-    the agent through the conductor and answers as `POST /api/runs` does. The server builds the
-    message's history from the stored turns; a request that gives one is refused (ADR-0024 §17);
+  - `POST /api/conversations/{id}/turns` (`{agent_id, message_text, follows}`): sends one
+    `Message` to the agent through the conductor and answers as `POST /api/runs` does. The server
+    builds the message's history from the stored turns; a request that gives one is refused
+    (ADR-0024 §17). `follows` is the `invocation_id` of the latest turn, or null for the first:
+    a turn that does not follow the latest, or that arrives while another turn of the
+    conversation is running, is refused with a 409 `turn-conflict` and nothing runs (ADR-0037
+    decision 7), so a message sent again after a dropped connection is never run twice;
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;

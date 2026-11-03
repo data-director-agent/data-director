@@ -38,6 +38,15 @@ class UnknownConversationError(LookupError):
     """No conversation has this identifier: it was neither started here nor has a stored turn."""
 
 
+class TurnConflictError(Exception):
+    """A turn that does not follow the conversation's latest turn, or that arrives while another
+    turn of the conversation is still running (ADR-0037 decision 7). Nothing was run."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+
+
 def _report(path: Path) -> dict[str, Any] | None:
     """A check's stored summary (`GroundingReport.summary`, `SourceReport.summary`), which says
     `FAILED` when the check failed."""
@@ -112,20 +121,32 @@ class Governance:
         return conversation_id
 
     async def turn(
-        self, conversation_id: str, agent_id: str, message_text: str, acting_for: Principal
+        self,
+        conversation_id: str,
+        agent_id: str,
+        message_text: str,
+        follows: str | None,
+        acting_for: Principal,
     ) -> dict[str, Any]:
         """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
         `Message` to `agent_id`, answered as `run` answers.
 
         The history is built here from the stored turns, never taken from the caller, so the
         input hash covers what the agent was really shown (ADR-0024 §17). It is read under the
-        conversation's lock, held until the turn is stored, so two turns sent to one
-        conversation at once are run one after the other and the second is shown the first;
-        turns to different conversations run side by side. A turn goes only to the orchestrator the
-        profile names (ADR-0024 §10); a turn to any other agent, or under a profile that names
-        none, is refused with `ValueError` before anything runs. Raises
-        `UnknownConversationError`, or what `Conductor.invoke` raises for a request it refuses
-        before running.
+        conversation's lock, held until the turn is stored, even if the request that sent it has
+        gone; turns to different conversations run side by side.
+
+        A turn names the turn it `follows` by that turn's `invocation_id`, or None for the first
+        (ADR-0037 decision 7). One that does not follow the latest stored turn, or that arrives
+        while another turn of the conversation is still running, is refused with
+        `TurnConflictError` before anything runs. So a message sent again after a dropped
+        connection runs only if the first attempt never arrived (#337), and two windows cannot
+        fork a conversation.
+
+        A turn goes only to the orchestrator the profile names (ADR-0024 §10); a turn to any other
+        agent, or under a profile that names none, is refused with `ValueError` before anything
+        runs. Raises `UnknownConversationError`, or what `Conductor.invoke` raises for a request
+        it refuses before running.
         """
         orchestrator = self.conductor.profile.orchestrator
         if orchestrator is None:
@@ -139,10 +160,25 @@ class Governance:
                 f"not {agent_id!r}."
             )
 
+        # No await between this check and taking the lock, so no other turn can come between.
+        held = self._turn_locks.get(conversation_id)
+        if held is not None and held[0].locked():
+            raise TurnConflictError(
+                "Another turn of this conversation is still running. Nothing was run: read the "
+                "conversation once it has been answered, then send the message again if it is "
+                "still needed."
+            )
         async with self._turn_lock(conversation_id):
             found = await asyncio.to_thread(self._conversation, conversation_id)
             if found is None:
                 raise UnknownConversationError(conversation_id)
+            latest = found["turns"][-1]["invocation_id"] if found["turns"] else None
+            if follows != latest:
+                raise TurnConflictError(
+                    f"This turn follows {follows!r}, but the conversation's latest turn is "
+                    f"{latest!r}. Nothing was run: read the conversation, then send the message "
+                    "again if it is still needed."
+                )
             message = {
                 "schema_class": "Message",
                 "message_text": message_text,

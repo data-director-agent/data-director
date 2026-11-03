@@ -7,7 +7,8 @@ lists example inputs; `GET /api/process-flow` is the Blueprint's entry points an
 (`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
 until runs stream over AG-UI (#68, #69).
 `POST /api/conversations` starts a conversation and `POST /api/conversations/{id}/turns` sends it
-one message, answered as a run is; `GET /api/conversations` and `GET /api/conversations/{id}`
+one message, answered as a run is, or refused with `409` unless it follows the latest turn
+(ADR-0037 decision 7); `GET /api/conversations` and `GET /api/conversations/{id}`
 read them back as the harness derives them from the run store (ADR-0012, #130).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (ADR-0012, #129).
@@ -57,7 +58,12 @@ from starlette.staticfiles import StaticFiles
 from dd_app import feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
-from dd_app.governance import Governance, UnknownConversationError, principal_summary
+from dd_app.governance import (
+    Governance,
+    TurnConflictError,
+    UnknownConversationError,
+    principal_summary,
+)
 from dd_app.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_app.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.conductor import UnknownAgent
@@ -180,16 +186,26 @@ def build_app(
         except ValueError:
             return _refused("The body is not JSON.")
         if not isinstance(body, dict):
-            return _refused("The body must be an object with `agent_id` and `message_text`.")
+            return _refused(
+                "The body must be an object with `agent_id`, `message_text` and `follows`."
+            )
         if "history" in body:
             return _refused(
                 "A turn may not give a history: the server builds it from the stored turns."
             )
-        if extra := sorted(set(body) - {"agent_id", "message_text"}):
-            return _refused(f"A turn takes only `agent_id` and `message_text`, not {extra}.")
+        if extra := sorted(set(body) - {"agent_id", "message_text", "follows"}):
+            return _refused(
+                f"A turn takes only `agent_id`, `message_text` and `follows`, not {extra}."
+            )
         agent_id, message_text = body.get("agent_id"), body.get("message_text")
         if not isinstance(agent_id, str) or not isinstance(message_text, str):
             return _refused("The body must name `agent_id` and give `message_text`, as strings.")
+        follows = body.get("follows")
+        if "follows" not in body or not (follows is None or isinstance(follows, str)):
+            return _refused(
+                "The body must give `follows`: the `invocation_id` of the turn this one follows, "
+                "or null for the first turn."
+            )
         if not message_text.strip():
             return _refused("The message is empty.")
         if governance.conversation(conversation_id) is None:
@@ -198,11 +214,14 @@ def build_app(
         outcome = "answered"
         try:
             return JSONResponse(
-                await governance.turn(conversation_id, agent_id, message_text, acting_for)
+                await governance.turn(conversation_id, agent_id, message_text, follows, acting_for)
             )
         except UnknownConversationError:
             outcome = "unknown conversation"
             return _no_conversation(conversation_id)
+        except TurnConflictError as exc:
+            outcome = "conflict"
+            return _problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             outcome = "refused"
             return _refused(str(exc))
