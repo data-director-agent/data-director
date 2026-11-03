@@ -1,1 +1,1 @@
-"""advisor.files: the File Archivist persona (ADR-0033). A mock."""
+"""advisor.files: the File Archivist persona (docs/specs/agents.md). A mock."""

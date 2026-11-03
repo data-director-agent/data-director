@@ -1,4 +1,4 @@
-"""Walk a dataset's root folder and make its `FileInventory` (ADR-0034).
+"""Walk a dataset's root folder and make its `FileInventory` (docs/specs/projects.md).
 
 The inventory is a plain JSON document of the core contract class `FileInventory`; this package
 does not need the contract to make one. Paths are relative to the root and sorted, so two runs

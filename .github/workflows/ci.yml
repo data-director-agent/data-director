@@ -7,9 +7,9 @@ name: CI
 # counts a skipped job as passed. Pushes to main, the merge queue and the weekly run always run
 # every job. The cheap repository-wide jobs run on every pull request.
 #
-#   Python workspace (ADR-0011): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
+#   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
 #     packages, the agents as real services, the workbench viewer in a browser (#9)
-#   app/web (ADR-0024): ESLint, tsc, Vitest with coverage, Vite build, Playwright
+#   app/web (docs/specs/app.md): ESLint, tsc, Vitest with coverage, Vite build, Playwright
 #   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does
 #   Repository: links, citation file, workflows, sign-off, dependency review
 #
@@ -234,7 +234,7 @@ jobs:
           path: test-results
           retention-days: 14
 
-  # --- app/web: the browser shell (ADR-0024). --------------------------------------------------
+  # --- app/web: the browser shell (docs/specs/app.md). --------------------------------------------------
 
   web:
     name: App shell (lint, types, unit, build, browser)
@@ -337,10 +337,8 @@ jobs:
       - run: uv run --python 3.14 scripts/check_citation.py
       # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
-      # No two decision records share a number (docs/adr/README.md, Numbering).
-      - run: uv run --no-project --python 3.14 scripts/check_adr_numbers.py
       # Each workspace member imports only what it declares and reads only its own files
-      # (ADR-0031).
+      # (docs/specs/system.md).
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
 
   workflows:

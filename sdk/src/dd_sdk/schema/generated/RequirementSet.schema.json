@@ -14,7 +14,7 @@
          ]
       },
       "DocumentKind": {
-         "description": "What a project document is for (ADR-0035).",
+         "description": "What a project document is for (docs/specs/projects.md).",
          "enum": [
             "metadata_record",
             "readme",
@@ -26,7 +26,7 @@
          "type": "string"
       },
       "Obligation": {
-         "description": "Whether a requirement set's field or document stops a package (ADR-0038).",
+         "description": "Whether a requirement set's field or document stops a package (docs/specs/deposit.md).",
          "enum": [
             "required",
             "recommended"
@@ -80,7 +80,7 @@
    "$id": "https://w3id.org/data-director/schema/core/RequirementSet",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a deposit must or should have (ADR-0038). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents.",
+   "description": "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",

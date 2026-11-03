@@ -10,7 +10,7 @@ needs they do not meet; with none it shortlists. The researcher chooses (TODO(#1
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 repositories are offered or any judgement about them. A candidate names its records once, in
 `grounded_on`; what the reader is shown about them is the evidence items' `content`, which the
-linter re-hashes (E1, ADR-0015).
+linter re-hashes (E1, docs/specs/grounding.md).
 """
 
 from __future__ import annotations

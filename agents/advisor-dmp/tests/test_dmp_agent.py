@@ -1,4 +1,5 @@
-"""advisor.dmp through the conductor: the Data Management Plan Checker mock (ADR-0033)."""
+"""advisor.dmp through the conductor: the Data Management Plan Checker mock
+(docs/specs/agents.md)."""
 
 from __future__ import annotations
 

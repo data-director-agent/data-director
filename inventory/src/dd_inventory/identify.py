@@ -6,7 +6,7 @@ step can match several formats, so every PRONOM identifier (PUID) it returns is 
 step that found them.
 
 Where fido cannot be loaded, `ExtensionIdentifier` guesses a media type from the extension and
-gives no PUID (ADR-0034, dependencies).
+gives no PUID (docs/specs/projects.md, dependencies).
 """
 
 from __future__ import annotations

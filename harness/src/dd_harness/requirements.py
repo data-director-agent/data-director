@@ -1,8 +1,8 @@
 """Repository requirements: the deployment's requirement sets, and what a choice resolves to.
 
-A researcher may choose any repository in re3data (ADR-0038). What a deposit to it must or should
-have is not written for each repository. It comes from the deployment's `RequirementSet`s, kept
-as YAML under `DD_REPOSITORIES_DIR`:
+A researcher may choose any repository in re3data (docs/specs/deposit.md). What a deposit to it must
+or should have is not written for each repository. It comes from the deployment's `RequirementSet`s,
+kept as YAML under `DD_REPOSITORIES_DIR`:
 
     standards/<id>.yaml    one per metadata standard, naming it in re3data_names
     overrides/<id>.yaml    what one repository asks beyond its standard, naming it in re3data_id
@@ -37,7 +37,7 @@ from dd_sdk.contract.models import Obligation, RequirementField, RequirementSet
 STANDARDS_DIR = "standards"
 OVERRIDES_DIR = "overrides"
 # The standard every repository that mints DataCite DOIs accepts, and so the one a repository is
-# checked against when it declares no standard the deployment has a set for (ADR-0038).
+# checked against when it declares no standard the deployment has a set for (docs/specs/deposit.md).
 DATACITE = "http://datacite.org/schema/kernel-4"
 RE3DATA_ID = re.compile(r"^r3d[0-9]{9}$")
 
@@ -133,7 +133,7 @@ class Requirements:
         if DATACITE not in self._by_standard:
             raise RequirementsError(
                 f"no standard's set conforms to {DATACITE}: DataCite's is the one a repository "
-                "is checked against when it declares no other (ADR-0038)"
+                "is checked against when it declares no other (docs/specs/deposit.md)"
             )
         for override in self.overrides:
             self._check_override(override)
@@ -194,7 +194,8 @@ class Requirements:
             ):
                 raise RequirementsError(
                     f"override {own.requirement_set_id!r} lowers {field.property} from required "
-                    f"to recommended; an override may add or raise, never lower (ADR-0038)"
+                    f"to recommended; an override may add or raise, never lower "
+                    f"(docs/specs/deposit.md)"
                 )
 
 
@@ -227,7 +228,9 @@ def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
     misplaced = _misplaced(found) if override else _override_only(found)
     if misplaced:
         kind = "an override" if override else "a standard's set"
-        raise RequirementsError(f"{path}: {kind} may not give {', '.join(misplaced)} (ADR-0038)")
+        raise RequirementsError(
+            f"{path}: {kind} may not give {', '.join(misplaced)} (docs/specs/deposit.md)"
+        )
     if override and found.re3data_id is None:
         raise RequirementsError(f"{path}: an override names its repository in re3data_id")
     if not override and not found.re3data_names:

@@ -1,6 +1,6 @@
 # advisor.linking
 
-**Alpha, and a mock** (`0.1.0a1`, ADR-0033). It does not give real advice: it checks the form of
+**Alpha, and a mock** (`0.1.0a1`, [Agents](../../docs/specs/agents.md)). It does not give real advice: it checks the form of
 identifiers and resolves none of them.
 
 The Linking Adviser helps a researcher link a dataset to the publications, people, organisations,

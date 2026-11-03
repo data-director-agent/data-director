@@ -1,4 +1,4 @@
-"""advisor.fairness: the FAIR Assessor persona (ADR-0033). A mock.
+"""advisor.fairness: the FAIR Assessor persona (docs/specs/agents.md). A mock.
 
 Serves `post.fairness` (R12) and `post.retrofit` (R9). It checks the metadata of an already
 published dataset, as the researcher gives it, against a short list of FAIR-related presence

@@ -1,4 +1,4 @@
-"""Check that each workspace member keeps to its own directory (ADR-0031).
+"""Check that each workspace member keeps to its own directory (docs/specs/system.md).
 
 A member is a package listed in the root `[tool.uv.workspace]`. So that it could move to a
 repository of its own, it imports only the first-party packages it declares, and reads no path
@@ -203,7 +203,7 @@ def main() -> int:
         print(line)
     if report:
         print(
-            f"{len(report)} boundary problem(s); declare the package, or see ADR-0031",
+            f"{len(report)} boundary problem(s); declare the package, or see docs/specs/system.md",
             file=sys.stderr,
         )
     return 1 if report else 0

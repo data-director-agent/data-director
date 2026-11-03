@@ -1,4 +1,5 @@
-"""advisor.rights through the conductor: the Rights and Licensing Adviser mock (ADR-0033)."""
+"""advisor.rights through the conductor: the Rights and Licensing Adviser mock
+(docs/specs/agents.md)."""
 
 from __future__ import annotations
 

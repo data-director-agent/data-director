@@ -1,4 +1,4 @@
-# The input and payload classes of advisor.policy, owned by this package (ADR-0019). It imports
+# The input and payload classes of advisor.policy, owned by this package (docs/specs/contract.md). It imports
 # the core contract as `data_director`. After an edit, run
 # `uv run dd-gen-schema agents/advisor-policy/src/dd_agent_advisor_policy/schema/policy.yaml` to regenerate
 # generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
@@ -64,7 +64,7 @@ classes:
   MatchedPolicy:
     description: >-
       One policy record matched to an actor. It is named only in grounded_on; the record's name,
-      clauses and relations are in the cited evidence item's content (ADR-0015).
+      clauses and relations are in the cited evidence item's content (docs/specs/grounding.md).
     mixins:
       - Grounded
     slots:

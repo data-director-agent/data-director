@@ -1,8 +1,8 @@
-# The input and payload classes of advisor.metadata, owned by this package (ADR-0019). It imports
+# The input and payload classes of advisor.metadata, owned by this package (docs/specs/contract.md). It imports
 # the core contract as `data_director`. After an edit, run
 # `uv run dd-gen-schema agents/advisor-metadata/src/dd_agent_advisor_metadata/schema/metadata.yaml`
 # to regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that
-# has drifted. These classes are a mock's sketch (ADR-0033 decision 5), not a settled format.
+# has drifted. These classes are a mock's sketch (docs/specs/agents.md), not a settled format.
 id: https://w3id.org/data-director/agents/metadata
 name: dd_agent_advisor_metadata
 title: advisor.metadata classes

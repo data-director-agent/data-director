@@ -1,4 +1,4 @@
-"""The contract version, and which agents the harness can govern under it (ADR-0019).
+"""The contract version, and which agents the harness can govern under it (docs/specs/contract.md).
 
 The contract version is the `version` of the core LinkML schema, `schema/data_director.yaml`,
 read from the generated envelope schema so that no YAML parser is needed at runtime. An agent

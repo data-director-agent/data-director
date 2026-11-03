@@ -1,0 +1,44 @@
+name: Spec feedback
+description: Question, challenge or add to a specification of how Data Director is built. No code needed.
+title: "Spec: "
+type: Task
+labels: ["area: docs"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each [specification](https://github.com/data-director-agent/data-director/tree/main/docs/specs)
+        states how one part of Data Director is meant to work and why. If something in one looks
+        wrong for your institution, your discipline or your users, or rests on something that is
+        not true, say so here. You do not need to propose an alternative design.
+  - type: input
+    id: spec
+    attributes:
+      label: Specification
+      description: Its name or a link to it, with the section if you can.
+      placeholder: Projects, Invariants
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of feedback
+      options:
+        - A question about what the spec means
+        - A concern that the design is wrong or harmful
+        - Something the spec does not consider
+        - The text is unclear or inaccurate
+    validations:
+      required: true
+  - type: textarea
+    id: feedback
+    attributes:
+      label: Feedback
+      description: Quote the passage you mean. Say who would be affected and how, from your own experience where you can.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would you change?
+      description: Optional. A different decision, a condition, or a question the spec should answer.

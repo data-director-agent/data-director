@@ -1,4 +1,4 @@
-"""Requirement sets for the tests, written where a test chooses (ADR-0038)."""
+"""Requirement sets for the tests, written where a test chooses (docs/specs/deposit.md)."""
 
 from __future__ import annotations
 

@@ -1,4 +1,5 @@
-"""The project record: an append-only log that holds a project's inventory (ADR-0034)."""
+"""The project record: an append-only log that holds a project's inventory
+(docs/specs/projects.md)."""
 
 from __future__ import annotations
 

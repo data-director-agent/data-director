@@ -1,4 +1,4 @@
-"""The orchestrator's model has no tools except its delegations (ADR-0012 decision 15).
+"""The orchestrator's model has no tools except its delegations (docs/specs/orchestration.md).
 
 These tests fail if the model is offered a way to the outside world that is not a delegation
 through the harness: an MCP server, a server tool such as web search or code execution, Agent

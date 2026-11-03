@@ -1,7 +1,7 @@
 """The doubles' own classes, declared in `../schema/doubles.yaml`.
 
-The doubles read and return these `Probe*` classes. The conductor knows them only from the
-doubles' cards, as it knows every real agent's classes (ADR-0019). After an edit to the schema,
+The doubles read and return these `Probe*` classes. The conductor knows them only from the doubles'
+cards, as it knows every real agent's classes (docs/specs/contract.md). After an edit to the schema,
 keep these models in step; `ClassSchema.of` refuses a model that has drifted.
 """
 

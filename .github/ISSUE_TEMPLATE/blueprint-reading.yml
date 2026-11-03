@@ -31,7 +31,7 @@ body:
     id: project
     attributes:
       label: What Data Director does or says
-      description: Where you saw it (a page of the app, the documentation, CONFORMANCE.md, an ADR) and what it does.
+      description: Where you saw it (a page of the app, the documentation, CONFORMANCE.md, a spec) and what it does.
     validations:
       required: true
   - type: textarea

@@ -20,8 +20,8 @@ PROFILES_DIR = Path(__file__).resolve().parent / "profiles"
 PERMISSIVE = PROFILES_DIR / "test-permissive.yaml"
 RESTRICTIVE = PROFILES_DIR / "test-restrictive.yaml"
 
-# Whom test invocations act for (ADR-0018): the ORCID documentation's example researcher, so a
-# stored test run never names a real person.
+# Whom test invocations act for (docs/specs/policy-and-identity.md): the ORCID documentation's
+# example researcher, so a stored test run never names a real person.
 TEST_PRINCIPAL = Principal(
     principal_id="https://orcid.org/0000-0002-1825-0097", name="Josiah Carberry"
 )

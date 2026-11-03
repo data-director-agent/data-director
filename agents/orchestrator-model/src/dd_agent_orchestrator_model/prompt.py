@@ -1,7 +1,8 @@
 """The orchestrator's system prompt. Its prose is `system_prompt.md` beside this module, and the
-Blueprint's process flow (`dd_sdk.process_flow`, ADR-0028) is appended to it. It names no agent:
-the tools, built from the harness's manifest on each run, say which agents exist, what each takes
-and which Blueprint requirements each serves. So the prompt is the same on every run and caches."""
+Blueprint's process flow (`dd_sdk.process_flow`, docs/specs/orchestration.md) is appended to it. It
+names no agent: the tools, built from the harness's manifest on each run, say which agents exist,
+what each takes and which Blueprint requirements each serves. So the prompt is the same on every run
+and caches."""
 
 from pathlib import Path
 

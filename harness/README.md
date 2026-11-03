@@ -11,18 +11,18 @@ trace and a Process Run Crate. The workbench describes each step in
 The harness is a library with one way in of its own, the A2A endpoint (`dd_harness.transport.a2a`),
 which `dd-harness serve` serves. Other ways in are built on it. The [workbench](../workbench/) is
 one of them, used for developing and testing agents
-([ADR-0022](../docs/adr/0022-harness-is-its-own-package.md)).
+([System and boundaries](../docs/specs/system.md)).
 
 | Module | What it does |
 |---|---|
 | `conductor.py` | Runs the steps above. Every way in calls `Conductor.invoke`. |
-| `policy.py` | The policy gate over an institutional profile (ADR-0003, ADR-0017). |
-| `grounding.py` | The grounding linter (ADR-0008, ADR-0012). |
-| `sources.py` | The source check against pinned copies (ADR-0016). |
+| `policy.py` | The policy gate over an institutional profile ([Policy and identity](../docs/specs/policy-and-identity.md)). |
+| `grounding.py` | The grounding linter ([Evidence and grounding](../docs/specs/grounding.md), [Orchestration](../docs/specs/orchestration.md)). |
+| `sources.py` | The source check against pinned copies ([Evidence and grounding](../docs/specs/grounding.md)). |
 | `store.py`, `provenance.py`, `conversations.py` | The JSONL run store, Process Run Crates, and conversations derived from the store. |
-| `projects.py` | The project record: an append-only log per project that holds its file inventory ([`docs/projects.md`](docs/projects.md), ADR-0034). |
-| `registry.py`, `remote.py` | The agent registry and the A2A client for agents (ADR-0010, ADR-0011). |
-| `identity.py` | The authentication boundary that names whom an invocation acts for (ADR-0018). |
+| `projects.py` | The project record: an append-only log per project that holds its file inventory ([`docs/projects.md`](docs/projects.md), [Projects](../docs/specs/projects.md)). |
+| `registry.py`, `remote.py` | The agent registry and the A2A client for agents ([Agents](../docs/specs/agents.md)). |
+| `identity.py` | The authentication boundary that names whom an invocation acts for ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `settings.py` | Settings from the environment, and the factory that builds a conductor. |
 | `transport/a2a.py` | The A2A JSON-RPC endpoint that serves the conductor to other systems. |
 | `server.py` | `dd-harness serve`: the A2A endpoint and the agent card in one process, for deployments. `dd-harness project`: create a project, add an inventory, list its events. |
@@ -39,9 +39,9 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against. |
 | `DD_RUNS_DIR` | Where runs are written. |
 | `DD_PROJECTS_DIR` | Where project records are kept. Only `dd-harness project` needs it so far. |
-| `DD_REPOSITORIES_DIR` | The requirement sets a chosen repository resolves to: `standards/` and `overrides/` (ADR-0038). Only `dd-harness project choose-repository` needs it so far. |
+| `DD_REPOSITORIES_DIR` | The requirement sets a chosen repository resolves to: `standards/` and `overrides/` ([Deposit](../docs/specs/deposit.md)). Only `dd-harness project choose-repository` needs it so far. |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for on a server that signs no one in, and for callers with no request (the CLI, the evaluation). Recorded as `asserted`. |
-| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider (for example `https://orcid.org`) and the client ID its ID tokens are issued to. Set, every HTTP caller must send one of its ID tokens, and is recorded as `authenticated` (ADR-0029). It cannot be set beside `DD_PRINCIPAL_ID`. |
+| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider (for example `https://orcid.org`) and the client ID its ID tokens are issued to. Set, every HTTP caller must send one of its ID tokens, and is recorded as `authenticated` ([Policy and identity](../docs/specs/policy-and-identity.md)). It cannot be set beside `DD_PRINCIPAL_ID`. |
 
 A way in supplies a set by passing its files to `Settings.from_env` as defaults, then calls
 `build_conductor(settings)`. A variable wins over the default, so a deployment replaces one file
@@ -53,20 +53,20 @@ without touching the others. Two sets are in the repository:
 
 `build_conductor(settings, agents=[...])` also registers agent objects that the caller runs in
 its own process, beside the agents the agent list names. The profile still decides which may run.
-The app does not use it (ADR-0027).
+The app does not use it ([The app](../docs/specs/app.md)).
 
 Not yet decided (#57):
 
 - TODO(#225): one file (e.g. `harness.yaml`) naming the other three and the run directory.
 - TODO(#225): how `sources.yaml` pins a source copy stored outside the repository.
-- TODO(#225): how a steward edits and reviews the profile in a deployment (ADR-0017, #41).
+- TODO(#225): how a steward edits and reviews the profile in a deployment ([Policy and identity](../docs/specs/policy-and-identity.md), #41).
 
 ## Serving the harness
 
 `dd-harness serve` runs the conductor as a server of its own (#55). It serves the A2A endpoint at
 `/a2a` and the agent card at `/.well-known/agent-card.json`, and nothing else: no viewer, AG-UI,
 run index, test kit or Inspect AI. Other systems call it, such as an app, another Data Director
-instance, or a delegation agent calling back under its grant (ADR-0012).
+instance, or a delegation agent calling back under its grant ([Orchestration](../docs/specs/orchestration.md)).
 
 ```sh
 pip install 'data-director-harness[serve]'   # uvicorn is an extra; in this workspace, uv sync installs it
@@ -85,10 +85,10 @@ dd-harness serve --host 127.0.0.1 --port 8000
   every request against the issuer's published keys (fetched through its discovery document and
   cached), and each invocation acts for the person the token names. A caller without a good token
   is refused with the problem type `…/problems/unauthenticated`, in the A2A task. A delegation
-  callback needs no token: its grant names whom it acts for (ADR-0012, ADR-0018).
-  - TODO(#17): answer such a caller with HTTP `401` and `WWW-Authenticate: Bearer` (ADR-0029), and
+  callback needs no token: its grant names whom it acts for ([Orchestration](../docs/specs/orchestration.md), [Policy and identity](../docs/specs/policy-and-identity.md)).
+  - TODO(#17): answer such a caller with HTTP `401` and `WWW-Authenticate: Bearer` ([Policy and identity](../docs/specs/policy-and-identity.md)), and
     decide whether an ID token is the right credential for a program at all (#17).
-- Without a provider, callers are not authenticated (ADR-0018, #17, #43). Every invocation acts
+- Without a provider, callers are not authenticated ([Policy and identity](../docs/specs/policy-and-identity.md), #17, #43). Every invocation acts
   for the configured principal, whoever sent it. **Do not expose such a server beyond a trusted
   network.**
   It prints a warning when bound to anything other than a loopback address.

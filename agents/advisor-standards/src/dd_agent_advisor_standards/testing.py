@@ -163,7 +163,8 @@ def request(agent_id: str, profile: DatasetProfile | None = None) -> InvocationR
 
 
 def cited_record(envelope: Envelope, item: Recommendation) -> dict[str, Any]:
-    """The evidence content a recommendation names through `grounded_on` (ADR-0015)."""
+    """The evidence content a recommendation names through `grounded_on`
+    (docs/specs/grounding.md)."""
     content = resolve(envelope.to_document(), item.grounded_on[0].model_dump())
     assert content is not None, f"no evidence content for {item.grounded_on[0].source_id}"
     return content

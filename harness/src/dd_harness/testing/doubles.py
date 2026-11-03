@@ -1,9 +1,9 @@
 """Scripted doubles: agents whose behaviour a test sets.
 
-`AbstainingStub` abstains unconditionally under the fixed id `stub.abstain`, which the test
-profiles name, so a test can exercise the gate, the store and the non-success path without
-scripting anything. `DocumentStub`, under `stub.document`, drafts a placeholder project document
-of whichever kind it is asked for (ADR-0035). `ScriptedAgent` is a generic double whose
+`AbstainingStub` abstains unconditionally under the fixed id `stub.abstain`, which the test profiles
+name, so a test can exercise the gate, the store and the non-success path without scripting
+anything. `DocumentStub`, under `stub.document`, drafts a placeholder project document of whichever
+kind it is asked for (docs/specs/projects.md). `ScriptedAgent` is a generic double whose
 specification and behaviour are set per test. It emits the spans a test asks for, then returns (or
 raises) what it was given, so harness and linter behaviour can be pinned for each grounding mode
 without a retrieval backend or a model. Nothing here knows about any real agent.
@@ -153,7 +153,7 @@ class ScriptedAgent:
 
 class AbstainingStub:
     """Abstains unconditionally with `capability_not_implemented`. It accepts the core's
-    `Message` (ADR-0019) and declares grounding mode `none`."""
+    `Message` (docs/specs/contract.md) and declares grounding mode `none`."""
 
     spec = AgentSpec(
         agent_id="stub.abstain",

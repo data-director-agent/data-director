@@ -1,6 +1,6 @@
-"""The model key stays in the process that calls the model (ADR-0026, #43): a run of the
-Anthropic explainer, replayed from a cassette, leaves the key in no envelope, span, RO-Crate or
-manifest."""
+"""The model key stays in the process that calls the model (docs/specs/policy-and-identity.md, #43):
+a run of the Anthropic explainer, replayed from a cassette, leaves the key in no envelope, span,
+RO-Crate or manifest."""
 
 from __future__ import annotations
 

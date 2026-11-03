@@ -1,4 +1,4 @@
-"""The input and payload classes of example.hello, as Pydantic models (ADR-0019).
+"""The input and payload classes of example.hello, as Pydantic models (docs/specs/contract.md).
 
 `schema/hello.yaml` is the source; these models are how the agent builds and reads documents of
 its classes. `ClassSchema.of` compares each model with the schema generated from the source, so

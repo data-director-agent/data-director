@@ -7,7 +7,7 @@ import { payloadView } from "./payload.js";
 import { inputForm } from "./inputform.js";
 
 // A payload renders from the class schema it was checked against: the envelope names its digest
-// and the run store keeps it (ADR-0019), so a new payload class renders as soon as its agent is
+// and the run store keeps it (docs/specs/contract.md), so a new payload class renders as soon as its agent is
 // registered, and a stored run still renders after its agent's card has changed. A run stored
 // before digests were recorded has none and is shown as JSON.
 let current = null;
@@ -40,8 +40,8 @@ const FACT_ICONS = { delegations: "git-branch", parent_invocation_id: "corner-do
 function fact(key, value, helpKeys = key) {
   return el("div", {}, el("dt", {}, FACT_ICONS[key] ? icon(FACT_ICONS[key]) : null, key, help(helpKeys)), el("dd", {}, value));
 }
-// Whom the run acted for (ADR-0018): the name, the identifier (a link if it is a web address), and
-// how the workbench came to know it. Runs stored before ADR-0018 name no one and show no fact.
+// Whom the run acted for (docs/specs/policy-and-identity.md): the name, the identifier (a link if it is a web address), and
+// how the workbench came to know it. Runs stored before docs/specs/policy-and-identity.md name no one and show no fact.
 function actingFor(p) {
   const id = /^https?:/.test(p.principal_id)
     ? el("a", { href: p.principal_id, target: "_blank", rel: "noopener", textContent: p.principal_id })

@@ -1,4 +1,5 @@
-"""The input and payload classes of advisor.documentation, as Pydantic models (ADR-0019).
+"""The input and payload classes of advisor.documentation, as Pydantic models
+(docs/specs/contract.md).
 
 `schema/documentation.yaml` is the source; `ClassSchema.of` compares each model with the schema
 generated from it.

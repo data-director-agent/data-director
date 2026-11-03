@@ -1,6 +1,6 @@
 """The `workbench` CLI: a missing or malformed configuration file is one line, not a traceback;
 `agents` lists the registry; `verify` re-runs the source check; and nothing runs without a
-principal (ADR-0018)."""
+principal (docs/specs/policy-and-identity.md)."""
 
 from __future__ import annotations
 
@@ -140,7 +140,7 @@ def test_verify_exits_non_zero_on_a_violation(tmp_path: Path, capsys: Any) -> No
     assert "S2:" in capsys.readouterr().out
 
 
-# --- Whom an invocation acts for (ADR-0018) ---------------------------------------------------
+# --- Whom an invocation acts for (docs/specs/policy-and-identity.md) ------------------------------
 
 
 @pytest.fixture

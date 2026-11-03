@@ -1,4 +1,4 @@
-"""advisor.linking through the conductor: the Linking Adviser mock (ADR-0033)."""
+"""advisor.linking through the conductor: the Linking Adviser mock (docs/specs/agents.md)."""
 
 from __future__ import annotations
 

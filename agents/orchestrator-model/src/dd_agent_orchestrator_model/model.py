@@ -1,16 +1,18 @@
-"""The orchestrator's one way to the model, and its only importer of `anthropic` (ADR-0006).
+"""The orchestrator's one way to the model, and its only importer of `anthropic`
+(docs/specs/dependencies.md).
 
 `Model.turn` sends the conversation so far, with the tools the run built from the manifest, and
 returns one `ModelTurn`: the text, the tool calls, why the model stopped, and the assistant
 content to append unchanged before the next turn (thinking blocks included, which the API
 requires back as they were sent). The orchestrator's loop knows nothing else about the API.
 
-The request offers the model only the delegation tools it is given. It carries no MCP server,
-server tool or Skills container (ADR-0012 decision 15, `tests/test_orchestrator_only_delegates.py`).
+The request offers the model only the delegation tools it is given. It carries no MCP server, server
+tool or Skills container (docs/specs/orchestration.md, `tests/test_orchestrator_only_delegates.py`).
 
-The key is passed in explicitly, so the SDK's own credential chain is never searched (ADR-0026).
-Refusals fall back server-side (`fallbacks: "default"`), which routes a declined request to
-another model by the refusal's category; a refusal that survives the fallback is a `ModelError`.
+The key is passed in explicitly, so the SDK's own credential chain is never searched
+(docs/specs/policy-and-identity.md). Refusals fall back server-side (`fallbacks: "default"`), which
+routes a declined request to another model by the refusal's category; a refusal that survives the
+fallback is a `ModelError`.
 """
 
 from __future__ import annotations

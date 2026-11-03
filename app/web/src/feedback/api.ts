@@ -1,6 +1,6 @@
 /**
  * The build's identity and the problem report endpoint, behind one interface so tests can stand
- * in for the server (ADR-0030).
+ * in for the server (docs/specs/app.md).
  *
  * A refused report (a 400) carries Problem Details like a refused run; a 429 or 502 is shown to
  * the reporter in the server's words.

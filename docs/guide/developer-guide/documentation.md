@@ -13,8 +13,8 @@ The guides are in `docs/guide/`. Every other document stays where it is kept, ne
 describes, and `docs/hooks.py` publishes it from there without a copy:
 
 - In the `nav` of `mkdocs.yml`, a path that starts with `/` is a file from the repository root,
-  such as `/harness/README.md`. A glob, such as `/docs/adr/*.md`, takes every match that the
-  nav does not name elsewhere, so a new decision record appears without a change to the nav.
+  such as `/harness/README.md`. A glob, such as `/docs/specs/*.md`, takes every match that the
+  nav does not name elsewhere, so a new specification appears without a change to the nav.
 - Write links as they work on GitHub, relative to the file. A link to another published
   document goes to its page; a link to anything else, such as `docs/requirements.yaml`, goes to
   the file on GitHub.

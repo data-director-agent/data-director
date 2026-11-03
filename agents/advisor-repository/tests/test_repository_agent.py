@@ -190,7 +190,7 @@ def test_shortlist_is_grounded_and_every_fact_is_evidence(runs_dir: Path) -> Non
     assert all(c.basis == CandidateBasis.RECOMMENDED and c.rationale for c in options.candidates)
     evidenced = {(e.source_id, e.content_hash) for e in env.evidence}
     for ev in env.evidence:
-        # What the reader is shown is what the hash covers (E1, ADR-0015).
+        # What the reader is shown is what the hash covers (E1, docs/specs/grounding.md).
         assert ev.content is not None and verify(ev.content, ev.canonicalisation, ev.content_hash)
     for c in options.candidates:
         assert {(g.source_id, g.content_hash) for g in c.grounded_on} <= evidenced

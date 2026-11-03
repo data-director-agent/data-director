@@ -43,7 +43,7 @@ search; without one it searches its bundled snapshot). Without a key, the app co
 rule-based agent, and everything else works. `setup` writes each answer to the file it belongs in,
 so you never edit a settings file by hand: your name in `config/local/app.env`, and the key only in
 the credential file of the agent that uses it (`config/local/credentials/`), never in a file every agent
-reads (ADR-0026). Run `setup` again at any time to change an answer; Enter keeps the value shown.
+reads ([Policy and identity](docs/specs/policy-and-identity.md)). Run `setup` again at any time to change an answer; Enter keeps the value shown.
 
 `start` opens nothing itself: open <http://localhost:5173>, which reloads as you edit the shell,
 or <http://127.0.0.1:7860>, the app serving its built shell (`start --no-web` starts only that).
@@ -171,7 +171,7 @@ This is a community-driven, open-source project. See:
 - [Contribution guide](CONTRIBUTING.md) — this repository's structure and tooling; the organisation-wide [contribution guide](https://github.com/data-director-agent/.github/blob/main/CONTRIBUTING.md) covers RFCs, sign-off and pull requests
 - [AI usage statement](https://github.com/data-director-agent/.github/blob/main/AI_USAGE.md) — how generative AI is used to develop the project, and how that use is attributed and checked
 - [Code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md) — expected standards of behaviour
-- [App](app/) — the Data Director itself (alpha): a browser shell drawn from each agent's manifest (ADR-0024)
+- [App](app/) — the Data Director itself (alpha): a browser shell drawn from each agent's manifest ([The app](docs/specs/app.md))
 - [Harness](harness/) — the governance every agent invocation goes through: the policy gate, input check, grounding linter, source check, run store and provenance
 - [Workbench](workbench/) — development environment for building and testing sub-agents: the invocation contract (LinkML), a standards advisor over FAIRsharing, an abstaining stub, and a read-only viewer
-- [Decision records](docs/adr/) — the architecture decisions that govern every package, with the requirements register and the generated [`CONFORMANCE.md`](CONFORMANCE.md)
+- [specifications](docs/specs/README.md) — how each part of Data Director is meant to work, for every package, with the requirements register and the generated [`CONFORMANCE.md`](CONFORMANCE.md)

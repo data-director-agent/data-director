@@ -40,7 +40,7 @@ TODO(#260): define the criteria for 1.0.
 Inside the workspace, uv resolves `data-director-sdk` and the other members to their own
 directories and ignores any version. A built wheel keeps the requirement as written, so each
 member names a lower bound for every member it needs at run time (`data-director-sdk>=0.2.0a0`);
-`scripts/check_boundaries.py` rejects one without a version (ADR-0031).
+`scripts/check_boundaries.py` rejects one without a version ([System and boundaries](docs/specs/system.md)).
 
 - The lower bound is the oldest release the package works with. Raise it in the same pull request
   as a change that uses something newer. A release does not move it.

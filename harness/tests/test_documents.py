@@ -1,5 +1,5 @@
 """The document double drafts one project document of each kind through the conductor
-(ADR-0035), and each passes the input check, the gate and the grounding linter."""
+(docs/specs/projects.md), and each passes the input check, the gate and the grounding linter."""
 
 from __future__ import annotations
 

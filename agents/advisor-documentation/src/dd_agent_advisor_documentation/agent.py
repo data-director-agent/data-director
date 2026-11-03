@@ -1,4 +1,4 @@
-"""advisor.documentation: the Documentation Editor persona (ADR-0033). A mock.
+"""advisor.documentation: the Documentation Editor persona (docs/specs/agents.md). A mock.
 
 Serves `setup.documentation` and `preparation.documentation` (R5). It drafts a README outline and a
 data dictionary from what the researcher gave: what can be inferred from the input, such as the

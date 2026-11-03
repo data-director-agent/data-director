@@ -2,7 +2,7 @@
    "$comment": "Generated from doubles.yaml by `uv run dd-gen-schema <path to doubles.yaml>`. Do not edit.",
    "$defs": {
       "DocumentKind": {
-         "description": "What a project document is for (ADR-0035).",
+         "description": "What a project document is for (docs/specs/projects.md).",
          "enum": [
             "metadata_record",
             "readme",
@@ -17,7 +17,7 @@
    "$id": "https://w3id.org/data-director/harness/doubles/ProbeDocumentRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "Which kind of project document the document double drafts. It returns the core's Document (ADR-0035).",
+   "description": "Which kind of project document the document double drafts. It returns the core's Document (docs/specs/projects.md).",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",

@@ -1,4 +1,4 @@
-"""The input and payload classes of advisor.policy, as Pydantic models (ADR-0019).
+"""The input and payload classes of advisor.policy, as Pydantic models (docs/specs/contract.md).
 
 `schema/policy.yaml` is the source; `ClassSchema.of` compares each model with the schema
 generated from it.
@@ -57,7 +57,8 @@ class Obligation(Frozen):
 
 
 class MatchedPolicy(Grounded):
-    """Names its policy only in `grounded_on`; the record is in evidence (ADR-0015)."""
+    """Names its policy only in `grounded_on`; the record is in evidence
+    (docs/specs/grounding.md)."""
 
     actor: str
     role: ActorRole

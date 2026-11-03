@@ -3,7 +3,7 @@
 [![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=sdk)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=sdk)
 
 What an agent and the harness share. The harness calls each agent over A2A
-([ADR-0011](../docs/adr/0011-remote-agents.md)), so they share no code except this
+([Agents](../docs/specs/agents.md)), so they share no code except this
 package.
 
 | Module | What it holds |
@@ -12,17 +12,17 @@ package.
 | `dd_sdk/schema/` | The core contract's LinkML source (`data_director.yaml`), what is generated from it, and `dd-gen-schema` (`gen.py`). |
 | `dd_sdk.contract.classes` | `ClassSchema`: an input or payload class carried as JSON Schema, pinned by digest. |
 | `dd_sdk.contract.version` | The contract version and the compatibility rule. |
-| `dd_sdk.evidence` | The registered evidence canonicalisations and hashes (ADR-0009). |
-| `dd_sdk.tracing` | The span helpers and owned `dd.*` attributes the grounding linter reads (ADR-0002). |
+| `dd_sdk.evidence` | The registered evidence canonicalisations and hashes ([Evidence and grounding](../docs/specs/grounding.md)). |
+| `dd_sdk.tracing` | The span helpers and owned `dd.*` attributes the grounding linter reads ([Transport and tracing](../docs/specs/transport.md)). |
 | `dd_sdk.agent` | `AgentSpec` (with the `models` it sends data to), `AgentResult`, `RunContext`, the `Agent` protocol, and `describe`. |
 | `dd_sdk.wire` | How a request, a result, its spans and a spec cross A2A. |
 | `dd_sdk.serve` | `app(agent)` and `main(build)`: serve one agent over A2A. |
-| `dd_sdk.credentials` | `api_key(env)`: a model key, read once at start-up, and `ConfigError` (ADR-0026). |
+| `dd_sdk.credentials` | `api_key(env)`: a model key, read once at start-up, and `ConfigError` ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 
 ## Contract
 
 The core contract is `src/dd_sdk/schema/data_director.yaml`
-([ADR-0019](../docs/adr/0019-core-contract-and-agent-owned-classes.md)). It holds what
+([Contract](../docs/specs/contract.md)). It holds what
 the harness governs every agent by:
 
 - the `InvocationRequest` and the `Envelope`;
@@ -35,7 +35,7 @@ the harness governs every agent by:
 payload, mixes in `Grounded`). Every other input and payload class belongs to the agent that
 reads or returns it, declared in the agent's own LinkML file, which imports this one as
 `data_director`. The agent's card carries each such class's JSON Schema, pinned by its digest,
-and the harness checks inputs and payloads against those. Changing the core is an ADR.
+and the harness checks inputs and payloads against those. Changing the core changes the [contract spec](../docs/specs/contract.md).
 
 The core's `version` is the **contract version**. Each card declares the one its agent was built
 against. The harness governs an agent whose version has the same major version and, while the

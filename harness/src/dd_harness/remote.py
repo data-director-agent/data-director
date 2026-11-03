@@ -1,15 +1,15 @@
-"""An agent that runs in another process, reached over A2A (ADR-0011).
+"""An agent that runs in another process, reached over A2A (docs/specs/agents.md).
 
 `RemoteAgent.call` sends the `InvocationRequest` with the conductor's `input_ref`, `input_hash`,
-`traceparent` and, for a delegation agent, its `DelegationGrant` (ADR-0012), waits for the task
-to finish, and returns `Received`: the agent's `AgentResult` and, beside it, the spans the agent
-recorded. The conductor imports those spans into its trace before linting. `RemoteAgent`
-deliberately has no `Agent.run`, so there is no way to take the result and leave the spans
-behind. Nothing here decides whether the result is acceptable; the conductor's input check,
+`traceparent` and, for a delegation agent, its `DelegationGrant` (docs/specs/orchestration.md),
+waits for the task to finish, and returns `Received`: the agent's `AgentResult` and, beside it, the
+spans the agent recorded. The conductor imports those spans into its trace before linting.
+`RemoteAgent` deliberately has no `Agent.run`, so there is no way to take the result and leave the
+spans behind. Nothing here decides whether the result is acceptable; the conductor's input check,
 payload check and grounding linter do.
 
 `from_url` reads the agent card and rebuilds the `AgentSpec` from the Data Director extension:
-the class schemas it carries, pinned by digest, and the contract version (ADR-0019).
+the class schemas it carries, pinned by digest, and the contract version (docs/specs/contract.md).
 
 Each call opens its own event loop (`asyncio.run`): the conductor is synchronous, and every
 transport already calls it from a worker thread. `client_factory` gives the httpx client for one
@@ -124,7 +124,7 @@ class RemoteAgent:
             META_INPUT_HASH: ctx.input_hash,
             META_TRACEPARENT: carrier.get(META_TRACEPARENT, ""),
         }
-        if grant is not None:  # a delegation agent's callback (ADR-0012)
+        if grant is not None:  # a delegation agent's callback (docs/specs/orchestration.md)
             metadata |= grant.metadata()
         try:
             body = asyncio.run(self._send(to_document(request), metadata))

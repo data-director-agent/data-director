@@ -1,14 +1,15 @@
-"""Agent registry (ADR-0011, superseding the entry-point discovery of ADR-0010).
+"""Agent registry (docs/specs/agents.md, superseding the entry-point discovery of
+docs/specs/agents.md).
 
 Agents run as their own services. The harness learns about them from a configuration file,
 `agents.yaml`, that lists each agent's base URL; it reads each agent card and rebuilds the
 `AgentSpec` from the card's Data Director extension (`dd_harness.remote`). The conductor, CLI,
 transports and viewer read the registry and never name an agent.
 
-An agent whose card cannot be read, or whose card does not describe an agent this contract
-admits, is recorded as unavailable with the reason, and the registry carries on: one agent being
-down does not stop the harness. An agent built against a contract version this harness cannot
-govern is recorded apart, as incompatible, with both versions (ADR-0019). The policy gate still
+An agent whose card cannot be read, or whose card does not describe an agent this contract admits,
+is recorded as unavailable with the reason, and the registry carries on: one agent being down does
+not stop the harness. An agent built against a contract version this harness cannot govern is
+recorded apart, as incompatible, with both versions (docs/specs/contract.md). The policy gate still
 decides, per profile, which registered agents may run. Registration is not permission.
 
 `from_agents` takes agent objects directly: `RemoteAgent`s, which tests bind to in-process ASGI

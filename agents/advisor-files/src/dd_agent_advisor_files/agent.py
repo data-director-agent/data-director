@@ -1,8 +1,8 @@
-"""advisor.files: the File Archivist persona (ADR-0033). A mock.
+"""advisor.files: the File Archivist persona (docs/specs/agents.md). A mock.
 
-Serves `preparation.files`. It takes a project's file inventory (ADR-0034) and reports the format
-each file is judged to be, and whether that format is open, so that a person can see which files
-may need converting before deposit. It never converts, renames or deletes a file.
+Serves `preparation.files`. It takes a project's file inventory (docs/specs/projects.md) and reports
+the format each file is judged to be, and whether that format is open, so that a person can see
+which files may need converting before deposit. It never converts, renames or deletes a file.
 
 The mock looks up the media type the inventory gives, which `dd-inventory` may have read from the
 file's content with fido, in `formats.yaml`; failing that, the file's last extension. It reads no

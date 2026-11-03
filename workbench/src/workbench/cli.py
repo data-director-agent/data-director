@@ -46,7 +46,8 @@ def _load_input(args: argparse.Namespace, registry: Registry) -> Any:
     sole accepted class. Anything else is a usage error listing what the agent accepts.
 
     Whether the document is a valid instance of its class is the conductor's input check, against
-    the class schema the agent's card carries (ADR-0019); a failure is an envelope, not an exit."""
+    the class schema the agent's card carries (docs/specs/contract.md); a failure is an envelope,
+    not an exit."""
     doc = json.loads(Path(args.input).read_text(encoding="utf-8"))
     agent = registry.get(args.agent)
     accepts = agent.spec.accepts_names() if agent else ()
@@ -95,7 +96,8 @@ def _settings(args: argparse.Namespace) -> Settings:
     variables if given. Whoever runs the CLI is the operator, so the profile is theirs to choose
     for name, reason in registry.incompatible.items():
         print(f"\n[{name}] incompatible: {reason}")
-    (ADR-0017), and so is the principal they assert (ADR-0018)."""
+    (docs/specs/policy-and-identity.md), and so is the principal they assert
+    (docs/specs/policy-and-identity.md)."""
     settings = settings_from_env()
     if args.profile:
         settings = replace(settings, profile=Path(args.profile))
@@ -212,8 +214,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         result: int = args.func(args)
-    # No principal (ADR-0018), a path the deployment must name (ADR-0022), or a profile, agent
-    # list or source list that is missing or malformed: nothing may run.
+    # No principal (docs/specs/policy-and-identity.md), a path the deployment must name
+    # (docs/specs/system.md), or a profile, agent list or source list that is missing or malformed:
+    # nothing may run.
     except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
         sys.exit(f"workbench: {exc}")
     return result

@@ -14,7 +14,7 @@
          ]
       },
       "Assurance": {
-         "description": "How the harness came to know the principal (ADR-0018, ADR-0029).",
+         "description": "How the harness came to know the principal (docs/specs/policy-and-identity.md).",
          "enum": [
             "asserted",
             "authenticated"
@@ -65,7 +65,7 @@
       },
       "Delegation": {
          "additionalProperties": false,
-         "description": "One child invocation an agent in grounding mode delegation made through the harness (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
+         "description": "One child invocation an agent in grounding mode delegation made through the harness (docs/specs/orchestration.md). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
          "properties": {
             "delegated_invocation_id": {
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -108,7 +108,7 @@
       },
       "Document": {
          "additionalProperties": false,
-         "description": "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (ADR-0035). The only payload class that becomes a project document.",
+         "description": "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -178,7 +178,7 @@
          "type": "object"
       },
       "DocumentKind": {
-         "description": "What a project document is for (ADR-0035).",
+         "description": "What a project document is for (docs/specs/projects.md).",
          "enum": [
             "metadata_record",
             "readme",
@@ -245,7 +245,7 @@
                "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
             },
             "policy_bundle_ref": {
-               "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017).",
+               "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (docs/specs/policy-and-identity.md).",
                "pattern": "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$",
                "type": "string"
             },
@@ -256,15 +256,15 @@
             },
             "acting_for": {
                "$ref": "#/$defs/Principal",
-               "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018)."
+               "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (docs/specs/policy-and-identity.md)."
             },
             "contract_version": {
-               "description": "The version of this core contract the conductor governed the invocation under (ADR-0019).",
+               "description": "The version of this core contract the conductor governed the invocation under (docs/specs/contract.md).",
                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
                "type": "string"
             },
             "input_schema": {
-               "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (ADR-0019).",
+               "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (docs/specs/contract.md).",
                "pattern": "^[0-9a-f]{64}$",
                "type": [
                   "string",
@@ -283,10 +283,10 @@
                      "type": "null"
                   }
                ],
-               "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (ADR-0019)."
+               "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (docs/specs/contract.md)."
             },
             "payload_schema": {
-               "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (ADR-0019).",
+               "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (docs/specs/contract.md).",
                "pattern": "^[0-9a-f]{64}$",
                "type": [
                   "string",
@@ -411,7 +411,7 @@
                      "type": "null"
                   }
                ],
-               "description": "The document the named canonicalisation turns into bytes, already projected, so that a reader or the linter (E1) can recompute content_hash from the envelope alone (ADR-0015). Where a payload cites this item from grounded_on, this is what the citation identifies."
+               "description": "The document the named canonicalisation turns into bytes, already projected, so that a reader or the linter (E1) can recompute content_hash from the envelope alone (docs/specs/grounding.md). Where a payload cites this item from grounded_on, this is what the citation identifies."
             }
          },
          "required": [
@@ -425,7 +425,7 @@
       },
       "FileInventory": {
          "additionalProperties": false,
-         "description": "The facts about a dataset's files that the project holds in place of the files (ADR-0034): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
+         "description": "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -503,7 +503,7 @@
          "type": "object"
       },
       "GroundingMode": {
-         "description": "The grounding contract an agent declares. The linter applies a rule set per mode (ADR-0008); an envelope always records which one applied.",
+         "description": "The grounding contract an agent declares. The linter applies a rule set per mode (docs/specs/grounding.md); an envelope always records which one applied.",
          "enum": [
             "retrieval",
             "input_only",
@@ -515,7 +515,7 @@
       },
       "GroundingRef": {
          "additionalProperties": false,
-         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
          "properties": {
             "source_id": {
                "type": "string"
@@ -533,7 +533,7 @@
          "type": "object"
       },
       "IdentificationMethod": {
-         "description": "How a file's format was identified, from strongest to weakest (ADR-0034).",
+         "description": "How a file's format was identified, from strongest to weakest (docs/specs/projects.md).",
          "enum": [
             "signature",
             "container",
@@ -545,7 +545,7 @@
       },
       "Input": {
          "additionalProperties": true,
-         "description": "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (ADR-0019).",
+         "description": "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (docs/specs/contract.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -619,7 +619,7 @@
       },
       "InvocationRequest": {
          "additionalProperties": false,
-         "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012).",
+         "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (docs/specs/orchestration.md).",
          "properties": {
             "invocation_id": {
                "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
@@ -662,7 +662,7 @@
             },
             "input": {
                "$ref": "#/$defs/Input",
-               "description": "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (ADR-0019)."
+               "description": "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (docs/specs/contract.md)."
             }
          },
          "required": [
@@ -708,7 +708,7 @@
          "type": "object"
       },
       "Obligation": {
-         "description": "Whether a requirement set's field or document stops a package (ADR-0038).",
+         "description": "Whether a requirement set's field or document stops a package (docs/specs/deposit.md).",
          "enum": [
             "required",
             "recommended"
@@ -766,7 +766,7 @@
       },
       "Payload": {
          "additionalProperties": true,
-         "description": "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (ADR-0019).",
+         "description": "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (docs/specs/contract.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -833,7 +833,7 @@
                }
             }
          ],
-         "description": "The human an invocation acted for (Blueprint \u00a75.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018).",
+         "description": "The human an invocation acted for (Blueprint \u00a75.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (docs/specs/policy-and-identity.md).",
          "properties": {
             "principal_id": {
                "description": "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5).",
@@ -854,7 +854,7 @@
                "description": "How the harness came to know the principal."
             },
             "vouched_by": {
-               "description": "The IRI of the identity provider's issuer that vouched for the principal, for example https://orcid.org, so that a reader can weigh the claim by who made it. Required when assurance is authenticated and absent when it is asserted (ADR-0029).",
+               "description": "The IRI of the identity provider's issuer that vouched for the principal, for example https://orcid.org, so that a reader can weigh the claim by who made it. Required when assurance is authenticated and absent when it is asserted (docs/specs/policy-and-identity.md).",
                "format": "uri",
                "pattern": "^[a-z][a-z0-9+.-]*:\\S+$",
                "type": [
@@ -1033,7 +1033,7 @@
       },
       "RequirementSet": {
          "additionalProperties": false,
-         "description": "What a deposit must or should have (ADR-0038). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents.",
+         "description": "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -1287,7 +1287,7 @@
          "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
       },
       "policy_bundle_ref": {
-         "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017).",
+         "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (docs/specs/policy-and-identity.md).",
          "pattern": "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$",
          "type": "string"
       },
@@ -1298,15 +1298,15 @@
       },
       "acting_for": {
          "$ref": "#/$defs/Principal",
-         "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018)."
+         "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (docs/specs/policy-and-identity.md)."
       },
       "contract_version": {
-         "description": "The version of this core contract the conductor governed the invocation under (ADR-0019).",
+         "description": "The version of this core contract the conductor governed the invocation under (docs/specs/contract.md).",
          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
          "type": "string"
       },
       "input_schema": {
-         "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (ADR-0019).",
+         "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (docs/specs/contract.md).",
          "pattern": "^[0-9a-f]{64}$",
          "type": [
             "string",
@@ -1325,10 +1325,10 @@
                "type": "null"
             }
          ],
-         "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (ADR-0019)."
+         "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (docs/specs/contract.md)."
       },
       "payload_schema": {
-         "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (ADR-0019).",
+         "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (docs/specs/contract.md).",
          "pattern": "^[0-9a-f]{64}$",
          "type": [
             "string",

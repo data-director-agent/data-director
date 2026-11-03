@@ -28,7 +28,7 @@ class Query:
 @dataclass(frozen=True)
 class SnapshotRef:
     """Which copy of the registry answered. It is the evidence's `snapshot_ref`, by which the
-    harness's source check finds its own copy (ADR-0016)."""
+    harness's source check finds its own copy (docs/specs/grounding.md)."""
 
     label: str
     stale: bool = False

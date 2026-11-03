@@ -1,4 +1,4 @@
-"""Model credentials, read once when an agent starts (ADR-0026).
+"""Model credentials, read once when an agent starts (docs/specs/policy-and-identity.md).
 
 Only the agent that calls a model holds its key. `api_key(env)` finds it in one of two places:
 `ANTHROPIC_API_KEY` in development, or `ANTHROPIC_API_KEY_FILE` in deployment. A relative file

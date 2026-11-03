@@ -1,6 +1,6 @@
 # advisor.documentation
 
-**Mock, alpha** (`0.1.0a1`): a placeholder for a persona of the agent roster (ADR-0033). It gives
+**Mock, alpha** (`0.1.0a1`): a placeholder for a persona of the agent roster ([Agents](../../docs/specs/agents.md)). It gives
 no real advice and is likely to change shape.
 
 The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5). It

@@ -15,7 +15,7 @@ and writes a `FileInventory`, a JSON document of the core contract, that gives f
 
 The inventory holds facts about the files and never their content. Research data are not
 uploaded to Data Director: the researcher adds the inventory to their project instead
-([ADR-0034](../docs/adr/0034-project-and-its-files.md)). The digests let the files deposited
+([Projects](../docs/specs/projects.md)). The digests let the files deposited
 later be shown to be the files described.
 
 ```console
@@ -27,7 +27,7 @@ followed, and both are counted in `inventory_limitations`. If fido cannot be loa
 guessed from file extensions and the inventory says so.
 
 The package does not depend on the contract or any other part of Data Director
-([ADR-0031](../docs/adr/0031-ecosystem-and-repository-boundaries.md) decision 7). Its tests check
+([System and boundaries](../docs/specs/system.md)). Its tests check
 what it writes against the contract's `FileInventory` schema.
 
 | Module | What it does |

@@ -22,7 +22,7 @@ import check_names as cn  # noqa: E402
         "refactor(harness)!: rename the run store",
         "docs: cite the community consultation that preceded the Blueprint",
         "feat(docs): GitHub Pages site",
-        "fix(sdk): ADR-0019 class names",
+        "fix(sdk): docs/specs/contract.md class names",
     ],
 )
 def test_good_titles(title: str) -> None:

@@ -29,7 +29,7 @@ Figure 3).
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: its re3data record, and the FAIRsharing database record that re3data
 cross-references, when there is one. What the reader is shown about the repository is the
-evidence `content` of those records (ADR-0015). The candidate adds:
+evidence `content` of those records ([Evidence and grounding](../../docs/specs/grounding.md)). The candidate adds:
 
 - three answers read from the records, each `yes`, `no` or `unstated`: `assigns_pids`,
   `commercial` and `fee_required`;
@@ -67,13 +67,13 @@ repository or makes a judgement:
   need no account. With `live`, the agent falls back to the snapshots, marked stale, when a route
   fails.
 - `DD_REPOSITORY_EXPLAINER`: `template` (the default) or `anthropic`, with `DD_MODEL_ID` and the
-  key as for the standards advisor (ADR-0026).
+  key as for the standards advisor ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Sources
 
 `data/re3data/` and `data/fairsharing/` hold the committed snapshots, one record per line in the
 form that is hashed. They are pinned in `workbench/sources.yaml` and `app/config/sources.yaml`, so
-the harness's source check verifies the evidence against them (ADR-0016). To rebuild them, run
+the harness's source check verifies the evidence against them ([Evidence and grounding](../../docs/specs/grounding.md)). To rebuild them, run
 `uv run python agents/advisor-repository/scripts/build_repository_snapshot.py`, then pin the new files. The
 re3data identifiers kept are listed in `data/re3data/ids.txt`.
 
@@ -93,4 +93,4 @@ Archive names FAIRsharing's record of the CEDA centre, which names a different r
 - The metadata standards each repository lists are in the evidence, but the chosen repository
   does not yet shape Phase 4. TODO(#321)
 - The FAIRsharing client is a copy of the standards advisor's, since an agent may not import
-  another (ADR-0031). TODO(#280)
+  another ([System and boundaries](../../docs/specs/system.md)). TODO(#280)

@@ -1,6 +1,6 @@
 /**
  * Who is signed in, in the banner: their name and a way to sign out, or on a development server
- * a badge saying that nobody is signed in and every run acts for the operator (ADR-0029). It is
+ * a badge saying that nobody is signed in and every run acts for the operator (docs/specs/policy-and-identity.md). It is
  * the same on every page.
  */
 

@@ -1,7 +1,7 @@
 # advisor.rights's whole rule table: a short fixed list of data licences, each with the values of
 # `reuse_wanted` it fits, and the access levels with the sentence saying when each applies. Access
 # levels are listed in the order the adviser offers them when the data are not sensitive. A mock's
-# table (ADR-0033): it leaves out most licences, and the real adviser replaces it with the SPDX
+# table (docs/specs/agents.md): it leaves out most licences, and the real adviser replaces it with the SPDX
 # licence list, funder mandates and the repository's own options, TODO(#359).
 licences:
   - spdx_id: CC0-1.0

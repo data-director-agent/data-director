@@ -1,4 +1,4 @@
-"""Who an invocation acts for (Blueprint §5.4, ADR-0018, ADR-0029).
+"""Who an invocation acts for (Blueprint §5.4, docs/specs/policy-and-identity.md).
 
 An agent must not operate anonymously: every invocation is made on behalf of a named human, and
 the envelope and the crate record who. The caller never says so. The authentication boundary
@@ -12,9 +12,10 @@ Two authenticators sit behind `Authenticator`:
   It serves callers with no request (the CLI, the evaluation) and development servers.
 - `BearerTokenAuthenticator` establishes a person from an OpenID Connect ID token the caller
   sends as `Authorization: Bearer`. `verify_id_token` checks the token's signature against the
-  issuer's published keys, then its issuer, audience, expiry and, where one was sent, its nonce,
-  and records `assurance: authenticated` with the issuer in `vouched_by` (ADR-0029). The app's
-  sign-in callback (#152) verifies with the same function.
+  issuer's published keys, then its issuer, audience, expiry and, where one was sent, its nonce, and
+  records `assurance: authenticated` with the issuer in `vouched_by`
+  (docs/specs/policy-and-identity.md). The app's sign-in callback (#152) verifies with the same
+  function.
 
 A caller whose credential is missing or bad is refused with `Unauthenticated`. It is never given
 the operator's principal. Nothing here keeps a token once it has been verified.
@@ -53,9 +54,9 @@ class IdentityError(Exception):
 
 
 class Unauthenticated(IdentityError):
-    """A caller's credential is missing, expired or not to be trusted. The caller is refused
-    (`401`, problem type `unauthenticated`), never given a default principal (ADR-0029). The
-    message never contains the credential."""
+    """A caller's credential is missing, expired or not to be trusted. The caller is refused (`401`,
+    problem type `unauthenticated`), never given a default principal
+    (docs/specs/policy-and-identity.md). The message never contains the credential."""
 
 
 class Authenticator(Protocol):
@@ -78,7 +79,7 @@ class OperatorAssertion:
 @dataclass(frozen=True)
 class OidcProvider:
     """An OpenID Connect provider as the deployment configures it: the issuer, and the client ID
-    its tokens are issued to. The code names no provider (ADR-0029)."""
+    its tokens are issued to. The code names no provider (docs/specs/policy-and-identity.md)."""
 
     issuer: str
     client_id: str
@@ -160,7 +161,8 @@ def verify_id_token(
     now: int | None = None,
 ) -> Principal:
     """The person an ID token names, once its signature, issuer, audience, times and (if `nonce`
-    is given) nonce are verified. Raises `Unauthenticated` otherwise (ADR-0029)."""
+    is given) nonce are verified. Raises `Unauthenticated` otherwise
+    (docs/specs/policy-and-identity.md)."""
     try:
         kid = jws.extract_compact(token.encode("ascii")).headers().get("kid")
         decoded = jwt.decode(token, keys.key_set(kid), algorithms=list(ALGORITHMS))
@@ -189,15 +191,16 @@ def verify_id_token(
 
 
 def principal_from_claims(issuer: str, claims: Mapping[str, Any]) -> Principal:
-    """The principal a verified token names. For ORCID the subject is the bare iD, so the
-    principal is the iD URL, `https://orcid.org/<sub>` (ADR-0029). TODO(#179): another provider's
-    principal is a `mailto:` IRI or a URN (#179); this form fits an issuer whose subjects are
-    paths under it, as ORCID's are."""
+    """The principal a verified token names. For ORCID the subject is the bare iD, so the principal
+    is the iD URL, `https://orcid.org/<sub>` (docs/specs/policy-and-identity.md). TODO(#179):
+    another provider's principal is a `mailto:` IRI or a URN (#179); this form fits an issuer whose
+    subjects are paths under it, as ORCID's are."""
     principal_id = f"{issuer.rstrip('/')}/{claims['sub']}"
     given = " ".join(
         str(claims[part]).strip() for part in ("given_name", "family_name") if claims.get(part)
     )
-    # A label for a reader, in ADR-0029's order. An iD holder may make their name private.
+    # A label for a reader, best first (docs/specs/policy-and-identity.md). An iD holder may make
+    # their name private.
     name = str(claims.get("name") or "").strip() or given.strip() or principal_id
     try:
         return Principal(

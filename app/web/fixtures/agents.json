@@ -137,7 +137,7 @@
           }
         },
         "Recommendations": {
-          "digest": "7b1bbd3ddcf6004b17b955641ed5bebb01cb35756ef4cae2fed19c74cb79c5cf",
+          "digest": "bf56d8a7aa85a00fbbbfafde0c56209521f10845d0aa63b6da06c21139b8d454",
           "json_schema": {
             "$comment": "Generated from standards.yaml by `uv run dd-gen-schema <path to standards.yaml>`. Do not edit.",
             "$defs": {
@@ -154,7 +154,7 @@
               },
               "GroundingRef": {
                 "additionalProperties": false,
-                "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+                "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
                 "properties": {
                   "content_hash": {
                     "pattern": "^[0-9a-f]{64}$",
@@ -173,7 +173,7 @@
               },
               "Recommendation": {
                 "additionalProperties": false,
-                "description": "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (ADR-0015).",
+                "description": "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (docs/specs/grounding.md).",
                 "properties": {
                   "classification_derivation": {
                     "anyOf": [
@@ -329,7 +329,7 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "1f2f86475a8dcbc44c6e823b0fdef556ba148030c670075261fd8474f57fa7b7",
+    "digest": "5b25f385c6de206bea6d4cc1e30c239e398fd8e282b2f186086049e9d3b864c9",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v7"
   },

@@ -1,4 +1,4 @@
-"""The input and payload classes of advisor.quality, as Pydantic models (ADR-0019).
+"""The input and payload classes of advisor.quality, as Pydantic models (docs/specs/contract.md).
 
 `schema/quality.yaml` is the source; `ClassSchema.of` compares each model with the schema
 generated from it.

@@ -6,10 +6,10 @@
   `data.attributes`, flat `subjects` and `countries`, `record_type`, and the record's relations
   to other records in `linked_records`.
 
-Both are projected to `PolicyRecord`. A record is stored in the snapshot exactly as it is
-hashed: the whole document, under `dd-json-document-v1` (ADR-0009). Lists are sorted when the
-record is made, so the hash does not depend on the order a route lists things in. Evidence
-`content` is the same document, so what the reader is shown is what the hash covers (ADR-0015).
+Both are projected to `PolicyRecord`. A record is stored in the snapshot exactly as it is hashed:
+the whole document, under `dd-json-document-v1` (docs/specs/grounding.md). Lists are sorted when the
+record is made, so the hash does not depend on the order a route lists things in. Evidence `content`
+is the same document, so what the reader is shown is what the hash covers (docs/specs/grounding.md).
 """
 
 from __future__ import annotations

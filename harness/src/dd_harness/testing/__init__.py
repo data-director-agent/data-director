@@ -10,9 +10,10 @@ Import everything from here; the modules are an internal arrangement:
 - `results`: results a scripted agent can return, and the sources they are grounded on.
 - `classes`: the doubles' own `Probe*` classes, declared in `../schema/doubles.yaml`.
 - `fixtures`: the test profiles (in `profiles/`), `TEST_PRINCIPAL` and inputs.
-- `identity`: `FakeIdentityProvider`, an OpenID Connect provider in memory (ADR-0029).
+- `identity`: `FakeIdentityProvider`, an OpenID Connect provider in memory
+  (docs/specs/policy-and-identity.md).
 
-Nothing here needs the workbench (ADR-0022) or knows about any real agent.
+Nothing here needs the workbench (docs/specs/system.md) or knows about any real agent.
 """
 
 from dd_harness.testing.classes import (

@@ -1,4 +1,4 @@
-"""advisor.ethics: the Research Ethics Adviser persona (ADR-0033). A mock.
+"""advisor.ethics: the Research Ethics Adviser persona (docs/specs/agents.md). A mock.
 
 Serves `governance.sensitive-data-identify` and `governance.embargo`. It flags fields whose names
 suggest sensitive data and asks the questions a person must answer before sharing. It never

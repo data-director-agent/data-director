@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
-# Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (ADR-0019).
+# Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (docs/specs/contract.md).
 dd-gen-schema = "dd_sdk.schema.gen:main"
 
 [tool.hatch.build.targets.wheel]

@@ -1,4 +1,5 @@
-"""The inventory command describes a dataset's files without their content (ADR-0034)."""
+"""The inventory command describes a dataset's files without their content
+(docs/specs/projects.md)."""
 
 from __future__ import annotations
 

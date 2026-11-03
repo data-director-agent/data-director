@@ -28,7 +28,7 @@ export function groupedAgents() {
   };
 }
 
-// The schema of class `cls` as agent `id`'s card carries it, or null (ADR-0019).
+// The schema of class `cls` as agent `id`'s card carries it, or null (docs/specs/contract.md).
 export function classSchema(id, cls) {
   return agents[id]?.schemas?.[cls]?.json_schema || null;
 }
