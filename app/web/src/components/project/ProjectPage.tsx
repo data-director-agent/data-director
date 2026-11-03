@@ -4,7 +4,7 @@
  *
  * The page draws what the server reads back from the project log, and nothing it inferred: after
  * a decision it shows the state the server answered with, and after a refusal it reads the
- * project again. What a decision did is said once, in the page's live region, which is in the
+ * project again, keeping what it showed if that read fails. What a decision did is said once, in the page's live region, which is in the
  * page from the start so that a screen reader announces each change to it.
  */
 
@@ -47,6 +47,21 @@ export function ProjectPage({ projectId }: { projectId: string }) {
     return () => controller.abort();
   }, [read]);
 
+  // After a refusal: the documents already shown stay if the project cannot be read again, so
+  // that the person still sees why their decision was refused. Answers what went wrong, if
+  // anything.
+  const refresh = useCallback(
+    () =>
+      api.documents(projectId).then(
+        (value) => {
+          setLoad({ state: "loaded", value });
+          return null;
+        },
+        (error: unknown) => message(error),
+      ),
+    [api, projectId],
+  );
+
   const decided = useCallback((value: ProjectDocuments, said: string) => {
     setLoad({ state: "loaded", value });
     setAnnouncement(said);
@@ -77,7 +92,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
         document={document}
         rules={review}
         onDecided={decided}
-        onStale={() => read()}
+        onStale={refresh}
       />
     ));
   };

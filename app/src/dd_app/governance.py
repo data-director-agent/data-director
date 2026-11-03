@@ -24,7 +24,7 @@ from dd_harness import conversations
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.projects import ProjectStore
-from dd_harness.settings import Settings, build_conductor, projects_dir
+from dd_harness.settings import Settings, SettingsError, build_conductor, projects_dir
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
     Envelope,
@@ -101,7 +101,14 @@ class Governance:
             authenticator = OperatorAssertion(settings.principal())
         conductor = build_conductor(settings)
         conductor.harness_url = settings.harness_url or base_url
-        projects = ProjectStore(projects_dir(DEFAULT_PROJECTS_DIR))
+        root = projects_dir(DEFAULT_PROJECTS_DIR)
+        try:
+            projects = ProjectStore(root)
+        except OSError as exc:
+            # One line at start-up, like any other setting that is wrong.
+            raise SettingsError(
+                f"DD_PROJECTS_DIR {root} cannot be used: {exc.strerror or exc}"
+            ) from exc
         return cls(conductor, authenticator, projects)
 
     async def invoke(self, request: InvocationRequest, acting_for: Principal) -> Envelope:

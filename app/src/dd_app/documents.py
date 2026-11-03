@@ -20,8 +20,10 @@ from dd_harness.projects import (
     Verdict,
     review_rules,
 )
+from dd_sdk.contract.models import UUID7_PATTERN
 
 DIGEST = re.compile(r"[0-9a-f]{64}")
+DOCUMENT_ID = re.compile(UUID7_PATTERN)
 # What a decision request may give; anything else, such as a decider, is refused.
 DECISION_FIELDS = frozenset({"version", "digest", "decision", "reason", "edited_text"})
 
@@ -44,6 +46,8 @@ def parse_decision(document_id: str, body: object) -> Decision:
     """The decision a `POST …/documents/{document_id}/decisions` body states. Raises
     `DecisionRequestError` for a body of the wrong shape; whether the decision itself may be
     made, such as whether it needs a reason, is the store's to say."""
+    if not DOCUMENT_ID.fullmatch(document_id):
+        raise DecisionRequestError("A document is named by its identifier, a UUIDv7.")
     if not isinstance(body, dict):
         raise DecisionRequestError("The body must be an object.")
     if extra := sorted(set(body) - DECISION_FIELDS):

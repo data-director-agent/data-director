@@ -192,6 +192,19 @@ def test_an_unknown_project_or_document_is_not_found(
     assert response.json()["type"].endswith("/document-not-found")
 
 
+def test_a_document_named_by_anything_but_its_identifier_records_nothing(
+    client: TestClient, store: ProjectStore, tmp_path: Path
+) -> None:
+    # Otherwise anyone signed in could grow a project's log with names of their choosing.
+    project_id = drafted(store, tmp_path, DocumentKind.README)
+    version = {**store.documents(project_id)[0]["versions"][0], "document_id": "x" * 5000}
+    before = store.events(project_id)
+    response = decide(client, project_id, version, decision="approved")
+    assert response.status_code == 400
+    assert "UUIDv7" in response.json()["detail"]
+    assert store.events(project_id) == before
+
+
 def test_the_project_page_is_served_by_the_shell(client: TestClient) -> None:
     response = client.get("/projects/01900000-0000-7000-8000-000000000001")
     assert response.status_code == 200

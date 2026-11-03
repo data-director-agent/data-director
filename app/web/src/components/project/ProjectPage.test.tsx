@@ -167,4 +167,47 @@ describe("ProjectPage", () => {
     expect(alert).toHaveFocus();
     expect(documents).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps the documents and says why when the project cannot be read again", async () => {
+    let reads = 0;
+    const documents = vi.fn(() =>
+      reads++ === 0 ? Promise.resolve(PROJECT) : Promise.reject(new Error("The network is down.")),
+    );
+    const conflict = new DecisionConflict({
+      type: "https://w3id.org/data-director/problems/version-not-latest",
+      title: "The document has moved on",
+      detail: "Version 1 is not the latest: version 2 is.",
+    });
+    const user = userEvent.setup();
+    renderPage(fakeApi({ documents, decide: () => Promise.reject(conflict) }));
+    const article = await readme();
+    await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+    const alert = await within(article).findByRole("alert");
+    expect(alert).toHaveTextContent("Version 1 is not the latest: version 2 is.");
+    expect(alert).toHaveTextContent("could not read the latest version: The network is down.");
+    expect(alert).toHaveFocus();
+    expect(screen.getByRole("article", { name: "Data dictionary" })).toBeVisible();
+  });
+
+  it("gives an edit of a CRLF document its CRLF line endings back", async () => {
+    const text = "# Soil\r\n\r\nCores.\r\n";
+    const crlf = {
+      ...PROJECT,
+      documents: [{ ...README, versions: [{ ...DRAFT, text, digest: digestOf(text) }] }, DICTIONARY],
+    };
+    const decide = vi.fn<ProjectApi["decide"]>(() => Promise.resolve(decided("approved")));
+    const user = userEvent.setup();
+    renderPage(fakeApi({ documents: () => Promise.resolve(crlf), decide }));
+    const article = await readme();
+    await user.click(within(article).getByLabelText("Edit it, then approve my version"));
+    const edited = within(article).getByLabelText("Your version of the text");
+    await user.clear(edited);
+    await user.type(edited, "# Soil cores{Enter}{Enter}Cores.{Enter}");
+    await user.type(within(article).getByLabelText("Reason (required)"), "Named it.");
+    await user.click(within(article).getByRole("button", { name: "Approve my edited version" }));
+    expect(decide.mock.lastCall?.[2]).toMatchObject({
+      digest: digestOf(text),
+      edited_text: "# Soil cores\r\n\r\nCores.\r\n",
+    });
+  });
 });

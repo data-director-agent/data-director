@@ -70,6 +70,7 @@ DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"
 DOCUMENT_CHANGE_REFUSED = "document_change_refused"
 PROJECT_ID = re.compile(UUID7_PATTERN)
+DIGEST = re.compile(r"[0-9a-f]{64}")
 
 # A version's state (docs/specs/projects.md, invariant 11); a decision gives one of the last two.
 PROPOSED: Final = "proposed"
@@ -149,6 +150,7 @@ class Decision:
 
     def check(self) -> None:
         """Raises `ProjectError` for a decision malformed in itself, which records nothing."""
+        _check_names(self.document_id, self.digest)
         if self.verdict not in (APPROVED, REJECTED):
             raise ProjectError(f"a decision is {APPROVED!r} or {REJECTED!r}, not {self.verdict!r}")
         edited = self.edited_text is not None
@@ -161,14 +163,31 @@ class Decision:
             raise ProjectError(f"a reason is at most {REASON_MAX_LENGTH} characters")
 
 
+def _check_names(document_id: str, digest: str) -> None:
+    """Raises `ProjectError` for a change that names no well-formed document or digest. Such a
+    change is malformed in itself, so it records nothing, not even a refusal."""
+    if not PROJECT_ID.fullmatch(document_id):
+        raise ProjectError("a document is named by its UUIDv7")
+    if not DIGEST.fullmatch(digest):
+        raise ProjectError("a digest is a SHA-256 in lower-case hex")
+
+
 class ProjectStore:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)
-        # Events of one project go in whole and in order, never interleaved. A change checked
-        # against the log holds the lock from reading the log until its events are written.
-        self._lock = threading.RLock()
+        # Events of one project go in whole and in order, never interleaved, and a reader never
+        # sees half of one. Each project has its own lock, so projects do not wait on each other.
+        # A change checked against the log holds it from reading the log until its events are
+        # written.
+        self._locks: dict[str, threading.RLock] = {}
+        self._locks_guard = threading.Lock()
         self._inventory_schema = ClassSchema.of(FileInventory)
+
+    def _lock(self, project_id: str) -> threading.RLock:
+        """The lock that serialises reads and writes of one project's log."""
+        with self._locks_guard:
+            return self._locks.setdefault(project_id, threading.RLock())
 
     def create(self, *, acted_for: Principal, caused_by: str) -> str:
         """A new project, and its `project_created` event. Returns its `project_id` (UUIDv7)."""
@@ -253,7 +272,7 @@ class ProjectStore:
         if payload is None or payload.model_dump().get("schema_class") != "Document":
             raise ProjectError(f"run {envelope.invocation_id} returned no Document")
         document = envelope.payload_as(Document)
-        with self._lock:
+        with self._lock(project_id):
             documents = self._documents(project_id)
             if document.revises is None:
                 document_id, version = new_invocation_id(), 1
@@ -262,6 +281,11 @@ class ProjectStore:
                 if revised is None or document.revises.version > len(revised["versions"]):
                     raise ProjectError(
                         f"run {envelope.invocation_id} revises no version of this project"
+                    )
+                if document.document_kind.value != revised["document_kind"]:
+                    raise ProjectError(
+                        f"run {envelope.invocation_id} revises a {revised['document_kind']} "
+                        f"with a {document.document_kind.value}"
                     )
                 document_id, version = revised["document_id"], len(revised["versions"]) + 1
             detail = self._version(
@@ -309,8 +333,10 @@ class ProjectStore:
         the digest of the text they edited (docs/specs/projects.md, invariant 12).
 
         Raises `ChangeRefusedError`, and records the refusal, if the version is not the latest or
-        the digest is not its; `ProjectError` if the text is unchanged."""
-        with self._lock:
+        the digest is not its; `ProjectError`, which records nothing, if the text is unchanged
+        or the document or digest is malformed."""
+        _check_names(document_id, digest)
+        with self._lock(project_id):
             parent = self._check_latest(
                 project_id, document_id, version, digest, acted_for, caused_by, deciding=False
             )
@@ -329,7 +355,7 @@ class ProjectStore:
         `ChangeRefusedError` for one on any text but the undecided latest, which records the
         refusal."""
         decision.check()
-        with self._lock:
+        with self._lock(project_id):
             decided = self._check_latest(
                 project_id,
                 decision.document_id,
@@ -373,7 +399,8 @@ class ProjectStore:
     def events(self, project_id: str) -> list[dict[str, Any]]:
         """Every event of the project, oldest first. Raises `ProjectError` for an unknown one."""
         self._require(project_id)
-        with self._events_path(project_id).open(encoding="utf-8") as fh:
+        # Under the project's lock, so that an append being written is never read in part.
+        with self._lock(project_id), self._events_path(project_id).open(encoding="utf-8") as fh:
             return [json.loads(line) for line in fh if line.strip()]
 
     def inventory(self, project_id: str) -> dict[str, Any] | None:
@@ -553,7 +580,8 @@ class ProjectStore:
         text = "".join(
             json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n" for event in events
         )
-        with self._lock, self._events_path(project_id).open("a", encoding="utf-8") as fh:
+        path = self._events_path(project_id)
+        with self._lock(project_id), path.open("a", encoding="utf-8") as fh:
             fh.write(text)
             fh.flush()
             os.fsync(fh.fileno())

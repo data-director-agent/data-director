@@ -142,6 +142,9 @@ def test_a_plain_approval_needs_no_reason_and_is_final(
         ),
         ({"verdict": APPROVED, "reason": "x" * (REASON_MAX_LENGTH + 1)}, "at most"),
         ({"verdict": "maybe"}, "not 'maybe'"),
+        # A name no document could have is malformed, so even its refusal is not recorded.
+        ({"verdict": APPROVED, "document_id": "x" * 10_000}, "UUIDv7"),
+        ({"verdict": APPROVED, "digest": "not-a-digest"}, "SHA-256"),
     ],
 )
 def test_a_malformed_decision_is_refused_and_records_nothing(
@@ -301,3 +304,29 @@ def test_a_regeneration_is_the_next_version_of_the_document_it_revises(
     )
     with pytest.raises(ProjectError, match="revises no version"):
         store.record_draft(project, elsewhere)
+
+
+def test_a_revision_of_another_kind_is_refused_and_records_nothing(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    first = store.record_draft(project, draft)
+    before = store.events(project)
+    payload = {
+        **draft.to_document()["payload"],
+        "document_kind": DocumentKind.DMP.value,
+        "revises": first.model_dump(mode="json"),
+    }
+    other_kind = Envelope.model_validate({**draft.to_document(), "payload": payload})
+    with pytest.raises(ProjectError, match="revises a readme with a dmp"):
+        store.record_draft(project, other_kind)
+    assert store.events(project) == before
+
+
+def test_a_malformed_edit_records_nothing(
+    store: ProjectStore, project: str, draft: Envelope
+) -> None:
+    store.record_draft(project, draft)
+    before = store.events(project)
+    with pytest.raises(ProjectError, match="UUIDv7"):
+        store.edit(project, "../x", 1, "0" * 64, "# New\n", acted_for=DECIDER, caused_by="t")
+    assert store.events(project) == before

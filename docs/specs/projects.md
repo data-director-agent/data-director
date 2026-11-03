@@ -44,8 +44,10 @@ intended design, and each part says where it is not built yet.
 2. **The log is append-only, and the harness is its only writer.** No event is changed or
    removed, including versions and decisions. The app reads the log and never writes it.
    Appends to one project's log are serialised and each event goes in whole and is flushed before
-   the call returns. Enforced in part by `harness/tests/test_projects.py`; the serialisation
-   holds within one harness process only (`ProjectStore._lock`).
+   the call returns; a read of the log never sees part of an append. Each project has its own
+   lock, so a change in one project never waits on another. Enforced in part by
+   `harness/tests/test_projects.py`; the serialisation holds within one harness process only
+   (`ProjectStore._lock`).
 3. **What the store refuses leaves no trace.** An inventory that fails the `FileInventory` class
    schema, or a call on an unknown project, records nothing and keeps no blob
    (`harness/tests/test_projects.py`).
@@ -78,8 +80,9 @@ intended design, and each part says where it is not built yet.
    calling it for each run in a project is not built yet, TODO(#394).
 10. **A document has its own identity; a version is `{document_id, version}`.** The conductor
     mints a `document_id` (UUIDv7) for a `Document` with no `revises`; versions are numbered from
-    1 within the document. A `revises` that names no version of the run's project is refused with
-    a Problem Details response and recorded. The store mints the identity, numbers the versions
+    1 within the document, and every version of a document is of the same `document_kind`. A
+    `revises` that names no version of the run's project, or a version of another kind, is
+    refused with a Problem Details response and recorded. The store mints the identity, numbers the versions
     and refuses such a `revises`; the conductor's Problem Details response and record of it are
     not built yet, TODO(#394).
 11. **A version's state is its own and final once decided.** Every version begins `proposed`; one

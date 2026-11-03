@@ -99,7 +99,8 @@ export function DocumentReview({
   document: ProjectDocument;
   rules: ReviewRules;
   onDecided: (value: ProjectDocuments, said: string) => void;
-  onStale: () => Promise<void>;
+  /** Reads the project again; answers why it could not, or null once it has. */
+  onStale: () => Promise<string | null>;
 }) {
   const latest = document.versions[document.versions.length - 1];
   const earlier = document.versions.slice(0, -1).reverse();
@@ -107,7 +108,7 @@ export function DocumentReview({
   const headingId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const alert = useRef<HTMLDivElement>(null);
-  const [stale, setStale] = useState<string | null>(null);
+  const [stale, setStale] = useState<{ detail: string; unread: string | null } | null>(null);
 
   useEffect(() => {
     if (stale) alert.current?.focus();
@@ -122,8 +123,8 @@ export function DocumentReview({
   };
 
   const refused = async (detail: string) => {
-    await onStale();
-    setStale(detail);
+    const unread = await onStale();
+    setStale({ detail, unread });
   };
 
   return (
@@ -150,10 +151,17 @@ export function DocumentReview({
       )}
       {stale && (
         <div role="alert" className="callout status-warn" ref={alert} tabIndex={-1}>
-          <p>
-            Your decision was not recorded: {stale} The latest version is shown below. Read it,
-            then decide again.
-          </p>
+          {stale.unread === null ? (
+            <p>
+              Your decision was not recorded: {stale.detail} The latest version is shown below.
+              Read it, then decide again.
+            </p>
+          ) : (
+            <p>
+              Your decision was not recorded: {stale.detail} Data Director could not read the
+              latest version: {stale.unread} Reload the page before you decide again.
+            </p>
+          )}
         </div>
       )}
       <h3>Text of version {latest.version}</h3>
@@ -201,6 +209,9 @@ function DecisionForm({
   onDecided: (value: ProjectDocuments, said: string) => void;
   onStale: (detail: string) => Promise<void>;
 }) {
+  // A textarea gives back its text with LF line endings whatever it was given, so a document
+  // stored with CRLF gets them back, and the person's version differs only where they edited it.
+  const lineEnding = version.text.includes("\r\n") ? "\r\n" : null;
   const api = useProjectApi();
   const id = useId();
   const [choice, setChoice] = useState<Choice>("approve");
@@ -247,7 +258,9 @@ function DecisionForm({
         digest: digestOf(version.text),
         decision: choice === "reject" ? "rejected" : "approved",
         ...(reason.trim() ? { reason } : {}),
-        ...(choice === "edit" ? { edited_text: edited } : {}),
+        ...(choice === "edit"
+          ? { edited_text: lineEnding ? edited.replace(/\r?\n/g, lineEnding) : edited }
+          : {}),
       };
       const value = await api.decide(projectId, version.document_id, request);
       const said = {
