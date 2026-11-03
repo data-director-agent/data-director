@@ -13,11 +13,12 @@ read them back as the harness derives them from the run store (docs/specs/orches
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (docs/specs/orchestration.md, #129).
 `GET /api/about` names the build (version and commit) and says whether reports can be filed;
-`POST /api/feedback` files a problem report or feature request as a GitHub issue (docs/specs/app.md).
-`GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through the configured
-OpenID Connect provider, `POST /api/sign-out` ends their session, and `GET /api/session` says who
-is signed in, until when, and whether this server signs anyone in (docs/specs/policy-and-identity.md, `dd_app.signin`);
-`POST /api/session` says the same and keeps the session going.
+`POST /api/feedback` files a problem report or feature request as a GitHub issue
+(docs/specs/app.md). `GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through
+the configured OpenID Connect provider, `POST /api/sign-out` ends their session, and
+`GET /api/session` says who is signed in, until when, and whether this server signs anyone in
+(docs/specs/policy-and-identity.md, `dd_app.signin`); `POST /api/session` says the same and keeps
+the session going.
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
 

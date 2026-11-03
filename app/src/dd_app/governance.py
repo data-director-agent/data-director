@@ -138,16 +138,16 @@ class Governance:
         gone; turns to different conversations run side by side.
 
         A turn names the turn it `follows` by that turn's `invocation_id`, or None for the first
-        (docs/specs/orchestration.md). One that does not follow the latest stored turn, or that arrives
-        while another turn of the conversation is still running, is refused with
+        (docs/specs/orchestration.md). One that does not follow the latest stored turn, or that
+        arrives while another turn of the conversation is still running, is refused with
         `TurnConflictError` before anything runs. So a message sent again after a dropped
         connection runs only if the first attempt never arrived (#337), and two windows cannot
         fork a conversation.
 
-        A turn goes only to the orchestrator the profile names (docs/specs/app.md); a turn to any other
-        agent, or under a profile that names none, is refused with `ValueError` before anything
-        runs. Raises `UnknownConversationError`, or what `Conductor.invoke` raises for a request
-        it refuses before running.
+        A turn goes only to the orchestrator the profile names (docs/specs/app.md); a turn to any
+        other agent, or under a profile that names none, is refused with `ValueError` before
+        anything runs. Raises `UnknownConversationError`, or what `Conductor.invoke` raises for a
+        request it refuses before running.
         """
         orchestrator = self.conductor.profile.orchestrator
         if orchestrator is None:
