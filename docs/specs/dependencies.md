@@ -58,7 +58,7 @@ modules are not dependencies here.
 | `frictionless` | `dd-inventory` | `dd_inventory.tables` | The researcher gives a table's fields by hand. |
 | `react`, `react-dom` | App shell | The shell's components | Preact with `preact/compat`. |
 | `react-aria-components` | App shell | The few widgets that need an ARIA pattern | The WAI-ARIA Authoring Practices patterns by hand, or Radix primitives. |
-| `react-markdown` | App shell | The one component that renders an agent's Markdown | Another sanitising Markdown renderer, or plain text. |
+| `react-markdown`, `remark-gfm` | App shell | `ui/Markdown`, the one component that renders Markdown: an agent's reply or a drafted document | Another sanitising Markdown renderer, or plain text with its line breaks kept. |
 | `lucide-react` | App shell | Icons | Inline SVG. |
 | `@fontsource-variable/inter` | App shell | The stylesheet's font stack | The system font stack. |
 
