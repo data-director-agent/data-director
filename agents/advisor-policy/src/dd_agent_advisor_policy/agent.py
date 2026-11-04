@@ -142,7 +142,8 @@ class PolicyAgent:
             return _abstain(
                 ReasonCode.NO_CANDIDATES_RETRIEVED,
                 f"FAIRsharing ({where}) has no policy record for {', '.join(no_record)}. "
-                "Many institutions have none; check the policies directly.",
+                "Many institutions have none; check the policies directly, including whether "
+                "they require a particular repository.",
             )
 
         items = [
@@ -200,9 +201,16 @@ class PolicyAgent:
             statement += " Repositories required: " + ", ".join(r.name for r in mandated.values())
             statement += "."
         else:
-            statement += " No matched record names a required repository."
+            statement += (
+                " No matched record names a required repository. FAIRsharing's policy records do "
+                "not say which repositories a policy requires, so this is not evidence that none "
+                "is required: check each policy's own text before choosing a repository."
+            )
         if no_record:
-            statement += f" No policy record for: {', '.join(no_record)}."
+            statement += (
+                f" No policy record for: {', '.join(no_record)}; what they require, including "
+                "any required repository, was not checked."
+            )
         statement += " Human review is required."
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),

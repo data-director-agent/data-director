@@ -24,7 +24,8 @@ researcher chooses the repository (#199); the agent never does.
 `RepositoryNeeds` has the themes and kinds of data, the access decided in Phase 2 (`open`,
 `embargoed` or `restricted`), any mandated repositories, and the researcher's affiliation. With
 mandated repositories the agent describes them. With none, it shortlists (the two branches of
-Figure 3).
+Figure 3), and its statement says that a funder, journal or institution may still require a
+repository, since an empty list often means only that no policy source records one.
 
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: its re3data record, and the FAIRsharing database record that re3data

@@ -311,6 +311,11 @@ class RepositoryAgent:
             )
         if not_found:
             statement += f" No record found for: {', '.join(not_found)}."
+        if not needs.mandated:
+            statement += (
+                " No mandated repository was given; a funder, journal or institution may still "
+                "require one, so check their policies before choosing from this shortlist."
+            )
         statement += " The researcher chooses; human review is required."
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
