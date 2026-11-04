@@ -83,6 +83,7 @@ classes:
       - meets
       - misses
       - notes
+      - ranked_by
       - rationale
       - rationale_derivation
 
@@ -168,6 +169,12 @@ slots:
     description: >-
       Facts the researcher should weigh that are neither met nor missed needs: fees, a commercial
       platform, the deposit conditions FAIRsharing's curators record.
+    multivalued: true
+  ranked_by:
+    description: >-
+      Why a recommended repository is on the shortlist and in its place, one sentence per
+      ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by
+      the researcher's institution, or lacks the access the data needs. Empty when mandated.
     multivalued: true
   rationale:
     required: true

@@ -37,7 +37,10 @@ evidence `content` of those records ([Evidence and grounding](../../docs/specs/g
 - `meets` and `misses`: the needs the repository meets, and those it does not meet or its records
   leave open;
 - `notes`: facts to weigh, such as a fee for users, a commercial platform supplier, the
-  certificates listed, and the deposit conditions FAIRsharing records.
+  certificates listed, and the deposit conditions FAIRsharing records;
+- `ranked_by`: for a recommended repository, why it is on the shortlist and in its place, one
+  sentence per ranking signal, such as `Matches the theme "hydrology" (1 of 2 given).` Empty
+  for a mandated one.
 
 Mandated names with no re3data record are listed in `not_found`.
 
@@ -46,18 +49,29 @@ Mandated names with no re3data record are listed in `not_found`.
 The pipeline is retrieve, assess, rank, explain. Retrieval comes first, and no model chooses a
 repository or makes a judgement:
 
-- **Search.** One re3data query per theme and kind of data, because re3data's search requires
-  every word of a query to match. A further query names the researcher's institution.
+- **Search.** One re3data query per theme and per kind of data, because re3data's search
+  requires every word of a query to match; the snapshot search requires it too. A further query
+  names the researcher's institution, and the generalist repositories listed in `ranking.yaml`
+  (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and Mendeley Data) are fetched by identifier.
 - **Assessment** (`assess.py`). Fixed rules over registry fields. Where the records are silent
   the answer is `unstated`, never a guess. A commercial institution counts as an operator only
   when its responsibility is general or funding. A commercial technical supplier, such as
   Figshare for ORDA, is a note.
-- **Ranking** (`ranking.yaml`). Ranking uses the subject fit, whether the researcher's
-  institution operates the repository, and whether it offers the access the data needs. A
-  repository closed to deposits is never recommended. A commercial operator is listed after
-  others with an equal score, but never dropped. Certification carries no weight, because
-  Figure 3 says paid certification must not outweigh free evaluation. The researcher's own
-  institutional repository is offered beyond the cap.
+- **Ranking** (`ranking.yaml`). The discipline is judged from the themes alone: a repository
+  scores by the share of the themes it matches. The kinds of data add a little, never enough to
+  recommend a repository on their own, since a kind of data such as "images" is found in
+  repositories of every discipline. A generalist scores below a repository that matches every
+  theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
+  found, the statement says that only generalist and institutional repositories are offered.
+  Ranking also uses whether the researcher's institution operates the repository, and whether it
+  offers the access the data needs.
+- **Left out.** A repository closed to deposits is never recommended, nor is one that takes
+  deposits only from its own institution's members (re3data's "institutional membership"
+  restriction, or a repository typed only `institutional`) unless the researcher's institution
+  operates it. The researcher's own institutional repository is offered beyond the cap.
+- **Order at an equal score.** A commercial operator is listed after the others, and then a
+  repository that lists a deposit fee; neither is dropped. Certification carries no weight,
+  because Figure 3 says paid certification must not outweigh free evaluation.
 - **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=anthropic`, a model
   writes the rationale only, from `system_prompt.md`, and is sent registry text and the needs,
   never research data.

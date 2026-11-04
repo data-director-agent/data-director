@@ -76,8 +76,8 @@ def template_rationale(item: Item) -> str:
     if item.basis == CandidateBasis.MANDATED:
         lead = f"{r.name} ({r.re3data_id}) was named as mandated, so it is described, not ranked."
     else:
-        signals = ", ".join(item.reasons) or "none"
-        lead = f"{r.name} ({r.re3data_id}) is recommended. Ranking signals: {signals}."
+        why = f" {' '.join(item.reasons)}" if item.reasons else ""
+        lead = f"{r.name} ({r.re3data_id}) is recommended.{why}"
     kind = f" re3data lists it as {', '.join(r.types)}." if r.types else ""
     subjects = f" Subjects: {'; '.join(r.subjects[:3])}." if r.subjects else ""
     gaps = (
