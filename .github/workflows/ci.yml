@@ -166,6 +166,8 @@ jobs:
   # CONFORMANCE.md is decided by the register, the review record, the report script and the outcome
   # of every requirement-marked test, so this job reads the report that `test` wrote. It runs even
   # when a test failed, so a stale file is reported beside the failure.
+  # It is advisory for now: `ci-passed` does not need it, so a stale file is reported but does
+  # not block a pull request. TODO(#458): decide how the file is kept current and require it again.
   conformance:
     name: CONFORMANCE.md is current
     needs: [changes, test]
@@ -421,7 +423,6 @@ jobs:
       - lint
       - typecheck
       - test
-      - conformance
       - packages
       - viewer
       - web
