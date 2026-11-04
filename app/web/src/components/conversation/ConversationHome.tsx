@@ -13,12 +13,32 @@
  * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
  * orchestrator is working. A new reply is announced in a polite live region, the busy state is
  * announced, and focus returns to the message box.
+ *
+ * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
+ * or pasted, which shows as a chip and goes to the conversation's project, never into the text
+ * (#443, docs/specs/app.md). A link beside the button says how to make one.
  */
 
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ClipboardEvent,
+  type DragEvent,
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-import { FolderOpen, MessageSquarePlus, SendHorizontal, X } from "lucide-react";
+import { FolderOpen, MessageSquarePlus, Paperclip, SendHorizontal, X } from "lucide-react";
+import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
+import {
+  type AttachedInventory,
+  INVENTORY_GUIDE,
+  NotAnInventory,
+  looksLikeInventory,
+  readInventory,
+} from "../../conversation/inventory";
 import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
@@ -32,6 +52,7 @@ import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { StatusBar } from "../workspace/StatusBar";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
+import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
 
@@ -62,8 +83,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [past, setPast] = useState<ConversationSummary[]>([]);
   const [text, setText] = useState("");
+  const [attached, setAttached] = useState<AttachedInventory | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const [dropping, setDropping] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ message: string; inventory: AttachedInventory | null } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
@@ -115,17 +141,69 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
   }
 
+  /** Reads `text` as an inventory and attaches it, or says why it cannot. */
+  function attach(content: string, name: string | null): boolean {
+    try {
+      setAttached(readInventory(content, name));
+      setAttachError(null);
+      setAnnouncement("Inventory attached.");
+      return true;
+    } catch (e) {
+      setAttachError(e instanceof NotAnInventory ? e.message : errorMessage(e));
+      return false;
+    }
+  }
+
+  async function attachFile(file: File | undefined) {
+    if (!file) return;
+    try {
+      attach(await file.text(), file.name);
+    } catch (e) {
+      setAttachError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
+    }
+  }
+
+  function removeInventory() {
+    setAttached(null);
+    setAnnouncement("Inventory removed.");
+    box.current?.focus();
+  }
+
+  // A whole inventory pasted into the box becomes a chip, not text (#443).
+  function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = event.clipboardData.getData("text");
+    if (!looksLikeInventory(pasted)) return;
+    event.preventDefault();
+    attach(pasted, null);
+  }
+
+  function onDragOver(event: DragEvent<HTMLFormElement>) {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    setDropping(true);
+  }
+
+  function onDrop(event: DragEvent<HTMLFormElement>) {
+    if (!event.dataTransfer.types.includes("Files")) return;
+    event.preventDefault();
+    setDropping(false);
+    void attachFile(event.dataTransfer.files[0]);
+  }
+
   async function send(event: FormEvent) {
     event.preventDefault();
     const message = text.trim();
-    if (!orchestrator || !message || busy) return;
+    const inventory = attached;
+    if (!orchestrator || (!message && !inventory) || busy) return;
     setBusy(true);
     setError(null);
+    setAttachError(null);
     setAnnouncement("Waiting for a reply.");
-    // The message moves into the transcript while the reply is awaited, and comes back to the
-    // box if the send fails, so nothing typed is lost.
-    setSent(message);
+    // The message and its inventory move into the transcript while the reply is awaited, and
+    // come back to the box if the send fails, so nothing typed or attached is lost.
+    setSent({ message, inventory });
     setText("");
+    setAttached(null);
     let id = conversationId;
     let stored = false;
     // The latest turn this page shows: the server refuses the turn if the conversation has
@@ -134,7 +212,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     try {
       id ??= await api.create();
       setConversationId(id);
-      await api.sendTurn(id, orchestrator.id, message, follows);
+      await api.sendTurn(id, orchestrator.id, message, follows, inventory?.document ?? null);
       // The turn is stored: from here a failure is in showing the reply, not in sending it, so
       // the message must not come back to the box to be sent twice (#337).
       stored = true;
@@ -163,20 +241,21 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         return;
       }
       setText(message);
+      setAttached(inventory);
       if (e instanceof Unreachable) {
         // The server may have received the turn and be running it, so show what it stored.
         if (id) api.get(id).then(setConversation, () => undefined);
         setError(
           "Data Director could not reach the server, so this message may not have been sent. " +
-            "Your text is kept: sending it again is safe, because a message that was received " +
-            "is not run twice.",
+            "Your message is kept: sending it again is safe, because a message that was " +
+            "received is not run twice.",
         );
       } else if (e instanceof TurnConflict) {
         if (id) api.get(id).then(setConversation, () => undefined);
         setError(
           "This conversation has changed since you wrote this: another message was answered or " +
-            "is still being answered. Your text is kept. Check the conversation above, then send " +
-            "it again if it is still needed.",
+            "is still being answered. Your message is kept. Check the conversation above, then " +
+            "send it again if it is still needed.",
         );
       } else {
         setError(
@@ -198,6 +277,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setConversation(null);
     setError(null);
     setText("");
+    setAttached(null);
+    setAttachError(null);
     setAnnouncement("");
     box.current?.focus();
   }
@@ -243,7 +324,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
-              pending={sent === null ? null : { agentId: orchestrator.id, message: sent }}
+              pending={
+                sent === null
+                  ? null
+                  : { agentId: orchestrator.id, message: sent.message, inventory: sent.inventory }
+              }
             />
           )}
           {runId && !inTranscript && (
@@ -257,7 +342,17 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               </p>
             </section>
           )}
-          <form onSubmit={(e) => void send(e)} aria-busy={busy}>
+          {/* Dropping a file is a shortcut for the Attach inventory button, which keyboard and
+              screen reader users have, so the form's drag listeners need no role of their own. */}
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+          <form
+            onSubmit={(e) => void send(e)}
+            aria-busy={busy}
+            className={dropping ? "dropping" : undefined}
+            onDragOver={onDragOver}
+            onDragLeave={() => setDropping(false)}
+            onDrop={onDrop}
+          >
             <div className="field">
               <label htmlFor="message">What would you like to do?</label>
               <textarea
@@ -266,16 +361,46 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 rows={3}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                onPaste={onPaste}
                 onKeyDown={(e) => {
                   // Ctrl+Enter (Cmd+Enter on a Mac) sends; the Send button's rules still apply.
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
                     e.preventDefault();
-                    if (!busy && text.trim()) e.currentTarget.form?.requestSubmit();
+                    if (!busy && (text.trim() || attached)) e.currentTarget.form?.requestSubmit();
                   }
                 }}
               />
             </div>
-            <Button type="submit" variant="primary" icon={SendHorizontal} isDisabled={!busy && !text.trim()} isPending={busy}>
+            <div className="composer-attach">
+              {attached ? (
+                <InventoryChip
+                  fileCount={attached.fileCount}
+                  madeAt={attached.madeAt}
+                  name={attached.name}
+                  onRemove={removeInventory}
+                />
+              ) : (
+                <FileTrigger
+                  acceptedFileTypes={["application/json", ".json"]}
+                  onSelect={(files) => void attachFile(files?.[0])}
+                >
+                  <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
+                </FileTrigger>
+              )}
+              <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
+            </div>
+            {attachError && (
+              <p role="alert" className="callout status-danger">
+                {attachError}
+              </p>
+            )}
+            <Button
+              type="submit"
+              variant="primary"
+              icon={SendHorizontal}
+              isDisabled={!busy && !text.trim() && !attached}
+              isPending={busy}
+            >
               {busy ? "Sending…" : "Send"}
             </Button>
           </form>
@@ -303,7 +428,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           )}
         </section>
       }
-      context={<ContextPanel orchestrator={orchestrator} />}
+      context={<ContextPanel orchestrator={orchestrator} conversation={conversation} />}
     />
   );
 }

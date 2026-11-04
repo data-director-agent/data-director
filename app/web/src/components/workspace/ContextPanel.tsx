@@ -1,27 +1,58 @@
 /**
- * Beside the conversation: the documents the project has produced, and what the orchestrator
- * is and how far to rely on it (checklist item 9). There is no record of the project yet
- * (#160), so its documents are drawn as not built rather than guessed at. The orchestrator's
- * summary is drawn from the manifest; a limit nobody declared is shown as not declared. A
- * delegated run and its evidence open in the transcript, beside the turn they support.
+ * Beside the conversation: the project it was started in, with the inventory the project holds
+ * and a link to the documents agents have drafted in it (docs/specs/app.md), and what the
+ * orchestrator is and how far to rely on it (checklist item 9). Listing the documents here, and
+ * the rest of the project's record, is not built yet (#160). The orchestrator's summary is drawn
+ * from the manifest; a limit nobody declared is shown as not declared. A delegated run and its
+ * evidence open in the transcript, beside the turn they support.
  */
 
+import { INVENTORY_GUIDE } from "../../conversation/inventory";
+import type { Conversation } from "../../conversation/types";
 import type { AgentView } from "../../manifest/normalise";
 import { GROUNDING } from "../../manifest/wording";
 import { Link } from "../../route";
 import { Models } from "../capabilities/ModelDisclosure";
-import { IssueLinks, NotBuilt } from "../NotBuilt";
+import { InventoryChip } from "../conversation/InventoryChip";
+import { IssueLinks } from "../NotBuilt";
 
-export function ContextPanel({ orchestrator }: { orchestrator: AgentView | undefined }) {
+export function ContextPanel({
+  orchestrator,
+  conversation = null,
+}: {
+  orchestrator: AgentView | undefined;
+  conversation?: Conversation | null;
+}) {
+  const projectId = conversation?.project_id;
+  const inventory = conversation?.inventory;
   return (
     <section aria-labelledby="context-heading" className="workspace-context">
-      <h2 id="context-heading">Project documents</h2>
-      <NotBuilt title="The documents this project has produced" issues={[160]}>
+      <h2 id="context-heading">Project</h2>
+      {projectId ? (
+        <>
+          {inventory ? (
+            <p>
+              <InventoryChip fileCount={inventory.file_count} madeAt={inventory.inventory_made_at} />
+            </p>
+          ) : (
+            <p>
+              No inventory of the dataset&apos;s files yet. Attach one to a message so that agents
+              can describe the files. <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
+            </p>
+          )}
+          <p>
+            <Link to={`/projects/${encodeURIComponent(projectId)}`}>
+              The documents drafted in this project
+            </Link>
+            , to approve, edit or reject.
+          </p>
+        </>
+      ) : (
         <p>
-          READMEs, data dictionaries and metadata records will be listed here as agents draft
-          them, each with the run it came from.
+          Your first message starts a project, which keeps the inventory you attach and the
+          documents agents draft for you.
         </p>
-      </NotBuilt>
+      )}
       {orchestrator && <AgentSummary agent={orchestrator} />}
     </section>
   );

@@ -22,7 +22,8 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 1. The core contract holds only what the harness itself reads: the request and the envelope, the
    outcome and problem details, grounding and evidence, telemetry, delegation and the principal,
    and the few classes the harness, the project record or the deposit package read without
-   knowing the agent (conversation turns, `Document`, `FileInventory`, `RequirementSet`, the drafters'
+   knowing the agent (conversation turns, `Message` with the `InventorySummary` the conductor fills
+   in, `Document`, `FileInventory`, `RequirementSet`, the drafters'
    `DraftRequest` with `CurrentVersion` and `RepositoryRequirements`, and the
    enums they use). No agent's own input or payload class is added to it.
 2. In the core, an input is any object with a `schema_class`, and a payload is any object with a
@@ -57,8 +58,9 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    each define a class of the same name.
 10. The input hash is taken over the validated input document as the agent is given it, with
     null values removed: as it was received, except for the project's facts the conductor puts
-    into a `DraftRequest` in a project ([Projects](projects.md), invariant 6). No model defaults
-    are added before hashing.
+    into a `Message`, a `DraftRequest` or a `FileInventory` in a project, and a `Message`'s
+    `project_inventory`, which it removes outside one ([Projects](projects.md), invariant 6). No
+    model defaults are added before hashing.
 11. `project_id`, on the request and the envelope, is set only by the conductor, from the
     conversation a request is a turn of or a child's grant. A caller's request that carries it is
     refused, and the agent is never sent it (`harness/tests/test_project_runs.py`).

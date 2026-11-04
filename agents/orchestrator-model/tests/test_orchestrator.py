@@ -8,6 +8,7 @@ import dataclasses
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ from dd_sdk.contract.models import (
     ConversationTurn,
     Derivation,
     GroundingMode,
+    InventorySummary,
     Message,
     OutcomeStatus,
     ReasonCode,
@@ -276,3 +278,24 @@ def test_the_model_is_sent_the_last_turns_of_the_history() -> None:
         ("user", "now"),
     ]
     assert conversation(message, history_turns=0) == [{"role": "user", "content": "now"}]
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_the_model_is_told_of_the_projects_inventory_only_when_it_holds_one() -> None:
+    assert conversation(Message(message_text="now"), history_turns=0) == [
+        {"role": "user", "content": "now"}
+    ]
+    held = InventorySummary(
+        inventory_digest="a" * 64,
+        inventory_file_count=42,
+        inventory_tool="dd-inventory",
+        inventory_tool_version="0.1.0",
+        inventory_made_at=datetime(2026, 11, 1, 9, tzinfo=UTC),
+        inventory_limitations=["skipped 1 unreadable file"],
+    )
+    (sent,) = conversation(Message(message_text="now", project_inventory=held), history_turns=0)
+    note, text = sent["content"].split("\n\n")
+    assert text == "now"
+    assert note.startswith("[From the harness, not the researcher]")
+    assert "42 files, made 2026-11-01 09:00 UTC by dd-inventory 0.1.0" in note
+    assert "skipped 1 unreadable file" in note

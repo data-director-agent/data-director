@@ -198,12 +198,25 @@ class ConversationTurn(Frozen):
     turn_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
 
 
+class InventorySummary(Frozen):
+    """What the inventory a project holds is, without its files (docs/specs/projects.md)."""
+
+    inventory_digest: str = Field(pattern=SHA256_PATTERN)
+    inventory_file_count: int
+    inventory_tool: str
+    inventory_tool_version: str
+    inventory_made_at: datetime
+    inventory_limitations: list[str] = Field(default_factory=list)
+
+
 class Message(Frozen):
-    """One conversational turn and the conversation so far (docs/specs/orchestration.md)."""
+    """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
+    conductor fills `project_inventory` from the conversation's project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
+    project_inventory: InventorySummary | None = None
 
 
 class TableField(Frozen):

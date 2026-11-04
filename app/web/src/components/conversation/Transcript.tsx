@@ -2,13 +2,15 @@
  * The transcript: an ordered list of turns. Each reply is labelled `agent_id@agent_version`,
  * a change of version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
- * replies use the run view's outcome wording, not a generic error.
+ * replies use the run view's outcome wording, not a generic error. A turn on which the project's
+ * inventory changed, as when the researcher attached one, shows it as a chip (#443).
  */
 
 import "./Transcript.css";
 
 import Markdown from "react-markdown";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import type { AttachedInventory, InventorySummary } from "../../conversation/inventory";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
@@ -16,6 +18,7 @@ import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
 import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
+import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
 import { RunDetail } from "./RunDetail";
 
@@ -24,6 +27,16 @@ function replyText(conversation: Conversation, turn: ConversationTurn): string {
     (h) => h.role === "agent" && h.turn_invocation_id === turn.invocation_id,
   );
   return entry?.turn_text ?? turn.envelope.outcome.statement;
+}
+
+/** The project's inventory as the turn's agent was told of it, when it differs from the turn
+ * before: the turn it was given on. */
+function inventoryGiven(conversation: Conversation, index: number): InventorySummary | null {
+  const of = (turn: ConversationTurn | undefined) =>
+    turn ? conversation.inputs[turn.invocation_id]?.project_inventory : undefined;
+  const here = of(conversation.turns[index]);
+  if (!here) return null;
+  return here.inventory_digest === of(conversation.turns[index - 1])?.inventory_digest ? null : here;
 }
 
 /** What powers the agent, beside its name; nothing when it is not in the directory. */
@@ -115,11 +128,13 @@ export function Transcript({
   onToggleRun: (child: Envelope) => void;
   selectedRun?: string | null;
   /** A message sent and not yet answered, shown after the turns with a sign that a reply is coming. */
-  pending?: { agentId: string; message: string } | null;
+  pending?: { agentId: string; message: string; inventory?: AttachedInventory | null } | null;
 }) {
   return (
     <ol className="transcript" aria-label="Conversation">
-      {conversation?.turns.map((turn) => (
+      {conversation?.turns.map((turn, index) => {
+        const given = inventoryGiven(conversation, index);
+        return (
         <li key={turn.invocation_id}>
           {conversation.version_changes
             .filter((c) => c.turn_index === turn.turn_index)
@@ -132,6 +147,11 @@ export function Transcript({
           <p>
             <strong>You:</strong> {conversation.inputs[turn.invocation_id]?.message_text}
           </p>
+          {given && (
+            <p>
+              <InventoryChip fileCount={given.inventory_file_count} madeAt={given.inventory_made_at} />
+            </p>
+          )}
           <p>
             <strong>
               <code>
@@ -159,8 +179,11 @@ export function Transcript({
             </ul>
           )}
         </li>
-      ))}
-      {pending && <Pending agentId={pending.agentId} message={pending.message} />}
+        );
+      })}
+      {pending && (
+        <Pending agentId={pending.agentId} message={pending.message} inventory={pending.inventory ?? null} />
+      )}
     </ol>
   );
 }

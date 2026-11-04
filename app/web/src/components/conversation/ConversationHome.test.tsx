@@ -96,7 +96,7 @@ describe("ConversationHome", () => {
     renderHome(directory, fakeApi({ sendTurn }));
     await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.model", "hi", null);
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.model", "hi", null, null);
   });
 
   it("says when the profile does not permit the orchestrator", () => {
@@ -112,7 +112,7 @@ describe("ConversationHome", () => {
     await userEvent.type(box, "hello world");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello world", null);
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello world", null, null);
     const transcript = await screen.findByRole("list", { name: "Conversation" });
     expect(within(transcript).getAllByText("orchestrator.stub@0.1.0")).toHaveLength(2);
     expect(within(transcript).getAllByText("example.hello@0.1.0")).toHaveLength(2);
@@ -129,7 +129,79 @@ describe("ConversationHome", () => {
     expect(sendTurn).not.toHaveBeenCalled();
     await userEvent.type(box, "hello");
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
-    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello", null);
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello", null, null);
+  });
+
+  describe("attaching an inventory", () => {
+    const INVENTORY = {
+      schema_class: "FileInventory",
+      inventory_tool: "dd-inventory",
+      inventory_tool_version: "0.1.0",
+      inventory_made_at: "2026-11-01T09:00:00Z",
+      inventory_files: [{ file_path: "a.csv" }, { file_path: "b.csv" }],
+    };
+    const file = (content: string, name = "inventory.json") =>
+      new File([content], name, { type: "application/json" });
+
+    it("shows a chosen file as a chip, sends it beside the message, and links to how to make one", async () => {
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+      expect(screen.getByRole("link", { name: "How do I make an inventory?" })).toHaveAttribute(
+        "href",
+        expect.stringContaining("/user-guide/making-an-inventory/"),
+      );
+      const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input");
+      await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
+      expect(await screen.findByText(/Inventory: 2 files, made 1 Nov 2026/)).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Attach inventory" })).toBeNull();
+      expect(await axe(container)).toHaveNoViolations();
+
+      // An inventory may be sent with no words.
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "", null, INVENTORY);
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
+      expect(await screen.findByRole("button", { name: "Attach inventory" })).toBeVisible();
+    });
+
+    it("says why a file is not an inventory, and attaches nothing", async () => {
+      const { container } = renderHome(withOrchestrator(), fakeApi());
+      const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input");
+      await userEvent.upload(input, file("not json"));
+      expect(await screen.findByRole("alert")).toHaveTextContent("This file is not JSON");
+      await userEvent.upload(input, file(JSON.stringify({ schema_class: "Message" })));
+      expect(await screen.findByRole("alert")).toHaveTextContent("does not say it is a FileInventory");
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    });
+
+    it("turns a pasted inventory into a chip, not text, and removes it", async () => {
+      renderHome(withOrchestrator(), fakeApi());
+      const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+      await userEvent.click(box);
+      await userEvent.paste(JSON.stringify(INVENTORY));
+      expect(box).toHaveValue("");
+      expect(screen.getByText(/Inventory: 2 files/)).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Remove inventory" }));
+      expect(screen.queryByText(/Inventory: 2 files/)).toBeNull();
+      expect(box).toHaveFocus();
+      // Other text is pasted as it is.
+      await userEvent.paste("hello");
+      expect(box).toHaveValue("hello");
+    });
+
+    it("keeps the inventory attached when the send fails", async () => {
+      const sendTurn = vi.fn().mockRejectedValue(new Unreachable());
+      renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+      const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+      await userEvent.click(box);
+      await userEvent.paste(JSON.stringify(INVENTORY));
+      await userEvent.type(box, "describe these");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(await screen.findByText(/could not reach the server/)).toBeVisible();
+      expect(box).toHaveValue("describe these");
+      expect(screen.getByRole("button", { name: "Remove inventory" })).toBeVisible();
+    });
   });
 
   it("marks a version change between turns", async () => {
@@ -203,7 +275,7 @@ describe("ConversationHome", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     const latest = CONVERSATION.turns[CONVERSATION.turns.length - 1]?.invocation_id;
     expect(latest).toBeDefined();
-    expect(sendTurn).toHaveBeenLastCalledWith("c1", "orchestrator.stub", "and again", latest);
+    expect(sendTurn).toHaveBeenLastCalledWith("c1", "orchestrator.stub", "and again", latest, null);
   });
 
   it("says the conversation has moved on, keeps the text and reloads it", async () => {
@@ -311,17 +383,36 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("heading", { name: "Activity log" })).toBeVisible();
     });
 
-    it("draws the project's documents as not built, and shows whom you are talking to", () => {
+    it("says a first message starts a project, and shows whom you are talking to", () => {
       renderHome(withOrchestrator(), fakeApi());
-      const panel = screen.getByRole("region", { name: "Project documents" });
-      expect(within(panel).getByText("Not built yet")).toBeVisible();
-      expect(within(panel).getByRole("link", { name: "#160" })).toBeVisible();
+      const panel = screen.getByRole("region", { name: "Project" });
+      expect(within(panel).getByText(/Your first message starts a project/)).toBeVisible();
       expect(within(panel).getByText("orchestrator.stub@0.1.0")).toBeVisible();
       expect(within(panel).getByText("Not declared")).toBeVisible();
       expect(within(panel).getByRole("link", { name: "Its full capabilities and limits" })).toHaveAttribute(
         "href",
         "/agents?agent=orchestrator.stub",
       );
+    });
+
+    it("links to the conversation's project and says what inventory it holds", async () => {
+      const held: Conversation = {
+        ...CONVERSATION,
+        inventory: { digest: "d", file_count: 42, inventory_made_at: "2026-11-01T09:00:00Z", added_at: "x" },
+      };
+      const get = vi.fn().mockResolvedValueOnce(CONVERSATION).mockResolvedValue(held);
+      renderHome(withOrchestrator(), fakeApi({ get }));
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      const panel = screen.getByRole("region", { name: "Project" });
+      expect(await within(panel).findByText(/No inventory of the dataset/)).toBeVisible();
+      expect(within(panel).getByRole("link", { name: "The documents drafted in this project" })).toHaveAttribute(
+        "href",
+        `/projects/${CONVERSATION.project_id ?? ""}`,
+      );
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "again");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(await within(panel).findByText("Inventory: 42 files, made 1 Nov 2026")).toBeVisible();
     });
 
     it("keeps the conversation working when the phases cannot be loaded", async () => {

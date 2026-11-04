@@ -310,12 +310,43 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await box.focus();
   await page.keyboard.type("hello world");
+  // Attaching an inventory, and how to make one, come between the message and Send.
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Attach inventory" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "How do I make an inventory?" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Send" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
   await expect(box).toBeFocused();
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
+});
+
+test("an attached inventory shows as a chip, not JSON, at 320px with no axe violations", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.goto("/");
+  const inventory = {
+    schema_class: "FileInventory",
+    inventory_tool: "dd-inventory",
+    inventory_tool_version: "0.1.0",
+    inventory_made_at: "2026-11-01T09:00:00Z",
+    inventory_files: Array.from({ length: 42 }, (_, i) => ({ file_path: `data/file-${i}.csv` })),
+  };
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "a-long-dataset-inventory-file-name.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(inventory)),
+  });
+  await expect(page.getByText(/Inventory: 42 files, made 1 Nov 2026/)).toBeVisible();
+  await expect(page.getByText("data/file-0.csv")).toHaveCount(0);
+  expect(await overflow(page), "horizontal overflow with an inventory attached").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+  await page.getByRole("button", { name: "Remove inventory" }).press("Enter");
+  await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
 });
 
 test("a delegated run opens inside its card at 320px, keeping focus and the conversation", async ({
@@ -393,7 +424,7 @@ test("a link names the agent to show", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
 });
 
-test("the workspace at 1280px: phases, conversation and the project's documents side by side", async ({
+test("the workspace at 1280px: phases, conversation and the project side by side", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -402,7 +433,7 @@ test("the workspace at 1280px: phases, conversation and the project's documents 
   await page.goto("/");
   const phases = page.getByRole("navigation", { name: "Blueprint phases" });
   await expect(phases.locator("summary")).toHaveCount(6);
-  const documents = page.getByRole("region", { name: "Project documents" });
+  const documents = page.getByRole("region", { name: "Project" });
   await expect(documents).toBeVisible();
   expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
 

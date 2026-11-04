@@ -7,12 +7,28 @@
 
 import "./Pending.css";
 
-export function Pending({ agentId, message }: { agentId: string; message: string }) {
+import type { AttachedInventory } from "../../conversation/inventory";
+import { InventoryChip } from "./InventoryChip";
+
+export function Pending({
+  agentId,
+  message,
+  inventory = null,
+}: {
+  agentId: string;
+  message: string;
+  inventory?: AttachedInventory | null;
+}) {
   return (
     <li className="pending">
       <p>
         <strong>You:</strong> {message}
       </p>
+      {inventory && (
+        <p>
+          <InventoryChip fileCount={inventory.fileCount} madeAt={inventory.madeAt} name={inventory.name} />
+        </p>
+      )}
       <p className="muted">
         <code>{agentId}</code> is working on a reply
         <span className="pending-dots" aria-hidden="true">

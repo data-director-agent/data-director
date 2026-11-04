@@ -4,6 +4,7 @@
  */
 
 import type { Envelope } from "../run/types";
+import type { InventorySummary, ProjectInventory } from "./inventory";
 
 export interface ConversationSummary {
   conversation_id: string;
@@ -42,8 +43,12 @@ export interface HistoryEntry {
 
 export interface Conversation {
   conversation_id: string;
+  /** The project the conversation was started in, where the server keeps projects. */
+  project_id?: string | null;
+  /** The inventory the project holds now. */
+  inventory?: ProjectInventory | null;
   turns: ConversationTurn[];
-  inputs: Record<string, { message_text?: string }>;
+  inputs: Record<string, { message_text?: string; project_inventory?: InventorySummary }>;
   version_changes: VersionChange[];
   history: HistoryEntry[];
 }

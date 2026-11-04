@@ -56,7 +56,8 @@
       "schema_class": "Salutation"
     }
   },
-  "project_id": null,
+  "inventory": null,
+  "project_id": "01900000-0000-7000-8000-000000000006",
   "turns": [
     {
       "agent_id": "orchestrator.stub",
@@ -77,14 +78,14 @@
           "evidence": [
             {
               "canonicalisation": "dd-input-json-v1",
-              "content_hash": "0000000000000000000000000000000000000000000000000000000000000006",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000007",
               "hash_algorithm": "sha256",
               "retrieved_at": "2026-01-01T00:00:00Z",
               "source_id": "input:01900000-0000-7000-8000-000000000004"
             }
           ],
           "grounding_mode": "none",
-          "input_schema": "0000000000000000000000000000000000000000000000000000000000000007",
+          "input_schema": "0000000000000000000000000000000000000000000000000000000000000008",
           "invocation_id": "01900000-0000-7000-8000-000000000004",
           "outcome": {
             "statement": "Greeted the name given. Deterministic; human review is required.",
@@ -96,15 +97,16 @@
             "greeting_text": "Hello, world!",
             "grounded_on": [
               {
-                "content_hash": "0000000000000000000000000000000000000000000000000000000000000006",
+                "content_hash": "0000000000000000000000000000000000000000000000000000000000000007",
                 "source_id": "input:01900000-0000-7000-8000-000000000004"
               }
             ],
             "schema_class": "Greeting"
           },
-          "payload_schema": "0000000000000000000000000000000000000000000000000000000000000008",
+          "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
           "policy_bundle_ref": "profile:data-director-app@v7",
-          "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+          "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
+          "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
           "telemetry": {
             "energy_estimate_j": null,
@@ -128,7 +130,7 @@
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {
-            "content_hash": "0000000000000000000000000000000000000000000000000000000000000010",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
             "delegated_agent_id": "example.hello",
             "delegated_agent_version": "0.1.0",
             "delegated_invocation_id": "01900000-0000-7000-8000-000000000004",
@@ -138,21 +140,21 @@
         "evidence": [
           {
             "canonicalisation": "dd-input-json-v1",
-            "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000012",
             "hash_algorithm": "sha256",
             "retrieved_at": "2026-01-01T00:00:00Z",
             "source_id": "input:01900000-0000-7000-8000-000000000002"
           },
           {
             "canonicalisation": "dd-envelope-json-v1",
-            "content_hash": "0000000000000000000000000000000000000000000000000000000000000010",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
             "hash_algorithm": "sha256",
             "retrieved_at": "2026-01-01T00:00:00Z",
             "source_id": "invocation:01900000-0000-7000-8000-000000000004"
           }
         ],
         "grounding_mode": "delegation",
-        "input_schema": "0000000000000000000000000000000000000000000000000000000000000012",
+        "input_schema": "0000000000000000000000000000000000000000000000000000000000000013",
         "invocation_id": "01900000-0000-7000-8000-000000000002",
         "outcome": {
           "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
@@ -161,11 +163,11 @@
         "payload": {
           "grounded_on": [
             {
-              "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000012",
               "source_id": "input:01900000-0000-7000-8000-000000000002"
             },
             {
-              "content_hash": "0000000000000000000000000000000000000000000000000000000000000010",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
               "source_id": "invocation:01900000-0000-7000-8000-000000000004"
             }
           ],
@@ -173,9 +175,10 @@
           "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!",
           "schema_class": "Reply"
         },
-        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
+        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
         "policy_bundle_ref": "profile:data-director-app@v7",
-        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
+        "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,
         "telemetry": {
           "energy_estimate_j": null,
@@ -211,14 +214,14 @@
           "evidence": [
             {
               "canonicalisation": "dd-input-json-v1",
-              "content_hash": "0000000000000000000000000000000000000000000000000000000000000014",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
               "hash_algorithm": "sha256",
               "retrieved_at": "2026-01-01T00:00:00Z",
               "source_id": "input:01900000-0000-7000-8000-000000000005"
             }
           ],
           "grounding_mode": "none",
-          "input_schema": "0000000000000000000000000000000000000000000000000000000000000007",
+          "input_schema": "0000000000000000000000000000000000000000000000000000000000000008",
           "invocation_id": "01900000-0000-7000-8000-000000000005",
           "outcome": {
             "statement": "Greeted the name given. Deterministic; human review is required.",
@@ -230,15 +233,16 @@
             "greeting_text": "Hello, again!",
             "grounded_on": [
               {
-                "content_hash": "0000000000000000000000000000000000000000000000000000000000000014",
+                "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
                 "source_id": "input:01900000-0000-7000-8000-000000000005"
               }
             ],
             "schema_class": "Greeting"
           },
-          "payload_schema": "0000000000000000000000000000000000000000000000000000000000000008",
+          "payload_schema": "0000000000000000000000000000000000000000000000000000000000000009",
           "policy_bundle_ref": "profile:data-director-app@v7",
-          "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+          "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
+          "project_id": "01900000-0000-7000-8000-000000000006",
           "requires_human_review": true,
           "telemetry": {
             "energy_estimate_j": null,
@@ -262,7 +266,7 @@
         "conversation_id": "01900000-0000-7000-8000-000000000001",
         "delegations": [
           {
-            "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
             "delegated_agent_id": "example.hello",
             "delegated_agent_version": "0.1.0",
             "delegated_invocation_id": "01900000-0000-7000-8000-000000000005",
@@ -272,21 +276,21 @@
         "evidence": [
           {
             "canonicalisation": "dd-input-json-v1",
-            "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000017",
             "hash_algorithm": "sha256",
             "retrieved_at": "2026-01-01T00:00:00Z",
             "source_id": "input:01900000-0000-7000-8000-000000000003"
           },
           {
             "canonicalisation": "dd-envelope-json-v1",
-            "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
             "hash_algorithm": "sha256",
             "retrieved_at": "2026-01-01T00:00:00Z",
             "source_id": "invocation:01900000-0000-7000-8000-000000000005"
           }
         ],
         "grounding_mode": "delegation",
-        "input_schema": "0000000000000000000000000000000000000000000000000000000000000012",
+        "input_schema": "0000000000000000000000000000000000000000000000000000000000000013",
         "invocation_id": "01900000-0000-7000-8000-000000000003",
         "outcome": {
           "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
@@ -295,11 +299,11 @@
         "payload": {
           "grounded_on": [
             {
-              "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000017",
               "source_id": "input:01900000-0000-7000-8000-000000000003"
             },
             {
-              "content_hash": "0000000000000000000000000000000000000000000000000000000000000015",
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
               "source_id": "invocation:01900000-0000-7000-8000-000000000005"
             }
           ],
@@ -307,9 +311,10 @@
           "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
           "schema_class": "Reply"
         },
-        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000013",
+        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
         "policy_bundle_ref": "profile:data-director-app@v7",
-        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000009",
+        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000010",
+        "project_id": "01900000-0000-7000-8000-000000000006",
         "requires_human_review": true,
         "telemetry": {
           "energy_estimate_j": null,

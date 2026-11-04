@@ -22,6 +22,10 @@ later be shown to be the files described.
 $ uv run dd-inventory path/to/dataset -o inventory.json
 ```
 
+A researcher without a checkout runs it with `uvx` and attaches the file to a conversation in the
+app; the user guide's [Making an inventory](https://data-director-agent.github.io/data-director/user-guide/making-an-inventory/)
+says how.
+
 Hidden files and folders (names beginning with `.`) are skipped, symbolic links are not
 followed, and both are counted in `inventory_limitations`. If fido cannot be loaded, formats are
 guessed from file extensions and the inventory says so.

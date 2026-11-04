@@ -284,12 +284,15 @@ class Conductor:
         *,
         project_id: str | None = None,
     ) -> Envelope:
-        if project_id is not None and self.projects is not None:
-            # The project's facts go in before anything is hashed or stored, so the input hash
-            # and request.json cover what the agent was shown (docs/specs/projects.md).
-            filled = project_facts.give(self.projects, project_id, to_document(request.input))
+        # The project's facts go in before anything is hashed or stored, so the input hash and
+        # request.json cover what the agent was shown; outside a project, what only the conductor
+        # may fill is removed (docs/specs/projects.md).
+        in_project = project_id if self.projects is not None else None
+        sent = to_document(request.input)
+        filled = project_facts.give(self.projects, in_project, sent)
+        if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
-                {**to_document(request), "input": filled, "project_id": project_id}
+                {**to_document(request), "input": filled, "project_id": in_project}
             )
         request_doc = to_document(request)
         validate.validate_request(request_doc)  # raises: a malformed request is a caller bug

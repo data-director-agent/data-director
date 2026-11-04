@@ -1,8 +1,9 @@
 /**
  * The conversation endpoints, behind one interface so tests can stand in for the server.
  *
- * A turn sends only the agent, the message and the turn it follows: the server builds the history
- * from what it stored (docs/specs/app.md) and refuses one the page sends. A turn that does not follow
+ * A turn sends only the agent, the message, the turn it follows and any inventory attached to it:
+ * the server builds the history from what it stored (docs/specs/app.md) and refuses one the page
+ * sends. An attached inventory goes to the conversation's project, never into the message. A turn that does not follow
  * the latest stored turn, or that arrives while another is running, is refused with a 409 and
  * nothing runs (docs/specs/orchestration.md), so a message sent again after a dropped connection is never
  * run twice (#337).
@@ -22,6 +23,7 @@ export interface ConversationApi {
     agentId: string,
     messageText: string,
     follows: string | null,
+    inventory?: Record<string, unknown> | null,
     signal?: AbortSignal,
   ): Promise<void>;
   list(signal?: AbortSignal): Promise<ConversationSummary[]>;
@@ -73,13 +75,18 @@ export const httpConversationApi: ConversationApi = {
     );
     return created.conversation_id;
   },
-  async sendTurn(conversationId, agentId, messageText, follows, signal) {
+  async sendTurn(conversationId, agentId, messageText, follows, inventory, signal) {
     await json(
       await request(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
         ...init(signal),
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ agent_id: agentId, message_text: messageText, follows }),
+        body: JSON.stringify({
+          agent_id: agentId,
+          message_text: messageText,
+          follows,
+          ...(inventory ? { inventory } : {}),
+        }),
       }),
     );
   },
