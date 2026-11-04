@@ -22,7 +22,8 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 1. The core contract holds only what the harness itself reads: the request and the envelope, the
    outcome and problem details, grounding and evidence, telemetry, delegation and the principal,
    and the few classes the harness, the project record or the deposit package read without
-   knowing the agent (conversation turns, `Document`, `FileInventory`, `RequirementSet` and the
+   knowing the agent (conversation turns, `Document`, `FileInventory`, `RequirementSet`, the drafters'
+   `DraftRequest` with `CurrentVersion` and `RepositoryRequirements`, and the
    enums they use). No agent's own input or payload class is added to it.
 2. In the core, an input is any object with a `schema_class`, and a payload is any object with a
    `schema_class` that mixes in `Grounded`. The core checks nothing else about either

@@ -1,75 +1,88 @@
-"""advisor.documentation: the Documentation Editor persona (docs/specs/agents.md). A mock.
+"""advisor.documentation: the Documentation Editor persona (docs/specs/agents.md). A mock,
+and the stub drafter of the project's README and data dictionary (#200).
 
-Serves `setup.documentation` and `preparation.documentation` (R5). It drafts a README outline and a
-data dictionary from what the researcher gave: what can be inferred from the input, such as the
-file names and field names, is drafted; what cannot, such as variable definitions, units, missing
-value codes and the study design, is marked for the researcher.
+Serves `setup.documentation` and `preparation.documentation` (R5). Given a `DraftRequest` for a
+`readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
+project's inventory: the files and the tables' fields are drafted, and what only the researcher
+knows, such as the methods, each field's definition, unit and missing value codes, the licence and
+the citation, is marked for them.
 
-The mock fills README sections by copying its input, as `readme.yaml` lays out, and writes no prose
-of its own. It reads no files, consults no source and calls no model, so its grounding mode is
-`none` and it cites only its input. The real editor is TODO(#358).
+The README's sections are those of `readme.yaml`. The mock writes no prose of its own, reads no
+file, consults no source and calls no model, so its grounding mode is `none` and it cites only its
+input. Regenerating a document drafts it afresh from the project's facts, and names the version it
+replaces in `revises`. The real editor is TODO(#358).
 """
 
 from __future__ import annotations
 
+import csv
+import io
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 
 import yaml
 
-from dd_agent_advisor_documentation.classes import (
-    DictionaryEntry,
-    DocumentationDraft,
-    DocumentationRequest,
-    DraftStatus,
-    ReadmeSection,
-)
 from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
+    Document,
+    DocumentKind,
+    DraftRequest,
     EvidenceItem,
+    FileInventory,
     GroundingMode,
     GroundingRef,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
+    RepositoryRequirements,
 )
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 README = Path(__file__).with_name("readme.yaml")
-# The DocumentationRequest slots a README section may be drafted from.
-SOURCES = frozenset({"title", "description", "creators", "files", "fields"})
+# The project facts a README section may be drafted from (readme.yaml explains each).
+SOURCES = frozenset({"files", "tables", "licences"})
+# How the draft marks what the researcher writes. A person's edit replaces it.
+PLACEHOLDER = "_To be written by the researcher: {ask}_"
+# The data dictionary's columns. The first four are copied from the inventory; the rest are left
+# for the researcher.
+DICTIONARY_COLUMNS = ("file", "field", "type", "format", "description", "unit", "missing_values")
 
+TITLES = {DocumentKind.README: "README", DocumentKind.DATA_DICTIONARY: "Data dictionary"}
+MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONARY: "text/csv"}
+
+# What the mock does not do, said in every outcome: its payload is the core Document, which has
+# no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
-    "This is a mock: it drafts README sections only by copying what you gave, and writes no prose "
-    "of its own.",
-    "It does not open the files, so it says nothing about their contents, formats or sizes.",
-    "It infers no variable definitions, units or missing value codes: every data dictionary entry "
-    "is left for you.",
-    "Methods, licence and how to cite are left for you.",
-    "It follows no community README template or data dictionary standard.",
+    "This is a mock: it copies the inventory's file and field names and writes no prose of its "
+    "own. It does not open the files, infers no definitions, units or missing value codes, and "
+    "reads neither an earlier version nor the reason given for a decision on it."
 )
 
 
-class Rule(NamedTuple):
+class Section(NamedTuple):
     heading: str
-    source: str | None  # the DocumentationRequest slot, or None: the researcher writes it
+    ask: str
+    source: str | None  # the project fact it is drafted from, or None: the researcher writes it
 
 
-def load_rules(path: Path = README) -> list[Rule]:
+def load_sections(path: Path = README) -> list[Section]:
     with path.open(encoding="utf-8") as fh:
         table = yaml.safe_load(fh)
-    rules = []
+    sections = []
     for entry in table:
         source = entry.get("from")
         if source is not None and source not in SOURCES:
             raise ValueError(f"{path}: section {entry['heading']!r} drafts from unknown {source!r}")
-        rules.append(Rule(heading=str(entry["heading"]), source=source))
-    return rules
+        sections.append(Section(str(entry["heading"]), " ".join(str(entry["ask"]).split()), source))
+    if not sections:
+        raise ValueError(f"{path}: no sections")
+    return sections
 
 
 class DocumentationEditor:
@@ -78,60 +91,71 @@ class DocumentationEditor:
         version="0.1.0a1",
         title="Documentation Editor",
         description=(
-            "Mock. Drafts a README outline and a data dictionary from a dataset's title, creators, "
-            "file names and field names, and marks for the researcher everything it cannot "
-            "infer: definitions, units, missing value codes, methods, licence and citation."
+            "Mock. Drafts a project's README or data dictionary from its file inventory: the files "
+            "and the tables' fields are drafted, and the description, methods, definitions, units, "
+            "missing value codes, licence and citation are marked for the researcher to write."
         ),
         action_class="advise",
-        accepts=(ClassSchema.of(DocumentationRequest),),
+        accepts=(ClassSchema.of(DraftRequest),),
         grounding_mode=GroundingMode.NONE,
-        payload=ClassSchema.of(DocumentationDraft),
+        payload=ClassSchema.of(Document),
         derivations={
-            "readme_sections.heading": Derived(Derivation.TEMPLATE),
-            "readme_sections.text": Derived(Derivation.TEMPLATE),
-            "readme_sections.draft_status": Derived(Derivation.TEMPLATE),
-            "dictionary.draft_status": Derived(Derivation.TEMPLATE),
-            "limitations": Derived(Derivation.TEMPLATE),
+            "document_title": Derived(Derivation.TEMPLATE),
+            "document_text": Derived(Derivation.TEMPLATE),
         },
         serves=("setup.documentation", "preparation.documentation"),
     )
 
-    def __init__(self, rules: list[Rule] | None = None) -> None:
-        self.rules = rules if rules is not None else load_rules()
+    def __init__(self, sections: list[Section] | None = None) -> None:
+        self.sections = sections if sections is not None else load_sections()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        context = request.input
-        assert isinstance(context, DocumentationRequest)  # the conductor checked spec.accepts
-        if not context.files and not context.fields:
-            return AgentResult(
-                outcome=Outcome(
-                    status=OutcomeStatus.ABSTAINED,
-                    reason_code=ReasonCode.INSUFFICIENT_INPUT,
-                    statement="Give the dataset's file names or field names to draft from.",
-                )
+        asked = request.input
+        assert isinstance(asked, DraftRequest)  # the conductor checked spec.accepts
+        kind = asked.document_kind
+        if kind not in TITLES:
+            return _abstain(
+                ReasonCode.OUTSIDE_AGENT_SCOPE,
+                "The Documentation Editor drafts a README or a data dictionary, not a "
+                f"{kind.value}.",
+            )
+        inventory = asked.inventory
+        if inventory is None or not inventory.inventory_files:
+            return _abstain(
+                ReasonCode.INSUFFICIENT_INPUT,
+                "Add the project's file inventory first: the draft is made from it.",
             )
 
-        sections = [self._section(rule, context) for rule in self.rules]
-        dictionary = [
-            DictionaryEntry(field=name, draft_status=DraftStatus.NEEDS_RESEARCHER)
-            for name in context.fields
-        ]
-        drafted = sum(s.draft_status == DraftStatus.DRAFTED for s in sections)
+        if kind == DocumentKind.README:
+            text, statement = self._readme(inventory, asked.requirements)
+        else:
+            fields = sum(len(f.file_fields) for f in inventory.inventory_files)
+            if not fields:
+                return _abstain(
+                    ReasonCode.INSUFFICIENT_INPUT,
+                    "The inventory lists no table with fields, so there is no data dictionary to "
+                    "draft.",
+                )
+            text = _dictionary(inventory)
+            statement = (
+                f"Mock: a data dictionary of {fields} fields, with their names, types and formats "
+                "copied from the inventory. Each field's description, unit and missing value "
+                "codes are left for you."
+            )
 
+        current = asked.current_version
+        if current is not None:
+            statement += f" It replaces version {current.version_ref.version} of the document."
         ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         return AgentResult(
-            outcome=Outcome(
-                status=OutcomeStatus.SUCCEEDED,
-                statement=(
-                    f"Mock: {drafted} of {len(sections)} README sections copied from your input. "
-                    f"The other sections and all {len(dictionary)} data dictionary entries need "
-                    "you to write them."
-                ),
-            ),
-            payload=DocumentationDraft(
-                readme_sections=sections,
-                dictionary=dictionary,
-                limitations=list(LIMITATIONS),
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
+            payload=Document(
+                document_kind=kind,
+                document_title=(current.document_title if current else None) or TITLES[kind],
+                media_type=MEDIA_TYPES[kind],
+                document_text=text,
+                document_derivation=Derivation.TEMPLATE,
+                revises=current.version_ref if current else None,
                 grounded_on=[ref],
             ),
             evidence=[
@@ -145,14 +169,82 @@ class DocumentationEditor:
             ],
         )
 
-    @staticmethod
-    def _section(rule: Rule, context: DocumentationRequest) -> ReadmeSection:
-        value = getattr(context, rule.source) if rule.source is not None else None
-        if isinstance(value, list):
-            value = "\n".join(f"- {item}" for item in value)
-        if not value:
-            return ReadmeSection(heading=rule.heading, draft_status=DraftStatus.NEEDS_RESEARCHER)
-        return ReadmeSection(heading=rule.heading, text=value, draft_status=DraftStatus.DRAFTED)
+    def _readme(
+        self, inventory: FileInventory, requirements: RepositoryRequirements | None
+    ) -> tuple[str, str]:
+        parts = ["# README"]
+        drafted = 0
+        for section in self.sections:
+            body = _drafted(section.source, inventory, requirements)
+            drafted += body is not None
+            parts.append(f"## {section.heading}")
+            if body is not None:
+                parts.append(body)
+            parts.append(PLACEHOLDER.format(ask=section.ask))
+        statement = (
+            f"Mock: a README of {len(self.sections)} sections, {drafted} of them drafted from the "
+            "project's inventory and the repository chosen. What each section asks of you is "
+            "marked for you to write."
+        )
+        return "\n\n".join(parts) + "\n", statement
+
+
+def _drafted(
+    source: str | None, inventory: FileInventory, requirements: RepositoryRequirements | None
+) -> str | None:
+    """A section's text drafted from one project fact, or None if there is nothing to draft."""
+    if source == "files":
+        rows = [
+            (f"`{f.file_path}`", _format(f.file_media_type, f.file_pronom_ids), str(f.file_size))
+            for f in inventory.inventory_files
+        ]
+        return _table(("File", "Format", "Size (bytes)"), rows)
+    if source == "tables":
+        tables = [
+            f"`{f.file_path}`:\n\n"
+            + _table(
+                ("Field", "Type", "Format"),
+                [(f"`{c.name}`", c.field_type or "", c.field_format or "") for c in f.file_fields],
+            )
+            for f in inventory.inventory_files
+            if f.file_fields
+        ]
+        return "\n\n".join(tables) or None
+    if source == "licences":
+        if requirements is None or not requirements.licences:
+            return None
+        offered = ", ".join(f"`{licence}`" for licence in requirements.licences)
+        return f"{requirements.repository_name} offers these licences: {offered}."
+    return None
+
+
+def _format(media_type: str | None, pronom_ids: list[str]) -> str:
+    known = media_type or "unknown"
+    return f"{known} ({', '.join(pronom_ids)})" if pronom_ids else known
+
+
+def _table(header: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
+    def line(cells: tuple[str, ...]) -> str:
+        return "| " + " | ".join(c.replace("|", "\\|") for c in cells) + " |"
+
+    return "\n".join([line(header), line(tuple("---" for _ in header)), *map(line, rows)])
+
+
+def _dictionary(inventory: FileInventory) -> str:
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(DICTIONARY_COLUMNS)
+    for f in inventory.inventory_files:
+        for c in f.file_fields:
+            row = (f.file_path, c.name, c.field_type, c.field_format, c.field_description)
+            writer.writerow([*(v or "" for v in row), "", ""])
+    return out.getvalue()
+
+
+def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
+    return AgentResult(
+        outcome=Outcome(status=OutcomeStatus.ABSTAINED, reason_code=reason, statement=statement)
+    )
 
 
 def build() -> DocumentationEditor:

@@ -139,6 +139,7 @@ version oldest first, its text and its `state` (`proposed`, `approved` or `rejec
   an agent its project's facts or apply `hosted_models` ([Projects](../../docs/specs/projects.md)),
   TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
-- A drafter is not yet given the merged requirements (TODO(#394)), and nothing checks a project
-  against them, TODO(#19, #202).
+- A drafter reads the merged requirements as `DraftRequest.requirements`, a core
+  `RepositoryRequirements`, but the conductor does not yet put them in (TODO(#394)). Nothing
+  checks a project against them, TODO(#19, #202).
 - How long a project is kept, and what deleting one removes, TODO(#141).

@@ -75,6 +75,14 @@ class DocumentKind(StrEnum):
     OTHER = "other"
 
 
+class VersionState(StrEnum):
+    """The state of one version of a project document (docs/specs/projects.md)."""
+
+    PROPOSED = "proposed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class EnergyMethod(StrEnum):
     NOT_MEASURED = "not_measured"
     ESTIMATED = "estimated"
@@ -153,11 +161,33 @@ class RequirementSet(Frozen):
     guidance: list[str] = Field(default_factory=list)
 
 
+class RequirementSetUse(Frozen):
+    ref: str = Field(pattern=r"^[a-z0-9][a-z0-9-]*@v[0-9]+$")
+    sha256: str = Field(pattern=SHA256_PATTERN)
+
+
+class RepositoryRequirements(Frozen):
+    """The merged requirements of the repository a researcher chose (docs/specs/deposit.md)."""
+
+    re3data_id: str = Field(pattern=r"^r3d[0-9]{9}$")
+    repository_name: str
+    conforms_to: str
+    requirement_sets: list[RequirementSetUse]
+    fields: list[RequirementField] = Field(default_factory=list)
+    required_documents: list[DocumentKind] = Field(default_factory=list)
+    recommended_documents: list[DocumentKind] = Field(default_factory=list)
+    media_types: list[str] = Field(default_factory=list)
+    max_file_size: int | None = None
+    max_item_size: int | None = None
+    licences: list[str] | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
 # --- Inputs -----------------------------------------------------------------------------------
 # Every input class carries `schema_class` as a type designator with a single literal value. The
-# core defines the conversation's Message and a project's FileInventory; every other input class
-# belongs to its agent (docs/specs/contract.md), and the harness holds such an input as an
-# `OpenInput`.
+# core defines the conversation's Message, a project's FileInventory and the drafters'
+# DraftRequest (below); every other input class belongs to its agent (docs/specs/contract.md), and
+# the harness holds such an input as an `OpenInput`.
 
 
 class ConversationTurn(Frozen):
@@ -335,6 +365,32 @@ class Document(Grounded):
     document_text: str
     document_derivation: Derivation
     revises: DocumentVersionRef | None = None
+
+
+# --- Drafting ---------------------------------------------------------------------------------
+# The input every drafter accepts (docs/specs/projects.md). A core input class, like
+# Message, so that one drafter can replace another without its caller changing.
+
+
+class CurrentVersion(Frozen):
+    """The version of a project document a drafter is to regenerate, with any decision on it."""
+
+    version_ref: DocumentVersionRef
+    document_title: str | None = None
+    media_type: str
+    document_text: str
+    version_state: VersionState
+    decision_reason: str | None = None
+
+
+class DraftRequest(Frozen):
+    """A project document of one kind to draft from the project's facts (docs/specs/projects.md)."""
+
+    schema_class: Literal["DraftRequest"] = "DraftRequest"
+    document_kind: DocumentKind
+    inventory: FileInventory | None = None
+    requirements: RepositoryRequirements | None = None
+    current_version: CurrentVersion | None = None
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

@@ -127,7 +127,7 @@ intended design, and each part says where it is not built yet.
 
 ## Boundaries and contracts
 
-**The core contract** ([Contract](contract.md)) holds `FileInventory`, `Document`, `DocumentKind`
+**The core contract** ([Contract](contract.md)) holds `FileInventory`, `Document`, `DocumentKind`, `DraftRequest`
 and the version reference, because the conductor, the app and the package builder must read them
 from any agent without knowing the agent. A document's content is always text with a media type;
 a metadata record is serialised, and `conforms_to` names the schema it follows. Checking a record
@@ -167,7 +167,8 @@ for a change outside the project waits for the first agent that needs one, TODO(
 **Runs and decisions are separate.** A drafting run ends `succeeded` with a proposed version, so no
 run waits for a person. A decision acts on the project, is not an invocation of an agent and
 resumes nothing. Regenerating a rejected document is a new run, given the version and the
-decision on it, reason included, and naming that version in `revises`. The policy gate's
+decision on it, reason included, and naming that version in `revises`. The input is the core
+`DraftRequest`, whose `current_version` holds the version, its state and the reason. The policy gate's
 `referred(policy_requires_approval)` is unchanged: approving such a run and resuming it is
 TODO(#16, #72).
 

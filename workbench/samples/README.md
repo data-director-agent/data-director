@@ -15,10 +15,11 @@ for agents that accept that class, and `workbench invoke` reads it to parse the 
 | `repository-mandated.json` | `RepositoryNeeds` | Embargoed data with the UK Data Service mandated. The repository advisor describes it rather than shortlisting. |
 | `ethics-context.json` | `SensitivityContext` | Interviews and smart-meter readings from households, with a postcode, a date of birth and health conditions among the fields. The ethics adviser mock's succeeded path, with three fields flagged. |
 | `soil-survey.inventory.json` | `FileInventory` | What `uv run dd-inventory inventory/tests/data/soil-survey` writes for a five-file dataset: a README, a CSV and a TSV with their fields, a PDF and a PNG identified by PRONOM signature. Exercises `advisor.files`'s succeeded path. |
+| `soil-survey.readme.draft.json` | `DraftRequest` | A README for the soil-survey inventory, with ORDA's requirements as the app's configuration resolves them. Exercises `advisor.documentation`'s README: the files, fields and ORDA's licences drafted, every section marked for the researcher. |
+| `soil-survey.data-dictionary.draft.json` | `DraftRequest` | A data dictionary for the same inventory: one CSV row per field of its two tables. |
+| `soil-survey.metadata-record.draft.json` | `DraftRequest` | A metadata record for the same inventory and ORDA: `advisor.metadata`'s DataCite record with ORDA's 12 properties, three filled. |
 | `dmp-commitments.json` | `DmpCommitments` | A plan's sharing commitments against planned outputs: one output missing, one unplanned, one access mismatch (open vs restricted) |
 | `published-record.json` | `PublishedRecord` | A published dataset's metadata for the FAIR Assessor mock: a landing-page URL rather than a DOI, no related identifiers and one creator without an ORCID iD, so three of its twelve checks are not met. |
-| `metadata-draft-request.json` | `MetadataDraftRequest` | A household energy dataset with title, description, creators, keywords and year, asking for DataCite. Exercises `advisor.metadata`'s succeeded path: 5 of 8 properties filled, Identifier, Publisher and ResourceType left for the researcher. |
-| `documentation-request.json` | `DocumentationRequest` | Title, creators, file names and field names of a household energy dataset, for the Documentation Editor mock to draft a README outline and data dictionary from. |
 | `rights-context.json` | `RightsContext` | Data that need attribution, are sensitive and include third-party content, for the Rights and Licensing Adviser mock. |
 | `link-candidates.json` | `LinkCandidates` | A DOI URL, a valid ORCID iD, an ORCID iD with a bad checksum, a ROR ID and an unrecognised arXiv ID, for the Linking Adviser mock. |
 
