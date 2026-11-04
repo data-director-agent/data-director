@@ -55,34 +55,39 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    agent's card says later.
 9. Within a stored run, a class is identified by its schema digest, not its name: two agents may
    each define a class of the same name.
-10. The input hash is taken over the validated input document as it was received, with null
-    values removed. No model defaults are added before hashing.
-11. `invocation_id` is a UUIDv7 (RFC 9562); the schema pins the version nibble in a pattern
+10. The input hash is taken over the validated input document as the agent is given it, with
+    null values removed: as it was received, except for the project's facts the conductor puts
+    into a `DraftRequest` in a project ([Projects](projects.md), invariant 6). No model defaults
+    are added before hashing.
+11. `project_id`, on the request and the envelope, is set only by the conductor, from the
+    conversation a request is a turn of or a child's grant. A caller's request that carries it is
+    refused, and the agent is never sent it (`harness/tests/test_project_runs.py`).
+12. `invocation_id` is a UUIDv7 (RFC 9562); the schema pins the version nibble in a pattern
     (`test_request_validates_and_rejects_bad_id`). Identifiers carry no information about the
     dataset.
-12. The outcome status is one of `succeeded`, `abstained`, `referred`, `failed`, `suspended`, and
+13. The outcome status is one of `succeeded`, `abstained`, `referred`, `failed`, `suspended`, and
     `validate.py` enforces what JSON Schema cannot: `succeeded` carries a payload and no other
     status does; `failed` and `suspended`, and only they, carry a `problem`; `abstained` and
     `referred` carry a `reason_code`; `referred` also names `referred_to`
     (`sdk/tests/test_contract.py`).
-13. A `problem` is an RFC 9457 Problem Details object, used verbatim, with a type URI under
+14. A `problem` is an RFC 9457 Problem Details object, used verbatim, with a type URI under
     `https://w3id.org/data-director/problems/`. The resumption condition of a `suspended` run is
     in the two extension members `resume_condition` and `resume_after`.
-14. `requires_human_review` is the constant `true` in the generated schema, so no envelope, from
+15. `requires_human_review` is the constant `true` in the generated schema, so no envelope, from
     any language, can claim otherwise (C13, C15; `test_human_review_cannot_be_false`).
-15. The LinkML source is the contract. `schema/generated/` is never edited by hand: it must equal
+16. The LinkML source is the contract. `schema/generated/` is never edited by hand: it must equal
     a fresh `dd-gen-schema` run, for the core (`test_generated_schemas_are_current`, and the
     `git diff --exit-code` step in `.github/workflows/ci.yml`) and for each agent's classes (each
     agent's `gen.stale(SCHEMA)` test).
-16. Generator gaps are repaired only in `sdk/src/dd_sdk/schema/gen.py`, whose `_repair` docstring
+17. Generator gaps are repaired only in `sdk/src/dd_sdk/schema/gen.py`, whose `_repair` docstring
     names each repair. Rules JSON Schema cannot state are written as prose in the LinkML source
     and enforced in `dd_sdk/contract/validate.py`, the single runtime call site for validation.
-17. Runtime code never imports `linkml` or `linkml_runtime`. LinkML is a development dependency of
+18. Runtime code never imports `linkml` or `linkml_runtime`. LinkML is a development dependency of
     the root workspace, needed to regenerate a schema, never to load or check a document.
-18. An agent's Pydantic model for a class has exactly the fields of the class's generated schema;
+19. An agent's Pydantic model for a class has exactly the fields of the class's generated schema;
     `ClassSchema.of` refuses one that differs
     (`test_a_model_that_disagrees_with_its_generated_schema_is_refused`).
-19. No agent builds, sends or parses an RO-Crate as part of a call, and nothing in the harness
+20. No agent builds, sends or parses an RO-Crate as part of a call, and nothing in the harness
     reads a crate back to make a decision. `dd_harness/provenance.py` is the only importer of
     `rocrate`.
 

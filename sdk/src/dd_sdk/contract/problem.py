@@ -77,3 +77,9 @@ def input_not_accepted(
     return problem(
         "input-not-accepted", "Agent does not accept this input", detail, http_status=422
     )
+
+
+def revision_refused(detail: str) -> ProblemDetails:
+    """A drafted document the project could not record: it revises no version of the project, or
+    a version of a document of another kind (docs/specs/projects.md)."""
+    return problem("revision-refused", "The draft does not revise this project", detail, 409)

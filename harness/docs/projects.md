@@ -147,14 +147,10 @@ version oldest first, its text and its `state` (`proposed`, `approved` or `rejec
 
 ## Not yet built
 
-- The conductor does not yet record a run's draft (`record_draft`), so a version reaches a
-  project only from code that calls the store, TODO(#394).
 - Only owners are to decide, and membership is not built, TODO(#389).
-- The request and the envelope do not carry a `project_id` yet, and the conductor does not give
-  an agent its project's facts or apply `hosted_models` ([Projects](../../docs/specs/projects.md)),
-  TODO(#394).
+- The conductor fills only a `DraftRequest`'s `inventory` and `requirements`, not its
+  `current_version` nor any other class, and does not apply `hosted_models`
+  ([Projects](../../docs/specs/projects.md)), TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
-- A drafter reads the merged requirements as `DraftRequest.requirements`, a core
-  `RepositoryRequirements`, but the conductor does not yet put them in (TODO(#394)). Nothing
-  checks a project against them, TODO(#19, #202).
+- Nothing checks a project against its merged requirements, TODO(#19, #202).
 - How long a project is kept, and what deleting one removes, TODO(#141).

@@ -54,8 +54,8 @@ out of the process flow.
    `agents/orchestrator-model/tests/test_orchestrator.py`,
    `test_delegation_agents_and_itself_are_not_tools`)
 7. **Only the conductor sets lineage.** A caller's request carrying `parent_invocation_id` is
-   refused. A child's conversation and the human it acts for come from the grant, never from
-   whoever sent the callback. The parent's `delegations` is the conductor's record of the children
+   refused. A child's conversation, project and the human it acts for come from the grant, never
+   from whoever sent the callback. The parent's `delegations` is the conductor's record of the children
    it ran under that grant, kept when the parent later fails and including a child that finishes
    after the parent returns.
    (`test_a_caller_may_not_set_lineage_or_use_an_unknown_or_expired_token`,

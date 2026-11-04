@@ -450,7 +450,7 @@
    "$id": "https://w3id.org/data-director/schema/core/DraftRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (ADR-0035, ADR-0036 decision 7). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. The conductor puts them in from the project (ADR-0034 decision 6, TODO(#394)); until it does, the caller sends them.",
+   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory and the requirements in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394).",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -472,7 +472,7 @@
                "type": "null"
             }
          ],
-         "description": "The project's inventory, the latest added (ADR-0034 decision 3)."
+         "description": "The project's inventory, the latest added. In a project the conductor fills it; a caller leaves it out."
       },
       "requirements": {
          "anyOf": [
@@ -483,7 +483,7 @@
                "type": "null"
             }
          ],
-         "description": "The requirements of the repository chosen last (ADR-0038 decision 2)."
+         "description": "The requirements of the repository chosen last. In a project the conductor fills it; a caller leaves it out."
       },
       "current_version": {
          "anyOf": [

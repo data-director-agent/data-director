@@ -21,7 +21,15 @@ these itself:
 - the telemetry, including the trace identifier;
 - the grounding mode the agent declared, which the linter then enforces;
 - the hash of the input;
-- the human the invocation acted for, `acting_for`.
+- the human the invocation acted for, `acting_for`;
+- the project the run belongs to, `project_id`, taken from the conversation or, for a delegated
+  child, from its parent's grant ([Projects](../../docs/specs/projects.md)). A request that
+  names one is refused, and the agent is never sent it.
+
+In a project, the conductor also puts the project's facts into a `DraftRequest` before the input
+is hashed (`dd_harness.project_facts`): the latest inventory and the requirements of the
+repository chosen replace whatever the caller sent, and a slot the project has no value for is
+removed.
 
 `acting_for` comes from the caller's transport, not the request. The transport asks its
 authenticator who the caller acts for and passes the answer to `invoke`. Until there is sign-in,
@@ -47,7 +55,7 @@ reviewer all see the same record.
 | 2. Input check | Does the agent read this input class? | `failed`, problem `input-not-accepted`. The agent does not run. |
 | 3. Run the agent | The agent runs. The conductor checks it returned the payload class it declared. | An exception, or a payload of the wrong class: `failed`, problem `agent-error`. |
 | 4. Grounding linter | Is the output based only on what the agent's grounding mode allows? See [`grounding.md`](grounding.md). | A `succeeded` envelope becomes `failed`, problem `grounding-violation`. The payload and evidence are removed. |
-| 5. Validate and store | The envelope is validated against the JSON Schema, then stored. | An invalid envelope raises an exception; it is a bug in the workbench. |
+| 5. Validate and store | The envelope is validated against the JSON Schema. In a project, a `succeeded` run with a `Document` payload is recorded as a proposed version of a project document, caused by the run. Then the run is stored. | An invalid envelope raises an exception; it is a bug in the workbench. A draft whose `revises` names no version of the project, or one of another kind: `failed`, problem `revision-refused`, and nothing is added to the project. |
 
 The policy profile is a YAML file in `profiles/`. The deployment chooses it when the conductor is
 built (`DD_PROFILE`, or `--profile`), and the conductor records it on every envelope as
@@ -90,7 +98,7 @@ line, written before its parent's.
 
 | File | Contents |
 |---|---|
-| `request.json` | The request as received. |
+| `request.json` | The request as the agent was given it: as received, with the conductor's `project_id` and, in a project, the project's facts. |
 | `envelope.json` | The envelope returned. |
 | `spans.jsonl` | The OpenTelemetry trace of the run. |
 | `grounding.txt` | The grounding linter's verdict and any violations. |

@@ -30,6 +30,7 @@ from dd_sdk.contract.models import (
     Derivation,
     Document,
     DocumentKind,
+    DraftRequest,
     EvidenceItem,
     GroundingMode,
     GroundingRef,
@@ -192,24 +193,33 @@ _DRAFTS: dict[DocumentKind, tuple[str, str]] = {
 
 
 class DocumentStub:
-    """Drafts a placeholder `Document` of the kind a `ProbeDocumentRequest` names, from a fixed
-    template, grounded on its input. It declares grounding mode `none`."""
+    """Drafts a placeholder `Document` of the kind a `ProbeDocumentRequest` or a core
+    `DraftRequest` names, from a fixed template, grounded on its input. It declares grounding mode
+    `none`. For a `DraftRequest` it says which facts it was given, so a test can see what the
+    conductor put in, and revises the `current_version` it was given, if any."""
 
     spec = AgentSpec(
         agent_id="stub.document",
         version="0.1.0",
         description="Drafts a placeholder project document of the kind it is asked for.",
         action_class="advise",
-        accepts=(ClassSchema.of(ProbeDocumentRequest),),
+        accepts=(ClassSchema.of(ProbeDocumentRequest), ClassSchema.of(DraftRequest)),
         grounding_mode=GroundingMode.NONE,
         payload=ClassSchema.of(Document),
     )
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         asked = request.input
-        assert isinstance(asked, ProbeDocumentRequest)  # the conductor checked spec.accepts
+        # The conductor checked spec.accepts.
+        assert isinstance(asked, ProbeDocumentRequest | DraftRequest)
         kind = asked.document_kind
         media_type, text = _DRAFTS[kind]
+        revises = None
+        if isinstance(asked, DraftRequest):
+            files = len(asked.inventory.inventory_files) if asked.inventory else None
+            repository = asked.requirements.repository_name if asked.requirements else None
+            text += f"\nGiven: files={files}, repository={repository}\n"
+            revises = asked.current_version.version_ref if asked.current_version else None
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
@@ -221,6 +231,7 @@ class DocumentStub:
                 document_text=text,
                 document_derivation=Derivation.TEMPLATE,
                 grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
+                revises=revises,
             ),
             evidence=[
                 EvidenceItem(
