@@ -9,9 +9,18 @@
 # only from its own institution's members (re3data's "institutional membership" restriction,
 # or typed only "institutional") unless the researcher's institution operates it.
 
+# The researcher's institution's repositories are a fallback, in case no more specific
+# destination (a repository of the discipline, or one a funder, journal or project requires)
+# suits the data (#441). Affiliation adds no score. One that matches the discipline is ranked as
+# any other; one that does not is offered as the institutional fit, without needing the floor,
+# unless it lacks the access the data needs. Either is added beyond the cap and takes no other
+# repository's place, so naming an institution never removes one from the shortlist.
+
+# The shortlist is ordered by kind of fit, then by score within a kind.
+order: [discipline, institutional, generalist]
+
 # At most this many repositories are recommended, besides those the researcher's own institution
-# operates, which are added and take no other's place: naming an institution never removes a
-# repository from the shortlist (#441).
+# operates.
 max_candidates: 5
 # Records retrieved per query. Each live hit costs one request to re3data (Blueprint P14).
 search_limit: 10
@@ -38,9 +47,5 @@ weights:
   data_kind: 0.2
   # A generalist repository. Above the floor and below a full theme match.
   generalist: 0.4
-  # Operated by the researcher's institution. Enough on its own to reach the floor and exempt
-  # from the cap, so the institutional repository is always offered (R1, affiliation-based
-  # suggestions) unless it lacks the access the data needs.
-  affiliation: 0.3
   # The access the data needs (Phase 2) is not listed.
   access_unmet: -0.5

@@ -117,7 +117,7 @@
                "type": "null"
             }
          ],
-         "description": "The researcher's institution. Its repositories are added to the shortlist and none is removed, so the themes are given as if it were not set."
+         "description": "The researcher's institution. Its repositories are offered as a fallback, after those of the dataset's discipline and before generalist ones, and none is removed, so give the themes as if it were not set."
       }
    },
    "required": [

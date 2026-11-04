@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from dd_agent_advisor_repository import rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     Affiliation,
@@ -122,6 +123,12 @@ def test_naming_an_institution_adds_its_repository_and_removes_none(
     )
     assert set(without) <= set(named), (without, named)
     assert ORDA in named
+    # The institution's repository is the fallback: after every repository of the discipline,
+    # before every generalist.
+    generalist = set(rank.generalists())
+    at = named.index(ORDA)
+    assert not set(named[at + 1 :]) - generalist, named
+    assert not set(named[:at]) & generalist, named
 
 
 @pytest.mark.requirement("R1")
@@ -136,4 +143,4 @@ def test_a_narrow_topic_with_an_institution_is_not_the_institutional_repository_
     assert "No discipline-specific repository matched the themes" in statement
     assert "broad field of study" in statement
     orda = options.candidates[ids.index(ORDA)]
-    assert any("not because it matches the dataset's discipline" in r for r in orda.ranked_by)
+    assert any("offered as a fallback" in r for r in orda.ranked_by)
