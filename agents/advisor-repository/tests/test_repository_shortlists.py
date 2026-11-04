@@ -102,3 +102,25 @@ def test_a_members_only_repository_is_offered_to_its_own_members(runs_dir: Path)
     assert ORDA in ids and LEEDS not in ids
     orda = options.candidates[ids.index(ORDA)]
     assert any("the researcher's institution" in r for r in orda.ranked_by)
+
+
+@pytest.mark.requirement("R1")
+@pytest.mark.parametrize(
+    ("affiliation", "home"),
+    [
+        (Affiliation(name="The University of Sheffield", ror="https://ror.org/05krs5044"), ORDA),
+        (Affiliation(name="University of Leeds", ror="https://ror.org/024mrxd33"), LEEDS),
+    ],
+)
+def test_naming_an_institution_adds_its_repository_without_narrowing_the_shortlist(
+    runs_dir: Path, affiliation: Affiliation, home: str
+) -> None:
+    """#441: giving more information must not give a worse answer."""
+    without, _, _ = shortlist(runs_dir, load("moorland-sensors.json"))
+    needs = load("moorland-sensors.json").model_copy(update={"affiliation": affiliation})
+    ids, options, _ = shortlist(runs_dir, needs)
+    assert {EIDC, PANGAEA, CEDA} <= set(ids), ids
+    assert set(without) <= set(ids)
+    assert set(ids) - set(without) == {home}
+    reasons = options.candidates[ids.index(home)].ranked_by
+    assert any("institutional rather than a discipline fit" in r for r in reasons), reasons

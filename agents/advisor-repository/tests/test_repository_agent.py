@@ -279,6 +279,41 @@ def test_the_researchers_institutional_repository_is_offered_beyond_the_cap(
 
 
 @pytest.mark.requirement("R1")
+def test_an_affiliation_adds_to_the_shortlist_and_says_why(runs_dir: Path) -> None:
+    """#441: the institution's repository joins the subject matches rather than replacing them,
+    and its reason says it was offered for the institution, not the subjects."""
+    needs = NEEDS.model_copy(
+        update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
+    )
+    advisor = agent(repositories=FakeRepositories([SURVEYS, INSTITUTIONAL]))
+    env = invoke(runs_dir, needs, advisor)
+    options = env.payload_as(RepositoryOptions)
+    names = named(env, options)
+    assert names == [SURVEYS.name, INSTITUTIONAL.name]
+    assert all(c.basis == CandidateBasis.RECOMMENDED for c in options.candidates)
+    home = options.candidates[1]
+    assert home.ranked_by == [
+        "Operated by University of Testing, the researcher's institution. It matches none of "
+        "the themes or kinds of data given, so it is offered as an institutional rather than a "
+        "discipline fit."
+    ]
+
+
+@pytest.mark.requirement("R1")
+def test_an_institutional_repository_that_matches_the_subjects_is_not_called_institutional_only(
+    runs_dir: Path,
+) -> None:
+    matching = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    needs = NEEDS.model_copy(
+        update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
+    )
+    env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([matching])))
+    (home,) = env.payload_as(RepositoryOptions).candidates
+    assert "Operated by University of Testing, the researcher's institution." in home.ranked_by
+    assert not any("institutional rather than" in r for r in home.ranked_by)
+
+
+@pytest.mark.requirement("R1")
 def test_a_members_only_repository_is_left_out_unless_the_researcher_is_a_member(
     runs_dir: Path,
 ) -> None:

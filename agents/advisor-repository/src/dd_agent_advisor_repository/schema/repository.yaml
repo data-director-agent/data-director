@@ -111,10 +111,19 @@ slots:
       decided, and no access need is checked.
     range: AccessNeed
   mandated:
+    description: >-
+      Repositories the dataset must be deposited in: those a funder's, journal's or
+      institution's policy requires, as a policy check reported, or those the researcher says
+      they must use. Given any, the agent describes these alone and offers no shortlist. Naming
+      the researcher's institution is not a mandate: give it as the affiliation.
     range: RepositoryRef
     multivalued: true
     inlined_as_list: true
   affiliation:
+    description: >-
+      The researcher's institution. The repositories it operates are added to the shortlist
+      beside those matching the themes and kinds of data, and never replace them, so give those
+      as well.
     range: Affiliation
     inlined: true
 

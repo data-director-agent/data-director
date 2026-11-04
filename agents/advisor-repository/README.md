@@ -23,9 +23,15 @@ researcher chooses the repository (#199); the agent never does.
 
 `RepositoryNeeds` has the themes and kinds of data, the access decided in Phase 2 (`open`,
 `embargoed` or `restricted`), any mandated repositories, and the researcher's affiliation. With
-mandated repositories the agent describes them. With none, it shortlists (the two branches of
-Figure 3), and its statement says that a funder, journal or institution may still require a
+mandated repositories the agent describes them alone. With none, it shortlists (the two branches
+of Figure 3), and its statement says that a funder, journal or institution may still require a
 repository, since an empty list often means only that no policy source records one.
+
+`mandated` is only for repositories a policy requires or the researcher says they must use.
+Naming the researcher's institution is not a mandate: it is the `affiliation`, which adds the
+institution's own repositories to the shortlist beside the subject matches and never replaces
+them (#441). The schema's descriptions of the two slots say so, since they reach the orchestrator
+model as the tool's input schema.
 
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: its re3data record, and the FAIRsharing database record that re3data
@@ -64,7 +70,9 @@ repository or makes a judgement:
   theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
   found, the statement says that only generalist and institutional repositories are offered.
   Ranking also uses whether the researcher's institution operates the repository, and whether it
-  offers the access the data needs.
+  offers the access the data needs. An institutional repository that matches none of the themes
+  or kinds of data says in `ranked_by` that it is offered as an institutional rather than a
+  discipline fit.
 - **Left out.** A repository closed to deposits is never recommended, nor is one that takes
   deposits only from its own institution's members (re3data's "institutional membership"
   restriction, or a repository typed only `institutional`) unless the researcher's institution

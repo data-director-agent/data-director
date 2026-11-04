@@ -116,7 +116,14 @@ def rank(
             reasons.append(f"Matches the {noun} of data {_quoted(matched)}.")
         if home is not None:
             score += weights["affiliation"]
-            reasons.append(f"Operated by {home.name}, the researcher's institution.")
+            if reasons:
+                reasons.append(f"Operated by {home.name}, the researcher's institution.")
+            else:
+                reasons.append(
+                    f"Operated by {home.name}, the researcher's institution. It matches none "
+                    "of the themes or kinds of data given, so it is offered as an institutional "
+                    "rather than a discipline fit."
+                )
         if assess.access_met(record, needs.access) is False:
             score += weights["access_unmet"]
             reasons.append(f"Does not list {needs.access} access, which the data needs.")
