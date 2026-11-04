@@ -279,6 +279,33 @@ def test_the_researchers_institutional_repository_is_offered_beyond_the_cap(
 
 
 @pytest.mark.requirement("R1")
+def test_the_institutional_repository_never_displaces_another_candidate(runs_dir: Path) -> None:
+    # #441: even when the institution's repository scores highest, the cap still offers as many
+    # other repositories as it would without the affiliation.
+    many = [
+        SURVEYS.model_copy(update={"re3data_id": f"r3d10000010{n}", "name": f"Archive {n}"})
+        for n in range(6)
+    ]
+    on_theme = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    advisor = agent(repositories=FakeRepositories([*many, on_theme]))
+    without = named(*_with_options(invoke(runs_dir / "without", NEEDS, advisor)))
+    needs = NEEDS.model_copy(
+        update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
+    )
+    env = invoke(runs_dir / "named", needs, advisor)
+    names = named(*_with_options(env))
+    assert names[0] == "Testing University Research Data"
+    assert names[1:] == without
+    home = env.payload_as(RepositoryOptions).candidates[0]
+    # It matches the theme, so it is not marked as an institutional fit alone.
+    assert not any("not because it matches" in r for r in home.ranked_by)
+
+
+def _with_options(env: Envelope) -> tuple[Envelope, RepositoryOptions]:
+    return env, env.payload_as(RepositoryOptions)
+
+
+@pytest.mark.requirement("R1")
 def test_a_members_only_repository_is_left_out_unless_the_researcher_is_a_member(
     runs_dir: Path,
 ) -> None:

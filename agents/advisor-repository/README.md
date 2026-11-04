@@ -62,13 +62,16 @@ repository or makes a judgement:
   recommend a repository on their own, since a kind of data such as "images" is found in
   repositories of every discipline. A generalist scores below a repository that matches every
   theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
-  found, the statement says that only generalist and institutional repositories are offered.
+  found, the statement says that only generalist and institutional repositories are offered and
+  suggests the broad field of study, since a narrow topic such as "moorland" may match none.
   Ranking also uses whether the researcher's institution operates the repository, and whether it
-  offers the access the data needs.
+  offers the access the data needs. An institutional repository that matches no theme says in
+  `ranked_by` that it is offered because the institution operates it, not for its discipline.
 - **Left out.** A repository closed to deposits is never recommended, nor is one that takes
   deposits only from its own institution's members (re3data's "institutional membership"
   restriction, or a repository typed only `institutional`) unless the researcher's institution
-  operates it. The researcher's own institutional repository is offered beyond the cap.
+  operates it. The researcher's own institutional repository is offered beyond the cap and takes
+  no other repository's place, so naming an institution adds to the shortlist and removes nothing.
 - **Order at an equal score.** A commercial operator is listed after the others, and then a
   repository that lists a deposit fee; neither is dropped. Certification carries no weight,
   because Figure 3 says paid certification must not outweigh free evaluation.

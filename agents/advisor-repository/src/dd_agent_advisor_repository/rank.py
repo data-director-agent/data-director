@@ -81,7 +81,7 @@ def rank(
     matches: Matches, records: dict[str, Re3dataRecord], needs: RepositoryNeeds
 ) -> list[Ranked]:
     """Every retrieved repository that reaches the floor, best first, capped; those operated by
-    the researcher's institution are kept beyond the cap.
+    the researcher's institution are added beyond the cap and take no other's place.
 
     A repository's discipline is judged from the themes alone. The kinds of data add a little,
     never enough on their own, since a kind of data such as "images" is found in repositories of
@@ -117,21 +117,34 @@ def rank(
         if home is not None:
             score += weights["affiliation"]
             reasons.append(f"Operated by {home.name}, the researcher's institution.")
+            if rid in general or not matches.themes.get(rid):
+                reasons.append(
+                    "Offered because the researcher's institution operates it, not because it "
+                    "matches the dataset's discipline."
+                )
         if assess.access_met(record, needs.access) is False:
             score += weights["access_unmet"]
             reasons.append(f"Does not list {needs.access} access, which the data needs.")
         if score >= cfg["confidence_floor"]:
             ranked.append(Ranked(record, round(score, 4), tuple(reasons)))
-    ranked.sort(
-        key=lambda r: (
-            -r.score,
-            assess.commercial(r.record) == Answer.YES,
-            assess.fee_required(r.record) == Answer.YES,
-            r.record.name.casefold(),
-        )
-    )
-    # The cap does not apply to the researcher's own institution's repositories.
+    # The cap applies only to repositories the researcher's institution does not operate, so
+    # naming an institution adds its repositories and never displaces another (#441).
     cap = int(cfg["max_candidates"])
-    return ranked[:cap] + [
-        r for r in ranked[cap:] if assess.affiliated(r.record, needs.affiliation) is not None
-    ]
+    ours = {
+        r.record.re3data_id
+        for r in ranked
+        if assess.affiliated(r.record, needs.affiliation) is not None
+    }
+    theirs = [r for r in ranked if r.record.re3data_id in ours]
+    others = sorted((r for r in ranked if r.record.re3data_id not in ours), key=_order)[:cap]
+    return sorted(others + theirs, key=_order)
+
+
+def _order(r: Ranked) -> tuple[float, bool, bool, str]:
+    """Best score first; at an equal score, commercial operators and then deposit fees last."""
+    return (
+        -r.score,
+        assess.commercial(r.record) == Answer.YES,
+        assess.fee_required(r.record) == Answer.YES,
+        r.record.name.casefold(),
+    )

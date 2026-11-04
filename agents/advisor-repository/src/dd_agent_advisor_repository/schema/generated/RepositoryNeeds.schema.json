@@ -68,7 +68,7 @@
          "type": "string"
       },
       "themes": {
-         "description": "Discipline or subject, as free text.",
+         "description": "The dataset's discipline, as the broad field of study (e.g. environmental science), and any narrower subjects as further themes. A narrow topic alone (e.g. moorland) may match no repository of the discipline.",
          "items": {
             "type": "string"
          },
@@ -99,6 +99,7 @@
          "description": "How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet decided, and no access need is checked."
       },
       "mandated": {
+         "description": "Repositories that a funder, journal or institutional policy requires, as Phase 2 found them. Naming an institution does not make its repository mandated.",
          "items": {
             "$ref": "#/$defs/RepositoryRef"
          },
@@ -115,7 +116,8 @@
             {
                "type": "null"
             }
-         ]
+         ],
+         "description": "The researcher's institution. Its repositories are added to the shortlist and none is removed, so the themes are given as if it were not set."
       }
    },
    "required": [

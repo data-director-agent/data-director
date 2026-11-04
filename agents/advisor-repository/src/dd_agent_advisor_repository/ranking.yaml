@@ -10,7 +10,8 @@
 # or typed only "institutional") unless the researcher's institution operates it.
 
 # At most this many repositories are recommended, besides those the researcher's own institution
-# operates.
+# operates, which are added and take no other's place: naming an institution never removes a
+# repository from the shortlist (#441).
 max_candidates: 5
 # Records retrieved per query. Each live hit costs one request to re3data (Blueprint P14).
 search_limit: 10
