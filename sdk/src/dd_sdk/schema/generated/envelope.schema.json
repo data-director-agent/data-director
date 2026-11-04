@@ -256,7 +256,7 @@
       },
       "DraftRequest": {
          "additionalProperties": false,
-         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (ADR-0035, ADR-0036 decision 7). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. The conductor puts them in from the project (ADR-0034 decision 6, TODO(#394)); until it does, the caller sends them.",
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory and the requirements in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -278,7 +278,7 @@
                      "type": "null"
                   }
                ],
-               "description": "The project's inventory, the latest added (ADR-0034 decision 3)."
+               "description": "The project's inventory, the latest added. In a project the conductor fills it; a caller leaves it out."
             },
             "requirements": {
                "anyOf": [
@@ -289,7 +289,7 @@
                      "type": "null"
                   }
                ],
-               "description": "The requirements of the repository chosen last (ADR-0038 decision 2)."
+               "description": "The requirements of the repository chosen last. In a project the conductor fills it; a caller leaves it out."
             },
             "current_version": {
                "anyOf": [
@@ -422,6 +422,14 @@
             },
             "conversation_id": {
                "description": "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "project_id": {
+               "description": "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent.",
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
                "type": [
                   "string",
@@ -746,6 +754,14 @@
             },
             "conversation_id": {
                "description": "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "project_id": {
+               "description": "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent.",
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
                "type": [
                   "string",
@@ -1611,6 +1627,14 @@
             "null"
          ]
       },
+      "project_id": {
+         "description": "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent.",
+         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
       "parent_invocation_id": {
          "description": "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused.",
          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -1646,5 +1670,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.4"
+   "version": "0.9.5"
 }

@@ -264,6 +264,9 @@ class InvocationRequest(Frozen):
     requirement_ids: list[str] = Field(default_factory=list)
     issued_at: datetime = Field(default_factory=now)
     conversation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
+    # Set only by the conductor, from the conversation or a delegation grant, and never sent to
+    # the agent (docs/specs/projects.md).
+    project_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     # Set only by the conductor, from a delegation grant (docs/specs/orchestration.md).
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     input: AnyInputDocument
@@ -478,6 +481,8 @@ class Envelope(Frozen):
     requires_human_review: Literal[True] = True
     problem: ProblemDetails | None = None
     conversation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
+    # The project the run belongs to, filled by the conductor (docs/specs/projects.md).
+    project_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     parent_invocation_id: str | None = Field(default=None, pattern=UUID7_PATTERN)
     delegations: list[Delegation] = Field(default_factory=list)
 

@@ -32,7 +32,8 @@ an escalation and a deployment role, not membership, TODO(#372).
 
 What is built: the project log with its creation (with an optional title), inventory, repository
 choice and conversation-start events, and a summary of each project, reached through the
-`dd-harness project` command; document versions and a person's decision on each,
+`dd-harness project` command; the conductor taking a run's project from its conversation, giving
+a drafter the project's facts and recording its draft; document versions and a person's decision on each,
 which the app shows and takes at `/projects/{project_id}`; the inventory command; and the core
 classes `FileInventory` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
@@ -55,8 +56,8 @@ intended design, and each part says where it is not built yet.
    schema, or a call on an unknown project, records nothing and keeps no blob
    (`harness/tests/test_projects.py`).
 4. **Every event names the principal it acted for and what caused it.** An event caused by a run
-   names the run's `invocation_id`; today every event is caused by the command a person ran, and
-   naming the run is not built yet, TODO(#394).
+   names the run's `invocation_id`, as a draft's `document_version_added` does
+   (`harness/tests/test_project_runs.py`); others name the command a person ran or the request.
 5. **The latest counts.** The project's inventory is the one added last; its repository is the one
    chosen last. Earlier ones stay in the log (`harness/tests/test_projects.py`).
 6. **An agent is given project facts and never fetches them.** The conductor puts into an agent's
@@ -64,14 +65,17 @@ intended design, and each part says where it is not built yet.
    documentation or of a document version with its digest, and the merged requirements. The input
    hash therefore covers what the agent was shown. An agent has no file tool, no access to the
    project store, and refers to a data file by path and digest. An inventory's stored digest is
-   already its `dd-input-json-v1` input hash. Giving agents project facts is not built yet,
-   TODO(#394).
+   already its `dd-input-json-v1` input hash. Today the conductor fills the core `DraftRequest`:
+   in a project, its `inventory` and `requirements` are the project's, replacing what the caller
+   sent, and a slot the project has no value for is removed (`dd_harness.project_facts`,
+   `harness/tests/test_project_runs.py`). Filling `current_version` to regenerate a document,
+   and any other class, such as a plain `FileInventory` input, are not built yet, TODO(#394).
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
    harness can say which project a conversation is in after a restart (`ProjectStore.project_of`,
-   `harness/tests/test_projects.py`). The request and envelope carrying it are not built yet,
-   TODO(#394).
+   `harness/tests/test_projects.py`). A delegated child takes its parent's project from the
+   grant. The agent is never sent `project_id` (`harness/tests/test_project_runs.py`).
 8. **Only `inventory` goes to a hosted model by default.** Project content is of two classes,
    `inventory` and `documentation` (uploaded text, and any document version given back to an
    agent). The profile lists the classes that may be given to an agent whose card declares a
@@ -82,15 +86,14 @@ intended design, and each part says where it is not built yet.
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload
    class never becomes a document. The store refuses anything else
-   (`ProjectStore.record_draft`, `harness/tests/test_project_documents.py`); the conductor
-   calling it for each run in a project is not built yet, TODO(#394).
+   (`ProjectStore.record_draft`, `harness/tests/test_project_documents.py`), and the conductor
+   calls it for each such run before storing the run (`harness/tests/test_project_runs.py`).
 10. **A document has its own identity; a version is `{document_id, version}`.** The conductor
     mints a `document_id` (UUIDv7) for a `Document` with no `revises`; versions are numbered from
     1 within the document, and every version of a document is of the same `document_kind`. A
     `revises` that names no version of the run's project, or a version of another kind, is
-    refused with a Problem Details response and recorded. The store mints the identity, numbers the versions
-    and refuses such a `revises`; the conductor's Problem Details response and record of it are
-    not built yet, TODO(#394).
+    refused: the run is stored as `failed`, with problem `revision-refused` and no payload, and
+    that failed run is the record (`harness/tests/test_project_runs.py`).
 11. **A version's state is its own and final once decided.** Every version begins `proposed`; one
     later event may make it `approved` or `rejected`, and then it never changes. A newer version
     leaves an earlier one's state as it was, so the version a person approved stays identifiable.
@@ -139,8 +142,8 @@ from any agent without knowing the agent. A document's content is always text wi
 a metadata record is serialised, and `conforms_to` names the schema it follows. Checking a record
 against that schema is validation's work ([Deposit](deposit.md)), not the contract's. What an agent
 writes in a document, and which schema it targets, are the agent's. The `project_id` on request and
-envelope, and the speaker label on a conversation turn, are additive contract changes still to be
-made (TODO(#394, #390)). The events of the project log are the harness's format, not the
+envelope is in the contract from 0.9.5; the speaker label on a conversation turn is an additive
+contract change still to be made, TODO(#390). The events of the project log are the harness's format, not the
 contract's.
 
 **The harness** decides and records: it keeps the log, applies the access check, records

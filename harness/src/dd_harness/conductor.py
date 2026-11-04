@@ -26,6 +26,13 @@ its own, so an invocation without one cannot be written. A delegated child acts 
 principal, carried on the grant: the caller on that path is an agent, not the human. The principal
 is recorded in the envelope and the crate and is never sent to the agent.
 
+Projects (docs/specs/projects.md). A run belongs to a project when its conversation was started
+in one, or, for a delegated child, when its parent did. The conductor sets `project_id` on the
+request and the envelope; a caller may not, and the agent is never sent it. Before the input is
+hashed, the conductor puts the project's facts into an input class that asks for them
+(`project_facts`). A run in a project that succeeds with a `Document` is recorded in the project
+as a proposed version, caused by the run; a draft the project refuses fails the run instead.
+
 Threads (#171). `invoke` may be called from any thread, and several invocations may run at
 once. Async code calls `ainvoke` and `ainvoke_delegated` instead, which keep the one rule that
 matters inside the conductor: a parent holds its thread until its children have ended, so the
@@ -46,8 +53,9 @@ from typing import Any
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_harness import grounding, policy
+from dd_harness import grounding, policy, project_facts
 from dd_harness import sources as source_check
+from dd_harness.projects import ProjectError, ProjectStore
 from dd_harness.provenance import write_process_run_crate
 from dd_harness.registry import Registry
 from dd_harness.remote import Received, RemoteAgent
@@ -81,6 +89,8 @@ from dd_sdk.tracing import (
 )
 
 DATA_STEWARD = "data_steward"
+# The core payload class a run in a project records as a document version.
+DOCUMENT = "Document"
 
 
 class UnknownAgent(Exception):
@@ -89,6 +99,11 @@ class UnknownAgent(Exception):
 
 class DelegationError(ValueError):
     """A request's lineage is not one the conductor issued: a caller error, never an outcome."""
+
+
+class ProjectAssignmentError(ValueError):
+    """A request that names its own project: a caller error, never an outcome. The conductor
+    takes a run's project from its conversation or its parent's grant."""
 
 
 class DuplicateInvocation(ValueError):
@@ -111,6 +126,7 @@ class Grant:
     parent_invocation_id: str
     parent_agent_id: str
     conversation_id: str | None
+    project_id: str | None
     acting_for: Principal
     delegations: list[Delegation] = field(default_factory=list)
     # Children admitted under this grant and not yet finished; revocation waits for them.
@@ -134,6 +150,9 @@ class Conductor:
     # The harness's own A2A address, sent to delegation agents as their callback. None (the
     # CLI) means no grant is issued and a delegation agent runs without `delegate`.
     harness_url: str | None = None
+    # The projects runs may belong to (docs/specs/projects.md). None (most tests, the workbench
+    # without DD_PROJECTS_DIR) means no run is in a project.
+    projects: ProjectStore | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
@@ -176,7 +195,16 @@ class Conductor:
                 "parent_invocation_id is set by the conductor from a delegation grant; "
                 "a caller may not set it"
             )
-        return self._invoke(request, acting_for)
+        if request.project_id is not None:
+            raise ProjectAssignmentError(
+                "project_id is set by the conductor from the conversation; a caller may not set it"
+            )
+        project_id = (
+            self.projects.project_of(request.conversation_id)
+            if self.projects is not None and request.conversation_id is not None
+            else None
+        )
+        return self._invoke(request, acting_for, project_id=project_id)
 
     def invoke_delegated(
         self, request: InvocationRequest, token: str, traceparent: str = ""
@@ -206,9 +234,12 @@ class Conductor:
             update={
                 "parent_invocation_id": grant.parent_invocation_id,
                 "conversation_id": grant.conversation_id,
+                "project_id": None,
             }
         )
-        envelope = self._invoke(child, grant.acting_for, link=_span_context(traceparent))
+        envelope = self._invoke(
+            child, grant.acting_for, link=_span_context(traceparent), project_id=grant.project_id
+        )
         record = Delegation(
             delegated_invocation_id=envelope.invocation_id,
             delegated_agent_id=envelope.agent_id,
@@ -226,6 +257,7 @@ class Conductor:
             parent_invocation_id=request.invocation_id,
             parent_agent_id=request.agent_id,
             conversation_id=request.conversation_id,
+            project_id=request.project_id,
             acting_for=acting_for,
         )
         with self._grants_lock:
@@ -245,8 +277,20 @@ class Conductor:
             return list(grant.delegations)
 
     def _invoke(
-        self, request: InvocationRequest, acting_for: Principal, link: SpanContext | None = None
+        self,
+        request: InvocationRequest,
+        acting_for: Principal,
+        link: SpanContext | None = None,
+        *,
+        project_id: str | None = None,
     ) -> Envelope:
+        if project_id is not None and self.projects is not None:
+            # The project's facts go in before anything is hashed or stored, so the input hash
+            # and request.json cover what the agent was shown (docs/specs/projects.md).
+            filled = project_facts.give(self.projects, project_id, to_document(request.input))
+            request = InvocationRequest.model_validate(
+                {**to_document(request), "input": filled, "project_id": project_id}
+            )
         request_doc = to_document(request)
         validate.validate_request(request_doc)  # raises: a malformed request is a caller bug
         invocation_id = request.invocation_id
@@ -362,12 +406,14 @@ class Conductor:
                     grant = self._issue_grant(request, acting_for)
                     sent_grant = DelegationGrant(url=self.harness_url, token=grant.token)
                 ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
+                # The agent is never told which project it works in (docs/specs/projects.md).
+                sent = request.model_copy(update={"project_id": None})
                 try:
                     # An in-process agent records its spans in this trace already.
                     received = (
-                        agent.call(request, ctx, sent_grant)
+                        agent.call(sent, ctx, sent_grant)
                         if isinstance(agent, RemoteAgent)
-                        else Received(agent.run(typed_request(spec, request), ctx))
+                        else Received(agent.run(typed_request(spec, sent), ctx))
                     )
                 except Exception as exc:  # noqa: BLE001 — converted to a failed outcome by design
                     result = AgentResult(
@@ -425,6 +471,7 @@ class Conductor:
                 ),
                 problem=prob,
                 conversation_id=request.conversation_id,
+                project_id=request.project_id,
                 parent_invocation_id=request.parent_invocation_id,
                 delegations=delegations,
             )
@@ -491,6 +538,31 @@ class Conductor:
                     )
                     doc = envelope.to_document()
             validate.validate_envelope(doc)
+            # 5a. A draft in a project becomes a proposed version of it, caused by this run. A
+            # draft the project refuses fails the run, and that failed run is the record.
+            if (
+                self.projects is not None
+                and envelope.project_id is not None
+                and envelope.outcome.status == OutcomeStatus.SUCCEEDED
+                and doc.get("payload", {}).get("schema_class") == DOCUMENT
+            ):
+                try:
+                    self.projects.record_draft(envelope.project_id, envelope)
+                except ProjectError as exc:
+                    envelope = envelope.model_copy(
+                        update={
+                            "outcome": Outcome(
+                                status=OutcomeStatus.FAILED,
+                                statement=f"The draft was not kept in the project: {exc}.",
+                            ),
+                            "payload": None,
+                            "payload_schema": None,
+                            "evidence": [],
+                            "problem": problems.revision_refused(str(exc)),
+                        }
+                    )
+                    doc = envelope.to_document()
+                    validate.validate_envelope(doc)
             # The schemas the run was checked against, kept by digest for the viewer
             # (docs/specs/contract.md).
             checked = [accepted] if accepted else []
