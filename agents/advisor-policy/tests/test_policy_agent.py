@@ -229,7 +229,35 @@ def test_a_required_repository_is_passed_on_in_the_repository_advisors_form(
 def test_no_relation_is_not_evidence_of_no_mandate(runs_dir: Path) -> None:
     env = invoke(runs_dir, PolicyContext(actors=[TESTING]))
     assert env.payload_as(PolicyChecks).mandated_repositories == []
-    assert "No matched record names a required repository." in env.outcome.statement
+    statement = env.outcome.statement
+    assert "No matched record names a required repository." in statement
+    assert "not evidence that none is required" in statement
+    assert "check each policy's own text" in statement
+
+
+NERC = Actor(role=ActorRole.FUNDER, name="Natural Environment Research Council")
+
+
+@pytest.mark.parametrize("advisor", [PolicyAgent(FakePolicies()), PolicyAgent(PolicySnapshot())])
+def test_a_funder_with_no_record_is_not_said_to_mandate_nothing(
+    runs_dir: Path, advisor: PolicyAgent
+) -> None:
+    # #439: NERC expects deposit with its Environmental Data Service, but has no FAIRsharing
+    # policy record. The statement must not read as "NERC requires no repository".
+    sheffield = Actor(role=ActorRole.INSTITUTION, name="University of Sheffield")
+    other = TESTING if isinstance(advisor.policies, FakePolicies) else sheffield
+    env = invoke(runs_dir, PolicyContext(actors=[NERC, other]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert env.payload_as(PolicyChecks).no_record == [NERC.name]
+    assert (
+        f"No policy record for: {NERC.name}; what they require, including any required "
+        "repository, was not checked." in env.outcome.statement
+    )
+    assert "not evidence that none is required" in env.outcome.statement
+
+    env = invoke(runs_dir, PolicyContext(actors=[NERC]), advisor)
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert "require a particular repository" in env.outcome.statement
 
 
 # --- outcomes and fallbacks -------------------------------------------------------------------
@@ -247,7 +275,7 @@ def test_actors_with_no_record_are_listed_or_abstain_when_none_has_one(runs_dir:
     nowhere = Actor(role=ActorRole.INSTITUTION, name="Nowhere College")
     env = invoke(runs_dir, PolicyContext(actors=[SRC, nowhere]))
     assert env.payload_as(PolicyChecks).no_record == ["Nowhere College"]
-    assert "No policy record for: Nowhere College." in env.outcome.statement
+    assert "No policy record for: Nowhere College;" in env.outcome.statement
     env = invoke(runs_dir, PolicyContext(actors=[nowhere]))
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED

@@ -310,6 +310,16 @@ def test_a_mandated_repository_is_found_by_identifier_and_never_shortlisted_arou
     assert [c.grounded_on[0].source_id for c in options.candidates] == ["r3d100000003"]
 
 
+def test_a_shortlist_says_a_policy_may_still_mandate_a_repository(runs_dir: Path) -> None:
+    # #439: with no mandate passed in, the shortlist must not read as a free choice.
+    caveat = "a funder, journal or institution may still require one"
+    assert caveat in invoke(runs_dir, NEEDS).outcome.statement
+    needs = NEEDS.model_copy(
+        update={"mandated": [RepositoryRef(name="x", re3data_id="r3d100000003")]}
+    )
+    assert caveat not in invoke(runs_dir, needs).outcome.statement
+
+
 @pytest.mark.requirement("DD-OUTCOME")
 def test_no_mandated_repository_found_abstains(runs_dir: Path) -> None:
     env = invoke(runs_dir, RepositoryNeeds(mandated=[RepositoryRef(name="Nowhere Archive")]))

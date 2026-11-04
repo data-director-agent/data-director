@@ -85,7 +85,9 @@ the new file.
 - The FAIRsharing API returns no relations from a policy to the databases and standards it
   names, even for policies that list repositories on the website. So the repository and standard
   obligations are `unstated`, and `mandated_repositories` is empty, until a route provides them.
-  An empty list is not evidence that no repository is mandated. TODO(#331)
+  An empty list is not evidence that no repository is mandated, and the statement says so,
+  naming the actors with no record as unchecked. NERC, for example, expects an offer to its
+  Environmental Data Service but has no record. TODO(#302, #331)
 - An actor is matched by name, and only to a record whose name contains it. A funder known by
   another name, such as UKRI for ESRC, is not found unless both are given or the identifier is.
 - Differences are found between strengths only. Two policies that require different
