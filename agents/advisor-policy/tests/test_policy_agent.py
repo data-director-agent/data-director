@@ -235,27 +235,28 @@ def test_no_relation_is_not_evidence_of_no_mandate(runs_dir: Path) -> None:
     assert "check each policy's own text" in statement
 
 
-NERC = Actor(role=ActorRole.FUNDER, name="Natural Environment Research Council")
+UNRECORDED_FUNDER = Actor(role=ActorRole.FUNDER, name="Nowhere Research Council")
 
 
 @pytest.mark.parametrize("advisor", [PolicyAgent(FakePolicies()), PolicyAgent(PolicySnapshot())])
 def test_a_funder_with_no_record_is_not_said_to_mandate_nothing(
     runs_dir: Path, advisor: PolicyAgent
 ) -> None:
-    # #439: NERC expects deposit with its Environmental Data Service, but has no FAIRsharing
-    # policy record. The statement must not read as "NERC requires no repository".
+    # #439: a funder with no policy record may still require a repository. The statement must
+    # not read as "this funder requires no repository".
+    funder = UNRECORDED_FUNDER
     sheffield = Actor(role=ActorRole.INSTITUTION, name="University of Sheffield")
     other = TESTING if isinstance(advisor.policies, FakePolicies) else sheffield
-    env = invoke(runs_dir, PolicyContext(actors=[NERC, other]), advisor)
+    env = invoke(runs_dir, PolicyContext(actors=[funder, other]), advisor)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.payload_as(PolicyChecks).no_record == [NERC.name]
+    assert env.payload_as(PolicyChecks).no_record == [funder.name]
     assert (
-        f"No policy record for: {NERC.name}; what they require, including any required "
+        f"No policy record for: {funder.name}; what they require, including any required "
         "repository, was not checked." in env.outcome.statement
     )
     assert "not evidence that none is required" in env.outcome.statement
 
-    env = invoke(runs_dir, PolicyContext(actors=[NERC]), advisor)
+    env = invoke(runs_dir, PolicyContext(actors=[funder]), advisor)
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert "require a particular repository" in env.outcome.statement
 
