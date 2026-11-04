@@ -3,8 +3,8 @@
  *
  * Succeeded shows the result and the evidence it rests on. Abstained and referred are answers in
  * their own right, each with what it means and what to do next, not errors. Failed shows the
- * problem as the harness stated it. Human review of proposed changes, and resuming a suspended
- * run, are not built yet, and are drawn in place (#72, #73).
+ * problem as the harness stated it. A run is not yet part of a project, so nothing it proposes
+ * waits for review (#394); that, and resuming a suspended run, are drawn in place (#72, #73).
  */
 
 import "./Outcome.css";
@@ -149,11 +149,10 @@ export function Outcome({
           ) : (
             <p>The agent reported its outcome without a result.</p>
           )}
-          <NotBuilt title="Human review" issues={[72, 73]}>
+          <NotBuilt title="Human review" issues={[72, 73, 394]}>
             <p>
-              Data Director marks every result for human review. Changes an agent proposes will
-              wait here to be approved, edited or rejected, with a reason for the risky ones. An
-              agent that only advises proposes no changes.
+              Nothing waits for approval. This run is not part of a project, so its result is
+              kept only with the run, and nothing is changed until a person acts on it.
             </p>
           </NotBuilt>
         </>

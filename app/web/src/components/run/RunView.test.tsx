@@ -78,7 +78,8 @@ describe("RunView", () => {
     const evidence = screen.getByRole("region", { name: "Evidence (14)" });
     expect(within(evidence).getByText("sources: 14 verified, 0 unresolved")).toBeVisible();
     expect(within(evidence).getAllByRole("listitem").length).toBeGreaterThanOrEqual(14);
-    expect(screen.getByText(/Changes an agent proposes will wait here/)).toBeVisible();
+    expect(screen.getByText(/Nothing waits for approval/)).toBeVisible();
+    expect(screen.queryByText(/will wait here to be approved/)).toBeNull();
   });
 
   it("says what an abstention means and offers to edit the input", async () => {
