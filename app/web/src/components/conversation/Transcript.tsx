@@ -7,7 +7,6 @@
 
 import "./Transcript.css";
 
-import Markdown from "react-markdown";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import type { AgentView } from "../../manifest/normalise";
@@ -16,6 +15,7 @@ import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
 import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
+import { Markdown } from "../ui/Markdown";
 import { Pending } from "./Pending";
 import { RunDetail } from "./RunDetail";
 
