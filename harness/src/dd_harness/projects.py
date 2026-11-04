@@ -27,6 +27,10 @@ document's latest text, or a version already decided, is refused, and the refusa
 `document_change_refused` event. `documents` folds the log into each document and the state of
 each of its versions, which is what the app shows.
 
+A project may have a title, given when it is created, so that a person can tell projects apart.
+A conversation started from a project is a `conversation_started` event; `project_of` says which
+project a conversation was started in, from an index of those events built when first asked.
+
 Only owners will decide once membership is built, TODO(#389). The conductor recording each draft,
 giving an agent the project's facts, and naming the run that caused an event, is TODO(#394);
 adding an inventory from the app is TODO(#395).
@@ -64,6 +68,7 @@ from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
 EVENTS_NAME = "events.jsonl"
 BLOBS_DIR = ("blobs", "sha256")
 PROJECT_CREATED = "project_created"
+CONVERSATION_STARTED = "conversation_started"
 INVENTORY_ADDED = "inventory_added"
 REPOSITORY_CHOSEN = "repository_chosen"
 DOCUMENT_VERSION_ADDED = "document_version_added"
@@ -79,6 +84,8 @@ REJECTED: Final = "rejected"
 type Verdict = Literal["approved", "rejected"]
 # The longest reason the harness keeps, in characters: room for a paragraph, not a document.
 REASON_MAX_LENGTH = 2000
+# The longest project title the harness keeps, in characters: a name, not a description.
+TITLE_MAX_LENGTH = 200
 
 
 class ProjectError(ValueError):
@@ -183,18 +190,109 @@ class ProjectStore:
         self._locks: dict[str, threading.RLock] = {}
         self._locks_guard = threading.Lock()
         self._inventory_schema = ClassSchema.of(FileInventory)
+        # Which project each conversation was started in: built from every log when first asked,
+        # then kept up to date by `start_conversation`. TODO(#141): a scan of every log does not
+        # scale past a deployment's worth of projects.
+        self._conversations: dict[str, str] | None = None
+        self._conversations_guard = threading.Lock()
 
     def _lock(self, project_id: str) -> threading.RLock:
         """The lock that serialises reads and writes of one project's log."""
         with self._locks_guard:
             return self._locks.setdefault(project_id, threading.RLock())
 
-    def create(self, *, acted_for: Principal, caused_by: str) -> str:
-        """A new project, and its `project_created` event. Returns its `project_id` (UUIDv7)."""
+    def create(self, *, acted_for: Principal, caused_by: str, title: str | None = None) -> str:
+        """A new project, and its `project_created` event. Returns its `project_id` (UUIDv7).
+
+        Raises `ProjectError` for a title longer than `TITLE_MAX_LENGTH`; a blank title is none."""
+        title = (title or "").strip() or None
+        if title is not None and len(title) > TITLE_MAX_LENGTH:
+            raise ProjectError(f"a project title is at most {TITLE_MAX_LENGTH} characters")
         project_id = new_invocation_id()
         (self.root / project_id).mkdir()
-        self._append(project_id, PROJECT_CREATED, acted_for, caused_by, {})
+        detail = {"title": title} if title else {}
+        self._append(project_id, PROJECT_CREATED, acted_for, caused_by, detail)
         return project_id
+
+    def start_conversation(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:
+        """A new conversation in the project, and its `conversation_started` event. Returns its
+        `conversation_id` (UUIDv7). Raises `UnknownProjectError` for an unknown project."""
+        self._require(project_id)
+        conversation_id = new_invocation_id()
+        index = self._conversation_index()
+        self._append(
+            project_id,
+            CONVERSATION_STARTED,
+            acted_for,
+            caused_by,
+            {"conversation_id": conversation_id},
+        )
+        with self._conversations_guard:
+            index[conversation_id] = project_id
+        return conversation_id
+
+    def project_of(self, conversation_id: str) -> str | None:
+        """The project the conversation was started in, or None if it was started in none."""
+        return self._conversation_index().get(conversation_id)
+
+    def projects(self) -> list[dict[str, Any]]:
+        """A summary of every project, the one created first first (see `summary`)."""
+        found = sorted(
+            path.name for path in self.root.iterdir() if path.is_dir() and self.exists(path.name)
+        )
+        # UUIDv7s sort by the time they were made, so this is the order the projects were created.
+        return [self.summary(project_id) for project_id in found]
+
+    def summary(self, project_id: str) -> dict[str, Any]:
+        """What a list of projects shows of one: its title, who created it and when, the latest
+        inventory and repository chosen, how many conversations were started in it, and how many
+        documents it has whose latest version is in each state. Raises `UnknownProjectError`."""
+        events = self.events(project_id)
+        created = events[0]
+        inventory = next((e for e in reversed(events) if e["event"] == INVENTORY_ADDED), None)
+        repository = next((e for e in reversed(events) if e["event"] == REPOSITORY_CHOSEN), None)
+        states = {PROPOSED: 0, APPROVED: 0, REJECTED: 0}
+        for document in self._fold(events).values():
+            states[document["versions"][-1]["state"]] += 1
+        return {
+            "project_id": project_id,
+            "title": created.get("title"),
+            "created_at": created["at"],
+            "created_by": created["acted_for"],
+            "inventory": {
+                "digest": inventory["digest"],
+                "file_count": inventory["file_count"],
+                "inventory_made_at": inventory["inventory_made_at"],
+                "added_at": inventory["at"],
+            }
+            if inventory
+            else None,
+            "repository": {
+                "re3data_id": repository["re3data_id"],
+                "repository_name": repository["repository_name"],
+                "warnings": repository["warnings"],
+                "chosen_at": repository["at"],
+            }
+            if repository
+            else None,
+            "conversation_count": sum(1 for e in events if e["event"] == CONVERSATION_STARTED),
+            "documents": states,
+        }
+
+    def _conversation_index(self) -> dict[str, str]:
+        """Each conversation started in a project, and that project: read from every log once."""
+        with self._conversations_guard:
+            if self._conversations is None:
+                index: dict[str, str] = {}
+                for path in self.root.glob(f"*/{EVENTS_NAME}"):
+                    project_id = path.parent.name
+                    if not self.exists(project_id):
+                        continue
+                    for event in self.events(project_id):
+                        if event["event"] == CONVERSATION_STARTED:
+                            index[event["conversation_id"]] = project_id
+                self._conversations = index
+            return self._conversations
 
     def exists(self, project_id: str) -> bool:
         return bool(PROJECT_ID.fullmatch(project_id)) and self._events_path(project_id).is_file()
@@ -422,8 +520,13 @@ class ProjectStore:
 
     def _documents(self, project_id: str) -> dict[str, dict[str, Any]]:
         """The log folded into documents and the state of each version, without their text."""
+        return self._fold(self.events(project_id))
+
+    @staticmethod
+    def _fold(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """`events` folded into documents and the state of each version, without their text."""
         documents: dict[str, dict[str, Any]] = {}
-        for event in self.events(project_id):
+        for event in events:
             if event["event"] == DOCUMENT_VERSION_ADDED:
                 document = documents.setdefault(
                     event["document_id"],

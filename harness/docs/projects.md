@@ -23,12 +23,21 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided` or `document_change_refused`. |
+| `event` | What happened: `project_created`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided` or `document_change_refused`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
 | `acted_for` | The `Principal` the change was made for ([Policy and identity](../../docs/specs/policy-and-identity.md)). |
 | `caused_by` | What caused it: the command a person ran, such as `dd-harness project add-inventory`; the request, such as `POST /api/projects/…/decisions`; or the `invocation_id` of the run that drafted a version. |
+
+`project_created` also gives `title`, if one was given: free text of at most `TITLE_MAX_LENGTH`
+(200) characters that tells the project apart from others. A blank title is none.
+
+`conversation_started` also gives the `conversation_id` (a UUIDv7) of a conversation started from
+the project. `ProjectStore.project_of(conversation_id)` says which project, if any, a conversation
+was started in. It reads every log once, when first asked, and is kept up to date after that,
+so it holds after a restart. Reading every log does not scale past one deployment's projects,
+TODO(#141).
 
 `inventory_added` also gives:
 
@@ -64,11 +73,17 @@ inventory added is the project's inventory.
 ```console
 $ export DD_PROJECTS_DIR=… DD_PRINCIPAL_ID=… DD_PRINCIPAL_NAME=…
 $ uv run dd-inventory path/to/dataset -o inventory.json
-$ uv run dd-harness project create
+$ uv run dd-harness project create --title "Soil cores 2024"
 0192f3a4-…
 $ uv run dd-harness project add-inventory 0192f3a4-… inventory.json
 $ uv run dd-harness project events 0192f3a4-…
+$ uv run dd-harness project list
 ```
+
+`project list`, and `ProjectStore.projects()`, give a summary of each project in the order they were
+created. A summary has the title, who created it and when, the latest inventory (digest, file
+count and when it was made), the repository chosen last and its warnings, how many conversations
+were started in it, and how many documents have a latest version in each state.
 
 ## The repository chosen
 
