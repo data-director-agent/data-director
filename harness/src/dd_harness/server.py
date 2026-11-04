@@ -100,9 +100,17 @@ CAUSED_BY_COMMAND = "dd-harness project {command}"
 def cmd_project_create(args: argparse.Namespace) -> int:
     store = ProjectStore(projects_dir())
     project_id = store.create(
-        acted_for=principal_from_env(), caused_by=CAUSED_BY_COMMAND.format(command="create")
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="create"),
+        title=args.title,
     )
     sys.stdout.write(project_id + "\n")
+    return 0
+
+
+def cmd_project_list(args: argparse.Namespace) -> int:
+    for summary in ProjectStore(projects_dir()).projects():
+        sys.stdout.write(json.dumps(summary, ensure_ascii=False) + "\n")
     return 0
 
 
@@ -162,7 +170,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     project = p.add_subparsers(dest="project_command", required=True)
     p = project.add_parser("create", help="create a project and print its identifier")
+    p.add_argument("--title", help="a name that tells the project apart from others")
     p.set_defaults(func=cmd_project_create)
+    p = project.add_parser("list", help="print a summary of every project, as JSONL")
+    p.set_defaults(func=cmd_project_list)
     p = project.add_parser(
         "add-inventory", help="add a FileInventory that dd-inventory wrote, and print its digest"
     )

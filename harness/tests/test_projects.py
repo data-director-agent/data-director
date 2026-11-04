@@ -14,11 +14,13 @@ from requirement_sets import override, standard, write
 
 from dd_harness import server
 from dd_harness.projects import (
+    CONVERSATION_STARTED,
     INVENTORY_ADDED,
     PROJECT_CREATED,
     REPOSITORY_CHOSEN,
     ProjectError,
     ProjectStore,
+    UnknownProjectError,
 )
 from dd_harness.requirements import load_requirements
 from dd_harness.testing import TEST_PRINCIPAL
@@ -232,3 +234,85 @@ def test_the_command_records_a_choice_and_warns_of_what_is_not_checked(
     assert event["caused_by"] == "dd-harness project choose-repository"
     with pytest.raises(SystemExit, match="not a re3data identifier"):
         server.main([*choose[:4], "orda", *choose[5:]])
+
+
+def test_a_project_is_named_by_its_title_and_a_blank_title_is_none(store: ProjectStore) -> None:
+    named = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="  Soil cores 2024 ")
+    unnamed = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="   ")
+    assert store.events(named)[0]["title"] == "Soil cores 2024"
+    assert "title" not in store.events(unnamed)[0]
+    assert store.summary(unnamed)["title"] is None
+    before = sorted(p.name for p in store.root.iterdir())
+    with pytest.raises(ProjectError, match="at most 200"):
+        store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="x" * 201)
+    assert sorted(p.name for p in store.root.iterdir()) == before
+
+
+def test_a_conversation_started_in_a_project_is_found_after_a_restart(
+    store: ProjectStore,
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    other = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    conversation_id = store.start_conversation(
+        project_id, acted_for=TEST_PRINCIPAL, caused_by="POST /api/conversations"
+    )
+    assert store.project_of(conversation_id) == project_id
+    started = store.events(project_id)[-1]
+    assert started["event"] == CONVERSATION_STARTED
+    assert started["conversation_id"] == conversation_id
+    assert started["caused_by"] == "POST /api/conversations"
+    assert store.events(other)[-1]["event"] == PROJECT_CREATED
+
+    # A new store, as after a restart, reads the association back from the log.
+    again = ProjectStore(store.root)
+    assert again.project_of(conversation_id) == project_id
+    assert again.project_of("0" * 8 + "-0000-7000-8000-" + "0" * 12) is None
+    # And keeps it up to date once it has read the logs.
+    later = again.start_conversation(other, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert again.project_of(later) == other
+
+
+def test_a_conversation_in_an_unknown_project_is_refused(store: ProjectStore) -> None:
+    unknown = "0" * 8 + "-0000-7000-8000-" + "0" * 12
+    with pytest.raises(UnknownProjectError):
+        store.start_conversation(unknown, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert list(store.root.iterdir()) == []
+
+
+def test_the_list_summarises_each_project_in_the_order_created(
+    store: ProjectStore, repositories: Path
+) -> None:
+    first = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="First")
+    second = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    store.add_inventory(first, inventory("a.csv"), acted_for=TEST_PRINCIPAL, caused_by="test")
+    latest = inventory("a.csv", "b.csv")
+    digest = store.add_inventory(first, latest, acted_for=TEST_PRINCIPAL, caused_by="test")
+    orda = load_requirements(repositories).resolve("r3d100012124", "ORDA", ["Dublin Core"])
+    store.choose_repository(first, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    store.start_conversation(first, acted_for=TEST_PRINCIPAL, caused_by="test")
+
+    summaries = store.projects()
+    assert [s["project_id"] for s in summaries] == [first, second]
+    summary = summaries[0]
+    assert summary["title"] == "First"
+    assert summary["created_by"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    assert summary["inventory"]["digest"] == digest
+    assert summary["inventory"]["file_count"] == 2
+    assert summary["repository"]["repository_name"] == "ORDA"
+    assert summary["repository"]["warnings"] == []
+    assert summary["conversation_count"] == 1
+    assert summary["documents"] == {"proposed": 0, "approved": 0, "rejected": 0}
+    assert summaries[1]["inventory"] is None
+    assert summaries[1]["repository"] is None
+
+
+def test_the_command_names_a_project_and_lists_projects(
+    operator: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert server.main(["project", "create", "--title", "Soil cores 2024"]) == 0
+    project_id = capsys.readouterr().out.strip()
+    assert server.main(["project", "list"]) == 0
+    (line,) = capsys.readouterr().out.splitlines()
+    listed = json.loads(line)
+    assert listed["project_id"] == project_id
+    assert listed["title"] == "Soil cores 2024"

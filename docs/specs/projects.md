@@ -6,7 +6,9 @@ A project is the unit of work of the minimum loop: a researcher describes a data
 a metadata record, a README and a data dictionary (R2, R5), a person approves each one, and a
 deposit package is built from what was approved ([Deposit](deposit.md)). Every step after the
 first works on the same dataset, so the project is a record of its own that outlives any one
-conversation. A conversation belongs to exactly one project, and a project may have many.
+conversation. A conversation belongs to exactly one project, and a project may have many. A
+conversation is in a project when it is started from that project. One started from no project is
+in none, which the app still allows, TODO(#160).
 
 A project holds four things:
 
@@ -28,8 +30,9 @@ Out of scope: research data files, which are never uploaded or read by the platf
 anything outside the project, which no agent performs; a steward's route into a project, which is
 an escalation and a deployment role, not membership, TODO(#372).
 
-What is built: the project log with its creation, inventory and repository choice events, reached
-through the `dd-harness project` command; document versions and a person's decision on each,
+What is built: the project log with its creation (with an optional title), inventory, repository
+choice and conversation-start events, and a summary of each project, reached through the
+`dd-harness project` command; document versions and a person's decision on each,
 which the app shows and takes at `/projects/{project_id}`; the inventory command; and the core
 classes `FileInventory` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
@@ -64,8 +67,11 @@ intended design, and each part says where it is not built yet.
    already its `dd-input-json-v1` input hash. Giving agents project facts is not built yet,
    TODO(#394).
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
-   `project_id`, which the conductor takes from the conversation and a caller cannot set. Not
-   built yet, TODO(#394).
+   `project_id`, which the conductor takes from the conversation and a caller cannot set. A
+   conversation started from a project is a `conversation_started` event of its log, so the
+   harness can say which project a conversation is in after a restart (`ProjectStore.project_of`,
+   `harness/tests/test_projects.py`). The request and envelope carrying it are not built yet,
+   TODO(#394).
 8. **Only `inventory` goes to a hosted model by default.** Project content is of two classes,
    `inventory` and `documentation` (uploaded text, and any document version given back to an
    agent). The profile lists the classes that may be given to an agent whose card declares a
@@ -251,8 +257,8 @@ grounding, and the record names the person instead ([Evidence and grounding](gro
 
 ## Non-functional requirements
 
-- **Privacy.** File and field names, uploaded documentation and a person's edits may identify
-  people. Limiting what goes to a hosted model limits what leaves; it does not show that nothing
+- **Privacy.** File and field names, a project's title, uploaded documentation and a person's
+  edits may identify people. Limiting what goes to a hosted model limits what leaves; it does not show that nothing
   personal did. Detecting personal data is TODO(#39, #40), and the tool never anonymises (C2).
   No email address is asked for or held for a member. Members see each other's words and work,
   and the user guide must say so where a member is added, TODO(#391).
