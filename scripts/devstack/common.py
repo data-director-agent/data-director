@@ -12,6 +12,7 @@ import urllib.request
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 import yaml
@@ -198,13 +199,53 @@ def omissions_note(omitted: list[str]) -> str:
     )
 
 
-def _enabled(path: Path) -> set[str]:
-    """The agents a profile enables."""
+def _load(path: Path) -> dict[str, Any]:
+    """A profile's keys."""
     try:
-        profile = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        return dict(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
     except yaml.YAMLError as exc:
         raise DevError(f"{path.relative_to(paths.ROOT)} is not valid YAML: {exc}") from exc
-    return set(dict(profile.get("agents") or {}))
+
+
+def _enabled(path: Path) -> set[str]:
+    """The agents a profile enables."""
+    return set(dict(_load(path).get("agents") or {}))
+
+
+def profile_drift(app: dict[str, str]) -> tuple[list[str], list[str]]:
+    """How the local profile has fallen behind the example, as (notes, problems).
+
+    Beyond the agents `profile_omissions` finds: a `version` lower than the example's (setup raises
+    it above the example's on purpose, so higher is not drift), approval actions the example
+    requires that the local copy drops, and an orchestrator the local copy does not enable. The
+    last is a problem; the rest are notes. Skipped as `profile_omissions` is.
+    """
+    if app.get("DD_PROFILE") or not paths.PROFILE.is_file():
+        return [], []
+    name = paths.PROFILE.relative_to(paths.ROOT)
+    local, example = _load(paths.PROFILE), _load(paths.PROFILE_EXAMPLE)
+    notes: list[str] = []
+    if omitted := sorted(_enabled(paths.PROFILE_EXAMPLE) - _enabled(paths.PROFILE)):
+        notes.append(omissions_note(omitted))
+    have, want = local.get("version"), example.get("version")
+    if isinstance(want, int) and (not isinstance(have, int) or have < want):
+        notes.append(
+            f"{name} is version {have}, behind the example's {want}; compare it with "
+            f"{paths.PROFILE_EXAMPLE.name}, or delete it to use the example"
+        )
+    if dropped := sorted(
+        set(example.get("actions_requiring_approval") or [])
+        - set(local.get("actions_requiring_approval") or [])
+    ):
+        notes.append(
+            f"{name} does not require approval for {', '.join(dropped)}, which the example does, "
+            "so the app would carry those out without it"
+        )
+    problems: list[str] = []
+    orchestrator = local.get("orchestrator")
+    if orchestrator and orchestrator not in _enabled(paths.PROFILE):
+        problems.append(f"{name} names {orchestrator} as the orchestrator but does not enable it")
+    return notes, problems
 
 
 def stray_files() -> list[str]:

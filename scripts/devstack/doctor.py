@@ -21,9 +21,8 @@ from devstack.common import (
     load_agents,
     needs_build,
     needs_install,
-    omissions_note,
     port_free,
-    profile_omissions,
+    profile_drift,
     read_env,
     stray_files,
     tool_problems,
@@ -53,8 +52,10 @@ def doctor() -> int:
             print(
                 "note: no principal is set; `start` will use the example (run setup to set yours)"
             )
-        if omitted := profile_omissions(env):
-            print(f"note: {omissions_note(omitted)}")
+        notes, drift = profile_drift(env)
+        for note in notes:
+            print(f"note: {note}")
+        problems.extend(drift)
     except DevError as exc:
         problems.append(str(exc))
     for agent in load_agents():

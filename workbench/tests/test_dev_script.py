@@ -138,6 +138,36 @@ def test_a_local_profile_missing_an_agent_the_example_enables_is_reported(repo: 
     assert common.profile_omissions({}) == []
 
 
+def test_a_local_profile_that_has_fallen_behind_the_example_is_reported(repo: Path) -> None:
+    config = repo / "app" / "config"
+    example = (config / "profile.yaml.example").read_text()
+    local = config / "profile.yaml"
+    assert common.profile_drift({}) == ([], [])  # no local copy: the app uses the example
+    local.write_text(example)
+    assert common.profile_drift({}) == ([], [])
+    version = int(re.search(r"^version: (\d+)", example, re.MULTILINE)[1])  # type: ignore[index]
+    # Older than the example, and requiring approval for less.
+    stale = example.replace(f"version: {version}\n", f"version: {version - 1}\n").replace(
+        "  - deposit\n", ""
+    )
+    assert stale != example
+    local.write_text(stale)
+    notes, problems = common.profile_drift({})
+    assert problems == []
+    assert any(f"is version {version - 1}, behind the example's {version}" in n for n in notes)
+    assert any("does not require approval for deposit" in n for n in notes)
+    # Newer than the example, as `setup` leaves it, is not drift.
+    local.write_text(example.replace(f"version: {version}\n", f"version: {version + 1}\n"))
+    assert common.profile_drift({}) == ([], [])
+    # An orchestrator the profile does not enable is a problem.
+    local.write_text(example.replace("orchestrator: orchestrator.stub", "orchestrator: nobody"))
+    assert common.profile_drift({})[1] == [
+        "app/config/profile.yaml names nobody as the orchestrator but does not enable it"
+    ]
+    # A profile chosen with DD_PROFILE is the deployment's choice, and is not compared.
+    assert common.profile_drift({"DD_PROFILE": str(local)}) == ([], [])
+
+
 def test_a_rerun_keeps_the_key_and_other_lines(repo: Path) -> None:
     local = repo / "config" / "local"
     own = local / "agents" / "orchestrator-model.env"
