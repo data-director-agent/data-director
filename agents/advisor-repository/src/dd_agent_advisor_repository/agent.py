@@ -93,6 +93,7 @@ class RepositoryAgent:
             "candidates.meets": Derived(Derivation.TEMPLATE),
             "candidates.misses": Derived(Derivation.TEMPLATE),
             "candidates.notes": Derived(Derivation.TEMPLATE),
+            "candidates.ranked_by": Derived(Derivation.TEMPLATE),
             "candidates.rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation"),
         },
         serves=(
@@ -121,11 +122,12 @@ class RepositoryAgent:
 
     def _from_re3data(
         self, needs: RepositoryNeeds, source: Repositories
-    ) -> tuple[list[Re3dataRecord], list[str], dict[str, float], dict[str, Re3dataRecord]]:
-        """Mandated records and the names not found, or the shortlist's hits."""
+    ) -> tuple[list[Re3dataRecord], list[str], rank.Matches, dict[str, Re3dataRecord]]:
+        """Mandated records and the names not found, or the shortlist's hits and the generalist
+        repositories."""
         mandated: list[Re3dataRecord] = []
         not_found: list[str] = []
-        subject_scores: dict[str, float] = {}
+        matches = rank.Matches()
         hits: dict[str, Re3dataRecord] = {}
         for ref in needs.mandated:
             record = source.fetch(ref.re3data_id) if ref.re3data_id else source.find(ref.name)
@@ -138,10 +140,11 @@ class RepositoryAgent:
                 found = source.search(query)
                 for hit in found:
                     hits.setdefault(hit.record.re3data_id, hit.record)
-                if query.label == "subject":
-                    for rid, fit in rank.fit(found).items():
-                        subject_scores[rid] = max(fit, subject_scores.get(rid, 0.0))
-        return mandated, not_found, subject_scores, hits
+                    matches.add(query, hit.record.re3data_id)
+            for rid in rank.generalists():
+                if rid not in hits and (record := source.fetch(rid)) is not None:
+                    hits[rid] = record
+        return mandated, not_found, matches, hits
 
     def _database(self, fairsharing_id: str, got: _Retrieved) -> None:
         """Fetch the FAIRsharing record re3data cross-references. Optional: if FAIRsharing cannot
@@ -179,7 +182,7 @@ class RepositoryAgent:
         source = self.repositories
         got = _Retrieved(source.snapshot_ref())
         try:
-            mandated, not_found, subject_scores, hits = self._from_re3data(needs, source)
+            mandated, not_found, matches, hits = self._from_re3data(needs, source)
         except RegistryUnavailable as exc:
             if self.fallback is None:
                 return _abstain(
@@ -187,7 +190,7 @@ class RepositoryAgent:
                     f"re3data could not be searched: {exc}. This is not an empty result.",
                 )
             try:
-                mandated, not_found, subject_scores, hits = self._from_re3data(needs, self.fallback)
+                mandated, not_found, matches, hits = self._from_re3data(needs, self.fallback)
             except RegistryUnavailable as again:
                 return _abstain(
                     ReasonCode.REGISTRY_UNAVAILABLE,
@@ -235,7 +238,7 @@ class RepositoryAgent:
                     ReasonCode.NO_CANDIDATES_RETRIEVED,
                     f"re3data ({got.summary()}) returned nothing for: " + "; ".join(queries),
                 )
-            ranked = rank.rank(subject_scores, hits, needs)
+            ranked = rank.rank(matches, hits, needs)
             if not ranked:
                 return _abstain(
                     ReasonCode.NO_QUALIFYING_RESOURCE,
@@ -263,7 +266,7 @@ class RepositoryAgent:
         explanation = self.explainer.explain(needs, items, ctx)
 
         candidates: list[RepositoryCandidate] = []
-        for item, (_, _, score, _), rationale in zip(
+        for item, (_, _, score, reasons), rationale in zip(
             items, chosen, explanation.rationales, strict=True
         ):
             grounded = [
@@ -288,6 +291,7 @@ class RepositoryAgent:
                     meets=item.assessment.meets,
                     misses=item.assessment.misses,
                     notes=item.assessment.notes,
+                    ranked_by=list(reasons),
                     rationale=rationale.text,
                     rationale_derivation=rationale.derivation,
                     grounded_on=grounded,
@@ -311,6 +315,15 @@ class RepositoryAgent:
             )
         if not_found:
             statement += f" No record found for: {', '.join(not_found)}."
+        themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
+        chosen_ids = {record.re3data_id for record, *_ in chosen}
+        disciplinary = set(matches.themes) - set(rank.generalists())
+        if not needs.mandated and themes and not chosen_ids & disciplinary:
+            statement += (
+                " No discipline-specific repository matched the themes ("
+                + "; ".join(themes)
+                + "), so only generalist and institutional repositories are offered."
+            )
         if not needs.mandated:
             statement += (
                 " No mandated repository was given; a funder, journal or institution may still "

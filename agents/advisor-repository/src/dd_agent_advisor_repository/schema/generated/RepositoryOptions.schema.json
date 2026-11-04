@@ -105,6 +105,16 @@
                   "null"
                ]
             },
+            "ranked_by": {
+               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
             "rationale": {
                "type": "string"
             },

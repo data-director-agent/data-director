@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import dd_agent_advisor_repository
+from dd_agent_advisor_repository import rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     AccessNeed,
@@ -275,6 +276,73 @@ def test_the_researchers_institutional_repository_is_offered_beyond_the_cap(
     assert "Deposit is open to members of the researcher's institution." in home.meets
     assert "A commercial organisation, figshare, supplies the platform." in home.notes
     assert home.commercial == Answer.NO  # the supplier does not operate it
+
+
+@pytest.mark.requirement("R1")
+def test_a_members_only_repository_is_left_out_unless_the_researcher_is_a_member(
+    runs_dir: Path,
+) -> None:
+    members_only = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    advisor = agent(repositories=FakeRepositories([SURVEYS, members_only]))
+    ids = [
+        c.grounded_on[0].source_id
+        for c in invoke(runs_dir, NEEDS, advisor).payload_as(RepositoryOptions).candidates
+    ]
+    assert "r3d100000005" not in ids
+    member = NEEDS.model_copy(
+        update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
+    )
+    ids = [
+        c.grounded_on[0].source_id
+        for c in invoke(runs_dir, member, advisor).payload_as(RepositoryOptions).candidates
+    ]
+    assert "r3d100000005" in ids
+
+
+@pytest.mark.requirement("R1")
+def test_a_kind_of_data_alone_does_not_recommend_a_repository(runs_dir: Path) -> None:
+    # #440: "X-ray diffraction" found a small-molecule crystal database for perovskite films.
+    crystals = SURVEYS.model_copy(
+        update={
+            "re3data_id": "r3d100000013",
+            "name": "Crystal Structures",
+            "subjects": ["Chemistry"],
+            "keywords": ["interview transcripts"],
+            "fairsharing_id": None,
+        }
+    )
+    env = invoke(runs_dir, NEEDS, agent(repositories=FakeRepositories([SURVEYS, crystals])))
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Social Survey Archive"]
+    assert options.candidates[0].ranked_by == [
+        'Matches the theme "social survey" (1 of 1 given).',
+        'Matches the kind of data "interview transcripts".',
+    ]
+
+
+@pytest.mark.requirement("R1")
+def test_a_generalist_is_offered_after_a_repository_of_the_discipline(runs_dir: Path) -> None:
+    generalist = OPEN_ONLY.model_copy(
+        update={
+            "re3data_id": rank.generalists()[0],
+            "name": "Anything Archive",
+            "keywords": [],
+            "data_access_types": ["restricted"],
+            "data_upload_restrictions": [],
+        }
+    )
+    advisor = agent(repositories=FakeRepositories([generalist, SURVEYS]))
+    env = invoke(runs_dir, NEEDS, advisor)
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Social Survey Archive", "Anything Archive"]
+    assert options.candidates[1].ranked_by == [
+        "A generalist repository, which takes data from any discipline."
+    ]
+    # With no repository of the discipline, the generalists are offered and the statement
+    # says why.
+    env = invoke(runs_dir, NEEDS, agent(repositories=FakeRepositories([generalist])))
+    assert named(env, env.payload_as(RepositoryOptions)) == ["Anything Archive"]
+    assert "No discipline-specific repository matched the themes" in env.outcome.statement
 
 
 # --- the mandated branch --------------------------------------------------------------------

@@ -84,21 +84,29 @@ class Re3dataSnapshot:
         return [Re3dataRecord.model_validate(d) for d in _lines(self.path)]
 
     @cached_property
+    def _tokens(self) -> list[list[str]]:
+        return [tokenise(r.search_text()) for r in self.records]
+
+    @cached_property
     def _bm25(self) -> BM25Okapi:
-        return BM25Okapi([tokenise(r.search_text()) for r in self.records])
+        return BM25Okapi(self._tokens)
 
     def snapshot_ref(self) -> SnapshotRef:
         return _ref("re3data", self.path)
 
     def search(self, query: Query) -> list[Hit]:
+        """Records that contain every word of the query, as re3data's own search requires, in
+        BM25 order. A record matching only some words is not a hit: a ranking that counts any
+        hit as a match must not be fed partial ones (#440)."""
         tokens = tokenise(query.text)
         if not tokens:
             return []
+        wanted = set(tokens)
         scores = self._bm25.get_scores(tokens)
         hits = [
             Hit(record=r, lexical_score=float(s))
-            for r, s in zip(self.records, scores, strict=True)
-            if s > 0
+            for r, words, s in zip(self.records, self._tokens, scores, strict=True)
+            if s > 0 and wanted <= set(words)
         ]
         hits.sort(key=lambda h: (-h.lexical_score, h.record.re3data_id))
         return hits[: query.limit]

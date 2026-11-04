@@ -61,6 +61,15 @@ def affiliated(record: Re3dataRecord, affiliation: Affiliation | None) -> Instit
     return None
 
 
+def members_only(record: Re3dataRecord) -> bool:
+    """Whether the repository takes deposits only from its own institution's members: re3data
+    lists an "institutional membership" restriction, or types it as institutional and nothing
+    else."""
+    return "institutional membership" in record.data_upload_restrictions or set(record.types) == {
+        "institutional"
+    }
+
+
 _ACCESS_PHRASE = {
     AccessNeed.OPEN: "Open access",
     AccessNeed.EMBARGOED: "Embargoed access",

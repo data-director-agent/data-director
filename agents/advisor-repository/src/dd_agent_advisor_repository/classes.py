@@ -62,6 +62,7 @@ class RepositoryCandidate(Grounded):
     meets: list[str] = Field(default_factory=list)
     misses: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    ranked_by: list[str] = Field(default_factory=list)
     rationale: str
     rationale_derivation: Derivation
 

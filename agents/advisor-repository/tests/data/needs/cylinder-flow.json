@@ -1,0 +1,13 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "themes": [
+    "fluid dynamics",
+    "computational fluid dynamics"
+  ],
+  "data_kinds": [
+    "simulation code",
+    "simulation output",
+    "tabular data"
+  ],
+  "access": "open"
+}
