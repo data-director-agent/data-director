@@ -344,6 +344,8 @@ class RepositoryAgent:
             model_id=self.explainer.model_id,
             input_tokens=explanation.usage.input_tokens,
             output_tokens=explanation.usage.output_tokens,
+            model_calls=explanation.calls.calls if explanation.calls else (),
+            prompts=explanation.calls.prompts if explanation.calls else {},
         )
 
     def _evidence(

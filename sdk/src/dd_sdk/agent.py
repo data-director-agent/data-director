@@ -32,6 +32,7 @@ from dd_sdk.contract.models import (
     Grounded,
     GroundingMode,
     InvocationRequest,
+    ModelCall,
     Outcome,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
@@ -327,6 +328,11 @@ class AgentResult:
     model_id: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
+    # Each model call, and the prompts they name by digest (`dd_sdk.prompts`,
+    # docs/specs/disclosure.md). The conductor puts the calls in the envelope's telemetry and keeps
+    # the prompts beside the run, never in the envelope.
+    model_calls: tuple[ModelCall, ...] = ()
+    prompts: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
 
 
 class Delegate(Protocol):
