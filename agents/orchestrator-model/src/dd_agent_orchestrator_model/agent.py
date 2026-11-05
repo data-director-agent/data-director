@@ -14,7 +14,9 @@ conductor runs the child as an ordinary governed invocation and records it on th
 
 The model is sent the last `history_turns` turns of `Message.history`, oldest first, then the
 current message. Every turn is still covered by the input hash; what was sent follows from the
-input and the setting.
+input and the setting. When the conductor says the project holds an inventory
+(`Message.project_inventory`, docs/specs/projects.md), the current message opens with a note of it
+from the harness, so the model neither asks for one nor copies one into an agent's input.
 
 The parent succeeds once the model has replied, whatever its children's outcomes were. A failed
 child is on the parent's `delegations` and its own envelope, and the reply reports it
@@ -154,8 +156,29 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
         }
         for turn in window
     ]
-    messages.append({"role": "user", "content": message.message_text})
+    note = inventory_note(message)
+    text = f"{note}\n\n{message.message_text}" if note else message.message_text
+    messages.append({"role": "user", "content": text})
     return messages
+
+
+def inventory_note(message: Message) -> str | None:
+    """What the harness says of the project's inventory, or None if the project holds none."""
+    held = message.project_inventory
+    if held is None:
+        return None
+    files = "1 file" if held.inventory_file_count == 1 else f"{held.inventory_file_count} files"
+    made = held.inventory_made_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    note = (
+        "[From the harness, not the researcher] The project holds an inventory of the dataset: "
+        f"{files}, made {made} by {held.inventory_tool} {held.inventory_tool_version}."
+    )
+    if held.inventory_limitations:
+        note += " Its limitations: " + "; ".join(held.inventory_limitations) + "."
+    return (
+        note + " The harness puts it into the input of any agent that takes an inventory: leave "
+        "`inventory` out, and send an empty input to an agent that takes only an inventory."
+    )
 
 
 class ModelOrchestrator:

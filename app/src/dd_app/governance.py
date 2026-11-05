@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -35,6 +35,9 @@ from dd_sdk.contract.models import (
 
 RUN_ID = re.compile(r"[0-9A-Za-z-]{1,64}")
 CONVERSATION_ID = re.compile(UUID7_PATTERN)
+# What a turn says when the researcher attached an inventory and wrote nothing, so that the
+# history reads as what happened (docs/specs/app.md).
+INVENTORY_ONLY_TEXT = "I have attached an inventory of my dataset's files."
 
 
 class UnknownConversationError(LookupError):
@@ -111,6 +114,11 @@ class Governance:
             ) from exc
         return cls(conductor, authenticator, projects)
 
+    def __post_init__(self) -> None:
+        # The conductor takes each run's project from the same logs the app reads.
+        if self.projects is not None:
+            self.conductor.projects = self.projects
+
     async def invoke(self, request: InvocationRequest, acting_for: Principal) -> Envelope:
         return await self.conductor.ainvoke(request, acting_for=acting_for)
 
@@ -127,12 +135,22 @@ class Governance:
         document = envelope.to_document()
         return {"envelope": document, "checks": self.checks(envelope.invocation_id)}
 
-    def start_conversation(self) -> str:
+    def start_conversation(self, acting_for: Principal) -> str:
         """A new conversation's identifier (`POST /api/conversations`). The server mints it, so a
-        turn can be sent only to a conversation the app started or has stored."""
-        conversation_id = new_invocation_id()
-        self._started.add(conversation_id)
-        return conversation_id
+        turn can be sent only to a conversation the app started or has stored.
+
+        Where the app keeps projects, each conversation is started in a project of its own, so
+        that what the researcher attaches and what the agents draft are kept together
+        (docs/specs/app.md). Starting one in an existing project is TODO(#160)."""
+        if self.projects is None:
+            conversation_id = new_invocation_id()
+            self._started.add(conversation_id)
+            return conversation_id
+        caused_by = "POST /api/conversations"
+        project_id = self.projects.create(acted_for=acting_for, caused_by=caused_by)
+        return self.projects.start_conversation(
+            project_id, acted_for=acting_for, caused_by=caused_by
+        )
 
     async def turn(
         self,
@@ -141,9 +159,16 @@ class Governance:
         message_text: str,
         follows: str | None,
         acting_for: Principal,
+        inventory: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
         `Message` to `agent_id`, answered as `run` answers.
+
+        A turn may attach an `inventory`, which is added to the conversation's project before the
+        orchestrator runs, so the conductor tells it what the project now holds
+        (docs/specs/projects.md). An inventory the project refuses raises `ProjectError`, and one
+        sent to a conversation in no project `ValueError`; either way nothing is run or recorded.
+        With an inventory, `message_text` may be blank.
 
         The history is built here from the stored turns, never taken from the caller, so the
         input hash covers what the agent was really shown (docs/specs/app.md). It is read under the
@@ -193,6 +218,9 @@ class Governance:
                     f"{latest!r}. Nothing was run: read the conversation, then send the message "
                     "again if it is still needed."
                 )
+            if inventory is not None:
+                await asyncio.to_thread(self._add_inventory, conversation_id, inventory, acting_for)
+                message_text = message_text.strip() or INVENTORY_ONLY_TEXT
             message = {
                 "schema_class": "Message",
                 "message_text": message_text,
@@ -215,6 +243,21 @@ class Governance:
                 raise
         self._started.discard(conversation_id)
         return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
+
+    def _add_inventory(
+        self, conversation_id: str, inventory: Mapping[str, Any], acting_for: Principal
+    ) -> None:
+        project_id = self.projects.project_of(conversation_id) if self.projects else None
+        if self.projects is None or project_id is None:
+            raise ValueError(
+                "This conversation is in no project, so there is nowhere to keep an inventory."
+            )
+        self.projects.add_inventory(
+            project_id,
+            inventory,
+            acted_for=acting_for,
+            caused_by=f"POST /api/conversations/{conversation_id}/turns",
+        )
 
     @asynccontextmanager
     async def _turn_lock(self, conversation_id: str) -> AsyncIterator[None]:
@@ -244,7 +287,8 @@ class Governance:
 
     def _conversation(self, conversation_id: str) -> dict[str, Any] | None:
         found = conversations.get_conversation(self.conductor.store, conversation_id)
-        if found is None and conversation_id in self._started:
+        project_id = self.projects.project_of(conversation_id) if self.projects else None
+        if found is None and (conversation_id in self._started or project_id is not None):
             found = {
                 "conversation_id": conversation_id,
                 "turns": [],
@@ -252,6 +296,10 @@ class Governance:
                 "version_changes": [],
                 "history": [],
             }
+        if found is not None and self.projects is not None and project_id is not None:
+            # What the project holds now, which a turn's input shows only as it was then.
+            found["project_id"] = project_id
+            found["inventory"] = self.projects.summary(project_id)["inventory"]
         return found
 
     def runs(self) -> list[dict[str, Any]]:

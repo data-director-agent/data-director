@@ -37,10 +37,11 @@ from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
-from dd_app.governance import Governance, TurnConflictError
+from dd_app.governance import INVENTORY_ONLY_TEXT, Governance, TurnConflictError
 from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
+from dd_harness.projects import ProjectStore
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
 from dd_harness.settings import SettingsError
@@ -399,7 +400,18 @@ def test_the_examples_name_their_class(governance: Governance, dist: Path):
 @pytest.fixture
 def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
     """The app over the orchestrator and `example.hello`, each reached over in-process A2A, with
-    the orchestrator calling back to the app's own routes, under the app's reference profile."""
+    the orchestrator calling back to the app's own routes, under the app's reference profile. It
+    keeps no projects."""
+    yield delegating_app(env, dist, None)
+
+
+@pytest.fixture
+def in_projects(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
+    """As `delegating`, with each conversation started in a project of its own."""
+    yield delegating_app(env, dist, ProjectStore(env / "projects"))
+
+
+def delegating_app(env: Path, dist: Path, projects: ProjectStore | None) -> tuple[Governance, Any]:
     served: dict[str, Any] = {}
 
     def app_client(base_url: str, timeout_s: float) -> httpx.AsyncClient:
@@ -415,9 +427,9 @@ def delegating(env: Path, dist: Path) -> Iterator[tuple[Governance, Any]]:
         registry=registry, store=RunStore(env), profile=load_profile(DEFAULT_PROFILE)
     )
     conductor.harness_url = APP_URL
-    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL))
+    governance = Governance(conductor, OperatorAssertion(TEST_PRINCIPAL), projects)
     served["app"] = build_app(governance, dist)
-    yield governance, served["app"]
+    return governance, served["app"]
 
 
 def test_the_orchestrator_delegates_through_the_app(delegating: tuple[Governance, Any]):
@@ -557,8 +569,8 @@ def test_a_conversation_the_app_did_not_start_is_not_found(
         assert response.json()["type"].endswith("conversation-not-found")
 
 
-def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, Any]):
-    governance, app = delegating
+def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, Any]):
+    governance, app = in_projects
     client = TestClient(app)
     conversation_id = start(client)
     first = turn(client, conversation_id, "hello world")
@@ -593,6 +605,103 @@ def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, An
     check_fixture("conversation.json", normalised_conversation(found))
 
 
+def a_file_inventory(*paths: str) -> dict[str, Any]:
+    """What `dd-inventory` writes for files at `paths`."""
+    return {
+        "schema_class": "FileInventory",
+        "inventory_tool": "dd-inventory",
+        "inventory_tool_version": "0.1.0",
+        "inventory_made_at": "2026-11-01T09:00:00Z",
+        "inventory_files": [
+            {
+                "file_path": path,
+                "file_size": 10,
+                "file_sha256": "a" * 64,
+                "file_media_type": "text/csv",
+                "file_identified_by": "extension",
+            }
+            for path in paths
+        ],
+    }
+
+
+def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    first, second = (client.post("/api/conversations").json() for _ in range(2))
+    assert first["project_id"] != second["project_id"]
+    store = governance.projects
+    assert store is not None
+    for started in (first, second):
+        assert store.project_of(started["conversation_id"]) == started["project_id"]
+        events = store.events(started["project_id"])
+        assert [e["event"] for e in events] == ["project_created", "conversation_started"]
+        assert {e["acted_for"]["principal_id"] for e in events} == {TEST_PRINCIPAL.principal_id}
+        found = client.get(f"/api/conversations/{started['conversation_id']}").json()
+        assert (found["project_id"], found["inventory"]) == (started["project_id"], None)
+
+
+def test_an_attached_inventory_is_kept_and_the_orchestrator_is_told_of_it(
+    in_projects: tuple[Governance, Any],
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    conversation_id = start(client)
+    # An inventory may be sent with no words.
+    first = turn(client, conversation_id, " ", inventory=a_file_inventory("a.csv", "b.csv"))
+    assert first.status_code == 200, first.json()
+    envelope = first.json()["envelope"]
+    project_id = envelope["project_id"]
+    store = governance.projects
+    assert store is not None
+    added = store.events(project_id)[-1]
+    assert added["event"] == "inventory_added"
+    assert added["caused_by"] == f"POST /api/conversations/{conversation_id}/turns"
+
+    shown = (governance.conductor.store.get_request(envelope["invocation_id"]) or {})["input"]
+    assert shown["message_text"] == INVENTORY_ONLY_TEXT
+    assert shown["project_inventory"]["inventory_digest"] == added["digest"]
+    assert shown["project_inventory"]["inventory_file_count"] == 2
+
+    # Later turns are told of it too, without sending it again.
+    second = turn(client, conversation_id, "Draft a README", envelope["invocation_id"])
+    later = governance.conductor.store.get_request(second.json()["envelope"]["invocation_id"])
+    assert later is not None
+    assert later["input"]["project_inventory"] == shown["project_inventory"]
+    found = client.get(f"/api/conversations/{conversation_id}").json()
+    assert found["inventory"]["file_count"] == 2
+    assert found["inventory"]["digest"] == added["digest"]
+
+
+@pytest.mark.parametrize(
+    ("inventory", "detail"),
+    [
+        ({"schema_class": "FileInventory"}, "not a FileInventory"),
+        (["a.csv"], "`inventory` must be"),
+    ],
+)
+def test_an_inventory_that_is_refused_leaves_no_trace_and_nothing_runs(
+    in_projects: tuple[Governance, Any], inventory: Any, detail: str
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    started = client.post("/api/conversations").json()
+    response = turn(client, started["conversation_id"], "hello", inventory=inventory)
+    assert response.status_code == 400
+    assert detail in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == []
+    assert governance.projects is not None
+    assert governance.projects.summary(started["project_id"])["inventory"] is None
+
+
+def test_an_inventory_needs_a_project_to_keep_it(delegating: tuple[Governance, Any]):
+    governance, app = delegating
+    client = TestClient(app)
+    response = turn(client, start(client), "hello", inventory=a_file_inventory("a.csv"))
+    assert response.status_code == 400
+    assert "no project" in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == []
+
+
 def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governance, Any]):
     """A turn cancelled (the client went away) runs on to the end in the conductor's thread. A
     message sent again meanwhile is refused, not run twice (#337); once the first is stored, a
@@ -609,7 +718,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
         return invoke(request, **kwargs)
 
     conductor.invoke = held_first  # type: ignore[method-assign]
-    conversation_id = governance.start_conversation()
+    conversation_id = governance.start_conversation(TEST_PRINCIPAL)
 
     def top_level_turns() -> list[dict[str, Any]]:
         return [e for e in conductor.store.iter_envelopes() if not e.get("parent_invocation_id")]
@@ -655,7 +764,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     ("body", "detail"),
     [
         ({"history": []}, "history"),
-        ({"input": {}}, "only `agent_id`, `message_text` and `follows`"),
+        ({"input": {}}, "only `agent_id`, `message_text`, `follows` and `inventory`"),
         ({"message_text": 3}, "as strings"),
         ({"follows": 3}, "must give `follows`"),
         ({"message_text": "  "}, "empty"),

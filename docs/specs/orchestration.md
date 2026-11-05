@@ -35,7 +35,10 @@ out of the process flow.
 3. **The history is part of the input.** What an agent was shown of earlier turns travels inside
    `Message`, so the input hash covers it and every transport gives the agent the same document.
    (`agents/orchestrator-stub/tests/test_orchestrator_stub.py`,
-   `test_history_is_part_of_the_input_hash`)
+   `test_history_is_part_of_the_input_hash`) So does what the conductor says of the
+   conversation's project: a `Message`'s `project_inventory` names the inventory the project
+   holds, and `orchestrator.model` opens the current message with a note of it, so it neither
+   asks for the inventory again nor copies one into an agent's input ([Projects](projects.md)).
 4. **A turn follows the latest.** A turn names the turn it follows, and one that does not follow
    the conversation's latest stored turn, or that arrives while another turn of the conversation
    is running, is refused before anything runs. So a message resent after a dropped connection
@@ -201,7 +204,8 @@ the parent would lose the reply's explanation, while the failure stays visible w
 - The steps come from the figure captions in §8.2; the figures may show more, TODO(#245).
 - Step ids as the vocabulary in which a deployment's policy names the steps that need a person's
   sign-off, TODO(#308); proposing the ids to the RDA working group, TODO(#310).
-- The orchestrator's context about its deployment and the researcher's project, to be supplied by
-  the harness rather than as a tool, TODO(#341, #160).
+- The orchestrator's context about its deployment and the researcher's project beyond the
+  inventory the project holds, to be supplied by the harness rather than as a tool,
+  TODO(#341, #160).
 - A read-only check of a deposit against an existing Data Management Plan, TODO(#284).
 - Streaming replies, TODO(#159).

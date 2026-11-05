@@ -16,6 +16,7 @@ from dd_app import feedback
 from dd_app.about import about, commit
 from dd_app.app import build_app
 from dd_app.governance import Governance
+from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.credentials import ConfigError
 
 
@@ -161,7 +162,7 @@ def test_reports_are_rate_limited(governance: Governance, dist: Path) -> None:
 def test_context_is_attached_only_with_consent_and_only_identifiers(
     governance: Governance, dist: Path
 ) -> None:
-    started = governance.start_conversation()
+    started = governance.start_conversation(TEST_PRINCIPAL)
     for consent in (False, True):
         client, seen = client_for(governance, dist)
         body = {**REPORT, "conversation": started, "include_context": consent}

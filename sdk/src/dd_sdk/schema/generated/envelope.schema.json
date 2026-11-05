@@ -725,6 +725,53 @@
          "title": "InventoryFile",
          "type": "object"
       },
+      "InventorySummary": {
+         "additionalProperties": false,
+         "description": "What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md).",
+         "properties": {
+            "inventory_digest": {
+               "description": "The inventory's dd-input-json-v1 hash, by which the project keeps it.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "inventory_file_count": {
+               "description": "How many files the inventory lists.",
+               "type": "integer"
+            },
+            "inventory_tool": {
+               "description": "The command that made the inventory, such as dd-inventory.",
+               "type": "string"
+            },
+            "inventory_tool_version": {
+               "description": "The version of the command that made the inventory.",
+               "type": "string"
+            },
+            "inventory_made_at": {
+               "description": "When the inventory was made.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "inventory_limitations": {
+               "description": "What the inventory left out or could not do, such as files it skipped.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "inventory_digest",
+            "inventory_file_count",
+            "inventory_tool",
+            "inventory_tool_version",
+            "inventory_made_at"
+         ],
+         "title": "InventorySummary",
+         "type": "object"
+      },
       "InvocationRequest": {
          "additionalProperties": false,
          "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (docs/specs/orchestration.md).",
@@ -792,7 +839,7 @@
       },
       "Message": {
          "additionalProperties": false,
-         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw.",
+         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -814,6 +861,17 @@
                   "array",
                   "null"
                ]
+            },
+            "project_inventory": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/InventorySummary"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory."
             }
          },
          "required": [

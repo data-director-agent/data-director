@@ -706,7 +706,7 @@
       "requires_approval": false,
       "schemas": {
         "Message": {
-          "digest": "be129805557acbc9bfb6f931c24211870e60930c56f0a0b30c2050e9a8d5c12c",
+          "digest": "3a0ace3551a90eff1280f9b2b2983dc38a7ce6c59e9b8b4e2f35fecf8a6909f8",
           "json_schema": {
             "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
             "$defs": {
@@ -751,6 +751,53 @@
                 "title": "ConversationTurn",
                 "type": "object"
               },
+              "InventorySummary": {
+                "additionalProperties": false,
+                "description": "What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md).",
+                "properties": {
+                  "inventory_digest": {
+                    "description": "The inventory's dd-input-json-v1 hash, by which the project keeps it.",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  "inventory_file_count": {
+                    "description": "How many files the inventory lists.",
+                    "type": "integer"
+                  },
+                  "inventory_limitations": {
+                    "description": "What the inventory left out or could not do, such as files it skipped.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "inventory_made_at": {
+                    "description": "When the inventory was made.",
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "inventory_tool": {
+                    "description": "The command that made the inventory, such as dd-inventory.",
+                    "type": "string"
+                  },
+                  "inventory_tool_version": {
+                    "description": "The version of the command that made the inventory.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "inventory_digest",
+                  "inventory_file_count",
+                  "inventory_tool",
+                  "inventory_tool_version",
+                  "inventory_made_at"
+                ],
+                "title": "InventorySummary",
+                "type": "object"
+              },
               "TurnRole": {
                 "description": "Who spoke in a conversation turn.",
                 "enum": [
@@ -764,7 +811,7 @@
             "$id": "https://w3id.org/data-director/schema/core/Message",
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
-            "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw.",
+            "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md).",
             "properties": {
               "history": {
                 "description": "The earlier turns of the conversation, oldest first.",
@@ -779,6 +826,17 @@
               "message_text": {
                 "description": "What the user said in this turn.",
                 "type": "string"
+              },
+              "project_inventory": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/InventorySummary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory."
               },
               "schema_class": {
                 "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",

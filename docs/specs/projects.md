@@ -33,9 +33,10 @@ an escalation and a deployment role, not membership, TODO(#372).
 What is built: the project log with its creation (with an optional title), inventory, repository
 choice and conversation-start events, and a summary of each project, reached through the
 `dd-harness project` command; the conductor taking a run's project from its conversation, giving
-a drafter the project's facts and recording its draft; document versions and a person's decision on each,
-which the app shows and takes at `/projects/{project_id}`; the inventory command; and the core
-classes `FileInventory` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
+an agent the project's facts and recording its draft; document versions and a person's decision on each,
+which the app shows and takes at `/projects/{project_id}`; the app starting each conversation in a
+project of its own and adding an inventory attached to a turn; the inventory command; and the core
+classes `FileInventory`, `InventorySummary` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
 
 ## Invariants
@@ -65,11 +66,16 @@ intended design, and each part says where it is not built yet.
    documentation or of a document version with its digest, and the merged requirements. The input
    hash therefore covers what the agent was shown. An agent has no file tool, no access to the
    project store, and refers to a data file by path and digest. An inventory's stored digest is
-   already its `dd-input-json-v1` input hash. Today the conductor fills the core `DraftRequest`:
-   in a project, its `inventory` and `requirements` are the project's, replacing what the caller
-   sent, and a slot the project has no value for is removed (`dd_harness.project_facts`,
-   `harness/tests/test_project_runs.py`). Filling `current_version` to regenerate a document,
-   and any other class, such as a plain `FileInventory` input, are not built yet, TODO(#394).
+   already its `dd-input-json-v1` input hash. Today the conductor fills three core classes
+   (`dd_harness.project_facts`, `harness/tests/test_project_runs.py`). In a project, a
+   `DraftRequest`'s `inventory` and `requirements` are the project's, replacing what the caller
+   sent, and a slot the project has no value for is removed. A plain `FileInventory` input is the
+   project's inventory when it holds one, so an orchestrator sends an empty one. A `Message`'s
+   `project_inventory` says what the project's inventory is (its digest, file count, tool and
+   date, and its limitations) without its files, so an orchestrator knows the researcher has
+   given one; outside a project, or in one with no inventory, it is removed, so a caller can
+   never claim one. Filling `current_version` to regenerate a document, and any other class, are
+   not built yet, TODO(#394).
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
@@ -136,7 +142,7 @@ intended design, and each part says where it is not built yet.
 
 ## Boundaries and contracts
 
-**The core contract** ([Contract](contract.md)) holds `FileInventory`, `Document`, `DocumentKind`, `DraftRequest`
+**The core contract** ([Contract](contract.md)) holds `FileInventory`, `InventorySummary`, `Document`, `DocumentKind`, `DraftRequest`
 and the version reference, because the conductor, the app and the package builder must read them
 from any agent without knowing the agent. A document's content is always text with a media type;
 a metadata record is serialised, and `conforms_to` names the schema it follows. Checking a record
@@ -154,8 +160,12 @@ project, using the invocation's `acting_for`, and the app's server makes it for 
 **The app** ([The app](app.md)) renders the project and passes a person's request to the harness
 with the principal from its authenticator. It shows the state it reads back from the log, never a
 state it inferred, and holds no policy. The right panel, phase tracker and status bar are drawn
-for a project but have no record behind them yet, TODO(#160). Adding an inventory from the app is
-TODO(#395); a page for a project's members, and keeping what a person typed when a turn or edit is
+for a project but have no record behind them yet, TODO(#160). Each conversation the app starts is
+started in a new project. A turn may attach the file `dd-inventory` writes, which the app's server
+adds to the conversation's project before the turn runs, acting for the person signed in and
+caused by the turn's request; an inventory the store refuses refuses the turn, and nothing runs.
+Starting a conversation in an existing project is TODO(#160). Adding documentation from the app
+is TODO(#395); a page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).
 
 **The inventory command** `dd-inventory` is a workspace member of its own that depends on no other

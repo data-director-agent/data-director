@@ -89,6 +89,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     filed in a window limited (`app/src/dd_app/feedback.py`, `app/tests/test_feedback.py`).
     Without a token the feature is off, the page says so and links to GitHub, and the app still
     starts.
+18. **Each conversation is started in a project of its own.** Where the app keeps projects,
+    `POST /api/conversations` creates a project and starts the conversation in it, acting for the
+    person signed in, and a conversation names its `project_id` and the inventory its project
+    holds. The app gives the conductor the same project store, so a turn's runs belong to the
+    project and a drafter's documents are kept in it ([Projects](projects.md),
+    `app/tests/test_app.py`).
+19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,
+    the file `dd-inventory` writes, which the server adds to the conversation's project before the
+    turn runs; with one, the message may be blank and the server supplies a sentence saying an
+    inventory was attached. An inventory the project refuses, or one sent to a conversation in no
+    project, refuses the turn and nothing runs or is recorded. The shell attaches one from a file
+    chosen with a button, dropped on the message form, or pasted whole into the message box, and
+    shows it as a chip with a link to the user guide's page on making one, never as its text. The
+    transcript shows the chip on the turn where the project's inventory changed, read from the
+    `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
+    `app/web/src/components/conversation/ConversationHome.test.tsx`).
 
 ## Boundaries and contracts
 
@@ -133,6 +149,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **Policy in the profile.** Which agent a person talks to first is a policy choice. The profile
   is what a steward reviews and every run cites; a change to the orchestrator raises its version,
   so stored runs say which orchestrator the rules named.
+- **An inventory in the project, not in the message.** Pasted into the message, an inventory of
+  a few hundred files filled the transcript and was sent again in the history of every later
+  turn, and an orchestrator could pass a changed copy to an agent. Kept by the project, it is
+  given to each agent whole by the conductor, covered by the input hash, and shown to the
+  researcher as one line (#443).
 - **One path to every agent.** Two ways of reaching an agent are two behaviours to keep
   conformant. They did diverge: A2A carries numbers as doubles, so a payload over the wire gave
   `14.0` where the in-process path gave `14`, and the app's tests, using the in-process path,
@@ -198,7 +219,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   cancellation.
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
-- TODO(#160): the project's documents and current phase in the workspace.
+- TODO(#160): the project's documents and current phase in the workspace, and starting a
+  conversation in an existing project.
 - TODO(#67): no agent declares limits, reliability or data handling yet.
 - TODO(#153): every signed-in person still sees every run and conversation.
 - TODO(#188): the report limits are provisional and counted for the whole process, not per

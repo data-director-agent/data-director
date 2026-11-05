@@ -6,10 +6,12 @@ checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `G
 lists example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
 (`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
 until runs stream over AG-UI (#68, #69).
-`POST /api/conversations` starts a conversation and `POST /api/conversations/{id}/turns` sends it
-one message, answered as a run is, or refused with `409` unless it follows the latest turn
-(docs/specs/orchestration.md); `GET /api/conversations` and `GET /api/conversations/{id}`
-read them back as the harness derives them from the run store (docs/specs/orchestration.md, #130).
+`POST /api/conversations` starts a conversation, in a project of its own, and
+`POST /api/conversations/{id}/turns` sends it one message, which may attach a `dd-inventory` file
+for the project to keep, answered as a run is, or refused with `409` unless it follows the latest
+turn (docs/specs/orchestration.md, docs/specs/app.md); `GET /api/conversations` and
+`GET /api/conversations/{id}` read them back as the harness derives them from the run store
+(docs/specs/orchestration.md, #130).
 `GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
@@ -179,10 +181,11 @@ def build_app(
             return _problem(404, "run-not-found", "No such run", f"No run {invocation_id!r}.")
         return JSONResponse(run)
 
-    async def start_conversation(request: Request, _: Principal) -> Response:
-        conversation_id = governance.start_conversation()
+    async def start_conversation(request: Request, acting_for: Principal) -> Response:
+        conversation_id = await run_in_threadpool(governance.start_conversation, acting_for)
+        found = governance.conversation(conversation_id) or {}
         return JSONResponse(
-            {"conversation_id": conversation_id},
+            {"conversation_id": conversation_id, "project_id": found.get("project_id")},
             status_code=201,
             headers={"Location": f"/api/conversations/{conversation_id}"},
         )
@@ -201,9 +204,10 @@ def build_app(
             return _refused(
                 "A turn may not give a history: the server builds it from the stored turns."
             )
-        if extra := sorted(set(body) - {"agent_id", "message_text", "follows"}):
+        if extra := sorted(set(body) - {"agent_id", "message_text", "follows", "inventory"}):
             return _refused(
-                f"A turn takes only `agent_id`, `message_text` and `follows`, not {extra}."
+                "A turn takes only `agent_id`, `message_text`, `follows` and `inventory`, "
+                f"not {extra}."
             )
         agent_id, message_text = body.get("agent_id"), body.get("message_text")
         if not isinstance(agent_id, str) or not isinstance(message_text, str):
@@ -214,7 +218,10 @@ def build_app(
                 "The body must give `follows`: the `invocation_id` of the turn this one follows, "
                 "or null for the first turn."
             )
-        if not message_text.strip():
+        inventory = body.get("inventory")
+        if not (inventory is None or isinstance(inventory, dict)):
+            return _refused("`inventory` must be the object `dd-inventory` wrote.")
+        if not message_text.strip() and inventory is None:
             return _refused("The message is empty.")
         if governance.conversation(conversation_id) is None:
             return _no_conversation(conversation_id)
@@ -222,7 +229,9 @@ def build_app(
         outcome = "answered"
         try:
             return JSONResponse(
-                await governance.turn(conversation_id, agent_id, message_text, follows, acting_for)
+                await governance.turn(
+                    conversation_id, agent_id, message_text, follows, acting_for, inventory
+                )
             )
         except UnknownConversationError:
             outcome = "unknown conversation"
@@ -230,6 +239,7 @@ def build_app(
         except TurnConflictError as exc:
             outcome = "conflict"
             return _problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
+        # A `ProjectError` (an inventory the project refuses) is a `ValueError`.
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             outcome = "refused"
             return _refused(str(exc))

@@ -43,6 +43,15 @@ run, and each step it hands to another agent is a run of its own, linked to the 
 to it. That is how a past conversation reopens with every result in place, and how the Data
 Director remembers what was said earlier in it.
 
+## Projects
+
+Each conversation is started in a project of its own. The project keeps the inventory of your
+files that you attach ([Making an inventory](making-an-inventory.md)) and the documents agents
+draft for you, with every decision you make on them. Nothing is removed from a project's record:
+a newer inventory is added beside the earlier one, and the latest counts. An inventory holds facts
+about your files and never their content. When an agent uses an AI model, the facts it is given
+from the inventory can be sent to that model's provider (see AI models, below).
+
 ## Where you can see it
 
 - **After a run**, the page shows the stages it went through, the outcome, the result and the

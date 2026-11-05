@@ -22,6 +22,7 @@ from dd_harness.requirements import load_requirements
 from dd_harness.testing import (
     HARNESS_URL,
     TEST_PRINCIPAL,
+    AbstainingStub,
     DocumentStub,
     ScriptedAgent,
     document_request,
@@ -34,6 +35,7 @@ from dd_harness.testing import (
 )
 from dd_harness.transport.a2a import a2a_routes
 from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
     Document,
@@ -46,6 +48,7 @@ from dd_sdk.contract.models import (
     IdentificationMethod,
     InventoryFile,
     InvocationRequest,
+    OpenInput,
     Outcome,
     OutcomeStatus,
     new_invocation_id,
@@ -213,6 +216,105 @@ def test_the_agent_is_never_told_its_project(
     assert seen[0].project_id is None
     # A result that is not a Document is advice: nothing is added to the project.
     assert projects.documents(project) == []
+
+
+def stored_input(runs: Path, invocation_id: str) -> dict[str, Any]:
+    stored = json.loads((runs / invocation_id / "request.json").read_text())
+    found: dict[str, Any] = stored["input"]
+    return found
+
+
+FORGED_SUMMARY = {
+    "inventory_digest": "f" * 64,
+    "inventory_file_count": 99,
+    "inventory_tool": "made-up",
+    "inventory_tool_version": "0",
+    "inventory_made_at": "2026-01-01T00:00:00Z",
+}
+
+
+def forged_message() -> OpenInput:
+    return OpenInput.model_validate(
+        {**message().model_dump(mode="json"), "project_inventory": FORGED_SUMMARY}
+    )
+
+
+def test_a_message_in_a_project_is_told_what_its_inventory_is(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    # What a caller says the project holds is replaced by what it does hold.
+    env = conductor.invoke(
+        in_conversation(request("stub.abstain", forged_message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    summary = stored_input(tmp_path / "runs", env.invocation_id)["project_inventory"]
+    added = next(e for e in projects.events(project) if e["event"] == "inventory_added")
+    assert summary == {
+        "inventory_digest": added["digest"],
+        "inventory_file_count": 2,
+        "inventory_tool": "dd-inventory",
+        "inventory_tool_version": "0.1.0",
+        "inventory_made_at": "2026-10-30T00:00:00Z",
+    }
+
+
+def test_a_message_is_never_told_of_an_inventory_its_project_does_not_hold(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    bare = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    in_bare = projects.start_conversation(bare, acted_for=TEST_PRINCIPAL, caused_by="t")
+    # In a project without an inventory, in a conversation in no project, and in none at all.
+    for conversation in (in_bare, new_invocation_id(), None):
+        req = request("stub.abstain", forged_message())
+        env = conductor.invoke(
+            req.model_copy(update={"conversation_id": conversation}), acting_for=TEST_PRINCIPAL
+        )
+        assert "project_inventory" not in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+def test_a_file_inventory_in_a_project_is_the_projects_own(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    seen: list[dict[str, Any]] = []
+
+    def files(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(req.input.model_dump(mode="json", exclude_none=True))
+        return review_of_input(req, ctx)
+
+    def orchestrator(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        assert ctx.delegate is not None
+        # An orchestrator told the project holds an inventory sends none of its own.
+        bare = OpenInput.model_validate({"schema_class": "FileInventory"})
+        return reply_over(ctx, ctx.delegate("fake.none", bare))
+
+    conductor = conductor_over(
+        tmp_path / "runs",
+        projects,
+        ScriptedAgent(GroundingMode.DELEGATION, orchestrator),
+        ScriptedAgent(
+            GroundingMode.NONE,
+            files,
+            accepts=(ClassSchema.of(FileInventory),),
+        ),
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    parent = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert parent.outcome.status == OutcomeStatus.SUCCEEDED, parent.outcome.statement
+    (given,) = seen
+    assert [f["file_path"] for f in given["inventory_files"]] == ["a.csv", "b.csv"]
+    added = next(e for e in projects.events(project) if e["event"] == "inventory_added")
+    assert input_hash(given) == added["digest"]
+
+    # Outside a project, the inventory sent is the one given.
+    sent = inventory("caller.csv")
+    conductor.invoke(request("fake.none", sent), acting_for=TEST_PRINCIPAL)
+    assert seen[-1] == as_doc(sent)
 
 
 def test_a_delegated_childs_draft_is_kept_in_its_parents_project(
