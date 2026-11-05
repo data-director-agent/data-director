@@ -39,6 +39,21 @@ describe("Frame", () => {
     expect(screen.getByRole("link", { name: "User guide" })).toHaveAttribute("target", "_blank");
   });
 
+  it("draws an icon beside each banner link and the dark mode switch, hidden from screen readers", () => {
+    render(
+      <Frame current="/">
+        <p>Content</p>
+      </Frame>,
+    );
+    const banner = screen.getByRole("banner");
+    for (const name of ["Conversation", "Agents", "User guide", "Report a problem", "Dark mode"]) {
+      const control = within(banner).getByRole(name === "Dark mode" ? "button" : "link", { name });
+      const icon = control.querySelector("svg");
+      expect(icon).not.toBeNull();
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+    }
+  });
+
   it("holds the same things in the banner on every page", () => {
     const banners = ["/", "/agents"].map((current) => {
       const { unmount } = render(

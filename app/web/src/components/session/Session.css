@@ -22,6 +22,12 @@
     white-space: nowrap;
   }
 
+  .session-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
   .session-timeout {
     display: flex;
     flex-wrap: wrap;
