@@ -36,14 +36,14 @@ pip install --pre --index-url https://test.pypi.org/simple/ \
 ```
 
 The `publish-testpypi` job uses trusted publishing: TestPyPI trusts
-`.github/workflows/release-please.yml` running in the `testpypi` environment, and no token is
+`.github/workflows/release.yaml` running in the `testpypi` environment, and no token is
 stored. A version already on TestPyPI is skipped, so running the workflow again is safe.
 
 Set-up, once, by a maintainer:
 
 1. On TestPyPI, add a pending trusted publisher for each of `data-director-sdk` and
    `data-director-harness`: owner `data-director-agent`, repository `data-director`, workflow
-   `release-please.yml`, environment `testpypi`.
+   `release.yaml`, environment `testpypi`.
 2. In this repository's settings, create the environment `testpypi`, limited to the `main`
    branch.
 

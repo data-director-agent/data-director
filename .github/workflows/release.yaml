@@ -116,7 +116,7 @@ jobs:
           --publish-url https://test.pypi.org/legacy/
           --check-url https://test.pypi.org/simple/
           dist/*
-  
+
   # One Zenodo version per merged release PR, however many packages it released.
   zenodo:
     needs: release-please
