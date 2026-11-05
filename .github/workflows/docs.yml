@@ -1,14 +1,20 @@
 name: Docs
 
-# Builds the documentation site (mkdocs.yml, docs/hooks.py and the Markdown it publishes) on every
-# pull request that touches it, and publishes it to GitHub Pages when main changes. Pages must use
-# the "GitHub Actions" source.
+# Publishes the documentation site (mkdocs.yml, docs/hooks.py, docs/guide/ and the Markdown it
+# publishes) to GitHub Pages when main changes. Pages must use the "GitHub Actions" source. A pull
+# request that touches the site builds it in accessibility.yml, which runs the same strict build
+# before checking it, so this workflow does not run on pull requests.
 on:
-  pull_request:
-    paths: [mkdocs.yml, docs/hooks.py, "**/*.md", .github/workflows/docs.yml, pyproject.toml, uv.lock]
   push:
     branches: [main]
-    paths: [mkdocs.yml, docs/hooks.py, "**/*.md", .github/workflows/docs.yml, pyproject.toml, uv.lock]
+    paths:
+      - mkdocs.yml
+      - docs/hooks.py
+      - docs/guide/**
+      - "**/*.md"
+      - .github/workflows/docs.yml
+      - pyproject.toml
+      - uv.lock
   workflow_dispatch:
 
 permissions:
@@ -16,7 +22,7 @@ permissions:
 
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -32,13 +38,11 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv run --locked --only-group docs mkdocs build --strict
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        if: github.event_name != 'pull_request'
         with:
           path: site
 
   deploy:
     name: Deploy to GitHub Pages
-    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

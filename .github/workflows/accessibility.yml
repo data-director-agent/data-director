@@ -12,9 +12,11 @@ name: Accessibility
 # The app shell's checks (jsx-a11y, jest-axe, and Playwright with axe, keyboard-only use and
 # reflow) stay in ci.yml's "App shell" job, because they share their specs with its behaviour.
 #
-# Every pull request runs every job, without a path filter, so that "Accessibility passed" can be
-# a required check. The weekly run catches what changes without a commit: the theme, axe-core and
-# the browser.
+# As in ci.yml, the path filter is per job, so that "Accessibility passed" can be a required check:
+# a pull request checks the site when it touches the site and the viewer when it touches the Python
+# workspace (scripts/ci_changes.sh), and "Accessibility passed" counts a skipped job as passed.
+# Pushes to main, the merge queue and the weekly run always run every job. The weekly run catches
+# what changes without a commit: the theme, axe-core and the browser.
 on:
   pull_request:
   push:
@@ -36,8 +38,35 @@ env:
   UV_LOCKED: "1"
 
 jobs:
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      python: ${{ steps.paths.outputs.python }}
+      docs: ${{ steps.paths.outputs.docs }}
+    steps:
+      # The script, and in a pull request the merge commit's first parent, so that HEAD^1..HEAD
+      # is what the pull request changes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+          else
+            bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
+          fi
+
+  # A pull request builds the site here, not in docs.yml, which publishes it from main.
   site:
     name: Documentation site
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -57,6 +86,8 @@ jobs:
 
   viewer:
     name: Workbench viewer
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -83,15 +114,17 @@ jobs:
   accessibility-passed:
     name: Accessibility passed
     if: always()
-    needs: [site, viewer]
+    needs: [changes, site, viewer]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Every job passed
+      # A job skipped because a pull request does not touch what it checks passes; a job that
+      # failed or was cancelled does not.
+      - name: Every job passed or was skipped
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           echo "results: $RESULTS"
           for r in $RESULTS; do
-            case "$r" in success) ;; *) exit 1 ;; esac
+            case "$r" in success|skipped) ;; *) exit 1 ;; esac
           done

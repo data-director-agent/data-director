@@ -1,39 +1,82 @@
 #!/usr/bin/env bash
-# Decide which side of the repository a pull request touches, for the "changes" job in
-# .github/workflows/ci.yml. Reads changed paths, one per line, on stdin and prints
-# `python=true|false`, `web=true|false` and `deploy=true|false`, the job's outputs. The rules err towards running a
-# job: the first matching pattern decides a path, and any path no rule names is the Python
-# workspace's.
+# Decide which parts of the repository a pull request touches, for the "changes" jobs in
+# .github/workflows/ci.yml, accessibility.yml and codeql.yml. Reads changed paths, one per line, on
+# stdin and prints the jobs' outputs:
+#
+#   python=true|false   the Python workspace (ci.yml; the viewer in accessibility.yml)
+#   web=true|false      app/web (ci.yml)
+#   deploy=true|false   the NGINX site (ci.yml)
+#   docs=true|false     the documentation site (accessibility.yml, which builds it)
+#   codeql=[...]        the languages CodeQL analyses, as a JSON list (codeql.yml)
+#
+# The rules err towards running a job: the first matching pattern decides a path, and any path no
+# rule names is the Python workspace's. With --all, every output is set, as for a push to main,
+# the merge queue, the weekly run or a run started by hand.
 #
 #   git diff --name-only main... | bash scripts/ci_changes.sh
 set -euo pipefail
 
+if [ "${1:-}" = --all ]; then
+  echo "python=true"
+  echo "web=true"
+  echo "deploy=true"
+  echo "docs=true"
+  echo 'codeql=["python","javascript-typescript","actions"]'
+  exit 0
+fi
+
 python=false
 web=false
 deploy=false
+docs=false
+codeql_python=false
+codeql_js=false
+codeql_actions=false
 while IFS= read -r f; do
   case "$f" in
     "") ;;
     .github/dependabot.yml) ;;
-    # The workflows and the Python toolchain decide every job.
-    .github/* | pyproject.toml | uv.lock | .python-version) python=true web=true deploy=true ;;
+    # The workflows, these rules and the Python toolchain decide every job.
+    .github/* | scripts/ci_changes.sh | pyproject.toml | uv.lock | .python-version)
+      python=true web=true deploy=true docs=true ;;
     # The NGINX site is checked on its own; the rest of deploy/ is still the Python workspace's.
     deploy/nginx/* | deploy/install.sh | scripts/check_nginx.sh) python=true deploy=true ;;
     # app/tests writes app/web/fixtures and checks that they are current.
     app/web/fixtures/*) python=true web=true ;;
     app/web/*) web=true ;;
     app/*) python=true web=true ;;
-    # CONFORMANCE.md is checked by the test job, and the packages' readmes by twine.
-    CONFORMANCE.md | sdk/README.md | harness/README.md | workbench/README.md | inventory/README.md) python=true ;;
+    # CONFORMANCE.md is checked by the test job, and the packages' readmes by twine; all of them
+    # are on the site.
+    CONFORMANCE.md | sdk/README.md | harness/README.md | workbench/README.md | inventory/README.md)
+      python=true docs=true ;;
     # An agent's system prompt is Markdown but is the agent's code, which its tests check.
     agents/*/system_prompt.md) python=true ;;
-    # Prose and the documentation site (docs.yml builds it; the docs job checks the links).
-    *.md | docs/guide/* | docs/hooks.py | mkdocs.yml | LICENSE | CITATION.cff) ;;
+    # The documentation site: docs/hooks.py publishes every other Markdown file, and
+    # scripts/check_site_accessibility.py checks the site. The docs job in ci.yml checks links.
+    *.md | docs/guide/* | docs/hooks.py | mkdocs.yml | scripts/check_site_accessibility.py) docs=true ;;
+    LICENSE | CITATION.cff) ;;
     *) python=true ;;
   esac
-  echo "$f: python=$python web=$web deploy=$deploy" >&2
+  # CodeQL reads source by language, without building it.
+  case "$f" in
+    .github/workflows/codeql.yml | scripts/ci_changes.sh)
+      codeql_python=true codeql_js=true codeql_actions=true ;;
+    .github/workflows/* | .github/actions/* | */action.yml | */action.yaml) codeql_actions=true ;;
+    *.py | *.pyi | pyproject.toml | */pyproject.toml | uv.lock) codeql_python=true ;;
+    *.js | *.mjs | *.cjs | *.jsx | *.ts | *.mts | *.cts | *.tsx | *.html | *.vue \
+      | package.json | */package.json | package-lock.json | */package-lock.json)
+      codeql_js=true ;;
+  esac
+  echo "$f: python=$python web=$web deploy=$deploy docs=$docs" >&2
 done
+
+languages=()
+if [ "$codeql_python" = true ]; then languages+=('"python"'); fi
+if [ "$codeql_js" = true ]; then languages+=('"javascript-typescript"'); fi
+if [ "$codeql_actions" = true ]; then languages+=('"actions"'); fi
 
 echo "python=$python"
 echo "web=$web"
 echo "deploy=$deploy"
+echo "docs=$docs"
+echo "codeql=[$(IFS=,; echo "${languages[*]+"${languages[*]}"}")]"

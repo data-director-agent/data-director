@@ -81,7 +81,9 @@ passes only when every other job has. Each job can be run locally from the repos
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
 
 `.github/workflows/accessibility.yml` checks what people read and use against WCAG 2.2 AA, with
-axe-core and reflow at 320 CSS pixels, and ends in its own check, **Accessibility passed**:
+axe-core and reflow at 320 CSS pixels, and ends in its own check, **Accessibility passed**. A pull
+request runs each job only when it touches what the job checks, by the rules in
+`scripts/ci_changes.sh` that `ci.yml` also uses:
 
 | Job | Locally |
 |---|---|
@@ -92,7 +94,8 @@ The app shell's accessibility checks run in the App shell job of `ci.yml`.
 
 The pytest suite blocks the network and needs no credentials. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
-Python, JavaScript and TypeScript code and the workflows, and `audit.yml` checks every locked
+Python, JavaScript and TypeScript code and the workflows (in a pull request, only the languages it
+changes), and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
 
 ## Pull request titles and branch names
