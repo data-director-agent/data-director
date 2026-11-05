@@ -133,7 +133,7 @@ Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock
 git checkout origin/main -- uv.lock && uv lock && git add uv.lock
 ```
 
-then continue the rebase or merge. Release pull requests are re-locked by `release-please.yml`.
+then continue the rebase or merge. Release pull requests are re-locked by `release.yaml`.
 
 ## Releases
 
