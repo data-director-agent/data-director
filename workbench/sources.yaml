@@ -1,4 +1,4 @@
-# Independent copies of the sources agents cite (ADR-0016). The source check re-hashes each
+# Independent copies of the sources agents cite (docs/specs/grounding.md). The source check re-hashes each
 # cited record against the copy listed for the evidence's snapshot_ref; evidence whose
 # snapshot_ref is not listed here is reported as unresolved, never as verified.
 # A copy is independent of the agent because its bytes are pinned by sha256, not because of

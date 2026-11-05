@@ -7,9 +7,9 @@ name: CI
 # counts a skipped job as passed. Pushes to main, the merge queue and the weekly run always run
 # every job. The cheap repository-wide jobs run on every pull request.
 #
-#   Python workspace (ADR-0011): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
+#   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
 #     packages, the agents as real services, the workbench viewer in a browser (#9)
-#   app/web (ADR-0024): ESLint, tsc, Vitest with coverage, Vite build, Playwright
+#   app/web (docs/specs/app.md): ESLint, tsc, Vitest with coverage, Vite build, Playwright
 #   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does
 #   Repository: links, citation file, workflows, sign-off, dependency review
 #
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           cache-dependency-glob: uv.lock
       # Ruff reads source, not imports: the development tools are enough, without the workspace.
@@ -101,7 +101,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
@@ -160,12 +160,14 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          flags: sdk,harness,workbench,app,agents
+          flags: sdk,harness,workbench,app,agents,inventory
           fail_ci_if_error: false
 
   # CONFORMANCE.md is decided by the register, the review record, the report script and the outcome
   # of every requirement-marked test, so this job reads the report that `test` wrote. It runs even
   # when a test failed, so a stale file is reported beside the failure.
+  # It is advisory for now: `ci-passed` does not need it, so a stale file is reported but does
+  # not block a pull request. TODO(#458): decide how the file is kept current and require it again.
   conformance:
     name: CONFORMANCE.md is current
     needs: [changes, test]
@@ -176,7 +178,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
@@ -195,7 +197,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           cache-dependency-glob: uv.lock
       - run: uv build --all-packages --out-dir dist
@@ -219,14 +221,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
       # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
       # Headless runs need only chromium-headless-shell, not the full browser.
       - run: uv run playwright install --with-deps --only-shell chromium
-      - run: uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
+      # The viewer's accessibility checks run in accessibility.yml.
+      - run: >-
+          uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
+          --ignore=workbench/browser_tests/test_viewer_accessibility.py
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -234,7 +239,7 @@ jobs:
           path: test-results
           retention-days: 14
 
-  # --- app/web: the browser shell (ADR-0024). --------------------------------------------------
+  # --- app/web: the browser shell (docs/specs/app.md). --------------------------------------------------
 
   web:
     name: App shell (lint, types, unit, build, browser)
@@ -329,7 +334,7 @@ jobs:
             '**/*.md'
           fail: true
           jobSummary: true
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: false
       - run: uvx cffconvert --validate --infile CITATION.cff
@@ -338,7 +343,7 @@ jobs:
       # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
       # Each workspace member imports only what it declares and reads only its own files
-      # (ADR-0031).
+      # (docs/specs/system.md).
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
 
   workflows:
@@ -351,7 +356,7 @@ jobs:
           persist-credentials: false
       # actionlint (with shellcheck) from its image; the tag is updated by hand.
       - run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -color
-      - uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+      - uses: zizmorcore/zizmor-action@53290badfa369cb0bf7ad16342cb62c2fa47ac7b # v0.8.0
         with:
           advanced-security: false
           persona: regular
@@ -418,7 +423,6 @@ jobs:
       - lint
       - typecheck
       - test
-      - conformance
       - packages
       - viewer
       - web

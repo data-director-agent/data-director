@@ -1,0 +1,129 @@
+name: release-please
+
+# Each package is versioned on its own (release-please-config.json). Conventional commits that
+# touch a package's directory decide its next version; a commit that touches only the package's
+# tests does not. release-please counts from the tag `<component>-v<version>` that matches the
+# version in .release-please-manifest.json, so every version there must have its tag. It keeps
+# one release PR open for every package with a pending release, so that a release starts one CI
+# run rather than one per package, and tags each `<component>-v<version>` when that PR is merged. The PR's title
+# starts `chore(main): release `, which the sign-off check in ci.yml exempts. Merging it also
+# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml).
+on:
+  push:
+    branches: [main]
+  # To rebuild the release PR after a tag or a commit override changes what it should hold.
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to tag releases and push the release branches
+      pull-requests: write # to open and update the release PRs
+    outputs:
+      prs: ${{ steps.release.outputs.prs }}
+      publish: ${{ steps.publish.outputs.paths }}
+      releases_created: ${{ steps.release.outputs.releases_created }}
+    steps:
+      # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # The packages that other repositories need from an index (ADR-0031), among those just
+      # released.
+      - name: Choose the packages to publish
+        id: publish
+        env:
+          RELEASED: ${{ steps.release.outputs.paths_released }}
+        run: |
+          echo "paths=$(jq -c '[.[] | select(. == "sdk" or . == "harness")]' <<< "${RELEASED:-[]}")" >> "$GITHUB_OUTPUT"
+
+  # release-please edits each pyproject.toml but cannot regenerate uv.lock, which records the
+  # workspace members' versions. Refresh it on every release PR branch.
+  refresh-lock:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # the push uses RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN
+    strategy:
+      fail-fast: false
+      matrix:
+        pr: ${{ fromJSON(needs.release-please.outputs.prs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.pr.headBranchName }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - run: uv lock
+      - name: Commit the lock file
+        env:
+          TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          BRANCH: ${{ matrix.pr.headBranchName }}
+        run: |
+          if git diff --quiet uv.lock; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -s -m "chore: refresh uv.lock for release"
+          git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
+
+  # Publish a released sdk or harness to TestPyPI, so that an agent outside this repository can
+  # install them (#277). Trusted publishing: TestPyPI trusts this workflow in the `testpypi`
+  # environment, and no token is stored. The commit is the one the release was tagged on.
+  publish-testpypi:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.publish != '' && needs.release-please.outputs.publish != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/data-director-${{ matrix.path }}
+    permissions:
+      contents: read
+      id-token: write # to prove this workflow's identity to TestPyPI
+    strategy:
+      fail-fast: false
+      matrix:
+        path: ${{ fromJSON(needs.release-please.outputs.publish) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No cache: a publishing job must not restore anything another run could have written.
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: false
+      - name: Build
+        env:
+          PACKAGE: ${{ matrix.path }}
+        run: uv build --out-dir dist "${PACKAGE}"
+      - run: uvx twine check dist/*
+      - name: Publish
+        run: >-
+          uv publish --trusted-publishing always
+          --publish-url https://test.pypi.org/legacy/
+          --check-url https://test.pypi.org/simple/
+          dist/*
+  
+  # One Zenodo version per merged release PR, however many packages it released.
+  zenodo:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
+    permissions:
+      contents: read
+    # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
+    uses: ./.github/workflows/zenodo.yml # zizmor: ignore[self-repository]
+    with:
+      ref: ${{ github.sha }}

@@ -1,5 +1,5 @@
-"""The app runs no agent in its own process (ADR-0027): it reaches every agent over A2A through
-the conductor, so it imports no agent package, and never the workbench (AGENTS.md)."""
+"""The app runs no agent in its own process (docs/specs/app.md): it reaches every agent over A2A
+through the conductor, so it imports no agent package, and never the workbench (AGENTS.md)."""
 
 from __future__ import annotations
 

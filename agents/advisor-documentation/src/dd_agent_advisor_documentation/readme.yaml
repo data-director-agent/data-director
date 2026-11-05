@@ -1,17 +1,38 @@
-# advisor.documentation's whole rule table: the draft README's sections, in order. `from` names the
-# DocumentationRequest slot a section is drafted from, by copying it (a list becomes one line per
-# item); a section without `from`, or whose slot is empty, is left for the researcher. A mock's
-# table (ADR-0033): it writes no prose of its own, and the real editor replaces it, TODO(#358).
-- heading: Title
-  from: title
+# advisor.documentation's README template: the draft's sections, in order. A mock's table
+# (docs/specs/agents.md): it writes no prose of its own, and the real editor replaces it, TODO(#358).
+#
+# The sections are the common core of the research data README templates compared in #200:
+# Cornell's Data README, Dryad's and the Borealis working group's minimum README. `ask` says what
+# the researcher writes in the section, and the draft shows it as a placeholder. `from` names the
+# project fact a section is drafted from:
+#
+#   files     the inventory's files, as a table of path, format and size
+#   tables    the inventory's tables, as a table of field, type and format per file
+#   licences  the licences the chosen repository offers, for the researcher to choose from
+#
+# A section drafted from a fact still shows its `ask`, for what the fact cannot say.
+- heading: General information
+  ask: >-
+    the dataset's title; the principal investigator and a contact, with institution, email and
+    ORCID iD; the dates of data collection (YYYY-MM-DD); the geographic location; the funding.
 - heading: Description
-  from: description
-- heading: Creators
-  from: creators
+  ask: what the dataset is, and what it is for.
 - heading: Files
   from: files
+  ask: how the files relate to one another, and any related data not included.
 - heading: Methods
+  ask: >-
+    how the data were collected and processed; the software and instruments, with their versions;
+    the standards, calibration and quality assurance applied.
 - heading: Variables
-  from: fields
-- heading: Licence
+  from: tables
+  ask: >-
+    each field's definition, unit and missing value codes, in the data dictionary; any
+    abbreviations used.
+- heading: Access and licence
+  from: licences
+  ask: the licence, any restrictions, related publications and other places the data are held.
 - heading: How to cite
+  ask: the recommended citation. The repository gives the DOI when the dataset is deposited.
+- heading: Software requirements
+  ask: anything needed to open or reuse the data.

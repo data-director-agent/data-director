@@ -74,7 +74,7 @@ It then sets what the agent must not decide for itself:
   `input:<invocation_id>`, so an agent that works only from its input can cite it like any other
   source;
 - **`acting_for`**: the person the run is for, taken from the caller's authentication, not from
-  the request ([ADR-0018](../../docs/adr/0018-acting-for.md)).
+  the request ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 It opens the root span of the run's trace, `invoke_agent`. Everything that happens next is
 recorded inside it.
@@ -208,7 +208,7 @@ agent's story is consistent, not that it is true. That is what the next step is 
 The workbench holds its own copies of the sources agents cite, listed in
 [`sources.yaml`](../sources.yaml) and pinned by hash. For each evidence item, the source check
 looks up the record in the copy named by the item's `snapshot_ref` and hashes it again
-([ADR-0016](../../docs/adr/0016-source-check.md)):
+([Evidence and grounding](../../docs/specs/grounding.md)):
 
 - the record must exist in the copy (S1), which catches an invented record;
 - it must hash to the evidence item's `content_hash` (S2), which catches a record the agent
@@ -219,7 +219,7 @@ sources: 14 verified, 0 unresolved
 ```
 
 The hash is what makes this possible. It is computed in a fixed, registered way (a
-canonicalisation, [ADR-0009](../../docs/adr/0009-evidence-canonicalisations.md)), so the same record
+canonicalisation, [Evidence and grounding](../../docs/specs/grounding.md)), so the same record
 always gives the same hash, and a single changed character gives a different one. Changing the
 hash an envelope claims for `FAIRsharing.082881`:
 
@@ -302,11 +302,11 @@ rules the linter applies ([`grounding.md`](../../harness/docs/grounding.md#groun
 - `delegation` agents, such as the orchestrator `orchestrator.stub`, ask the workbench to run other
   agents for them. Each of those runs goes through every step on this page as a run of its own,
   and the orchestrator may cite only runs the conductor recorded
-  ([ADR-0012](../../docs/adr/0012-conversation-and-orchestration.md)).
+  ([Orchestration](../../docs/specs/orchestration.md)).
 
 ## What the checks do not show
 
 The checks show that a result is consistent with its sources, not that it is correct. A pass
 does not show that a model's rationale is faithful to the records it cites, or that a
 `*_derivation` badge is accurate. Those are matters for evaluation
-([ADR-0013](../../docs/adr/0013-evaluation.md)) and for the human review that every envelope asks for.
+([Evaluation and conformance](../../docs/specs/evaluation.md)) and for the human review that every envelope asks for.

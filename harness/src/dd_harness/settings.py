@@ -6,8 +6,8 @@ are). Agents are separate services and read their own `DD_<AGENT>_*` variables i
 processes. Kept in one place so every way in (the workbench, the app, an A2A server) builds the
 same object.
 
-The configuration belongs to the deployment, not to the harness (ADR-0022): no path here has a
-default inside a source tree. Each comes from its `DD_*` variable or from a default the caller
+The configuration belongs to the deployment, not to the harness (docs/specs/system.md): no path here
+has a default inside a source tree. Each comes from its `DD_*` variable or from a default the caller
 supplies, such as the workbench's development set in `workbench.config`.
 
 `load_env_file` fills unset variables from a local `.env` file for development. Only a
@@ -64,57 +64,86 @@ def _path(variable: str, default: Path | None) -> Path:
         return Path(value)
     if default is None:
         raise SettingsError(
-            f"{variable} unset: the deployment names this file or directory (ADR-0022)"
+            f"{variable} unset: the deployment names this file or directory (docs/specs/system.md)"
         )
     return default
+
+
+def projects_dir(default: Path | None = None) -> Path:
+    """Where project records are kept: `DD_PROJECTS_DIR`, which has no default
+    (docs/specs/projects.md)."""
+    return _path("DD_PROJECTS_DIR", default)
+
+
+def repositories_dir(default: Path | None = None) -> Path:
+    """The deployment's requirement sets: `DD_REPOSITORIES_DIR`, which has no default
+    (docs/specs/deposit.md)."""
+    return _path("DD_REPOSITORIES_DIR", default)
+
+
+def named_principal(
+    principal_id: str | None, principal_name: str | None, principal_kind: str
+) -> Principal:
+    """The principal the operator names. Raises `IdentityError` if it is unset or malformed."""
+    missing = [
+        var
+        for var, value in (("DD_PRINCIPAL_ID", principal_id), ("DD_PRINCIPAL_NAME", principal_name))
+        if not value
+    ]
+    if missing:
+        raise IdentityError(
+            f"{' and '.join(missing)} unset: every invocation acts for a named human "
+            "(Blueprint §5.4, docs/specs/policy-and-identity.md); see env.example"
+        )
+    try:
+        return Principal(
+            principal_id=str(principal_id),
+            name=str(principal_name),
+            principal_kind=PrincipalKind(principal_kind),
+        )
+    except ValueError as exc:  # pydantic's ValidationError is a ValueError
+        raise IdentityError(f"the configured principal is malformed: {exc}") from exc
+
+
+def principal_from_env() -> Principal:
+    """The operator's principal from `DD_PRINCIPAL_*`, for a caller with no other settings."""
+    return named_principal(
+        os.environ.get("DD_PRINCIPAL_ID") or None,
+        os.environ.get("DD_PRINCIPAL_NAME") or None,
+        os.environ.get("DD_PRINCIPAL_KIND") or PrincipalKind.PERSON.value,
+    )
 
 
 @dataclass(frozen=True)
 class Settings:
     runs_dir: Path
-    # The one institutional profile this deployment applies to every invocation (ADR-0017).
+    # The one institutional profile this deployment applies to every invocation
+    # (docs/specs/policy-and-identity.md).
     profile: Path
     agents_config: Path
-    # The independent copies of sources the source check resolves evidence against (ADR-0016).
+    # The independent copies of sources the source check resolves evidence against
+    # (docs/specs/grounding.md).
     sources_config: Path
     write_crate: bool = True
-    # The address delegation agents call the harness back on (ADR-0012). `workbench serve`
-    # uses its own host and port when this is unset; set it when agents reach the harness by
-    # another name (a container network, a proxy).
+    # The address delegation agents call the harness back on (docs/specs/orchestration.md).
+    # `workbench serve` uses its own host and port when this is unset; set it when agents reach the
+    # harness by another name (a container network, a proxy).
     harness_url: str | None = None
-    # The human every invocation acts for until there is authentication (ADR-0018). No default:
-    # an agent must not operate anonymously, so an unset principal stops start-up.
+    # The human every invocation acts for until there is authentication
+    # (docs/specs/policy-and-identity.md). No default: an agent must not operate anonymously, so an
+    # unset principal stops start-up.
     principal_id: str | None = None
     principal_name: str | None = None
     principal_kind: str = PrincipalKind.PERSON.value
-    # The OpenID Connect provider whose ID tokens a caller sends as a bearer token (ADR-0029).
-    # Set, it replaces the operator's principal for every HTTP caller.
+    # The OpenID Connect provider whose ID tokens a caller sends as a bearer token
+    # (docs/specs/policy-and-identity.md). Set, it replaces the operator's principal for every HTTP
+    # caller.
     oidc_issuer: str | None = None
     oidc_client_id: str | None = None
 
     def principal(self) -> Principal:
         """The configured principal. Raises `IdentityError` if it is unset or malformed."""
-        missing = [
-            var
-            for var, value in (
-                ("DD_PRINCIPAL_ID", self.principal_id),
-                ("DD_PRINCIPAL_NAME", self.principal_name),
-            )
-            if not value
-        ]
-        if missing:
-            raise IdentityError(
-                f"{' and '.join(missing)} unset: every invocation acts for a named human "
-                "(Blueprint §5.4, ADR-0018); see env.example"
-            )
-        try:
-            return Principal(
-                principal_id=str(self.principal_id),
-                name=str(self.principal_name),
-                principal_kind=PrincipalKind(self.principal_kind),
-            )
-        except ValueError as exc:  # pydantic's ValidationError is a ValueError
-            raise IdentityError(f"the configured principal is malformed: {exc}") from exc
+        return named_principal(self.principal_id, self.principal_name, self.principal_kind)
 
     @classmethod
     def from_env(
@@ -162,15 +191,17 @@ def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) ->
 
 
 def build_authenticator(settings: Settings) -> Authenticator:
-    """The bearer-token authenticator if a provider is configured (ADR-0029), else the stub
-    (ADR-0018). A provider configured beside an operator principal, a provider without a client
-    ID, or neither provider nor principal stops start-up, not a request."""
+    """The bearer-token authenticator if a provider is configured
+    (docs/specs/policy-and-identity.md), else the stub. A
+    provider configured beside an operator principal, a provider without a client ID, or neither
+    provider nor principal stops start-up, not a request."""
     if settings.oidc_issuer is None:
         return OperatorAssertion(settings.principal())
     if settings.principal_id or settings.principal_name:
         raise IdentityError(
             "DD_OIDC_ISSUER and DD_PRINCIPAL_ID are both set: a server that signs people in "
-            "never gives a caller the operator's principal (ADR-0029); unset one"
+            "never gives a caller the operator's principal (docs/specs/policy-and-identity.md); "
+            "unset one"
         )
     if not settings.oidc_client_id:
         raise IdentityError("DD_OIDC_CLIENT_ID unset: DD_OIDC_ISSUER needs the client ID")

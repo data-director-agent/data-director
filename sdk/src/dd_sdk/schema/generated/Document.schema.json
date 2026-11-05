@@ -13,7 +13,7 @@
          "type": "string"
       },
       "DocumentKind": {
-         "description": "What a project document is for (ADR-0035).",
+         "description": "What a project document is for (docs/specs/projects.md).",
          "enum": [
             "metadata_record",
             "readme",
@@ -47,7 +47,7 @@
       },
       "GroundingRef": {
          "additionalProperties": false,
-         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
          "properties": {
             "source_id": {
                "type": "string"
@@ -68,7 +68,7 @@
    "$id": "https://w3id.org/data-director/schema/core/Document",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (ADR-0035). The only payload class that becomes a project document.",
+   "description": "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",

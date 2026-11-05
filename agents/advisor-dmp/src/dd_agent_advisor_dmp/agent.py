@@ -1,4 +1,4 @@
-"""advisor.dmp: the Data Management Plan Checker persona (ADR-0033). A mock.
+"""advisor.dmp: the Data Management Plan Checker persona (docs/specs/agents.md). A mock.
 
 Serves `governance.dmp` (R8). It compares the outputs a data management plan committed to share
 with the outputs the researcher now plans to share, and lists every difference for a person to

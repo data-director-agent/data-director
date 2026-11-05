@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import dd_agent_advisor_repository
+from dd_agent_advisor_repository import rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     AccessNeed,
@@ -190,7 +191,7 @@ def test_shortlist_is_grounded_and_every_fact_is_evidence(runs_dir: Path) -> Non
     assert all(c.basis == CandidateBasis.RECOMMENDED and c.rationale for c in options.candidates)
     evidenced = {(e.source_id, e.content_hash) for e in env.evidence}
     for ev in env.evidence:
-        # What the reader is shown is what the hash covers (E1, ADR-0015).
+        # What the reader is shown is what the hash covers (E1, docs/specs/grounding.md).
         assert ev.content is not None and verify(ev.content, ev.canonicalisation, ev.content_hash)
     for c in options.candidates:
         assert {(g.source_id, g.content_hash) for g in c.grounded_on} <= evidenced
@@ -277,6 +278,149 @@ def test_the_researchers_institutional_repository_is_offered_beyond_the_cap(
     assert home.commercial == Answer.NO  # the supplier does not operate it
 
 
+AFFILIATED = NEEDS.model_copy(
+    update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
+)
+FALLBACK = (
+    "Operated by University of Testing, the researcher's institution, and offered as a fallback: "
+    "a repository of the dataset's discipline, or one a funder, journal or project requires, may "
+    "suit the data better."
+)
+
+
+@pytest.mark.requirement("R1")
+def test_the_institutional_repository_never_displaces_another_candidate(runs_dir: Path) -> None:
+    # #441: the cap still offers as many other repositories as it would without the affiliation.
+    many = [
+        SURVEYS.model_copy(update={"re3data_id": f"r3d10000010{n}", "name": f"Archive {n}"})
+        for n in range(6)
+    ]
+    on_theme = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    advisor = agent(repositories=FakeRepositories([*many, on_theme]))
+    without = named(*_with_options(invoke(runs_dir / "without", NEEDS, advisor)))
+    names = named(*_with_options(invoke(runs_dir / "named", AFFILIATED, advisor)))
+    assert names == [*without, "Testing University Research Data"]
+
+
+@pytest.mark.requirement("R1")
+def test_an_institutional_repository_that_matches_the_discipline_gets_no_bonus(
+    runs_dir: Path,
+) -> None:
+    # #441: belonging to the institution does not make its repository a better discipline fit.
+    on_theme = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    other = SURVEYS.model_copy(
+        update={"name": "Zeta Survey Archive", "keywords": ["social survey"]}
+    )
+    env = invoke(runs_dir, AFFILIATED, agent(repositories=FakeRepositories([other, on_theme])))
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Testing University Research Data", "Zeta Survey Archive"]
+    home, rival = options.candidates
+    assert home.score == rival.score  # in order of name, not of affiliation
+    assert "Operated by University of Testing, the researcher's institution." in home.ranked_by
+    assert FALLBACK not in home.ranked_by
+
+
+@pytest.mark.requirement("R1")
+def test_the_institutional_fallback_comes_after_the_discipline_and_before_generalists(
+    runs_dir: Path,
+) -> None:
+    general = SURVEYS.model_copy(
+        update={
+            "re3data_id": rank.generalists()[0],
+            "name": "A Generalist",
+            "keywords": [],
+            "fairsharing_id": None,
+        }
+    )
+    advisor = agent(repositories=FakeRepositories([general, INSTITUTIONAL, SURVEYS]))
+    env = invoke(runs_dir, AFFILIATED, advisor)
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == [
+        SURVEYS.name,
+        "Testing University Research Data",
+        "A Generalist",
+    ]
+    assert options.candidates[1].ranked_by == [FALLBACK]
+
+
+@pytest.mark.requirement("R1")
+def test_an_institutional_fallback_without_the_access_needed_is_left_out(runs_dir: Path) -> None:
+    open_only = INSTITUTIONAL.model_copy(update={"data_access_types": ["open"]})
+    env = invoke(runs_dir, AFFILIATED, agent(repositories=FakeRepositories([SURVEYS, open_only])))
+    assert named(env, env.payload_as(RepositoryOptions)) == [SURVEYS.name]
+
+
+def _with_options(env: Envelope) -> tuple[Envelope, RepositoryOptions]:
+    return env, env.payload_as(RepositoryOptions)
+
+
+@pytest.mark.requirement("R1")
+def test_a_members_only_repository_is_left_out_unless_the_researcher_is_a_member(
+    runs_dir: Path,
+) -> None:
+    members_only = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    advisor = agent(repositories=FakeRepositories([SURVEYS, members_only]))
+    ids = [
+        c.grounded_on[0].source_id
+        for c in invoke(runs_dir, NEEDS, advisor).payload_as(RepositoryOptions).candidates
+    ]
+    assert "r3d100000005" not in ids
+    member = NEEDS.model_copy(
+        update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
+    )
+    ids = [
+        c.grounded_on[0].source_id
+        for c in invoke(runs_dir, member, advisor).payload_as(RepositoryOptions).candidates
+    ]
+    assert "r3d100000005" in ids
+
+
+@pytest.mark.requirement("R1")
+def test_a_kind_of_data_alone_does_not_recommend_a_repository(runs_dir: Path) -> None:
+    # #440: "X-ray diffraction" found a small-molecule crystal database for perovskite films.
+    crystals = SURVEYS.model_copy(
+        update={
+            "re3data_id": "r3d100000013",
+            "name": "Crystal Structures",
+            "subjects": ["Chemistry"],
+            "keywords": ["interview transcripts"],
+            "fairsharing_id": None,
+        }
+    )
+    env = invoke(runs_dir, NEEDS, agent(repositories=FakeRepositories([SURVEYS, crystals])))
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Social Survey Archive"]
+    assert options.candidates[0].ranked_by == [
+        'Matches the theme "social survey" (1 of 1 given).',
+        'Matches the kind of data "interview transcripts".',
+    ]
+
+
+@pytest.mark.requirement("R1")
+def test_a_generalist_is_offered_after_a_repository_of_the_discipline(runs_dir: Path) -> None:
+    generalist = OPEN_ONLY.model_copy(
+        update={
+            "re3data_id": rank.generalists()[0],
+            "name": "Anything Archive",
+            "keywords": [],
+            "data_access_types": ["restricted"],
+            "data_upload_restrictions": [],
+        }
+    )
+    advisor = agent(repositories=FakeRepositories([generalist, SURVEYS]))
+    env = invoke(runs_dir, NEEDS, advisor)
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Social Survey Archive", "Anything Archive"]
+    assert options.candidates[1].ranked_by == [
+        "A generalist repository, which takes data from any discipline."
+    ]
+    # With no repository of the discipline, the generalists are offered and the statement
+    # says why.
+    env = invoke(runs_dir, NEEDS, agent(repositories=FakeRepositories([generalist])))
+    assert named(env, env.payload_as(RepositoryOptions)) == ["Anything Archive"]
+    assert "No discipline-specific repository matched the themes" in env.outcome.statement
+
+
 # --- the mandated branch --------------------------------------------------------------------
 
 
@@ -308,6 +452,16 @@ def test_a_mandated_repository_is_found_by_identifier_and_never_shortlisted_arou
     )
     options = invoke(runs_dir, needs).payload_as(RepositoryOptions)
     assert [c.grounded_on[0].source_id for c in options.candidates] == ["r3d100000003"]
+
+
+def test_a_shortlist_says_a_policy_may_still_mandate_a_repository(runs_dir: Path) -> None:
+    # #439: with no mandate passed in, the shortlist must not read as a free choice.
+    caveat = "a funder, journal or institution may still require one"
+    assert caveat in invoke(runs_dir, NEEDS).outcome.statement
+    needs = NEEDS.model_copy(
+        update={"mandated": [RepositoryRef(name="x", re3data_id="r3d100000003")]}
+    )
+    assert caveat not in invoke(runs_dir, needs).outcome.statement
 
 
 @pytest.mark.requirement("DD-OUTCOME")

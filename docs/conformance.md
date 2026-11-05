@@ -13,7 +13,7 @@ what a test run and the recorded reviews *showed*. A row with nothing behind it 
 ## How a requirement is assessed
 
 Each requirement is assessed in one or both of two lanes
-([ADR-0014](adr/0014-assessment-lanes.md)):
+([Evaluation and conformance](specs/evaluation.md)):
 
 - **By test.** An automated test exercises the requirement on every CI run. This suits a rule
   with a clear right answer, such as "a disabled agent is refused".
@@ -37,7 +37,7 @@ A lane the requirement is not assessed in reads *not assessed*.
 **Substantiated is not a conformance claim.** A passing test shows that one example path works.
 A review shows what one person found, within the scope they describe, at one commit. Neither
 shows that the requirement is met in general. Measuring quality across many cases is
-evaluation, which is reported separately ([ADR-0013](adr/0013-evaluation.md)).
+evaluation, which is reported separately ([Evaluation and conformance](specs/evaluation.md)).
 
 ## The files
 
@@ -46,7 +46,7 @@ evaluation, which is reported separately ([ADR-0013](adr/0013-evaluation.md)).
 | [`requirements.yaml`](requirements.yaml) | The register: every requirement, its source and `assessed_by`. | Contributors, in review. |
 | [`reviews.yaml`](reviews.yaml) | The review record: one entry per review, never edited. | The reviewer, or someone on their written instruction. |
 | Test markers | `@pytest.mark.requirement("<ID>")` on the tests that exercise a requirement. | Contributors. |
-| [`../scripts/conformance_report.py`](../scripts/conformance_report.py) | Reads the three above and a test run, and writes the report. | Changes to its rules need an ADR. |
+| [`../scripts/conformance_report.py`](../scripts/conformance_report.py) | Reads the three above and a test run, and writes the report. | Changes to its rules change the [evaluation spec](specs/evaluation.md). |
 | [`../CONFORMANCE.md`](../CONFORMANCE.md) | The generated report. | Only the script. |
 
 The register lists every functional (R) and non-functional (C) requirement in Blueprint §7,
@@ -104,7 +104,7 @@ or someone acting on their written instruction.
 
 A review stays current until a later one replaces it, however much the code changes. The report
 shows the reviewed commit so that readers can judge. Whether a review should lapse automatically
-is still to be decided (ADR-0014, #248).
+is still to be decided ([Evaluation and conformance](specs/evaluation.md), #248).
 
 ## Regenerating the report
 
@@ -124,7 +124,7 @@ error if `reviews.yaml` is malformed, rather than skipping the bad entry.
 ## What the report does not do
 
 - It is not signed. What ties the table to the code is the commit that contains it, where CI
-  regenerated it and found no difference (ADR-0006, "Rejected for v0").
-- It does not score quality. That is evaluation (ADR-0013).
+  regenerated it and found no difference ([Dependencies](specs/dependencies.md), "Rejected for v0").
+- It does not score quality. That is evaluation ([Evaluation and conformance](specs/evaluation.md)).
 - It does not certify an instance. A deployment's security, sovereignty and compliance depend on
   how it is run, and a review records only what was examined.

@@ -6,7 +6,7 @@
 #   one_of   - `field`, case ignored, is one of `values`
 #   any_in   - at least one item of the list `field`, case ignored, is one of `values`
 #   covered  - `field` is a non-empty list, with at least as many items in `by`
-# A mock's table (ADR-0033): it looks only at what the researcher gives and is not a FAIRness
+# A mock's table (docs/specs/agents.md): it looks only at what the researcher gives and is not a FAIRness
 # evaluation (R4). The real assessor replaces it, TODO(#361).
 - principle: F1
   check: identifier-is-doi

@@ -1,7 +1,7 @@
 """The grounding linter over hand-built span trees and envelope documents, one mode at a time.
 
 No conductor, no agent: these tests pin the rules themselves, including the regression that
-motivated ADR-0008 — a payload the linter does not recognise must fail, never pass.
+motivated docs/specs/grounding.md — a payload the linter does not recognise must fail, never pass.
 """
 
 from __future__ import annotations
@@ -205,7 +205,8 @@ def test_g3_and_g4_evidence_agrees_with_trace_and_payload() -> None:
 @pytest.mark.requirement("DD-EVIDENCE", "DD-GROUNDING")
 @pytest.mark.parametrize("mode", ["retrieval", "input_only", "none", "delegation"])
 def test_e1_evidence_content_must_hash_to_its_content_hash(mode: str) -> None:
-    """ADR-0015: what a reader is shown about a cited record is what the hash covers."""
+    """docs/specs/grounding.md: what a reader is shown about a cited record is what the hash
+    covers."""
     record = {"fairsharing_id": "S", "name": "ISO 8601", "status": "ready"}
     digest = content_hash(record)
     item: dict[str, Any] = {
@@ -265,7 +266,7 @@ def test_none_mode_forbids_chat() -> None:
     assert violations(grounding.lint([root("none"), chat()], env), "N1")
 
 
-# --- delegation (ADR-0012) ----------------------------------------------------------------------
+# --- delegation (docs/specs/orchestration.md) -----------------------------------------------------
 
 CHILD = "01a06cdb-985f-7375-9aa2-37be29f0f2a9"
 H_CHILD = "c" * 64

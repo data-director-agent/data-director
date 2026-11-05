@@ -1,30 +1,48 @@
-"""The harness's own server: the conductor over A2A, and nothing else (#55, ADR-0022).
+"""The harness's own server: the conductor over A2A, and nothing else (#55, docs/specs/system.md).
 
-`dd-harness serve` is for deployments. It serves the A2A JSON-RPC endpoint and the agent card,
-with no viewer, AG-UI, run index, test kit or Inspect AI. Other systems call it: an app, another
-Data Director instance, or a delegation agent calling back under its grant (ADR-0012).
+`dd-harness serve` is for deployments. It serves the A2A JSON-RPC endpoint and the agent card, with
+no viewer, AG-UI, run index, test kit or Inspect AI. Other systems call it: an app, another Data
+Director instance, or a delegation agent calling back under its grant (docs/specs/orchestration.md).
 `workbench serve` builds the same conductor with `serving` and adds its own routes.
 
 Every setting comes from the real environment (`Settings.from_env()` with no defaults): an unset
 `DD_PROFILE`, `DD_AGENTS_CONFIG`, `DD_SOURCES_CONFIG`, `DD_RUNS_DIR` or principal stops start-up.
 No `.env` file is read.
 
-There is no authentication of callers yet (ADR-0018, #17, #43): every invocation acts for the
-operator's principal, whoever sent it. Do not expose this server beyond a trusted network.
+`dd-harness project` keeps a project's record under `DD_PROJECTS_DIR` for the operator's principal
+(docs/specs/projects.md): `create`, `add-inventory` for a `FileInventory` that `dd-inventory` wrote,
+`choose-repository` with the requirement sets under `DD_REPOSITORIES_DIR` (docs/specs/deposit.md),
+and `events`.
+
+There is no authentication of callers yet (docs/specs/policy-and-identity.md, #17, #43): every
+invocation acts for the operator's principal, whoever sent it. Do not expose this server beyond a
+trusted network.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from pathlib import Path
 
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.policy import PolicyError
+from dd_harness.projects import ProjectError, ProjectStore
 from dd_harness.registry import RegistryError
-from dd_harness.settings import Settings, SettingsError, build_authenticator, build_conductor
+from dd_harness.requirements import RequirementsError, load_requirements
+from dd_harness.settings import (
+    Settings,
+    SettingsError,
+    build_authenticator,
+    build_conductor,
+    principal_from_env,
+    projects_dir,
+    repositories_dir,
+)
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 
@@ -40,8 +58,9 @@ UNTRUSTED_WARNING = (
 def serving(settings: Settings, base_url: str) -> tuple[Conductor, Authenticator]:
     """A conductor and authenticator for a server reached at `base_url`.
 
-    The conductor's delegation callback is `DD_HARNESS_URL` if set, else `base_url` (ADR-0012).
-    An unset principal or a missing or malformed file raises here, before anything is served."""
+    The conductor's delegation callback is `DD_HARNESS_URL` if set, else `base_url`
+    (docs/specs/orchestration.md). An unset principal or a missing or malformed file raises here,
+    before anything is served."""
     authenticator = build_authenticator(settings)
     conductor = build_conductor(settings)
     conductor.harness_url = settings.harness_url or base_url
@@ -74,9 +93,70 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+# What a project event names as its cause when a person ran a command (docs/specs/projects.md).
+CAUSED_BY_COMMAND = "dd-harness project {command}"
+
+
+def cmd_project_create(args: argparse.Namespace) -> int:
+    store = ProjectStore(projects_dir())
+    project_id = store.create(
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="create"),
+        title=args.title,
+    )
+    sys.stdout.write(project_id + "\n")
+    return 0
+
+
+def cmd_project_list(args: argparse.Namespace) -> int:
+    for summary in ProjectStore(projects_dir()).projects():
+        sys.stdout.write(json.dumps(summary, ensure_ascii=False) + "\n")
+    return 0
+
+
+def cmd_project_add_inventory(args: argparse.Namespace) -> int:
+    store = ProjectStore(projects_dir())
+    try:
+        inventory = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ProjectError(f"{args.file}: {exc}") from exc
+    if not isinstance(inventory, dict):
+        raise ProjectError(f"{args.file}: not a JSON object")
+    digest = store.add_inventory(
+        args.project_id,
+        inventory,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="add-inventory"),
+    )
+    sys.stdout.write(digest + "\n")
+    return 0
+
+
+def cmd_project_choose_repository(args: argparse.Namespace) -> int:
+    store = ProjectStore(projects_dir())
+    resolved = load_requirements(repositories_dir()).resolve(args.re3data, args.name, args.standard)
+    digest = store.choose_repository(
+        args.project_id,
+        resolved,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="choose-repository"),
+    )
+    for warning in resolved.warnings:
+        sys.stderr.write(f"dd-harness: warning: {warning}\n")
+    sys.stdout.write(digest + "\n")
+    return 0
+
+
+def cmd_project_events(args: argparse.Namespace) -> int:
+    for event in ProjectStore(projects_dir()).events(args.project_id):
+        sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="dd-harness", description="Data Director harness: serve the conductor over A2A"
+        prog="dd-harness",
+        description="Data Director harness: serve the conductor over A2A, and keep projects",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -85,12 +165,55 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)
 
+    p = sub.add_parser(
+        "project", help="keep a project's record under DD_PROJECTS_DIR (docs/specs/projects.md)"
+    )
+    project = p.add_subparsers(dest="project_command", required=True)
+    p = project.add_parser("create", help="create a project and print its identifier")
+    p.add_argument("--title", help="a name that tells the project apart from others")
+    p.set_defaults(func=cmd_project_create)
+    p = project.add_parser("list", help="print a summary of every project, as JSONL")
+    p.set_defaults(func=cmd_project_list)
+    p = project.add_parser(
+        "add-inventory", help="add a FileInventory that dd-inventory wrote, and print its digest"
+    )
+    p.add_argument("project_id")
+    p.add_argument("file", help="the inventory's JSON file")
+    p.set_defaults(func=cmd_project_add_inventory)
+    p = project.add_parser(
+        "choose-repository",
+        help="record the repository chosen, and print the digest of its requirements",
+    )
+    p.add_argument("project_id")
+    p.add_argument("--re3data", required=True, help="the repository's re3data identifier")
+    p.add_argument("--name", required=True, help="the repository's name")
+    p.add_argument(
+        "--standard",
+        action="append",
+        default=[],
+        help="a metadata standard its re3data record declares, as re3data names it; repeatable",
+    )
+    p.set_defaults(func=cmd_project_choose_repository)
+    p = project.add_parser("events", help="print the project's events, oldest first, as JSONL")
+    p.add_argument("project_id")
+    p.set_defaults(func=cmd_project_events)
+
     args = parser.parse_args(argv)
     try:
         result: int = args.func(args)
-    # No principal (ADR-0018), a path the deployment must name (ADR-0022), or a profile, agent
-    # list or source list that is missing or malformed: nothing may be served.
-    except (IdentityError, SettingsError, PolicyError, RegistryError, SourceConfigError) as exc:
+    # No principal (docs/specs/policy-and-identity.md), a path the deployment must name
+    # (docs/specs/system.md), or a profile, agent list or source list that is missing or malformed:
+    # nothing may be served. An unknown project, an inventory its class schema refuses, or
+    # requirement sets that are malformed or contradict one another, change nothing.
+    except (
+        IdentityError,
+        SettingsError,
+        PolicyError,
+        RegistryError,
+        SourceConfigError,
+        ProjectError,
+        RequirementsError,
+    ) as exc:
         sys.exit(f"dd-harness: {exc}")
     return result
 

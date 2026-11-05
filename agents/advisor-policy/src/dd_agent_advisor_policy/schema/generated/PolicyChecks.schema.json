@@ -24,7 +24,7 @@
       },
       "GroundingRef": {
          "additionalProperties": false,
-         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
          "properties": {
             "source_id": {
                "type": "string"
@@ -43,7 +43,7 @@
       },
       "MatchedPolicy": {
          "additionalProperties": false,
-         "description": "One policy record matched to an actor. It is named only in grounded_on; the record's name, clauses and relations are in the cited evidence item's content (ADR-0015).",
+         "description": "One policy record matched to an actor. It is named only in grounded_on; the record's name, clauses and relations are in the cited evidence item's content (docs/specs/grounding.md).",
          "properties": {
             "actor": {
                "description": "The name of the actor, as given in the input, that this policy was matched to.",

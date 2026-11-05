@@ -6,7 +6,7 @@ are used; this page is the map. On a server the paths are those that
 
 ## Layers
 
-A setting has one home, and development has the same tree as a server, rooted at `config/local/` (git-ignored; `uv run scripts/dev.py setup` creates it). `dev.py doctor` reports settings files of the old layout (`.env`, `workbench/.env`) and where each moves. Secrets are the exception that matters: a key sits in the one file that
+A setting has one home, and development has the same tree as a server, rooted at `config/local/` (git-ignored; `uv run scripts/dev.py setup` creates it). `dev.py doctor` reports settings files of the old layout (`.env`, `workbench/.env`) and where each moves, and a local `app/config/profile.yaml` that has fallen behind the example (agents omitted, an older `version`, approval actions dropped, an orchestrator it does not enable). Secrets are the exception that matters: a key sits in the one file that
 only its own agent can read.
 
 | What | On a server | In development | Read by |
@@ -19,7 +19,7 @@ only its own agent can read.
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
 | Who may use the site | `/etc/nginx/data-director.htpasswd` | none | NGINX |
 
-The app and the harness hold no model key (ADR-0026), so the first two rows never contain one.
+The app and the harness hold no model key ([Policy and identity](../../specs/policy-and-identity.md)), so the first two rows never contain one.
 
 ## The three files that define an instance
 
@@ -39,7 +39,7 @@ request cannot name a profile; only the operator chooses it
 ## Who a run acts for
 
 The app can sign people in with ORCID, so that each run acts for the person who started it and
-records that ORCID vouched for them (ADR-0029). Register an ORCID public API client for the
+records that ORCID vouched for them ([Policy and identity](../../specs/policy-and-identity.md)). Register an ORCID public API client for the
 deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, then set:
 
 | Variable | What it is |

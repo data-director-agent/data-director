@@ -1,4 +1,4 @@
-"""advisor.linking: the Linking Adviser persona (ADR-0033). A mock.
+"""advisor.linking: the Linking Adviser persona (docs/specs/agents.md). A mock.
 
 Serves `deposit.links` and `post.links`. It recognises the DOIs, ORCID iDs, ROR ids and grant
 numbers a researcher wants to link a dataset to, checks their form, gives each its canonical https

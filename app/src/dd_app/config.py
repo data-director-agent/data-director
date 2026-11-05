@@ -1,8 +1,8 @@
 """The app's reference configuration: the files it supplies to the harness as defaults.
 
-The harness has no defaults of its own (ADR-0022). The app brings a reference set in
-`app/config/` (its profile, agent list and source list) and writes runs to `app/runs/`. A
-`DD_*` variable still wins over each of them.
+The harness has no defaults of its own (docs/specs/system.md). The app brings a reference set in
+`app/config/` (its profile, agent list and source list), writes runs to `app/runs/` and keeps
+projects in `app/projects/`. A `DD_*` variable still wins over each of them.
 """
 
 from __future__ import annotations
@@ -21,9 +21,11 @@ DEFAULT_PROFILE = LOCAL_PROFILE if LOCAL_PROFILE.exists() else EXAMPLE_PROFILE
 DEFAULT_AGENTS_CONFIG = CONFIG_DIR / "agents.yaml"
 DEFAULT_SOURCES_CONFIG = CONFIG_DIR / "sources.yaml"
 DEFAULT_RUNS_DIR = APP_ROOT / "runs"
+# Each project's log and the content its events added (`dd_harness.projects`).
+DEFAULT_PROJECTS_DIR = APP_ROOT / "projects"
 # Example inputs the Run tab offers, each naming its class (`examples/README.md`).
 EXAMPLES_DIR = CONFIG_DIR / "examples"
-# Where `npm run build` in app/web writes the shell (ADR-0024).
+# Where `npm run build` in app/web writes the shell (docs/specs/app.md).
 WEB_DIST = APP_ROOT / "web" / "dist"
 
 

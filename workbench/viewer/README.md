@@ -22,9 +22,9 @@ and the styles in `viewer.css`:
 Paths are absolute under `/viewer/`, because Chat is also served at `/`. The pages load React and
 react-jsonschema-form (RJSF) from a CDN as ES modules and render an `Envelope` against the
 contract's generated JSON Schema (`/schema/envelope.schema.json`). The agent and sample pickers are
-filled from `GET /agents` (the registry's manifest, ADR-0010) and `GET /samples`; the viewer names
+filled from `GET /agents` (the registry's manifest, [Agents](../../docs/specs/agents.md)) and `GET /samples`; the viewer names
 no agent. A new agent's payload renders as soon as its class is in the LinkML schema; its badges come from
-the agent's `derivations` in the manifest (ADR-0016).
+the agent's `derivations` in the manifest ([Agents](../../docs/specs/agents.md)).
 
 Serve it with `uv run workbench serve` and open <http://127.0.0.1:8000/viewer/>. The pages need
 network access to `esm.sh` for the libraries; everything else is local. Each library is pinned to
@@ -126,7 +126,10 @@ references exists, and that every `esm.sh` module is pinned and recorded for the
 `browser_tests/` loads the pages in Chromium with Playwright (#9) against the workbench app over
 in-memory agents: a run on Inspect with its outcome, derivation badges and cited evidence; an
 abstention; a replay by `?invocation_id=` from the run store; an unknown run; a delegated Chat
-turn; the Glossary from the keyboard; and the Agents page. A test fails on any script error,
+turn; the Glossary from the keyboard; and the Agents page. `test_viewer_accessibility.py` checks
+Chat, Inspect after a run, the Glossary and the Agents page against WCAG 2.2 AA with axe-core, in
+light and dark, and for reflow at 320 CSS pixels (#85); `.github/workflows/accessibility.yml`
+runs it. A test fails on any script error,
 console error or request that leaves the machine. The `esm.sh` modules are replayed from
 `browser_tests/esm.sh.har.zip`, so the tests need no network; after changing a pinned version,
 re-record it, which does reach `esm.sh`:

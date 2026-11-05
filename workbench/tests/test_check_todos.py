@@ -21,7 +21,7 @@ T = "TO" + "DO"
     [
         f"# {T}(#123): settle the numbers",
         f"- {T}(#41, #57): how a steward edits the profile",
-        f"(ADR-0025), {T}(#67).",
+        f"(the oversight extension), {T}(#67).",
         f"{T}(#1) and {T}(#2)",
         "no marker here",
         "todo in lower case is ordinary prose",
@@ -53,7 +53,7 @@ def test_unreferenced(line: str) -> None:
         ("docs/blueprint-notes.md", False),
         ("sdk/CHANGELOG.md", True),
         ("app/web/node_modules/x/README.md", True),
-        ("docs/adr/0021-ro-crate-is-a-record-not-a-message.md", False),
+        ("docs/specs/contract.md", False),
     ],
 )
 def test_excluded(path: str, skipped: bool) -> None:

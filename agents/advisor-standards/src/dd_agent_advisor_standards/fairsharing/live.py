@@ -8,7 +8,7 @@
   `FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`; the sign-in body is filtered from cassettes.
 
 On any transport failure the caller (`StandardsAgent`) falls back to the snapshot and marks the
-snapshot reference stale. This module is the only importer of `httpx` (ADR-0006).
+snapshot reference stale. This module is the only importer of `httpx` (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Conversations, derived from the invocation store (ADR-0012).
+"""Conversations, derived from the invocation store (docs/specs/orchestration.md).
 
 A conversation is the set of top-level invocations sharing a `conversation_id`. There is no
 conversation store: each turn is an ordinary invocation, so everything here is read back from
@@ -34,6 +34,8 @@ def list_conversations(store: RunStore) -> list[dict[str, Any]]:
         if summary is None:
             summary = summaries[conversation_id] = {
                 "conversation_id": conversation_id,
+                # The conductor gives every turn of a conversation the same project, if any.
+                "project_id": envelope.get("project_id"),
                 "agent_id": envelope["agent_id"],
                 "turns": 0,
                 "started_at": envelope["completed_at"],
@@ -87,6 +89,7 @@ def get_conversation(store: RunStore, conversation_id: str) -> dict[str, Any] | 
             inputs[envelope["invocation_id"]] = stored.get("input")
     return {
         "conversation_id": conversation_id,
+        "project_id": next((t["envelope"].get("project_id") for t in turns), None),
         "turns": turns,
         "inputs": inputs,
         "version_changes": version_changes(turns),

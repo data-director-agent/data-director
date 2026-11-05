@@ -33,7 +33,7 @@
       },
       "GroundingRef": {
          "additionalProperties": false,
-         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
          "properties": {
             "source_id": {
                "type": "string"
@@ -52,7 +52,7 @@
       },
       "RepositoryCandidate": {
          "additionalProperties": false,
-         "description": "One repository. It is named only in grounded_on; its name, PID systems, access and upload conditions, certificates and metadata standards are in the cited evidence items' content (ADR-0015). The judgements here are read from those records or compared with the needs.",
+         "description": "One repository. It is named only in grounded_on; its name, PID systems, access and upload conditions, certificates and metadata standards are in the cited evidence items' content (docs/specs/grounding.md). The judgements here are read from those records or compared with the needs.",
          "properties": {
             "basis": {
                "$ref": "#/$defs/CandidateBasis"
@@ -97,6 +97,16 @@
             },
             "notes": {
                "description": "Facts the researcher should weigh that are neither met nor missed needs: fees, a commercial platform, the deposit conditions FAIRsharing's curators record.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "ranked_by": {
+               "description": "Why a recommended repository is on the shortlist and in its place, one sentence per ranking signal: the themes and kinds of data it matches, whether it is a generalist, run by the researcher's institution, or lacks the access the data needs. Empty when mandated.",
                "items": {
                   "type": "string"
                },

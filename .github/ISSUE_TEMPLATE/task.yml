@@ -1,5 +1,5 @@
 name: Task
-description: A piece of work that is not a new capability, such as a decision record, a spike or maintenance.
+description: A piece of work that is not a new capability, such as a spec change, a spike or maintenance.
 type: Task
 body:
   - type: textarea
@@ -13,6 +13,6 @@ body:
     id: done
     attributes:
       label: Done when
-      description: What exists when this is finished (a merged change, an ADR, a written note).
+      description: What exists when this is finished (a merged change, a spec, a written note).
     validations:
       required: true

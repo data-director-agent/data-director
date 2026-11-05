@@ -3,14 +3,14 @@
 An institutional profile says what a Data Director instance is allowed to do at this
 institution. It is written in YAML so that the people who own the policy, the research data
 management team, can read it and propose changes without learning a programming language
-(ADR-0003).
+([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Which profile applies
 
 A deployment applies one profile to every invocation. The operator chooses it when starting the
 workbench: `DD_PROFILE=profiles/default.yaml`, or `--profile` on `workbench invoke` and
 `workbench serve`. A request cannot name a profile, so whoever sends one cannot choose their own
-rules (ADR-0017). Each stored run records the profile it was held to as
+rules ([Policy and identity](../../docs/specs/policy-and-identity.md)). Each stored run records the profile it was held to as
 `policy_bundle_ref: profile:<profile_id>@v<version>`, with `policy_digest`, the SHA-256 of this
 file's bytes, so a later reader can tell exactly which rules applied.
 
@@ -61,13 +61,14 @@ policy engine's language rather than replaced by it, so this file stays the one 
 The gate decides whether the workbench calls an agent. It cannot stop an agent's own service
 from doing something it did not declare. When agents that write arrive, they will propose the
 write and the workbench will carry it out after approval, so that an agent holds no write
-credentials of its own (ADR-0017).
+credentials of its own ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Planned keys
 
 These arrive with the agent that enforces them, and not before:
 
-- approved repositories, for repository recommendation (R1);
+- approved repositories, for repository recommendation (R1). What each repository requires is
+  not a key here but a requirement set ([Deposit](../../docs/specs/deposit.md)); the approved list is #320;
 - accepted persistent identifier systems (R7);
 - which external registries agents may consult.
 

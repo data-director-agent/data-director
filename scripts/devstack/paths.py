@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-# Development's copy of /etc/data-director/ (ADR-0026): the same files, under one ignored directory.
+# Development's copy of /etc/data-director/ (docs/specs/policy-and-identity.md): the same files, under one ignored directory.
 LOCAL_DIR = ROOT / "config" / "local"
 EXAMPLES_DIR = ROOT / "config" / "examples"
 APP_ENV = LOCAL_DIR / "app.env"

@@ -3,7 +3,7 @@
  *
  * A failed check is shown with a word and a mark, never colour alone, and its summary is shown
  * as the harness wrote it. The grounding check is a consistency check, not proof of retrieval
- * (ADR-0016). Each item has an anchor the result's "rests on" links point to.
+ * (docs/specs/agents.md). Each item has an anchor the result's "rests on" links point to.
  */
 
 import "./EvidencePanel.css";

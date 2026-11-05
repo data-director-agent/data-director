@@ -26,7 +26,7 @@ An operator decides three things that a user and a developer do not:
 | [Institutional profiles](../../../workbench/profiles/README.md) | Write the rules that apply to every run. |
 
 The [architecture](../../architecture.md) and the
-[decision records](../../adr/README.md) explain why the system is built as it is.
+[specifications](../../specs/README.md) explain why the system is built as it is.
 
 ## Limits of the alpha
 

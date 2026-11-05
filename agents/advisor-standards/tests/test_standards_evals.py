@@ -2,7 +2,7 @@
 against the baseline.
 
 No test here carries a requirement marker: the evaluation measures how well R3 does, which is
-not a conformance claim (ADR-0013).
+not a conformance claim (docs/specs/evaluation.md).
 """
 
 from __future__ import annotations
@@ -81,7 +81,8 @@ def test_no_case_scores_below_the_committed_baseline(tmp_path, monkeypatch):
         "DD_SNAPSHOT_PATH",
     ):
         monkeypatch.delenv(variable, raising=False)
-    # The evaluation acts for whoever runs it (ADR-0018); here, the test principal.
+    # The evaluation acts for whoever runs it (docs/specs/policy-and-identity.md); here, the test
+    # principal.
     monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
     monkeypatch.setenv("DD_PRINCIPAL_NAME", TEST_PRINCIPAL.name)
     [log] = inspect_eval(standards_seeded(), model="none", log_dir=str(tmp_path), display="none")

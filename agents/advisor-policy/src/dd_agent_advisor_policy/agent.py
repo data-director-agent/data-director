@@ -7,9 +7,9 @@ institution mandates a repository. The repositories a policy requires are return
 
 Grounding invariant: retrieval precedes any model call, and the model never determines which
 policies are matched or what any obligation is. A matched policy names its record once, in
-`grounded_on`; what the reader is shown about it is the evidence item's `content`, which the
-linter re-hashes (E1, ADR-0015). Where policies differ, the agent flags it for human review and
-never decides which applies.
+`grounded_on`; what the reader is shown about it is the evidence item's `content`, which the linter
+re-hashes (E1, docs/specs/grounding.md). Where policies differ, the agent flags it for human review
+and never decides which applies.
 """
 
 from __future__ import annotations
@@ -142,7 +142,8 @@ class PolicyAgent:
             return _abstain(
                 ReasonCode.NO_CANDIDATES_RETRIEVED,
                 f"FAIRsharing ({where}) has no policy record for {', '.join(no_record)}. "
-                "Many institutions have none; check the policies directly.",
+                "Many institutions have none; check the policies directly, including whether "
+                "they require a particular repository.",
             )
 
         items = [
@@ -200,9 +201,16 @@ class PolicyAgent:
             statement += " Repositories required: " + ", ".join(r.name for r in mandated.values())
             statement += "."
         else:
-            statement += " No matched record names a required repository."
+            statement += (
+                " No matched record names a required repository. FAIRsharing's policy records do "
+                "not say which repositories a policy requires, so this is not evidence that none "
+                "is required: check each policy's own text before choosing a repository."
+            )
         if no_record:
-            statement += f" No policy record for: {', '.join(no_record)}."
+            statement += (
+                f" No policy record for: {', '.join(no_record)}; what they require, including "
+                "any required repository, was not checked."
+            )
         statement += " Human review is required."
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),

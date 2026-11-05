@@ -1,13 +1,14 @@
 /**
- * The home page: a conversation with the orchestrator (ADR-0024 §9-17), in the centre of the
+ * The home page: a conversation with the orchestrator (docs/specs/app.md), in the centre of the
  * workspace (§18), with the Blueprint's phases on one side and the project's documents on the
  * other. A delegated run opens inside its card in the transcript (§14).
  *
- * The orchestrator is the agent the profile names (ADR-0024 §10), never one the shell picks.
+ * The orchestrator is the agent the profile names (docs/specs/app.md), never one the shell picks.
  * When the profile names none, the named agent is not running, its card does not declare
  * `delegation` grounding, or the policy does not permit it, the page says which and links to the
- * directory (§12). The server builds each turn's history; the page sends the agent and the message.
- * Until there is authentication (#17) the conversation acts for the operator (ADR-0018).
+ * directory (§12). The server builds each turn's history; the page sends the agent, the message
+ * and the turn it follows, the latest one the page shows (docs/specs/orchestration.md).
+ * Until there is authentication (#17) the conversation acts for the operator (docs/specs/policy-and-identity.md).
  *
  * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
  * orchestrator is working. A new reply is announced in a polite live region, the busy state is
@@ -17,7 +18,7 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { FolderOpen, MessageSquarePlus, SendHorizontal, X } from "lucide-react";
-import { Unreachable, useConversationApi } from "../../conversation/api";
+import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
@@ -126,11 +127,23 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setSent(message);
     setText("");
     let id = conversationId;
+    let stored = false;
+    // The latest turn this page shows: the server refuses the turn if the conversation has
+    // moved on since, so a message sent again after a dropped connection never runs twice.
+    const follows = conversation?.turns[conversation.turns.length - 1]?.invocation_id ?? null;
     try {
       id ??= await api.create();
       setConversationId(id);
-      await api.sendTurn(id, orchestrator.id, message);
-      const updated = await api.get(id);
+      await api.sendTurn(id, orchestrator.id, message, follows);
+      // The turn is stored: from here a failure is in showing the reply, not in sending it, so
+      // the message must not come back to the box to be sent twice (#337).
+      stored = true;
+      // Once more if the first read gets no response: the reply is there to be read.
+      const sentTo = id;
+      const updated = await api.get(sentTo).catch((e: unknown) => {
+        if (e instanceof Unreachable) return api.get(sentTo);
+        throw e;
+      });
       setConversation(updated);
       const last = updated.turns[updated.turns.length - 1];
       setAnnouncement(
@@ -140,13 +153,30 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       );
       void reloadPast();
     } catch (e) {
+      if (stored) {
+        void reloadPast();
+        setError(
+          "Your message was sent and answered, but Data Director could not show the reply " +
+            `(${errorMessage(e)}). Open this conversation from Earlier conversations to see it.`,
+        );
+        setAnnouncement("");
+        return;
+      }
       setText(message);
       if (e instanceof Unreachable) {
         // The server may have received the turn and be running it, so show what it stored.
         if (id) api.get(id).then(setConversation, () => undefined);
         setError(
           "Data Director could not reach the server, so this message may not have been sent. " +
-            "Your text is kept: check the conversation above, then send it again.",
+            "Your text is kept: sending it again is safe, because a message that was received " +
+            "is not run twice.",
+        );
+      } else if (e instanceof TurnConflict) {
+        if (id) api.get(id).then(setConversation, () => undefined);
+        setError(
+          "This conversation has changed since you wrote this: another message was answered or " +
+            "is still being answered. Your text is kept. Check the conversation above, then send " +
+            "it again if it is still needed.",
         );
       } else {
         setError(

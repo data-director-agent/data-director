@@ -13,7 +13,7 @@
 #                      (R4.1, R10.1, C5.1, C13.n, C14.1) split a Blueprint
 #                      requirement so that a row claims only what its tests show.
 #
-# assessed_by      — how the requirement is assessed (ADR-0014): `test` (a marked test in a pytest
+# assessed_by      — how the requirement is assessed (docs/specs/evaluation.md): `test` (a marked test in a pytest
 #                    run), `review` (a named person's review recorded in reviews.yaml), or both.
 #                    Absent means [test]. A requirement names `review` when a passing test cannot
 #                    show what the Blueprint asks for: quality judged by a domain expert (R3,
@@ -160,6 +160,10 @@ requirements:
     source: project
     parent: C13
     title: The policy gate refuses an agent the profile does not permit and refers an action requiring approval to a named human role; what happens after referral is not exercised (#16)
+  - id: C13.3
+    source: project
+    parent: C13
+    title: A person approves, edits then approves, or rejects each document version an agent drafts, with a reason for any departure from the draft; the harness records who decided, when and why, and refuses a decision on text other than the undecided latest version; that review is mandatory before deposit is not exercised (#197)
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions
@@ -189,7 +193,7 @@ requirements:
     title: Outcome vocabulary (succeeded, abstained, referred, failed, suspended) with reason codes; `suspended` is not yet produced (#16)
   - id: DD-GROUNDING
     source: project
-    title: The agent's account is consistent — its declared retrieval precedes any model call and every identity a payload asserts appears in its declared retrieval; that the agent retrieved anything is not shown by the linter (ADR-0016)
+    title: The agent's account is consistent — its declared retrieval precedes any model call and every identity a payload asserts appears in its declared retrieval; that the agent retrieved anything is not shown by the linter (docs/specs/grounding.md)
   - id: DD-GROUNDING-MODE
     source: project
     title: An agent declares its grounding mode; the conductor records it and the linter applies that mode's rules

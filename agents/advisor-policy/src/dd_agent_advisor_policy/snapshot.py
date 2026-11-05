@@ -1,8 +1,9 @@
 """Snapshot backend: a committed JSON Lines copy of FAIRsharing policy records.
 
-Used in CI and offline, and as the fallback when the live route fails. Each line is a record's
-whole document, as hashed, so the harness's source check can use the same file (ADR-0016).
-Records are searched lexically with `rank_bm25`; this module is its only importer (ADR-0006).
+Used in CI and offline, and as the fallback when the live route fails. Each line is a record's whole
+document, as hashed, so the harness's source check can use the same file (docs/specs/grounding.md).
+Records are searched lexically with `rank_bm25`; this module is its only importer
+(docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

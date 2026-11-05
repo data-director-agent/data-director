@@ -28,6 +28,12 @@ theme:
     - content.code.copy
     - search.highlight
 
+# Where the theme falls short of WCAG 2.2 AA; scripts/check_site_accessibility.py checks the site.
+extra_css:
+  - stylesheets/accessibility.css
+extra_javascript:
+  - javascripts/accessibility.js
+
 markdown_extensions:
   - admonition
   - footnotes
@@ -57,6 +63,7 @@ nav:
       - Configuration: operations/configuration.md
       - Deploying to a VM: /deploy/README.md
       - Institutional profiles: /workbench/profiles/README.md
+      - Repository requirements: /app/config/repositories/README.md
   - Developer guide:
       - developer-guide/index.md
       - Setting up: developer-guide/setup.md
@@ -72,10 +79,9 @@ nav:
       - Glossary: /docs/glossary.md
       - Repository: /README.md
       - UI best practices: /docs/ui/best-practices.md
-      - Decisions:
-          - /docs/adr/README.md
-          - /docs/adr/*.md
-          - Template: /docs/adr/0000-template.md
+      - Specifications:
+          - /docs/specs/README.md
+          - /docs/specs/*.md
   - Packages:
       - SDK: /sdk/README.md
       - Harness:
@@ -91,6 +97,7 @@ nav:
       - App:
           - /app/README.md
           - Configuration examples: /app/config/examples/README.md
+      - Inventory: /inventory/README.md
       - Agents:
           - /agents/README.md
           - Orchestrator: /agents/orchestrator-model/README.md

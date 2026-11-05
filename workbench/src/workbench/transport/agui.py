@@ -1,16 +1,17 @@
-"""AG-UI run events for the viewer (ADR-0001). The only importer of `ag_ui` (ADR-0006).
+"""AG-UI run events for the viewer (docs/specs/transport.md). The only importer of `ag_ui`
+(docs/specs/dependencies.md).
 
 Two events per run, `RUN_STARTED` then `RUN_FINISHED` with the envelope as `result`. With one
 synchronous agent there is nothing else to carry; streaming and the `suspended` interrupt
 arrive with the events that need them.
 
-AG-UI's thread is the contract's conversation (ADR-0012): a request carrying `conversation_id`
-runs in the thread of that id, and a `threadId` that names another is refused. The history an
-agent sees travels in the contract (`Message.history`), not in AG-UI `messages`, so every
+AG-UI's thread is the contract's conversation (docs/specs/orchestration.md): a request carrying
+`conversation_id` runs in the thread of that id, and a `threadId` that names another is refused. The
+history an agent sees travels in the contract (`Message.history`), not in AG-UI `messages`, so every
 transport gives an agent the same input.
 
 Whom a run acts for comes from the `Authenticator`, given the request's headers, never from the
-body (ADR-0018).
+body (docs/specs/policy-and-identity.md).
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 /**
- * A delegated child's work, opened in its card in the transcript (ADR-0024 §14): its progress,
+ * A delegated child's work, opened in its card in the transcript (docs/specs/app.md): its progress,
  * outcome, result and evidence, drawn by the run view's own `Stages` and `Outcome` rather than
  * a second rendering, so the evidence sits beside the turn it supports.
  */

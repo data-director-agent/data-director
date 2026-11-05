@@ -1,1 +1,1 @@
-"""advisor.linking: the Linking Adviser persona (ADR-0033). A mock."""
+"""advisor.linking: the Linking Adviser persona (docs/specs/agents.md). A mock."""

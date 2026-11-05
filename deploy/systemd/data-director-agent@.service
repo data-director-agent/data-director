@@ -1,6 +1,6 @@
 # One agent service, `dd-<instance>`, on the port deploy/agents/<instance>.env names. Each
 # listens on loopback only: until callers are authenticated (#17), no agent port leaves the
-# host (ADR-0011).
+# host (docs/specs/agents.md).
 [Unit]
 Description=Data Director agent dd-%i
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
@@ -16,7 +16,7 @@ WorkingDirectory=/opt/data-director/current
 EnvironmentFile=/opt/data-director/current/deploy/agents/%i.env
 # Settings every agent shares, then this agent's own (DD_<AGENT>_*, a model id), which win. A
 # model key is never set here but given as a credential to the one unit that needs it
-# (ADR-0026).
+# (docs/specs/policy-and-identity.md).
 EnvironmentFile=-/etc/data-director/agents.env
 EnvironmentFile=-/etc/data-director/agents/%i.env
 ExecStart=/opt/data-director/current/.venv/bin/dd-%i serve --host 127.0.0.1 --port ${PORT}

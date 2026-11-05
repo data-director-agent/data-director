@@ -24,10 +24,10 @@ dependencies = [
 workbench = "workbench.cli:entry"
 
 [project.optional-dependencies]
-# Evaluation on Inspect AI (ADR-0013): `workbench.evaluation` and each agent's `evals/`.
+# Evaluation on Inspect AI (docs/specs/evaluation.md): `workbench.evaluation` and each agent's `evals/`.
 eval = ["inspect-ai>=0.3.281"]
 
-# What this package's tests import from the workspace (ADR-0031, scripts/check_boundaries.py).
+# What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
   "data-director-agent-orchestrator-stub",

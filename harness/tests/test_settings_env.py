@@ -1,5 +1,6 @@
 """The environment names the deployment's files, with the caller's defaults behind it
-(ADR-0022); the local `.env` file fills unset variables and never replaces the real environment."""
+(docs/specs/system.md); the local `.env` file fills unset variables and never replaces the real
+environment."""
 
 from __future__ import annotations
 

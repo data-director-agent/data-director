@@ -2,7 +2,22 @@
 #
 # Certification carries no weight. Figure 3 says the agent should not weight paid certification
 # above free evaluation, and re3data seldom names a certificate, so the fair weight is none.
-# A commercial operator is never dropped; at an equal score it is listed after the others.
+# A commercial operator is never dropped; at an equal score it is listed after the others, and
+# then one that lists a deposit fee after those that do not.
+#
+# Left out whatever their score: a repository closed to deposits, and one that takes deposits
+# only from its own institution's members (re3data's "institutional membership" restriction,
+# or typed only "institutional") unless the researcher's institution operates it.
+
+# The researcher's institution's repositories are a fallback, in case no more specific
+# destination (a repository of the discipline, or one a funder, journal or project requires)
+# suits the data (#441). Affiliation adds no score. One that matches the discipline is ranked as
+# any other; one that does not is offered as the institutional fit, without needing the floor,
+# unless it lacks the access the data needs. Either is added beyond the cap and takes no other
+# repository's place, so naming an institution never removes one from the shortlist.
+
+# The shortlist is ordered by kind of fit, then by score within a kind.
+order: [discipline, institutional, generalist]
 
 # At most this many repositories are recommended, besides those the researcher's own institution
 # operates.
@@ -12,12 +27,25 @@ search_limit: 10
 # The score a repository needs to be recommended.
 confidence_floor: 0.3
 
+# Generalist repositories, which take data from any discipline: Figure 3's "domain-specific or
+# generalist". They are fetched by identifier for every shortlist, one request each when live
+# (Blueprint P14), and rank below any repository that matches the dataset's discipline.
+generalists:
+  - r3d100010468  # Zenodo
+  - r3d100010066  # figshare
+  - r3d100010051  # Harvard Dataverse
+  - r3d100000044  # Dryad
+  - r3d100011137  # Open Science Framework
+  - r3d100011868  # Mendeley Data
+
 weights:
-  # Fit to the themes and kinds of data, scaled so that the best hit of the query scores 1.
-  subject: 1.0
-  # Operated by the researcher's institution. Enough on its own to reach the floor and exempt
-  # from the cap, so the institutional repository is always offered (R1, affiliation-based
-  # suggestions) unless it lacks the access the data needs.
-  affiliation: 0.3
+  # The share of the dataset's themes (its disciplines) that the repository matches, a match
+  # being a registry search hit on every word of the theme.
+  theme: 1.0
+  # The share of the kinds of data that the repository matches. Kept below the floor, so a kind
+  # of data alone never recommends a repository from another discipline (#440).
+  data_kind: 0.2
+  # A generalist repository. Above the floor and below a full theme match.
+  generalist: 0.4
   # The access the data needs (Phase 2) is not listed.
   access_unmet: -0.5

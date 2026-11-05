@@ -6,7 +6,7 @@
  * the fields the shell uses; a field it does not know is ignored, not refused.
  *
  * TODO(#67): generate these from the extension's JSON Schema once the oversight extension has one
- * (increment 2, ADR-0025).
+ * (increment 2, #67).
  */
 
 export type GroundingMode = "retrieval" | "input_only" | "none" | "delegation";
@@ -17,7 +17,7 @@ export interface RawDerived {
   recorded_in?: string | null;
 }
 
-/** A model the agent sends data to, as configured (ADR-0026). It names no credential. */
+/** A model the agent sends data to, as configured (docs/specs/policy-and-identity.md). It names no credential. */
 export interface RawModelUse {
   provider: string;
   model: string;
@@ -34,16 +34,16 @@ export interface RawManifestEntry {
   payload: string | null;
   derivations: Record<string, RawDerived>;
   contract_version: string;
-  /** Absent on a card written before ADR-0026, which declares no model. */
+  /** Absent on a card written before docs/specs/policy-and-identity.md, which declares no model. */
   models?: RawModelUse[];
   schemas: Record<string, { digest: string; json_schema: unknown }>;
-  /** The process flow step ids it serves (ADR-0028). Absent on an older card. */
+  /** The process flow step ids it serves (docs/specs/orchestration.md). Absent on an older card. */
   serves?: string[];
-  /** The persona's name as a researcher sees it (ADR-0033). Absent or empty: none. */
+  /** The persona's name as a researcher sees it (docs/specs/agents.md). Absent or empty: none. */
   title?: string;
   assigned_action_class: string | null;
   requires_approval: boolean;
-  /** The oversight extension (ADR-0025). No card carries it yet. */
+  /** The oversight extension (#67). No card carries it yet. */
   oversight?: unknown;
 }
 
@@ -51,7 +51,7 @@ export interface RawAgentsResponse {
   agents: RawManifestEntry[];
   unavailable: Record<string, string>;
   incompatible: Record<string, string>;
-  /** `orchestrator` is the agent the profile names for the conversation (ADR-0024 §10). Absent
+  /** `orchestrator` is the agent the profile names for the conversation (docs/specs/app.md). Absent
    * from a server older than the key; null when the profile names none. */
   profile: { ref: string; digest: string; orchestrator?: string | null };
   acting_for: { name: string; assurance: string; vouched_by?: string };

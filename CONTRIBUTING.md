@@ -18,8 +18,8 @@ issue form, chosen when you [open an issue](https://github.com/data-director-age
 * **Conformance review**: you examined a Blueprint requirement, such as accessibility (C6) or the
   appropriateness of standards advice (R3), and found it met or not met. A maintainer records it
   in the review record on your instruction ([the conformance report](docs/conformance.md)).
-* **Decision record feedback**: a question about, or objection to, an
-  [architecture decision record](docs/adr/README.md).
+* **Spec feedback**: a question about, or objection to, how one of the
+  [specifications](docs/specs/README.md) says Data Director is built.
 * **Blueprint reading**: the project reads a [Blueprint](docs/blueprint/README.md) requirement
   differently from you, or misses one.
 * **Feedback on advice**: an agent's advice was wrong, incomplete or unhelpful, and you can say
@@ -29,21 +29,30 @@ issue form, chosen when you [open an issue](https://github.com/data-director-age
 
 This repository is organised as follow:
 
-* `docs/` contains what governs every package: the Blueprint, the decision records (`docs/adr/`),
+* `docs/` contains what governs every package: the Blueprint, the specifications (`docs/specs/`),
   the contract, the glossary, the requirements register and the review record. A package's own
   documents are in its own `docs/` (`harness/docs/`, `workbench/docs/`)
 * `app/` contains the Data Director app that people use (alpha); its browser shell in `app/web`
   needs Node 22 or later and npm (`app/README.md`)
 * `sdk/` contains what agents and the harness share: the contract, evidence and the agent server
-* `harness/` contains the governance every agent invocation goes through (ADR-0022)
+* `harness/` contains the governance every agent invocation goes through ([System and boundaries](docs/specs/system.md))
 * `workbench/` contains the development environment for building and testing sub-agents
 * `agents/` contains one package per agent, including alpha-versioned experimental ones
   (`agents/README.md`)
 
 Each package keeps to its own directory, so that it can later move to a repository of its own.
 Agent Skills, MCP servers and other resources that do not use the contract belong in their own
-repositories in the organisation. [ADR-0031](docs/adr/0031-ecosystem-and-repository-boundaries.md)
+repositories in the organisation. [System and boundaries](docs/specs/system.md)
 sets out both.
+
+## Changing the design
+
+A [specification](docs/specs/README.md) states how one part is meant to work today, so a change to
+the design changes its spec in the same pull request, edited to say what is now true rather than
+amended. A change to a fixed format (the schema, the `dd.*` trace attributes, evidence
+canonicalisation or the outcome vocabulary) always changes a spec. An issue that proposes one
+carries the `needs spec` label. The history of the repository, its pull requests and its RFC
+issues are the record of how the design got here; the spec is the result.
 
 ## Code style and testing
 
@@ -70,6 +79,16 @@ passes only when every other job has. Each job can be run locally from the repos
 | Workflows | `uvx zizmor .github` and [actionlint](https://github.com/rhysd/actionlint) |
 | Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
+
+`.github/workflows/accessibility.yml` checks what people read and use against WCAG 2.2 AA, with
+axe-core and reflow at 320 CSS pixels, and ends in its own check, **Accessibility passed**:
+
+| Job | Locally |
+|---|---|
+| Documentation site | `uv run --only-group docs mkdocs build --strict && uv run --only-group docs --only-group accessibility scripts/check_site_accessibility.py site` |
+| Workbench viewer | `uv run pytest workbench/browser_tests/test_viewer_accessibility.py` |
+
+The app shell's accessibility checks run in the App shell job of `ci.yml`.
 
 The pytest suite blocks the network and needs no credentials. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
@@ -114,7 +133,7 @@ Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock
 git checkout origin/main -- uv.lock && uv lock && git add uv.lock
 ```
 
-then continue the rebase or merge. Release pull requests are re-locked by `release-please.yml`.
+then continue the rebase or merge. Release pull requests are re-locked by `release.yaml`.
 
 ## Releases
 

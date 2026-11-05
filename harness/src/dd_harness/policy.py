@@ -1,4 +1,5 @@
-"""The policy gate (ADR-0003, ADR-0017). Small on purpose; the complexity is in the profile content.
+"""The policy gate (docs/specs/policy-and-identity.md). Small on purpose; the complexity is in the
+profile content.
 
 The profile belongs to the deployment. The operator names one file when the conductor is built
 (`DD_PROFILE`, or `--profile` on the CLI); a request cannot name one. The profile, not the
@@ -16,7 +17,7 @@ from typing import Any
 import yaml
 
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
-# a rule is in force when it is not (ADR-0017).
+# a rule is in force when it is not (docs/specs/policy-and-identity.md).
 PROFILE_KEYS = frozenset(
     {"profile_id", "version", "description", "agents", "actions_requiring_approval", "orchestrator"}
 )
@@ -34,8 +35,8 @@ class Profile:
     actions_requiring_approval: frozenset[str]
     digest: str  # SHA-256 of the file's bytes
     source: str = ""
-    # The agent a person converses with first (ADR-0024 §10). The app sends conversation turns to
-    # it and to no other; None means the deployment offers no conversation.
+    # The agent a person converses with first (docs/specs/app.md). The app sends conversation turns
+    # to it and to no other; None means the deployment offers no conversation.
     orchestrator: str | None = None
 
     @property

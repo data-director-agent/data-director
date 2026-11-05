@@ -2,8 +2,8 @@
 Chromium (#9).
 
 The base `viewer/uischema.json` covers the envelope. A payload's uiSchema is worked out in the
-viewer from the payload class's schema and the agent's `spec.derivations` (ADR-0016); no agent
-ships presentation. The convention the derivations must honour: every field that records how a
+viewer from the payload class's schema and the agent's `spec.derivations` (docs/specs/agents.md); no
+agent ships presentation. The convention the derivations must honour: every field that records how a
 value came about is named as some field's `recorded_in`, so a template fallback where a model may
 write is not badged as AI-derived.
 
@@ -133,7 +133,8 @@ def test_input_form_is_built_from_the_cards_class_schema_and_names_no_class() ->
     assert 'tagName: "div"' in form  # Chat's composer is a <form>; forms do not nest
     for page in ("inspect.js", "chat.js"):
         module = (VIEWER_DIR / "js" / page).read_text(encoding="utf-8")
-        assert "editor.show(cls, classSchema(" in module, page  # the card's schema (ADR-0019)
+        # The card's schema (docs/specs/contract.md).
+        assert "editor.show(cls, classSchema(" in module, page
         assert 'from "./inputform.js"' in module, page
     # Chat names Message for its text box; no other input class is named anywhere.
     for name in ("Salutation", "Claim", "MetadataRecord", "DatasetProfile"):

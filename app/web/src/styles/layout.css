@@ -35,7 +35,7 @@
   }
 }
 
-/* The workspace (ADR-0024 §18): the head across the top, then phases, conversation and the
+/* The workspace (docs/specs/app.md): the head across the top, then phases, conversation and the
    project's documents side by side, and the activity log beneath. The source order is the
    reading order at every width. Narrower, the phases go above the conversation; narrower still,
    everything is one column. A delegated run opens inside its card in the conversation (§14). */

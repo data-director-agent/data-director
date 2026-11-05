@@ -1,13 +1,12 @@
 /**
  * The transcript: an ordered list of turns. Each reply is labelled `agent_id@agent_version`,
- * a change of version since an earlier turn is marked (ADR-0012 §12), and each delegated child
+ * a change of version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
  * replies use the run view's outcome wording, not a generic error.
  */
 
 import "./Transcript.css";
 
-import Markdown from "react-markdown";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import type { AgentView } from "../../manifest/normalise";
@@ -16,6 +15,7 @@ import { OUTCOME, REASON } from "../../manifest/wording";
 import type { Envelope } from "../../run/types";
 import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
+import { Markdown } from "../ui/Markdown";
 import { Pending } from "./Pending";
 import { RunDetail } from "./RunDetail";
 

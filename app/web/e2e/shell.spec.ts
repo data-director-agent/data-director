@@ -14,6 +14,7 @@ import reference from "../fixtures/agents.json" with { type: "json" };
 import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
+import project from "../fixtures/project-documents.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -62,7 +63,7 @@ async function gotoDirectory(page: Page) {
   await page.goto("/agents");
 }
 
-/** The several-agents set plus an orchestrator, named by the profile (ADR-0024 §10). */
+/** The several-agents set plus an orchestrator, named by the profile (docs/specs/app.md). */
 const withOrchestrator = {
   ...several,
   profile: { ...several.profile, orchestrator: "orchestrator.stub" },
@@ -166,6 +167,66 @@ test("reflows at 320 CSS pixels (400% of 1280) without horizontal scrolling", as
     );
     expect(overflow, `horizontal overflow with ${option} selected`).toBeLessThanOrEqual(0);
   }
+});
+
+test("a project's document is rejected with the keyboard alone, at 320px, and the result announced", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  // The fixture's README, proposed, and its data dictionary, approved.
+  const [readme, dictionary] = project.documents;
+  const draft = readme?.versions[0];
+  if (!readme || !draft) throw new Error("the fixture has no README draft");
+  const rejected = {
+    ...project,
+    documents: [
+      {
+        ...readme,
+        versions: [
+          {
+            ...draft,
+            state: "rejected",
+            decision: { reason: "No site named.", decided_by: draft.added_by, decided_at: draft.added_at },
+          },
+        ],
+      },
+      dictionary,
+    ],
+    decided: { document_id: readme.document_id, version: 1 },
+  };
+  const sent: unknown[] = [];
+  await page.route(`/api/projects/${project.project_id}/documents`, (route) =>
+    route.fulfill({ json: project }),
+  );
+  await page.route(`/api/projects/${project.project_id}/documents/*/decisions`, (route) => {
+    sent.push(route.request().postDataJSON());
+    return route.fulfill({ status: 201, json: rejected });
+  });
+  await page.goto(`/projects/${project.project_id}`);
+  const article = page.getByRole("article", { name: "README" });
+  await expect(article.getByText("Proposed, not reviewed")).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await article.getByLabel("Approve version 1 as it is").focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await expect(article.getByLabel("Reject version 1")).toBeChecked();
+  await page.keyboard.press("Tab");
+  await expect(article.getByLabel("Reason (required)")).toBeFocused();
+  await page.keyboard.type("No site named.");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("status")).toContainText("README: version 1 rejected.");
+  await expect(article.getByRole("heading", { name: "README" })).toBeFocused();
+  expect(sent).toEqual([
+    { version: 1, digest: draft.digest, decision: "rejected", reason: "No site named." },
+  ]);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
 test("a server failure is announced as an alert", async ({ page }) => {
@@ -437,7 +498,7 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-// Signing in (ADR-0029). The server decides; the shell shows the sign-in page when it says nobody
+// Signing in (docs/specs/policy-and-identity.md). The server decides; the shell shows the sign-in page when it says nobody
 // is signed in, or when any request is refused with 401.
 
 test("signed out: the sign-in page, by keyboard, with no axe violations, at 320px", async ({

@@ -12,6 +12,7 @@ import urllib.request
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 import yaml
@@ -119,12 +120,12 @@ def update_env(path: Path, updates: dict[str, str], header: str) -> None:
 
 
 def _without_key(path: Path) -> dict[str, str]:
-    """The settings in `path`, which every agent reads, so it may hold no model key (ADR-0026)."""
+    """The settings in `path`, which every agent reads, so it may hold no model key (docs/specs/policy-and-identity.md)."""
     found = read_env(path)
     if leaked := [var for var in KEY_VARS if found.get(var)]:
         raise DevError(
             f"{path.relative_to(paths.ROOT)} sets {leaked[0]}, which every agent would read; "
-            f"move it to the agent's own file, config/local/agents/<name>.env (ADR-0026)"
+            f"move it to the agent's own file, config/local/agents/<name>.env (docs/specs/policy-and-identity.md)"
         )
     return found
 
@@ -137,7 +138,7 @@ def app_env() -> dict[str, str]:
 def agent_env(agent: Agent) -> dict[str, str]:
     """What one agent reads: `agents.env`, then its own file, and the credentials directory.
 
-    It is given neither the app's settings nor another agent's (ADR-0026).
+    It is given neither the app's settings nor another agent's (docs/specs/policy-and-identity.md).
     """
     return (
         _without_key(paths.AGENTS_ENV)
@@ -168,13 +169,83 @@ def ensure_local_tree() -> list[Path]:
     return created
 
 
-# Where a stray settings file of the old layout moves to (ADR-0026).
+# Where a stray settings file of the old layout moves to (docs/specs/policy-and-identity.md).
 OLD_LOCATIONS = {
     ".env": "config/local/app.env (DD_PRINCIPAL_*, DD_APP_*) and config/local/agents.env (the rest)",
     "workbench/.env": "config/local/app.env (DD_PRINCIPAL_*, DD_RUNS_DIR, DD_PROFILE) and "
     "config/local/agents.env (DD_STANDARDS_*, FAIRSHARING_*)",
     "app/.env": "config/local/app.env",
 }
+
+
+def profile_omissions(app: dict[str, str]) -> list[str]:
+    """The agents the example profile enables that the local copy, when the app uses it, omits.
+
+    The local copy is not committed, so it keeps none of the agents added to the example after it
+    was made, and the gate refuses each of those as not enabled (#343). A profile named by
+    `DD_PROFILE` is chosen on purpose, so it is not compared.
+    """
+    if app.get("DD_PROFILE") or not paths.PROFILE.is_file():
+        return []
+    return sorted(_enabled(paths.PROFILE_EXAMPLE) - _enabled(paths.PROFILE))
+
+
+def omissions_note(omitted: list[str]) -> str:
+    """What `start` and `doctor` say about the agents `profile_omissions` found."""
+    return (
+        f"{paths.PROFILE.relative_to(paths.ROOT)} does not enable {', '.join(omitted)}, which the "
+        "example does, so the app refuses them as not enabled; add them to it, or delete it to "
+        "use the example"
+    )
+
+
+def _load(path: Path) -> dict[str, Any]:
+    """A profile's keys."""
+    try:
+        return dict(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
+    except yaml.YAMLError as exc:
+        raise DevError(f"{path.relative_to(paths.ROOT)} is not valid YAML: {exc}") from exc
+
+
+def _enabled(path: Path) -> set[str]:
+    """The agents a profile enables."""
+    return set(dict(_load(path).get("agents") or {}))
+
+
+def profile_drift(app: dict[str, str]) -> tuple[list[str], list[str]]:
+    """How the local profile has fallen behind the example, as (notes, problems).
+
+    Beyond the agents `profile_omissions` finds: a `version` lower than the example's (setup raises
+    it above the example's on purpose, so higher is not drift), approval actions the example
+    requires that the local copy drops, and an orchestrator the local copy does not enable. The
+    last is a problem; the rest are notes. Skipped as `profile_omissions` is.
+    """
+    if app.get("DD_PROFILE") or not paths.PROFILE.is_file():
+        return [], []
+    name = paths.PROFILE.relative_to(paths.ROOT)
+    local, example = _load(paths.PROFILE), _load(paths.PROFILE_EXAMPLE)
+    notes: list[str] = []
+    if omitted := sorted(_enabled(paths.PROFILE_EXAMPLE) - _enabled(paths.PROFILE)):
+        notes.append(omissions_note(omitted))
+    have, want = local.get("version"), example.get("version")
+    if isinstance(want, int) and (not isinstance(have, int) or have < want):
+        notes.append(
+            f"{name} is version {have}, behind the example's {want}; compare it with "
+            f"{paths.PROFILE_EXAMPLE.name}, or delete it to use the example"
+        )
+    if dropped := sorted(
+        set(example.get("actions_requiring_approval") or [])
+        - set(local.get("actions_requiring_approval") or [])
+    ):
+        notes.append(
+            f"{name} does not require approval for {', '.join(dropped)}, which the example does, "
+            "so the app would carry those out without it"
+        )
+    problems: list[str] = []
+    orchestrator = local.get("orchestrator")
+    if orchestrator and orchestrator not in _enabled(paths.PROFILE):
+        problems.append(f"{name} names {orchestrator} as the orchestrator but does not enable it")
+    return notes, problems
 
 
 def stray_files() -> list[str]:

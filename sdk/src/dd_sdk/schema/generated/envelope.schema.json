@@ -14,7 +14,7 @@
          ]
       },
       "Assurance": {
-         "description": "How the harness came to know the principal (ADR-0018, ADR-0029).",
+         "description": "How the harness came to know the principal (docs/specs/policy-and-identity.md).",
          "enum": [
             "asserted",
             "authenticated"
@@ -63,9 +63,53 @@
          "title": "ConversationTurn",
          "type": "object"
       },
+      "CurrentVersion": {
+         "additionalProperties": false,
+         "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises.",
+         "properties": {
+            "version_ref": {
+               "$ref": "#/$defs/DocumentVersionRef",
+               "description": "The version, by its document and number."
+            },
+            "document_title": {
+               "description": "A short name a person can tell documents apart by, such as README for raw/.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            },
+            "version_state": {
+               "$ref": "#/$defs/VersionState",
+               "description": "Whether a person has approved or rejected the version, or not yet decided."
+            },
+            "decision_reason": {
+               "description": "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "version_ref",
+            "media_type",
+            "document_text",
+            "version_state"
+         ],
+         "title": "CurrentVersion",
+         "type": "object"
+      },
       "Delegation": {
          "additionalProperties": false,
-         "description": "One child invocation an agent in grounding mode delegation made through the harness (ADR-0012). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
+         "description": "One child invocation an agent in grounding mode delegation made through the harness (docs/specs/orchestration.md). Recorded by the conductor from its own run of the child, never reported by the agent. content_hash is the dd-envelope-json-v1 hash of the child envelope, which is what a relayed reply cites.",
          "properties": {
             "delegated_invocation_id": {
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -108,7 +152,7 @@
       },
       "Document": {
          "additionalProperties": false,
-         "description": "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (ADR-0035). The only payload class that becomes a project document.",
+         "description": "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -178,7 +222,7 @@
          "type": "object"
       },
       "DocumentKind": {
-         "description": "What a project document is for (ADR-0035).",
+         "description": "What a project document is for (docs/specs/projects.md).",
          "enum": [
             "metadata_record",
             "readme",
@@ -208,6 +252,62 @@
             "version"
          ],
          "title": "DocumentVersionRef",
+         "type": "object"
+      },
+      "DraftRequest": {
+         "additionalProperties": false,
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory and the requirements in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394).",
+         "properties": {
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "DraftRequest"
+               ],
+               "type": "string"
+            },
+            "document_kind": {
+               "$ref": "#/$defs/DocumentKind",
+               "description": "The kind of document to draft."
+            },
+            "inventory": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileInventory"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The project's inventory, the latest added. In a project the conductor fills it; a caller leaves it out."
+            },
+            "requirements": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/RepositoryRequirements"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The requirements of the repository chosen last. In a project the conductor fills it; a caller leaves it out."
+            },
+            "current_version": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/CurrentVersion"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The document's latest version, when the drafter is to regenerate it. Absent for a new document."
+            }
+         },
+         "required": [
+            "schema_class",
+            "document_kind"
+         ],
+         "title": "DraftRequest",
          "type": "object"
       },
       "EnergyMethod": {
@@ -245,7 +345,7 @@
                "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
             },
             "policy_bundle_ref": {
-               "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017).",
+               "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (docs/specs/policy-and-identity.md).",
                "pattern": "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$",
                "type": "string"
             },
@@ -256,15 +356,15 @@
             },
             "acting_for": {
                "$ref": "#/$defs/Principal",
-               "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018)."
+               "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (docs/specs/policy-and-identity.md)."
             },
             "contract_version": {
-               "description": "The version of this core contract the conductor governed the invocation under (ADR-0019).",
+               "description": "The version of this core contract the conductor governed the invocation under (docs/specs/contract.md).",
                "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
                "type": "string"
             },
             "input_schema": {
-               "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (ADR-0019).",
+               "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (docs/specs/contract.md).",
                "pattern": "^[0-9a-f]{64}$",
                "type": [
                   "string",
@@ -283,10 +383,10 @@
                      "type": "null"
                   }
                ],
-               "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (ADR-0019)."
+               "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (docs/specs/contract.md)."
             },
             "payload_schema": {
-               "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (ADR-0019).",
+               "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (docs/specs/contract.md).",
                "pattern": "^[0-9a-f]{64}$",
                "type": [
                   "string",
@@ -322,6 +422,14 @@
             },
             "conversation_id": {
                "description": "UUIDv7 shared by every turn of one conversation. On a child invocation, the parent's.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "project_id": {
+               "description": "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent.",
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
                "type": [
                   "string",
@@ -411,7 +519,7 @@
                      "type": "null"
                   }
                ],
-               "description": "The document the named canonicalisation turns into bytes, already projected, so that a reader or the linter (E1) can recompute content_hash from the envelope alone (ADR-0015). Where a payload cites this item from grounded_on, this is what the citation identifies."
+               "description": "The document the named canonicalisation turns into bytes, already projected, so that a reader or the linter (E1) can recompute content_hash from the envelope alone (docs/specs/grounding.md). Where a payload cites this item from grounded_on, this is what the citation identifies."
             }
          },
          "required": [
@@ -421,6 +529,67 @@
             "content_hash"
          ],
          "title": "EvidenceItem",
+         "type": "object"
+      },
+      "FileInventory": {
+         "additionalProperties": false,
+         "description": "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it.",
+         "properties": {
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "FileInventory"
+               ],
+               "type": "string"
+            },
+            "inventory_files": {
+               "description": "Every file under the dataset's root folder that the command read, sorted by path.",
+               "items": {
+                  "$ref": "#/$defs/InventoryFile"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "inventory_tool": {
+               "description": "The command that made the inventory, such as dd-inventory.",
+               "type": "string"
+            },
+            "inventory_tool_version": {
+               "description": "The version of the command that made the inventory.",
+               "type": "string"
+            },
+            "inventory_identified_with": {
+               "description": "What identified the formats, such as fido 1.6.1 with PRONOM signatures v109, or that only file extensions were used.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "inventory_made_at": {
+               "description": "When the inventory was made.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "inventory_limitations": {
+               "description": "What the inventory left out or could not do, such as files it skipped.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "schema_class",
+            "inventory_tool",
+            "inventory_tool_version",
+            "inventory_made_at"
+         ],
+         "title": "FileInventory",
          "type": "object"
       },
       "Grounded": {
@@ -442,7 +611,7 @@
          "type": "object"
       },
       "GroundingMode": {
-         "description": "The grounding contract an agent declares. The linter applies a rule set per mode (ADR-0008); an envelope always records which one applied.",
+         "description": "The grounding contract an agent declares. The linter applies a rule set per mode (docs/specs/grounding.md); an envelope always records which one applied.",
          "enum": [
             "retrieval",
             "input_only",
@@ -454,7 +623,7 @@
       },
       "GroundingRef": {
          "additionalProperties": false,
-         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (ADR-0015). The linter matches every GroundingRef against a retrieval span on both fields.",
+         "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
          "properties": {
             "source_id": {
                "type": "string"
@@ -471,9 +640,20 @@
          "title": "GroundingRef",
          "type": "object"
       },
+      "IdentificationMethod": {
+         "description": "How a file's format was identified, from strongest to weakest (docs/specs/projects.md).",
+         "enum": [
+            "signature",
+            "container",
+            "extension",
+            "none"
+         ],
+         "title": "IdentificationMethod",
+         "type": "string"
+      },
       "Input": {
          "additionalProperties": true,
-         "description": "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (ADR-0019).",
+         "description": "Any input: an object that names its class in schema_class. The core checks nothing else; the class schema of the agent's accepted input class does (docs/specs/contract.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -486,9 +666,68 @@
          "title": "Input",
          "type": "object"
       },
+      "InventoryFile": {
+         "additionalProperties": false,
+         "description": "One file of a dataset, as the inventory command found it.",
+         "properties": {
+            "file_path": {
+               "description": "The file's path relative to the dataset's root folder, with forward slashes. Never an absolute path, which would say where the data live.",
+               "pattern": "^[^/]",
+               "type": "string"
+            },
+            "file_size": {
+               "description": "The file's size in bytes.",
+               "type": "integer"
+            },
+            "file_sha256": {
+               "description": "The SHA-256 digest of the file's bytes, in lowercase hex, by which the file deposited can be shown to be the file described.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "file_media_type": {
+               "description": "The file's media type (MIME type), when it could be told.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_pronom_ids": {
+               "description": "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "file_identified_by": {
+               "$ref": "#/$defs/IdentificationMethod",
+               "description": "How the PRONOM identifiers were arrived at."
+            },
+            "file_fields": {
+               "description": "For a table, its fields as a Frictionless Table Schema inferred from a sample of rows.",
+               "items": {
+                  "$ref": "#/$defs/TableField"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "file_path",
+            "file_size",
+            "file_sha256",
+            "file_identified_by"
+         ],
+         "title": "InventoryFile",
+         "type": "object"
+      },
       "InvocationRequest": {
          "additionalProperties": false,
-         "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (ADR-0012).",
+         "description": "What the conductor hands to an agent. One request produces exactly one Envelope. A conversation is the set of top-level invocations sharing a conversation_id; each turn is one request and one envelope (docs/specs/orchestration.md).",
          "properties": {
             "invocation_id": {
                "description": "UUIDv7 (RFC 9562), time-ordered so the append-only store sorts without an index.",
@@ -521,6 +760,14 @@
                   "null"
                ]
             },
+            "project_id": {
+               "description": "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "parent_invocation_id": {
                "description": "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused.",
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -531,7 +778,7 @@
             },
             "input": {
                "$ref": "#/$defs/Input",
-               "description": "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (ADR-0019)."
+               "description": "What the agent is asked to work on: an instance of one of the input classes the agent accepts, named by schema_class. The class schema the agent's card carries checks the rest (docs/specs/contract.md)."
             }
          },
          "required": [
@@ -575,6 +822,15 @@
          ],
          "title": "Message",
          "type": "object"
+      },
+      "Obligation": {
+         "description": "Whether a requirement set's field or document stops a package (docs/specs/deposit.md).",
+         "enum": [
+            "required",
+            "recommended"
+         ],
+         "title": "Obligation",
+         "type": "string"
       },
       "Outcome": {
          "additionalProperties": false,
@@ -626,7 +882,7 @@
       },
       "Payload": {
          "additionalProperties": true,
-         "description": "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (ADR-0019).",
+         "description": "Any payload: an object that names its class in schema_class and mixes in Grounded. The core checks nothing else; the class schema of the agent's payload class does (docs/specs/contract.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -693,7 +949,7 @@
                }
             }
          ],
-         "description": "The human an invocation acted for (Blueprint \u00a75.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (ADR-0018).",
+         "description": "The human an invocation acted for (Blueprint \u00a75.4), or the accountable human role where it acted for an institution. Named by the deployment's authentication boundary and recorded by the conductor; a request cannot name one, and an agent is never sent one (docs/specs/policy-and-identity.md).",
          "properties": {
             "principal_id": {
                "description": "An absolute IRI for the person or role; an ORCID iD for a person where one exists (P5).",
@@ -714,7 +970,7 @@
                "description": "How the harness came to know the principal."
             },
             "vouched_by": {
-               "description": "The IRI of the identity provider's issuer that vouched for the principal, for example https://orcid.org, so that a reader can weigh the claim by who made it. Required when assurance is authenticated and absent when it is asserted (ADR-0029).",
+               "description": "The IRI of the identity provider's issuer that vouched for the principal, for example https://orcid.org, so that a reader can weigh the claim by who made it. Required when assurance is authenticated and absent when it is asserted (docs/specs/policy-and-identity.md).",
                "format": "uri",
                "pattern": "^[a-z][a-z0-9+.-]*:\\S+$",
                "type": [
@@ -849,6 +1105,353 @@
          "title": "Reply",
          "type": "object"
       },
+      "RepositoryRequirements": {
+         "additionalProperties": false,
+         "description": "The requirements of the repository a researcher chose: its standard's set with the repository's override, if there is one, merged on top (ADR-0038 decision 2). The harness makes it when the choice is recorded, keeps it among the project's blobs, gives it to the drafters and checks the project against it. Not a set of the deployment's configuration, so it has no requirement_set_id of its own; requirement_sets names the sets it was merged from.",
+         "properties": {
+            "re3data_id": {
+               "description": "The repository's re3data identifier, such as r3d100012124.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": "string"
+            },
+            "repository_name": {
+               "description": "What the researcher calls the repository chosen, such as ORDA.",
+               "type": "string"
+            },
+            "conforms_to": {
+               "description": "The URI of the metadata schema of the standard's set.",
+               "format": "uri",
+               "type": "string"
+            },
+            "requirement_sets": {
+               "description": "The sets the requirements were merged from, the standard's first.",
+               "items": {
+                  "$ref": "#/$defs/RequirementSetUse"
+               },
+               "type": "array"
+            },
+            "fields": {
+               "description": "The metadata properties the set requires or recommends.",
+               "items": {
+                  "$ref": "#/$defs/RequirementField"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "required_documents": {
+               "description": "The document kinds that must have an approved version before a package is built.",
+               "items": {
+                  "$ref": "#/$defs/DocumentKind"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "recommended_documents": {
+               "description": "The document kinds whose absence is a warning.",
+               "items": {
+                  "$ref": "#/$defs/DocumentKind"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "media_types": {
+               "description": "An override only: the media types the repository accepts. Empty means any.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "max_file_size": {
+               "description": "An override only: the largest file the repository accepts, in bytes.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "max_item_size": {
+               "description": "An override only: the largest deposit the repository accepts, in bytes.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "licences": {
+               "description": "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "warnings": {
+               "description": "What the researcher was told when the repository was chosen, such as that it does not list DataCite.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "re3data_id",
+            "repository_name",
+            "conforms_to",
+            "requirement_sets"
+         ],
+         "title": "RepositoryRequirements",
+         "type": "object"
+      },
+      "RequirementField": {
+         "additionalProperties": false,
+         "description": "One metadata property a requirement set requires or recommends.",
+         "properties": {
+            "property": {
+               "description": "The schema's property, such as DataCite's titles or types.resourceTypeGeneral.",
+               "type": "string"
+            },
+            "qualifier": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Any"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set."
+            },
+            "schema_org": {
+               "description": "The schema.org term the property maps to, by which the record is read as RDF.",
+               "type": "string"
+            },
+            "obligation": {
+               "$ref": "#/$defs/Obligation"
+            },
+            "form_label": {
+               "description": "An override only: the label of the repository's deposit form field the value goes in.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "property",
+            "schema_org",
+            "obligation"
+         ],
+         "title": "RequirementField",
+         "type": "object"
+      },
+      "RequirementSet": {
+         "additionalProperties": false,
+         "description": "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents.",
+         "properties": {
+            "schema_class": {
+               "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+               "enum": [
+                  "RequirementSet"
+               ],
+               "type": "string"
+            },
+            "requirement_set_id": {
+               "description": "Identifies the requirement set, such as datacite-4 or orda.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "version": {
+               "description": "The version of the set, raised on every change.",
+               "type": "integer"
+            },
+            "title": {
+               "description": "What a person calls the standard or the repository.",
+               "type": "string"
+            },
+            "url": {
+               "description": "Where the standard or the repository is described.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "conforms_to": {
+               "description": "The URI of the metadata schema. An override names the standard's set it builds on.",
+               "format": "uri",
+               "type": "string"
+            },
+            "re3data_names": {
+               "description": "A standard's set only: the metadataStandardName values in re3data that select it.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "re3data_id": {
+               "description": "An override only: the repository's re3data identifier, such as r3d100012124.",
+               "pattern": "^r3d[0-9]{9}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "fields": {
+               "description": "The metadata properties the set requires or recommends.",
+               "items": {
+                  "$ref": "#/$defs/RequirementField"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "required_documents": {
+               "description": "The document kinds that must have an approved version before a package is built.",
+               "items": {
+                  "$ref": "#/$defs/DocumentKind"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "recommended_documents": {
+               "description": "The document kinds whose absence is a warning.",
+               "items": {
+                  "$ref": "#/$defs/DocumentKind"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "media_types": {
+               "description": "An override only: the media types the repository accepts. Empty means any.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "max_file_size": {
+               "description": "An override only: the largest file the repository accepts, in bytes.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "max_item_size": {
+               "description": "An override only: the largest deposit the repository accepts, in bytes.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "licences": {
+               "description": "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "guidance": {
+               "description": "The pages the set's values were taken from, so that a steward can check them.",
+               "items": {
+                  "format": "uri",
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "schema_class",
+            "requirement_set_id",
+            "version",
+            "title",
+            "conforms_to"
+         ],
+         "title": "RequirementSet",
+         "type": "object"
+      },
+      "RequirementSetUse": {
+         "additionalProperties": false,
+         "description": "One requirement set a choice of repository was merged from, as the deployment held it.",
+         "properties": {
+            "ref": {
+               "description": "A requirement set, as <requirement_set_id>@v<version>.",
+               "pattern": "^[a-z0-9][a-z0-9-]*@v[0-9]+$",
+               "type": "string"
+            },
+            "sha256": {
+               "description": "The SHA-256 digest of the set's file, in lowercase hex.",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            }
+         },
+         "required": [
+            "ref",
+            "sha256"
+         ],
+         "title": "RequirementSetUse",
+         "type": "object"
+      },
+      "TableField": {
+         "additionalProperties": false,
+         "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).",
+         "properties": {
+            "name": {
+               "type": "string"
+            },
+            "field_type": {
+               "description": "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_format": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_description": {
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "name"
+         ],
+         "title": "TableField",
+         "type": "object"
+      },
       "Telemetry": {
          "additionalProperties": false,
          "description": "Run measurements. The energy slots exist so P14 can be populated later without a schema change; at v0 they are null and not_measured.",
@@ -902,6 +1505,16 @@
          ],
          "title": "TurnRole",
          "type": "string"
+      },
+      "VersionState": {
+         "description": "The state of one version of a project document (ADR-0035 decision 6). Every version begins proposed; once approved or rejected, it does not change.",
+         "enum": [
+            "proposed",
+            "approved",
+            "rejected"
+         ],
+         "title": "VersionState",
+         "type": "string"
       }
    },
    "$id": "https://w3id.org/data-director/schema/core",
@@ -931,7 +1544,7 @@
          "description": "The grounding contract the agent declared and the linter applied. Filled by the conductor from the agent's specification, never by the agent."
       },
       "policy_bundle_ref": {
-         "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (ADR-0017).",
+         "description": "The institutional profile the conductor applied, as profile:<profile_id>@v<version>. The deployment chooses the profile; a request cannot name one (docs/specs/policy-and-identity.md).",
          "pattern": "^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$",
          "type": "string"
       },
@@ -942,15 +1555,15 @@
       },
       "acting_for": {
          "$ref": "#/$defs/Principal",
-         "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (ADR-0018)."
+         "description": "The human this invocation acted for. Filled by the conductor from the authentication boundary, never from the request; a delegated invocation acts for its parent's (docs/specs/policy-and-identity.md)."
       },
       "contract_version": {
-         "description": "The version of this core contract the conductor governed the invocation under (ADR-0019).",
+         "description": "The version of this core contract the conductor governed the invocation under (docs/specs/contract.md).",
          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
          "type": "string"
       },
       "input_schema": {
-         "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (ADR-0019).",
+         "description": "The digest of the class schema the input was checked against, as the agent's card carried it. Absent when the agent does not accept the input's class (docs/specs/contract.md).",
          "pattern": "^[0-9a-f]{64}$",
          "type": [
             "string",
@@ -969,10 +1582,10 @@
                "type": "null"
             }
          ],
-         "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (ADR-0019)."
+         "description": "Agent-specific payload; absent unless the outcome is succeeded. An instance of the payload class the agent declares, named by schema_class; every payload class mixes in Grounded. The class schema the agent's card carries checks the rest (docs/specs/contract.md)."
       },
       "payload_schema": {
-         "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (ADR-0019).",
+         "description": "The digest of the class schema the payload was checked against, as the agent's card carried it. Present exactly when there is a payload; the run store keeps the schema under this digest, so a stored run renders with the schema it was checked against (docs/specs/contract.md).",
          "pattern": "^[0-9a-f]{64}$",
          "type": [
             "string",
@@ -1014,6 +1627,14 @@
             "null"
          ]
       },
+      "project_id": {
+         "description": "UUIDv7 of the project the invocation belongs to (docs/specs/projects.md). Set only by the conductor, from the conversation the request is a turn of or, on a child invocation, from the parent's grant; a caller's request that carries it is refused. Never sent to the agent.",
+         "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+         "type": [
+            "string",
+            "null"
+         ]
+      },
       "parent_invocation_id": {
          "description": "The invocation that delegated this one. Set only by the conductor, from a delegation grant; a caller's request that carries it is refused.",
          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -1049,5 +1670,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.1"
+   "version": "0.9.5"
 }

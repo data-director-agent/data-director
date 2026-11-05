@@ -6,9 +6,9 @@ exercises the real A2A wire (request, metadata, spans, spec extension) without a
 second process. `make_conductor` does this for every agent it is given, so a harness test runs
 an agent the way a deployment runs it.
 
-The conductor `make_conductor` builds also serves its own A2A routes
-(`dd_harness.transport.a2a`) in memory and gives each agent a delegate client bound to them, so a
-delegation agent's call back to the conductor (ADR-0012) crosses the real wire too.
+The conductor `make_conductor` builds also serves its own A2A routes (`dd_harness.transport.a2a`) in
+memory and gives each agent a delegate client bound to them, so a delegation agent's call back to
+the conductor (docs/specs/orchestration.md) crosses the real wire too.
 """
 
 from __future__ import annotations

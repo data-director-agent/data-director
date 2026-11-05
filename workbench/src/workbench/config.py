@@ -1,8 +1,8 @@
 """The workbench's development configuration: the files it supplies to the harness as defaults.
 
-The harness has no defaults of its own for these (ADR-0022). The workbench brings a development
-set (its profiles, `agents.yaml`, `sources.yaml`, a `runs/` directory and a local `.env`), and a
-`DD_*` variable still wins over each of them.
+The harness has no defaults of its own for these (docs/specs/system.md). The workbench brings a
+development set (its profiles, `agents.yaml`, `sources.yaml`, a `runs/` directory and a local
+`.env`), and a `DD_*` variable still wins over each of them.
 """
 
 from __future__ import annotations
@@ -22,9 +22,10 @@ DEFAULT_SOURCES_CONFIG = WORKBENCH_ROOT / "sources.yaml"
 # development tree `scripts/dev.py setup` creates (config/local), which the workbench does not own.
 CONFIG_DIR_VARIABLE = "DD_CONFIG_DIR"
 CONFIG_DIR_FILES = ("app.env", "agents.env")
-# The example person every run acts for when the operator names no one (ADR-0018). Josiah
-# Carberry is the fictitious researcher ORCID publishes for examples. Runs are recorded
-# `assurance: asserted`, so a record naming him shows that nobody's identity was checked.
+# The example person every run acts for when the operator names no one
+# (docs/specs/policy-and-identity.md). Josiah Carberry is the fictitious researcher ORCID publishes
+# for examples. Runs are recorded `assurance: asserted`, so a record naming him shows that nobody's
+# identity was checked.
 DEFAULT_PRINCIPAL_ID = "https://orcid.org/0000-0002-1825-0097"
 DEFAULT_PRINCIPAL_NAME = "Josiah Carberry"
 

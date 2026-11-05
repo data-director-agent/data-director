@@ -5,7 +5,7 @@ check, calls the agent, and returns an envelope. It lives in
 [`harness/src/dd_harness/conductor.py`](../src/dd_harness/conductor.py) as `Conductor.invoke`.
 
 Every front end calls the conductor. The CLI, the A2A endpoint and the web viewer are thin
-wrappers around it ([ADR-0001](../../docs/adr/0001-transport.md)). This means an agent is held to the same
+wrappers around it ([Transport and tracing](../../docs/specs/transport.md)). This means an agent is held to the same
 rules however it is called.
 
 The conductor does not know about any particular payload class. It treats every agent the same
@@ -21,12 +21,20 @@ these itself:
 - the telemetry, including the trace identifier;
 - the grounding mode the agent declared, which the linter then enforces;
 - the hash of the input;
-- the human the invocation acted for, `acting_for`.
+- the human the invocation acted for, `acting_for`;
+- the project the run belongs to, `project_id`, taken from the conversation or, for a delegated
+  child, from its parent's grant ([Projects](../../docs/specs/projects.md)). A request that
+  names one is refused, and the agent is never sent it.
+
+In a project, the conductor also puts the project's facts into a `DraftRequest` before the input
+is hashed (`dd_harness.project_facts`): the latest inventory and the requirements of the
+repository chosen replace whatever the caller sent, and a slot the project has no value for is
+removed.
 
 `acting_for` comes from the caller's transport, not the request. The transport asks its
 authenticator who the caller acts for and passes the answer to `invoke`. Until there is sign-in,
 the authenticator returns the one principal the operator configured, marked `assurance:
-asserted` ([ADR-0018](../../docs/adr/0018-acting-for.md)). The agent is not told who it acts for.
+asserted` ([Policy and identity](../../docs/specs/policy-and-identity.md)). The agent is not told who it acts for.
 
 An agent returns only an `AgentResult`: an outcome, an optional payload, and the evidence it
 used, plus the model id and token counts if it called a model.
@@ -47,18 +55,18 @@ reviewer all see the same record.
 | 2. Input check | Does the agent read this input class? | `failed`, problem `input-not-accepted`. The agent does not run. |
 | 3. Run the agent | The agent runs. The conductor checks it returned the payload class it declared. | An exception, or a payload of the wrong class: `failed`, problem `agent-error`. |
 | 4. Grounding linter | Is the output based only on what the agent's grounding mode allows? See [`grounding.md`](grounding.md). | A `succeeded` envelope becomes `failed`, problem `grounding-violation`. The payload and evidence are removed. |
-| 5. Validate and store | The envelope is validated against the JSON Schema, then stored. | An invalid envelope raises an exception; it is a bug in the workbench. |
+| 5. Validate and store | The envelope is validated against the JSON Schema. In a project, a `succeeded` run with a `Document` payload is recorded as a proposed version of a project document, caused by the run. Then the run is stored. | An invalid envelope raises an exception; it is a bug in the workbench. A draft whose `revises` names no version of the project, or one of another kind: `failed`, problem `revision-refused`, and nothing is added to the project. |
 
 The policy profile is a YAML file in `profiles/`. The deployment chooses it when the conductor is
 built (`DD_PROFILE`, or `--profile`), and the conductor records it on every envelope as
 `policy_bundle_ref` and `policy_digest`. A request cannot name one. The gate answers only the
-questions in step 1 ([ADR-0003](../../docs/adr/0003-policy-profiles.md),
-[ADR-0017](../../docs/adr/0017-policy-is-the-deployments.md)).
+questions in step 1 ([Policy and identity](../../docs/specs/policy-and-identity.md),
+[Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Delegation
 
 An agent in grounding mode `delegation`, such as an orchestrator, may ask the workbench to run
-other agents for it ([ADR-0012](../../docs/adr/0012-conversation-and-orchestration.md)). It never calls
+other agents for it ([Orchestration](../../docs/specs/orchestration.md)). It never calls
 them directly.
 
 1. When the conductor runs such an agent, it issues a grant: a random token, valid only while
@@ -90,12 +98,12 @@ line, written before its parent's.
 
 | File | Contents |
 |---|---|
-| `request.json` | The request as received. |
+| `request.json` | The request as the agent was given it: as received, with the conductor's `project_id` and, in a project, the project's facts. |
 | `envelope.json` | The envelope returned. |
 | `spans.jsonl` | The OpenTelemetry trace of the run. |
 | `grounding.txt` | The grounding linter's verdict and any violations. |
 | `sources.txt` | The source check's verdict: how many cited records were verified, which were unresolved, and any violations. |
-| `crate/` | A Process Run Crate: `ro-crate-metadata.json`, a standard provenance record naming the agent, the human it acted for, the request and the outputs, beside copies of the files it names. It is written after the checks and never read back ([ADR-0021](../../docs/adr/0021-ro-crate-is-a-record-not-a-message.md)). |
+| `crate/` | A Process Run Crate: `ro-crate-metadata.json`, a standard provenance record naming the agent, the human it acted for, the request and the outputs, beside copies of the files it names. It is written after the checks and never read back ([Contract](../../docs/specs/contract.md)). |
 
 `DD_RUNS_DIR` changes where runs are written. `DD_WRITE_CRATE=0` stops the Process Run Crate
 being written.

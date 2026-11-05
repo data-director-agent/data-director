@@ -1,5 +1,5 @@
 // The input form: an editable react-jsonschema-form (RJSF) built from an input class's schema, as
-// the agent's card carries it in the manifest (ADR-0019). It names no class and no agent; a
+// the agent's card carries it in the manifest (docs/specs/contract.md). It names no class and no agent; a
 // sample, when chosen, is only the form's starting data. Inspect and Chat import it.
 import React from "https://esm.sh/react@19.3.1";
 import { createRoot } from "https://esm.sh/react-dom@19.3.1/client";

@@ -4,7 +4,7 @@
 
 Each directory here is one agent: its own package, its own tests, and its own service. The
 workbench does not import any of them. It reaches each agent over A2A at the URL listed in
-`workbench/agents.yaml` ([ADR-0011](../docs/adr/0011-remote-agents.md)).
+`workbench/agents.yaml` ([Agents](../docs/specs/agents.md)).
 
 An agent is an `AgentSpec` plus one method, `run(request, ctx) -> AgentResult`
 (`dd_sdk.agent`). `dd_sdk.serve` puts it behind A2A: it publishes the agent card with the spec,
@@ -19,7 +19,7 @@ spans the agent recorded. The workbench's conductor then holds the agent to its 
 An agent never sets identifiers, timestamps, telemetry or its grounding mode.
 
 An agent owns its input and payload classes
-([ADR-0019](../docs/adr/0019-core-contract-and-agent-owned-classes.md)). It declares
+([Contract](../docs/specs/contract.md)). It declares
 them in a LinkML file of its own, which imports the core contract, and its card carries each
 class's JSON Schema pinned by a digest. The workbench checks inputs and payloads against those
 schemas, so it needs no copy of an agent's classes, and adding one needs no SDK release. What
@@ -32,17 +32,17 @@ lists an agent built against an incompatible one as **incompatible**.
 |---|---|---|---|---|---|---|
 | `advisor-quality/` | `advisor.quality` | `MetadataRecord` | `input_only` | `QualityReview` | `dd-advisor-quality`, port 8102 | Demonstration: weighted completeness from `checks.yaml`. |
 | `example-hello/` | `example.hello` | `Salutation` | `none` | `Greeting` | `dd-example-hello`, port 8101 | **Template.** Greets whoever the input names; the worked example of every step below. |
-| `orchestrator-stub/` | `orchestrator.stub` | `Message` | `delegation` | `Reply` | `dd-orchestrator-stub`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench (ADR-0012), or lists the steps from the researcher's Blueprint entry point (ADR-0028). |
-| `orchestrator-model/` | `orchestrator.model` | `Message` | `delegation` | `Reply` | `dd-orchestrator-model`, port 8107 | The model-backed orchestrator (#21): Claude decides which agents to ask, from the manifest the harness publishes, and writes the reply. It has no tools except those delegations: no MCP server, web search or Skills (ADR-0012 decision 15). Needs a model key (`orchestrator-model/README.md`). |
+| `orchestrator-stub/` | `orchestrator.stub` | `Message` | `delegation` | `Reply` | `dd-orchestrator-stub`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench ([Orchestration](../docs/specs/orchestration.md)), or lists the steps from the researcher's Blueprint entry point ([Orchestration](../docs/specs/orchestration.md)). |
+| `orchestrator-model/` | `orchestrator.model` | `Message` | `delegation` | `Reply` | `dd-orchestrator-model`, port 8107 | The model-backed orchestrator (#21): Claude decides which agents to ask, from the manifest the harness publishes, and writes the reply. It has no tools except those delegations: no MCP server, web search or Skills ([Orchestration](../docs/specs/orchestration.md)). Needs a model key (`orchestrator-model/README.md`). |
 | `advisor-standards/` | `advisor.standards` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-advisor-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`advisor-standards/src/dd_agent_advisor_standards/README.md`). |
 | `advisor-policy/` | `advisor.policy` | `PolicyContext` | `retrieval` | `PolicyChecks` | `dd-advisor-policy`, port 8108 | **Alpha.** Phase 2: checks what funder, journal and institutional data policies ask, from FAIRsharing's policy records, and flags where they differ; also names any repository they require for Phase 3 (`advisor-policy/README.md`). |
 | `advisor-repository/` | `advisor.repository` | `RepositoryNeeds` | `retrieval` | `RepositoryOptions` | `dd-advisor-repository`, port 8109 | **Alpha.** Phase 3: recommends repositories from re3data, or describes the mandated ones, with PIDs, access, costs and certification as re3data and FAIRsharing record them (`advisor-repository/README.md`). |
 | `advisor-ethics/` | `advisor.ethics` | `SensitivityContext` | `none` | `SensitivityFlags` | `dd-advisor-ethics`, port 8111 | **Mock.** Flags field names that suggest sensitive data and asks what must be confirmed about consent and embargo; never decides how the data are treated. |
-| `advisor-files/` | `advisor.files` | `FileList` | `none` | `FileInventory` | `dd-advisor-files`, port 8110 | **Mock.** Lists a dataset's files with the format each file's extension suggests and whether that format is open, without reading any file. |
+| `advisor-files/` | `advisor.files` | `FileInventory` | `none` | `FormatAssessment` | `dd-advisor-files`, port 8110 | **Mock.** Lists each file of a project's inventory with the format its media type or extension suggests and whether that format is open, without reading any file. |
 | `advisor-dmp/` | `advisor.dmp` | `DmpCommitments` | `none` | `DmpDiscrepancies` | `dd-advisor-dmp`, port 8112 | **Mock.** Compares what a data management plan committed to share with what is planned at publication, and flags each difference for human review without enforcing it. |
 | `advisor-fairness/` | `advisor.fairness` | `PublishedRecord` | `none` | `FairnessReport` | `dd-advisor-fairness`, port 8117 | **Mock.** Checks a published dataset's metadata against a short list of FAIR-related presence checks and suggests what to retrofit, without retrieving anything or giving a FAIRness evaluation. |
-| `advisor-metadata/` | `advisor.metadata` | `MetadataDraftRequest` | `none` | `MetadataDraft` | `dd-advisor-metadata`, port 8113 | **Mock.** Drafts a DataCite, Dublin Core or DDI-Codebook record from what the researcher gives, marking every property it cannot fill for the researcher and never inventing a value. |
-| `advisor-documentation/` | `advisor.documentation` | `DocumentationRequest` | `none` | `DocumentationDraft` | `dd-advisor-documentation`, port 8114 | **Mock.** Drafts a README outline and data dictionary by copying the title, creators, file and field names given, and leaves definitions, units, missing value codes, methods, licence and citation to the researcher. |
+| `advisor-metadata/` | `advisor.metadata` | `DraftRequest` | `none` | `Document` | `dd-advisor-metadata`, port 8113 | **Mock.** The stub drafter of the metadata record (#200): a DataCite record with every property the chosen repository asks for, filling only the resource type and the formats and sizes the inventory gives. |
+| `advisor-documentation/` | `advisor.documentation` | `DraftRequest` | `none` | `Document` | `dd-advisor-documentation`, port 8114 | **Mock.** The stub drafter of the README and the data dictionary (#200): copies the inventory's files and fields, and marks the description, methods, definitions, units, licence and citation for the researcher. |
 | `advisor-rights/` | `advisor.rights` | `RightsContext` | `none` | `RightsOptions` | `dd-advisor-rights`, port 8115 | **Mock.** Lists data licences that fit the reuse wanted, and access levels with when each applies, for the researcher to choose from; never chooses. |
 | `advisor-linking/` | `advisor.linking` | `LinkCandidates` | `none` | `RelatedIdentifiers` | `dd-advisor-linking`, port 8116 | **Mock.** Recognises DOIs, ORCID iDs, ROR IDs and grant numbers by form, checks ORCID checksums, gives canonical https forms and suggests how to record each link, resolving nothing. |
 
@@ -53,7 +53,7 @@ changes, its `system_prompt.md` included, unless `scripts/dev.py start` is given
 
 An agent id is `<group>.<name>`. The groups are `orchestrator` (agents a person converses with,
 which delegate to others), `advisor` (agents that answer one kind of question, each a persona from
-the roster in [ADR-0033](../docs/adr/0033-agent-roster.md) with a `title` that people see) and
+the roster in [Agents](../docs/specs/agents.md) with a `title` that people see) and
 `example` (templates). A directory, package and serve command spell the id with hyphens or underscores:
 `advisor.policy` is `advisor-policy/`, `dd_agent_advisor_policy` and `dd-advisor-policy`.
 
@@ -99,10 +99,10 @@ CLI, transports or viewer, this agent will show it.
 
    Say which steps of the Blueprint's process flow the agent helps with, by their ids in
    `dd_sdk.process_flow`: `serves=("setup.vocabularies", "preparation.formats")`. The
-   orchestrators name it at those steps and no others (ADR-0028, ADR-0032). Name steps, not
+   orchestrators name it at those steps and no others ([Orchestration](../docs/specs/orchestration.md)). Name steps, not
    requirements: the requirements it bears on follow from the steps, and whether it meets them is
    for the [requirements register](../docs/requirements.yaml).
-2. **Decide its grounding mode** (ADR-0008).
+2. **Decide its grounding mode** ([Evidence and grounding](../docs/specs/grounding.md)).
    - `retrieval` if it consults external records. Emit one
      `dd_sdk.tracing.retrieval_span(ctx.tracer, source_id, content_hash)` per record consulted,
      before any model call. Put a `GroundingRef` for each record the payload rests on in
@@ -112,14 +112,14 @@ CLI, transports or viewer, this agent will show it.
    - `delegation` if it answers by handing work to other agents (an orchestrator). Call
      `ctx.delegate(agent_id, input)`, never another agent directly; the workbench runs the child
      and returns a `Delegated` whose `ref` and `evidence` are what the payload cites for it
-     (ADR-0012). `ctx.delegate` is `None` when no grant was issued (for example under
+     ([Orchestration](../docs/specs/orchestration.md)). `ctx.delegate` is `None` when no grant was issued (for example under
      `workbench invoke`); handle that as an outcome. `orchestrator-stub/` is the worked example.
 
    In `input_only` and `none`, `grounded_on` and `evidence` cite `ctx.input_ref` /
    `ctx.input_hash` and nothing else. Always use `ctx.tracer`. A span started some other way is
    outside the invocation's trace, and the linter's G0 rule withholds the output.
 3. **Hash what you retrieved** with a registered canonicalisation from `dd_sdk.evidence`
-   (ADR-0009). Register a new name there if none fits; never invent one in the agent.
+   ([Evidence and grounding](../docs/specs/grounding.md)). Register a new name there if none fits; never invent one in the agent.
 4. **Write the package.** Copy `example-hello/`. You need:
    - `pyproject.toml` depending on `data-director-sdk`, with a console script
      `dd-<name> = "dd_agent_<name>.agent:main"`;
@@ -154,13 +154,13 @@ CLI, transports or viewer, this agent will show it.
      `{"rationale": Derived(Derivation.MODEL, recorded_in="rationale_derivation")}`. A field a
      model may write names the sibling that records, per value, how it actually came about. The
      spec refuses a path or a sibling that the payload class does not have. Ship no presentation:
-     the viewer lays the payload out from its schema, in LinkML slot order (ADR-0016).
+     the viewer lays the payload out from its schema, in LinkML slot order ([Agents](../docs/specs/agents.md)).
 9. **Test it** in `<name>/tests/`, with a test module name no other package uses. Test the
    agent through a conductor with `dd_harness.testing.make_conductor(runs_dir, YourAgent())`,
    which serves it in memory over A2A exactly as the workbench calls it. Mark each test with the
    requirement identifiers it actually exercises (`docs/requirements.yaml`). Do not
    claim a Blueprint `R` a demonstration does not meet.
-10. **Optionally, evaluate it** (ADR-0013). Put an Inspect AI task in `<package>/evals/`, built
+10. **Optionally, evaluate it** ([Evaluation and conformance](../docs/specs/evaluation.md)). Put an Inspect AI task in `<package>/evals/`, built
     on `workbench.evaluation.invoke_agent` and its generic scorers, with the agent's own cases
     and scorers beside it and a committed `baseline.json`. `dd_agent_advisor_standards.evals` is the worked
     example.

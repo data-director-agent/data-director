@@ -1,4 +1,4 @@
-"""Agent discovery (ADR-0011): an agent configuration, agent cards and the manifest."""
+"""Agent discovery (docs/specs/agents.md): an agent configuration, agent cards and the manifest."""
 
 from __future__ import annotations
 

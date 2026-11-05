@@ -1,4 +1,4 @@
-"""The app's web server: the shell's API beside the built shell (ADR-0024).
+"""The app's web server: the shell's API beside the built shell (docs/specs/app.md).
 
 `GET /api/agents` is what the shell draws its capabilities panel from. `POST /api/runs` runs an
 agent through the conductor and answers when the run has ended, with its envelope and the
@@ -7,16 +7,22 @@ lists example inputs; `GET /api/process-flow` is the Blueprint's entry points an
 (`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
 until runs stream over AG-UI (#68, #69).
 `POST /api/conversations` starts a conversation and `POST /api/conversations/{id}/turns` sends it
-one message, answered as a run is; `GET /api/conversations` and `GET /api/conversations/{id}`
-read them back as the harness derives them from the run store (ADR-0012, #130).
+one message, answered as a run is, or refused with `409` unless it follows the latest turn
+(docs/specs/orchestration.md); `GET /api/conversations` and `GET /api/conversations/{id}`
+read them back as the harness derives them from the run store (docs/specs/orchestration.md, #130).
+`GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
+rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
+approves or rejects the latest version, or approves an edit of it, for the person signed in, and
+answers `409` if that version is no longer the latest or undecided (docs/specs/projects.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
-delegation agent's callback under a live grant and nothing else (ADR-0012, #129).
+delegation agent's callback under a live grant and nothing else (docs/specs/orchestration.md, #129).
 `GET /api/about` names the build (version and commit) and says whether reports can be filed;
-`POST /api/feedback` files a problem report or feature request as a GitHub issue (ADR-0030).
-`GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through the configured
-OpenID Connect provider, `POST /api/sign-out` ends their session, and `GET /api/session` says who
-is signed in, until when, and whether this server signs anyone in (ADR-0029, `dd_app.signin`);
-`POST /api/session` says the same and keeps the session going.
+`POST /api/feedback` files a problem report or feature request as a GitHub issue
+(docs/specs/app.md). `GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through
+the configured OpenID Connect provider, `POST /api/sign-out` ends their session, and
+`GET /api/session` says who is signed in, until when, and whether this server signs anyone in
+(docs/specs/policy-and-identity.md, `dd_app.signin`); `POST /api/session` says the same and keeps
+the session going.
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
 
@@ -54,15 +60,21 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Re
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_app import feedback
+from dd_app import documents, feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
-from dd_app.governance import Governance, UnknownConversationError, principal_summary
+from dd_app.governance import (
+    Governance,
+    TurnConflictError,
+    UnknownConversationError,
+    principal_summary,
+)
 from dd_app.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_app.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.conductor import UnknownAgent
 from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
+from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal, UnknownProjectError
 from dd_harness.registry import RegistryError
 from dd_harness.server import LOOPBACK
 from dd_harness.settings import SettingsError
@@ -78,11 +90,13 @@ log = logging.getLogger(__name__)
 Handler = Callable[[Request, Principal], Awaitable[Response]]
 
 FEEDBACK_REFUSED = "Data Director could not file this report"
+DECISION_REFUSED = "Data Director could not record this decision"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
     "data-director: warning: serving on {host}. A delegation grant is a bearer token and callers "
-    "are not authenticated; expose the app to the host or a private network only (ADR-0011).\n"
+    "are not authenticated; expose the app to the host or a private network only "
+    "(docs/specs/agents.md).\n"
 )
 # Why a sign-in came back to `/sign-in` without opening a session, for the shell to say.
 SIGN_IN_DECLINED = "declined"
@@ -120,7 +134,7 @@ def build_app(
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
         """`handler`, given the principal the request acts for; a request with none is refused
-        with `401` (ADR-0029), and never given a default."""
+        with `401` (docs/specs/policy-and-identity.md), and never given a default."""
 
         async def endpoint(request: Request) -> Response:
             try:
@@ -180,16 +194,26 @@ def build_app(
         except ValueError:
             return _refused("The body is not JSON.")
         if not isinstance(body, dict):
-            return _refused("The body must be an object with `agent_id` and `message_text`.")
+            return _refused(
+                "The body must be an object with `agent_id`, `message_text` and `follows`."
+            )
         if "history" in body:
             return _refused(
                 "A turn may not give a history: the server builds it from the stored turns."
             )
-        if extra := sorted(set(body) - {"agent_id", "message_text"}):
-            return _refused(f"A turn takes only `agent_id` and `message_text`, not {extra}.")
+        if extra := sorted(set(body) - {"agent_id", "message_text", "follows"}):
+            return _refused(
+                f"A turn takes only `agent_id`, `message_text` and `follows`, not {extra}."
+            )
         agent_id, message_text = body.get("agent_id"), body.get("message_text")
         if not isinstance(agent_id, str) or not isinstance(message_text, str):
             return _refused("The body must name `agent_id` and give `message_text`, as strings.")
+        follows = body.get("follows")
+        if "follows" not in body or not (follows is None or isinstance(follows, str)):
+            return _refused(
+                "The body must give `follows`: the `invocation_id` of the turn this one follows, "
+                "or null for the first turn."
+            )
         if not message_text.strip():
             return _refused("The message is empty.")
         if governance.conversation(conversation_id) is None:
@@ -198,11 +222,14 @@ def build_app(
         outcome = "answered"
         try:
             return JSONResponse(
-                await governance.turn(conversation_id, agent_id, message_text, acting_for)
+                await governance.turn(conversation_id, agent_id, message_text, follows, acting_for)
             )
         except UnknownConversationError:
             outcome = "unknown conversation"
             return _no_conversation(conversation_id)
+        except TurnConflictError as exc:
+            outcome = "conflict"
+            return _problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             outcome = "refused"
             return _refused(str(exc))
@@ -226,6 +253,48 @@ def build_app(
         if found is None:
             return _no_conversation(conversation_id)
         return JSONResponse(found)
+
+    async def get_documents(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        if governance.projects is None:
+            return _no_project(project_id)
+        try:
+            found = await run_in_threadpool(documents.view, governance.projects, project_id)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        return JSONResponse(found)
+
+    async def decide(request: Request, decider: Principal) -> Response:
+        # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", DECISION_REFUSED)
+        try:
+            decision = documents.parse_decision(request.path_params["document_id"], body)
+        except documents.DecisionRequestError as exc:
+            return _refused(str(exc), DECISION_REFUSED)
+        try:
+            decided = await run_in_threadpool(
+                lambda: store.decide(
+                    project_id, decision, acted_for=decider, caused_by=f"POST {request.url.path}"
+                )
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ChangeRefusedError as exc:
+            if exc.refusal is Refusal.NO_DOCUMENT:
+                return _problem(404, exc.refusal.value, "No such document", exc.detail)
+            return _problem(409, exc.refusal.value, "The document has moved on", exc.detail)
+        except ProjectError as exc:
+            return _refused(str(exc), DECISION_REFUSED)
+        found = await run_in_threadpool(documents.view, store, project_id)
+        return JSONResponse({**found, "decided": decided.model_dump()}, status_code=201)
 
     async def list_examples(request: Request, _: Principal) -> Response:
         return JSONResponse(examples(examples_dir))
@@ -363,7 +432,8 @@ def build_app(
         return FileResponse(web_dist / "index.html")
 
     callback = governance.conductor.harness_url
-    # No authenticator: delegation callbacks only, so the app is no other way in (ADR-0012).
+    # No authenticator: delegation callbacks only, so the app is no other way in
+    # (docs/specs/orchestration.md).
     delegation = a2a_routes(governance.conductor, None, callback)[1] if callback else []
     return Starlette(
         routes=[
@@ -383,6 +453,16 @@ def build_app(
                 signed_in(send_turn),
                 methods=["POST"],
             ),
+            Route(
+                "/api/projects/{project_id}/documents",
+                signed_in(get_documents),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/documents/{document_id}/decisions",
+                signed_in(decide),
+                methods=["POST"],
+            ),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/about", get_about, methods=["GET"]),
@@ -394,6 +474,7 @@ def build_app(
             *delegation,
             Route("/agents", shell, methods=["GET"]),
             Route("/feedback", shell, methods=["GET"]),
+            Route("/projects/{project_id}", shell, methods=["GET"]),
             Route("/sign-in", shell, methods=["GET"]),
             Route("/signed-out", shell, methods=["GET"]),
             Mount("/", StaticFiles(directory=web_dist, html=True)),
@@ -401,9 +482,9 @@ def build_app(
     )
 
 
-# ADR-0029: the session cookie is opaque, unreadable by script, sent only over HTTPS, and `Lax`
-# because the provider sends the person back across sites. A browser treats `127.0.0.1` and
-# `localhost` as secure, so a development sign-in over plain HTTP still works.
+# docs/specs/policy-and-identity.md: the session cookie is opaque, unreadable by script, sent only
+# over HTTPS, and `Lax` because the provider sends the person back across sites. A browser treats
+# `127.0.0.1` and `localhost` as secure, so a development sign-in over plain HTTP still works.
 _SESSION: dict[str, Any] = {"path": "/", "secure": True, "httponly": True, "samesite": "lax"}
 _SIGN_IN_COOKIE: dict[str, Any] = {**_SESSION, "path": "/api/sign-in"}
 
@@ -413,7 +494,8 @@ def _principal(principal: Principal) -> dict[str, Any]:
 
 
 def process_flow() -> dict[str, Any]:
-    """The Blueprint's entry points and phases, the same for every deployment (ADR-0028)."""
+    """The Blueprint's entry points and phases, the same for every deployment
+    (docs/specs/orchestration.md)."""
     return {
         "entries": [dataclasses.asdict(e) for e in ENTRIES],
         "phases": [dataclasses.asdict(p) for p in PHASES],
@@ -446,6 +528,10 @@ def _no_conversation(conversation_id: str) -> Response:
         "No such conversation",
         f"No conversation {conversation_id!r}.",
     )
+
+
+def _no_project(project_id: str) -> Response:
+    return _problem(404, "project-not-found", "No such project", f"No project {project_id!r}.")
 
 
 def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:
@@ -482,9 +568,10 @@ def main() -> int:
         governance = Governance.create(
             settings, base_url, sign_in.authenticator if sign_in is not None else None
         )
-    # No principal (ADR-0018), a provider set wrongly or beside an operator (ADR-0029), or a
-    # profile, agent list or source list that is unset, missing or malformed (ADR-0022), or an
-    # agent in this process configured wrongly: nothing may run.
+    # No principal (docs/specs/policy-and-identity.md), a provider set wrongly or beside an operator
+    # (docs/specs/policy-and-identity.md), or a profile, agent list or source list that is unset,
+    # missing or malformed (docs/specs/system.md), or an agent in this process configured wrongly:
+    # nothing may run.
     except (
         IdentityError,
         SettingsError,

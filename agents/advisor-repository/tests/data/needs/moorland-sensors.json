@@ -1,0 +1,12 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "themes": [
+    "environmental science",
+    "hydrology"
+  ],
+  "data_kinds": [
+    "sensor time series",
+    "environmental monitoring data"
+  ],
+  "access": "open"
+}

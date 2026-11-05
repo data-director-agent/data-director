@@ -5,7 +5,12 @@ import { axe } from "jest-axe";
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
 import flowFixture from "../../../fixtures/process-flow.json";
-import { type ConversationApi, ConversationApiContext, Unreachable } from "../../conversation/api";
+import {
+  type ConversationApi,
+  ConversationApiContext,
+  TurnConflict,
+  Unreachable,
+} from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import type { ProcessFlow } from "../../flow/types";
@@ -91,7 +96,7 @@ describe("ConversationHome", () => {
     renderHome(directory, fakeApi({ sendTurn }));
     await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.model", "hi");
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.model", "hi", null);
   });
 
   it("says when the profile does not permit the orchestrator", () => {
@@ -107,7 +112,7 @@ describe("ConversationHome", () => {
     await userEvent.type(box, "hello world");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello world");
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello world", null);
     const transcript = await screen.findByRole("list", { name: "Conversation" });
     expect(within(transcript).getAllByText("orchestrator.stub@0.1.0")).toHaveLength(2);
     expect(within(transcript).getAllByText("example.hello@0.1.0")).toHaveLength(2);
@@ -124,7 +129,7 @@ describe("ConversationHome", () => {
     expect(sendTurn).not.toHaveBeenCalled();
     await userEvent.type(box, "hello");
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
-    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello");
+    expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello", null);
   });
 
   it("marks a version change between turns", async () => {
@@ -185,6 +190,62 @@ describe("ConversationHome", () => {
     );
     expect(screen.getByRole("textbox")).toHaveValue("hi");
     expect(get).toHaveBeenCalledWith("c1");
+  });
+
+  it("names the latest turn it shows as the one a new turn follows", async () => {
+    const sendTurn = vi.fn().mockResolvedValue(undefined);
+    renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+    const box = screen.getByRole("textbox");
+    await userEvent.type(box, "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await screen.findByText(/New reply from/);
+    await userEvent.type(box, "and again");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    const latest = CONVERSATION.turns[CONVERSATION.turns.length - 1]?.invocation_id;
+    expect(latest).toBeDefined();
+    expect(sendTurn).toHaveBeenLastCalledWith("c1", "orchestrator.stub", "and again", latest);
+  });
+
+  it("says the conversation has moved on, keeps the text and reloads it", async () => {
+    const get = vi.fn().mockResolvedValue(CONVERSATION);
+    const conflict = new TurnConflict({
+      type: "https://example.org/turn-conflict",
+      title: "The conversation has moved on",
+      http_status: 409,
+      detail: "Another turn of this conversation is still running.",
+    });
+    renderHome(withOrchestrator(), fakeApi({ sendTurn: () => Promise.reject(conflict), get }));
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This conversation has changed since you wrote this",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("hi");
+    expect(get).toHaveBeenCalledWith("c1");
+    expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
+  });
+
+  it("reads the reply again when the first read after a turn gets no response", async () => {
+    const get = vi
+      .fn()
+      .mockRejectedValueOnce(new Unreachable())
+      .mockResolvedValue(conversationFixture as Conversation);
+    renderHome(withOrchestrator(), fakeApi({ get }));
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("New reply from orchestrator.stub: Succeeded.")).toBeInTheDocument();
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("does not offer a stored turn to be sent again when its reply cannot be shown", async () => {
+    renderHome(withOrchestrator(), fakeApi({ get: () => Promise.reject(new Unreachable()) }));
+    await userEvent.type(screen.getByRole("textbox"), "hi");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your message was sent and answered, but Data Director could not show the reply",
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("");
   });
 
   it("shows the message and that the orchestrator is working until the reply arrives", async () => {

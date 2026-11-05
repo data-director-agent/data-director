@@ -1,4 +1,4 @@
-# The input and payload classes of advisor.standards, owned by this package (ADR-0019). It
+# The input and payload classes of advisor.standards, owned by this package (docs/specs/contract.md). It
 # imports the core contract as `data_director`. After an edit, run
 # `uv run dd-gen-schema agents/advisor-standards/src/dd_agent_advisor_standards/schema/standards.yaml` to regenerate generated/, and
 # keep ../classes.py in step; ClassSchema.of refuses a model that has drifted.
@@ -6,7 +6,7 @@ id: https://w3id.org/data-director/agents/standards
 name: dd_agent_advisor_standards
 title: advisor.standards classes
 description: >-
-  A minimal description of a dataset being planned or prepared (ADR-0005), and the vocabularies,
+  A minimal description of a dataset being planned or prepared (docs/specs/contract.md), and the vocabularies,
   ontologies and formats recommended for it.
 version: 0.1.0
 license: MIT
@@ -39,19 +39,6 @@ classes:
       - media_types
       - fields
 
-  TableField:
-    description: >-
-      One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor.
-      Frictionless publishes no RDF namespace, so these slots carry see_also rather than a
-      slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).
-    see_also:
-      - https://datapackage.org/standard/table-schema/#field
-    slots:
-      - name
-      - field_type
-      - field_format
-      - field_description
-
   Recommendations:
     description: The standards advisor payload. Recommended vocabularies, ontologies and formats.
     mixins:
@@ -64,7 +51,7 @@ classes:
   Recommendation:
     description: >-
       One recommended resource for one target. The resource is named only in grounded_on; its
-      name, status and DOI are in the cited evidence item's content (ADR-0015).
+      name, status and DOI are in the cited evidence item's content (docs/specs/grounding.md).
     mixins:
       - Grounded
     slots:
@@ -104,20 +91,6 @@ slots:
     range: TableField
     multivalued: true
     inlined_as_list: true
-
-  name:
-    required: true
-  field_type:
-    description: >-
-      Frictionless field type (string, number, integer, boolean, date, datetime, time, duration,
-      geopoint, ...).
-    see_also:
-      - https://datapackage.org/standard/table-schema/#type
-  field_format:
-    see_also:
-      - https://datapackage.org/standard/table-schema/#format
-  field_description:
-    slot_uri: dcterms:description
 
   items:
     range: Recommendation

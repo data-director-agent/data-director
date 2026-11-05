@@ -6,7 +6,7 @@ commit and pull request conventions that drive it are in [CONTRIBUTING.md](CONTR
 ## How it works
 
 [release-please](https://github.com/googleapis/release-please) does the work; nobody edits a
-version or a changelog by hand. `.github/workflows/release-please.yml` runs on every push to
+version or a changelog by hand. `.github/workflows/release.yaml` runs on every push to
 `main`. Its configuration is `release-please-config.json`, and `.release-please-manifest.json`
 records the last released version of each package.
 
@@ -67,7 +67,7 @@ TODO(#260): define the criteria for 1.0.
 Inside the workspace, uv resolves `data-director-sdk` and the other members to their own
 directories and ignores any version. A built wheel keeps the requirement as written, so each
 member names a lower bound for every member it needs at run time (`data-director-sdk>=0.2.0a0`);
-`scripts/check_boundaries.py` rejects one without a version (ADR-0031).
+`scripts/check_boundaries.py` rejects one without a version ([System and boundaries](docs/specs/system.md)).
 
 - The lower bound is the oldest release the package works with. Raise it in the same pull request
   as a change that uses something newer. A release does not move it.
@@ -97,7 +97,7 @@ software has a DOI. The repository has one Zenodo record. Its concept DOI always
 latest version and is the one to cite in general; each release publishes a new version with a DOI
 of its own.
 
-- `release-please.yml` calls `.github/workflows/zenodo.yml` when merging the release pull request
+- `release.yaml` calls `.github/workflows/zenodo.yml` when merging the release pull request
   creates at least one release. One merge makes one version, however many packages it released.
 - `zenodo.yml` zips the merge commit with `git archive` and runs `scripts/zenodo.py release`, which
   makes a new version, replaces its file with the zip and publishes it.
@@ -152,5 +152,5 @@ Until `ZENODO_RECORD_ID` is set, `zenodo.yml` does nothing.
 ## Keeping this page current
 
 Change this page in the same pull request as any change to `release-please-config.json`,
-`.release-please-manifest.json`, `.github/workflows/release-please.yml`,
+`.release-please-manifest.json`, `.github/workflows/release.yaml`,
 `.github/workflows/zenodo.yml` or `scripts/zenodo.py`.

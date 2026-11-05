@@ -11,10 +11,10 @@
   and keeps its relations.
 
 The sign-in and search are a copy of the standards advisor's client, since an agent may not
-import another (ADR-0031). TODO(#280)
+import another (docs/specs/system.md). TODO(#280)
 
 Any transport failure raises `RegistryUnavailable`; the agent then falls back to the snapshot
-and marks it stale. This module is the only importer of `httpx` (ADR-0006).
+and marks it stale. This module is the only importer of `httpx` (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations

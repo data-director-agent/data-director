@@ -4,7 +4,7 @@
  */
 
 export interface FlowStep {
-  /** A stable label, `<phase>.<step>`, that an agent's `serves` names (ADR-0028). */
+  /** A stable label, `<phase>.<step>`, that an agent's `serves` names (docs/specs/orchestration.md). */
   id: string;
   text: string;
   /** The Blueprint requirements applied at this step; empty when the figure names none. */

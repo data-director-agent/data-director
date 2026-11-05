@@ -1,5 +1,5 @@
-"""Conversations read back from the invocation store (ADR-0012): turn order, delegated children,
-history for the next turn, and version changes between turns."""
+"""Conversations read back from the invocation store (docs/specs/orchestration.md): turn order,
+delegated children, history for the next turn, and version changes between turns."""
 
 from __future__ import annotations
 

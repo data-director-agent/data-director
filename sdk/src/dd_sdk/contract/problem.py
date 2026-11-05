@@ -1,4 +1,4 @@
-"""RFC 9457 problem types the harness emits (ADR-0004).
+"""RFC 9457 problem types the harness emits (docs/specs/contract.md).
 
 Type URIs are under a w3id namespace that is not yet registered. TODO(#3): register
 https://w3id.org/data-director/ or move to a namespace the project controls.
@@ -39,8 +39,8 @@ def action_class_mismatch(
 
 
 def unauthenticated(detail: str) -> ProblemDetails:
-    """A caller whose credential is missing or bad (ADR-0029). `detail` never holds the
-    credential."""
+    """A caller whose credential is missing or bad (docs/specs/policy-and-identity.md). `detail`
+    never holds the credential."""
     return problem("unauthenticated", "The caller is not signed in", detail, http_status=401)
 
 
@@ -77,3 +77,9 @@ def input_not_accepted(
     return problem(
         "input-not-accepted", "Agent does not accept this input", detail, http_status=422
     )
+
+
+def revision_refused(detail: str) -> ProblemDetails:
+    """A drafted document the project could not record: it revises no version of the project, or
+    a version of a document of another kind (docs/specs/projects.md)."""
+    return problem("revision-refused", "The draft does not revise this project", detail, 409)

@@ -1,4 +1,4 @@
-"""advisor.rights: the Rights and Licensing Adviser persona (ADR-0033). A mock.
+"""advisor.rights: the Rights and Licensing Adviser persona (docs/specs/agents.md). A mock.
 
 Serves `deposit.licence` and `deposit.access`. It lists data licences that fit the reuse the
 researcher wants to allow, and the access levels with when each applies, and asks the questions

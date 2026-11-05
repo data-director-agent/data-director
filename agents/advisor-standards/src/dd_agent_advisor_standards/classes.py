@@ -1,4 +1,4 @@
-"""The input and payload classes of advisor.standards, as Pydantic models (ADR-0019).
+"""The input and payload classes of advisor.standards, as Pydantic models (docs/specs/contract.md).
 
 `schema/standards.yaml` is the source; `ClassSchema.of` compares each model with the schema
 generated from it.
@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.models import Derivation, Frozen, Grounded
+from dd_sdk.contract.models import Derivation, Frozen, Grounded, TableField
 
 
 class RecommendationKind(StrEnum):
@@ -20,13 +20,6 @@ class RecommendationKind(StrEnum):
     TERMINOLOGY_UNCLASSIFIED = "terminology_unclassified"
     DATA_FORMAT = "data_format"
     FIELD_FORMAT = "field_format"
-
-
-class TableField(Frozen):
-    name: str
-    field_type: str | None = None
-    field_format: str | None = None
-    field_description: str | None = None
 
 
 class DatasetProfile(Frozen):
@@ -40,7 +33,8 @@ class DatasetProfile(Frozen):
 
 
 class Recommendation(Grounded):
-    """Names its resource only in `grounded_on`; the description is in evidence (ADR-0015)."""
+    """Names its resource only in `grounded_on`; the description is in evidence
+    (docs/specs/grounding.md)."""
 
     kind: RecommendationKind
     target: str

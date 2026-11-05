@@ -1,4 +1,5 @@
-"""Agents behind A2A (ADR-0011): what crosses the wire, and what the conductor does with it.
+"""Agents behind A2A (docs/specs/agents.md): what crosses the wire, and what the conductor does with
+it.
 
 Every harness test already reaches its agent through `dd_harness.testing.in_process`, so the wire
 is exercised throughout. The tests here pin what is specific to an agent running elsewhere: its

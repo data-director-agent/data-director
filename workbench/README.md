@@ -18,9 +18,9 @@ The workbench is not the reference implementation itself, and it contains no age
 agent states what input it reads, what output it returns, and what that output is based on.
 Agents are separate services in [`../agents/`](../agents/). The workbench calls each one over
 A2A, the [Agent2Agent protocol](https://a2a-protocol.org/), then checks that it kept to those
-statements ([ADR-0011](../docs/adr/0011-remote-agents.md)). The calls and checks are made by the
+statements ([Agents](../docs/specs/agents.md)). The calls and checks are made by the
 harness, a package of its own in [`../harness/`](../harness/) that the workbench is one way in
-to ([ADR-0022](../docs/adr/0022-harness-is-its-own-package.md)).
+to ([System and boundaries](../docs/specs/system.md)).
 [`docs/architecture.md`](docs/architecture.md) explains how the pieces fit together.
 
 ## Who it is for
@@ -79,7 +79,7 @@ The viewer has three pages, reached by the tabs under its header. It opens on Ch
 
 - **Chat** (`http://127.0.0.1:8000/viewer/`) holds a conversation with the orchestrator,
   `orchestrator.stub`, which hands each message to other agents and shows their replies inside its
-  own ([ADR-0012](../docs/adr/0012-conversation-and-orchestration.md)).
+  own ([Orchestration](../docs/specs/orchestration.md)).
 - **Inspect** (`/viewer/inspect.html`) runs one agent over a sample and shows the run.
 - **Agents** (`/viewer/agents.html`) lists the registered agents and their cards.
 
@@ -149,14 +149,14 @@ already set in the environment takes precedence over the files.
 | `DD_PRINCIPAL_KIND` | `person` | `person` or `accountable_role`. |
 | `DD_RUNS_DIR` | `runs` | Where each run's folder is written. |
 | `DD_WRITE_CRATE` | `1` | `0` stops the provenance record (Process Run Crate) being written. |
-| `DD_PROFILE` | `profiles/default.yaml` | The institutional profile applied to every invocation. A request cannot name one (ADR-0017). |
+| `DD_PROFILE` | `profiles/default.yaml` | The institutional profile applied to every invocation. A request cannot name one ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `DD_AGENTS_CONFIG` | `agents.yaml` | The agent registry file. |
-| `DD_SOURCES_CONFIG` | `sources.yaml` | The pinned source copies the source check resolves evidence against (ADR-0016). |
+| `DD_SOURCES_CONFIG` | `sources.yaml` | The pinned source copies the source check resolves evidence against ([Evidence and grounding](../docs/specs/grounding.md)). |
 | `DD_HARNESS_URL` | the host and port of `serve` | The address the orchestrator uses to call the harness back. Set it when agents reach the harness by another name, such as a container network or a proxy. |
 
 These defaults are the workbench's development set (`src/workbench/config.py`), resolved against
 `workbench/`. The harness has no defaults of its own, so another way in names these files itself
-(ADR-0022). Each agent is a separate process and reads
+([System and boundaries](../docs/specs/system.md)). Each agent is a separate process and reads
 its own variables, such as the standards advisor retrieval backend or a model API key, where it runs;
 [`config/examples/`](../config/examples/) lists them.
 
@@ -245,8 +245,8 @@ described in [`../agents/README.md`](../agents/README.md).
 - [`CONFORMANCE.md`](../CONFORMANCE.md): which requirements the tests and the recorded reviews
   demonstrate. It is generated. A requirement with nothing behind it is marked
   *unsubstantiated*.
-- [`docs/adr/`](../docs/adr/): the Architectural Decision Records (ADRs), one record per design
-  decision.
+- [`docs/specs/`](../docs/specs/README.md): the specifications, one per topic, which say how the
+  system is meant to work and why.
 
 ## Contributing, contact and licence
 

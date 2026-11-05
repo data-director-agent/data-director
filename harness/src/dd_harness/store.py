@@ -5,8 +5,8 @@ is written once: `append` refuses an `invocation_id` whose envelope is already s
 conductor refuses such a request before it runs (`DuplicateInvocation`).
 
 Each class schema a run was checked against is kept once, addressed by its digest, in
-`schemas/<digest>.json` (ADR-0019). An envelope names the digests, so a stored run is shown with
-the schema it was checked against, whatever its agent's card says now.
+`schemas/<digest>.json` (docs/specs/contract.md). An envelope names the digests, so a stored run is
+shown with the schema it was checked against, whatever its agent's card says now.
 """
 
 from __future__ import annotations

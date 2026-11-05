@@ -1,4 +1,4 @@
-# The standards advisor seeded-defect cases (ADR-0013). Each case is a base profile, one registered defect
+# The standards advisor seeded-defect cases (docs/specs/evaluation.md). Each case is a base profile, one registered defect
 # (defects.py) and what the standards advisor should then do.
 #
 # expect:

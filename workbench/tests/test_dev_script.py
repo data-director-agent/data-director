@@ -118,6 +118,56 @@ def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(re
     assert (repo / "app" / "config" / "profile.yaml").read_text() == profile
 
 
+def test_a_local_profile_missing_an_agent_the_example_enables_is_reported(repo: Path) -> None:
+    config = repo / "app" / "config"
+    assert common.profile_omissions({}) == []  # no local copy: the app uses the example
+    example = (config / "profile.yaml.example").read_text()
+    stale = example.replace("  advisor.policy: advise\n", "").replace(
+        "  advisor.repository: advise\n", ""
+    )
+    assert stale != example
+    (config / "profile.yaml").write_text(stale)
+    omitted = common.profile_omissions({})
+    assert omitted == ["advisor.policy", "advisor.repository"]
+    assert "app/config/profile.yaml does not enable advisor.policy, advisor.repository" in (
+        common.omissions_note(omitted)
+    )
+    # A profile chosen with DD_PROFILE is the deployment's choice, and is not compared.
+    assert common.profile_omissions({"DD_PROFILE": str(config / "profile.yaml")}) == []
+    (config / "profile.yaml").write_text(example)
+    assert common.profile_omissions({}) == []
+
+
+def test_a_local_profile_that_has_fallen_behind_the_example_is_reported(repo: Path) -> None:
+    config = repo / "app" / "config"
+    example = (config / "profile.yaml.example").read_text()
+    local = config / "profile.yaml"
+    assert common.profile_drift({}) == ([], [])  # no local copy: the app uses the example
+    local.write_text(example)
+    assert common.profile_drift({}) == ([], [])
+    version = int(re.search(r"^version: (\d+)", example, re.MULTILINE)[1])  # type: ignore[index]
+    # Older than the example, and requiring approval for less.
+    stale = example.replace(f"version: {version}\n", f"version: {version - 1}\n").replace(
+        "  - deposit\n", ""
+    )
+    assert stale != example
+    local.write_text(stale)
+    notes, problems = common.profile_drift({})
+    assert problems == []
+    assert any(f"is version {version - 1}, behind the example's {version}" in n for n in notes)
+    assert any("does not require approval for deposit" in n for n in notes)
+    # Newer than the example, as `setup` leaves it, is not drift.
+    local.write_text(example.replace(f"version: {version}\n", f"version: {version + 1}\n"))
+    assert common.profile_drift({}) == ([], [])
+    # An orchestrator the profile does not enable is a problem.
+    local.write_text(example.replace("orchestrator: orchestrator.stub", "orchestrator: nobody"))
+    assert common.profile_drift({})[1] == [
+        "app/config/profile.yaml names nobody as the orchestrator but does not enable it"
+    ]
+    # A profile chosen with DD_PROFILE is the deployment's choice, and is not compared.
+    assert common.profile_drift({"DD_PROFILE": str(local)}) == ([], [])
+
+
 def test_a_rerun_keeps_the_key_and_other_lines(repo: Path) -> None:
     local = repo / "config" / "local"
     own = local / "agents" / "orchestrator-model.env"
@@ -188,7 +238,7 @@ def test_a_key_in_a_shared_file_is_refused(repo: Path) -> None:
     local = repo / "config" / "local"
     local.mkdir(parents=True)
     (local / "agents.env").write_text(f"ANTHROPIC_API_KEY={KEY}\n")
-    with pytest.raises(common.DevError, match="ADR-0026"):
+    with pytest.raises(common.DevError, match=r"docs/specs/policy-and-identity\.md"):
         common.agent_env(common.Agent("example-hello", 8101))
 
 

@@ -22,6 +22,7 @@ from devstack.common import (
     needs_build,
     needs_install,
     port_free,
+    profile_drift,
     read_env,
     stray_files,
     tool_problems,
@@ -31,7 +32,9 @@ from devstack.common import (
 def doctor() -> int:
     problems = tool_problems()
     for stray in stray_files():
-        problems.append(f"settings file of the old layout, move it: {stray} (ADR-0026)")
+        problems.append(
+            f"settings file of the old layout, move it: {stray} (docs/specs/policy-and-identity.md)"
+        )
     for path in [
         paths.APP_ENV,
         paths.AGENTS_ENV,
@@ -49,6 +52,10 @@ def doctor() -> int:
             print(
                 "note: no principal is set; `start` will use the example (run setup to set yours)"
             )
+        notes, drift = profile_drift(env)
+        for note in notes:
+            print(f"note: {note}")
+        problems.extend(drift)
     except DevError as exc:
         problems.append(str(exc))
     for agent in load_agents():

@@ -1,4 +1,4 @@
-"""Evidence hashing (ADR-0009, ADR-0015).
+"""Evidence hashing (docs/specs/grounding.md).
 
 A content hash covers the canonicalised *projection* of the thing a grounding claim rests on,
 not an HTTP body. `EvidenceItem.canonicalisation` names which projection was used, and
@@ -17,7 +17,7 @@ bytes are unchanged from v0 so hashes in stored runs still verify.
   projection. For sources whose records are already small and self-describing.
 - `dd-envelope-json-v1` — a whole child envelope, as the conductor stored it in
   `runs/<invocation_id>/envelope.json`. What a `delegation` agent cites for a reply it relays
-  (ADR-0012).
+  (docs/specs/orchestration.md).
 
 Adding a field to a projection changes every hash it produces; do it deliberately and register
 a new name rather than editing an existing one.
@@ -38,7 +38,7 @@ HASH_ALGORITHM = "sha256"
 class Canonicalisation:
     """A name, a description and a projection. The canonical bytes are always the projection
     dumped as JSON with sorted keys, no whitespace, UTF-8; the projection is what evidence
-    `content` holds (ADR-0015)."""
+    `content` holds (docs/specs/grounding.md)."""
 
     name: str
     description: str
@@ -163,7 +163,8 @@ def content_hash(record: dict[str, Any], canonicalisation: str = CANONICALISATIO
 
 
 def verify(content: dict[str, Any], canonicalisation: str, expected_hash: str) -> bool:
-    """Whether evidence `content` hashes to `expected_hash` (linter rule E1, ADR-0015)."""
+    """Whether evidence `content` hashes to `expected_hash` (linter rule E1,
+    docs/specs/grounding.md)."""
     return content_hash(content, canonicalisation) == expected_hash
 
 
@@ -173,15 +174,15 @@ def input_hash(input_document: dict[str, Any]) -> str:
 
 
 def envelope_hash(envelope_document: dict[str, Any]) -> str:
-    """The `dd-envelope-json-v1` hash of an envelope document (ADR-0012)."""
+    """The `dd-envelope-json-v1` hash of an envelope document (docs/specs/orchestration.md)."""
     return content_hash(envelope_document, ENVELOPE_CANONICALISATION)
 
 
 def resolve(envelope: dict[str, Any], ref: dict[str, Any]) -> dict[str, Any] | None:
     """The evidence `content` a grounding reference identifies, or None if it carries none.
 
-    The reader's side of ADR-0015: a payload names a record only in `grounded_on`, and what it
-    names is read from the evidence item with the same `source_id` and `content_hash`.
+    The reader's side of docs/specs/grounding.md: a payload names a record only in `grounded_on`,
+    and what it names is read from the evidence item with the same `source_id` and `content_hash`.
     """
     for ev in envelope.get("evidence") or []:
         if (ev.get("source_id"), ev.get("content_hash")) == (

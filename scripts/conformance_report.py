@@ -1,7 +1,7 @@
 """Render CONFORMANCE.md from the requirements register, the review record and a test run.
 
 Each requirement is assessed in one or two lanes, named by its `assessed_by` entry in the
-register (ADR-0014). Each lane gives a verdict, and the lanes are never combined into one.
+register (docs/specs/evaluation.md). Each lane gives a verdict, and the lanes are never combined into one.
 
 The test lane applies the traceability rule. A requirement is
 
@@ -241,7 +241,7 @@ commit, and CI regenerates it at every commit and fails if a single byte differs
 ## How to read it
 
 Each row is a requirement in the register. The register says how each requirement is assessed:
-by automated test, by human review, or by both (ADR-0014). Each assessment gives its own verdict,
+by automated test, by human review, or by both (docs/specs/evaluation.md). Each assessment gives its own verdict,
 and the two are never combined into one. A requirement not assessed one way reads *not assessed*
 in that column.
 
@@ -291,7 +291,7 @@ commit with `git log --follow -- CONFORMANCE.md` and look at that commit's CI ru
 summary names the commit tested, the Python version and the suite's counts. The intent is to
 attest the report with in-toto or Sigstore once the project has a release process; an attestation
 is made after the commit exists, so it can name that commit (see
-docs/adr/0006-dependency-tiering.md, "Rejected for v0"). A review is attested only by its entry in
+docs/specs/dependencies.md, "Rejected alternatives"). A review is attested only by its entry in
 `docs/reviews.yaml` and the commit that added it.
 
 ## Regenerating

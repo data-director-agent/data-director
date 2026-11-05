@@ -6,14 +6,14 @@ declares; the harness's conductor and linter hold it to that. `run` decides an o
 payload and the evidence it rests on. It does not fill in identifiers, timestamps or telemetry;
 the conductor does, so an agent cannot mislabel its own run.
 
-An agent runs in its own process behind `dd_sdk.serve` (ADR-0011). The harness reaches it over
-A2A and sees the same `Agent` protocol through its `RemoteAgent`.
+An agent runs in its own process behind `dd_sdk.serve` (docs/specs/agents.md). The harness reaches
+it over A2A and sees the same `Agent` protocol through its `RemoteAgent`.
 
 `describe(spec)` is the one manifest every consumer reads: the agent's A2A card extension, the
 harness's own agent card, `workbench agents`, `GET /agents` and the viewer's agent picker.
 `spec_from_description` is its inverse, used by the harness to rebuild a spec from a card.
 The manifest says what an agent does, never how to draw it: the viewer works out a payload's
-presentation from its schema and the agent's `derivations` (ADR-0016).
+presentation from its schema and the agent's `derivations` (docs/specs/agents.md).
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class SpecError(Exception):
 
 
 class ContractVersionError(SpecError):
-    """A description declares a contract version this one cannot govern (ADR-0019)."""
+    """A description declares a contract version this one cannot govern (docs/specs/contract.md)."""
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class Derived:
 class ModelUse:
     """A model the agent sends data to, as configured: who provides it, which model, and whether
     it runs on the provider's service (`hosted`) or on the institution's own (`local`)
-    (ADR-0026). It names no credential."""
+    (docs/specs/policy-and-identity.md). It names no credential."""
 
     provider: str
     model: str
@@ -90,11 +90,12 @@ class AgentSpec:
     # The models the agent sends data to, as configured. Empty: it calls no model.
     models: tuple[ModelUse, ...] = ()
     # The process flow's step ids ("governance.policies") the agent serves, so an orchestrator can
-    # place it in the flow (`dd_sdk.process_flow`, ADR-0028). The requirements it bears on follow
-    # from the steps; whether it meets them is for the requirements register. Empty: none.
+    # place it in the flow (`dd_sdk.process_flow`, docs/specs/orchestration.md). The requirements it
+    # bears on follow from the steps; whether it meets them is for the requirements register. Empty:
+    # none.
     serves: tuple[str, ...] = ()
-    # The persona's name as a researcher sees it ("Metadata Librarian", ADR-0033). Empty: the
-    # app and the orchestrators show `agent_id` instead.
+    # The persona's name as a researcher sees it ("Metadata Librarian", docs/specs/agents.md).
+    # Empty: the app and the orchestrators show `agent_id` instead.
     title: str = ""
 
     def __post_init__(self) -> None:
@@ -221,7 +222,7 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     checked first, since under another contract the rest of the description may not parse. A
     class without a schema, a schema that does not match its digest or does not designate its
     class, and a payload class that does not mix in `Grounded` are each a `SpecError`
-    (ADR-0019). No class needs to be known in advance.
+    (docs/specs/contract.md). No class needs to be known in advance.
     """
     declared = entry.get("contract_version")
     if not isinstance(declared, str):
@@ -263,7 +264,8 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         }
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed derivations: {exc}") from exc
-    # `models` may be absent: a card written before ADR-0026 declares no model.
+    # `models` may be absent: a card written before docs/specs/policy-and-identity.md declares no
+    # model.
     try:
         models = tuple(
             ModelUse(str(m["provider"]), str(m["model"]), _hosting(m["hosting"]))
@@ -271,11 +273,12 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise SpecError(f"agent {agent_id!r}: malformed models: {exc}") from exc
-    # `serves` may be absent: a card written before ADR-0028 serves no requirement.
+    # `serves` may be absent: a card written before docs/specs/orchestration.md serves no
+    # requirement.
     serves = entry.get("serves", ())
     if not isinstance(serves, list | tuple):
         raise SpecError(f"agent {agent_id!r}: serves is not a list")
-    # `title` may be absent: a card written before ADR-0033 names no persona.
+    # `title` may be absent: a card written before docs/specs/agents.md names no persona.
     title = entry.get("title") or ""
     if not isinstance(title, str):
         raise SpecError(f"agent {agent_id!r}: title is not a string")
@@ -330,7 +333,8 @@ class Delegate(Protocol):
     """Invoke another agent through the harness and return its envelope (`dd_sdk.delegate`).
 
     `manifest` is what the harness says it may invoke: one `describe(spec)` per registered agent,
-    schemas included. A delegation agent routes from it, never from its own list (ADR-0012).
+    schemas included. A delegation agent routes from it, never from its own list
+    (docs/specs/orchestration.md).
     """
 
     def __call__(self, agent_id: str, input: Frozen) -> Delegated: ...
@@ -346,9 +350,9 @@ class RunContext:
     cites; they are computed by the conductor so the agent cannot get them wrong.
 
     `delegate` is what an agent in grounding mode delegation calls to invoke another agent.
-    `dd_sdk.serve` binds it to the grant the harness sent with the request (ADR-0012). It is
-    None for every other agent, and for a delegation agent run where the harness has no
-    callback address (the CLI).
+    `dd_sdk.serve` binds it to the grant the harness sent with the request
+    (docs/specs/orchestration.md). It is None for every other agent, and for a delegation agent run
+    where the harness has no callback address (the CLI).
     """
 
     tracer: Tracer

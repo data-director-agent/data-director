@@ -1,1 +1,1 @@
-"""advisor.fairness: the FAIR Assessor persona (ADR-0033). A mock."""
+"""advisor.fairness: the FAIR Assessor persona (docs/specs/agents.md). A mock."""

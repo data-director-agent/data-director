@@ -1,5 +1,5 @@
 # The Data Director app's institutional profile: the reference set the app uses unless DD_PROFILE
-# names another (ADR-0017, ADR-0022). Keys are as in workbench/profiles/README.md.
+# names another (docs/specs/policy-and-identity.md, docs/specs/system.md). Keys are as in workbench/profiles/README.md.
 # TODO(#225): how a steward edits and reviews this profile in a deployment (#41).
 profile_id: data-director-app
 version: 7
@@ -22,7 +22,7 @@ agents:
   orchestrator.stub: advise
   orchestrator.model: advise
 
-# The agent the home page converses with (ADR-0024 §10). The rule-based stub needs no model key.
+# The agent the home page converses with (docs/specs/app.md). The rule-based stub needs no model key.
 # A deployment with a key names orchestrator.model instead, and raises `version`.
 orchestrator: orchestrator.stub
 

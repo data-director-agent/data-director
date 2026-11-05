@@ -37,12 +37,13 @@ from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
-from dd_app.governance import Governance
+from dd_app.governance import Governance, TurnConflictError
 from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
+from dd_harness.settings import SettingsError
 from dd_harness.store import RunStore
 from dd_harness.testing import (
     PERMISSIVE,
@@ -142,16 +143,17 @@ def test_the_reference_set_lists_and_enables_every_in_tree_agent():
     profile = load_profile(DEFAULT_PROFILE)
     assert profile.agents == dict.fromkeys(enabled, "advise")
     # The rule-based stub, which needs no model key, is the conversation until a deployment
-    # names another (ADR-0024 §11).
+    # names another (docs/specs/app.md).
     assert profile.orchestrator == "orchestrator.stub"
 
 
 def test_the_app_runs_no_agent_its_list_does_not_name(env: Path):
-    # Every agent is a service (ADR-0027): with none listed, the app has none to run.
+    # Every agent is a service (docs/specs/app.md): with none listed, the app has none to run.
     governance = Governance.create(settings_from_env(), APP_URL)
     assert governance.conductor.registry.ids() == []
     assert governance.conductor.profile.profile_id == "data-director-app"
-    # A development server: every request acts for the operator's assertion (ADR-0029).
+    # A development server: every request acts for the operator's assertion
+    # (docs/specs/policy-and-identity.md).
     assert governance.authenticator.principal_for({}) == TEST_PRINCIPAL
 
 
@@ -201,6 +203,17 @@ def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path)
 def test_no_principal_stops_start_up(env: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("DD_PRINCIPAL_ID")
     with pytest.raises(IdentityError, match="DD_PRINCIPAL_ID"):
+        Governance.create(settings_from_env(), APP_URL)
+
+
+def test_a_projects_directory_that_cannot_be_made_stops_start_up(
+    env: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    # A SettingsError, which `main` turns into one line, not a traceback.
+    blocker = tmp_path / "a-file"
+    blocker.write_text("")
+    monkeypatch.setenv("DD_PROJECTS_DIR", str(blocker / "projects"))
+    with pytest.raises(SettingsError, match=r"DD_PROJECTS_DIR .* cannot be used"):
         Governance.create(settings_from_env(), APP_URL)
 
 
@@ -463,7 +476,7 @@ def test_the_configured_url_is_the_callback(
 
 
 # Conversations (#130): a turn is one invocation of the orchestrator with a `conversation_id`,
-# and the server, not the caller, builds its history from the stored turns (ADR-0024 §17).
+# and the server, not the caller, builds its history from the stored turns (docs/specs/app.md).
 
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 SHA256 = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
@@ -504,10 +517,16 @@ def start(client: TestClient) -> str:
     return conversation_id
 
 
-def turn(client: TestClient, conversation_id: str, text: str, **extra: Any) -> Any:
+def turn(
+    client: TestClient,
+    conversation_id: str,
+    text: str,
+    follows: str | None = None,
+    **extra: Any,
+) -> Any:
     return client.post(
         f"/api/conversations/{conversation_id}/turns",
-        json={"agent_id": "orchestrator.stub", "message_text": text, **extra},
+        json={"agent_id": "orchestrator.stub", "message_text": text, "follows": follows, **extra},
     )
 
 
@@ -544,7 +563,7 @@ def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, An
     conversation_id = start(client)
     first = turn(client, conversation_id, "hello world")
     assert first.status_code == 200
-    second = turn(client, conversation_id, "hello again")
+    second = turn(client, conversation_id, "hello again", first.json()["envelope"]["invocation_id"])
     assert second.status_code == 200
     envelopes = [first.json()["envelope"], second.json()["envelope"]]
     for envelope in envelopes:
@@ -575,8 +594,9 @@ def test_each_turn_is_shown_the_turns_before_it(delegating: tuple[Governance, An
 
 
 def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governance, Any]):
-    """A turn cancelled (the client went away) runs on to the end in the conductor's thread, so
-    the next turn to the conversation waits for it and is shown it."""
+    """A turn cancelled (the client went away) runs on to the end in the conductor's thread. A
+    message sent again meanwhile is refused, not run twice (#337); once the first is stored, a
+    turn that follows it runs and is shown it."""
     governance, _app = delegating
     conductor = governance.conductor
     entered, release = threading.Event(), threading.Event()
@@ -591,21 +611,32 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     conductor.invoke = held_first  # type: ignore[method-assign]
     conversation_id = governance.start_conversation()
 
+    def top_level_turns() -> list[dict[str, Any]]:
+        return [e for e in conductor.store.iter_envelopes() if not e.get("parent_invocation_id")]
+
     async def scenario() -> dict[str, Any]:
         first = asyncio.create_task(
-            governance.turn(conversation_id, "orchestrator.stub", "hello world", TEST_PRINCIPAL)
+            governance.turn(
+                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
+            )
         )
         await asyncio.to_thread(entered.wait, 30)
         first.cancel()
-        second = asyncio.create_task(
-            governance.turn(conversation_id, "orchestrator.stub", "hello again", TEST_PRINCIPAL)
-        )
-        await asyncio.sleep(0.1)
-        assert not second.done()  # waiting for the cancelled turn, not running past it
+        with pytest.raises(TurnConflictError, match="still running"):
+            await governance.turn(
+                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
+            )
         release.set()
         with pytest.raises(asyncio.CancelledError):
             await first
-        return await second
+        (stored,) = top_level_turns()
+        return await governance.turn(
+            conversation_id,
+            "orchestrator.stub",
+            "hello again",
+            stored["invocation_id"],
+            TEST_PRINCIPAL,
+        )
 
     try:
         second = asyncio.run(scenario())
@@ -616,6 +647,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     shown = (conductor.store.get_request(second["envelope"]["invocation_id"]) or {})["input"]
     user, _agent = shown["history"]
     assert user["turn_text"] == "hello world"
+    assert len(top_level_turns()) == 2  # the resend never ran
     assert governance._turn_locks == {}  # nothing kept for a conversation with no turn running
 
 
@@ -623,8 +655,9 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     ("body", "detail"),
     [
         ({"history": []}, "history"),
-        ({"input": {}}, "only `agent_id` and `message_text`"),
+        ({"input": {}}, "only `agent_id`, `message_text` and `follows`"),
         ({"message_text": 3}, "as strings"),
+        ({"follows": 3}, "must give `follows`"),
         ({"message_text": "  "}, "empty"),
     ],
 )
@@ -639,6 +672,37 @@ def test_a_malformed_turn_is_refused_and_nothing_runs(
     assert response.headers["content-type"] == "application/problem+json"
     assert detail in response.json()["detail"]
     assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+def test_a_turn_must_name_the_turn_it_follows(delegating: tuple[Governance, Any]):
+    governance, app = delegating
+    client = TestClient(app)
+    response = client.post(
+        f"/api/conversations/{start(client)}/turns",
+        json={"agent_id": "orchestrator.stub", "message_text": "hello world"},
+    )
+    assert response.status_code == 400
+    assert "must give `follows`" in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+@pytest.mark.parametrize("follows", [None, "01900000-0000-7000-8000-000000000001"])
+def test_a_turn_that_does_not_follow_the_latest_is_refused_and_nothing_runs(
+    delegating: tuple[Governance, Any], follows: str | None
+):
+    """A message sent again after its first attempt was stored names the turn before it, so it
+    is refused rather than run twice (#337, docs/specs/orchestration.md)."""
+    governance, app = delegating
+    client = TestClient(app)
+    conversation_id = start(client)
+    assert turn(client, conversation_id, "hello world").status_code == 200
+    stored = list(governance.conductor.store.iter_envelopes())
+    response = turn(client, conversation_id, "hello world", follows)
+    assert response.status_code == 409
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json()["type"].endswith("turn-conflict")
+    assert stored[-1]["invocation_id"] in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == stored
 
 
 def test_a_turn_goes_only_to_the_orchestrator_the_profile_names(
@@ -662,7 +726,7 @@ def test_a_turn_to_an_unknown_agent_is_refused_before_it_runs(governance: Govern
     client = TestClient(build_app(governance, dist))
     response = client.post(
         f"/api/conversations/{start(client)}/turns",
-        json={"agent_id": "no.such.agent", "message_text": "hello"},
+        json={"agent_id": "no.such.agent", "message_text": "hello", "follows": None},
     )
     assert response.status_code == 400
     assert response.json()["type"].endswith("request-refused")

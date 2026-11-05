@@ -1,7 +1,7 @@
 # advisor.rights
 
 **Mock, alpha** (`0.1.0a1`): a placeholder for the Rights and Licensing Adviser persona
-(ADR-0033). It gives no real advice.
+([Agents](../../docs/specs/agents.md)). It gives no real advice.
 
 The Rights and Licensing Adviser serves two steps of the Blueprint's process flow (§8.2):
 

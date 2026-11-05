@@ -1,6 +1,7 @@
-"""A person established from an OpenID Connect ID token (ADR-0029, #151): the token is verified,
-the principal recorded as authenticated with the issuer that vouched, and a caller without a good
-token refused rather than given a default. The provider is `FakeIdentityProvider`: no network."""
+"""A person established from an OpenID Connect ID token (docs/specs/policy-and-identity.md, #151):
+the token is verified, the principal recorded as authenticated with the issuer that vouched, and a
+caller without a good token refused rather than given a default. The provider is
+`FakeIdentityProvider`: no network."""
 
 from __future__ import annotations
 

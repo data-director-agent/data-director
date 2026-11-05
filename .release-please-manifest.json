@@ -9,5 +9,6 @@
   "agents/advisor-standards": "0.1.1-alpha",
   "agents/orchestrator-model": "0.1.1-alpha",
   "agents/advisor-repository": "0.1.0-alpha",
-  "agents/advisor-policy": "0.1.0-alpha"
+  "agents/advisor-policy": "0.1.0-alpha",
+  "inventory": "0.1.0-alpha"
 }

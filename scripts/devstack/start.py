@@ -27,8 +27,10 @@ from devstack.common import (
     ensure_local_tree,
     has_key,
     load_agents,
+    omissions_note,
     port_free,
     prepare_web,
+    profile_omissions,
     workspace_env,
 )
 
@@ -114,7 +116,7 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
     ensure_local_tree()
     base = workspace_env()
     app = app_env()
-    # An app that signs people in acts for no operator, and refuses one (ADR-0029).
+    # An app that signs people in acts for no operator, and refuses one (docs/specs/policy-and-identity.md).
     if app.get("DD_OIDC_ISSUER"):
         print(f"The app signs people in with {app['DD_OIDC_ISSUER']}.")
     elif not (app.get("DD_PRINCIPAL_ID") and app.get("DD_PRINCIPAL_NAME")):
@@ -123,6 +125,8 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
             f"No principal is set, so runs act for the example, {EXAMPLE_PRINCIPAL['DD_PRINCIPAL_NAME']}. "
             "Run `uv run scripts/dev.py setup` to give your own."
         )
+    if omitted := profile_omissions({**os.environ, **app}):
+        print(f"Note: {omissions_note(omitted)}.")
     agents = load_agents()
     ports = [a.port for a in agents] + (
         [] if agents_only else [APP_PORT] + ([WEB_PORT] if web else [])
