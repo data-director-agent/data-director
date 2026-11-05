@@ -5,20 +5,23 @@ Serves `setup.documentation` and `preparation.documentation` (R5). Given a `Draf
 `readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
 project's inventory: the files and the tables' fields are drafted, and what only the researcher
 knows, such as the methods, each field's definition, unit and missing value codes, the licence and
-the citation, is marked for them.
+the citation, is marked for them. Each value in the data dictionary is marked with where it came
+from: inferred from the inventory, supplied by the researcher, or unknown.
 
 The README's sections are those of `readme.yaml`. The mock writes no prose of its own, reads no
 file, consults no source and calls no model, so its grounding mode is `none` and it cites only its
 input. Regenerating a document drafts it afresh from the project's facts, and names the version it
-replaces in `revises`. The real editor is TODO(#358).
+replaces in `revises`; a regenerated data dictionary keeps the values the researcher gave in that
+version. The real editor is TODO(#358).
 """
 
 from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple
 
@@ -28,6 +31,7 @@ from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    CurrentVersion,
     Derivation,
     Document,
     DocumentKind,
@@ -49,9 +53,31 @@ README = Path(__file__).with_name("readme.yaml")
 SOURCES = frozenset({"files", "tables", "licences"})
 # How the draft marks what the researcher writes. A person's edit replaces it.
 PLACEHOLDER = "_To be written by the researcher: {ask}_"
-# The data dictionary's columns. The first four are copied from the inventory; the rest are left
-# for the researcher.
-DICTIONARY_COLUMNS = ("file", "field", "type", "format", "description", "unit", "missing_values")
+# The data dictionary's columns: a row is keyed by its file and field, and each value is followed
+# by a column saying where it came from (Source).
+KEY_COLUMNS = ("file", "field")
+VALUE_COLUMNS = ("type", "format", "description", "unit", "missing_values")
+SOURCE_SUFFIX = "_source"
+DICTIONARY_COLUMNS = KEY_COLUMNS + tuple(
+    column for value in VALUE_COLUMNS for column in (value, value + SOURCE_SUFFIX)
+)
+
+
+class Source(StrEnum):
+    """Where a value in the data dictionary came from, so that a person can check it."""
+
+    INFERRED = "inferred"  # read from the data by dd-inventory: a type or a format
+    SUPPLIED = "supplied"  # given by the researcher: in the inventory or an earlier version
+    UNKNOWN = "unknown"  # no one has said yet: the cell is empty
+
+
+# How each inventory value came to be there. dd-inventory infers a field's type and format from
+# the table, and writes no description, so a description in the inventory was given by a person.
+INVENTORY_SOURCES = {
+    "type": Source.INFERRED,
+    "format": Source.INFERRED,
+    "description": Source.SUPPLIED,
+}
 
 TITLES = {DocumentKind.README: "README", DocumentKind.DATA_DICTIONARY: "Data dictionary"}
 MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONARY: "text/csv"}
@@ -61,7 +87,7 @@ MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONAR
 LIMITATIONS = (
     "This is a mock: it copies the inventory's file and field names and writes no prose of its "
     "own. It does not open the files, infers no definitions, units or missing value codes, and "
-    "reads neither an earlier version nor the reason given for a decision on it."
+    "does not read the reason given for a decision on an earlier version."
 )
 
 
@@ -136,11 +162,12 @@ class DocumentationEditor:
                     "The inventory lists no table with fields, so there is no data dictionary to "
                     "draft.",
                 )
-            text = _dictionary(inventory)
+            text, counts = _dictionary(inventory, asked.current_version)
             statement = (
-                f"Mock: a data dictionary of {fields} fields, with their names, types and formats "
-                "copied from the inventory. Each field's description, unit and missing value "
-                "codes are left for you."
+                f"Mock: a data dictionary of {fields} fields, each value marked with where it came "
+                f"from: {counts[Source.INFERRED]} inferred from the inventory, "
+                f"{counts[Source.SUPPLIED]} supplied by you and {counts[Source.UNKNOWN]} unknown, "
+                "left for you to fill in."
             )
 
         current = asked.current_version
@@ -230,15 +257,60 @@ def _table(header: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
     return "\n".join([line(header), line(tuple("---" for _ in header)), *map(line, rows)])
 
 
-def _dictionary(inventory: FileInventory) -> str:
+def _dictionary(
+    inventory: FileInventory, current: CurrentVersion | None
+) -> tuple[str, dict[Source, int]]:
+    """The data dictionary as CSV, one row per field, and how many values came from each source.
+
+    A value the researcher gave in the current version wins over the inventory's, so that their
+    edits survive regenerating. The rows are the inventory's fields: a field no longer in it is
+    dropped.
+    """
+    earlier = _earlier_rows(current)
+    counts = dict.fromkeys(Source, 0)
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\n")
     writer.writerow(DICTIONARY_COLUMNS)
     for f in inventory.inventory_files:
         for c in f.file_fields:
-            row = (f.file_path, c.name, c.field_type, c.field_format, c.field_description)
-            writer.writerow([*(v or "" for v in row), "", ""])
-    return out.getvalue()
+            given = {
+                "type": c.field_type,
+                "format": c.field_format,
+                "description": c.field_description,
+            }
+            before = earlier.get((f.file_path, c.name), {})
+            row = [f.file_path, c.name]
+            for column in VALUE_COLUMNS:
+                value, source = _cell(column, given.get(column) or "", before)
+                counts[source] += 1
+                row += [value, source.value]
+            writer.writerow(row)
+    return out.getvalue(), counts
+
+
+def _cell(column: str, given: str, before: Mapping[str, str]) -> tuple[str, Source]:
+    """One value and its source: the researcher's earlier value, else the inventory's.
+
+    An earlier value that differs from the inventory's is taken as the researcher's, whatever the
+    earlier source column says: a person correcting a type in a spreadsheet seldom changes its
+    source too. The earlier source columns are therefore not read.
+    """
+    earlier = (before.get(column) or "").strip()
+    if earlier and earlier != given:
+        return earlier, Source.SUPPLIED
+    if given:
+        return given, INVENTORY_SOURCES.get(column, Source.SUPPLIED)
+    return "", Source.UNKNOWN
+
+
+def _earlier_rows(current: CurrentVersion | None) -> dict[tuple[str, str], dict[str, str]]:
+    """The current version's rows by (file, field), if it is a CSV data dictionary."""
+    if current is None or current.media_type != "text/csv" or not current.document_text:
+        return {}
+    reader = csv.DictReader(io.StringIO(current.document_text))
+    if not reader.fieldnames or not set(KEY_COLUMNS) <= set(reader.fieldnames):
+        return {}
+    return {(row["file"], row["field"]): row for row in reader}
 
 
 def _abstain(reason: ReasonCode, statement: str) -> AgentResult:

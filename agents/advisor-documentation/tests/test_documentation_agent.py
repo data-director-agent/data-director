@@ -10,7 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from dd_agent_advisor_documentation.agent import DICTIONARY_COLUMNS, DocumentationEditor
+from dd_agent_advisor_documentation.agent import (
+    DICTIONARY_COLUMNS,
+    VALUE_COLUMNS,
+    DocumentationEditor,
+    Source,
+)
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
@@ -90,7 +95,66 @@ def test_drafts_a_data_dictionary_with_a_row_per_field(runs_dir: Path) -> None:
     ]
     assert [(r["file"], r["field"]) for r in rows] == expected
     assert tuple(rows[0]) == DICTIONARY_COLUMNS
-    assert all(r["unit"] == "" and r["missing_values"] == "" for r in rows)
+    for r in rows:
+        assert {r[f"{c}_source"] for c in VALUE_COLUMNS} <= set(Source)
+        assert r["type_source"] == (Source.INFERRED if r["type"] else Source.UNKNOWN)
+        for column in ("unit", "missing_values"):
+            assert (r[column], r[f"{column}_source"]) == ("", Source.UNKNOWN)
+    assert "inferred from the inventory" in env.outcome.statement
+
+
+def regenerate(runs_dir: Path, earlier: str) -> list[dict[str, str]]:
+    """The rows of a data dictionary regenerated from an earlier version with this CSV text."""
+    asked = sample("soil-survey.data-dictionary.draft.json").model_copy(
+        update={
+            "current_version": CurrentVersion(
+                version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=1),
+                document_title="Data dictionary",
+                media_type="text/csv",
+                document_text=earlier,
+                version_state=VersionState.PROPOSED,
+            )
+        }
+    )
+    env, _ = draft(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    return list(csv.DictReader(io.StringIO(env.payload_as(Document).document_text)))
+
+
+def first_rows(runs_dir: Path) -> list[dict[str, str]]:
+    env, _ = draft(runs_dir, sample("soil-survey.data-dictionary.draft.json"))
+    return list(csv.DictReader(io.StringIO(env.payload_as(Document).document_text)))
+
+
+def write_csv(rows: list[dict[str, str]], columns: tuple[str, ...]) -> str:
+    out = io.StringIO()
+    writer = csv.DictWriter(out, columns, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return out.getvalue()
+
+
+def test_regenerating_keeps_what_the_researcher_supplied(runs_dir: Path) -> None:
+    rows = first_rows(runs_dir)
+    assert len(rows) >= 2
+    rows[0] |= {"unit": "pH units", "description": "Soil acidity", "missing_values": "-99"}
+    rows[1] |= {"type": "string"}  # the researcher corrects an inferred type
+    again = regenerate(runs_dir, write_csv(rows, DICTIONARY_COLUMNS))
+    assert [(r["file"], r["field"]) for r in again] == [(r["file"], r["field"]) for r in rows]
+    for column in ("unit", "description", "missing_values"):
+        assert (again[0][column], again[0][f"{column}_source"]) == (rows[0][column], "supplied")
+    assert (again[1]["type"], again[1]["type_source"]) == ("string", "supplied")
+    assert again[2:] == rows[2:]
+    assert again[0]["type_source"] == rows[0]["type_source"]
+
+
+def test_a_hand_made_dictionary_is_all_supplied(runs_dir: Path) -> None:
+    rows = first_rows(runs_dir)
+    rows[0] |= {"unit": "cm"}
+    again = regenerate(runs_dir, write_csv(rows, ("file", "field", "type", "unit")))
+    assert (again[0]["unit"], again[0]["unit_source"]) == ("cm", "supplied")
+    # A value equal to the inventory's keeps the inventory's source.
+    assert again[0]["type_source"] == rows[0]["type_source"]
 
 
 def test_regenerating_names_the_version_it_replaces(runs_dir: Path) -> None:
