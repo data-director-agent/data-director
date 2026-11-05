@@ -120,7 +120,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   a run is one request that answers when it has ended, so stages are read back, not watched, and
   a run cannot be cancelled. TODO(#68, #69).
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
-  [Evidence and grounding](grounding.md) define them.
+  [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
+  shown as a document: rendered when its media type is `text/markdown`, tables included, and
+  otherwise with its line breaks kept, with actions to copy the text and download it as a file.
+  The project's documents page shows the stored text unrendered, since that is what a decision
+  names.
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow.

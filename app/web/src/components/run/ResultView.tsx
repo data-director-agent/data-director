@@ -7,7 +7,9 @@
  * record's own `recorded_in` field when there is one; that field is not shown as a column. Each
  * record's `grounded_on` becomes numbered links to the evidence it rests on, named from the
  * evidence; a citation with no matching evidence item is flagged. The top-level `grounded_on`
- * is the evidence list itself, so it is not repeated. The parts are in `result/`.
+ * is the evidence list itself, so it is not repeated. A drafted document's text (the contract's
+ * `Document`: `document_text` with its `media_type`) is shown as a document, rendered when it is
+ * Markdown, rather than as one value among the facts. The parts are in `result/`.
  *
  * TODO(#70): the full renderer, with per-class renderers in a registry.
  */
@@ -17,7 +19,9 @@ import "./ResultView.css";
 import type { Derivation } from "../../manifest/normalise";
 import { type JsonSchema, properties, shapeOf } from "../../run/schema";
 import type { EvidenceItem } from "../../run/types";
+import { documentName } from "../project/DocumentReview";
 import { isEmpty, makeContext, recorders } from "./result/context";
+import { DocumentText } from "./result/DocumentText";
 import { Facts } from "./result/Facts";
 import { Section } from "./result/Section";
 
@@ -44,6 +48,8 @@ export function ResultView({
   }
   const ctx = makeContext(schema, derivations, evidence, idPrefix);
   const hidden = recorders(ctx, "");
+  const document = documentOf(payload);
+  if (document) hidden.add(TEXT);
   const sections = properties(schema).filter(
     ([name]) => name !== "grounded_on" && !hidden.has(name) && !isEmpty(payload[name]),
   );
@@ -61,9 +67,37 @@ export function ResultView({
           ctx={ctx}
         />
       )}
+      {document && (
+        <DocumentText
+          text={document.text}
+          mediaType={document.mediaType}
+          title={document.title}
+          headingId={`${idPrefix}-document-heading`}
+        />
+      )}
       {sections.map(([name, s]) => (
         <Section key={name} name={name} schema={s} value={payload[name]} ctx={ctx} />
       ))}
     </div>
   );
+}
+
+const TEXT = "document_text";
+/** The document a payload carries, when it is the contract's `Document`. */
+function documentOf(
+  payload: Record<string, unknown>,
+): { text: string; mediaType: string; title: string } | null {
+  const text = payload[TEXT];
+  const mediaType = payload.media_type;
+  if (typeof text !== "string" || typeof mediaType !== "string") return null;
+  const title = payload.document_title;
+  const kind = payload.document_kind;
+  return {
+    text,
+    mediaType,
+    title: documentName({
+      document_title: typeof title === "string" && title ? title : null,
+      document_kind: typeof kind === "string" ? kind : "other",
+    }),
+  };
 }
