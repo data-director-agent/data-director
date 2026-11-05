@@ -322,7 +322,9 @@ class RepositoryAgent:
             statement += (
                 " No discipline-specific repository matched the themes ("
                 + "; ".join(themes)
-                + "), so only generalist and institutional repositories are offered."
+                + "), so only generalist and institutional repositories are offered. The broad "
+                "field of study, such as environmental science, may find repositories of the "
+                "discipline that a narrow topic does not."
             )
         if not needs.mandated:
             statement += (

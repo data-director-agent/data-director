@@ -99,7 +99,10 @@ classes:
 slots:
 
   themes:
-    description: Discipline or subject, as free text.
+    description: >-
+      The dataset's discipline, as the broad field of study (e.g. environmental science), and any
+      narrower subjects as further themes. A narrow topic alone (e.g. moorland) may match no
+      repository of the discipline.
     slot_uri: dcat:theme
     multivalued: true
   data_kinds:
@@ -111,10 +114,17 @@ slots:
       decided, and no access need is checked.
     range: AccessNeed
   mandated:
+    description: >-
+      Repositories that a funder, journal or institutional policy requires, as Phase 2 found
+      them. Naming an institution does not make its repository mandated.
     range: RepositoryRef
     multivalued: true
     inlined_as_list: true
   affiliation:
+    description: >-
+      The researcher's institution. Its repositories are offered as a fallback, after those of
+      the dataset's discipline and before generalist ones, and none is removed, so give the
+      themes as if it were not set.
     range: Affiliation
     inlined: true
 

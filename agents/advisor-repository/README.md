@@ -62,13 +62,21 @@ repository or makes a judgement:
   recommend a repository on their own, since a kind of data such as "images" is found in
   repositories of every discipline. A generalist scores below a repository that matches every
   theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
-  found, the statement says that only generalist and institutional repositories are offered.
-  Ranking also uses whether the researcher's institution operates the repository, and whether it
-  offers the access the data needs.
+  found, the statement says that only generalist and institutional repositories are offered and
+  suggests the broad field of study, since a narrow topic such as "moorland" may match none.
+  Ranking also uses whether the repository offers the access the data needs.
+- **The researcher's institution** is a fallback, in case no more specific destination (a
+  repository of the discipline, or one a funder, journal or project requires) suits the data
+  (#441). Affiliation adds no score. The shortlist is ordered by kind of fit (`order`): the
+  dataset's discipline, then the institution's own repositories, then generalists. An
+  institution's repository that matches the discipline is ranked as any other; one that does not
+  is offered as the fallback, and its `ranked_by` says so.
 - **Left out.** A repository closed to deposits is never recommended, nor is one that takes
   deposits only from its own institution's members (re3data's "institutional membership"
   restriction, or a repository typed only `institutional`) unless the researcher's institution
-  operates it. The researcher's own institutional repository is offered beyond the cap.
+  operates it. The researcher's own institutional repository is offered beyond the cap, unless
+  it lacks the access the data needs, and takes no other repository's place, so naming an
+  institution adds to the shortlist and removes nothing.
 - **Order at an equal score.** A commercial operator is listed after the others, and then a
   repository that lists a deposit fee; neither is dropped. Certification carries no weight,
   because Figure 3 says paid certification must not outweigh free evaluation.
