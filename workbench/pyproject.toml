@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-workbench"
-version = "0.2.0-alpha.1"
+version = "0.2.0-alpha.2"
 description = "Data Director Workbench: a development way in to the harness, with the CLI, the viewer and evaluation"
 readme = "README.md"
 requires-python = ">=3.14"
