@@ -431,7 +431,7 @@ test("the workspace at 1280px: phases, conversation and the project side by side
   await serveConversation(page);
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
   await page.goto("/");
-  const phases = page.getByRole("navigation", { name: "Blueprint phases" });
+  const phases = page.getByRole("navigation", { name: "Data management phases" });
   await expect(phases.locator("summary")).toHaveCount(6);
   const documents = page.getByRole("region", { name: "Project" });
   await expect(documents).toBeVisible();
@@ -464,7 +464,7 @@ test("the workspace reflows at 320px with every phase open", async ({ page }) =>
   await page.setViewportSize({ width: 320, height: 640 });
   await serveConversation(page);
   await page.goto("/");
-  const summaries = page.getByRole("navigation", { name: "Blueprint phases" }).locator("summary");
+  const summaries = page.getByRole("navigation", { name: "Data management phases" }).locator("summary");
   await expect(summaries).toHaveCount(6);
   for (const summary of await summaries.all()) await summary.click();
   expect(await overflow(page), "horizontal overflow with the phases open").toBeLessThanOrEqual(0);
