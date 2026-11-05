@@ -8,6 +8,8 @@
 
 import "./Session.css";
 
+import { LogIn } from "lucide-react";
+
 import { PageHeader } from "../frame/PageHeader";
 import { providerName, signInHref } from "../../session/api";
 
@@ -47,6 +49,7 @@ export function SignInPage({
         </p>
         <p>
           <a className="button button-primary" href={signInHref(returnTo)}>
+            <LogIn className="button-icon" size="1.125em" aria-hidden="true" />
             Sign in with {provider}
           </a>
         </p>

@@ -3,6 +3,7 @@
  * scheme and remembers the choice in this browser.
  */
 
+import { Moon } from "lucide-react";
 import { useState } from "react";
 
 import { applyTheme, storedTheme } from "../../theme";
@@ -15,6 +16,7 @@ export function ThemeSwitch() {
       className="theme-switch"
       variant="quiet"
       size="small"
+      icon={Moon}
       isSelected={dark}
       onChange={(selected) => {
         setDark(selected);

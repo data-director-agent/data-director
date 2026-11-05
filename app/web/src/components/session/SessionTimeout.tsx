@@ -10,6 +10,7 @@
 
 import "./Session.css";
 
+import { TimerReset } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { SIGNED_OUT, type Session, useSessionApi } from "../../session/api";
@@ -72,7 +73,7 @@ export function SessionTimeout({
       {warning && at && (
         <div className="callout status-warn session-timeout">
           <p>You will be signed out at {at}, because nothing has been done here for a while.</p>
-          <Button size="small" onPress={() => api.stay().then(onChange, () => undefined)}>
+          <Button size="small" icon={TimerReset} onPress={() => api.stay().then(onChange, () => undefined)}>
             Stay signed in
           </Button>
         </div>

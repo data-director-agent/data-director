@@ -1,6 +1,6 @@
 /*
  * The banner: brand, main navigation and the dark mode switch, the same on every page so that
- * nothing in it moves. Its rows depend on the viewport's width only, never on its content.
+ * nothing in it moves. Each link carries a Lucide icon before its label (`.app-icon`). Its rows depend on the viewport's width only, never on its content.
  */
 
 @layer components {
@@ -75,7 +75,14 @@
   }
 
   .app-tool-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
     white-space: nowrap;
+  }
+
+  .app-icon {
+    flex: none;
   }
 
   .app-nav {
@@ -100,6 +107,7 @@
   .app-nav-link {
     display: flex;
     align-items: center;
+    gap: var(--space-2);
     padding: var(--space-3) var(--space-4);
     color: var(--color-text);
     text-decoration: none;

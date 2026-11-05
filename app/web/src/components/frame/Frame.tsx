@@ -8,16 +8,22 @@
 
 import "./Frame.css";
 
+import { BookOpen, Bot, Bug, MessagesSquare, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
 import { FooterBuild } from "./FooterBuild";
 import { ThemeSwitch } from "./ThemeSwitch";
 
-const PAGES = [
-  { to: "/", label: "Conversation" },
-  { to: "/agents", label: "Agents" },
-] as const;
+const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
+  { to: "/", label: "Conversation", icon: MessagesSquare },
+  { to: "/agents", label: "Agents", icon: Bot },
+];
+
+/** A banner icon: decoration beside a label that says the same, so hidden from screen readers. */
+function BannerIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return <Icon className="app-icon" size="1.125em" aria-hidden="true" />;
+}
 
 const USER_GUIDE = "https://data-director-agent.github.io/data-director/user-guide/";
 
@@ -50,13 +56,14 @@ export function Frame({
           </p>
           <nav aria-label="Main" className="app-nav">
             <ul className="app-nav-list">
-              {PAGES.map(({ to, label }) => (
+              {PAGES.map(({ to, label, icon }) => (
                 <li key={to}>
                   <Link
                     to={to}
                     className="app-nav-link"
                     {...(to === current ? { "aria-current": "page" as const } : {})}
                   >
+                    <BannerIcon icon={icon} />
                     {label}
                   </Link>
                 </li>
@@ -66,6 +73,7 @@ export function Frame({
           <div className="app-tools">
             {account}
             <a className="app-tool-link" href={USER_GUIDE} target="_blank" rel="noreferrer">
+              <BannerIcon icon={BookOpen} />
               User guide
             </a>
             <Link
@@ -73,6 +81,7 @@ export function Frame({
               className="app-tool-link"
               {...(current === "/feedback" ? { "aria-current": "page" as const } : {})}
             >
+              <BannerIcon icon={Bug} />
               Report a problem
             </Link>
             <ThemeSwitch />

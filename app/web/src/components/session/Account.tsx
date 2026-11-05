@@ -6,7 +6,7 @@
 
 import "./Session.css";
 
-import { LogOut } from "lucide-react";
+import { CircleUserRound, LogOut } from "lucide-react";
 import { useState } from "react";
 
 import { navigate } from "../../route";
@@ -36,7 +36,8 @@ export function Account({ session }: { session: Session }) {
 
   return (
     <span className="session-account">
-      <span>
+      <span className="session-name">
+        <CircleUserRound className="app-icon" size="1.125em" aria-hidden="true" />
         <span className="visually-hidden">Signed in as </span>
         {session.principal.name}
       </span>
