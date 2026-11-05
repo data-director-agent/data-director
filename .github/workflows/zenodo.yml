@@ -1,7 +1,7 @@
 name: Zenodo
 
 # Archives a snapshot of the repository in Zenodo as a new version of the repository's one Zenodo
-# record, which gives it a DOI (scripts/zenodo.py, RELEASING.md). release-please.yml calls this
+# record, which gives it a DOI (scripts/zenodo.py, RELEASING.md). release.yaml calls this
 # when merging the release PR tags a release; run it from the Actions tab to archive a commit again
 # after a failure. The `zenodo` environment holds the ZENODO_TOKEN secret and the ZENODO_RECORD_ID
 # variable; until the variable is set, this does nothing.
