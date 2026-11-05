@@ -21,5 +21,5 @@ describes, and `docs/hooks.py` publishes it from there without a copy:
 - A Markdown file that git tracks and that is neither in the nav nor listed in `UNPUBLISHED` in
   `docs/hooks.py` fails the build, as does a link to a file that does not exist.
 
-The `Docs` workflow builds the site on every pull request and publishes it to GitHub Pages when
-`main` changes. In the repository settings, set Pages to the "GitHub Actions" source once.
+A pull request that touches the site builds it in the `Accessibility` workflow, which then checks
+it against WCAG 2.2 AA. The `Docs` workflow publishes it to GitHub Pages when `main` changes. In the repository settings, set Pages to the "GitHub Actions" source once.

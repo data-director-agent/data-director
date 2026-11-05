@@ -2,6 +2,10 @@ name: CodeQL
 
 # Static analysis for security defects in the Python workspace, the browser code (app/web and the
 # workbench viewer) and these workflows. Results appear under Security → Code scanning.
+#
+# A pull request analyses only the languages whose source it changes (scripts/ci_changes.sh), so
+# one that changes only prose analyses nothing. Pushes to main and the weekly run analyse every
+# language, so the alerts for main stay complete.
 on:
   pull_request:
   push:
@@ -18,8 +22,34 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      languages: ${{ steps.paths.outputs.codeql }}
+    steps:
+      # The script, and in a pull request the merge commit's first parent, so that HEAD^1..HEAD
+      # is what the pull request changes.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - id: paths
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+          else
+            bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
+          fi
+
   analyse:
     name: Analyse (${{ matrix.language }})
+    needs: changes
+    # An empty matrix is an error, so a pull request that changes no source skips the job.
+    if: needs.changes.outputs.languages != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -28,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [python, javascript-typescript, actions]
+        language: ${{ fromJSON(needs.changes.outputs.languages) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
