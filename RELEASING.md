@@ -6,7 +6,7 @@ commit and pull request conventions that drive it are in [CONTRIBUTING.md](CONTR
 ## How it works
 
 [release-please](https://github.com/googleapis/release-please) does the work; nobody edits a
-version or a changelog by hand. `.github/workflows/release-please.yml` runs on every push to
+version or a changelog by hand. `.github/workflows/release.yaml` runs on every push to
 `main`. Its configuration is `release-please-config.json`, and `.release-please-manifest.json`
 records the last released version of each package.
 
@@ -22,6 +22,33 @@ records the last released version of each package.
 - Nothing is tagged or published until the release pull request is merged. Merging it tags each
   package `<component>-v<version>` (for example `harness-v0.2.0-alpha`) and creates a GitHub
   release, marked as a pre-release.
+- If the merge released `sdk` or `harness`, the workflow then builds that package and publishes
+  it to [TestPyPI](https://test.pypi.org/) (see below). No other package is published.
+
+## Publishing to TestPyPI
+
+An agent in another repository needs the SDK, and the harness's test kit, from a package index
+(ADR-0031). Until the release path is proven, they go to TestPyPI only, and install with:
+
+```sh
+pip install --pre --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ data-director-sdk
+```
+
+The `publish-testpypi` job uses trusted publishing: TestPyPI trusts
+`.github/workflows/release.yaml` running in the `testpypi` environment, and no token is
+stored. A version already on TestPyPI is skipped, so running the workflow again is safe.
+
+Set-up, once, by a maintainer:
+
+1. On TestPyPI, add a pending trusted publisher for each of `data-director-sdk` and
+   `data-director-harness`: owner `data-director-agent`, repository `data-director`, workflow
+   `release.yaml`, environment `testpypi`.
+2. In this repository's settings, create the environment `testpypi`, limited to the `main`
+   branch.
+
+Publishing to PyPI itself is a separate decision, after the contract reaches 1.0 or sooner
+(TODO(#260, #277)).
 
 ## Version numbers
 
@@ -70,7 +97,7 @@ software has a DOI. The repository has one Zenodo record. Its concept DOI always
 latest version and is the one to cite in general; each release publishes a new version with a DOI
 of its own.
 
-- `release-please.yml` calls `.github/workflows/zenodo.yml` when merging the release pull request
+- `release.yaml` calls `.github/workflows/zenodo.yml` when merging the release pull request
   creates at least one release. One merge makes one version, however many packages it released.
 - `zenodo.yml` zips the merge commit with `git archive` and runs `scripts/zenodo.py release`, which
   makes a new version, replaces its file with the zip and publishes it.
@@ -125,5 +152,5 @@ Until `ZENODO_RECORD_ID` is set, `zenodo.yml` does nothing.
 ## Keeping this page current
 
 Change this page in the same pull request as any change to `release-please-config.json`,
-`.release-please-manifest.json`, `.github/workflows/release-please.yml`,
+`.release-please-manifest.json`, `.github/workflows/release.yaml`,
 `.github/workflows/zenodo.yml` or `scripts/zenodo.py`.

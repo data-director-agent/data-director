@@ -278,6 +278,82 @@ def test_the_researchers_institutional_repository_is_offered_beyond_the_cap(
     assert home.commercial == Answer.NO  # the supplier does not operate it
 
 
+AFFILIATED = NEEDS.model_copy(
+    update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
+)
+FALLBACK = (
+    "Operated by University of Testing, the researcher's institution, and offered as a fallback: "
+    "a repository of the dataset's discipline, or one a funder, journal or project requires, may "
+    "suit the data better."
+)
+
+
+@pytest.mark.requirement("R1")
+def test_the_institutional_repository_never_displaces_another_candidate(runs_dir: Path) -> None:
+    # #441: the cap still offers as many other repositories as it would without the affiliation.
+    many = [
+        SURVEYS.model_copy(update={"re3data_id": f"r3d10000010{n}", "name": f"Archive {n}"})
+        for n in range(6)
+    ]
+    on_theme = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    advisor = agent(repositories=FakeRepositories([*many, on_theme]))
+    without = named(*_with_options(invoke(runs_dir / "without", NEEDS, advisor)))
+    names = named(*_with_options(invoke(runs_dir / "named", AFFILIATED, advisor)))
+    assert names == [*without, "Testing University Research Data"]
+
+
+@pytest.mark.requirement("R1")
+def test_an_institutional_repository_that_matches_the_discipline_gets_no_bonus(
+    runs_dir: Path,
+) -> None:
+    # #441: belonging to the institution does not make its repository a better discipline fit.
+    on_theme = INSTITUTIONAL.model_copy(update={"keywords": ["social survey"]})
+    other = SURVEYS.model_copy(
+        update={"name": "Zeta Survey Archive", "keywords": ["social survey"]}
+    )
+    env = invoke(runs_dir, AFFILIATED, agent(repositories=FakeRepositories([other, on_theme])))
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Testing University Research Data", "Zeta Survey Archive"]
+    home, rival = options.candidates
+    assert home.score == rival.score  # in order of name, not of affiliation
+    assert "Operated by University of Testing, the researcher's institution." in home.ranked_by
+    assert FALLBACK not in home.ranked_by
+
+
+@pytest.mark.requirement("R1")
+def test_the_institutional_fallback_comes_after_the_discipline_and_before_generalists(
+    runs_dir: Path,
+) -> None:
+    general = SURVEYS.model_copy(
+        update={
+            "re3data_id": rank.generalists()[0],
+            "name": "A Generalist",
+            "keywords": [],
+            "fairsharing_id": None,
+        }
+    )
+    advisor = agent(repositories=FakeRepositories([general, INSTITUTIONAL, SURVEYS]))
+    env = invoke(runs_dir, AFFILIATED, advisor)
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == [
+        SURVEYS.name,
+        "Testing University Research Data",
+        "A Generalist",
+    ]
+    assert options.candidates[1].ranked_by == [FALLBACK]
+
+
+@pytest.mark.requirement("R1")
+def test_an_institutional_fallback_without_the_access_needed_is_left_out(runs_dir: Path) -> None:
+    open_only = INSTITUTIONAL.model_copy(update={"data_access_types": ["open"]})
+    env = invoke(runs_dir, AFFILIATED, agent(repositories=FakeRepositories([SURVEYS, open_only])))
+    assert named(env, env.payload_as(RepositoryOptions)) == [SURVEYS.name]
+
+
+def _with_options(env: Envelope) -> tuple[Envelope, RepositoryOptions]:
+    return env, env.payload_as(RepositoryOptions)
+
+
 @pytest.mark.requirement("R1")
 def test_a_members_only_repository_is_left_out_unless_the_researcher_is_a_member(
     runs_dir: Path,

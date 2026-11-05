@@ -22,6 +22,11 @@ THEME = "theme"
 DATA_KIND = "data kind"
 AFFILIATION = "affiliation"
 
+# Kinds of fit, ordered by `ranking.yaml`'s `order`.
+DISCIPLINE = "discipline"
+INSTITUTIONAL = "institutional"
+GENERALIST = "generalist"
+
 
 @cache
 def config() -> dict[str, Any]:
@@ -71,6 +76,8 @@ class Ranked:
     score: float
     # Why it is where it is, one sentence per signal; shown on the candidate as `ranked_by`.
     reasons: tuple[str, ...]
+    # The kind of fit, one of `ranking.yaml`'s `order`, which ranks before the score.
+    fit: str = DISCIPLINE
 
 
 def _quoted(terms: set[str]) -> str:
@@ -80,12 +87,16 @@ def _quoted(terms: set[str]) -> str:
 def rank(
     matches: Matches, records: dict[str, Re3dataRecord], needs: RepositoryNeeds
 ) -> list[Ranked]:
-    """Every retrieved repository that reaches the floor, best first, capped; those operated by
-    the researcher's institution are kept beyond the cap.
+    """Every retrieved repository that reaches the floor, capped, and the researcher's
+    institution's repositories as a fallback beyond the cap: ordered by kind of fit (by default
+    the dataset's discipline, then the institution's, then generalist), and within a kind best
+    score first.
 
     A repository's discipline is judged from the themes alone. The kinds of data add a little,
     never enough on their own, since a kind of data such as "images" is found in repositories of
-    every discipline. Generalists rank below any repository that matches a theme fully.
+    every discipline. Affiliation adds no score: an institution's repository that matches the
+    discipline is ranked as any other, and one that does not is offered as the fallback, in case
+    no more specific destination suits the data (#441).
     """
     cfg = config()
     weights = cfg["weights"]
@@ -114,24 +125,41 @@ def rank(
             score += weights["data_kind"] * len(matched) / len(kinds)
             noun = "kind" if len(matched) == 1 else "kinds"
             reasons.append(f"Matches the {noun} of data {_quoted(matched)}.")
-        if home is not None:
-            score += weights["affiliation"]
-            reasons.append(f"Operated by {home.name}, the researcher's institution.")
-        if assess.access_met(record, needs.access) is False:
+        access_unmet = assess.access_met(record, needs.access) is False
+        if access_unmet:
             score += weights["access_unmet"]
-            reasons.append(f"Does not list {needs.access} access, which the data needs.")
+        score = round(score, 4)
         if score >= cfg["confidence_floor"]:
-            ranked.append(Ranked(record, round(score, 4), tuple(reasons)))
-    ranked.sort(
-        key=lambda r: (
-            -r.score,
-            assess.commercial(r.record) == Answer.YES,
-            assess.fee_required(r.record) == Answer.YES,
-            r.record.name.casefold(),
-        )
-    )
-    # The cap does not apply to the researcher's own institution's repositories.
+            fit = GENERALIST if rid in general else DISCIPLINE
+            if home is not None:
+                reasons.append(f"Operated by {home.name}, the researcher's institution.")
+        elif home is not None and not access_unmet:
+            fit = INSTITUTIONAL
+            reasons.append(
+                f"Operated by {home.name}, the researcher's institution, and offered as a "
+                "fallback: a repository of the dataset's discipline, or one a funder, journal or "
+                "project requires, may suit the data better."
+            )
+        else:
+            continue
+        if access_unmet:
+            reasons.append(f"Does not list {needs.access} access, which the data needs.")
+        ranked.append(Ranked(record, score, tuple(reasons), fit))
+    # The cap applies only to repositories the researcher's institution does not operate, so
+    # naming an institution adds its repositories and never displaces another (#441).
     cap = int(cfg["max_candidates"])
-    return ranked[:cap] + [
-        r for r in ranked[cap:] if assess.affiliated(r.record, needs.affiliation) is not None
-    ]
+    ours = [r for r in ranked if assess.affiliated(r.record, needs.affiliation) is not None]
+    others = sorted((r for r in ranked if r not in ours), key=_order)[:cap]
+    return sorted(others + ours, key=_order)
+
+
+def _order(r: Ranked) -> tuple[int, float, bool, bool, str]:
+    """By kind of fit, then best score; at an equal score, commercial operators and then
+    deposit fees last."""
+    return (
+        [str(f) for f in config()["order"]].index(r.fit),
+        -r.score,
+        assess.commercial(r.record) == Answer.YES,
+        assess.fee_required(r.record) == Answer.YES,
+        r.record.name.casefold(),
+    )

@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from dd_agent_advisor_repository import rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     Affiliation,
@@ -102,3 +103,44 @@ def test_a_members_only_repository_is_offered_to_its_own_members(runs_dir: Path)
     assert ORDA in ids and LEEDS not in ids
     orda = options.candidates[ids.index(ORDA)]
     assert any("the researcher's institution" in r for r in orda.ranked_by)
+
+
+SHEFFIELD = Affiliation(name="The University of Sheffield", ror="https://ror.org/05krs5044")
+
+
+@pytest.mark.requirement("R1")
+@pytest.mark.parametrize(
+    "case", ["moorland-sensors.json", "perovskite-xrd-sem.json", "cylinder-flow.json"]
+)
+def test_naming_an_institution_adds_its_repository_and_removes_none(
+    tmp_path: Path, case: str
+) -> None:
+    """#441: a researcher who names their institution is offered every repository they would be
+    offered without it, and the institution's own besides."""
+    without, _, _ = shortlist(tmp_path / "without", load(case))
+    named, _, _ = shortlist(
+        tmp_path / "named", load(case).model_copy(update={"affiliation": SHEFFIELD})
+    )
+    assert set(without) <= set(named), (without, named)
+    assert ORDA in named
+    # The institution's repository is the fallback: after every repository of the discipline,
+    # before every generalist.
+    generalist = set(rank.generalists())
+    at = named.index(ORDA)
+    assert not set(named[at + 1 :]) - generalist, named
+    assert not set(named[:at]) & generalist, named
+
+
+@pytest.mark.requirement("R1")
+def test_a_narrow_topic_with_an_institution_is_not_the_institutional_repository_alone(
+    runs_dir: Path,
+) -> None:
+    """The input of the workshop run in #441: a narrow topic matches no repository of the
+    discipline, which once left ORDA as the only candidate."""
+    needs = RepositoryNeeds(themes=["moorland", "moorland sensor data"], affiliation=SHEFFIELD)
+    ids, options, statement = shortlist(runs_dir, needs)
+    assert ORDA in ids and ZENODO in ids, ids
+    assert "No discipline-specific repository matched the themes" in statement
+    assert "broad field of study" in statement
+    orda = options.candidates[ids.index(ORDA)]
+    assert any("offered as a fallback" in r for r in orda.ranked_by)
