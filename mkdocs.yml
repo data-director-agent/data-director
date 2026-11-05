@@ -125,4 +125,5 @@ nav:
       - Harness: /harness/CHANGELOG.md
       - Workbench: /workbench/CHANGELOG.md
       - App: /app/CHANGELOG.md
+      - Inventory: /inventory/CHANGELOG.md
       - /agents/*/CHANGELOG.md
