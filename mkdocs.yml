@@ -128,4 +128,5 @@ nav:
       - Workbench: /workbench/CHANGELOG.md
       - App: /app/CHANGELOG.md
       - Inventory: /inventory/CHANGELOG.md
-      - /agents/*/CHANGELOG.md
+      - Agents:
+          - /agents/*/CHANGELOG.md
