@@ -901,7 +901,10 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     ("body", "detail"),
     [
         ({"history": []}, "history"),
-        ({"input": {}}, "only `agent_id`, `message_text`, `follows`, `inventory` and `choice_answer`"),
+        (
+            {"input": {}},
+            "only `agent_id`, `message_text`, `follows`, `inventory` and `choice_answer`",
+        ),
         ({"message_text": 3}, "as strings"),
         ({"follows": 3}, "must give `follows`"),
         ({"message_text": "  "}, "empty"),

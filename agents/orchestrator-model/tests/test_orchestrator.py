@@ -323,7 +323,7 @@ def test_the_model_is_told_of_the_projects_inventory_only_when_it_holds_one() ->
     assert "skipped 1 unreadable file" in note
 
 
-CHOICES = {
+CHOICES: dict[str, Any] = {
     "question_prompt": "Which repository will you deposit in?",
     "question_options": [
         {"option_value": "zenodo", "option_label": "Zenodo"},
