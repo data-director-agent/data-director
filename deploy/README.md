@@ -24,13 +24,14 @@ it that way: a request that reaches an agent directly carries no sign-in.
 
 | File | What it does |
 |---|---|
+| `secret.sh` | As root, gives an agent a secret such as its model key (`set`), takes it away (`remove`) or lists them (`list`); see "Secrets" below. |
+| `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
 | `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. |
 | `deploy.sh` | One pass of the deployment (fetch, check CI, build, switch, check health, roll back). |
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): every agent the app lists, and `@orchestrator-model` once it has a key. |
-| `credentials/<agent>.conf` | A drop-in that loads the agent's model key as a systemd credential. `install.sh` installs it only while the key file exists. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
@@ -57,7 +58,7 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/app.env` | The app's settings (`config/examples/app.env`); `DD_OIDC_*` and `DD_APP_PUBLIC_URL` are required. |
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
-| `/etc/data-director/credentials/` | Model keys and the ORCID client's secret, readable by root alone. Never put a key or secret in an `.env` file. |
+| `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/var/lib/data-director/.sign-in` | Marks that the run store has started afresh for sign-in (see the upgrade below). |
 
@@ -251,21 +252,34 @@ Environment=DD_FEEDBACK_GITHUB_TOKEN_FILE=feedback-github-token
 (`owner/name`; default `data-director-agent/data-director`). The version and commit that reports
 carry come from the app's package version and `releases/<sha>/REVISION`.
 
-## A model key
+## Secrets
 
 An agent that calls a hosted model holds the key itself. The app never does, and the key never
-appears in a run, a trace or an export ([Policy and identity](../docs/specs/policy-and-identity.md)). Two agents can call a model: the standards
-advisor's optional explainer and the model-backed orchestrator, which is not in
+appears in a run, a trace or an export ([Policy and identity](../docs/specs/policy-and-identity.md)). The orchestrator and three
+advisors' optional explainers can call a model; the model-backed orchestrator is not in
 `data-director.target` because it cannot start without a key. The steps to supply a key, turn
-either on, rotate it and read a start-up error are in the operations guide,
-[AI models](../docs/guide/operations/ai-models.md). Each key is loaded as a systemd credential from
-`/etc/data-director/credentials/<name>/`, by the drop-in `credentials/<name>.conf`.
+an agent on, rotate a key and read a start-up error are in the operations guide,
+[AI models](../docs/guide/operations/ai-models.md).
+
+```bash
+sudo deploy/secret.sh set orchestrator-model anthropic-api-key    # prompts; the value is not shown
+sudo deploy/secret.sh set advisor-policy fairsharing-password     # any secret the agent reads as <NAME>_FILE
+sudo deploy/secret.sh list
+```
+
+A secret is a root-only file, `/etc/data-director/credentials/<agent>/<secret>`. Its name maps to
+the variable the agent reads: `anthropic-api-key` to `ANTHROPIC_API_KEY_FILE`,
+`fairsharing-password` to `FAIRSHARING_PASSWORD_FILE`. `credentials.sh` writes one drop-in
+per agent, `data-director-agent@<agent>.service.d/credentials.conf`, with a `LoadCredential=` and
+an `Environment=` line for each file there. systemd copies the file into that unit's own
+credentials directory, so no other agent can read it although all run as one user.
 
 systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
-to set up credentials"). So `install.sh` installs an agent's drop-in only while its key is a
-non-empty regular file, and removes it otherwise, warning if something else (a directory, say) is
-at that path. The standards advisor therefore runs without a key, with its
-template explainer. After adding or removing a key, run `install.sh` again.
+to set up credentials"), so the drop-in names only the files present and goes with the last of
+them; an advisor with no key runs with its template explainer. Anything else in the directory (a
+directory, an empty file, a name that is not lower-case words joined by hyphens) is left out and
+reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is running;
+`install.sh` rewrites every agent's, so a secret put in place by hand takes effect when it runs.
 
 ## Changing the deployment
 

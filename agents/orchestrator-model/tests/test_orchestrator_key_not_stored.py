@@ -27,7 +27,13 @@ def vcr_config(vcr_config: dict[str, Any]) -> dict[str, Any]:
     def model_calls_only(request: Any) -> Any:
         return None if request.host.endswith(".test") else request
 
-    return {**vcr_config, "before_record_request": model_calls_only}
+    # The query is not matched: anthropic 2.3 stopped sending `?beta=true`, and the body is what
+    # the test is about.
+    return {
+        **vcr_config,
+        "before_record_request": model_calls_only,
+        "match_on": ["method", "scheme", "host", "port", "path"],
+    }
 
 
 @pytest.mark.vcr
