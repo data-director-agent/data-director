@@ -47,3 +47,8 @@ dev = ["data-director-sdk"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_inventory"]
+
+# inventory/browser is the TypeScript package for the browser (its README); it is not part of the
+# Python distribution.
+[tool.hatch.build.targets.sdist]
+exclude = ["browser"]
