@@ -58,7 +58,7 @@ The contract, transport, grounding and the app's own process boundary are specif
    fails the check, so the list only shrinks. Do not add an exception to let a new tie pass.
 
    The checks run together in the CI job "Architecture", which "CI passed" requires.
-   `workbench/tests/test_architecture_canary.py` plants a violation of each kind (direction,
+   `scripts/tests/test_architecture_canary.py` plants a violation of each kind (direction,
    undeclared import, read outside the member) in a copy of the repository and fails unless the
    check reports it, so a misconfigured check cannot pass silently.
    TODO(#497): add a canary for a cycle in `app/web` when its checks exist.

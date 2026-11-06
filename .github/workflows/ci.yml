@@ -140,7 +140,7 @@ jobs:
       - run: uv run python scripts/check_deploy.py
       # The canary: a planted violation of each kind must fail its check, so that a misconfigured
       # check cannot pass silently.
-      - run: uv run pytest workbench/tests/test_architecture_canary.py workbench/tests/test_check_boundaries.py
+      - run: uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
 
   # Sources that agents build outside git, such as the repository advisor's re3data registry
   # (dd-sources, sdk/src/dd_sdk/sources.py). This job alone downloads what they are built from,
