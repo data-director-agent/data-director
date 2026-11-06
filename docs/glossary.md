@@ -12,6 +12,7 @@ Terms used in the workbench, in alphabetical order.
 | Conformance report | `CONFORMANCE.md`, generated from the test results and the review record. For each requirement it gives a test verdict and, where the requirement needs one, a review verdict. See [`conformance.md`](conformance.md). |
 | Content hash | A short fingerprint of a record's content when it was read. If the content changes, the hash changes. See [`grounding.md`](../harness/docs/grounding.md#source-ids-and-content-hashes). |
 | Deposit package | What the loop ends with: a zip file that is an RO-Crate of the dataset, holding the approved documents, the file inventory, the validation report and the audit trail, but no data files. A person uploads it, with the files, to the chosen repository. See [Deposit](specs/deposit.md). |
+| Disclosure | What a project's approved documents owe to generative AI, read from the project's record: for each, whether a model drafted it, which model and when, whether a person changed it, and who approved it. It is given as a statement a researcher can cite and as a PROV-O graph. See [Disclosure](specs/disclosure.md). |
 | Envelope | The response to one request: the outcome, the payload if any, the evidence and the telemetry. See [`contract.md`](contract.md). |
 | Evidence | The list of source records an envelope rests on, each with a content hash. |
 | Grounding | Tying an agent's output to the sources it actually read during the run, so that it cannot present something it made up. See [`grounding.md`](../harness/docs/grounding.md). |

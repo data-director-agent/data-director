@@ -2,9 +2,11 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
+import disclosureFixture from "../../../fixtures/project-disclosure.json";
 import fixture from "../../../fixtures/project-documents.json";
 import {
   DecisionConflict,
+  type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
   ProjectApiContext,
@@ -15,6 +17,9 @@ import { ProjectPage } from "./ProjectPage";
 // What the server says (app/tests/test_document_decisions.py): a README proposed, and a data
 // dictionary already approved.
 const PROJECT = fixture as ProjectDocuments;
+// The disclosure the server gives (app/tests/test_document_decisions.py): a README a model drafted
+// and a person approved as it stood, and a metadata record awaiting a decision.
+const DISCLOSURE = disclosureFixture as Disclosure;
 
 function at<T>(items: T[], index: number): T {
   const item = items[index];
@@ -39,6 +44,7 @@ function decided(state: "approved" | "rejected", reason: string | null = null): 
 function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
   return {
     documents: () => Promise.resolve(PROJECT),
+    disclosure: () => Promise.resolve(DISCLOSURE),
     decide: () => Promise.resolve(decided("approved")),
     ...overrides,
   };

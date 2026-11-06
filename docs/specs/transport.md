@@ -36,7 +36,9 @@ whom an invocation acts for, and how that is established, is in
 5. A span crosses the wire as the JSON string the OpenTelemetry SDK wrote, not as a structured
    value, because A2A's protobuf `Struct` turns every integer into a floating-point number. For
    the same reason the harness answers a delegated request with the stored envelope as text, so
-   its hash survives the wire (`dd_sdk/wire.py`).
+   its hash survives the wire, and an agent returns the prompts its model calls name as JSON
+   strings keyed by digest, so each still hashes to its digest (`dd_sdk/wire.py`,
+   [Disclosure](disclosure.md)).
 6. The agent's spans join the conductor's trace under its `invoke_agent` span: the harness sends
    the W3C `traceparent` of that span, and the agent's server parents its tracer to it. Imported
    spans are kept under the conductor's trace identifier whatever trace they name, so a span
