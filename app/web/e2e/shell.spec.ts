@@ -280,7 +280,15 @@ test("an attached inventory shows as a chip, not JSON, at 320px with no axe viol
     inventory_tool: "dd-inventory",
     inventory_tool_version: "0.1.0",
     inventory_made_at: "2026-11-01T09:00:00Z",
-    inventory_files: Array.from({ length: 42 }, (_, i) => ({ file_path: `data/file-${i}.csv` })),
+    inventory_files: Array.from({ length: 42 }, (_, i) => ({
+      file_path: `data/file-${i}.csv`,
+      file_size: 1200,
+      file_sha256: "0".repeat(64),
+      file_media_type: "text/csv",
+      file_pronom_ids: ["x-fmt/18"],
+      file_identified_by: "extension",
+      file_fields: [{ name: "site", field_type: "string" }],
+    })),
   };
   await page.locator('input[type="file"]').setInputFiles({
     name: "a-long-dataset-inventory-file-name.json",
@@ -291,6 +299,20 @@ test("an attached inventory shows as a chip, not JSON, at 320px with no axe viol
   await expect(page.getByText("data/file-0.csv")).toHaveCount(0);
   expect(await overflow(page), "horizontal overflow with an inventory attached").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
+
+  // Opened in readable form, it fits the width and passes axe; Escape returns to the button.
+  const view = page.getByRole("button", { name: "View inventory" });
+  await view.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "What the inventory holds" });
+  await expect(dialog.getByText("42 files, 50.4 kB in all")).toBeVisible();
+  // The only top-level folder is open already.
+  await expect(dialog.getByText("file-0.csv", { exact: true })).toBeVisible();
+  expect(await overflow(page), "horizontal overflow with the inventory open").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(view).toBeFocused();
+
   await page.getByRole("button", { name: "Remove inventory" }).press("Enter");
   await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
 });

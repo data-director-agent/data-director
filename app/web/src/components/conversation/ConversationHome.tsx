@@ -378,6 +378,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   fileCount={attached.fileCount}
                   madeAt={attached.madeAt}
                   name={attached.name}
+                  source={{ document: attached.document }}
                   onRemove={removeInventory}
                 />
               ) : (

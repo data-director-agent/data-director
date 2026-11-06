@@ -26,7 +26,12 @@ export function Pending({
       </p>
       {inventory && (
         <p>
-          <InventoryChip fileCount={inventory.fileCount} madeAt={inventory.madeAt} name={inventory.name} />
+          <InventoryChip
+            fileCount={inventory.fileCount}
+            madeAt={inventory.madeAt}
+            name={inventory.name}
+            source={{ document: inventory.document }}
+          />
         </p>
       )}
       <p className="muted">

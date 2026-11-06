@@ -7,10 +7,13 @@
  * evidence open in the transcript, beside the turn they support.
  */
 
-import { INVENTORY_GUIDE } from "../../conversation/inventory";
+import { useMemo } from "react";
+
+import { INVENTORY_GUIDE, type InventorySource } from "../../conversation/inventory";
 import type { Conversation } from "../../conversation/types";
 import type { AgentView } from "../../manifest/normalise";
 import { GROUNDING } from "../../manifest/wording";
+import { useProjectApi } from "../../project/api";
 import { Link } from "../../route";
 import { Models } from "../capabilities/ModelDisclosure";
 import { InventoryChip } from "../conversation/InventoryChip";
@@ -25,6 +28,11 @@ export function ContextPanel({
 }) {
   const projectId = conversation?.project_id;
   const inventory = conversation?.inventory;
+  const projectApi = useProjectApi();
+  const source = useMemo<InventorySource | undefined>(
+    () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
+    [projectApi, projectId],
+  );
   return (
     <section aria-labelledby="context-heading" className="workspace-context">
       <h2 id="context-heading">Project</h2>
@@ -32,7 +40,11 @@ export function ContextPanel({
         <>
           {inventory ? (
             <p>
-              <InventoryChip fileCount={inventory.file_count} madeAt={inventory.inventory_made_at} />
+              <InventoryChip
+                fileCount={inventory.file_count}
+                madeAt={inventory.inventory_made_at}
+                source={source}
+              />
             </p>
           ) : (
             <p>

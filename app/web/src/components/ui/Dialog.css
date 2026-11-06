@@ -1,0 +1,61 @@
+/* The modal dialog (Dialog.tsx): a scrim over the page and a panel that scrolls on its own. */
+
+@layer components {
+  .dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    background: color-mix(in srgb, var(--color-text) 40%, transparent);
+  }
+
+  .dialog-modal {
+    display: flex;
+    width: min(100%, 60rem);
+    max-height: 100%;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-large);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-floating);
+  }
+
+  .dialog {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    outline: none;
+  }
+
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .dialog-header h2 {
+    margin: 0;
+  }
+
+  .dialog-body {
+    overflow: auto;
+    padding: var(--space-4);
+  }
+
+  @media (width <= 30rem) {
+    .dialog-overlay {
+      padding: 0;
+    }
+
+    .dialog-modal {
+      height: 100%;
+      border-radius: 0;
+    }
+  }
+}
