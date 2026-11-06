@@ -165,7 +165,9 @@ To try it locally, register a client through ORCID's
 with the redirect URI `http://127.0.0.1:7860/api/sign-in/callback`. Sign in with a sandbox account:
 create one at `https://sandbox.orcid.org/register`, using a `@mailinator.com` address, since the
 sandbox only sends email there, and verify it before editing records. Sandbox data is not backed up
-and may be deleted (#178). A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
+and may be deleted (#178). Open the app at `http://127.0.0.1:7860`, not `localhost`, so the sign-in
+cookie returns with the callback; the [operations guide](../docs/guide/operations/configuration.md#trying-sign-in-against-the-orcid-sandbox)
+has the full set-up and what its failures mean. A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
 for ORCID.
 
 - The app runs the authorisation-code flow itself (`src/dd_app/signin.py`), asks for the `openid`

@@ -57,6 +57,51 @@ app's unit loads), and sets up no site password ([Deploying to a VM](../../../de
 The default session lengths are 8 hours unused and 7 days at most; confirm them against your
 institution's policy.
 
+### Trying sign-in against the ORCID sandbox
+
+To test sign-in without real iDs, on a development server or on your own machine, use the ORCID
+sandbox, a separate system with its own accounts and iDs. It is not backed up and may be wiped.
+
+1. Create a sandbox account at <https://sandbox.orcid.org/register>. The sandbox sends email only
+   to `@mailinator.com` addresses, which are public inboxes that anyone can read: choose a name
+   nobody would guess, use a throwaway password, and read the verification email at
+   <https://www.mailinator.com>. Verify the address; the developer tools stay closed until you do.
+2. Register a client under *Developer tools* in the sandbox, through ORCID's
+   [sandbox registration page](https://info.orcid.org/register-a-client-application-sandbox-member-api/).
+   Give it the redirect URI the app will send, which is `DD_APP_PUBLIC_URL` followed by
+   `/api/sign-in/callback`:
+
+   | Where the app runs | `DD_APP_PUBLIC_URL` | Redirect URI to register |
+   |---|---|---|
+   | Your machine | `http://127.0.0.1:7860` | `http://127.0.0.1:7860/api/sign-in/callback` |
+   | A development server | `https://<your host>` | `https://<your host>/api/sign-in/callback` |
+
+   ORCID's support advises `127.0.0.1` rather than `localhost` for a local client. ORCID matches
+   the URI exactly, character for character: scheme, host, port and path.
+3. Set `DD_OIDC_ISSUER=https://sandbox.orcid.org`, `DD_OIDC_CLIENT_ID`, the client's secret (as a
+   file or `DD_OIDC_CLIENT_SECRET`), and `DD_APP_PUBLIC_URL` as in the table. Leave
+   `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` empty. Restart the app.
+4. Open the app at the address in `DD_APP_PUBLIC_URL`, not at another name for the same machine.
+   The sign-in cookie belongs to one host, so starting at `localhost:7860` and returning to
+   `127.0.0.1:7860` fails.
+
+A client belongs to the sandbox account that registered it, and only that account can change its
+redirect URIs. Register one client per instance, so that a developer's local address is never
+added to a shared server's client.
+
+If sign-in fails, the page gives one message for every cause. The reason is in the app's log, on
+the line that starts `data-director: sign-in refused:`.
+
+| Symptom | Cause and fix |
+|---|---|
+| ORCID's own page says `redirect_uri … does not match for registered client` | The app sent an address the client does not list. Compare `DD_APP_PUBLIC_URL` with the registered URI, and check that a leftover value from another environment is not set. |
+| `this sign-in was not started in this browser` | The cookie did not come back: you started on a different host name, or the browser refuses `Secure` cookies over plain HTTP (Chrome and Firefox allow it for `127.0.0.1`; Safari does not). |
+| `the sign-in has expired or was already used` | The app restarted between starting and finishing, which `--reload` does on any code change, or the callback address was reloaded. Start again. |
+| `the provider refused the code` | The client secret is not the one for this client, or belongs to production rather than the sandbox. |
+
+A production client takes the same settings with `DD_OIDC_ISSUER=https://orcid.org` and an
+`https` redirect URI, and does not accept `http://127.0.0.1`.
+
 On a development server, without `DD_OIDC_ISSUER`, nobody signs in. `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are then
 required, every run acts for this operator, whoever uses the page, and the banner says on every
 page that nobody is signed in. Use an ORCID iD URL as the identifier where the operator has one.
