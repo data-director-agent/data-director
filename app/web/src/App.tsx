@@ -7,6 +7,7 @@ import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
 import { ProfilePage } from "./components/profile/ProfilePage";
 import { ProjectPage } from "./components/project/ProjectPage";
+import { ProjectsPage } from "./components/project/ProjectsPage";
 import { PageHeader } from "./components/frame/PageHeader";
 import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
@@ -23,7 +24,8 @@ import {
   useSessionApi,
 } from "./session/api";
 
-// A project's documents: `/projects/{project_id}` (docs/specs/projects.md).
+// The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
+// (docs/specs/projects.md).
 const PROJECT_PREFIX = "/projects/";
 
 type Load<T> = { state: "loading" } | { state: "failed"; message: string } | { state: "loaded"; value: T };
@@ -55,7 +57,15 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onFeedback = path === "/feedback";
   const onProfile = path === "/profile";
   const onActivity = path === "/activity";
+  const onProjects = path === "/projects";
   const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
+  // A project's own page is under Projects in the main navigation.
+  const current =
+    onProjects || projectId
+      ? "/projects"
+      : ["/activity", "/agents", "/feedback", "/profile", "/sign-in", "/signed-out"].includes(path)
+        ? path
+        : "/";
 
   useEffect(() => {
     const controller = new AbortController();
@@ -122,6 +132,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (onFeedback) return <FeedbackPage query={query ?? ""} />;
     if (onProfile) return <ProfilePage session={session.value} />;
     if (onActivity) return <ActivityLog />;
+    if (onProjects) return <ProjectsPage />;
     if (projectId) return <ProjectPage projectId={projectId} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {
@@ -147,7 +158,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
 
   return (
     <Frame
-      current={["/activity", "/agents", "/feedback", "/profile", "/sign-in", "/signed-out"].includes(path) ? path : "/"}
+      current={current}
       from={onFeedback ? (new URLSearchParams(query).get("from") ?? "/") : location}
       account={known && <Account session={known} />}
     >

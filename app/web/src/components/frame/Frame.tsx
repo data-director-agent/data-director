@@ -8,14 +8,25 @@
 
 import "./Frame.css";
 
-import { Activity, BookOpen, Bot, Bug, MessagesSquare, type LucideIcon } from "lucide-react";
+import {
+  Activity,
+  BookOpen,
+  Bot,
+  Bug,
+  FolderOpen,
+  MessagesSquare,
+  type LucideIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
 import { FooterBuild } from "./FooterBuild";
 import { ThemeSwitch } from "./ThemeSwitch";
 
+// Projects first: the project is the unit of work that the rest belongs to (docs/specs/app.md).
+// The conversation stays the page a person lands on, so nobody must make a project first.
 const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
+  { to: "/projects", label: "Projects", icon: FolderOpen },
   { to: "/", label: "Conversation", icon: MessagesSquare },
   { to: "/activity", label: "Activity log", icon: Activity },
   { to: "/agents", label: "Agents", icon: Bot },

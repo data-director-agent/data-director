@@ -1,0 +1,36 @@
+/* The person's projects (ProjectsPage.tsx): one card each, its name a link to the project. */
+
+@layer components {
+  .project-list {
+    display: grid;
+    gap: var(--space-3);
+    max-width: var(--measure);
+  }
+
+  .project-card {
+    padding: var(--space-3) var(--space-4);
+    border: var(--border-width) solid var(--color-border-subtle);
+    border-radius: var(--radius);
+  }
+
+  .project-card > :last-child {
+    margin-bottom: 0;
+  }
+
+  .project-card-name {
+    font-size: var(--font-size-h3);
+    margin: 0 0 var(--space-1);
+  }
+
+  .project-card-documents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .project-new {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+}

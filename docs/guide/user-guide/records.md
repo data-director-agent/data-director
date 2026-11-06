@@ -52,6 +52,11 @@ a newer inventory is added beside the earlier one, and the latest counts. An inv
 about your files and never their content. When an agent uses an AI model, the facts it is given
 from the inventory can be sent to that model's provider (see AI models, below).
 
+**Projects**, the first item in the menu at the top, lists your projects, the one you worked in
+most recently first. Each is named after its first conversation, and says how many files its
+inventory describes and how many of its documents are waiting for you to review. Select one to
+read its documents and decide on them.
+
 ## Where you can see it
 
 - **After a run**, the page shows the stages it went through, the outcome, the result and the
