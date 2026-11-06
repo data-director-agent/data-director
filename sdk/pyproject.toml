@@ -16,6 +16,9 @@ dependencies = [
   "jsonschema>=4.23",
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
+  "httpx>=0.28",
+  "protobuf>=5",
+  "starlette>=0.40",
   "uvicorn>=0.30",
   # So that `serve --reload` sees a prompt change, not only a change to Python.
   "watchfiles>=1.0",
@@ -24,6 +27,12 @@ dependencies = [
 [project.scripts]
 # Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (docs/specs/contract.md).
 dd-gen-schema = "dd_sdk.schema.gen:main"
+
+[tool.deptry.per_rule_ignores]
+# uvicorn imports watchfiles itself when asked to reload (`serve --reload`); nothing here does.
+DEP002 = ["watchfiles"]
+# `dd-gen-schema` imports these lazily and needs the workspace's development group (linkml).
+DEP003 = ["linkml_runtime", "rdflib"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_sdk"]

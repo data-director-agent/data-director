@@ -106,6 +106,9 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
       - run: uv run mypy
+      # Each member declares the third-party packages it imports and imports those it declares
+      # (docs/specs/dependencies.md). Needs the synced environment, so it runs here.
+      - run: uv run python scripts/check_dependencies.py
       - run: uv run dd-gen-schema
       # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
       # a graph by sdk/tests/test_contract.py instead.
