@@ -49,6 +49,7 @@ process ([The app](../docs/specs/app.md)).
 | `/opt/data-director/cache/re3data/` | The pinned re3data export the repository advisor's registry is built from, downloaded once per pin and shared by releases. |
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
+| `/var/lib/data-director/projects/` | The project store (`DD_PROJECTS_DIR`): each project's log and documents. It outlives releases. |
 | `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |
 | `/etc/data-director/app.env` | The app's settings (`config/examples/app.env`); `DD_OIDC_*` and `DD_APP_PUBLIC_URL` are required. |
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
