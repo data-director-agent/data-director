@@ -4,6 +4,7 @@ import { AgentDirectory } from "./components/capabilities/AgentDirectory";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { ProfilePage } from "./components/profile/ProfilePage";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { PageHeader } from "./components/frame/PageHeader";
 import { Account } from "./components/session/Account";
@@ -51,6 +52,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const [path = "/", query] = location.split("?");
   const onAgents = path === "/agents";
   const onFeedback = path === "/feedback";
+  const onProfile = path === "/profile";
   const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
 
   useEffect(() => {
@@ -116,6 +118,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       );
     }
     if (onFeedback) return <FeedbackPage query={query ?? ""} />;
+    if (onProfile) return <ProfilePage session={session.value} />;
     if (projectId) return <ProjectPage projectId={projectId} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {
@@ -141,7 +144,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
 
   return (
     <Frame
-      current={["/agents", "/feedback", "/sign-in", "/signed-out"].includes(path) ? path : "/"}
+      current={["/agents", "/feedback", "/profile", "/sign-in", "/signed-out"].includes(path) ? path : "/"}
       from={onFeedback ? (new URLSearchParams(query).get("from") ?? "/") : location}
       account={known && <Account session={known} />}
     >

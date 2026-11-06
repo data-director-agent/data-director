@@ -105,6 +105,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
+20. **The profile page shows only what the session holds.** `/profile`, reached from the name in
+    the banner, shows the name and iD the identity provider gave at sign-in, how the person is
+    known and when the session ends, and says that nothing more is kept. It makes no request to
+    the provider and the app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
 
 ## Boundaries and contracts
 
