@@ -6,7 +6,7 @@
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read. `snapshot` (default)
   reads the committed copy; `live` asks FAIRsharing's public route, which needs no account, and
   falls back to the snapshot, marked stale, when it fails. re3data is always read from the
-  registry built from its pinned export (`registry.py`, `dd-re3data fetch`).
+  registry built from its pinned export (`registry.py`, `dd-sources prepare`).
 - `DD_REPOSITORY_EXPLAINER`: `template` (default) or `anthropic`.
 - `DD_MODEL_ID`: the model the Anthropic explainer calls.
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the Anthropic

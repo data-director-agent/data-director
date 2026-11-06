@@ -151,9 +151,10 @@ if [[ ! -f "$release/.built" ]]; then
   (
     cd "$release" &&
       uv sync --locked --no-dev --quiet &&
-      # The repository advisor's re3data registry, built from its pinned export. The archive is
-      # kept outside the releases, so it is downloaded once per pin, not once per release.
-      uv run --no-sync dd-re3data fetch --cache-dir "$ROOT/cache/re3data" &&
+      # Sources that agents build outside git, such as the repository advisor's re3data registry
+      # (dd-sources, sdk/src/dd_sdk/sources.py). What they are built from is kept outside the
+      # releases, so it is downloaded once per pin, not once per release.
+      uv run --no-sync dd-sources prepare --cache-dir "$ROOT/cache/sources" &&
       cd app/web &&
       npm ci --no-audit --no-fund --loglevel=error &&
       npm run build --silent &&

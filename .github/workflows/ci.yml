@@ -141,9 +141,29 @@ jobs:
       # check cannot pass silently.
       - run: uv run pytest workbench/tests/test_architecture_canary.py workbench/tests/test_check_boundaries.py
 
+  # Sources that agents build outside git, such as the repository advisor's re3data registry
+  # (dd-sources, sdk/src/dd_sdk/sources.py). This job alone downloads what they are built from,
+  # once per pin (Blueprint P14), and saves it in the cache; the jobs that need the sources wait
+  # for it and build from that cache, so a new pin is not downloaded once per job.
+  sources:
+    name: Built sources
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
+
   test:
     name: pytest
-    needs: changes
+    needs: [changes, sources]
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -155,13 +175,8 @@ jobs:
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
-      # The repository advisor's re3data registry, from its pinned export: downloaded once per
-      # pin and cached (Blueprint P14), then built (agents/advisor-repository/README.md).
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: agents/advisor-repository/data/re3data/archives
-          key: re3data-${{ hashFiles('agents/advisor-repository/data/re3data/manifest.json') }}
-      - run: uv run --no-sync dd-re3data fetch
+      # Sources agents build outside git, from the cache the `sources` job filled.
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
       # The JSON report is handed to the conformance job, which decides CONFORMANCE.md from it.
       # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report
@@ -226,7 +241,7 @@ jobs:
 
   packages:
     name: Packages and agents as services
-    needs: changes
+    needs: [changes, sources]
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -246,18 +261,13 @@ jobs:
       - run: uv run python scripts/check_wheels.py dist
       # Then the agents as real services, from the workspace.
       - run: uv sync --all-packages --all-extras
-      # The repository advisor's re3data registry, from its pinned export: downloaded once per
-      # pin and cached (Blueprint P14), then built (agents/advisor-repository/README.md).
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: agents/advisor-repository/data/re3data/archives
-          key: re3data-${{ hashFiles('agents/advisor-repository/data/re3data/manifest.json') }}
-      - run: uv run --no-sync dd-re3data fetch
+      # Sources agents build outside git, from the cache the `sources` job filled.
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
       - run: uv run python scripts/smoke_agents.py
 
   viewer:
     name: Workbench viewer in a browser
-    needs: changes
+    needs: [changes, sources]
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -269,13 +279,8 @@ jobs:
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
-      # The repository advisor's re3data registry, from its pinned export: downloaded once per
-      # pin and cached (Blueprint P14), then built (agents/advisor-repository/README.md).
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: agents/advisor-repository/data/re3data/archives
-          key: re3data-${{ hashFiles('agents/advisor-repository/data/re3data/manifest.json') }}
-      - run: uv run --no-sync dd-re3data fetch
+      # Sources agents build outside git, from the cache the `sources` job filled.
+      - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
       # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
       # Headless runs need only chromium-headless-shell, not the full browser.
       - run: uv run playwright install --with-deps --only-shell chromium
@@ -474,6 +479,7 @@ jobs:
       - lint
       - typecheck
       - architecture
+      - sources
       - test
       - packages
       - viewer

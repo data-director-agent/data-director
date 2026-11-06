@@ -18,6 +18,10 @@ anthropic = ["anthropic>=0.50"]
 dd-advisor-repository = "dd_agent_advisor_repository.factory:main"
 dd-re3data = "dd_agent_advisor_repository.registry:main"
 
+# The re3data registry is built from its pinned export, not committed; `dd-sources prepare` builds it.
+[project.entry-points."dd.sources"]
+re3data = "dd_agent_advisor_repository.registry:SOURCE"
+
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [

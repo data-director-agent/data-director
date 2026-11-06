@@ -7,10 +7,12 @@ its monthly exports. `manifest.json` pins it:
 - `archive` and `archive_sha256`: the export as re3data publishes it
   (<https://www.re3data.org/data>), one XML file per repository;
 - `month` and `fetched_at`: which export, and when it was pinned;
-- `snapshot_sha256`: `registry.jsonl`, built from the archive by `uv run dd-re3data fetch`.
+- `snapshot_sha256`: `registry.jsonl`, built from the archive by `uv run dd-sources prepare`
+  (or `uv run dd-re3data fetch`, which builds this registry alone).
 
-Neither the archive nor `registry.jsonl` is committed. `fetch` downloads the pinned archive once,
-keeps it in `archives/`, checks it against the pin and builds the registry from it. The registry
+Neither the archive nor `registry.jsonl` is committed. Building downloads the pinned archive once
+on each machine, keeps it in `archives/` (or the cache it is given), checks it against the pin and
+builds the registry from it. In CI one job downloads it and the others build from its cache. The registry
 is the same bytes on every machine, so the harness checks re3data evidence against it.
 
 ## Citation

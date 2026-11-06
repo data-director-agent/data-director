@@ -28,6 +28,7 @@ from dd_agent_advisor_repository.snapshot import (
 )
 from dd_sdk.credentials import ConfigError
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
+from dd_sdk.sources import SourceBuildError, discover
 
 DATA = Path(__file__).with_name("data")
 UKDS_XML = (DATA / "r3d100010230.xml").read_bytes()
@@ -160,14 +161,14 @@ def test_a_built_registry_is_checked_against_its_pin(tmp_path: Path) -> None:
     assert registry.problem(built.path, built.manifest) is None
     built.path.write_bytes(built.path.read_bytes() + b"\n")
     found = registry.problem(built.path, built.manifest)
-    assert found is not None and "dd-re3data fetch" in found
+    assert found is not None and "dd-sources prepare" in found
     with pytest.raises(RegistryUnavailable, match="does not match"):
         Re3dataRegistry(built.path, built.manifest).fetch("r3d100010230")
 
 
 def test_an_unbuilt_registry_says_how_to_build_it(tmp_path: Path) -> None:
     build_fixture(tmp_path)
-    with pytest.raises(RegistryUnavailable, match="uv run dd-re3data fetch"):
+    with pytest.raises(RegistryUnavailable, match="uv run dd-sources prepare"):
         Re3dataRegistry(tmp_path / "absent.jsonl", tmp_path / "manifest.json").fetch("r3d")
 
 
@@ -350,3 +351,27 @@ def test_the_model_explainer_is_declared_on_the_spec() -> None:
 def test_an_unknown_setting_is_a_configuration_error(env: dict[str, str]) -> None:
     with pytest.raises(ConfigError):
         factory.build(env)
+
+
+# --- declared to `dd-sources` -------------------------------------------------------------------
+
+
+def test_the_registry_is_a_built_source_that_dd_sources_finds() -> None:
+    assert [s for s in discover() if s.name == "re3data"] == [registry.SOURCE]
+
+
+def test_preparing_the_source_fetches_into_the_cache_it_is_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[Path] = []
+    monkeypatch.setattr(registry, "fetch", lambda cache_dir: calls.append(cache_dir))
+    registry.SOURCE.prepare(tmp_path / "re3data")
+    registry.SOURCE.prepare(None)
+    assert calls == [tmp_path / "re3data", registry.ARCHIVES]
+
+    def refuse(cache_dir: Path) -> None:
+        raise registry.RegistryError("the export is not the pinned one")
+
+    monkeypatch.setattr(registry, "fetch", refuse)
+    with pytest.raises(SourceBuildError, match="re3data: the export is not the pinned one"):
+        registry.SOURCE.prepare(None)

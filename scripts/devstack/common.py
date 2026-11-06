@@ -329,22 +329,23 @@ def run(cmd: list[str], cwd: Path | None = None) -> None:
         raise DevError(f"`{' '.join(cmd)}` failed; its output is above")
 
 
-# The repository advisor's re3data registry is built from a pinned export, not committed
-# (agents/advisor-repository/README.md). `fetch` does nothing when the registry matches its pin,
-# and downloads the export only when no cached copy does.
-RE3DATA_FETCH = ["uv", "run", "dd-re3data", "fetch"]
-RE3DATA_CHECK = ["uv", "run", "--quiet", "dd-re3data", "check"]
+# Some agents build a copy of a source from something pinned, rather than commit it (the
+# repository advisor's re3data registry, say). Each agent declares its own, and `dd-sources`
+# prepares them all (dd_sdk.sources): it does nothing for a copy built as pinned, and downloads
+# only what no cached copy holds.
+SOURCES_PREPARE = ["uv", "run", "dd-sources", "prepare"]
+SOURCES_CHECK = ["uv", "run", "--quiet", "dd-sources", "check"]
 
 
-def prepare_re3data() -> None:
-    """Build the re3data registry from its pinned export, if it is not built as pinned."""
-    run(RE3DATA_FETCH)
+def prepare_sources() -> None:
+    """Build every agent's built source that is not built as pinned."""
+    run(SOURCES_PREPARE)
 
 
-def re3data_problem() -> str | None:
-    """Why the re3data registry is not built as pinned, or None."""
+def sources_problem() -> str | None:
+    """Why some built source is not built as pinned, or None."""
     done = subprocess.run(
-        RE3DATA_CHECK, cwd=paths.ROOT, env=workspace_env(), capture_output=True, text=True
+        SOURCES_CHECK, cwd=paths.ROOT, env=workspace_env(), capture_output=True, text=True
     )
     return None if done.returncode == 0 else (done.stdout + done.stderr).strip()
 

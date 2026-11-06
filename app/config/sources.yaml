@@ -1,7 +1,8 @@
 # Independent copies of the sources the app's agents cite (docs/specs/grounding.md), unless DD_SOURCES_CONFIG
 # names another list. Paths are relative to this file; each copy is pinned by sha256, and a
-# file that no longer matches its pin stops the app from starting. A copy with a `build` command
-# that has not been built leaves evidence citing it unresolved, with a warning at start-up.
+# file that no longer matches its pin stops the app from starting. A copy marked `built: true`
+# that `uv run dd-sources prepare` has not built leaves evidence citing it unresolved, with a
+# warning at start-up.
 # Format as in workbench/sources.yaml.
 # TODO(#225): how an institution pins a copy of a source of its own.
 sources:
@@ -12,7 +13,7 @@ sources:
   - snapshot_refs: ["re3data:export:2026-11"]
     path: ../../agents/advisor-repository/data/re3data/registry.jsonl
     # Built from the pinned re3data export, not committed (agents/advisor-repository/README.md).
-    build: uv run dd-re3data fetch
+    built: true
     id_field: re3data_id
     sha256: 37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd
   - snapshot_refs: ["fairsharing:snapshot:2026-10-29", "fairsharing:snapshot:2026-10-29 (stale)"]

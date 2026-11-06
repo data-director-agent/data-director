@@ -36,10 +36,12 @@ x-agent: &agent
   restart: unless-stopped
 
 services:
-  # Installs every workspace package into the venv volume, then exits.
+  # Installs every workspace package into the venv volume, builds the sources that agents build
+  # outside git (dd-sources, sdk/src/dd_sdk/sources.py), then exits. Downloads stay in each
+  # source's gitignored cache in the checkout, so they survive the container.
   deps:
     <<: *python
-    command: uv sync --all-packages --all-extras
+    command: sh -c "uv sync --all-packages --all-extras && uv run --no-sync dd-sources prepare"
 
   example-hello:
     <<: *agent

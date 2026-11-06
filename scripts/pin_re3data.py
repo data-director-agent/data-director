@@ -30,11 +30,11 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "agents" / "advisor-repository" / "data" / "re3data" / "manifest.json"
 SOURCES = (ROOT / "app" / "config" / "sources.yaml", ROOT / "workbench" / "sources.yaml")
 
-# The re3data entry: its snapshot_refs line, path, any comment or build lines, id_field, sha256.
+# The re3data entry: its snapshot_refs line, path, any comment or built lines, id_field, sha256.
 ENTRY = re.compile(
     r'^(?P<indent>\s*)- snapshot_refs: \["re3data:[^\n]*\n'
     r"(?P=indent)  path: (?P<path>[^\n]*)\n"
-    r"(?P<between>(?:(?P=indent)  (?:#|build:)[^\n]*\n)*)"
+    r"(?P<between>(?:(?P=indent)  (?:#|built:)[^\n]*\n)*)"
     r"(?P=indent)  id_field: re3data_id\n"
     r"(?P=indent)  sha256: [0-9a-f]{64}\n",
     re.MULTILINE,

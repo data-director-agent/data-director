@@ -23,9 +23,11 @@ need retrieval to go through the harness, as delegation does. TODO(#246) (docs/s
 
 A copy is independent of the agent because its bytes are pinned by `sha256` in `sources.yaml`,
 not because of where the file lives. A file that does not match its pin is a configuration
-error, and so is a missing one, unless its entry names the command that builds it (`build`): a
-copy built outside git that has not been built is logged with that command, and evidence citing
-it is unresolved, so a deployment that serves no agent citing it need not build it.
+error, and so is a missing one, unless its entry says it is built outside git (`built: true`):
+such a copy, if it has not been built, is logged with the one command that builds every agent's
+sources (`dd-sources prepare`, dd_sdk.sources), and evidence citing it is unresolved, so a
+deployment that serves no agent citing it need not build it. How a copy is built is its agent's
+business, not this file's.
 Configuration shape:
 
     sources:
@@ -33,7 +35,7 @@ Configuration shape:
         path: ../agents/advisor-standards/data/fairsharing/snapshot.jsonl   # relative to this file
         id_field: fairsharing_id                 # the record field that is the source_id
         sha256: 9696…                            # of the file's bytes
-        build: uv run dd-build-it                # optional: builds a copy not kept in git
+        built: true                              # optional: the copy is built, not kept in git
 
 A file is JSON Lines, or one JSON array of records.
 """
@@ -52,6 +54,7 @@ import yaml
 
 from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
 from dd_sdk.evidence import content_hash
+from dd_sdk.sources import PREPARE_COMMAND
 
 # The prefixes of source ids whose hashes the conductor computed itself, and the grounding modes
 # whose linter rules check them against those hashes.
@@ -127,9 +130,9 @@ class Sources:
     """The copies of sources the harness holds, keyed by the `snapshot_ref` they serve."""
 
     by_snapshot_ref: Mapping[str, Resolver] = field(default_factory=dict)
-    # The snapshot_refs of copies built outside git that have not been built, each with the
-    # command that builds it. Evidence citing one is unresolved.
-    unbuilt: Mapping[str, str] = field(default_factory=dict)
+    # The snapshot_refs of copies built outside git that have not been built. Evidence citing one
+    # is unresolved.
+    unbuilt: frozenset[str] = frozenset()
 
     @classmethod
     def none(cls) -> Sources:
@@ -145,7 +148,7 @@ class Sources:
         if not isinstance(entries, list):
             raise SourceConfigError(f"{path}: expected a top-level 'sources' list")
         by_ref: dict[str, Resolver] = {}
-        unbuilt: dict[str, str] = {}
+        unbuilt: set[str] = set()
         for entry in entries:
             try:
                 refs, file, id_field, pin = (
@@ -162,21 +165,23 @@ class Sources:
             for ref in refs:
                 if ref in by_ref or ref in unbuilt:
                     raise SourceConfigError(f"{path}: snapshot_ref {ref!r} is listed twice")
-            built_by = entry.get("build")
-            if built_by and not (path.parent / str(file)).is_file():
+            built = entry.get("built", False)
+            if not isinstance(built, bool):
+                raise SourceConfigError(f"{path}: 'built' must be true or false, not {built!r}")
+            if built and not (path.parent / str(file)).is_file():
                 log.warning(
                     "%s: source file %s is not built, so evidence citing %s will be unresolved; "
                     "build it with `%s`",
                     path,
                     file,
                     ", ".join(refs),
-                    built_by,
+                    PREPARE_COMMAND,
                 )
-                unbuilt.update(dict.fromkeys(refs, str(built_by)))
+                unbuilt.update(refs)
                 continue
             resolver = RecordsFile.load(path.parent / str(file), str(id_field), str(pin))
             by_ref.update(dict.fromkeys(refs, resolver))
-        return cls(by_snapshot_ref=by_ref, unbuilt=unbuilt)
+        return cls(by_snapshot_ref=by_ref, unbuilt=frozenset(unbuilt))
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:

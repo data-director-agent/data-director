@@ -3,8 +3,9 @@
 # snapshot_ref is not listed here is reported as unresolved, never as verified.
 # A copy is independent of the agent because its bytes are pinned by sha256, not because of
 # where it lives: a file that no longer matches its pin stops the workbench from starting.
-# An entry may name the command that builds a copy not kept in git (`build`); until it is built,
-# the workbench starts with a warning and evidence citing it is unresolved.
+# An entry may mark a copy that its agent builds outside git (`built: true`); until
+# `uv run dd-sources prepare` has built it, the workbench starts with a warning and evidence citing
+# it is unresolved.
 # Rebuilding a snapshot changes its label and its hash; add a new entry for it.
 # Override the path with DD_SOURCES_CONFIG. Paths are relative to this file.
 # TODO(#246): a resolver for the standards advisor's `live` route (the FAIRsharing API needs credentials and network).
@@ -16,7 +17,7 @@ sources:
   - snapshot_refs: ["re3data:export:2026-11"]
     path: ../agents/advisor-repository/data/re3data/registry.jsonl
     # Built from the pinned re3data export, not committed (agents/advisor-repository/README.md).
-    build: uv run dd-re3data fetch
+    built: true
     id_field: re3data_id
     sha256: 37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd
   - snapshot_refs: ["fairsharing:snapshot:2026-10-29", "fairsharing:snapshot:2026-10-29 (stale)"]
