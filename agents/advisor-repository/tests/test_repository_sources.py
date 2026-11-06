@@ -175,8 +175,8 @@ def test_registry_search_and_exact_name_lookup(re3data: Re3dataRegistry) -> None
     assert re3data.snapshot_ref().label == "re3data:export:2026-11"
     top = re3data.search(Query(text="social survey"))[0]
     assert top.lexical_score > 0
-    assert re3data.find("uk data service") is not None
-    assert re3data.find("UK Data") is None
+    assert len(re3data.find("uk data service")) == 1
+    assert re3data.find("UK Data") == []
     assert re3data.search(Query(text="the of and")) == []
     eidc = re3data.fetch("r3d100010199")
     assert eidc is not None and eidc.certificates == ["CoreTrustSeal"]  # named in schema 4.0
@@ -247,6 +247,68 @@ def test_an_archive_that_does_not_match_its_pin_is_refused(tmp_path: Path) -> No
             manifest=tmp_path / "manifest.json",
             client=_serve(buffer.getvalue(), []),
         )
+
+
+def _zip(members: dict[str, str]) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        for name, body in members.items():
+            zf.writestr(name, body)
+    return buffer.getvalue()
+
+
+def test_resource_forks_are_skipped_and_a_bad_member_is_named(tmp_path: Path) -> None:
+    with zipfile.ZipFile(FIXTURE) as zf:
+        first = next(n for n in zf.namelist() if n.endswith(".xml"))
+        good = zf.read(first).decode("utf-8")
+    forks = tmp_path / "forks.zip"
+    forks.write_bytes(_zip({"a.xml": good, "__MACOSX/._a.xml": "\x00", "dir/._b.xml": "\x00"}))
+    assert len(registry.records(forks)) == 1
+    broken = tmp_path / "broken.zip"
+    broken.write_bytes(_zip({"a.xml": good, "b.xml": "<r3d:re3data"}))
+    with pytest.raises(registry.RegistryError, match=r"b\.xml"):
+        registry.records(broken)
+
+
+def test_a_cached_download_that_is_not_the_export_is_fetched_again(tmp_path: Path) -> None:
+    cache = tmp_path / "archives"
+    cache.mkdir()
+    (cache / "re3data-repositories-2026-11.zip").write_bytes(b"<html>not yet</html>")
+    built = tmp_path / "registry.jsonl"
+    built.write_text("not json\n", encoding="utf-8")  # a corrupt registry is rebuilt
+    seen: list[httpx.Request] = []
+    report = registry.fetch(
+        month="2026-11",
+        update_pin=True,
+        cache_dir=cache,
+        registry=built,
+        manifest=tmp_path / "manifest.json",
+        client=_serve(FIXTURE.read_bytes(), seen),
+    )
+    assert len(seen) == 1 and report.records > 0
+    assert registry.problem(built, tmp_path / "manifest.json") is None
+
+
+def test_an_export_that_cannot_be_built_is_not_kept(tmp_path: Path) -> None:
+    cache = tmp_path / "archives"
+    with pytest.raises(registry.RegistryError):
+        registry.fetch(
+            month="2026-11",
+            update_pin=True,
+            cache_dir=cache,
+            registry=tmp_path / "registry.jsonl",
+            manifest=tmp_path / "manifest.json",
+            client=_serve(_zip({"a.xml": "<r3d:re3data"}), []),
+        )
+    assert not any(cache.iterdir())
+
+
+def test_subjects_are_shown_and_searched_without_their_dfg_codes(
+    re3data: Re3dataRegistry,
+) -> None:
+    record = next(r for r in re3data.records if any(s[0].isdigit() for s in r.subjects))
+    assert not any(s[0].isdigit() for s in record.subject_names())
+    assert not any(tok.isdigit() for tok in record.search_text().split())
 
 
 def test_downloads_name_the_project_not_a_person() -> None:

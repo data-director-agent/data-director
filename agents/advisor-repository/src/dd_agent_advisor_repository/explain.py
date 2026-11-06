@@ -82,7 +82,7 @@ def template_rationale(item: Item) -> str:
         why = f" {' '.join(item.reasons)}" if item.reasons else ""
         lead = f"{r.name} ({r.re3data_id}) is recommended.{why}"
     kind = f" re3data lists it as {', '.join(r.types)}." if r.types else ""
-    subjects = f" Subjects: {'; '.join(r.subjects[:3])}." if r.subjects else ""
+    subjects = f" Subjects: {'; '.join(r.subject_names()[:3])}." if r.subjects else ""
     gaps = (
         f" Not met or not stated: {' '.join(item.assessment.misses)}"
         if item.assessment.misses
@@ -147,7 +147,7 @@ class AnthropicExplainer:
             desc = (r.description or "").strip().replace("\n", " ")
             lines.append(
                 f"{n}. {r.name} [{r.re3data_id}] — basis: {item.basis.value}; "
-                f"types: {', '.join(r.types)}; subjects: {'; '.join(r.subjects[:6])}; "
+                f"types: {', '.join(r.types)}; subjects: {'; '.join(r.subject_names()[:6])}; "
                 f"meets: {' '.join(a.meets) or '(none)'}; "
                 f"misses: {' '.join(a.misses) or '(none)'}; "
                 f"notes: {' '.join(a.notes) or '(none)'}; "

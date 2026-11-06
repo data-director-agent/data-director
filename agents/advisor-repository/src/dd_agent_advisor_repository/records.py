@@ -14,6 +14,7 @@ document, so what the reader is shown is what the hash covers (docs/specs/ground
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
 from typing import Any
 
@@ -27,6 +28,8 @@ FAIRSHARING_RECORD_URL = "https://fairsharing.org/{id}"
 FAIRSHARING_DOI_PREFIX = "10.25504/"
 
 _NS = {"r3d": "http://www.re3data.org/schema/4-0"}
+# The DFG classification code `_subjects` puts before a subject's name.
+_SUBJECT_CODE = re.compile(r"^\d+\s+")
 
 
 class Institution(BaseModel):
@@ -116,11 +119,16 @@ class Re3dataRecord(BaseModel):
             self.name,
             *self.additional_names,
             self.description or "",
-            *self.subjects,
+            *self.subject_names(),
             *self.keywords,
             *self.content_types,
         ]
         return " ".join(p for p in parts if p)
+
+    def subject_names(self) -> list[str]:
+        """The subjects as a reader names them, without their DFG codes: `Geosciences`, not
+        `34 Geosciences`. For display and search; the record keeps the codes."""
+        return [_SUBJECT_CODE.sub("", s) for s in self.subjects]
 
     def names(self) -> set[str]:
         return {n.casefold().strip() for n in (self.name, *self.additional_names)}
@@ -199,8 +207,8 @@ def bare_ror(value: str) -> str:
 
 
 def _subjects(repo: ET.Element) -> list[str]:
-    """Each subject as `<id> <name>` (`34 Geosciences`), so a reader sees where it sits in the
-    DFG classification and a search can match either."""
+    """Each subject as `<id> <name>` (`34 Geosciences`), keeping where it sits in the DFG
+    classification. `Re3dataRecord.subject_names` drops the code for display and search."""
     out = []
     for e in repo.findall("r3d:subject", _NS):
         name = _text(e, "r3d:subjectName")

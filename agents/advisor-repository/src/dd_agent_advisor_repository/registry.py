@@ -24,6 +24,7 @@ import argparse
 import hashlib
 import json
 import sys
+import xml.etree.ElementTree as ET
 import zipfile
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
@@ -32,6 +33,7 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import httpx
+from pydantic import ValidationError
 
 from dd_agent_advisor_repository.records import Re3dataRecord, from_re3data_xml
 
@@ -136,18 +138,29 @@ def problem(registry: Path = REGISTRY, manifest: Path = MANIFEST) -> str | None:
     return None
 
 
+def _is_record(name: str) -> bool:
+    """Whether a member holds a record: an XML file, and not one of the `__MACOSX/` or `._*`
+    resource-fork entries an archive made on macOS carries beside each file."""
+    base = name.rsplit("/", 1)[-1]
+    return name.endswith(".xml") and not name.startswith("__MACOSX/") and not base.startswith("._")
+
+
 def records(archive: Path) -> list[Re3dataRecord]:
-    """Every repository in an export, sorted by identifier."""
+    """Every repository in an export, sorted by identifier. A member that cannot be read as a
+    record is an error naming it, not a traceback."""
     try:
         with zipfile.ZipFile(archive) as zf:
-            members = [m for m in zf.infolist() if m.filename.endswith(".xml")]
+            members = [m for m in zf.infolist() if _is_record(m.filename)]
             if not members or len(members) > MAX_MEMBERS:
                 raise RegistryError(f"{archive}: {len(members)} XML records; expected an export")
             out: dict[str, Re3dataRecord] = {}
             for member in members:
                 if member.file_size > MAX_MEMBER_BYTES:
                     raise RegistryError(f"{archive}: {member.filename} is too large to be a record")
-                record = from_re3data_xml(zf.read(member))
+                try:
+                    record = from_re3data_xml(zf.read(member))
+                except (ET.ParseError, ValidationError) as exc:
+                    raise RegistryError(f"{archive}: {member.filename}: {exc}") from None
                 if record is not None:
                     out[record.re3data_id] = record
     except (zipfile.BadZipFile, OSError) as exc:
@@ -163,11 +176,17 @@ def build(archive: Path) -> bytes:
     ).encode("utf-8")
 
 
-def _ids(registry: Path) -> set[str]:
-    if not registry.is_file():
+def _ids(data: bytes) -> set[str]:
+    """The identifiers in a registry's bytes. Empty when they cannot be read: a corrupt registry
+    is about to be rebuilt, and only the report of what was added is lost."""
+    try:
+        return {
+            json.loads(line)["re3data_id"]
+            for line in data.decode("utf-8").splitlines()
+            if line.strip()
+        }
+    except json.JSONDecodeError, UnicodeDecodeError, KeyError, TypeError:
         return set()
-    with registry.open(encoding="utf-8") as fh:
-        return {json.loads(line)["re3data_id"] for line in fh if line.strip()}
 
 
 def _download(url: str, dest: Path, client: httpx.Client | None) -> None:
@@ -197,8 +216,11 @@ def _archive(url: str, sha256: str | None, cache_dir: Path, client: httpx.Client
     once per pin (Blueprint P14)."""
     path = cache_dir / url.rsplit("/", 1)[-1]
     # A monthly archive does not change once published, so a whole copy (downloads are renamed
-    # into place only when complete) is reused when no pin says otherwise.
-    if path.is_file() and (sha256 is None or _sha256(path) == sha256):
+    # into place only when complete) is reused when no pin says otherwise. Unpinned, it must at
+    # least be a zip: a server may answer 200 with a page for a month not yet published.
+    if path.is_file() and (
+        _sha256(path) == sha256 if sha256 is not None else zipfile.is_zipfile(path)
+    ):
         return path
     _download(url, path, client)
     if sha256 is not None and (actual := _sha256(path)) != sha256:
@@ -233,7 +255,6 @@ def fetch(
 ) -> Report:
     """Build the registry from the pinned export, or, with `update_pin`, pin `month`'s export
     (the current month by default) and build from that."""
-    before = _ids(registry)
     if not update_pin:
         if month is not None:
             raise RegistryError("--month needs --update-pin; without it the pinned month is built")
@@ -254,9 +275,15 @@ def fetch(
     month = month or now.strftime("%Y-%m")
     url = EXPORT_URL.format(month=month)
     archive = _archive(url, None, cache_dir, client)
-    data = build(archive)
+    try:
+        data = build(archive)
+    except RegistryError:
+        # Not the export after all; the next run downloads it again rather than reusing this.
+        archive.unlink(missing_ok=True)
+        raise
+    before = _ids(registry.read_bytes()) if registry.is_file() else set()
     _write(registry, data)
-    after = _ids(registry)
+    after = _ids(data)
     pin = Pin(
         month=month,
         archive=url,

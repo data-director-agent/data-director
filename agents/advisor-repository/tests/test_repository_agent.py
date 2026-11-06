@@ -21,7 +21,13 @@ from dd_agent_advisor_repository.classes import (
     RepositoryRef,
 )
 from dd_agent_advisor_repository.records import DatabaseRecord, Institution, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_agent_advisor_repository.retrieve import (
+    Hit,
+    Query,
+    RegistryUnavailable,
+    SnapshotRef,
+    find_by_name,
+)
 from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -142,9 +148,9 @@ class FakeRepositories:
         self._check()
         return next((r for r in self.records if r.re3data_id == re3data_id), None)
 
-    def find(self, name: str) -> Re3dataRecord | None:
+    def find(self, name: str) -> list[Re3dataRecord]:
         self._check()
-        return next((r for r in self.records if name.casefold() in r.names()), None)
+        return find_by_name(self.records, name)
 
 
 class FakeDatabases:
@@ -478,6 +484,26 @@ def test_no_mandated_repository_found_abstains(runs_dir: Path) -> None:
     env = invoke(runs_dir, RepositoryNeeds(mandated=[RepositoryRef(name="Nowhere Archive")]))
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == ReasonCode.NO_CANDIDATES_RETRIEVED
+    # It reports what re3data returned, so it credits re3data like any other statement.
+    assert env.outcome.statement.endswith("Credit to the fake registry.")
+
+
+def test_a_name_several_records_bear_is_not_guessed(runs_dir: Path) -> None:
+    twin = SURVEYS.model_copy(update={"re3data_id": "r3d100000099", "fairsharing_id": None})
+    needs = RepositoryNeeds(mandated=[RepositoryRef(name="Social Survey Archive")])
+    env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([twin, SURVEYS])))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert "names several re3data records (r3d100000001, r3d100000099)" in env.outcome.statement
+
+
+def test_a_name_beats_another_records_additional_name() -> None:
+    alias = SURVEYS.model_copy(
+        update={"re3data_id": "r3d100000000", "name": "Elsewhere", "additional_names": ["SSA"]}
+    )
+    named = SURVEYS.model_copy(update={"name": "SSA"})
+    assert find_by_name([alias, named], "ssa") == [named]
+    assert find_by_name([alias], "SSA") == [alias]
+    assert find_by_name([alias, named], "nothing") == []
 
 
 # --- answers read from the registry ----------------------------------------------------------

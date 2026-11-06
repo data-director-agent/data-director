@@ -8,6 +8,7 @@ code to be valid.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -64,9 +65,20 @@ class Repositories(Protocol):
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None: ...
 
-    def find(self, name: str) -> Re3dataRecord | None:
-        """The repository whose name or additional name is `name`, ignoring case; no guess."""
+    def find(self, name: str) -> list[Re3dataRecord]:
+        """The repositories named `name`, ignoring case (`find_by_name`): more than one when the
+        name is ambiguous, and none rather than a guess."""
         ...
+
+
+def find_by_name(records: Iterable[Re3dataRecord], name: str) -> list[Re3dataRecord]:
+    """The records whose name is `name`, ignoring case; else those with it as an additional
+    name. Sorted by identifier. Across all of re3data a name is not unique (institutional
+    Dataverse and DSpace instances, shared acronyms), so the caller must not take the first."""
+    wanted = name.casefold().strip()
+    named = [r for r in records if r.name.casefold().strip() == wanted]
+    found = named or [r for r in records if wanted in r.names()]
+    return sorted(found, key=lambda r: r.re3data_id)
 
 
 @runtime_checkable

@@ -21,7 +21,13 @@ from rank_bm25 import BM25Okapi
 
 from dd_agent_advisor_repository import registry
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
-from dd_agent_advisor_repository.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
+from dd_agent_advisor_repository.retrieve import (
+    Hit,
+    Query,
+    RegistryUnavailable,
+    SnapshotRef,
+    find_by_name,
+)
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 FAIRSHARING_SNAPSHOT = DATA_DIR / "fairsharing" / "snapshot.jsonl"
@@ -138,9 +144,8 @@ class Re3dataRegistry:
     def fetch(self, re3data_id: str) -> Re3dataRecord | None:
         return self._by_id.get(re3data_id)
 
-    def find(self, name: str) -> Re3dataRecord | None:
-        wanted = name.casefold().strip()
-        return next((r for r in self.records if wanted in r.names()), None)
+    def find(self, name: str) -> list[Re3dataRecord]:
+        return find_by_name(self.records, name)
 
 
 class FairsharingSnapshot:
