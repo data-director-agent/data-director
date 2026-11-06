@@ -46,6 +46,7 @@ which gets one line that points to the code.
 | [The app](app.md) | The browser shell, the app's process boundary and problem reports. |
 | [Projects](projects.md) | Projects, file inventories, documents and their versions, proposed changes and approval, sharing. |
 | [Deposit](deposit.md) | Repository requirements and the deposit package. |
+| [Disclosure](disclosure.md) | Model calls and their prompts, and the disclosure of how each approved document came about, as a statement and a PROV-O graph. |
 | [Evaluation and conformance](evaluation.md) | Evaluation, assessment lanes, and how conformance to the Blueprint is reported. |
 
 ## The shape of a spec

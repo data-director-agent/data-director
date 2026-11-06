@@ -16,6 +16,7 @@ from dd_agent_advisor_standards.explain import (
 )
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation
+from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import make_tracing
 
 
@@ -101,3 +102,36 @@ def test_each_call_returns_its_own_usage() -> None:
     assert (first.usage.input_tokens, first.usage.output_tokens) == (10, 1)
     assert (second.usage.input_tokens, second.usage.output_tokens) == (20, 2)
     assert not hasattr(ex, "usage")
+
+
+class _RecordingClient(_CountingClient):
+    """A stub client that keeps what it was sent and answers as a dated model."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.sent: dict[str, object] = {}
+
+    def create(self, **sent: object) -> SimpleNamespace:
+        self.sent = sent
+        response = super().create()
+        response.model = "claude-opus-5-20261101"
+        return response
+
+
+def test_a_call_is_recorded_with_the_prompt_it_sent() -> None:
+    """The call names the model the response named, and its prompt is what the client was sent
+    (docs/specs/disclosure.md)."""
+    pytest.importorskip("anthropic")
+    client = _RecordingClient()
+    ex = AnthropicExplainer(client=client, model_id="claude-opus-5")  # type: ignore[arg-type]
+    tracing = make_tracing()
+    ctx = RunContext(tracer=tracing.tracer, input_ref="", input_hash="")
+    out = ex.explain(DatasetProfile(), _items(), ctx)
+    assert out.calls is not None
+    (call,) = out.calls.calls
+    assert (call.model_provider, call.model_id) == ("anthropic", "claude-opus-5-20261101")
+    assert (call.input_tokens, call.output_tokens) == (10, 1)
+    prompt = out.calls.prompts[call.prompt_digest]
+    assert prompt == {"system": client.sent["system"], "messages": client.sent["messages"]}
+    assert prompt["system"] == SYSTEM_PROMPT
+    assert prompt_digest(prompt) == call.prompt_digest

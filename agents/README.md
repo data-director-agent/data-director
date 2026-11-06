@@ -132,7 +132,12 @@ CLI, transports or viewer, this agent will show it.
    An agent that calls a model keeps its system prompt in `system_prompt.md` beside the module
    that sends it, and reads it with `Path(__file__).with_name("system_prompt.md")`, so the prompt
    can be read and reviewed as prose. CI treats that file as the agent's code, not as prose.
-   `orchestrator-model/` and `advisor-standards/` are the examples.
+   It records each call with a `dd_sdk.prompts.ModelCallLog`, where it opens the call's `chat`
+   span, with the system prompt, messages and tools it sent and the model the response names, and
+   returns the log's `calls` and `prompts` in its `AgentResult`. The harness keeps the prompts
+   beside the run, and a project's disclosure names the model and the prompt's digest
+   ([Disclosure](../docs/specs/disclosure.md)). `orchestrator-model/` and `advisor-standards/`
+   are the examples.
 
    An agent that is exploratory — not yet validated, likely to change shape — ships with a
    pre-release version (`version = "0.1.0a1"`, PEP 440) instead of the usual `0.1.0`, and its

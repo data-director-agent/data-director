@@ -23,12 +23,12 @@ export type FlowLoad =
 export function PhaseTracker({ load, agents }: { load: FlowLoad; agents: AgentView[] }) {
   return (
     <nav aria-labelledby="phases-heading" className="workspace-phases">
-      <h2 id="phases-heading">Blueprint phases</h2>
+      <h2 id="phases-heading">Data management phases</h2>
       <NotBuilt title="Where your project is in these phases" issues={[160]} />
       {load.state === "loading" && <p role="status">Loading the phases…</p>}
       {load.state === "failed" && (
         <div role="alert" className="callout status-danger">
-          <p>Data Director could not load the Blueprint's phases: {load.message}.</p>
+          <p>Data Director could not load the data management phases: {load.message}.</p>
         </div>
       )}
       {load.state === "loaded" && <Phases flow={load.flow} agents={agents} />}
@@ -65,7 +65,7 @@ function Phases({ flow, agents }: { flow: ProcessFlow; agents: AgentView[] }) {
                       <p className="step-meta">
                         {step.requirements.length > 0
                           ? `Requirements: ${step.requirements.join(", ")}. `
-                          : "The Blueprint names no requirement here. "}
+                          : ""}
                         {serving.length > 0 ? (
                           <>
                             Served by{" "}

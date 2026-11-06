@@ -10,7 +10,7 @@
 # source: blueprint  — the identifier and title are the Blueprint's own (docs/blueprint/07-functional-specification.md).
 # source: project    — a decomposition or obligation this project introduced; the Blueprint does
 #                      not use the identifier. R3.1–R3.6 come from agents/advisor-standards; the other sub-IDs
-#                      (R4.1, R10.1, C5.1, C13.n, C14.1) split a Blueprint
+#                      (R4.1, R10.n, C5.1, C13.n, C14.1) split a Blueprint
 #                      requirement so that a row claims only what its tests show.
 #
 # assessed_by      — how the requirement is assessed (docs/specs/evaluation.md): `test` (a marked test in a pytest
@@ -95,6 +95,10 @@ requirements:
     source: project
     parent: R10
     title: Every invocation is stored, traced and packaged as a Process Run Crate; PROV-O alignment and audit-trail completeness are not exercised (#26)
+  - id: R10.2
+    source: project
+    parent: R10
+    title: Each approved project document is disclosed as a statement and a PROV-O graph naming the run and models that drafted it, each prompt by digest, each person's edit and the approval; carrying the disclosure in the deposit package is not exercised (#202)
   - id: R11
     source: blueprint
     title: Link datasets to related research outputs including publications, people, grants and software
@@ -164,6 +168,10 @@ requirements:
     source: project
     parent: C13
     title: A person approves, edits then approves, or rejects each document version an agent drafts, with a reason for any departure from the draft; the harness records who decided, when and why, and refuses a decision on text other than the undecided latest version; that review is mandatory before deposit is not exercised (#197)
+  - id: C13.4
+    source: project
+    parent: C13
+    title: Each model call an agent makes is recorded with the model the provider named, when it was made and the digest of the prompt sent; the harness keeps the prompt beside the run and refuses a run whose prompts are not those its calls name; that an agent reports every call is not checked (#26)
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions

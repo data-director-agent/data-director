@@ -881,6 +881,49 @@
          "title": "Message",
          "type": "object"
       },
+      "ModelCall": {
+         "additionalProperties": false,
+         "description": "One call an agent made to a language model, as the agent reports it (docs/specs/disclosure.md). model_id is the model the provider's response named, which may be more exact than the one configured. prompt_digest identifies the messages sent: the harness keeps them beside the run, never in the envelope, and checks that they hash to it.",
+         "properties": {
+            "model_provider": {
+               "description": "Who serves the model, as the agent's card names it (anthropic).",
+               "type": "string"
+            },
+            "model_id": {
+               "type": "string"
+            },
+            "called_at": {
+               "description": "When the agent sent the call.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "prompt_digest": {
+               "description": "SHA-256 of the prompt sent, as dd-prompt-json-v1: the JSON object of what the agent sent besides sampling parameters (system prompt, messages, tools), keys sorted, no whitespace, UTF-8 (dd_sdk.prompts).",
+               "pattern": "^[0-9a-f]{64}$",
+               "type": "string"
+            },
+            "input_tokens": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "output_tokens": {
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "model_provider",
+            "model_id",
+            "called_at",
+            "prompt_digest"
+         ],
+         "title": "ModelCall",
+         "type": "object"
+      },
       "Obligation": {
          "description": "Whether a requirement set's field or document stops a package (docs/specs/deposit.md).",
          "enum": [
@@ -1547,6 +1590,16 @@
             },
             "energy_method": {
                "$ref": "#/$defs/EnergyMethod"
+            },
+            "model_calls": {
+               "description": "Each call to a language model the agent made during the run, in the order made. Absent for an agent that called none.",
+               "items": {
+                  "$ref": "#/$defs/ModelCall"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -1641,5 +1694,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.5"
+   "version": "0.9.6"
 }

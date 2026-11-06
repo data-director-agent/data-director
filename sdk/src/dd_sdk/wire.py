@@ -8,7 +8,8 @@ conductor's `invoke_agent` span.
 Agent → harness: a completed task whose single artifact, named `agent-result`, has one data
 part `{"result": <AgentResult document>, "spans": [<span JSON>, ...]}`. Each span is the string
 `ReadableSpan.to_json` produced, carried as a string so protobuf's `Struct` (which has only
-floating-point numbers) cannot alter it. The agent never returns an `Envelope`: the conductor
+floating-point numbers) cannot alter it. For the same reason, the result's `prompts` are JSON
+strings keyed by digest (`dd_sdk.prompts`). The agent never returns an `Envelope`: the conductor
 builds that.
 
 The agent card declares the extension `EXTENSION_URI`, whose `params` are `describe(spec)`. The
@@ -29,7 +30,14 @@ import json
 from typing import Any
 
 from dd_sdk.agent import AgentResult
-from dd_sdk.contract.models import EvidenceItem, Grounded, OpenPayload, Outcome, to_document
+from dd_sdk.contract.models import (
+    EvidenceItem,
+    Grounded,
+    ModelCall,
+    OpenPayload,
+    Outcome,
+    to_document,
+)
 
 # TODO(#3): a persistent identifier for the extension. The w3id namespace the problem types use is
 # not yet registered either (contract/problem.py).
@@ -90,6 +98,15 @@ def _result_to_document(result: AgentResult) -> dict[str, Any]:
         value = getattr(result, key)
         if value is not None:
             doc[key] = value
+    if result.model_calls:
+        doc["model_calls"] = [to_document(c) for c in result.model_calls]
+    if result.prompts:
+        # As JSON strings, as spans are, so that Struct cannot turn an integer in a prompt into a
+        # floating-point number and change its digest.
+        doc["prompts"] = {
+            digest: json.dumps(prompt, ensure_ascii=False)
+            for digest, prompt in result.prompts.items()
+        }
     return doc
 
 
@@ -104,7 +121,20 @@ def _result_from_document(doc: dict[str, Any]) -> AgentResult:
         model_id=doc.get("model_id"),
         input_tokens=_int_or_none(doc.get("input_tokens")),
         output_tokens=_int_or_none(doc.get("output_tokens")),
+        model_calls=tuple(ModelCall.model_validate(c) for c in doc.get("model_calls", [])),
+        prompts=_prompts(doc.get("prompts", {})),
     )
+
+
+def _prompts(value: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(value, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in value.items()
+    ):
+        raise TypeError("prompts are not JSON strings keyed by digest")
+    prompts = {digest: json.loads(text) for digest, text in value.items()}
+    if not all(isinstance(p, dict) for p in prompts.values()):
+        raise TypeError("a prompt is not a JSON object")
+    return prompts
 
 
 def _int_or_none(value: Any) -> int | None:
