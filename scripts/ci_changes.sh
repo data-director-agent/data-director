@@ -5,7 +5,7 @@
 #
 #   python=true|false   the Python workspace (ci.yml; the viewer in accessibility.yml)
 #   web=true|false      app/web (ci.yml)
-#   deploy=true|false   the NGINX site (ci.yml)
+#   deploy=true|false   the NGINX site and the systemd units (ci.yml)
 #   docs=true|false     the documentation site (accessibility.yml, which builds it)
 #   codeql=[...]        the languages CodeQL analyses, as a JSON list (codeql.yml)
 #
@@ -39,8 +39,10 @@ while IFS= read -r f; do
     # The workflows, these rules and the Python toolchain decide every job.
     .github/* | scripts/ci_changes.sh | pyproject.toml | uv.lock | .python-version)
       python=true web=true deploy=true docs=true ;;
-    # The NGINX site is checked on its own; the rest of deploy/ is still the Python workspace's.
-    deploy/nginx/* | deploy/install.sh | scripts/check_nginx.sh) python=true deploy=true ;;
+    # The NGINX site and the systemd units are checked on their own; the rest of deploy/ is still
+    # the Python workspace's.
+    deploy/nginx/* | deploy/systemd/* | deploy/systemd-lint-baseline.txt | deploy/install.sh | scripts/check_nginx.sh | scripts/check_systemd.sh)
+      python=true deploy=true ;;
     # app/tests writes app/web/fixtures and checks that they are current.
     app/web/fixtures/*) python=true web=true ;;
     app/web/*) web=true ;;
