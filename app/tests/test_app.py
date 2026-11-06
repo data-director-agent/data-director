@@ -191,10 +191,29 @@ def test_every_other_path_serves_the_built_shell(governance: Governance, dist: P
     assert "<title>shell</title>" in response.text
 
 
-def test_the_agents_page_serves_the_built_shell(governance: Governance, dist: Path):
-    response = TestClient(build_app(governance, dist)).get("/agents")
+@pytest.mark.parametrize("page", ["/agents", "/activity", "/policy"])
+def test_each_page_serves_the_built_shell(governance: Governance, dist: Path, page: str):
+    response = TestClient(build_app(governance, dist)).get(page)
     assert response.status_code == 200
     assert "<title>shell</title>" in response.text
+
+
+def test_api_policy_gives_the_profile_the_gate_holds_runs_to(governance: Governance, dist: Path):
+    response = TestClient(build_app(governance, dist)).get("/api/policy")
+    assert response.status_code == 200
+    body = response.json()
+    profile = governance.conductor.profile
+    assert body["profile"]["ref"] == profile.ref
+    assert body["profile"]["digest"] == profile.digest
+    assert body["profile"]["description"] == profile.description != ""
+    assert body["profile"]["orchestrator"] == "orchestrator.stub"
+    assert {a["agent_id"]: a["action_class"] for a in body["agents"]} == profile.agents
+    assert body["actions_requiring_approval"] == sorted(profile.actions_requiring_approval)
+    for agent in body["agents"]:
+        assert agent["requires_approval"] is (
+            agent["action_class"] in profile.actions_requiring_approval
+        )
+    check_fixture("policy.json", body)
 
 
 def test_an_unbuilt_shell_stops_start_up(governance: Governance, tmp_path: Path):

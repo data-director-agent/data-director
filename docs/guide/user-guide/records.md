@@ -90,6 +90,13 @@ the app to read.
 If you report a problem from the app, the report includes what you type and, only if you agree,
 the identifiers of the run and conversation. It never includes your inputs or results.
 
+## The rules each run is held to
+
+Every run is checked against the deployment's policy before it starts, and its record names that
+policy, for example `profile:data-director-app@v7`. Select **Policy** in the banner to see it: which
+agents may run, what each is allowed to do, and which actions need a data steward's approval.
+A data steward sets the policy; it cannot be changed from the app.
+
 ## How long records are kept
 
 Records are kept until whoever runs the deployment removes them. The app does not yet let you

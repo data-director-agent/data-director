@@ -5,6 +5,7 @@ import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
+import { PolicyPage } from "./components/policy/PolicyPage";
 import { ProfilePage } from "./components/profile/ProfilePage";
 import { ProjectPage } from "./components/project/ProjectPage";
 import { ProjectsPage } from "./components/project/ProjectsPage";
@@ -13,7 +14,7 @@ import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
-import { useLocation } from "./route";
+import { Link, useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
 import {
@@ -57,13 +58,14 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onFeedback = path === "/feedback";
   const onProfile = path === "/profile";
   const onActivity = path === "/activity";
+  const onPolicy = path === "/policy";
   const onProjects = path === "/projects";
   const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
   // A project's own page is under Projects in the main navigation.
   const current =
     onProjects || projectId
       ? "/projects"
-      : ["/activity", "/agents", "/feedback", "/profile", "/sign-in", "/signed-out"].includes(path)
+      : ["/activity", "/agents", "/feedback", "/policy", "/profile", "/sign-in", "/signed-out"].includes(path)
         ? path
         : "/";
 
@@ -142,6 +144,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
         </div>
       );
     }
+    if (onPolicy) return <PolicyPage directory={state.value} />;
     if (!onAgents) return <ConversationHome directory={state.value} />;
     return (
       <>
@@ -178,7 +181,10 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
 function ActingFor({ directory: { actingFor, profileRef } }: { directory: Directory }) {
   return (
     <p className="hint">
-      Acting as {actingFor.name} ({assuranceText(actingFor)}) · Policy <code>{profileRef}</code>
+      Acting as {actingFor.name} ({assuranceText(actingFor)}) · Policy{" "}
+      <Link to="/policy">
+        <code>{profileRef}</code>
+      </Link>
     </p>
   );
 }

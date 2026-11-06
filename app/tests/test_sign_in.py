@@ -234,6 +234,7 @@ PROTECTED = [
     ("GET", "/api/projects"),
     ("GET", "/api/examples"),
     ("GET", "/api/process-flow"),
+    ("GET", "/api/policy"),
     ("POST", "/api/feedback"),
 ]
 

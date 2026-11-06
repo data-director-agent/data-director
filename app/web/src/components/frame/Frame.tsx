@@ -15,6 +15,7 @@ import {
   Bug,
   FolderOpen,
   MessagesSquare,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -30,6 +31,7 @@ const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/", label: "Conversation", icon: MessagesSquare },
   { to: "/activity", label: "Activity log", icon: Activity },
   { to: "/agents", label: "Agents", icon: Bot },
+  { to: "/policy", label: "Policy", icon: Shield },
 ];
 
 /** A banner icon: decoration beside a label that says the same, so hidden from screen readers. */

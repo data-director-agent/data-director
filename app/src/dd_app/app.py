@@ -371,6 +371,9 @@ def build_app(
 
     limiter = feedback.RateLimiter()
 
+    async def get_policy(request: Request, _: Principal) -> Response:
+        return JSONResponse(governance.policy())
+
     async def get_about(request: Request) -> Response:
         deployment = await run_in_threadpool(governance.deployment)
         return JSONResponse(
@@ -546,6 +549,7 @@ def build_app(
             ),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
+            Route("/api/policy", signed_in(get_policy), methods=["GET"]),
             Route("/api/about", get_about, methods=["GET"]),
             Route("/server-status", server_status, methods=["GET"]),
             Route("/api/feedback", signed_in(send_feedback), methods=["POST"]),
@@ -554,7 +558,9 @@ def build_app(
             Route(CALLBACK_PATH, finish_sign_in, methods=["GET"]),
             Route("/api/sign-out", sign_out, methods=["POST"]),
             *delegation,
+            Route("/activity", shell, methods=["GET"]),
             Route("/agents", shell, methods=["GET"]),
+            Route("/policy", shell, methods=["GET"]),
             Route("/feedback", shell, methods=["GET"]),
             Route("/profile", shell, methods=["GET"]),
             Route("/projects", shell, methods=["GET"]),
