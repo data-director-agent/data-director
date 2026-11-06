@@ -26,6 +26,16 @@ export function AgentDirectory({
 
   return (
     <>
+      {directory.unregistered.map((u) => (
+        <div key={u.name} role="alert" className="callout status-danger">
+          <p>
+            <strong>
+              {u.state === "unavailable" ? "Agent unavailable" : "Agent incompatible"}:
+            </strong>{" "}
+            <code>{u.name}</code> could not be registered. {u.reason}
+          </p>
+        </div>
+      ))}
       {directory.agents.length === 0 ? (
         <p>No agents are registered with this deployment.</p>
       ) : (
@@ -56,22 +66,6 @@ export function AgentDirectory({
           </div>
           {agent && <AgentDetail key={agent.id} agent={agent} />}
         </div>
-      )}
-      {directory.unregistered.length > 0 && (
-        <section aria-labelledby="unregistered-heading">
-          <h2 id="unregistered-heading">Agents that could not be registered</h2>
-          <ul>
-            {directory.unregistered.map((u) => (
-              <li key={u.name}>
-                <code>{u.name}</code>{" "}
-                <span className="status status-danger">
-                  {u.state === "unavailable" ? "Unavailable" : "Incompatible"}
-                </span>{" "}
-                {u.reason}
-              </li>
-            ))}
-          </ul>
-        </section>
       )}
     </>
   );
