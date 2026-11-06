@@ -350,9 +350,9 @@ describe("ConversationHome", () => {
   });
 
   describe("the workspace around the conversation", () => {
-    it("lists the Blueprint's six phases and the agents serving each step", async () => {
+    it("lists the six data management phases and the agents serving each step", async () => {
       const { container } = renderHome(withOrchestrator(), fakeApi());
-      const phases = await screen.findByRole("navigation", { name: "Blueprint phases" });
+      const phases = await screen.findByRole("navigation", { name: "Data management phases" });
       const items = within(phases).getAllByRole("listitem").filter((li) => li.querySelector("summary"));
       expect(items).toHaveLength(6);
       expect(within(phases).getByText("Pre-collection setup")).toBeVisible();
@@ -418,7 +418,7 @@ describe("ConversationHome", () => {
     it("keeps the conversation working when the phases cannot be loaded", async () => {
       const failing: FlowApi = { get: () => Promise.reject(new Error("the server answered 500")) };
       renderHome(withOrchestrator(), fakeApi(), failing);
-      const phases = screen.getByRole("navigation", { name: "Blueprint phases" });
+      const phases = screen.getByRole("navigation", { name: "Data management phases" });
       expect(await within(phases).findByRole("alert")).toHaveTextContent("the server answered 500");
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
     });

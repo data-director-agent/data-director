@@ -26,7 +26,7 @@ The conversation sits in the centre of a workspace ([The app](../docs/specs/app.
 
 - across the top, whom the work acts for and whose policy applies, then the project's dataset,
   phase, repository and governance flags, which are not built yet (#160);
-- on the left, the Blueprint's six phases and their steps, from `GET /api/process-flow`, each step
+- on the left, the six data management phases and their steps, from `GET /api/process-flow`, each step
   naming the agents here whose manifest `serves` the step ([Orchestration](../docs/specs/orchestration.md));
 - on the right, the project's documents, which are not built yet (#160), and what the
   orchestrator is and what it has not declared;
