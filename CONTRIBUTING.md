@@ -7,7 +7,9 @@ The organisation-wide [contribution guide](https://github.com/data-director-agen
 applies here: when to open an RFC, the Developer Certificate of Origin sign-off (`git commit -s`)
 and the pull request workflow. [Governance](https://github.com/data-director-agent/.github/blob/main/GOVERNANCE.md)
 and the [code of conduct](https://github.com/data-director-agent/.github/blob/main/CODE_OF_CONDUCT.md)
-are also organisation-wide. This file covers what is specific to this repository.
+are also organisation-wide. This file covers what is specific to this repository. New here? Start with
+[your first contribution](docs/guide/developer-guide/first-contribution.md): a table of what you
+might want to do, and the steps from a fresh clone to a pull request.
 
 ## Contributing without writing code
 
