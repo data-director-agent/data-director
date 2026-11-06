@@ -32,7 +32,11 @@ Environment=DD_APP_PORT=7860
 Environment=DD_RUNS_DIR=/var/lib/data-director/runs
 # The agents' ports to wait for.
 Environment="DD_WAIT_PORTS=8101 8102 8105 8108 8109 8111 8110 8112 8113 8114 8115 8116 8117 8106"
-# DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME (required), and any override of the above.
+# The ORCID client's secret, as a systemd credential readable by this unit alone. The unit does not
+# start without it: a deployment signs people in and has no operator (docs/specs/policy-and-identity.md).
+LoadCredential=orcid-client-secret:/etc/data-director/credentials/app/orcid-client-secret
+Environment=DD_OIDC_CLIENT_SECRET_FILE=orcid-client-secret
+# DD_OIDC_ISSUER, DD_OIDC_CLIENT_ID and DD_APP_PUBLIC_URL (required), and any override of the above.
 EnvironmentFile=/etc/data-director/app.env
 ExecStartPre=/opt/data-director/current/deploy/wait-for-ports.sh 60 $DD_WAIT_PORTS
 ExecStart=/opt/data-director/current/.venv/bin/data-director
