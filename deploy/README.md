@@ -171,9 +171,63 @@ release, stop the timer: `sudo systemctl disable --now data-director-deploy.time
 ## Problem reports
 
 The app's "Report a problem" page files a GitHub issue for the person, who needs no GitHub
-account ([The app](../docs/specs/app.md)). It is off until the app holds a token, and the page says so. The token is
-a fine-grained personal access token for this repository only, with Issues: write and nothing
-else. Issues are public.
+account ([The app](../docs/specs/app.md)). It is off until the app holds a credential for GitHub,
+and the page says so. Issues are public. Use a GitHub App; a personal token is the fallback
+([below](#a-token-instead)). Set one, not both: the app stops at start-up if it finds both.
+
+### Create the GitHub App
+
+An organisation owner does this once, at the organisation's **Settings → Developer settings →
+GitHub Apps → New GitHub App**.
+
+1. Name it (for example `data-director-feedback`; issues appear as `<name>[bot]`) and give any
+   homepage URL, such as the repository's.
+2. Untick **Webhook → Active**. The app calls GitHub; GitHub never calls it.
+3. Under **Repository permissions**, set **Issues** to **Read and write**. Leave every other
+   permission at "No access" (GitHub adds Metadata: read itself).
+4. Under **Where can this GitHub App be installed?**, choose **Only on this account**.
+5. **Create GitHub App**. Note the **App ID** at the top of its settings page.
+6. Under **Private keys**, **Generate a private key**. GitHub downloads a `.pem` file once; keep it
+   to install below, then delete your copy.
+7. **Install App** (left menu), choose the organisation, **Only select repositories**, and pick
+   `data-director`. The installation's ID is the number at the end of the installation's URL
+   (`.../settings/installations/<id>`); the app finds it itself, so it is optional.
+
+### Give the app its key
+
+```bash
+sudo install -d -m 0700 /etc/data-director/credentials/app
+sudo install -m 0600 /path/to/downloaded.pem /etc/data-director/credentials/app/feedback-github-app.pem
+shred -u /path/to/downloaded.pem
+sudo systemctl edit data-director-app.service   # add the lines below
+sudo systemctl restart data-director-app.service
+```
+
+```ini
+[Service]
+LoadCredential=feedback-github-app.pem:/etc/data-director/credentials/app/feedback-github-app.pem
+Environment=DD_FEEDBACK_GITHUB_APP_ID=<the App ID>
+Environment=DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE=feedback-github-app.pem
+```
+
+The drop-in is not shipped, because a unit with `LoadCredential=` does not start if the file is
+missing, and the app should start without reports. To name the installation instead of letting
+the app find it, add `Environment=DD_FEEDBACK_GITHUB_APP_INSTALLATION_ID=<id>`.
+
+Test it by filing a report from the app. The issue should appear in the repository, opened by
+`<name>[bot]`. If the page says the report was not filed, `journalctl -u data-director-app`
+shows what GitHub answered: `401` means the App ID or key is wrong, `404` that the App is not
+installed on the repository, and `403` that its Issues permission is missing (an owner must
+accept a changed permission on the installation).
+
+To rotate the key, generate a second one in the App's settings, replace the file, restart the
+app, and then delete the old key in GitHub.
+
+### A token instead
+
+A fine-grained personal access token for this repository only, with Issues: write and nothing
+else, also works. It belongs to the person who made it and expires, so make it from a dedicated
+service account; issues are filed as that account.
 
 ```bash
 sudo install -d -m 0700 /etc/data-director/credentials/app
@@ -189,8 +243,7 @@ LoadCredential=feedback-github-token:/etc/data-director/credentials/app/feedback
 Environment=DD_FEEDBACK_GITHUB_TOKEN_FILE=feedback-github-token
 ```
 
-The drop-in is not shipped, because a unit with `LoadCredential=` does not start if the file is
-missing, and the app should start without reports.
+### Either way
 
 `DD_FEEDBACK_REPO` in `/etc/data-director/app.env` names another repository
 (`owner/name`; default `data-director-agent/data-director`). The version and commit that reports

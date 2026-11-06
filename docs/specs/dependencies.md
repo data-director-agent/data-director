@@ -58,7 +58,7 @@ modules are not dependencies here.
 | `rocrate` | Harness | `dd_harness.provenance` | Write `ro-crate-metadata.json` directly. |
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
 | `python-dotenv` | Harness | `dd_harness.settings` | `uv run --env-file`, or variables exported in the shell. |
-| `joserfc` | Harness | ID-token verification in `dd_harness.identity` | Another JOSE library, or RS256 verification with `cryptography`. |
+| `joserfc` | Harness, app | ID-token verification in `dd_harness.identity`; the RS256 JWT a GitHub App presents in `dd_app.github_auth` | Another JOSE library, or RS256 with `cryptography`. |
 | `ag-ui-protocol` | Workbench | `workbench.transport.agui` | Two pydantic event models and an SSE encoder. |
 | `rank-bm25` (with numpy) | Retrieving agents | Each agent's `snapshot` module | About forty lines of BM25. |
 | `anthropic` | Orchestrator (required); retrieving advisers (optional extra) | `dd_agent_orchestrator_model.model`; each adviser's `explain` module | The rule-based orchestrator stub, or an adviser's template explainer; any HTTP client against the Messages API. |
