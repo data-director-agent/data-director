@@ -23,6 +23,14 @@
 #   GITHUB_TOKEN          (unset)         only for a private repository or the API rate limit
 #
 # `deploy.sh --force` skips the CI check and the record of failed commits.
+#
+# `deploy.sh --bootstrap [sha]` is the way out when this script, the copy in the live release, is
+# what stops a deployment: it points `current` at a release that is already built (sha, or the
+# newest built one), restarts, and waits for the app to report it. It fetches nothing, checks
+# no CI, builds nothing and records no failure. Run it from that release's own copy, as the
+# deploy user or as root (deploy/README.md, "The app shows an old commit"):
+#
+#   sudo /opt/data-director/releases/<sha>/deploy/deploy.sh --bootstrap
 set -euo pipefail
 
 REPO="${DD_DEPLOY_REPO:-https://github.com/data-director-agent/data-director.git}"
@@ -39,7 +47,20 @@ HEALTH_TIMEOUT=120
 MISSING_CHECK_GRACE=1800
 
 FORCE=0
-[[ "${1:-}" == "--force" ]] && FORCE=1
+BOOTSTRAP=0
+BOOTSTRAP_SHA=""
+case "${1:-}" in
+  "") ;;
+  --force) FORCE=1 ;;
+  --bootstrap)
+    BOOTSTRAP=1
+    BOOTSTRAP_SHA="${2:-}"
+    ;;
+  *)
+    echo "usage: deploy.sh [--force | --bootstrap [sha]]" >&2
+    exit 2
+    ;;
+esac
 
 BARE="$ROOT/repo.git"
 RELEASES="$ROOT/releases"
@@ -54,11 +75,16 @@ running_commit() {
   curl --fail --silent --max-time 5 "$ABOUT_URL" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true
 }
 
-# Ask for the app and agents to be restarted. This user may not restart them: root's
+# Ask for the app and agents to be restarted. The deploy user may not restart them: root's
 # data-director-restart.path unit watches a file and restarts data-director.target when it is
 # written (install.sh installs the unit). The restart follows a moment after this returns, and
 # healthy() waits for it, so a restart that never comes ends in the same rollback as one that fails.
+# Root (a --bootstrap by hand) restarts them directly.
 restart() {
+  if ((EUID == 0)); then
+    systemctl restart data-director.target 9>&-
+    return
+  fi
   systemctl is-active --quiet data-director-restart.path ||
     die "data-director-restart.path is not active, so nothing would restart data-director.target; run deploy/install.sh as root (deploy/README.md)"
   # A write, not a touch: the path unit watches for modification.
@@ -67,6 +93,8 @@ restart() {
 
 link() {
   ln -sfn "$1" "$ROOT/current.new"
+  # Run as root, the link would be root's and the next pass, as the deploy user, could not replace it.
+  if ((EUID == 0)); then chown -h --reference="$ROOT" "$ROOT/current.new"; fi
   mv -T "$ROOT/current.new" "$CURRENT"
 }
 
@@ -81,7 +109,67 @@ healthy() {
 
 # One pass at a time, whether from the timer or by hand.
 exec 9>"$ROOT/deploy.lock"
+# Created by root, the lock would be unusable by the deploy user's next pass.
+if ((EUID == 0)); then chown --reference="$ROOT" "$ROOT/deploy.lock"; fi
 flock -n 9 || { log "another deployment is running"; exit 0; }
+
+# --- Bootstrap ---------------------------------------------------------------------------------
+
+# Point `current` at a release that is already built, restart, and wait for it. This depends on
+# neither GitHub, CI nor the build, only on the release directory and a way to restart.
+bootstrap() {
+  [[ -d "$RELEASES" ]] || die "no releases in $RELEASES"
+  local release
+  if [[ -n "$BOOTSTRAP_SHA" ]]; then
+    local matches=() dir
+    for dir in "$RELEASES/$BOOTSTRAP_SHA"*/; do
+      [[ -d "$dir" ]] && matches+=("${dir%/}")
+    done
+    ((${#matches[@]} == 1)) || die "\"$BOOTSTRAP_SHA\" matches ${#matches[@]} releases in $RELEASES, not one"
+    release="${matches[0]}"
+  else
+    # The newest release that finished building (its .built is written last).
+    release="$(find "$RELEASES" -mindepth 2 -maxdepth 2 -name .built -printf '%T@ %h\n' | sort -rn | sed -n 1p | cut -d' ' -f2-)"
+    [[ -n "$release" ]] || die "no built release in $RELEASES"
+  fi
+  [[ -f "$release/.built" ]] || die "$(basename "$release") was not built to the end; nothing to bootstrap"
+
+  local sha short previous prev_short=""
+  sha="$(basename "$release")"
+  short="${sha:0:12}"
+  previous=""
+  if [[ -L "$CURRENT" ]]; then
+    previous="$(readlink -f "$CURRENT")"
+    prev_short="$(basename "$previous")"
+    prev_short="${prev_short:0:12}"
+  fi
+
+  if [[ "$previous" == "$release" && "$(running_commit)" == "$sha" ]]; then
+    log "$short: already live"
+    return
+  fi
+
+  log "$short: bootstrapping (was ${prev_short:-nothing})"
+  link "$release"
+  if ! (restart); then
+    [[ -n "$previous" ]] && link "$previous"
+    exit 1
+  fi
+  if ! healthy "$sha"; then
+    if [[ -n "$previous" ]]; then
+      log "$short: the app did not report $short at $ABOUT_URL; putting $prev_short back"
+      link "$previous"
+      restart
+    fi
+    die "$short: the app did not report $short at $ABOUT_URL"
+  fi
+  log "$short: live"
+}
+
+if ((BOOTSTRAP == 1)); then
+  bootstrap
+  exit 0
+fi
 
 # --- 1. Fetch ----------------------------------------------------------------------------------
 
