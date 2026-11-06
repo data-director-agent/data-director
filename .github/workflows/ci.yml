@@ -339,7 +339,7 @@ jobs:
           fail_ci_if_error: false
       - run: npm run build
       # Headless runs need only chromium-headless-shell, not the full browser.
-      - run: scripts/retry.sh npx playwright install --with-deps --only-shell chromium
+      - run: ../../scripts/retry.sh npx playwright install --with-deps --only-shell chromium
       - run: npm run e2e
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
