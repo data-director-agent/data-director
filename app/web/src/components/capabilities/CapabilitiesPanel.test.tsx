@@ -136,9 +136,15 @@ describe("AgentDirectory", () => {
       unregistered: [{ name: "http://127.0.0.1:8101", state: "unavailable", reason: "refused" }],
     };
     const { container } = render(<AgentDirectory directory={withMissing} />);
-    expect(screen.getByRole("heading", { name: "Agents that could not be registered" }))
-      .toBeVisible();
-    expect(screen.getByText("Unavailable")).toBeVisible();
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Agent unavailable");
+    expect(alert).toHaveTextContent("http://127.0.0.1:8101");
+    expect(alert).toHaveTextContent("refused");
+    // The alert comes before the agents, at the top of the page.
+    expect(
+      alert.compareDocumentPosition(screen.getByRole("heading", { name: "Agents" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(await axe(container)).toHaveNoViolations();
   });
 

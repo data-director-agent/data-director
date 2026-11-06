@@ -32,6 +32,7 @@ it that way: a request that reaches an agent directly carries no sign-in.
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): every agent the app lists, and `@orchestrator-model` once it has a key. |
 | `credentials/<agent>.conf` | A drop-in that loads the agent's model key as a systemd credential. `install.sh` installs it only while the key file exists. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
+| `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify`; run it before changing one. CI runs it. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
@@ -136,11 +137,20 @@ re-run. If the app does not report the new commit on `/api/about` within two min
 starting, it puts the previous release back, records the commit in `failed-commits`, and the
 deploy unit fails, which `systemctl --failed` shows.
 
-`deploy.sh` restarts the services through one sudo rule, `/etc/sudoers.d/data-director`, which
-`install.sh` writes. If the rule is missing, the restart fails, `deploy.sh` puts the link back
-and the deploy unit fails on every pass, while the old release goes on running: the About page
-shows an old commit. Re-run `install.sh` to restore the rule. Where sudoers is managed centrally,
-the rule must be added there, or it will be removed again.
+`deploy.sh` runs nothing as root and needs no sudo rule. To restart the services it writes
+`/opt/data-director/restart-requested`, and `data-director-restart.path`, which root installed,
+restarts `data-director.target`. The path unit can do that one thing and no other. If it is not
+active, `deploy.sh` puts the link back and the deploy unit fails on every pass, while the old
+release goes on running: the About page shows an old commit. Re-run `install.sh` to install and
+start it, or on a host where sudoers or `install.sh` is out of reach:
+
+```bash
+sudo install -m 0644 /opt/data-director/current/deploy/systemd/data-director-restart.{path,service} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now data-director-restart.path
+```
+
+A deployment that fails to restart needs this once, and then a pass of `deploy.sh --force` after
+removing its commit from `failed-commits`.
 
 To deploy a commit by hand anyway, or to retry one that failed to start (after removing it from
 `failed-commits`):
@@ -162,9 +172,63 @@ release, stop the timer: `sudo systemctl disable --now data-director-deploy.time
 ## Problem reports
 
 The app's "Report a problem" page files a GitHub issue for the person, who needs no GitHub
-account ([The app](../docs/specs/app.md)). It is off until the app holds a token, and the page says so. The token is
-a fine-grained personal access token for this repository only, with Issues: write and nothing
-else. Issues are public.
+account ([The app](../docs/specs/app.md)). It is off until the app holds a credential for GitHub,
+and the page says so. Issues are public. Use a GitHub App; a personal token is the fallback
+([below](#a-token-instead)). Set one, not both: the app stops at start-up if it finds both.
+
+### Create the GitHub App
+
+An organisation owner does this once, at the organisation's **Settings → Developer settings →
+GitHub Apps → New GitHub App**.
+
+1. Name it (for example `data-director-feedback`; issues appear as `<name>[bot]`) and give any
+   homepage URL, such as the repository's.
+2. Untick **Webhook → Active**. The app calls GitHub; GitHub never calls it.
+3. Under **Repository permissions**, set **Issues** to **Read and write**. Leave every other
+   permission at "No access" (GitHub adds Metadata: read itself).
+4. Under **Where can this GitHub App be installed?**, choose **Only on this account**.
+5. **Create GitHub App**. Note the **App ID** at the top of its settings page.
+6. Under **Private keys**, **Generate a private key**. GitHub downloads a `.pem` file once; keep it
+   to install below, then delete your copy.
+7. **Install App** (left menu), choose the organisation, **Only select repositories**, and pick
+   `data-director`. The installation's ID is the number at the end of the installation's URL
+   (`.../settings/installations/<id>`); the app finds it itself, so it is optional.
+
+### Give the app its key
+
+```bash
+sudo install -d -m 0700 /etc/data-director/credentials/app
+sudo install -m 0600 /path/to/downloaded.pem /etc/data-director/credentials/app/feedback-github-app.pem
+shred -u /path/to/downloaded.pem
+sudo systemctl edit data-director-app.service   # add the lines below
+sudo systemctl restart data-director-app.service
+```
+
+```ini
+[Service]
+LoadCredential=feedback-github-app.pem:/etc/data-director/credentials/app/feedback-github-app.pem
+Environment=DD_FEEDBACK_GITHUB_APP_ID=<the App ID>
+Environment=DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE=feedback-github-app.pem
+```
+
+The drop-in is not shipped, because a unit with `LoadCredential=` does not start if the file is
+missing, and the app should start without reports. To name the installation instead of letting
+the app find it, add `Environment=DD_FEEDBACK_GITHUB_APP_INSTALLATION_ID=<id>`.
+
+Test it by filing a report from the app. The issue should appear in the repository, opened by
+`<name>[bot]`. If the page says the report was not filed, `journalctl -u data-director-app`
+shows what GitHub answered: `401` means the App ID or key is wrong, `404` that the App is not
+installed on the repository, and `403` that its Issues permission is missing (an owner must
+accept a changed permission on the installation).
+
+To rotate the key, generate a second one in the App's settings, replace the file, restart the
+app, and then delete the old key in GitHub.
+
+### A token instead
+
+A fine-grained personal access token for this repository only, with Issues: write and nothing
+else, also works. It belongs to the person who made it and expires, so make it from a dedicated
+service account; issues are filed as that account.
 
 ```bash
 sudo install -d -m 0700 /etc/data-director/credentials/app
@@ -180,8 +244,7 @@ LoadCredential=feedback-github-token:/etc/data-director/credentials/app/feedback
 Environment=DD_FEEDBACK_GITHUB_TOKEN_FILE=feedback-github-token
 ```
 
-The drop-in is not shipped, because a unit with `LoadCredential=` does not start if the file is
-missing, and the app should start without reports.
+### Either way
 
 `DD_FEEDBACK_REPO` in `/etc/data-director/app.env` names another repository
 (`owner/name`; default `data-director-agent/data-director`). The version and commit that reports
@@ -198,8 +261,9 @@ either on, rotate it and read a start-up error are in the operations guide,
 `/etc/data-director/credentials/<name>/`, by the drop-in `credentials/<name>.conf`.
 
 systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
-to set up credentials"). So `install.sh` installs an agent's drop-in only while its key file
-exists, and removes it otherwise. The standards advisor therefore runs without a key, with its
+to set up credentials"). So `install.sh` installs an agent's drop-in only while its key is a
+non-empty regular file, and removes it otherwise, warning if something else (a directory, say) is
+at that path. The standards advisor therefore runs without a key, with its
 template explainer. After adding or removing a key, run `install.sh` again.
 
 ## Changing the deployment

@@ -114,9 +114,19 @@ The app runs no agent in its own process, so there is nothing to change in the a
 `orchestrator.model` is not part of `data-director.target`, because it cannot start without a
 key. Until the profile names it, the app converses with the rule-based `orchestrator.stub`.
 
-1. Install its key as above, under `/etc/data-director/credentials/orchestrator-model/`
-   (`anthropic-api-key`). Its optional settings go in `/etc/data-director/agents/orchestrator-model.env`.
-   Run `sudo deploy/install.sh --domain <name>` again to install the drop-in that loads the key.
+1. Put its key where only root can read it, as for the standards advisor. The key is a file
+   named `anthropic-api-key`; create the directory above it, not the file's own path.
+
+   ```bash
+   sudo install -d -m 0700 /etc/data-director/credentials/orchestrator-model
+   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/orchestrator-model/anthropic-api-key
+   # paste the key, then Ctrl-D
+   ```
+
+   Check that `sudo ls -l /etc/data-director/credentials/orchestrator-model/` shows
+   `-rw-------` for `anthropic-api-key`, not `drwx------`. Its optional settings go in
+   `/etc/data-director/agents/orchestrator-model.env`. Run `sudo deploy/install.sh --domain <name>`
+   again to install the drop-in that loads the key.
 2. Start it, and have it start with the rest:
 
    ```bash

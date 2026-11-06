@@ -87,8 +87,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     commit to the issue itself; the page shows them but is not trusted for them.
 17. **Problem reports are bounded.** Lengths are capped, unknown fields refused, and the number
     filed in a window limited (`app/src/dd_app/feedback.py`, `app/tests/test_feedback.py`).
-    Without a token the feature is off, the page says so and links to GitHub, and the app still
-    starts.
+    Without a credential for GitHub the feature is off, the page says so and links to GitHub, and
+    the app still starts.
 18. **Each conversation is started in a project of its own.** Where the app keeps projects,
     `POST /api/conversations` creates a project and starts the conversation in it, acting for the
     person signed in, and a conversation names its `project_id` and the inventory its project
@@ -142,7 +142,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   conductor under the profile's permission for that agent like any other; there is no separate
   setting for direct runs.
 - **Problem reports** go to one repository, named in the app's configuration, as an issue of type
-  Bug, Feature or Task with the label `area: app`. The person needs no GitHub account.
+  Bug, Feature or Task with the label `area: app`. The person needs no GitHub account. The app
+  files them as a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and
+  `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`; `DD_FEEDBACK_GITHUB_APP_INSTALLATION_ID` is optional
+  and otherwise found from the repository) or with a token (`DD_FEEDBACK_GITHUB_TOKEN`, or
+  `_FILE`), never both (`app/src/dd_app/github_auth.py`).
 
 ## Rationale
 
@@ -213,9 +217,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   remembered in that browser (`shell.spec.ts`).
 - **Privacy.** No font or other asset is fetched from a third party; the typeface is self-hosted.
   A problem report is public, and the page says so and shows what will be sent beside the form.
-- **Security.** The feedback token is a secret the app holds, read from the environment or a
-  credential file; give it no scope beyond Issues on the one repository. Anyone who can reach the
-  app can file a public issue as the project's bot. A delegation grant is a bearer token, so the
+- **Security.** The credential for filing reports is a secret the app holds, read from a
+  credential file or, for a token, the environment. It is one of two, and configuring both stops
+  the app at start-up. A **GitHub App** is preferred: the app holds its private key, signs a
+  ten-minute JWT, and exchanges it for an installation token that GitHub limits, at the app's own
+  request, to the one repository and to Issues: write. That token lasts an hour and is kept in
+  memory only, renewed a minute before it expires, and asked for again once if GitHub refuses it.
+  The App itself should be granted Issues: read and write and nothing else, so even its key cannot
+  do more. A **fine-grained personal access token** is the alternative; give it no scope beyond
+  Issues on the one repository, and note that it belongs to a person and expires. Anyone who can
+  reach the app can file a public issue as the project's bot. A delegation grant is a bearer token, so the
   app warns at start-up when it is not bound to a loopback address. TODO(#17): authenticate
   callers.
 

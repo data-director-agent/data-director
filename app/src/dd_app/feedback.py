@@ -1,10 +1,11 @@
 """Problem reports and feature requests, filed as GitHub issues (`POST /api/feedback`).
 
-The server holds one fine-grained token (Issues: write, this repository only) and files the
-issue for the reporter, who needs no GitHub account. The issue is public, so the page says so and
+The server holds a credential for GitHub (a GitHub App's key, or a fine-grained token; either
+with Issues: write on this repository only, `github_auth.py`) and files the issue for the
+reporter, who needs no GitHub account. The issue is public, so the page says so and
 shows what will be sent. The server adds the build's version and commit itself, and for a run or
 conversation the reporter chose to include, only its identifiers, agents, versions and outcome:
-never a payload, an input or evidence. Without a token the feature is off (docs/specs/app.md).
+never a payload, an input or evidence. Without a credential the feature is off (docs/specs/app.md).
 """
 
 from __future__ import annotations
@@ -13,17 +14,24 @@ import time
 from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 import httpx
 
-from dd_sdk.credentials import ConfigError
+from dd_app.github_auth import (
+    GITHUB_API,
+    TOKEN_VARIABLE,
+    GitHubAuthError,
+    TokenSource,
+    headers,
+    source_from_env,
+    token_from_env,
+)
 
-TOKEN_VARIABLE = "DD_FEEDBACK_GITHUB_TOKEN"
+__all__ = ["TOKEN_VARIABLE", "source_from_env", "token_from_env"]
+
 REPO_VARIABLE = "DD_FEEDBACK_REPO"
 DEFAULT_REPO = "data-director-agent/data-director"
-GITHUB_API = "https://api.github.com"
 GITHUB_TIMEOUT_SECONDS = 15.0
 
 TITLE_LIMIT = 120
@@ -117,31 +125,6 @@ class RateLimiter:
         self._times.append(now)
 
 
-def token_from_env(env: Mapping[str, str]) -> str | None:
-    """The GitHub token, from `DD_FEEDBACK_GITHUB_TOKEN` or the file `..._FILE` (resolved as
-    `dd_sdk.credentials.api_key` does), or None if neither is set: the feature is then off."""
-    value, file = (env.get(TOKEN_VARIABLE) or "").strip(), env.get(f"{TOKEN_VARIABLE}_FILE")
-    if value and file:
-        raise ConfigError(f"set {TOKEN_VARIABLE} or {TOKEN_VARIABLE}_FILE, not both")
-    if value or not file:
-        return value or None
-    path = Path(file)
-    if not path.is_absolute():
-        directory = env.get("CREDENTIALS_DIRECTORY")
-        if not directory:
-            raise ConfigError(
-                f"{TOKEN_VARIABLE}_FILE={file} is relative and CREDENTIALS_DIRECTORY is not set"
-            )
-        path = Path(directory) / path
-    try:
-        token = path.read_text(encoding="utf-8").strip()
-    except OSError as exc:
-        raise ConfigError(f"{TOKEN_VARIABLE}_FILE: cannot read {path}: {exc.strerror}") from exc
-    if not token:
-        raise ConfigError(f"{TOKEN_VARIABLE}_FILE: {path} is empty")
-    return token
-
-
 def run_context(stored: Mapping[str, Any]) -> list[str]:
     """The lines about a stored run that a report may carry: identifiers and outcome only."""
     envelope = stored.get("envelope") or {}
@@ -188,19 +171,15 @@ async def create_issue(
     body: str,
     *,
     repo: str,
-    token: str,
+    source: TokenSource,
     client: httpx.AsyncClient,
 ) -> dict[str, Any]:
     """File the issue; its `html_url` and `number`. GitHub's refusal is a `FeedbackFailedError`.
 
     The issue type is set where the organisation has types; where GitHub does not accept one for
-    this repository the issue is filed without it.
+    this repository the issue is filed without it. If GitHub refuses the token and the source can
+    make another (an App's installation token revoked or expired early), it is asked once more.
     """
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
     payload: dict[str, Any] = {
         "title": report.title,
         "body": body,
@@ -208,11 +187,19 @@ async def create_issue(
         "type": KINDS[report.kind],
     }
     url = f"{GITHUB_API}/repos/{repo}/issues"
+
+    async def post() -> httpx.Response:
+        return await client.post(url, json=payload, headers=headers(await source.token(client)))
+
     try:
-        response = await client.post(url, json=payload, headers=headers)
+        response = await post()
+        if response.status_code == 401 and source.invalidate():
+            response = await post()
         if response.status_code == 422 and "type" in payload:
             del payload["type"]
-            response = await client.post(url, json=payload, headers=headers)
+            response = await post()
+    except GitHubAuthError as exc:
+        raise FeedbackFailedError(str(exc)) from exc
     except httpx.HTTPError as exc:
         raise FeedbackFailedError(f"GitHub could not be reached ({type(exc).__name__}).") from exc
     if response.status_code != 201:
