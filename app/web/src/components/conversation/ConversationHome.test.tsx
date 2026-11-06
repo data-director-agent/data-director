@@ -4,6 +4,8 @@ import { axe } from "jest-axe";
 
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
+import answeredFixture from "../../../fixtures/conversation-answered.json";
+import questionFixture from "../../../fixtures/conversation-question.json";
 import flowFixture from "../../../fixtures/process-flow.json";
 import {
   type ConversationApi,
@@ -18,8 +20,8 @@ import type { ProcessFlow } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import runFixture from "../../../fixtures/run-succeeded.json";
-import { type RunApi, RunApiContext } from "../../run/api";
-import type { RunResult } from "../../run/types";
+import { type RunApi, RunApiContext, RunRefused } from "../../run/api";
+import type { Problem, RunResult } from "../../run/types";
 import { ConversationHome } from "./ConversationHome";
 
 const CONVERSATION = conversationFixture as unknown as Conversation;
@@ -67,7 +69,74 @@ function renderHome(
   );
 }
 
+const QUESTION = questionFixture as unknown as Conversation;
+const ANSWERED = answeredFixture as unknown as Conversation;
+const COLLECTED = "Data already collected, being prepared for sharing";
+
 describe("ConversationHome", () => {
+  describe("a choice question", () => {
+    it("is announced, answered by choosing, and sent beside the labels chosen", async () => {
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      const get = vi.fn().mockResolvedValueOnce(QUESTION).mockResolvedValue(ANSWERED);
+      const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn, get }));
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+      const group = await screen.findByRole("group", { name: "Where are you with your research data?" });
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "It asks you to choose: Where are you with your research data?",
+      );
+      expect(await axe(container)).toHaveNoViolations();
+      const send = screen.getByRole("button", { name: "Send answer" });
+      expect(send).toBeDisabled();
+      await userEvent.click(within(group).getByRole("radio", { name: COLLECTED }));
+      await userEvent.click(send);
+
+      const asked = QUESTION.turns[0]?.invocation_id;
+      expect(sendTurn).toHaveBeenLastCalledWith("c1", "orchestrator.stub", COLLECTED, asked, null, undefined, {
+        answer_to: asked,
+        answer_values: ["2"],
+      });
+      // Answered, the question is read-only with the choice marked in words.
+      expect(await screen.findByText("(your choice)")).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Send answer" })).toBeNull();
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus();
+    });
+
+    it("keeps the choice, and leaves the message box alone, when the answer is refused", async () => {
+      const refused = new RunRefused({ type: "about:blank", title: "Refused", status: 400, detail: "not an option" } as Problem);
+      const sendTurn = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(refused);
+      renderHome(withOrchestrator(), fakeApi({ sendTurn, get: () => Promise.resolve(QUESTION) }));
+      const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+      await userEvent.type(box, "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await userEvent.click(await screen.findByRole("radio", { name: COLLECTED }));
+      await userEvent.click(screen.getByRole("button", { name: "Send answer" }));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent("Refused: not an option");
+      expect(screen.getByRole("radio", { name: COLLECTED })).toBeChecked();
+      expect(box).toHaveValue("");
+    });
+
+    it("may be ignored: a typed message is sent with no answer", async () => {
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      renderHome(withOrchestrator(), fakeApi({ sendTurn, get: () => Promise.resolve(QUESTION) }));
+      const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+      await userEvent.type(box, "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await screen.findByRole("group", { name: "Where are you with your research data?" });
+      await userEvent.type(box, "ready to deposit");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(sendTurn).toHaveBeenLastCalledWith(
+        "c1",
+        "orchestrator.stub",
+        "ready to deposit",
+        QUESTION.turns[0]?.invocation_id,
+        null,
+      );
+    });
+  });
+
   it("says plainly when there is no orchestrator, and links to the directory", async () => {
     renderHome(normalise(raw), fakeApi());
     expect(screen.getByRole("heading", { name: "No conversation is available" })).toBeVisible();
