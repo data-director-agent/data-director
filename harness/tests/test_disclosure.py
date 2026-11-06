@@ -96,7 +96,7 @@ def test_a_model_call_is_in_the_envelope_and_its_prompt_beside_it_only(
     prompts = conductor.store.get_prompts(envelope.invocation_id)
     assert list(prompts) == [call.prompt_digest]
     assert prompt_digest(prompts[call.prompt_digest]) == call.prompt_digest
-    run_dir = conductor.store.run_dir(envelope.invocation_id)
+    run_dir = runs_dir / envelope.invocation_id
     prompt_text = "Draft the document asked for."
     for kept in ("envelope.json", "spans.jsonl", "crate/ro-crate-metadata.json"):
         assert prompt_text not in (run_dir / kept).read_text(encoding="utf-8"), kept

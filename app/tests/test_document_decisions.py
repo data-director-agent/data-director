@@ -20,9 +20,9 @@ from dd_harness.projects import (
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_VERSION_ADDED,
     DOCUMENT_VERSION_DECIDED,
-    ProjectStore,
     text_digest,
 )
+from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
     TEST_PRINCIPAL,
     DocumentStub,
@@ -49,12 +49,12 @@ def client(governance: Governance, tmp_path: Path) -> TestClient:
 
 
 @pytest.fixture
-def store(governance: Governance) -> ProjectStore:
+def store(governance: Governance) -> ProjectStorage:
     assert governance.projects is not None
     return governance.projects
 
 
-def drafted(store: ProjectStore, runs_dir: Path, *kinds: DocumentKind) -> str:
+def drafted(store: ProjectStorage, runs_dir: Path, *kinds: DocumentKind) -> str:
     """A project with a first draft of each of `kinds`, recorded as the conductor will (#394)."""
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     conductor = make_conductor(runs_dir / "drafts", DocumentStub())
@@ -87,7 +87,7 @@ def decide(client: TestClient, project_id: str, shown: dict[str, Any], **body: A
 
 
 def test_a_project_lists_its_documents_with_the_rule_for_reasons(
-    client: TestClient, store: ProjectStore, tmp_path: Path
+    client: TestClient, store: ProjectStorage, tmp_path: Path
 ) -> None:
     project_id = drafted(store, tmp_path, DocumentKind.README, DocumentKind.DATA_DICTIONARY)
     response = client.get(f"/api/projects/{project_id}/documents")
@@ -109,7 +109,7 @@ def test_a_project_lists_its_documents_with_the_rule_for_reasons(
 
 @pytest.mark.requirement("C13.3")
 def test_a_decision_acts_for_the_person_signed_in_and_is_in_the_log(
-    client: TestClient, store: ProjectStore, tmp_path: Path
+    client: TestClient, store: ProjectStorage, tmp_path: Path
 ) -> None:
     project_id = drafted(store, tmp_path, DocumentKind.README)
     (document,) = store.documents(project_id)
@@ -137,7 +137,7 @@ def test_a_decision_acts_for_the_person_signed_in_and_is_in_the_log(
 
 
 def test_a_decision_on_a_version_already_decided_is_a_conflict(
-    client: TestClient, store: ProjectStore, tmp_path: Path
+    client: TestClient, store: ProjectStorage, tmp_path: Path
 ) -> None:
     project_id = drafted(store, tmp_path, DocumentKind.README)
     version = store.documents(project_id)[0]["versions"][0]
@@ -164,7 +164,7 @@ def test_a_decision_on_a_version_already_decided_is_a_conflict(
 )
 def test_a_malformed_decision_is_refused_and_records_nothing(
     client: TestClient,
-    store: ProjectStore,
+    store: ProjectStorage,
     tmp_path: Path,
     body: dict[str, Any],
     message: str,
@@ -180,7 +180,7 @@ def test_a_malformed_decision_is_refused_and_records_nothing(
 
 
 def test_an_unknown_project_or_document_is_not_found(
-    client: TestClient, store: ProjectStore, tmp_path: Path
+    client: TestClient, store: ProjectStorage, tmp_path: Path
 ) -> None:
     unknown = "01900000-0000-7000-8000-000000000009"
     assert client.get(f"/api/projects/{unknown}/documents").status_code == 404
@@ -193,7 +193,7 @@ def test_an_unknown_project_or_document_is_not_found(
 
 
 def test_a_document_named_by_anything_but_its_identifier_records_nothing(
-    client: TestClient, store: ProjectStore, tmp_path: Path
+    client: TestClient, store: ProjectStorage, tmp_path: Path
 ) -> None:
     # Otherwise anyone signed in could grow a project's log with names of their choosing.
     project_id = drafted(store, tmp_path, DocumentKind.README)
@@ -215,13 +215,14 @@ DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 
 
 def test_the_disclosure_says_how_each_approved_document_came_about(
-    client: TestClient, store: ProjectStore, governance: Governance
+    client: TestClient, store: ProjectStorage, governance: Governance, tmp_path: Path
 ) -> None:
     """The server answers with the harness's disclosure, statement and PROV-O graph, for a draft
     written with a model and approved as it stands (docs/specs/disclosure.md)."""
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     # The drafts' runs go to the store the server reads, as the conductor's own would.
-    conductor = make_conductor(governance.conductor.store.root, DocumentStub("test-model"))
+    conductor = make_conductor(tmp_path / "drafts", DocumentStub("test-model"))
+    conductor.store = governance.conductor.store
     for kind in (DocumentKind.README, DocumentKind.METADATA_RECORD):
         envelope = conductor.invoke(
             request("stub.document", document_request(kind)), acting_for=TEST_PRINCIPAL

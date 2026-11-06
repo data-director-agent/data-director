@@ -44,10 +44,12 @@ from __future__ import annotations
 import asyncio
 import functools
 import secrets
+import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from opentelemetry.trace import SpanContext
@@ -55,11 +57,11 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from dd_harness import grounding, policy, project_facts
 from dd_harness import sources as source_check
-from dd_harness.projects import ProjectError, ProjectStore
-from dd_harness.provenance import write_process_run_crate
+from dd_harness.projects import ProjectError
+from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registry
 from dd_harness.remote import Received, RemoteAgent
-from dd_harness.store import RunStore
+from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, ProjectStorage, RunStorage
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
@@ -116,7 +118,7 @@ class DuplicateInvocation(ValueError):
 
 
 # The most recent grounding reports kept in memory, for a caller that reads one straight after
-# `invoke` (the CLI, the evaluation). `grounding.txt` in each run directory is the durable copy.
+# `invoke` (the CLI, the evaluation). Each run's `grounding.txt` artifact is the durable copy.
 GROUNDING_REPORTS_KEPT = 256
 
 
@@ -138,7 +140,7 @@ class Grant:
 @dataclass
 class Conductor:
     registry: Registry
-    store: RunStore
+    store: RunStorage
     # The deployment's institutional profile, loaded once by whoever builds the conductor. Every
     # invocation, delegated or not, is gated by it; a request cannot name another
     # (docs/specs/policy-and-identity.md).
@@ -154,7 +156,7 @@ class Conductor:
     harness_url: str | None = None
     # The projects runs may belong to (docs/specs/projects.md). None (most tests, the workbench
     # without DD_PROJECTS_DIR) means no run is in a project.
-    projects: ProjectStore | None = None
+    projects: ProjectStorage | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
@@ -589,24 +591,28 @@ class Conductor:
             checked = [accepted] if accepted else []
             if envelope.payload is not None and spec.payload is not None:
                 checked.append(spec.payload)
-            run_dir = self.store.append(doc, request_doc, checked, prompts)
-            spans_path = run_dir / "spans.jsonl"
-            self.tracing.write_jsonl(spans_path, trace_id)
-            (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")
-            (run_dir / "sources.txt").write_text(source_report.summary() + "\n", encoding="utf-8")
+            # Everything else a run keeps is a named artifact beside it (docs/specs/storage.md).
+            self.store.append(doc, request_doc, checked, prompts)
+            run_id = envelope.invocation_id
+            spans = self._spans(trace_id)
+            self.store.put_artifact(run_id, SPANS, spans)
+            self.store.put_artifact(run_id, GROUNDING, (report.summary() + "\n").encode())
+            self.store.put_artifact(run_id, SOURCES, (source_report.summary() + "\n").encode())
             if self.write_crate:
-                write_process_run_crate(
-                    run_dir,
-                    doc,
-                    run_dir / "request.json",
-                    run_dir / "envelope.json",
-                    spans_path,
-                    started,
-                )
+                crate = process_run_crate(doc, request_doc, spans, started)
+                for name, data in crate.items():
+                    self.store.put_artifact(run_id, f"{CRATE}/{name}", data)
         finally:
             # spans.jsonl is the durable copy; a long-running server must not keep them all.
             self.tracing.discard(trace_id)
         return envelope
+
+    def _spans(self, trace_id: str) -> bytes:
+        """The trace's finished spans as JSON Lines, the bytes of `spans.jsonl`."""
+        with tempfile.TemporaryDirectory(prefix="dd-spans-") as tmp:
+            path = Path(tmp) / SPANS
+            self.tracing.write_jsonl(path, trace_id)
+            return path.read_bytes()
 
 
 def _input_refusal(spec: AgentSpec, document: dict[str, Any]) -> tuple[str, list[str]] | None:

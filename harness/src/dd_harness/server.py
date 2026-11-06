@@ -31,7 +31,7 @@ from starlette.applications import Starlette
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.policy import PolicyError
-from dd_harness.projects import ProjectError, ProjectStore
+from dd_harness.projects import ProjectError
 from dd_harness.registry import RegistryError
 from dd_harness.requirements import RequirementsError, load_requirements
 from dd_harness.settings import (
@@ -40,6 +40,7 @@ from dd_harness.settings import (
     build_authenticator,
     build_conductor,
     principal_from_env,
+    project_storage,
     projects_dir,
     repositories_dir,
 )
@@ -98,7 +99,7 @@ CAUSED_BY_COMMAND = "dd-harness project {command}"
 
 
 def cmd_project_create(args: argparse.Namespace) -> int:
-    store = ProjectStore(projects_dir())
+    store = project_storage(projects_dir())
     project_id = store.create(
         acted_for=principal_from_env(),
         caused_by=CAUSED_BY_COMMAND.format(command="create"),
@@ -109,13 +110,13 @@ def cmd_project_create(args: argparse.Namespace) -> int:
 
 
 def cmd_project_list(args: argparse.Namespace) -> int:
-    for summary in ProjectStore(projects_dir()).projects():
+    for summary in project_storage(projects_dir()).projects():
         sys.stdout.write(json.dumps(summary, ensure_ascii=False) + "\n")
     return 0
 
 
 def cmd_project_add_inventory(args: argparse.Namespace) -> int:
-    store = ProjectStore(projects_dir())
+    store = project_storage(projects_dir())
     try:
         inventory = json.loads(Path(args.file).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -133,7 +134,7 @@ def cmd_project_add_inventory(args: argparse.Namespace) -> int:
 
 
 def cmd_project_choose_repository(args: argparse.Namespace) -> int:
-    store = ProjectStore(projects_dir())
+    store = project_storage(projects_dir())
     resolved = load_requirements(repositories_dir()).resolve(args.re3data, args.name, args.standard)
     digest = store.choose_repository(
         args.project_id,
@@ -148,7 +149,7 @@ def cmd_project_choose_repository(args: argparse.Namespace) -> int:
 
 
 def cmd_project_events(args: argparse.Namespace) -> int:
-    for event in ProjectStore(projects_dir()).events(args.project_id):
+    for event in project_storage(projects_dir()).events(args.project_id):
         sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
     return 0
 

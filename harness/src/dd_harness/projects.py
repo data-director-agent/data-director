@@ -180,6 +180,10 @@ def _check_names(document_id: str, digest: str) -> None:
 
 
 class ProjectStore:
+    """The file backend of `ProjectStorage` (`dd_harness.storage`, docs/specs/storage.md): each
+    project's log and blobs under `root`. `root` belongs to this backend, for tests of its layout;
+    every other caller reaches a project through `ProjectStorage`."""
+
     def __init__(self, root: Path) -> None:
         self.root = root
         self.root.mkdir(parents=True, exist_ok=True)

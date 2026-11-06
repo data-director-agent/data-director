@@ -58,7 +58,7 @@ whom an invocation acts for, and how that is established, is in
     never OpenTelemetry SDK objects. Any other attribute on a span (such as `dd.tool_name`) is
     informational and nothing in Data Director depends on it.
 11. Every run's complete trace, the conductor's spans and the agent's, is written to the run store
-    beside its envelope, one JSON span per line.
+    as the run's `spans.jsonl` artifact, one JSON span per line ([Storage](storage.md)).
 12. An outcome the conductor decides, including a refusal by the input check or a grounding
     violation, is a completed task (or `RUN_FINISHED`) carrying an envelope. A failed task (or
     `RUN_ERROR`) means the harness could not make a run at all: a malformed request, an unknown

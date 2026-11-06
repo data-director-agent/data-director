@@ -19,7 +19,8 @@ one of them, used for developing and testing agents
 | `policy.py` | The policy gate over an institutional profile ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `grounding.py` | The grounding linter ([Evidence and grounding](../docs/specs/grounding.md), [Orchestration](../docs/specs/orchestration.md)). |
 | `sources.py` | The source check against pinned copies ([Evidence and grounding](../docs/specs/grounding.md)). |
-| `store.py`, `provenance.py`, `conversations.py` | The JSONL run store, Process Run Crates, and conversations derived from the store. |
+| `storage.py` | The `RunStorage` and `ProjectStorage` protocols every caller reaches a store through ([Storage](../docs/specs/storage.md)). |
+| `store.py`, `provenance.py`, `conversations.py` | The file run store, Process Run Crates, and conversations derived from the run storage. |
 | `projects.py` | The project record: an append-only log per project that holds its file inventory ([`docs/projects.md`](docs/projects.md), [Projects](../docs/specs/projects.md)). |
 | `registry.py`, `remote.py` | The agent registry and the A2A client for agents ([Agents](../docs/specs/agents.md)). |
 | `identity.py` | The authentication boundary that names whom an invocation acts for ([Policy and identity](../docs/specs/policy-and-identity.md)). |
@@ -37,8 +38,8 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 | `DD_PROFILE` | The institutional profile applied to every invocation. |
 | `DD_AGENTS_CONFIG` | The YAML list of agent base URLs. |
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against. |
-| `DD_RUNS_DIR` | Where runs are written. |
-| `DD_PROJECTS_DIR` | Where project records are kept. Only `dd-harness project` needs it so far. |
+| `DD_RUNS_DIR` | Where runs are written: a path or a `file://` URL ([Storage](../docs/specs/storage.md)). |
+| `DD_PROJECTS_DIR` | Where project records are kept: a path or a `file://` URL. Only `dd-harness project` and the app need it. |
 | `DD_REPOSITORIES_DIR` | The requirement sets a chosen repository resolves to: `standards/` and `overrides/` ([Deposit](../docs/specs/deposit.md)). Only `dd-harness project choose-repository` needs it so far. |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for on a server that signs no one in, and for callers with no request (the CLI, the evaluation). Recorded as `asserted`. |
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider (for example `https://orcid.org`) and the client ID its ID tokens are issued to. Set, every HTTP caller must send one of its ID tokens, and is recorded as `authenticated` ([Policy and identity](../docs/specs/policy-and-identity.md)). It cannot be set beside `DD_PRINCIPAL_ID`. |
@@ -109,7 +110,9 @@ and for any way in to the harness. `in_process(agent)` serves an agent in memory
 delegation callback, also in memory), and `ScriptedAgent` is a double whose behaviour each test
 sets. The doubles' classes are declared in `src/dd_harness/schema/doubles.yaml`, and the test
 profiles `PERMISSIVE` and `RESTRICTIVE` are in `src/dd_harness/testing/profiles/`. Tests act for
-`TEST_PRINCIPAL`. Nothing in the kit needs the workbench.
+`TEST_PRINCIPAL`. `check_run_storage` and `check_project_storage` hold a storage backend to the
+guarantees of its protocol ([Storage](../docs/specs/storage.md)). Nothing in the kit needs the
+workbench.
 
 ## Rules
 

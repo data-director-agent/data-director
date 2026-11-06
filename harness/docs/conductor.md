@@ -95,7 +95,9 @@ set `parent_invocation_id`; `invoke` refuses a request that does.
 
 ## What a run leaves behind
 
-Each run appends the envelope to `runs/invocations.jsonl` and writes a folder,
+The conductor keeps each run through `RunStorage` ([Storage](../../docs/specs/storage.md)): the
+request, the envelope and the prompts, and the trace, the checks' verdicts and the crate as named
+artifacts. The file backend appends the envelope to `runs/invocations.jsonl` and writes a folder,
 `runs/<invocation_id>/`, containing the files below. A delegated run gets its own folder and
 line, written before its parent's.
 

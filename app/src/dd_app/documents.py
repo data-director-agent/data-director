@@ -16,10 +16,10 @@ from dd_harness.projects import (
     APPROVED,
     REJECTED,
     Decision,
-    ProjectStore,
     Verdict,
     review_rules,
 )
+from dd_harness.storage import ProjectStorage
 from dd_sdk.contract.models import UUID7_PATTERN
 
 DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -32,7 +32,7 @@ class DecisionRequestError(ValueError):
     """A decision request the shell should never send: malformed, so nothing is recorded."""
 
 
-def view(store: ProjectStore, project_id: str) -> dict[str, Any]:
+def view(store: ProjectStorage, project_id: str) -> dict[str, Any]:
     """`GET /api/projects/{id}/documents`: each document with every version and its state, and
     the rule a decision form states. Raises `UnknownProjectError` for an unknown project."""
     return {

@@ -12,6 +12,9 @@ Import everything from here; the modules are an internal arrangement:
 - `fixtures`: the test profiles (in `profiles/`), `TEST_PRINCIPAL` and inputs.
 - `identity`: `FakeIdentityProvider`, an OpenID Connect provider in memory
   (docs/specs/policy-and-identity.md).
+- `storage`: `check_run_storage` and `check_project_storage`, the conformance checks any storage
+  backend must pass (docs/specs/storage.md), each also named in `RUN_STORAGE_CHECKS` and
+  `PROJECT_STORAGE_CHECKS`.
 
 Nothing here needs the workbench (docs/specs/system.md) or knows about any real agent.
 """
@@ -63,12 +66,21 @@ from dd_harness.testing.serving import (
     make_conductor,
     send_to_harness,
 )
+from dd_harness.testing.storage import (
+    PROJECT_STORAGE_CHECKS,
+    RUN_STORAGE_CHECKS,
+    check_project_storage,
+    check_run_storage,
+    file_inventory,
+)
 
 __all__ = [
     "HARNESS_URL",
     "PERMISSIVE",
     "PROFILES_DIR",
+    "PROJECT_STORAGE_CHECKS",
     "RESTRICTIVE",
+    "RUN_STORAGE_CHECKS",
     "SOURCE_A",
     "SOURCE_B",
     "SPECS",
@@ -87,9 +99,12 @@ __all__ = [
     "Retrieve",
     "ScriptedAgent",
     "asgi_client_factory",
+    "check_project_storage",
+    "check_run_storage",
     "claim",
     "document_request",
     "fact_check_over",
+    "file_inventory",
     "grant_token",
     "in_process",
     "input_evidence",

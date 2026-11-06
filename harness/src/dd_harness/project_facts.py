@@ -21,7 +21,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from dd_harness.projects import ProjectStore
+from dd_harness.storage import ProjectStorage
 from dd_sdk.evidence import input_hash
 
 # The core input classes whose slots the conductor fills from a project.
@@ -31,7 +31,7 @@ MESSAGE = "Message"
 
 
 def give(
-    store: ProjectStore | None, project_id: str | None, input_doc: Mapping[str, Any]
+    store: ProjectStorage | None, project_id: str | None, input_doc: Mapping[str, Any]
 ) -> dict[str, Any]:
     """`input_doc` with the project's facts put in, for a class that asks for them. With no
     store or no project, only what a caller may never set is removed."""
@@ -59,7 +59,7 @@ def give(
     return filled
 
 
-def summarise(store: ProjectStore, project_id: str) -> dict[str, Any] | None:
+def summarise(store: ProjectStorage, project_id: str) -> dict[str, Any] | None:
     """What the project's inventory is, as an `InventorySummary`, or None if it holds none."""
     held = store.inventory(project_id)
     if held is None:
