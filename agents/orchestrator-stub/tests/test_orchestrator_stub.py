@@ -58,7 +58,7 @@ def test_a_greeting_is_routed_to_example_hello_and_relayed(runs_dir: Path) -> No
     assert env.grounding_mode == GroundingMode.DELEGATION
     payload = env.payload_as(Reply)
     assert payload.reply_derivation == Derivation.TEMPLATE
-    assert "example.hello@0.1.0" in payload.reply_text
+    assert "example.hello@" in payload.reply_text
     assert "Hello, Joe!" in payload.reply_text
     [delegation] = env.delegations
     assert delegation.delegated_agent_id == "example.hello"

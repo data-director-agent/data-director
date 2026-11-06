@@ -25,7 +25,7 @@
       {
         "content_hash": "0000000000000000000000000000000000000000000000000000000000000005",
         "delegated_agent_id": "example.hello",
-        "delegated_agent_version": "0.1.0",
+        "delegated_agent_version": "0.1.1a1",
         "delegated_invocation_id": "01900000-0000-7000-8000-000000000002",
         "delegated_status": "succeeded"
       }
@@ -50,7 +50,7 @@
     "input_schema": "0000000000000000000000000000000000000000000000000000000000000007",
     "invocation_id": "01900000-0000-7000-8000-000000000003",
     "outcome": {
-      "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+      "statement": "Delegated to example.hello@0.1.1a1; its outcome is on the delegated envelope. Rule-based; human review is required.",
       "status": "succeeded"
     },
     "payload": {
@@ -65,7 +65,7 @@
         }
       ],
       "reply_derivation": "template",
-      "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
+      "reply_text": "Routed to example.hello@0.1.1a1 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
       "schema_class": "Reply"
     },
     "payload_schema": "0000000000000000000000000000000000000000000000000000000000000008",
