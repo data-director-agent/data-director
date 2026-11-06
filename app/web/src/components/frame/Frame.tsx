@@ -8,7 +8,7 @@
 
 import "./Frame.css";
 
-import { BookOpen, Bot, Bug, MessagesSquare, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, Bot, Bug, MessagesSquare, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
@@ -17,6 +17,7 @@ import { ThemeSwitch } from "./ThemeSwitch";
 
 const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/", label: "Conversation", icon: MessagesSquare },
+  { to: "/activity", label: "Activity log", icon: Activity },
   { to: "/agents", label: "Agents", icon: Bot },
 ];
 

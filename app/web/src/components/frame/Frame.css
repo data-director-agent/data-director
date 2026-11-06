@@ -90,9 +90,11 @@
     display: flex;
   }
 
+  /* A label never breaks inside a word; when the banner is short of room a whole link wraps. */
   .app-nav-list {
     display: flex;
-    gap: var(--space-1);
+    flex-wrap: wrap;
+    gap: 0 var(--space-1);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -108,10 +110,11 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-3);
     color: var(--color-text);
     text-decoration: none;
     font-weight: var(--font-weight-strong);
+    white-space: nowrap;
   }
 
   .app-nav-link:hover {
@@ -130,6 +133,20 @@
 
   .theme-switch {
     white-space: nowrap;
+  }
+
+  /* Medium: the brand and the tools on one row, the navigation on a row of its own beneath. */
+  @media (width <= 90rem) {
+    .app-header-inner {
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-areas:
+        "brand tools"
+        "nav nav";
+    }
+
+    .app-tools {
+      justify-self: end;
+    }
   }
 
   /* Narrow: the brand, the tools and the navigation each on a row of their own. */

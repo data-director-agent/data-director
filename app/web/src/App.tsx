@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { AgentDirectory } from "./components/capabilities/AgentDirectory";
+import { ActivityLog } from "./components/workspace/ActivityLog";
 import { FeedbackPage } from "./components/feedback/FeedbackPage";
 import { ConversationHome } from "./components/conversation/ConversationHome";
 import { Frame } from "./components/frame/Frame";
@@ -53,6 +54,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const onAgents = path === "/agents";
   const onFeedback = path === "/feedback";
   const onProfile = path === "/profile";
+  const onActivity = path === "/activity";
   const projectId = path.startsWith(PROJECT_PREFIX) ? path.slice(PROJECT_PREFIX.length) : null;
 
   useEffect(() => {
@@ -119,6 +121,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     }
     if (onFeedback) return <FeedbackPage query={query ?? ""} />;
     if (onProfile) return <ProfilePage session={session.value} />;
+    if (onActivity) return <ActivityLog />;
     if (projectId) return <ProjectPage projectId={projectId} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {
@@ -144,7 +147,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
 
   return (
     <Frame
-      current={["/agents", "/feedback", "/profile", "/sign-in", "/signed-out"].includes(path) ? path : "/"}
+      current={["/activity", "/agents", "/feedback", "/profile", "/sign-in", "/signed-out"].includes(path) ? path : "/"}
       from={onFeedback ? (new URLSearchParams(query).get("from") ?? "/") : location}
       account={known && <Account session={known} />}
     >

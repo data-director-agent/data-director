@@ -26,6 +26,18 @@ describe("Frame", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("has the activity log as a page of its own in the main navigation", () => {
+    render(
+      <Frame current="/activity">
+        <p>Content</p>
+      </Frame>,
+    );
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    const link = within(nav).getByRole("link", { name: "Activity log" });
+    expect(link).toHaveAttribute("href", "/activity");
+    expect(link).toHaveAttribute("aria-current", "page");
+  });
+
   it("links to the user guide in a new tab", () => {
     render(
       <Frame current="/">
@@ -46,7 +58,7 @@ describe("Frame", () => {
       </Frame>,
     );
     const banner = screen.getByRole("banner");
-    for (const name of ["Conversation", "Agents", "User guide", "Report a problem", "Dark mode"]) {
+    for (const name of ["Conversation", "Activity log", "Agents", "User guide", "Report a problem", "Dark mode"]) {
       const control = within(banner).getByRole(name === "Dark mode" ? "button" : "link", { name });
       const icon = control.querySelector("svg");
       expect(icon).not.toBeNull();

@@ -1,0 +1,21 @@
+/* The project overview's current state: each field's name above its value. */
+
+@layer components {
+  .project-state {
+    margin: 0;
+    font-size: var(--font-size-small);
+  }
+
+  .project-state > div {
+    padding: var(--space-1) 0;
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .project-state dt {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .project-state dd {
+    margin: 0;
+  }
+}
