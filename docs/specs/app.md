@@ -145,6 +145,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **Direct runs.** A person may run an agent from its Run page. That run goes through the
   conductor under the profile's permission for that agent like any other; there is no separate
   setting for direct runs.
+- **What a deployment runs is public.** `GET /api/about`, open without a session, names the
+  build (versions and commit), the profile the conductor holds runs to (its id, version, digest
+  and orchestrator), and the configured agents it cannot reach, by name only. An operator's
+  checks compare these with what was configured. The answer carries no address and no reason an
+  agent is missing, because a reason can name an internal address; the signed-in
+  `GET /api/agents` gives those.
 - **Problem reports** go to one repository, named in the app's configuration, as an issue of type
   Bug, Feature or Task with the label `area: app`. The person needs no GitHub account. The app
   files them as a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and
