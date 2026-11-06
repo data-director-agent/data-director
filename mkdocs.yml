@@ -25,10 +25,27 @@ theme:
   language: en
   features:
     - navigation.sections
+    - navigation.indexes
+    - navigation.instant
+    - navigation.tracking
+    - navigation.footer
     - navigation.top
+    - content.tabs.link
+    - content.code.annotate
     - content.action.edit
     - content.code.copy
     - search.highlight
+
+# search must be listed once any plugin is. redirects takes old: new pairs (paths relative to
+# docs/guide/) when a page moves, so published links keep working. Page dates come from git.
+plugins:
+  - search
+  - tags
+  - redirects:
+      redirect_maps: {}
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
 
 # Where the theme falls short of WCAG 2.2 AA; scripts/check_site_accessibility.py checks the site.
 extra_css:
@@ -38,9 +55,16 @@ extra_javascript:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - footnotes
   - toc:
       permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid

@@ -149,11 +149,11 @@ export function PolicyPage({ directory }: { directory: Directory }) {
         ) : (
           // A wide table scrolls within its own region rather than the page (WCAG 1.4.10 exempts
           // data tables); the region takes focus so it can be scrolled from the keyboard.
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           <div
             className="table-scroll"
             role="region"
             aria-labelledby="policy-agents-caption"
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
             tabIndex={0}
           >
             <table className="data-table">

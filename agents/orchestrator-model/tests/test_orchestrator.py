@@ -162,7 +162,7 @@ def test_the_tools_are_the_agents_the_harness_lists(runs_dir: Path) -> None:
     model = ScriptedModel([say("Which dataset do you mean?")])
     invoke(conductor(runs_dir, model))
     names = {t["name"] for t in model.sent[0]["tools"]}
-    assert names == {"example_hello", "advisor_standards"}
+    assert names == {"example_hello", "advisor_standards", "offer_choices"}
     hello = next(t for t in model.sent[0]["tools"] if t["name"] == "example_hello")
     assert "schema_class" not in hello["input_schema"]["properties"]
     assert hello["input_schema"]["required"] == ["greeted_name"]
@@ -188,6 +188,12 @@ def test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent() -> 
     assert describe_flow() in SYSTEM_PROMPT
     assert "no agent yet (R5)" in SYSTEM_PROMPT
     assert "example.hello" not in SYSTEM_PROMPT and "advisor.standards" not in SYSTEM_PROMPT
+
+
+def test_the_prompt_lists_the_out_of_scope_steps_and_tells_the_model_not_to_offer_them() -> None:
+    assert "out of scope for now: say so, and do not offer to do it" in SYSTEM_PROMPT
+    assert "[setup.dmp-create]" in SYSTEM_PROMPT
+    assert "Do not offer to do it" in SYSTEM_PROMPT
 
 
 def test_the_prompt_treats_content_it_did_not_write_as_data() -> None:
@@ -321,3 +327,78 @@ def test_the_model_is_told_of_the_projects_inventory_only_when_it_holds_one() ->
     assert note.startswith("[From the harness, not the researcher]")
     assert "42 files, made 2026-11-01 09:00 UTC by dd-inventory 0.1.0" in note
     assert "skipped 1 unreadable file" in note
+
+
+CHOICES: dict[str, Any] = {
+    "question_prompt": "Which repository will you deposit in?",
+    "question_options": [
+        {"option_value": "zenodo", "option_label": "Zenodo"},
+        {"option_value": "figshare", "option_label": "Figshare", "option_help": "Hosted"},
+    ],
+    "question_other": True,
+}
+
+
+def asks(text: str, *calls: tuple[str, dict[str, Any]]) -> ModelTurn:
+    """A turn with reply text followed by tool calls."""
+    turn = call(*calls)
+    return dataclasses.replace(
+        turn, text=text, content=[{"type": "text", "text": text}, *turn.content]
+    )
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_offering_choices_ends_the_turn_and_the_reply_carries_the_question(
+    runs_dir: Path,
+) -> None:
+    model = ScriptedModel(
+        [asks("I need to know where you will deposit.", ("offer_choices", CHOICES))]
+    )
+    env = invoke(conductor(runs_dir, model), "Help me deposit")
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert len(model.sent) == 1  # no second call
+    reply = env.payload_as(Reply)
+    assert reply.reply_text == "I need to know where you will deposit."
+    assert reply.reply_question is not None
+    assert [o.option_value for o in reply.reply_question.question_options] == [
+        "zenodo",
+        "figshare",
+    ]
+    assert reply.reply_question.question_other and not reply.reply_question.question_multiple
+    assert env.delegations == []
+    assert "reply_question" in ModelOrchestrator.spec.derivations
+
+
+def test_choices_without_text_reply_with_the_question(runs_dir: Path) -> None:
+    model = ScriptedModel([call(("offer_choices", CHOICES))])
+    env = invoke(conductor(runs_dir, model), "Help me deposit")
+    assert env.payload_as(Reply).reply_text == "Which repository will you deposit in?"
+
+
+def test_invalid_choices_are_refused_and_the_model_asks_in_prose(runs_dir: Path) -> None:
+    one = {**CHOICES, "question_options": CHOICES["question_options"][:1]}
+    model = ScriptedModel([call(("offer_choices", one)), say("Which repository will you use?")])
+    env = invoke(conductor(runs_dir, model), "Help me deposit")
+
+    reply = env.payload_as(Reply)
+    assert reply.reply_question is None and reply.reply_text == "Which repository will you use?"
+    [result] = model.sent[1]["messages"][-1]["content"]
+    assert result["is_error"] is True and "not valid choices" in result["content"]
+
+
+def test_choices_beside_a_delegation_are_refused_and_the_delegation_runs(runs_dir: Path) -> None:
+    model = ScriptedModel(
+        [
+            call(("example_hello", {"greeted_name": "Ada"}), ("offer_choices", CHOICES)),
+            asks("Greeted Ada. Where next?", ("offer_choices", CHOICES)),
+        ]
+    )
+    env = invoke(conductor(runs_dir, model))
+
+    [delegation] = env.delegations
+    assert delegation.delegated_agent_id == "example.hello"
+    hello, choices = model.sent[1]["messages"][-1]["content"]
+    assert hello["is_error"] is False
+    assert choices["is_error"] is True and "alone" in choices["content"]
+    assert env.payload_as(Reply).reply_question is not None

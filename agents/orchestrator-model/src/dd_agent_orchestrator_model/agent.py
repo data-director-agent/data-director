@@ -24,6 +24,12 @@ child is on the parent's `delegations` and its own envelope, and the reply repor
 failure, raises, and the conductor records failed(agent-error): a model-derived reply is never
 replaced by a template.
 
+Besides the delegations the model has one tool of the agent's own, `offer_choices`, which runs
+nothing: called alone, it ends the turn, and the reply carries the question as
+`Reply.reply_question` for the app to show as choices (docs/specs/orchestration.md). Called beside
+a delegation, or with options that are not a valid `ChoiceQuestion`, it is answered with an error
+and the loop goes on.
+
 On a conversation's first turn (an empty `Message.history`), once the model has replied, a
 `Titler` names the conversation from the researcher's message (`title.py`). The title is
 `Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it out.
@@ -33,6 +39,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -43,6 +50,9 @@ from dd_agent_orchestrator_model.title import Titler, titled
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    CHOICE_OPTIONS_MAX,
+    CHOICE_OPTIONS_MIN,
+    ChoiceQuestion,
     Derivation,
     EvidenceItem,
     GroundingMode,
@@ -75,6 +85,55 @@ TOOL_NAME_MAX = 64
 # Keys of a generated class schema that describe the file, not the input.
 SCHEMA_ANNOTATIONS = ("$comment", "$id", "$schema", "title")
 CUT_SHORT = "(This reply was cut short.)"
+
+# The one tool that is not a delegation: it asks the researcher to choose, and runs nothing.
+CHOICE_TOOL = "offer_choices"
+CHOICE_TOOL_DEFINITION: dict[str, Any] = {
+    "name": CHOICE_TOOL,
+    "description": (
+        "Offer the researcher a question with a fixed set of options, shown as choices they "
+        "click. It runs nothing and ends your turn: call it alone, after the text of your reply, "
+        "when the answer is one of a few known options."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "question_prompt": {"type": "string", "description": "The question, in one line."},
+            "question_options": {
+                "type": "array",
+                "minItems": CHOICE_OPTIONS_MIN,
+                "maxItems": CHOICE_OPTIONS_MAX,
+                "description": "The options in the order to show them; values unique.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "option_value": {"type": "string", "description": "A short identifier."},
+                        "option_label": {
+                            "type": "string",
+                            "description": "What the researcher reads.",
+                        },
+                        "option_help": {
+                            "type": "string",
+                            "description": "Optional: one sentence telling this option apart.",
+                        },
+                    },
+                    "required": ["option_value", "option_label"],
+                    "additionalProperties": False,
+                },
+            },
+            "question_multiple": {
+                "type": "boolean",
+                "description": "True if several options may be chosen.",
+            },
+            "question_other": {
+                "type": "boolean",
+                "description": "True if the researcher may answer in their own words instead.",
+            },
+        },
+        "required": ["question_prompt", "question_options"],
+        "additionalProperties": False,
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -208,6 +267,7 @@ class ModelOrchestrator:
         derivations={
             "reply_text": Derived(Derivation.MODEL, recorded_in="reply_derivation"),
             "conversation_title": Derived(Derivation.MODEL),
+            "reply_question": Derived(Derivation.MODEL),
         },
     )
 
@@ -236,7 +296,7 @@ class ModelOrchestrator:
                 "from `workbench invoke`), so no agent was asked.",
             )
         tools = {t.name: t for t in tools_from_manifest(ctx.delegate.manifest())}
-        definitions = [t.definition for t in tools.values()]
+        definitions = [*(t.definition for t in tools.values()), CHOICE_TOOL_DEFINITION]
         messages = conversation(message, self.history_turns)
 
         delegated: list[Delegated] = []
@@ -245,6 +305,7 @@ class ModelOrchestrator:
         model_id = self.model.model_id
         # Each call and what it sent, kept by digest with the run (docs/specs/disclosure.md).
         calls = ModelCallLog(PROVIDER)
+        question: ChoiceQuestion | None = None
         while True:
             use_tools = bool(definitions) and attempts < self.max_delegations
             prompt = json.loads(
@@ -278,15 +339,21 @@ class ModelOrchestrator:
             messages.append({"role": "assistant", "content": turn.content})
             if turn.stop_reason != "tool_use" or not turn.tool_calls:
                 break
+            question, problem = _question_of(turn.tool_calls)
+            if question is not None:
+                break
             results = []
             for call in turn.tool_calls:
+                if call.name == CHOICE_TOOL:
+                    results.append(_tool_result(call, problem or "", True))
+                    continue
                 attempts += 1
                 results.append(self._call(call, tools, attempts, ctx, delegated))
             # Every result of one turn goes back in one message.
             messages.append({"role": "user", "content": results})
 
         return self._reply(
-            message, turn, delegated, ctx, model_id, input_tokens, output_tokens, calls
+            message, turn, question, delegated, ctx, model_id, input_tokens, output_tokens, calls
         )
 
     def _call(
@@ -334,6 +401,7 @@ class ModelOrchestrator:
         self,
         message: Message,
         turn: ModelTurn,
+        question: ChoiceQuestion | None,
         delegated: list[Delegated],
         ctx: RunContext,
         model_id: str,
@@ -342,6 +410,8 @@ class ModelOrchestrator:
         calls: ModelCallLog,
     ) -> AgentResult:
         text = turn.text.strip()
+        if question is not None and not text:
+            text = question.question_prompt
         if turn.stop_reason == "max_tokens":
             text = f"{text}\n\n{CUT_SHORT}" if text else CUT_SHORT
         if not text:
@@ -371,6 +441,7 @@ class ModelOrchestrator:
                 reply_text=text,
                 reply_derivation=Derivation.MODEL,
                 conversation_title=title.text if title is not None else None,
+                reply_question=question,
                 grounded_on=[input_ref, *(d.ref for d in delegated)],
             ),
             evidence=[
@@ -388,6 +459,27 @@ class ModelOrchestrator:
             output_tokens=output_tokens,
             model_calls=calls.calls,
             prompts=calls.prompts,
+        )
+
+
+def _question_of(calls: Sequence[ToolCall]) -> tuple[ChoiceQuestion | None, str | None]:
+    """The question asked by a turn whose only tool call is `offer_choices`, or why it is not
+    asked: None and None when the turn does not call the tool."""
+    if not any(call.name == CHOICE_TOOL for call in calls):
+        return None, None
+    if len(calls) > 1:
+        return None, (
+            "Not shown: offer choices alone, in your final message, once the agents you need "
+            "have answered."
+        )
+    try:
+        return ChoiceQuestion.model_validate(calls[0].input), None
+    except ValueError as exc:  # pydantic's ValidationError
+        errors = getattr(exc, "errors", None)
+        reasons = "; ".join(str(e["msg"]) for e in errors()) if callable(errors) else str(exc)
+        return (
+            None,
+            f"Not shown: these are not valid choices ({reasons}). Fix them or ask in prose.",
         )
 
 

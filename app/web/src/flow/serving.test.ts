@@ -29,6 +29,7 @@ describe("servingStep", () => {
       label: "Upload the files",
       requirements: [],
       optional: false,
+      out_of_scope: false,
     };
     expect(servingStep(step, servingIndex(directory.agents))).toEqual([]);
   });
@@ -43,6 +44,7 @@ describe("servingStep", () => {
       label: "Recommend open formats",
       requirements: ["R3"],
       optional: false,
+      out_of_scope: false,
     };
     expect(servingStep(formats, index)).toEqual([]);
   });

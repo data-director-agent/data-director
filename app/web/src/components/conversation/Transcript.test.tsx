@@ -10,6 +10,9 @@ function withReply(text: string): Conversation {
   for (const entry of conversation.history) {
     if (entry.role === "agent") entry.turn_text = text;
   }
+  for (const turn of conversation.turns) {
+    if (turn.envelope.payload) turn.envelope.payload.reply_text = text;
+  }
   return conversation;
 }
 

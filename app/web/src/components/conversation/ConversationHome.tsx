@@ -15,6 +15,10 @@
  * orchestrator is working. A new reply is announced in a polite live region, the busy state is
  * announced, and focus returns to the message box.
  *
+ * A reply may ask a choice question, which the transcript shows as choices; sending the answer
+ * takes the same path as a typed message, with the answer beside the labels chosen. The message
+ * box stays usable, so the researcher may ignore the question and type instead.
+ *
  * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
  * or pasted, which shows as a chip and goes to the conversation's project, never into the text
  * (#443, docs/specs/app.md). Make an inventory, beside the button, opens a dialog that says how
@@ -34,6 +38,7 @@ import {
 import { Paperclip, SendHorizontal, X } from "lucide-react";
 import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
+import { type ChoiceAnswer, replyQuestion } from "../../conversation/question";
 import {
   type AttachedInventory,
   NotAnInventory,
@@ -203,9 +208,23 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    const message = text.trim();
-    const inventory = attached;
+    await deliver(text.trim(), attached, null);
+  }
+
+  /** Sends the answer to the latest turn's choice question, said in words as `message`. What is
+   * in the message box stays there. */
+  async function answerQuestion(answer: ChoiceAnswer, message: string) {
+    await deliver(message, null, answer);
+  }
+
+  async function deliver(
+    message: string,
+    inventory: AttachedInventory | null,
+    answer: ChoiceAnswer | null,
+  ) {
     if (!orchestrator || (!message && !inventory) || busy) return;
+    // A typed message comes from the box, and goes back to it if the send fails.
+    const fromBox = answer === null;
     setBusy(true);
     setError(null);
     setAttachError(null);
@@ -213,8 +232,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     // The message and its inventory move into the transcript while the reply is awaited, and
     // come back to the box if the send fails, so nothing typed or attached is lost.
     setSent({ message, inventory });
-    setText("");
-    setAttached(null);
+    if (fromBox) {
+      setText("");
+      setAttached(null);
+    }
     let id = conversationId;
     let stored = false;
     // The latest turn this page shows: the server refuses the turn if the conversation has
@@ -223,7 +244,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     try {
       id ??= await api.create();
       setConversationId(id);
-      await api.sendTurn(id, orchestrator.id, message, follows, inventory?.document ?? null);
+      const document = inventory?.document ?? null;
+      await (answer
+        ? api.sendTurn(id, orchestrator.id, message, follows, document, undefined, answer)
+        : api.sendTurn(id, orchestrator.id, message, follows, document));
       // The turn is stored: from here a failure is in showing the reply, not in sending it, so
       // the message must not come back to the box to be sent twice (#337).
       stored = true;
@@ -235,9 +259,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       });
       setConversation(updated);
       const last = updated.turns[updated.turns.length - 1];
+      const asks = last ? replyQuestion(last.envelope) : null;
       setAnnouncement(
         last
-          ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.`
+          ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.` +
+              (asks ? ` It asks you to choose: ${asks.question_prompt}` : "")
           : "",
       );
       void reloadPast();
@@ -251,8 +277,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         setAnnouncement("");
         return;
       }
-      setText(message);
-      setAttached(inventory);
+      if (fromBox) {
+        setText(message);
+        setAttached(inventory);
+      }
       if (e instanceof Unreachable) {
         // The server may have received the turn and be running it, so show what it stored.
         if (id) api.get(id).then(setConversation, () => undefined);
@@ -337,6 +365,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   ? null
                   : { agentId: orchestrator.id, message: sent.message, inventory: sent.inventory }
               }
+              onAnswer={(answer, message) => void answerQuestion(answer, message)}
             />
           )}
           {runId && !inTranscript && (

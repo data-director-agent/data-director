@@ -16,6 +16,10 @@ A summary's `title` is derived like everything else: the first turn's
 with `title_source` `model`; otherwise the start of the first turn's message, with `title_source`
 `message`. The harness calls no model to make one.
 
+A reply may ask a choice question (`Reply.reply_question`). `history` writes the question after the
+reply's text, so a conversational agent sees on a later turn what it asked; `answer_problem` is how
+the caller checks a researcher's `ChoiceAnswer` against that question before sending the turn.
+
 TODO(#141): the file backend scans every envelope on each call. Add an index if the store grows
 large.
 """
@@ -26,7 +30,13 @@ import json
 from typing import Any
 
 from dd_harness.storage import RunStorage
-from dd_sdk.contract.models import ConversationTurn, TurnRole, to_document
+from dd_sdk.contract.models import (
+    ChoiceAnswer,
+    ChoiceQuestion,
+    ConversationTurn,
+    TurnRole,
+    to_document,
+)
 
 # How much of the first message names a conversation that has no model-written title.
 MESSAGE_TITLE_MAX = 60
@@ -176,13 +186,67 @@ def history(turns: list[dict[str, Any]]) -> list[ConversationTurn]:
         envelope = turn["envelope"]
         payload = envelope.get("payload") or {}
         reply = payload.get("reply_text") if payload.get("schema_class") == "Reply" else None
+        text = str(reply or envelope["outcome"]["statement"])
+        question = reply_question(envelope)
+        if question is not None:
+            text = f"{text}\n\n{question_text(question)}"
         out.append(
             ConversationTurn(
                 role=TurnRole.AGENT,
-                turn_text=str(reply or envelope["outcome"]["statement"]),
+                turn_text=text,
                 turn_agent_id=envelope["agent_id"],
                 turn_agent_version=envelope["agent_version"],
                 turn_invocation_id=envelope["invocation_id"],
             )
         )
     return out
+
+
+def reply_question(envelope: dict[str, Any]) -> ChoiceQuestion | None:
+    """The choice question a turn's `Reply` asks, or None."""
+    payload = envelope.get("payload") or {}
+    if payload.get("schema_class") != "Reply" or not payload.get("reply_question"):
+        return None
+    return ChoiceQuestion.model_validate(payload["reply_question"])
+
+
+def question_text(question: ChoiceQuestion) -> str:
+    """A choice question as plain text, as history presents it to an agent."""
+    lines = [question.question_prompt]
+    lines += [f"- {o.option_label}" for o in question.question_options]
+    if question.question_other:
+        lines.append("- or something else, in the researcher's own words")
+    choose = "one or more" if question.question_multiple else "one"
+    return "\n".join([*lines, f"(The researcher was offered these to choose {choose}.)"])
+
+
+def answer_problem(conversation: dict[str, Any] | None, answer: ChoiceAnswer) -> str | None:
+    """Why `answer` cannot be sent as the next turn of `conversation`, or None if it can.
+
+    An answer names the latest turn, whose reply asked a choice question. Its values are options
+    of that question, at most one unless several may be chosen; text in place of an option only
+    where the question allows it; and something is chosen or said.
+    """
+    turns = (conversation or {}).get("turns") or []
+    if not turns or turns[-1]["invocation_id"] != answer.answer_to:
+        return "the answer does not name the latest turn of the conversation"
+    question = reply_question(turns[-1]["envelope"])
+    if question is None:
+        return "the latest turn asked no choice question"
+    offered = {o.option_value for o in question.question_options}
+    unknown = [v for v in answer.answer_values if v not in offered]
+    if unknown:
+        return f"not an option of the question: {', '.join(unknown)}"
+    if len(set(answer.answer_values)) != len(answer.answer_values):
+        return "an option is chosen more than once"
+    other = (answer.answer_other or "").strip()
+    if answer.answer_other is not None and not other:
+        return "the answer in the researcher's own words is empty"
+    if other and not question.question_other:
+        return "the question takes only its options"
+    chosen = len(answer.answer_values) + (1 if other else 0)
+    if chosen == 0:
+        return "nothing is chosen"
+    if chosen > 1 and not question.question_multiple:
+        return "the question takes one answer"
+    return None

@@ -79,13 +79,24 @@ function envelopeCard(env, children = [], delegated = false) {
     el("span", { className: "inspect" }, inspectLink(env.invocation_id)));
   const reply = env.payload?.schema_class === "Reply" ? el("p", { className: "reply", textContent: env.payload.reply_text }) : null;
   const card = el("article", { className: "card", ariaLabel: `${env.agent_id}@${env.agent_version} ${o.status}` },
-    head, reply, el("p", { className: "statement", textContent: o.statement }));
+    head, reply, questionOf(env.payload), el("p", { className: "statement", textContent: o.statement }));
   if (env.payload && !reply) card.append(payloadSummary(env.payload));
   if (children.length) {
     card.append(el("ol", { className: "children", ariaLabel: "Delegated invocations" },
       ...children.map((c) => el("li", {}, envelopeCard(c, [], true)))));
   }
   return card;
+}
+// A reply's choice question, read-only: the app shows it as choices, the workbench as a list with
+// each option's value, which a typed reply may name.
+function questionOf(payload) {
+  const q = payload?.schema_class === "Reply" ? payload.reply_question : null;
+  if (!q) return null;
+  const kind = q.question_multiple ? "choose one or more" : "choose one";
+  return el("div", { className: "reply-question" },
+    el("p", { textContent: `${q.question_prompt} (${kind}${q.question_other ? ", or answer in words" : ""})` }),
+    el("ul", {}, ...q.question_options.map((opt) => el("li", {},
+      `${opt.option_label} `, el("code", { textContent: opt.option_value, title: "option_value" })))));
 }
 // The payload's top-level scalar fields; the full render is one click away in Inspect.
 function payloadSummary(payload) {

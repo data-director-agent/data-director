@@ -28,6 +28,13 @@ button to attach the file you made. The steps are the same here:
 
 <!-- making-an-inventory:steps -->
 
+If you prefer pip, install the command once with `pip install data-director-inventory`, then run
+`data-director-inventory path/to/dataset -o inventory.json`. The package is published on
+[PyPI](https://pypi.org/project/data-director-inventory/).
+
+It writes `inventory.json` in the folder where you ran it. A large dataset can take a while,
+because every file is read to compute its digest. The command sends nothing anywhere.
+
 If you would rather not use a terminal, ask your research data support team, or whoever is
 running a workshop you are in, to make the inventory for you.
 
