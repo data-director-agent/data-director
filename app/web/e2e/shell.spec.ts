@@ -141,11 +141,11 @@ test("keyboard only: skip link, then the agent list, then the selected agent", a
   // The directory is one link away; its list is one stop for the keyboard.
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Agents" }).click();
   await expect(page).toHaveURL(/\/agents$/);
-  await page.getByRole("option", { name: "advisor.quality" }).focus();
-  await expect(page.getByRole("option", { name: "advisor.quality" })).toBeFocused();
+  await page.getByRole("option", { name: "Metadata Reviewer" }).focus();
+  await expect(page.getByRole("option", { name: "Metadata Reviewer" })).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("option", { name: "advisor.standards" })).toBeFocused();
-  await expect(page.getByRole("heading", { level: 2, name: "advisor.standards" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Standards Librarian" })).toBeFocused();
+  await expect(page.getByRole("heading", { level: 2, name: "Standards Librarian" })).toBeVisible();
 
   // Tab leaves the listbox rather than walking every option: one stop per widget.
   await page.keyboard.press("Tab");
@@ -160,7 +160,7 @@ test("reflows at 320 CSS pixels (400% of 1280) without horizontal scrolling", as
   await serve(page, several);
   await gotoDirectory(page);
   await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
-  for (const option of ["advisor.quality", "advisor.standards", "stub.abstain"]) {
+  for (const option of ["Metadata Reviewer", "Standards Librarian", "stub.abstain"]) {
     await page.getByRole("option", { name: option }).click();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -362,7 +362,7 @@ for (const width of [1280, 320]) {
 test("a link names the agent to show", async ({ page }) => {
   await serve(page, several);
   await page.goto("/agents?agent=advisor.quality");
-  await expect(page.getByRole("heading", { level: 2, name: "advisor.quality" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
 });
 
 test("the workspace at 1280px: phases, conversation and the project side by side", async ({
