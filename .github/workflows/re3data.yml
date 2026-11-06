@@ -1,0 +1,104 @@
+name: re3data pin
+
+# Moves the repository advisor's re3data pin to the newest monthly export, and opens a pull
+# request for a person to review (agents/advisor-repository/README.md, "Sources"). re3data
+# publishes each month's export on the 1st; this runs on the 3rd. It asks re3data for one archive
+# a month, plus the pinned one when the cache has lost it (Blueprint P14).
+#
+# The pull request is opened with RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN, so that CI runs on it
+# (as in release.yaml). Its commit is the bot's, which the sign-off check in ci.yml exempts.
+on:
+  schedule:
+    - cron: "17 6 3 * *"
+  workflow_dispatch:
+    inputs:
+      month:
+        description: The export to pin, YYYY-MM (default this month)
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: re3data-pin
+  cancel-in-progress: false
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read # the push and the pull request use RELEASE_PLEASE_TOKEN
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
+      - run: uv sync --all-packages --all-extras
+      # The registry as pinned, so the pull request can say which repositories came and went.
+      # Restore only: this workflow writes nothing to a cache that CI reads.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: agents/advisor-repository/data/re3data/archives
+          key: re3data-${{ hashFiles('agents/advisor-repository/data/re3data/manifest.json') }}
+      - run: uv run --no-sync dd-re3data fetch
+      - name: Pin the export
+        id: pin
+        env:
+          MONTH: ${{ inputs.month }}
+          MANIFEST: agents/advisor-repository/data/re3data/manifest.json
+        run: |
+          before=$(jq -r '.month + " (" + (.records|tostring) + " repositories)"' "$MANIFEST")
+          uv run --no-sync dd-re3data fetch --update-pin ${MONTH:+--month "$MONTH"} \
+            --summary "$RUNNER_TEMP/summary.json"
+          uv run scripts/pin_re3data.py
+          month=$(jq -r .month "$MANIFEST")
+          if git diff --quiet -- "$MANIFEST"; then
+            echo "The export of $month is already pinned." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "Moves the repository advisor's re3data pin from the export of $before to the"
+            echo "export of $month ($(jq .records "$MANIFEST") repositories), and both"
+            echo "\`sources.yaml\` pins with it. Opened by \`.github/workflows/re3data.yml\`."
+            echo
+            echo "Added: $(jq -r '.added | if length == 0 then "none" else join(", ") end' "$RUNNER_TEMP/summary.json")"
+            echo
+            echo "Removed: $(jq -r '.removed | if length == 0 then "none" else join(", ") end' "$RUNNER_TEMP/summary.json")"
+            echo
+            echo "Source: re3data.org - Registry of Research Data Repositories."
+            echo "https://doi.org/10.17616/R3D (CC0)."
+          } > "$RUNNER_TEMP/body.md"
+          cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "month=$month" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      # The new pin must still serve the agent and verify in the harness.
+      - if: steps.pin.outputs.changed == 'true'
+        run: >-
+          uv run --no-sync pytest -q -p no:cacheprovider
+          agents/advisor-repository workbench/tests/test_config.py
+      - name: Open the pull request
+        if: steps.pin.outputs.changed == 'true'
+        env:
+          TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          MONTH: ${{ steps.pin.outputs.month }}
+        run: |
+          branch="re3data-pin-$MONTH"
+          title="chore(agents): pin the re3data export of $MONTH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add agents/advisor-repository/data/re3data/manifest.json \
+            app/config/sources.yaml workbench/sources.yaml
+          git commit -s -m "$title"
+          git push --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/$branch"
+          if gh pr view "$branch" --json state -q .state 2>/dev/null | grep -qx OPEN; then
+            gh pr edit "$branch" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head "$branch" --title "$title" \
+              --body-file "$RUNNER_TEMP/body.md"
+          fi
