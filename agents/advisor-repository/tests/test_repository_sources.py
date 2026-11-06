@@ -225,6 +225,10 @@ def test_fetch_pins_a_month_then_builds_from_the_cache_without_asking_again(
     assert pin.citation == registry.CITATION
     assert [str(r.url) for r in seen] == [pin.archive]
 
+    repinned = fetch(month="2026-11", update_pin=True, client=_serve(archive, seen))
+    assert repinned.pinned is False  # the same export: the pin, and its date, are kept
+    assert registry.Pin.load(manifest) == pin
+
     built.unlink()
     again = fetch(client=_serve(archive, seen))
     assert again.downloaded and len(seen) == 1  # built from the cached archive

@@ -257,21 +257,34 @@ def fetch(
     data = build(archive)
     _write(registry, data)
     after = _ids(registry)
-    Pin(
+    pin = Pin(
         month=month,
         archive=url,
         archive_sha256=_sha256(archive),
         records=len(after),
         snapshot_sha256=hashlib.sha256(data).hexdigest(),
         fetched_at=now.isoformat(timespec="seconds"),
-    ).write(manifest)
+    )
+    try:
+        current: Pin | None = Pin.load(manifest)
+    except RegistryError:
+        current = None
+    # The same export built to the same bytes is already pinned; keep its date, so that pinning
+    # it again changes nothing.
+    unchanged = current is not None and (
+        current.archive,
+        current.archive_sha256,
+        current.snapshot_sha256,
+    ) == (pin.archive, pin.archive_sha256, pin.snapshot_sha256)
+    if not unchanged:
+        pin.write(manifest)
     return Report(
         month,
         len(after),
         sorted(after - before) if before else [],
         sorted(before - after),
         downloaded=True,
-        pinned=True,
+        pinned=not unchanged,
     )
 
 
