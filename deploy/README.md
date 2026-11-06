@@ -33,6 +33,7 @@ it that way: a request that reaches an agent directly carries no sign-in.
 | `credentials/<agent>.conf` | A drop-in that loads the agent's model key as a systemd credential. `install.sh` installs it only while the key file exists. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
+| `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify`; run it before changing one. CI runs it. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
 | `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` closed from outside. |
 
