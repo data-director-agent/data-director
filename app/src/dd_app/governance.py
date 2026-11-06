@@ -32,6 +32,7 @@ from dd_harness.settings import (
 from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
+    ChoiceAnswer,
     Envelope,
     InvocationRequest,
     Principal,
@@ -165,6 +166,7 @@ class Governance:
         follows: str | None,
         acting_for: Principal,
         inventory: Mapping[str, Any] | None = None,
+        answer: ChoiceAnswer | None = None,
     ) -> dict[str, Any]:
         """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
         `Message` to `agent_id`, answered as `run` answers.
@@ -174,6 +176,11 @@ class Governance:
         (docs/specs/projects.md). An inventory the project refuses raises `ProjectError`, and one
         sent to a conversation in no project `ValueError`; either way nothing is run or recorded.
         With an inventory, `message_text` may be blank.
+
+        A turn may carry the researcher's `answer` to the choice question the latest turn asked,
+        beside `message_text`, which says the same in words. The harness checks it against that
+        question (`conversations.answer_problem`); one it refuses raises `ValueError` and nothing
+        is run (docs/specs/app.md).
 
         The history is built here from the stored turns, never taken from the caller, so the
         input hash covers what the agent was really shown (docs/specs/app.md). It is read under the
@@ -223,6 +230,8 @@ class Governance:
                     f"{latest!r}. Nothing was run: read the conversation, then send the message "
                     "again if it is still needed."
                 )
+            if answer is not None and (problem := conversations.answer_problem(found, answer)):
+                raise ValueError(f"The answer was not sent: {problem}. Nothing was run.")
             if inventory is not None:
                 await asyncio.to_thread(self._add_inventory, conversation_id, inventory, acting_for)
                 message_text = message_text.strip() or INVENTORY_ONLY_TEXT
@@ -231,6 +240,8 @@ class Governance:
                 "message_text": message_text,
                 "history": found["history"],
             }
+            if answer is not None:
+                message["choice_answer"] = answer.model_dump(mode="json", exclude_none=True)
             run = asyncio.ensure_future(
                 self.invoke(
                     InvocationRequest(

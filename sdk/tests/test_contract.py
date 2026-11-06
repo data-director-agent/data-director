@@ -15,6 +15,9 @@ from dd_sdk.contract import validate
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Assurance,
+    ChoiceAnswer,
+    ChoiceOption,
+    ChoiceQuestion,
     ConversationTurn,
     CurrentVersion,
     Delegation,
@@ -82,7 +85,8 @@ def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> N
     assert schema["$comment"].endswith("Do not edit.")
     assert schema["$schema"] == gen.DRAFT_7 and "metamodel_version" not in schema
     assert schema["title"] == "Reply" and schema["additionalProperties"] is False
-    assert set(schema["$defs"]) == {"Derivation", "GroundingRef"}  # only what Reply reaches
+    # only what Reply reaches
+    assert set(schema["$defs"]) == {"ChoiceOption", "ChoiceQuestion", "Derivation", "GroundingRef"}
     assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
     assert {"schema_class", "grounded_on"} <= set(schema["required"])
 
@@ -98,6 +102,7 @@ def test_generated_properties_keep_the_linkml_slot_order() -> None:
         "reply_text",
         "reply_derivation",
         "conversation_title",
+        "reply_question",
         "grounded_on",
     ]
 
@@ -564,6 +569,57 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
     validate.validate_envelope(env)
     assert env["payload"]["schema_class"] == "Reply"
     assert env["delegations"][0]["delegated_invocation_id"] == child
+
+
+def _question(**kw: object) -> ChoiceQuestion:
+    options = [
+        ChoiceOption(option_value="zenodo", option_label="Zenodo"),
+        ChoiceOption(option_value="figshare", option_label="Figshare", option_help="Hosted"),
+    ]
+    return ChoiceQuestion.model_validate(
+        {"question_prompt": "Which repository?", "question_options": options, **kw}
+    )
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_reply_may_ask_a_choice_question_and_a_message_may_answer_it() -> None:
+    question = _question(question_multiple=True, question_other=True)
+    reply = Reply(
+        reply_text="I need to know where you will deposit.",
+        reply_derivation=Derivation.MODEL,
+        reply_question=question,
+        grounded_on=[_input_ref()],
+    )
+    env = _succeeded(payload=reply, evidence=[_input_evidence()]).to_document()
+    validate.validate_envelope(env)
+    assert Reply.model_validate(env["payload"]).reply_question == question
+
+    answer = ChoiceAnswer(answer_to=new_invocation_id(), answer_values=["zenodo"])
+    doc = to_document(
+        InvocationRequest(
+            agent_id="orchestrator.stub",
+            input=Message(message_text="Zenodo", choice_answer=answer),
+        )
+    )
+    validate.validate_request(doc)
+    assert Message.model_validate(doc["input"]).choice_answer == answer
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_choice_question_has_two_to_twelve_options_with_unique_values() -> None:
+    with pytest.raises(ValueError, match="value of its own"):
+        ChoiceQuestion(
+            question_prompt="Which?",
+            question_options=[
+                ChoiceOption(option_value="a", option_label="A"),
+                ChoiceOption(option_value="a", option_label="Also A"),
+            ],
+        )
+    with pytest.raises(ValueError, match="at least 2"):
+        ChoiceQuestion(
+            question_prompt="Which?",
+            question_options=[ChoiceOption(option_value="a", option_label="A")],
+        )
 
 
 @pytest.mark.requirement("DD-CONVERSATION")

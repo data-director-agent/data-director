@@ -89,7 +89,7 @@ from dd_harness.settings import SettingsError
 from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
-from dd_sdk.contract.models import Principal
+from dd_sdk.contract.models import ChoiceAnswer, Principal
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
@@ -214,10 +214,11 @@ def build_app(
             return _refused(
                 "A turn may not give a history: the server builds it from the stored turns."
             )
-        if extra := sorted(set(body) - {"agent_id", "message_text", "follows", "inventory"}):
+        allowed = {"agent_id", "message_text", "follows", "inventory", "choice_answer"}
+        if extra := sorted(set(body) - allowed):
             return _refused(
-                "A turn takes only `agent_id`, `message_text`, `follows` and `inventory`, "
-                f"not {extra}."
+                "A turn takes only `agent_id`, `message_text`, `follows`, `inventory` and "
+                f"`choice_answer`, not {extra}."
             )
         agent_id, message_text = body.get("agent_id"), body.get("message_text")
         if not isinstance(agent_id, str) or not isinstance(message_text, str):
@@ -233,6 +234,15 @@ def build_app(
             return _refused("`inventory` must be the object `dd-inventory` wrote.")
         if not message_text.strip() and inventory is None:
             return _refused("The message is empty.")
+        answer = None
+        if body.get("choice_answer") is not None:
+            try:
+                answer = ChoiceAnswer.model_validate(body["choice_answer"])
+            except ValueError:
+                return _refused(
+                    "`choice_answer` must name the turn it answers (`answer_to`) and give "
+                    "`answer_values`, a list of strings, and optionally `answer_other`."
+                )
         if governance.conversation(conversation_id) is None:
             return _no_conversation(conversation_id)
         started = time.monotonic()
@@ -240,7 +250,7 @@ def build_app(
         try:
             return JSONResponse(
                 await governance.turn(
-                    conversation_id, agent_id, message_text, follows, acting_for, inventory
+                    conversation_id, agent_id, message_text, follows, acting_for, inventory, answer
                 )
             )
         except UnknownConversationError:

@@ -13,6 +13,8 @@ import soil from "../../config/examples/soil-chemistry.profile.json" with { type
 import reference from "../fixtures/agents.json" with { type: "json" };
 import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
+import answered from "../fixtures/conversation-answered.json" with { type: "json" };
+import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
@@ -268,6 +270,49 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   await expect(box).toBeFocused();
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`a choice question, ${scheme}: answered by keyboard at 320px, with no axe violations`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await useScheme(page, scheme);
+    await serveConversation(page);
+    // Until an answer is sent the conversation ends with the question; then with the answer.
+    let sentAnswer: unknown = null;
+    await page.route("/api/conversations/*/turns", (route) => {
+      sentAnswer = route.request().postDataJSON().choice_answer ?? null;
+      return route.fulfill({ status: 201, json: turn });
+    });
+    await page.route("/api/conversations/*", (route) =>
+      route.fulfill({ json: sentAnswer ? answered : question }),
+    );
+    await page.goto("/");
+    const box = page.getByRole("textbox", { name: "What would you like to do?" });
+    await box.fill("hi");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    const group = page.getByRole("group", { name: "Where are you with your research data?" });
+    await expect(group).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("It asks you to choose");
+    expect(await overflow(page), "horizontal overflow with a question").toBeLessThanOrEqual(0);
+    expect(await axeViolations(page)).toEqual([]);
+
+    await group.getByRole("radio").first().focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(
+      group.getByRole("radio", { name: "Data already collected, being prepared for sharing" }),
+    ).toBeChecked();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Send answer" })).toBeFocused();
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByText("(your choice)")).toBeVisible();
+    expect(sentAnswer).toEqual({ answer_to: question.turns[0]?.invocation_id, answer_values: ["2"] });
+    await expect(box).toBeFocused();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+}
 
 test("an attached inventory shows as a chip, not JSON, at 320px with no axe violations", async ({
   page,

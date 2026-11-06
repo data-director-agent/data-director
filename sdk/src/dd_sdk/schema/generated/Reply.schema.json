@@ -1,6 +1,70 @@
 {
    "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
+      "ChoiceOption": {
+         "additionalProperties": false,
+         "description": "One option of a choice question.",
+         "properties": {
+            "option_value": {
+               "description": "What the agent reads back when the option is chosen. A string, never a number: a number reaches the agent as a floating-point value over A2A.",
+               "type": "string"
+            },
+            "option_label": {
+               "description": "What the researcher reads.",
+               "type": "string"
+            },
+            "option_help": {
+               "description": "One sentence that helps the researcher tell this option from the others.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "option_value",
+            "option_label"
+         ],
+         "title": "ChoiceOption",
+         "type": "object"
+      },
+      "ChoiceQuestion": {
+         "additionalProperties": false,
+         "description": "A question with a fixed set of options that a conversational agent asks the researcher in its reply, to be answered by choosing rather than typing. One or several options may be chosen, and where question_other is true the researcher may answer in their own words instead. Option values are unique within the question. Asking never suspends the run: the researcher may ignore the question and type (docs/specs/orchestration.md).",
+         "properties": {
+            "question_prompt": {
+               "description": "The question, as a short line a person reads before the options.",
+               "type": "string"
+            },
+            "question_options": {
+               "description": "The options, in the order they are shown; between 2 and 12, with unique values.",
+               "items": {
+                  "$ref": "#/$defs/ChoiceOption"
+               },
+               "type": "array"
+            },
+            "question_multiple": {
+               "description": "True when several options may be chosen; one only otherwise.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "question_other": {
+               "description": "True when the researcher may answer in their own words instead of an option.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "question_prompt",
+            "question_options"
+         ],
+         "title": "ChoiceQuestion",
+         "type": "object"
+      },
       "Derivation": {
          "description": "",
          "enum": [
@@ -59,6 +123,17 @@
             "string",
             "null"
          ]
+      },
+      "reply_question": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/ChoiceQuestion"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "A question with fixed options the reply asks, at most one; absent when the reply asks nothing or asks in prose."
       },
       "grounded_on": {
          "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",

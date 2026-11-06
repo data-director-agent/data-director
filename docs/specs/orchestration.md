@@ -68,10 +68,12 @@ out of the process flow.
    `test_a_child_acts_for_its_parents_principal_not_its_callers`,
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
-8. **An orchestrator has no tools except its delegations.** A model-backed orchestrator is offered
-   one tool per input class of each agent in the harness's manifest and nothing else: no MCP
-   server, no server tool (web search, web fetch, code execution), no Agent Skills; its package
-   depends on and imports nothing that could provide one.
+8. **An orchestrator has no tools except its delegations and `offer_choices`.** A model-backed
+   orchestrator is offered one tool per input class of each agent in the harness's manifest, and
+   `offer_choices`, which reaches nothing: called alone it ends the turn, and the reply carries
+   its question as `Reply.reply_question`. Nothing else is offered: no MCP server, no server tool
+   (web search, web fetch, code execution), no Agent Skills; its package depends on and imports
+   nothing that could provide one.
    (`agents/orchestrator-model/tests/test_orchestrator_only_delegates.py`)
 9. **An orchestrator learns what it may invoke from the harness's manifest**, read through its
    grant, and keeps no list of agents of its own. The manifest lists every registered agent; the
@@ -102,10 +104,20 @@ out of the process flow.
     does it itself. (`test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps`)
 15. **On a first turn that names no task, an orchestrator asks which entry point applies**, then
     follows the phases from that entry. The stub's question and its list of steps are templates
-    that delegate nothing and rest on the input alone. The model's prompt carries the whole flow
+    that delegate nothing and rest on the input alone; it asks as a choice question whose values
+    are the entry numbers, and reads a `choice_answer` naming one before any rule. The model's prompt carries the whole flow
     with step ids, tells the model not to show ids to the researcher, names no agent, and is the
     same on every run so that it caches.
     (`test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent`)
+16. **A choice question never holds up the conversation.** A reply that asks one ends
+    `succeeded` like any other; nothing is suspended or waits for the answer. The next turn may
+    answer by choosing, with a `choice_answer`, or ignore the question and say anything; either is
+    a `Message`. The history writes the question as text after the reply that asked it, so the
+    agent sees on a later turn what it offered, and the answer is the next turn's `message_text`.
+    An answer is checked against the question the latest turn asked before the turn runs: values
+    from its options, one unless several may be chosen, words only where allowed.
+    (`test_a_question_shows_in_history_and_an_answer_is_checked_against_it`,
+    `test_offering_choices_ends_the_turn_and_the_reply_carries_the_question`)
 
 ## Boundaries and contracts
 
@@ -162,6 +174,14 @@ the parent would lose the reply's explanation, while the failure stays visible w
 
 - **The orchestrator calling agents directly over A2A.** The children would be ungoverned and
   unstored, and the parent could cite anything.
+- **A choice question as A2A `input-required`, or a suspended run.** The run would stay open
+  until the researcher answered, which may be never, and suspend and resume are not built
+  (TODO(#72, #16)). A question the researcher may ignore needs neither.
+- **A choice question as a payload class of its own.** An orchestrator's payload is `Reply`, so it
+  could not reply and ask in one turn.
+- **Choices in the model's text, or a structured final message on every turn.** Parsing a block
+  out of prose is fragile; a JSON reply on every turn would change every reply to serve a few.
+  A tool the loop stops on keeps prose replies as they are.
 - **Tools of the orchestrator's own: MCP servers, web search, Agent Skills.** A lookup made that
   way passes no policy gate, leaves no evidence or stored run, and meets no source check. Skills
   would also need the code-execution container, which adds egress and does not carry over to a

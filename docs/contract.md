@@ -133,6 +133,12 @@ names the agent, version and run it came from. The history is part of the input,
 hash covers everything the agent was shown. The agent replies with a `Reply` payload
 (`reply_text`, `reply_derivation`).
 
+A `Reply` may ask one question with a fixed set of options (`reply_question`, a
+`ChoiceQuestion`), which the app shows as choices. The researcher's next `Message` may answer it
+with a `ChoiceAnswer` (`choice_answer`): the run it answers, the values chosen and any answer in
+their own words, beside the same answer in `message_text`. The researcher may also ignore it and
+type; nothing waits for the answer.
+
 The workbench keeps no separate conversation store. `GET /conversations` lists conversations and
 `GET /conversations/{id}` returns one, read back from the stored runs: each turn with the runs it
 delegated, the stored inputs, where an agent's version changed between turns, and the history to
