@@ -32,6 +32,7 @@ it that way: a request that reaches an agent directly carries no sign-in.
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): every agent the app lists, and `@orchestrator-model` once it has a key. |
 | `credentials/<agent>.conf` | A drop-in that loads the agent's model key as a systemd credential. `install.sh` installs it only while the key file exists. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
+| `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
 | `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` closed from outside. |
@@ -135,11 +136,20 @@ re-run. If the app does not report the new commit on `/api/about` within two min
 starting, it puts the previous release back, records the commit in `failed-commits`, and the
 deploy unit fails, which `systemctl --failed` shows.
 
-`deploy.sh` restarts the services through one sudo rule, `/etc/sudoers.d/data-director`, which
-`install.sh` writes. If the rule is missing, the restart fails, `deploy.sh` puts the link back
-and the deploy unit fails on every pass, while the old release goes on running: the About page
-shows an old commit. Re-run `install.sh` to restore the rule. Where sudoers is managed centrally,
-the rule must be added there, or it will be removed again.
+`deploy.sh` runs nothing as root and needs no sudo rule. To restart the services it writes
+`/opt/data-director/restart-requested`, and `data-director-restart.path`, which root installed,
+restarts `data-director.target`. The path unit can do that one thing and no other. If it is not
+active, `deploy.sh` puts the link back and the deploy unit fails on every pass, while the old
+release goes on running: the About page shows an old commit. Re-run `install.sh` to install and
+start it, or on a host where sudoers or `install.sh` is out of reach:
+
+```bash
+sudo install -m 0644 /opt/data-director/current/deploy/systemd/data-director-restart.{path,service} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now data-director-restart.path
+```
+
+A deployment that fails to restart needs this once, and then a pass of `deploy.sh --force` after
+removing its commit from `failed-commits`.
 
 To deploy a commit by hand anyway, or to retry one that failed to start (after removing it from
 `failed-commits`):
