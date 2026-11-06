@@ -83,13 +83,13 @@ It is built from:
 From the repository root:
 
 ```bash
-uv run scripts/dev.py setup        # once: whom runs act for, an optional model key; installs, builds
-uv run scripts/dev.py start        # the agents, the app (:7860) and the Vite dev server (:5173)
+uv run scripts/dd.py setup        # once: whom runs act for, an optional model key; installs, builds
+uv run scripts/dd.py start        # the agents, the app (:7860) and the Vite dev server (:5173)
 ```
 
 `start` builds the shell again whenever `app/web` has changed since the last build, starts every
 agent in `config/agents.yaml`, waits for each, and then starts the app and `npm run dev`, which
-proxies `/api` to it. Ctrl-C stops them all. `uv run scripts/dev.py doctor` says what is wrong
+proxies `/api` to it. Ctrl-C stops them all. `uv run scripts/dd.py doctor` says what is wrong
 when something is. The README at the repository root, "Quick start", has the steps by hand.
 
 By hand, with Node 22 or later, from `app/web`:
@@ -141,7 +141,7 @@ cp app/config/profile.yaml.example app/config/profile.yaml
 Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
 The copy does not follow the example: an agent added to the example later is not enabled in it,
-and the app refuses that agent as not enabled. `scripts/dev.py start` and `doctor` name any agent
+and the app refuses that agent as not enabled. `scripts/dd.py start` and `doctor` name any agent
 the example enables that the copy omits; add it to the copy, or delete the copy.
 
 The app stops at start-up, with one line, if a setting is unset or wrong, a file is missing or
@@ -222,7 +222,7 @@ rule-based `orchestrator.stub`, which needs no model key: its replies are templa
 by its `routing.yaml`.
 
 The model-backed `orchestrator.model` (`agents/orchestrator-model/`) decides which agents to ask
-from what each one declares, and writes its replies with a model. In development, `uv run scripts/dev.py setup` does
+from what each one declares, and writes its replies with a model. In development, `uv run scripts/dd.py setup` does
 both steps below when you give it a key. To use it, give it a model key
 (`config/local/agents/orchestrator-model.env` in development, `deploy/README.md` on a server), and in the
 profile the app runs under (your local `config/profile.yaml`) set

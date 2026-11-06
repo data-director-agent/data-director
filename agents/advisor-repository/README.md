@@ -109,7 +109,7 @@ uv run dd-re3data fetch --update-pin [--month YYYY-MM]   # pin another month's e
 uv run scripts/pin_re3data.py     # then pin both sources.yaml files to it
 ```
 
-`dev.py setup` and `start`, Docker Compose, CI and `deploy/deploy.sh` run `dd-sources prepare`.
+`dd.py setup` and `start`, Docker Compose, CI and `deploy/deploy.sh` run `dd-sources prepare`.
 It downloads an archive once per pin and keeps it in `data/re3data/archives/` (or in `re3data/`
 under a `--cache-dir`), so a run never asks re3data. A registry that is
 missing or does not match its pin is an error that names the command to run, and the agent

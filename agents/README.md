@@ -48,7 +48,7 @@ lists an agent built against an incompatible one as **incompatible**.
 
 Start every agent with `scripts/run-agents.sh` from the repository root, or one agent with
 `uv run dd-example-hello serve --port 8101`. The script restarts an agent when a file in its package
-changes, its `system_prompt.md` included, unless `scripts/dev.py start` is given `--no-reload`;
+changes, its `system_prompt.md` included, unless `scripts/dd.py start` is given `--no-reload`;
 `serve --reload` does the same for one agent.
 
 An agent id is `<group>.<name>`. The groups are `orchestrator` (agents a person converses with,

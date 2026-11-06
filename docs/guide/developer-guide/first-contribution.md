@@ -28,13 +28,13 @@ Bash shell (on Windows, use WSL). No account or API key is needed.
 2. **Set up.** From the root of the clone:
 
     ```sh
-    uv run scripts/dev.py setup     # asks a few questions, then installs everything
-    uv run scripts/dev.py doctor    # says what is wrong with your setup, if anything
+    uv run scripts/dd.py setup     # asks a few questions, then installs everything
+    uv run scripts/dd.py doctor    # says what is wrong with your setup, if anything
     ```
 
     `setup --yes` accepts every default without asking. See the
     [README](../../../README.md#quick-start) for what `setup` writes and how to run the app with
-    `uv run scripts/dev.py start`.
+    `uv run scripts/dd.py start`.
 3. **Make your change.** Follow the conventions of the surrounding code. A change to the design
    changes its [specification](../../../docs/specs/README.md) in the same pull request.
 4. **Run the tests.**

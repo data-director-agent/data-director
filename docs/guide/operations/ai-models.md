@@ -80,7 +80,7 @@ do, and the key never appears in a run, a trace, a manifest or an export.
 | | Development | A server |
 |---|---|---|
 | Variable | `ANTHROPIC_API_KEY_FILE`, relative to `config/local/credentials/` | `ANTHROPIC_API_KEY_FILE` |
-| Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads (`scripts/dev.py setup` does this) | `sudo deploy/secret.sh set <name> anthropic-api-key`, which keeps it in a root-only file under `/etc/data-director/credentials/<name>/` and loads it as a systemd credential |
+| Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads (`scripts/dd.py setup` does this) | `sudo deploy/secret.sh set <name> anthropic-api-key`, which keeps it in a root-only file under `/etc/data-director/credentials/<name>/` and loads it as a systemd credential |
 
 `ANTHROPIC_API_KEY` itself also works in an agent's own file. Set one variable or the other, never both. A command-line login on the host, such as
 `ant auth login`, is never used. Never put a key in `app.env` or `agents.env`, in
@@ -141,6 +141,10 @@ To go back, set `orchestrator: orchestrator.stub` in the profile, raise `version
 app. The orchestrator can then be stopped.
 
 ## Check it works
+
+On a VM, `sudo data-director doctor` reports an agent turned on without its key, a unit that
+is not running, and the orchestrator the app converses with ([Deploying to a VM](../../../deploy/README.md), "Day to day").
+In development, `uv run scripts/dd.py doctor` does the same for `config/local/`.
 
 1. In the app, open the agent directory and the agent's page. It should name Anthropic and
    the model you chose.

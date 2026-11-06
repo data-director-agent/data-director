@@ -1,4 +1,5 @@
-"""`dev.py doctor`: check the toolchain, the settings and the ports; change nothing."""
+"""`dd.py doctor` in development: check the toolchain, the settings and the ports; change
+nothing. On a VM, `vm_doctor` checks instead."""
 
 from __future__ import annotations
 
@@ -8,8 +9,8 @@ from typing import Any
 
 import yaml
 
-from devstack import paths
-from devstack.common import (
+from ddtool import paths
+from ddtool.common import (
     APP_PORT,
     MODEL_BACKED,
     WEB_PORT,
@@ -31,6 +32,7 @@ from devstack.common import (
 
 
 def doctor() -> int:
+    print(f"target: dev ({paths.LOCAL_DIR})")
     problems = tool_problems()
     for stray in stray_files():
         problems.append(

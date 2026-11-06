@@ -59,7 +59,7 @@ issues are the record of how the design got here; the spec is the result.
 ## Code style and testing
 
 The Python packages use Python 3.14 and [uv](https://docs.astral.sh/uv/); `app/web` uses Node 22
-and npm. `uv run scripts/dev.py setup` installs both sides and `uv run scripts/dev.py doctor`
+and npm. `uv run scripts/dd.py setup` installs both sides and `uv run scripts/dd.py doctor`
 says what is wrong with a setup (README, "Quick start"). Follow the conventions of the surrounding
 code, and describe how you tested your change in the pull request description.
 

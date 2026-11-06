@@ -19,7 +19,7 @@ DEFAULT_RUNS_DIR = WORKBENCH_ROOT / "runs"
 DEFAULT_AGENTS_CONFIG = WORKBENCH_ROOT / "agents.yaml"
 DEFAULT_SOURCES_CONFIG = WORKBENCH_ROOT / "sources.yaml"
 # The directory of settings files the `workbench` command reads when DD_CONFIG_DIR names one: the
-# development tree `scripts/dev.py setup` creates (config/local), which the workbench does not own.
+# development tree `scripts/dd.py setup` creates (config/local), which the workbench does not own.
 CONFIG_DIR_VARIABLE = "DD_CONFIG_DIR"
 CONFIG_DIR_FILES = ("app.env", "agents.env")
 # The example person every run acts for when the operator names no one
