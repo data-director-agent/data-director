@@ -366,6 +366,9 @@ jobs:
       # Each workspace member imports only what it declares and reads only its own files
       # (docs/specs/system.md).
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # Both sources.yaml files pin the re3data registry that the repository advisor's manifest
+      # pins (agents/advisor-repository/README.md, "Sources").
+      - run: uv run --no-project --python 3.14 scripts/pin_re3data.py --check
 
   workflows:
     name: Workflows (actionlint, zizmor)

@@ -119,7 +119,8 @@ pin `registry.jsonl` under that label, so the harness's source check verifies ev
 record the agent cites ([Evidence and grounding](../../docs/specs/grounding.md)). A change to
 `records.py` changes the registry's bytes: pin it again with
 `fetch --update-pin --month <the pinned month>` and `scripts/pin_re3data.py` in the same pull
-request. How we credit re3data and keep our load on it low is in
+request; CI fails while either `sources.yaml` disagrees with the manifest
+(`scripts/pin_re3data.py --check`). How we credit re3data and keep our load on it low is in
 [`data/re3data/SOURCE.md`](data/re3data/SOURCE.md).
 
 **FAIRsharing.** `data/fairsharing/` holds a committed snapshot of the database records that

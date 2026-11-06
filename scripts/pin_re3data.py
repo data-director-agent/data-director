@@ -13,6 +13,9 @@ re3data entry of both files from the manifest, leaving the rest of each file as 
     uv run scripts/pin_re3data.py --check   # exit 1 if either disagrees with the manifest
 
 An agent may read no path outside itself (docs/specs/system.md), so this lives at the root.
+The pin is copied into each `sources.yaml` rather than read from the manifest: the harness's own
+pin is what makes its copy independent of the agent (docs/specs/grounding.md). CI runs `--check`,
+which also fails if an entry no longer has the layout this script rewrites.
 """
 
 from __future__ import annotations
