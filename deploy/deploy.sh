@@ -35,6 +35,8 @@ ABOUT_URL="${DD_DEPLOY_ABOUT_URL:-http://127.0.0.1:7860/api/about}"
 # Seconds the app has to report the new commit after a restart: the agents get 60 (wait-for-ports.sh) and the
 # app then reads their cards.
 HEALTH_TIMEOUT=120
+# Seconds after a commit's date before "no CI run at all" is reported as a problem, not a wait.
+MISSING_CHECK_GRACE=1800
 
 FORCE=0
 [[ "${1:-}" == "--force" ]] && FORCE=1
@@ -119,14 +121,26 @@ if ((FORCE == 0)); then
   conclusion="$(
     curl --fail --silent --show-error --max-time 30 "${auth[@]}" \
       -H "Accept: application/vnd.github+json" \
-      --get --data-urlencode "check_name=$CHECK" \
+      --get --data-urlencode "check_name=$CHECK" --data-urlencode "per_page=100" \
       "https://api.github.com/repos/$slug/commits/$sha/check-runs" |
       jq -r '[.check_runs[] | .conclusion // .status] | if length == 0 then "missing" else (if any(. == "success") then "success" else .[0] end) end'
   )" || die "could not read the checks on $short from GitHub"
 
   case "$conclusion" in
     success) ;;
-    missing | queued | in_progress | pending | waiting | requested)
+    missing)
+      # No run at all is not the same as a run in progress: a commit that CI never saw (pushed
+      # with GITHUB_TOKEN, marked [skip ci], or during an Actions outage) waits for ever. Say so
+      # once the commit is old enough that CI should have started.
+      age=$(($(date +%s) - $(git -C "$BARE" log -1 --format=%ct "$sha")))
+      if ((age > MISSING_CHECK_GRACE)); then
+        log "$short: no \"$CHECK\" run after $((age / 60)) minutes; run the CI workflow on main by hand, or deploy with --force"
+      else
+        log "$short: \"$CHECK\" has not started; waiting"
+      fi
+      exit 0
+      ;;
+    queued | in_progress | pending | waiting | requested)
       log "$short: \"$CHECK\" has not finished; waiting"
       exit 0
       ;;

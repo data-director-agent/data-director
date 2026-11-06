@@ -58,4 +58,4 @@ jobs:
       # again once braces is patched.
       - run: npm audit --omit=dev --audit-level=moderate
       # The registry signatures and provenance attestations of what was installed.
-      - run: npm audit signatures
+      - run: ../../scripts/retry.sh npm audit signatures

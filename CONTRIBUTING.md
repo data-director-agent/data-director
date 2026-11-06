@@ -64,7 +64,11 @@ says what is wrong with a setup (README, "Quick start"). Follow the conventions 
 code, and describe how you tested your change in the pull request description.
 
 Every pull request runs `.github/workflows/ci.yml`, which ends in one check, **CI passed**, that
-passes only when every other job has. Each job can be run locally from the repository root:
+passes only when no job it waits for failed or was cancelled. A job skipped because a change does
+not touch what it checks counts as passed, and the advisory conformance job is not waited for.
+`scripts/check_ci_gate.py` fails the Workflows job when a job is left out of the wait. Network
+steps that download (browsers, images) retry through `scripts/retry.sh`. Each job can be run
+locally from the repository root:
 
 | Job | Locally |
 |---|---|
@@ -78,7 +82,8 @@ passes only when every other job has. Each job can be run locally from the repos
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e` |
 | Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
-| Workflows | `uvx zizmor .github` and [actionlint](https://github.com/rhysd/actionlint) |
+| Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py` |
+| NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
 | Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
 
