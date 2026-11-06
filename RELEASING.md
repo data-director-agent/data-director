@@ -22,7 +22,7 @@ records the last released version of each package.
 - Nothing is tagged or published until the release pull request is merged. Merging it tags each
   package `<component>-v<version>` (for example `harness-v0.2.0-alpha`) and creates a GitHub
   release, marked as a pre-release.
-- If the merge released `sdk` or `harness`, the workflow then builds that package and publishes
+- If the merge released `sdk`, `harness` or `inventory`, the workflow then builds that package and publishes
   it to [TestPyPI](https://test.pypi.org/) (see below). No other package is published.
 
 ## Publishing to TestPyPI
@@ -41,14 +41,15 @@ stored. A version already on TestPyPI is skipped, so running the workflow again 
 
 Set-up, once, by a maintainer:
 
-1. On TestPyPI, add a pending trusted publisher for each of `data-director-sdk` and
-   `data-director-harness`: owner `data-director-agent`, repository `data-director`, workflow
+1. On TestPyPI, add a pending trusted publisher for each of `data-director-sdk`,
+   `data-director-harness` and `data-director-inventory`: owner `data-director-agent`, repository `data-director`, workflow
    `release.yaml`, environment `testpypi`.
 2. In this repository's settings, create the environment `testpypi`, limited to the `main`
    branch.
 
 Publishing to PyPI itself is a separate decision, after the contract reaches 1.0 or sooner
-(TODO(#260, #277)).
+(TODO(#260, #277)). The inventory command is the exception in intent: the user guide wants
+`uvx data-director-inventory` to work, which needs PyPI itself (#552).
 
 ## Version numbers
 
