@@ -76,3 +76,15 @@ references:
       name: Zenodo
     year: 2026
     doi: 10.5281/zenodo.23670411
+  - type: database
+    title: re3data.org - Registry of Research Data Repositories
+    authors:
+      - name: re3data.org
+    publisher:
+      name: DataCite
+    doi: 10.17616/R3D
+    url: https://www.re3data.org
+    license: CC0-1.0
+    notes: >-
+      The repository advisor reads re3data's monthly export of repository records
+      (agents/advisor-repository/data/re3data/SOURCE.md).

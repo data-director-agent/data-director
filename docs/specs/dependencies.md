@@ -54,7 +54,7 @@ modules are not dependencies here.
 | `starlette` | SDK, harness, workbench, app | The ASGI applications in `dd_sdk.serve`, `dd_harness.server`, `dd_app.app` | Any ASGI framework; each application is a handful of routes. |
 | `uvicorn` | SDK, harness (`serve` extra), workbench, app | The `serve` commands | Any ASGI server. |
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
-| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module | `urllib.request`. |
+| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export) | `urllib.request`. |
 | `rocrate` | Harness | `dd_harness.provenance` | Write `ro-crate-metadata.json` directly. |
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
 | `python-dotenv` | Harness | `dd_harness.settings` | `uv run --env-file`, or variables exported in the shell. |
@@ -105,6 +105,10 @@ Which licences are acceptable is not yet decided or enforced: TODO(#82).
   framework attached.
 - **MCP or Signpost back ends for FAIRsharing.** Agents read a pinned snapshot and the live REST
   API. Whether the official MCP server changes this is open: TODO(#8).
+- **re3data's REST API at run time.** The repository advisor reads re3data's monthly export,
+  pinned and built into a local registry, so every record it cites can be verified and a run
+  makes no request to re3data. The API's search returns identifiers only, and each record cost
+  one more request.
 - **Gradio and `pydantic-ai`** for the app. The app is a shell drawn from agent manifests
   ([The app](app.md)) and runs no agent in its own process.
 - **Vendoring** a library to keep the runtime tier short. A vendored copy is an unmaintained

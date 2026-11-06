@@ -14,6 +14,7 @@ from devstack.common import (
     EXAMPLE_PRINCIPAL,
     DevError,
     ensure_local_tree,
+    prepare_re3data,
     prepare_web,
     read_env,
     run,
@@ -215,6 +216,7 @@ def setup(prompt: Prompter, install: bool = True) -> int:
     if install:
         print()
         run(["uv", "sync", "--all-packages", "--all-extras"])
+        prepare_re3data()
         prepare_web()
     print("\nReady. Start everything with:  uv run scripts/dev.py start")
     return 0

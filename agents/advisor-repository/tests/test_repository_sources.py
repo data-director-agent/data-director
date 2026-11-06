@@ -1,25 +1,30 @@
-"""Reading re3data and FAIRsharing: the record parsers, the live routes over a mocked transport,
-the committed snapshots and the factory."""
+"""Reading re3data and FAIRsharing: the record parsers, the pinned re3data export, FAIRsharing's
+live route over a mocked transport, its committed snapshot and the factory."""
 
 from __future__ import annotations
 
+import hashlib
+import io
 import json
+import zipfile
+from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
 import httpx
 import pytest
+from re3data_fixture import FIXTURE, build_fixture, session_registry
 
-from dd_agent_advisor_repository import assess, factory
+from dd_agent_advisor_repository import assess, factory, registry
 from dd_agent_advisor_repository.classes import Affiliation, Answer
 from dd_agent_advisor_repository.explain import AnthropicExplainer, TemplateExplainer
-from dd_agent_advisor_repository.live import FairsharingLive, Re3dataLive
+from dd_agent_advisor_repository.live import FairsharingLive
 from dd_agent_advisor_repository.records import from_fairsharing_json, from_re3data_xml
-from dd_agent_advisor_repository.retrieve import Query, RegistryUnavailable
+from dd_agent_advisor_repository.retrieve import Query, RegistryUnavailable, find_by_name
 from dd_agent_advisor_repository.snapshot import (
     FAIRSHARING_SNAPSHOT,
-    RE3DATA_SNAPSHOT,
     FairsharingSnapshot,
-    Re3dataSnapshot,
+    Re3dataRegistry,
 )
 from dd_sdk.credentials import ConfigError
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
@@ -27,11 +32,6 @@ from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 DATA = Path(__file__).with_name("data")
 UKDS_XML = (DATA / "r3d100010230.xml").read_bytes()
 ORDA_XML = (DATA / "r3d100012124.xml").read_bytes()
-SEARCH_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
-<list>
-  <repository><id>r3d100012124</id><name>ORDA</name></repository>
-  <repository><id>r3d100010230</id><name>UK Data Service</name></repository>
-</list>"""
 FAIRSHARING_JSON = {
     "id": "2502",
     "name": "UK Data Service",
@@ -52,6 +52,11 @@ FAIRSHARING_JSON = {
 }
 
 
+@pytest.fixture(scope="session")
+def re3data(tmp_path_factory: pytest.TempPathFactory) -> Re3dataRegistry:
+    return session_registry(tmp_path_factory)
+
+
 # --- parsers ----------------------------------------------------------------------------------
 
 
@@ -64,7 +69,10 @@ def test_a_re3data_record_keeps_the_phase_3_facts() -> None:
     assert "feeRequired" in record.data_access_restrictions
     assert record.data_upload_restrictions == ["registration"]
     assert record.fairsharing_id == "FAIRsharing.1ky0cs"
-    assert "DDI - Data Documentation Initiative" in record.metadata_standards
+    assert "DDI (Data Documentation Initiative)" in record.metadata_standards
+    assert record.doi == "https://doi.org/10.17616/R3230F"
+    assert record.source_uri == record.doi
+    assert "123 Social Sciences" in record.subjects
     assert assess.assigns_pids(record) == Answer.YES
     assert assess.commercial(record) == Answer.NO
     assert assess.fee_required(record) == Answer.UNSTATED
@@ -92,8 +100,14 @@ def test_the_record_hash_does_not_depend_on_the_order_a_source_lists_things() ->
 
 
 def test_an_unknown_re3data_identifier_is_no_record() -> None:
-    empty = b'<r3d:re3data xmlns:r3d="http://www.re3data.org/schema/2-2"/>'
+    empty = b'<r3d:re3data xmlns:r3d="http://www.re3data.org/schema/4-0"/>'
     assert from_re3data_xml(empty) is None
+
+
+def test_a_record_drops_contact_details() -> None:
+    record = from_re3data_xml(UKDS_XML)
+    assert record is not None
+    assert "@" not in json.dumps(record.document())
 
 
 def test_a_fairsharing_database_record_keeps_its_conditions() -> None:
@@ -113,29 +127,7 @@ def _client(handler: httpx.MockTransport) -> httpx.Client:
     return httpx.Client(transport=handler)
 
 
-def _re3data(request: httpx.Request) -> httpx.Response:
-    if request.url.path == "/api/beta/repositories":
-        return httpx.Response(200, content=SEARCH_XML)
-    rid = request.url.path.rsplit("/", 1)[-1]
-    body = {"r3d100010230": UKDS_XML, "r3d100012124": ORDA_XML}.get(rid)
-    return httpx.Response(200, content=body) if body else httpx.Response(404)
-
-
-def test_live_re3data_search_fetches_each_hit_in_registry_order() -> None:
-    live = Re3dataLive(_client(httpx.MockTransport(_re3data)))
-    hits = live.search(Query(text="social", limit=2))
-    assert [h.record.re3data_id for h in hits] == ["r3d100012124", "r3d100010230"]
-    assert hits[0].lexical_score > hits[1].lexical_score
-    assert live.find("ukds") is not None  # an additional name
-    assert live.find("UK Data") is None  # no partial matches
-    assert live.fetch("r3d100099999") is None
-
-
 def test_a_failing_live_route_raises_registry_unavailable() -> None:
-    down = Re3dataLive(_client(httpx.MockTransport(lambda r: httpx.Response(503))))
-    with pytest.raises(RegistryUnavailable):
-        down.search(Query(text="social"))
-
     def refuse(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("refused", request=request)
 
@@ -156,54 +148,192 @@ def test_live_fairsharing_fetch_reads_the_public_record_route() -> None:
     assert live.fetch("FAIRsharing.unknown") is None
 
 
-# --- snapshots --------------------------------------------------------------------------------
+# --- the pinned re3data export ---------------------------------------------------------------
 
 
-def test_the_committed_snapshots_match_their_manifests_and_hold_every_cross_reference() -> None:
-    import hashlib
+def test_the_registry_is_built_the_same_from_the_same_export() -> None:
+    assert registry.build(FIXTURE) == registry.build(FIXTURE)
 
-    for path in (RE3DATA_SNAPSHOT, FAIRSHARING_SNAPSHOT):
-        manifest = json.loads(path.with_name("manifest.json").read_text(encoding="utf-8"))
-        assert hashlib.sha256(path.read_bytes()).hexdigest() == manifest["sha256"]
-        assert manifest["missing"] == []
-    repositories = Re3dataSnapshot()
+
+def test_a_built_registry_is_checked_against_its_pin(tmp_path: Path) -> None:
+    built = build_fixture(tmp_path)
+    assert registry.problem(built.path, built.manifest) is None
+    built.path.write_bytes(built.path.read_bytes() + b"\n")
+    found = registry.problem(built.path, built.manifest)
+    assert found is not None and "dd-re3data fetch" in found
+    with pytest.raises(RegistryUnavailable, match="does not match"):
+        Re3dataRegistry(built.path, built.manifest).fetch("r3d100010230")
+
+
+def test_an_unbuilt_registry_says_how_to_build_it(tmp_path: Path) -> None:
+    build_fixture(tmp_path)
+    with pytest.raises(RegistryUnavailable, match="uv run dd-re3data fetch"):
+        Re3dataRegistry(tmp_path / "absent.jsonl", tmp_path / "manifest.json").fetch("r3d")
+
+
+def test_registry_search_and_exact_name_lookup(re3data: Re3dataRegistry) -> None:
+    assert re3data.snapshot_ref().label == "re3data:export:2026-11"
+    top = re3data.search(Query(text="social survey"))[0]
+    assert top.lexical_score > 0
+    assert len(re3data.find("uk data service")) == 1
+    assert re3data.find("UK Data") == []
+    assert re3data.search(Query(text="the of and")) == []
+    for record in re3data.records:  # the indexes agree with a scan, for every name
+        for name in record.names():
+            assert re3data.find(name) == find_by_name(re3data.records, name)
+    eidc = re3data.fetch("r3d100010199")
+    assert eidc is not None and eidc.certificates == ["CoreTrustSeal"]  # named in schema 4.0
+
+
+def test_every_fairsharing_snapshot_record_matches_its_manifest(re3data: Re3dataRegistry) -> None:
+    manifest = json.loads(FAIRSHARING_SNAPSHOT.with_name("manifest.json").read_text("utf-8"))
+    assert hashlib.sha256(FAIRSHARING_SNAPSHOT.read_bytes()).hexdigest() == manifest["sha256"]
     databases = FairsharingSnapshot()
     # re3data's cross-reference is followed as stated. It need not be returned: re3data's CEDA
     # Archive names FAIRsharing's record of the CEDA centre, which names another re3data entry.
-    for record in repositories.records:
-        if record.fairsharing_id:
-            assert databases.fetch(record.fairsharing_id) is not None
+    missing = [
+        r.fairsharing_id
+        for r in re3data.records
+        if r.fairsharing_id and databases.fetch(r.fairsharing_id) is None
+    ]
+    assert not missing, f"rebuild the FAIRsharing snapshot for {missing}"
 
 
-def test_snapshot_search_and_exact_name_lookup() -> None:
-    snapshot = Re3dataSnapshot()
-    assert snapshot.snapshot_ref().label.startswith("re3data:snapshot:")
-    top = snapshot.search(Query(text="social survey"))[0]
-    assert top.lexical_score > 0
-    assert snapshot.find("uk data service") is not None
-    assert snapshot.find("UK Data") is None
-    assert snapshot.search(Query(text="the of and")) == []
+def _serve(archive: bytes, seen: list[httpx.Request]) -> httpx.Client:
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=archive)
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
 
 
-def test_a_missing_snapshot_is_registry_unavailable(tmp_path: Path) -> None:
-    with pytest.raises(RegistryUnavailable):
-        Re3dataSnapshot(tmp_path / "absent.jsonl").fetch("r3d100010230")
+def test_fetch_pins_a_month_then_builds_from_the_cache_without_asking_again(
+    tmp_path: Path,
+) -> None:
+    seen: list[httpx.Request] = []
+    archive = FIXTURE.read_bytes()
+    built, manifest = tmp_path / "registry.jsonl", tmp_path / "manifest.json"
+    fetch = partial(
+        registry.fetch, cache_dir=tmp_path / "archives", registry=built, manifest=manifest
+    )
+    report = fetch(
+        month="2026-11",
+        update_pin=True,
+        client=_serve(archive, seen),
+        now=datetime(2026, 11, 3, tzinfo=UTC),
+    )
+    pin = registry.Pin.load(manifest)
+    assert (report.pinned, pin.month, pin.records) == (True, "2026-11", report.records)
+    assert pin.archive_sha256 == hashlib.sha256(archive).hexdigest()
+    assert pin.citation == registry.CITATION
+    assert [str(r.url) for r in seen] == [pin.archive]
+
+    repinned = fetch(month="2026-11", update_pin=True, client=_serve(archive, seen))
+    assert repinned.pinned is False  # the same export: the pin, and its date, are kept
+    assert registry.Pin.load(manifest) == pin
+
+    built.unlink()
+    again = fetch(client=_serve(archive, seen))
+    assert again.downloaded and len(seen) == 1  # built from the cached archive
+    assert fetch(client=_serve(archive, seen)).downloaded is False
+
+
+def test_an_archive_that_does_not_match_its_pin_is_refused(tmp_path: Path) -> None:
+    build_fixture(tmp_path)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr("100000001.xml", "<x/>")
+    with pytest.raises(registry.RegistryError, match="not the pinned"):
+        registry.fetch(
+            cache_dir=tmp_path / "archives",
+            registry=tmp_path / "absent.jsonl",
+            manifest=tmp_path / "manifest.json",
+            client=_serve(buffer.getvalue(), []),
+        )
+
+
+def _zip(members: dict[str, str]) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        for name, body in members.items():
+            zf.writestr(name, body)
+    return buffer.getvalue()
+
+
+def test_resource_forks_are_skipped_and_a_bad_member_is_named(tmp_path: Path) -> None:
+    with zipfile.ZipFile(FIXTURE) as zf:
+        first = next(n for n in zf.namelist() if n.endswith(".xml"))
+        good = zf.read(first).decode("utf-8")
+    forks = tmp_path / "forks.zip"
+    forks.write_bytes(_zip({"a.xml": good, "__MACOSX/._a.xml": "\x00", "dir/._b.xml": "\x00"}))
+    assert len(registry.records(forks)) == 1
+    broken = tmp_path / "broken.zip"
+    broken.write_bytes(_zip({"a.xml": good, "b.xml": "<r3d:re3data"}))
+    with pytest.raises(registry.RegistryError, match=r"b\.xml"):
+        registry.records(broken)
+
+
+def test_a_cached_download_that_is_not_the_export_is_fetched_again(tmp_path: Path) -> None:
+    cache = tmp_path / "archives"
+    cache.mkdir()
+    (cache / "re3data-repositories-2026-11.zip").write_bytes(b"<html>not yet</html>")
+    built = tmp_path / "registry.jsonl"
+    built.write_text("not json\n", encoding="utf-8")  # a corrupt registry is rebuilt
+    seen: list[httpx.Request] = []
+    report = registry.fetch(
+        month="2026-11",
+        update_pin=True,
+        cache_dir=cache,
+        registry=built,
+        manifest=tmp_path / "manifest.json",
+        client=_serve(FIXTURE.read_bytes(), seen),
+    )
+    assert len(seen) == 1 and report.records > 0
+    assert registry.problem(built, tmp_path / "manifest.json") is None
+
+
+def test_an_export_that_cannot_be_built_is_not_kept(tmp_path: Path) -> None:
+    cache = tmp_path / "archives"
+    with pytest.raises(registry.RegistryError):
+        registry.fetch(
+            month="2026-11",
+            update_pin=True,
+            cache_dir=cache,
+            registry=tmp_path / "registry.jsonl",
+            manifest=tmp_path / "manifest.json",
+            client=_serve(_zip({"a.xml": "<r3d:re3data"}), []),
+        )
+    assert not any(cache.iterdir())
+
+
+def test_subjects_are_shown_and_searched_without_their_dfg_codes(
+    re3data: Re3dataRegistry,
+) -> None:
+    record = next(r for r in re3data.records if any(s[0].isdigit() for s in r.subjects))
+    assert not any(s[0].isdigit() for s in record.subject_names())
+    assert not any(tok.isdigit() for tok in record.search_text().split())
+
+
+def test_downloads_name_the_project_not_a_person() -> None:
+    agent = registry._user_agent()
+    assert "github.com/data-director-agent/data-director" in agent
+    assert "@" not in agent
 
 
 # --- the factory ------------------------------------------------------------------------------
 
 
-def test_the_factory_defaults_to_the_snapshots_and_a_template() -> None:
+def test_the_factory_reads_the_pinned_registry_and_defaults_to_a_template() -> None:
     agent = factory.build({})
-    assert isinstance(agent.repositories, Re3dataSnapshot)
+    assert isinstance(agent.repositories, Re3dataRegistry)
     assert isinstance(agent.explainer, TemplateExplainer)
     assert agent.spec.models == ()
 
 
-def test_live_retrieval_keeps_the_snapshots_as_fallback() -> None:
+def test_live_retrieval_asks_fairsharing_and_keeps_its_snapshot_as_fallback() -> None:
     agent = factory.build({"DD_REPOSITORY_RETRIEVAL": "live"})
-    assert isinstance(agent.repositories, Re3dataLive)
-    assert isinstance(agent.fallback, Re3dataSnapshot)
+    assert isinstance(agent.repositories, Re3dataRegistry)
+    assert isinstance(agent.databases, FairsharingLive)
     assert isinstance(agent.databases_fallback, FairsharingSnapshot)
 
 

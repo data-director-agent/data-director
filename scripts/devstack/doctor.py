@@ -23,6 +23,7 @@ from devstack.common import (
     needs_install,
     port_free,
     profile_drift,
+    re3data_problem,
     read_env,
     stray_files,
     tool_problems,
@@ -66,6 +67,8 @@ def doctor() -> int:
             continue
         if agent.name in MODEL_BACKED and not keyed:
             print(f"note: {agent.script} has no model key, so `start` will skip it")
+    if found := re3data_problem():
+        print(f"note: {found}; `start` will build it")
     if needs_install() or needs_build():
         print("note: the shell is not built or is out of date; `start` will build it")
 

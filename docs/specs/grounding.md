@@ -69,9 +69,11 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
     items citing `input:` or `invocation:` are skipped, because R2, D1 and D2 have already
     checked them against hashes the conductor computed. In `retrieval` mode no rule does that,
     so such items are unresolved.
-12. A source file that does not match its pin is a configuration error, and the harness does
-    not start. The source check never reads a file without its pin and never imports an agent
-    to resolve a source.
+12. A source file that does not match its pin, or is missing, is a configuration error, and the
+    harness does not start. The exception is a copy built outside git, whose entry names the
+    command that builds it (`build`): if it has not been built, the harness starts, logs that
+    command, and evidence citing it is unresolved. The source check never reads a file without
+    its pin and never imports an agent to resolve a source.
 13. A violation of either check turns `succeeded` into `failed` with problem type
     `grounding-violation`, and removes the payload and evidence. The two verdicts are stored
     separately (`grounding.txt`, `sources.txt`) and never combined into one.
@@ -104,7 +106,14 @@ Documentation, the conformance register and the linter's docstring must not desc
 `grounding: passed` as proof that an agent retrieved anything.
 
 What the copy of a source is independent of is the agent's process, not its location: the copy
-may be a file inside an agent's package, as long as the deployment pins its bytes. Each
+may be a file inside an agent's package, as long as the deployment pins its bytes. It need not be
+committed. A copy too large for git, such as the repository advisor's re3data registry, is
+built from an archive pinned by URL and SHA-256. The build is deterministic, so the copy's own
+SHA-256 can be pinned in advance. Setup, `start`, CI and deployment build it, and `doctor`
+checks it. The harness does not require it: an unbuilt copy is one of the agent's sources, and
+one agent's data should not decide whether the harness starts, including where that agent is not
+deployed or not in the profile. Evidence citing an unbuilt copy is unresolved, which is never
+shown as verified. Each
 deployment (the workbench, the app) supplies its own list of copies; the harness itself holds
 none by default, so a test conductor reports synthetic sources as unresolved, not failed.
 
@@ -184,4 +193,5 @@ callback and no change to retrieving agents.
 - TODO(#247): envelopes stored before evidence carried `content` hold a descriptive copy in
   the payload and no `content`. They are not migrated; decide whether the viewers must keep
   rendering them.
-- TODO(#225): how a deployment pins a copy of a source that is not in the repository.
+- TODO(#225): how an institution pins a copy of a source of its own, which is neither in the
+  repository nor built from a public archive.

@@ -155,6 +155,13 @@ jobs:
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
+      # The repository advisor's re3data registry, from its pinned export: downloaded once per
+      # pin and cached (Blueprint P14), then built (agents/advisor-repository/README.md).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: agents/advisor-repository/data/re3data/archives
+          key: re3data-${{ hashFiles('agents/advisor-repository/data/re3data/manifest.json') }}
+      - run: uv run --no-sync dd-re3data fetch
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
       # The JSON report is handed to the conformance job, which decides CONFORMANCE.md from it.
       # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report
@@ -239,6 +246,13 @@ jobs:
       - run: uv run python scripts/check_wheels.py dist
       # Then the agents as real services, from the workspace.
       - run: uv sync --all-packages --all-extras
+      # The repository advisor's re3data registry, from its pinned export: downloaded once per
+      # pin and cached (Blueprint P14), then built (agents/advisor-repository/README.md).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: agents/advisor-repository/data/re3data/archives
+          key: re3data-${{ hashFiles('agents/advisor-repository/data/re3data/manifest.json') }}
+      - run: uv run --no-sync dd-re3data fetch
       - run: uv run python scripts/smoke_agents.py
 
   viewer:
@@ -255,6 +269,13 @@ jobs:
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
+      # The repository advisor's re3data registry, from its pinned export: downloaded once per
+      # pin and cached (Blueprint P14), then built (agents/advisor-repository/README.md).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: agents/advisor-repository/data/re3data/archives
+          key: re3data-${{ hashFiles('agents/advisor-repository/data/re3data/manifest.json') }}
+      - run: uv run --no-sync dd-re3data fetch
       # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
       # Headless runs need only chromium-headless-shell, not the full browser.
       - run: uv run playwright install --with-deps --only-shell chromium
@@ -372,6 +393,9 @@ jobs:
       - run: uv run --python 3.14 scripts/check_citation.py
       # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
+      # Both sources.yaml files pin the re3data registry that the repository advisor's manifest
+      # pins (agents/advisor-repository/README.md, "Sources").
+      - run: uv run --no-project --python 3.14 scripts/pin_re3data.py --check
 
   workflows:
     name: Workflows (actionlint, zizmor)

@@ -55,6 +55,14 @@ def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
     )
 
 
+def _ambiguous(got: _Retrieved) -> str:
+    """A sentence for each mandated name that several re3data records bear, or nothing."""
+    return "".join(
+        f" {name!r} names several re3data records ({', '.join(ids)}); give the identifier."
+        for name, ids in got.ambiguous.items()
+    )
+
+
 class _Retrieved:
     """The records one run retrieved, and which copy of each registry answered."""
 
@@ -65,6 +73,8 @@ class _Retrieved:
         # part-way through a run, after which the snapshot answers.
         self.databases: dict[str, tuple[DatabaseRecord, SnapshotRef]] = {}
         self.databases_down = False
+        # Each mandated name that several records bear, with their identifiers.
+        self.ambiguous: dict[str, list[str]] = {}
 
     def summary(self) -> str:
         refs = [self.re3data_ref.as_string()]
@@ -109,32 +119,38 @@ class RepositoryAgent:
         repositories: Repositories,
         databases: Databases | None = None,
         explainer: Explainer | None = None,
-        fallback: Repositories | None = None,
         databases_fallback: Databases | None = None,
     ) -> None:
         self.repositories = repositories
         self.databases = databases
-        self.fallback = fallback
         self.databases_fallback = databases_fallback
         self.explainer = explainer or TemplateExplainer()
 
     # --- retrieval ------------------------------------------------------------------------
 
     def _from_re3data(
-        self, needs: RepositoryNeeds, source: Repositories
+        self, needs: RepositoryNeeds, source: Repositories, got: _Retrieved
     ) -> tuple[list[Re3dataRecord], list[str], rank.Matches, dict[str, Re3dataRecord]]:
         """Mandated records and the names not found, or the shortlist's hits and the generalist
-        repositories."""
+        repositories. A name that several records bear is not found, and noted in `got`: the
+        researcher is asked for the identifier rather than given a guess."""
         mandated: list[Re3dataRecord] = []
         not_found: list[str] = []
         matches = rank.Matches()
         hits: dict[str, Re3dataRecord] = {}
         for ref in needs.mandated:
-            record = source.fetch(ref.re3data_id) if ref.re3data_id else source.find(ref.name)
-            if record is None:
+            if ref.re3data_id:
+                by_id = source.fetch(ref.re3data_id)
+                named = [by_id] if by_id is not None else []
+            else:
+                named = source.find(ref.name)
+            if len(named) != 1:
                 not_found.append(ref.name)
-            elif record.re3data_id not in {m.re3data_id for m in mandated}:
-                mandated.append(record)
+                if named:
+                    got.ambiguous[ref.name] = [n.re3data_id for n in named]
+                continue
+            if named[0].re3data_id not in {m.re3data_id for m in mandated}:
+                mandated.append(named[0])
         if not needs.mandated:
             for query in rank.queries(needs):
                 found = source.search(query)
@@ -180,26 +196,13 @@ class RepositoryAgent:
             )
 
         source = self.repositories
-        got = _Retrieved(source.snapshot_ref())
         try:
-            mandated, not_found, matches, hits = self._from_re3data(needs, source)
+            got = _Retrieved(source.snapshot_ref())
+            mandated, not_found, matches, hits = self._from_re3data(needs, source, got)
         except RegistryUnavailable as exc:
-            if self.fallback is None:
-                return _abstain(
-                    ReasonCode.REGISTRY_UNAVAILABLE,
-                    f"re3data could not be searched: {exc}. This is not an empty result.",
-                )
-            try:
-                mandated, not_found, matches, hits = self._from_re3data(needs, self.fallback)
-            except RegistryUnavailable as again:
-                return _abstain(
-                    ReasonCode.REGISTRY_UNAVAILABLE,
-                    f"re3data could not be searched ({exc}), nor its snapshot ({again}).",
-                )
-            got.re3data_ref = SnapshotRef(
-                label=self.fallback.snapshot_ref().label,
-                stale=True,
-                notes=[f"live route failed: {exc}"],
+            return _abstain(
+                ReasonCode.REGISTRY_UNAVAILABLE,
+                f"re3data could not be read: {exc}. This is not an empty result.",
             )
         for record in [*mandated, *hits.values()]:
             got.repositories[record.re3data_id] = record
@@ -229,14 +232,18 @@ class RepositoryAgent:
                 return _abstain(
                     ReasonCode.NO_CANDIDATES_RETRIEVED,
                     f"No re3data record was found for {', '.join(not_found)} "
-                    f"({got.summary()}). Check the names, or give the re3data identifiers.",
+                    f"({got.summary()}).{_ambiguous(got)} Check the names, or give the re3data "
+                    "identifiers. " + source.credit(),
                 )
             chosen = [(r, CandidateBasis.MANDATED, None, ()) for r in mandated]
         else:
             if not hits:
                 return _abstain(
                     ReasonCode.NO_CANDIDATES_RETRIEVED,
-                    f"re3data ({got.summary()}) returned nothing for: " + "; ".join(queries),
+                    f"re3data ({got.summary()}) returned nothing for: "
+                    + "; ".join(queries)
+                    + ". "
+                    + source.credit(),
                 )
             ranked = rank.rank(matches, hits, needs)
             if not ranked:
@@ -244,7 +251,7 @@ class RepositoryAgent:
                     ReasonCode.NO_QUALIFYING_RESOURCE,
                     f"{len(hits)} repositories were retrieved ({got.summary()}) but none "
                     f"reached the floor of {rank.config()['confidence_floor']} or accepts "
-                    "deposits. Searched: " + "; ".join(queries),
+                    "deposits. Searched: " + "; ".join(queries) + ". " + source.credit(),
                 )
             chosen = [(r.record, CandidateBasis.RECOMMENDED, r.score, r.reasons) for r in ranked]
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})
@@ -314,7 +321,7 @@ class RepositoryAgent:
                 f"{len(short)}; see each candidate's misses."
             )
         if not_found:
-            statement += f" No record found for: {', '.join(not_found)}."
+            statement += f" No record found for: {', '.join(not_found)}.{_ambiguous(got)}"
         themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
         chosen_ids = {record.re3data_id for record, *_ in chosen}
         disciplinary = set(matches.themes) - set(rank.generalists())
@@ -331,7 +338,7 @@ class RepositoryAgent:
                 " No mandated repository was given; a funder, journal or institution may still "
                 "require one, so check their policies before choosing from this shortlist."
             )
-        statement += " The researcher chooses; human review is required."
+        statement += " The researcher chooses; human review is required. " + source.credit()
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=RepositoryOptions(
