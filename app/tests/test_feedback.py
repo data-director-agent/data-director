@@ -15,6 +15,7 @@ from support import configure_env, dist_dir, new_governance
 from dd_app import feedback
 from dd_app.about import about, commit
 from dd_app.app import build_app
+from dd_app.github_auth import StaticToken
 from dd_app.governance import Governance
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.credentials import ConfigError
@@ -54,7 +55,8 @@ def client_for(
         return httpx.Response(201, json={"html_url": "https://github.test/i/7", "number": 7})
 
     github = httpx.AsyncClient(transport=httpx.MockTransport(answer))
-    app = build_app(governance, dist, feedback_token=token, feedback_client=github, build=BUILD)
+    source = StaticToken(token) if token is not None else None
+    app = build_app(governance, dist, feedback_source=source, feedback_client=github, build=BUILD)
     return TestClient(app), seen
 
 
@@ -142,11 +144,16 @@ def test_a_bad_report_is_refused_before_github(
     assert not seen
 
 
-def test_github_failing_is_a_502(governance: Governance, dist: Path) -> None:
+def test_github_failing_is_a_502_and_is_logged(
+    governance: Governance, dist: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     client, _ = client_for(governance, dist, lambda _: httpx.Response(500))
-    response = client.post("/api/feedback", json=REPORT)
+    with caplog.at_level("WARNING", logger="dd_app.app"):
+        response = client.post("/api/feedback", json=REPORT)
     assert response.status_code == 502
     assert "t0ken" not in response.text
+    assert "GitHub answered 500" in caplog.text
+    assert "t0ken" not in caplog.text
 
 
 def test_reports_are_rate_limited(governance: Governance, dist: Path) -> None:

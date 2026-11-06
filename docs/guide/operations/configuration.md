@@ -68,7 +68,7 @@ Setting both a provider and an operator stops the app at start-up.
 |---|---|---|
 | Each run: input, output, spans, evidence and, by default, a Process Run Crate | `/var/lib/data-director/runs/` (`DD_RUNS_DIR`) | It outlives releases, so back it up with the rest of the host. `DD_WRITE_CRATE=0` stops the crate being written. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
-| Problem reports | A public GitHub issue, if a token is set | Off without `DD_FEEDBACK_GITHUB_TOKEN`; the token needs Issues: write on one repository and nothing else. |
+| Problem reports | A public GitHub issue, if a credential is set | Off without a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a token (`DD_FEEDBACK_GITHUB_TOKEN`), not both. Either needs Issues: write on one repository and nothing else. |
 
 ## Before you open it to users
 

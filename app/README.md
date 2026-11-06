@@ -192,8 +192,13 @@ both a provider and an operator principal stops start-up.
 else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
 footer of every page shows it, and the
 "Report a problem" page, linked from the banner, shows it too and files a GitHub issue through
-`POST /api/feedback` ([The app](../docs/specs/app.md)). It is on only if `DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) is
-set; `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
+`POST /api/feedback` ([The app](../docs/specs/app.md)). It is on only if the app holds a credential for
+GitHub, and then only one of these: a **GitHub App** (`DD_FEEDBACK_GITHUB_APP_ID` and
+`DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`, the PEM key's path, relative to `$CREDENTIALS_DIRECTORY`
+under systemd; `DD_FEEDBACK_GITHUB_APP_INSTALLATION_ID` is optional), or a fine-grained
+**token** (`DD_FEEDBACK_GITHUB_TOKEN`, or `_FILE`). The App is preferred, since it belongs to the
+organisation and its tokens expire by themselves; [Problem reports](../deploy/README.md#problem-reports)
+says how to create it. `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
 build, the page, and, if they agree, the identifiers of the run and conversation, never their
 inputs or results.
 

@@ -37,7 +37,8 @@ with no provider configured is a development server: every request acts for the 
 
 Serves on http://127.0.0.1:7860 by default; `DD_APP_HOST` and `DD_APP_PORT` change the address,
 and `DD_HARNESS_URL` the address the agents call back on, if they reach the app by another.
-`DD_FEEDBACK_GITHUB_TOKEN` (or `_FILE`) turns problem reports on, into `DD_FEEDBACK_REPO`.
+A GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a
+token (`DD_FEEDBACK_GITHUB_TOKEN`, or `_FILE`) turns problem reports on, into `DD_FEEDBACK_REPO`.
 """
 
 from __future__ import annotations
@@ -67,6 +68,7 @@ from starlette.staticfiles import StaticFiles
 from dd_app import documents, feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
+from dd_app.github_auth import TokenSource
 from dd_app.governance import (
     Governance,
     TurnConflictError,
@@ -117,7 +119,7 @@ def build_app(
     web_dist: Path = WEB_DIST,
     examples_dir: Path = EXAMPLES_DIR,
     *,
-    feedback_token: str | None = None,
+    feedback_source: TokenSource | None = None,
     feedback_repo: str = feedback.DEFAULT_REPO,
     feedback_client: httpx.AsyncClient | None = None,
     build: Mapping[str, str | None] | None = None,
@@ -125,7 +127,7 @@ def build_app(
 ) -> Starlette:
     """The server. `web_dist` must hold a built shell (its `index.html`).
 
-    Problem reports are on when `feedback_token` is given; `feedback_client` and `build` let a test
+    Problem reports are on when `feedback_source` is given; `feedback_client` and `build` let a test
     stand in for GitHub and for the build's identity. `sign_in` signs people in; its
     authenticator must be `governance.authenticator`. Without it, the server signs nobody in.
     """
@@ -331,15 +333,15 @@ def build_app(
     limiter = feedback.RateLimiter()
 
     async def get_about(request: Request) -> Response:
-        return JSONResponse({**identity, "feedback_enabled": feedback_token is not None})
+        return JSONResponse({**identity, "feedback_enabled": feedback_source is not None})
 
     async def send_feedback(request: Request, _: Principal) -> Response:
-        if feedback_token is None:
+        if feedback_source is None:
             return _problem(
                 503,
                 "feedback-unavailable",
                 "Reports are not switched on",
-                "This deployment has no GitHub token for problem reports.",
+                "This deployment has no GitHub credential for problem reports.",
             )
         try:
             body = await request.json()
@@ -365,14 +367,15 @@ def build_app(
         try:
             if feedback_client is not None:
                 created = await feedback.create_issue(
-                    report, text, repo=feedback_repo, token=feedback_token, client=feedback_client
+                    report, text, repo=feedback_repo, source=feedback_source, client=feedback_client
                 )
             else:
                 async with httpx.AsyncClient(timeout=feedback.GITHUB_TIMEOUT_SECONDS) as client:
                     created = await feedback.create_issue(
-                        report, text, repo=feedback_repo, token=feedback_token, client=client
+                        report, text, repo=feedback_repo, source=feedback_source, client=client
                     )
         except feedback.FeedbackFailedError as exc:
+            log.warning("a problem report was not filed: %s", exc)
             return _problem(502, "feedback-failed", "The report was not filed", str(exc))
         return JSONResponse(created, status_code=201)
 
@@ -611,11 +614,12 @@ def main() -> int:
         ConfigError,
     ) as exc:
         sys.exit(f"data-director: {exc}")
+    feedback_repo = os.environ.get(feedback.REPO_VARIABLE) or feedback.DEFAULT_REPO
     try:
         app = build_app(
             governance,
-            feedback_token=feedback.token_from_env(os.environ),
-            feedback_repo=os.environ.get(feedback.REPO_VARIABLE) or feedback.DEFAULT_REPO,
+            feedback_source=feedback.source_from_env(os.environ, feedback_repo),
+            feedback_repo=feedback_repo,
             sign_in=sign_in,
         )
         if host not in LOOPBACK and sign_in is None:
