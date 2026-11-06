@@ -107,7 +107,6 @@ describe("ConversationHome", () => {
   it("sends a turn, labels replies and children, and returns focus to the message box", async () => {
     const sendTurn = vi.fn().mockResolvedValue(undefined);
     const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
-    expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     const box = screen.getByRole("textbox", { name: "What would you like to do?" });
     await userEvent.type(box, "hello world");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -399,9 +398,8 @@ describe("ConversationHome", () => {
         expect(within(dd).getByText("Not built yet")).toBeVisible();
         expect(within(dd).getAllByRole("link").length).toBeGreaterThan(0);
       }
-      const status = screen.getByRole("region", { name: "Where this work stands" });
-      expect(within(status).getByText("Acting for")).toBeVisible();
-      expect(within(status).queryByText("Dataset")).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Where this work stands" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Acting for")).not.toBeInTheDocument();
       expect(screen.queryByRole("heading", { name: "Activity log" })).not.toBeInTheDocument();
     });
 
@@ -443,11 +441,10 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
     });
 
-    it("keeps the phases and the bar when there is no conversation", async () => {
+    it("keeps the phases when there is no conversation", async () => {
       renderHome(normalise(raw), fakeApi());
       expect(screen.getByRole("heading", { level: 1, name: "No conversation is available" })).toBeVisible();
       expect((await screen.findAllByText("Pre-collection setup"))[0]).toBeVisible();
-      expect(screen.getByRole("region", { name: "Where this work stands" })).toBeVisible();
     });
   });
 
