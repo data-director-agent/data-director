@@ -6,11 +6,12 @@
 #   2. stop if its tip is already running, failed here before, or has not passed CI;
 #   3. build the tip into its own release directory (uv sync, the re3data registry, npm build of
 #      app/web);
-#   4. point /opt/data-director/current at it and restart data-director.target;
+#   4. point /opt/data-director/current at it and ask for data-director.target to be restarted
+#      (restart() below);
 #   5. if the app does not report the new commit, point `current` back and restart again.
 #
 # "Running" means the app reports the commit on /api/about, not only that `current` points at
-# it: if the restart failed, the old processes are still serving the old commit.
+# it: if the restart did not happen, the old processes are still serving the old commit.
 #
 # Settings, each with its default (set them in /etc/data-director/deploy.env):
 #   DD_DEPLOY_REPO        https://github.com/data-director-agent/data-director.git
@@ -51,12 +52,15 @@ running_commit() {
   curl --fail --silent --max-time 5 "$ABOUT_URL" 2>/dev/null | jq -r '.commit // empty' 2>/dev/null || true
 }
 
-# Restart the app and agents. install.sh allows this one command in /etc/sudoers.d/data-director;
-# without that rule sudo asks for a password, and nothing is restarted.
+# Ask for the app and agents to be restarted. This user may not restart them: root's
+# data-director-restart.path unit watches a file and restarts data-director.target when it is
+# written (install.sh installs the unit). The restart follows a moment after this returns, and
+# healthy() waits for it, so a restart that never comes ends in the same rollback as one that fails.
 restart() {
-  # Without the lock's descriptor, so that nothing started here can hold the lock.
-  sudo --non-interactive /usr/bin/systemctl restart data-director.target 9>&- ||
-    die "could not restart data-director.target; is /etc/sudoers.d/data-director in place? (deploy/README.md)"
+  systemctl is-active --quiet data-director-restart.path ||
+    die "data-director-restart.path is not active, so nothing would restart data-director.target; run deploy/install.sh as root (deploy/README.md)"
+  # A write, not a touch: the path unit watches for modification.
+  date --utc +%FT%TZ >"$ROOT/restart-requested"
 }
 
 link() {
@@ -171,8 +175,8 @@ previous=""
 was="${live:0:12}"
 log "$short: going live (was ${was:-nothing})"
 link "$release"
-# A failed restart leaves the old processes running: put the link back so that the next pass
-# tries again, instead of taking the link for the running release.
+# A restart that could not be requested leaves the old processes running: put the link back so
+# that the next pass tries again, instead of taking the link for the running release.
 if ! (restart); then
   [[ -n "$previous" ]] && link "$previous"
   exit 1

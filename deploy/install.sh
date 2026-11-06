@@ -82,14 +82,6 @@ install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
 install -d -o root -g root -m 0700 "$ETC/credentials" "$ETC/credentials/app"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
 
-step "Restart rule"
-# deploy.sh, running as $USER_NAME, may restart the services and do nothing else as root.
-rule="$(mktemp)"
-echo "$USER_NAME ALL=(root) NOPASSWD: /usr/bin/systemctl restart data-director.target" >"$rule"
-visudo -cqf "$rule"
-install -m 0440 "$rule" /etc/sudoers.d/data-director
-rm -f "$rule"
-
 step "systemd units"
 (cd "$SRC/deploy/systemd" && find . -type f -printf '%P\n') | while read -r unit; do
   install -D -m 0644 "$SRC/deploy/systemd/$unit" "/etc/systemd/system/$unit"
@@ -120,6 +112,10 @@ for conf in "$SRC"/deploy/credentials/*.conf; do
   fi
 done
 systemctl daemon-reload
+# deploy.sh, running as $USER_NAME, cannot restart the services. It writes
+# $ROOT/restart-requested instead, and root's path unit restarts them: it may ask for that
+# restart and for nothing else, as the sudo rule it replaces did.
+systemctl enable --now data-director-restart.path
 
 step "Certificate for $domain"
 # The site names certbot's certificate, so it must exist before the site is installed. certbot

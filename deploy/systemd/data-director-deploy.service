@@ -17,8 +17,9 @@ ExecStart=/opt/data-director/current/deploy/deploy.sh
 # A first build downloads Python, the locked packages and the shell's npm packages.
 TimeoutStartSec=30min
 SyslogIdentifier=data-director-deploy
-# Not NoNewPrivileges: deploy.sh restarts the services through the sudo rule install.sh writes
-# (/etc/sudoers.d/data-director), which allows that one command and no other.
+# deploy.sh restarts the services by writing /opt/data-director/restart-requested, which
+# data-director-restart.path watches. It runs no command as root.
+NoNewPrivileges=yes
 ProtectSystem=full
 ProtectHome=yes
 PrivateTmp=yes
