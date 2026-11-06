@@ -129,6 +129,13 @@ CLI, transports or viewer, this agent will show it.
    Read the agent's own `DD_<AGENT>_*` environment variables in `build`. A content problem is an
    outcome (`abstained` with a reason code), not an exception.
 
+   A source copy too large to commit is built where it is used, from something the package pins.
+   Declare it as a `dd_sdk.sources.BuiltSource` (its name, pin, what is wrong with the built copy,
+   and how to build it into a given cache) and register it in `pyproject.toml` under
+   `[project.entry-points."dd.sources"]`; mark its entry in each `sources.yaml` `built: true`.
+   `uv run dd-sources prepare` then builds it wherever the others are built, and nothing outside
+   the agent needs its build command. `advisor-repository/` is the example (`registry.SOURCE`).
+
    An agent that calls a model keeps its system prompt in `system_prompt.md` beside the module
    that sends it, and reads it with `Path(__file__).with_name("system_prompt.md")`, so the prompt
    can be read and reviewed as prose. CI treats that file as the agent's code, not as prose.

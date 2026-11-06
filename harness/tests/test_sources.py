@@ -72,9 +72,9 @@ def test_config_resolves_paths_beside_the_file(tmp_path: Path) -> None:
     assert Sources.from_config(config).by_snapshot_ref[SNAPSHOT_REF].record("src:a") == RECORD
 
 
-def _config(tmp_path: Path, file: str, pin: str, build: str | None = None) -> Path:
+def _config(tmp_path: Path, file: str, pin: str, built: object = None) -> Path:
     config = tmp_path / "sources.yaml"
-    extra = f"    build: {build}\n" if build else ""
+    extra = f"    built: {built}\n" if built is not None else ""
     config.write_text(
         f"sources:\n  - snapshot_refs: [{SNAPSHOT_REF}]\n    path: {file}\n{extra}"
         f"    id_field: source_id\n    sha256: {pin}\n",
@@ -86,26 +86,35 @@ def _config(tmp_path: Path, file: str, pin: str, build: str | None = None) -> Pa
 def test_an_unbuilt_copy_leaves_its_evidence_unresolved_and_names_how_to_build_it(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    config = _config(tmp_path, "absent.jsonl", "0" * 64, build="uv run dd-build-it")
+    config = _config(tmp_path, "absent.jsonl", "0" * 64, built="true")
     with caplog.at_level(logging.WARNING, logger="dd_harness.sources"):
         sources = Sources.from_config(config)
-    assert sources.unbuilt == {SNAPSHOT_REF: "uv run dd-build-it"}
-    assert "build it with `uv run dd-build-it`" in caplog.text
+    assert sources.unbuilt == {SNAPSHOT_REF}
+    assert "build it with `uv run dd-sources prepare`" in caplog.text
     report = check(_envelope(_evidence()), sources)
     assert report.passed and report.verified == 0
     assert report.unresolved == [f"src:a ({SNAPSHOT_REF}, not built)"]
 
 
-def test_a_missing_copy_that_names_no_build_is_a_configuration_error(tmp_path: Path) -> None:
+@pytest.mark.parametrize("built", [None, "false"])
+def test_a_missing_copy_not_marked_built_is_a_configuration_error(
+    tmp_path: Path, built: str | None
+) -> None:
     with pytest.raises(SourceConfigError, match=r"absent\.jsonl"):
-        Sources.from_config(_config(tmp_path, "absent.jsonl", "0" * 64))
+        Sources.from_config(_config(tmp_path, "absent.jsonl", "0" * 64, built=built))
+
+
+def test_built_names_no_command(tmp_path: Path) -> None:
+    config = _config(tmp_path, "absent.jsonl", "0" * 64, built="uv run dd-build-it")
+    with pytest.raises(SourceConfigError, match="'built' must be true or false"):
+        Sources.from_config(config)
 
 
 def test_a_built_copy_that_does_not_match_its_pin_is_a_configuration_error(
     tmp_path: Path,
 ) -> None:
     path, _ = _pinned(tmp_path, [RECORD])
-    config = _config(tmp_path, path.name, "0" * 64, build="uv run dd-build-it")
+    config = _config(tmp_path, path.name, "0" * 64, built="true")
     with pytest.raises(SourceConfigError, match="not the pinned"):
         Sources.from_config(config)
 

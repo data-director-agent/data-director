@@ -27,6 +27,8 @@ dependencies = [
 [project.scripts]
 # Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (docs/specs/contract.md).
 dd-gen-schema = "dd_sdk.schema.gen:main"
+# Prepares every source an agent builds outside git (dd_sdk.sources, docs/specs/grounding.md).
+dd-sources = "dd_sdk.sources:main"
 
 [tool.deptry.per_rule_ignores]
 # uvicorn imports watchfiles itself when asked to reload (`serve --reload`); nothing here does.

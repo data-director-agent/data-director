@@ -12,7 +12,9 @@ package's data pins one archive and the JSON Lines built from it:
 
 Neither the archive nor `registry.jsonl` is committed. `dd-re3data fetch` downloads the pinned
 archive once (or uses the copy in its cache), verifies it and builds the registry. With
-`--update-pin` it pins another month instead, which the monthly refresh does.
+`--update-pin` it pins another month instead, which the monthly refresh does. `SOURCE` declares
+the registry to `dd-sources prepare` (dd_sdk.sources), which is how setup, CI and deployment
+build it.
 
 re3data's records are CC0. We credit re3data nonetheless: `CITATION` is the service's own
 citation, written into the manifest and repeated in every statement the agent makes.
@@ -36,6 +38,7 @@ import httpx
 from pydantic import ValidationError
 
 from dd_agent_advisor_repository.records import Re3dataRecord, from_re3data_xml
+from dd_sdk.sources import PREPARE_COMMAND, BuiltSource, SourceBuildError
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "re3data"
 MANIFEST = DATA_DIR / "manifest.json"
@@ -129,11 +132,11 @@ def problem(registry: Path = REGISTRY, manifest: Path = MANIFEST) -> str | None:
     except RegistryError as exc:
         return str(exc)
     if not registry.is_file():
-        return f"the re3data registry is not built at {registry}; run `{FETCH_COMMAND}`"
+        return f"the re3data registry is not built at {registry}; run `{PREPARE_COMMAND}`"
     if _sha256(registry) != pin.snapshot_sha256:
         return (
             f"the re3data registry at {registry} does not match the pinned export of "
-            f"{pin.month}; run `{FETCH_COMMAND}`"
+            f"{pin.month}; run `{PREPARE_COMMAND}`"
         )
     return None
 
@@ -345,3 +348,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     lines.append(f"Cite: {pin.citation}")
     sys.stdout.write("\n".join(lines) + "\n")
     return 0
+
+
+def _prepare(cache_dir: Path | None) -> None:
+    try:
+        fetch(cache_dir=cache_dir or ARCHIVES)
+    except RegistryError as exc:
+        raise SourceBuildError(f"re3data: {exc}") from None
+
+
+def _pin() -> str:
+    try:
+        return Pin.load().archive_sha256
+    except RegistryError as exc:
+        raise SourceBuildError(str(exc)) from None
+
+
+# Registered under the `dd.sources` entry point (pyproject.toml), so `dd-sources prepare` builds
+# the registry without anything else knowing how.
+SOURCE = BuiltSource(name="re3data", pin=_pin, problem=lambda: problem(), prepare=_prepare)

@@ -97,17 +97,21 @@ repository or makes a judgement:
 ## Sources
 
 **re3data.** The agent reads every repository in re3data from one monthly export, pinned in
-`data/re3data/manifest.json` by URL and SHA-256. Build it with:
+`data/re3data/manifest.json` by URL and SHA-256. The registry is a built source, declared to
+`dd-sources` by `registry.SOURCE` under the `dd.sources` entry point (`pyproject.toml`), so the
+command that builds every agent's sources builds it:
 
 ```sh
-uv run dd-re3data fetch           # build registry.jsonl from the pinned export
-uv run dd-re3data check           # does registry.jsonl match the pin?
+uv run dd-sources prepare         # build registry.jsonl (and any other built source) as pinned
+uv run dd-sources check           # does each built source match its pin?
+uv run dd-re3data fetch           # build registry.jsonl alone
 uv run dd-re3data fetch --update-pin [--month YYYY-MM]   # pin another month's export
 uv run scripts/pin_re3data.py     # then pin both sources.yaml files to it
 ```
 
-`dev.py setup` and `start`, CI and `deploy/deploy.sh` run `fetch`. It downloads an archive once per
-pin and keeps it in `data/re3data/archives/`, so a run never asks re3data. A registry that is
+`dev.py setup` and `start`, Docker Compose, CI and `deploy/deploy.sh` run `dd-sources prepare`.
+It downloads an archive once per pin and keeps it in `data/re3data/archives/` (or in `re3data/`
+under a `--cache-dir`), so a run never asks re3data. A registry that is
 missing or does not match its pin is an error that names the command to run, and the agent
 abstains. A registry that does not match its pin also stops the app from starting. A missing one
 does not: the harness warns with the command, and re3data evidence is unresolved rather than
