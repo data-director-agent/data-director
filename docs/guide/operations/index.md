@@ -7,9 +7,11 @@ app (see the [user guide](../user-guide/index.md)) or for people who write agent
 
 An operator decides three things that a user and a developer do not:
 
-- **What the instance may do.** The [institutional profile](../../../workbench/profiles/README.md)
+- **What the instance runs and may do.** `deployment.yaml` says which agents run and which
+  orchestrator the home page converses with, and `sudo data-director apply` makes it so
+  ([the command](commands.md)). The [institutional profile](../../../workbench/profiles/README.md)
   names the agents that may run, the actions that need a person's approval, and the agent a
-  researcher converses with.
+  researcher converses with; `apply` writes it.
 - **What leaves the institution.** An agent that calls a hosted AI model sends it part of the
   user's input. [AI models](ai-models.md) says which agents do, what they send, and how to choose
   and supply a model.
@@ -22,6 +24,7 @@ An operator decides three things that a user and a developer do not:
 |---|---|
 | [AI models](ai-models.md) | Choose a model, supply a key, turn on the model-backed agents, and check what an instance sends to a provider. |
 | [Configuration](configuration.md) | Find where each setting lives, in development and on a server. |
+| [The `data-director` command](commands.md) | Check an instance (`doctor`), change what it runs (`apply`) and set a model key (`secret`). |
 | [Deploying to a VM](../../../deploy/README.md) | Install the app and its agents on an Ubuntu VM and keep it up to date. |
 | [Institutional profiles](../../../workbench/profiles/README.md) | Write the rules that apply to every run. |
 
