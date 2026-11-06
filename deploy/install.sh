@@ -103,10 +103,15 @@ done
 for conf in "$SRC"/deploy/credentials/*.conf; do
   name="$(basename "$conf" .conf)"
   dropin="/etc/systemd/system/data-director-agent@$name.service.d/credentials.conf"
-  if [[ -s "$ETC/credentials/$name/anthropic-api-key" ]]; then
+  key="$ETC/credentials/$name/anthropic-api-key"
+  if [[ -f "$key" && -s "$key" ]]; then
     echo "$name: model key in place"
     install -D -m 0644 "$conf" "$dropin"
   else
+    # A directory, or an empty file, is not a key; the unit would start without a credential.
+    if [[ -e "$key" ]]; then
+      echo "$name: $key is not a non-empty regular file; model key not installed" >&2
+    fi
     rm -f "$dropin"
     rmdir "$(dirname "$dropin")" 2>/dev/null || true
   fi

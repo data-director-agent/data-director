@@ -260,8 +260,9 @@ either on, rotate it and read a start-up error are in the operations guide,
 `/etc/data-director/credentials/<name>/`, by the drop-in `credentials/<name>.conf`.
 
 systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
-to set up credentials"). So `install.sh` installs an agent's drop-in only while its key file
-exists, and removes it otherwise. The standards advisor therefore runs without a key, with its
+to set up credentials"). So `install.sh` installs an agent's drop-in only while its key is a
+non-empty regular file, and removes it otherwise, warning if something else (a directory, say) is
+at that path. The standards advisor therefore runs without a key, with its
 template explainer. After adding or removing a key, run `install.sh` again.
 
 ## Changing the deployment
