@@ -5,6 +5,7 @@
 
 import type { Envelope } from "../run/types";
 import type { InventorySummary, ProjectInventory } from "./inventory";
+import type { ChoiceAnswer } from "./question";
 
 export interface ConversationSummary {
   conversation_id: string;
@@ -53,7 +54,10 @@ export interface Conversation {
   /** The inventory the project holds now. */
   inventory?: ProjectInventory | null;
   turns: ConversationTurn[];
-  inputs: Record<string, { message_text?: string; project_inventory?: InventorySummary }>;
+  inputs: Record<
+    string,
+    { message_text?: string; project_inventory?: InventorySummary; choice_answer?: ChoiceAnswer }
+  >;
   version_changes: VersionChange[];
   history: HistoryEntry[];
 }

@@ -105,6 +105,17 @@ Python, JavaScript and TypeScript code and the workflows (in a pull request, onl
 changes), and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
 
+## Merging a pull request
+
+Merge with **Squash and merge**. The repository allows no other method, and its ruleset on `main`
+requires three checks to pass first: **CI passed**, **Accessibility passed** and **PR title and
+branch name**. The squashed commit takes the pull request's title as its subject and has no body.
+
+Squashing keeps one commit per pull request on `main`, which release-please needs. A merge commit
+would put the branch's own commits on `main` beside GitHub's merge commit, whose body repeats the
+pull request title, so release-please would list the change twice in the changelog and count every
+`feat:` or `fix:` commit on the branch as a change of its own.
+
 ## Pull request titles and branch names
 
 A pull request is squash-merged, so its title becomes the commit subject on `main`, and

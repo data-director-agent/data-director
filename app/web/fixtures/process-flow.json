@@ -25,6 +25,7 @@
           "id": "setup.documentation",
           "label": "Plan how your data will be documented",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R5"
           ],
@@ -34,10 +35,27 @@
           "id": "setup.vocabularies",
           "label": "Choose standard terms to describe your data",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R3"
           ],
           "text": "Select controlled vocabularies and ontologies"
+        },
+        {
+          "id": "setup.dmp-create",
+          "label": "Write a Data Management Plan",
+          "optional": true,
+          "out_of_scope": true,
+          "requirements": [],
+          "text": "Create a Data Management Plan where none exists"
+        },
+        {
+          "id": "setup.dmp-review",
+          "label": "Review your Data Management Plan",
+          "optional": false,
+          "out_of_scope": true,
+          "requirements": [],
+          "text": "Review and update the Data Management Plan"
         }
       ],
       "summary": "Before you collect any data: decide how it will be described.",
@@ -51,6 +69,7 @@
           "id": "governance.policies",
           "label": "Check what your funder, journal and institution expect",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Check funder, journal and institutional data sharing policies"
         },
@@ -58,6 +77,7 @@
           "id": "governance.sensitive-data-identify",
           "label": "Spot any sensitive information in your data",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Identify sensitive data"
         },
@@ -65,6 +85,7 @@
           "id": "governance.sensitive-data-handle",
           "label": "Decide how sensitive data will be protected",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Handle sensitive data"
         },
@@ -72,6 +93,7 @@
           "id": "governance.embargo",
           "label": "Decide whether to delay public release",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Confirm whether an embargo is required"
         },
@@ -79,6 +101,7 @@
           "id": "governance.dmp",
           "label": "Check your plans match your Data Management Plan",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R8"
           ],
@@ -96,6 +119,7 @@
           "id": "repository.mandated",
           "label": "Find out whether you must use a particular repository",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Check whether the funder, journal or institution mandates a repository"
         },
@@ -103,6 +127,7 @@
           "id": "repository.recommend",
           "label": "Choose a repository",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R1"
           ],
@@ -112,6 +137,7 @@
           "id": "repository.pid",
           "label": "Make sure your data will get a permanent identifier, such as a DOI",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R7"
           ],
@@ -121,6 +147,7 @@
           "id": "repository.access-and-costs",
           "label": "Check who can access the data and what depositing costs",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Check access options and deposit costs"
         },
@@ -128,6 +155,7 @@
           "id": "repository.certification",
           "label": "Check that the repository is trustworthy",
           "optional": true,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Verify repository certification"
         }
@@ -143,6 +171,7 @@
           "id": "preparation.files",
           "label": "Tidy and version your files",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Clean and version the data files"
         },
@@ -150,6 +179,7 @@
           "id": "preparation.formats",
           "label": "Save your data in open formats",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R3"
           ],
@@ -159,6 +189,7 @@
           "id": "preparation.documentation",
           "label": "Write a README and a data dictionary",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R5"
           ],
@@ -168,6 +199,7 @@
           "id": "preparation.metadata-standard",
           "label": "Choose the metadata standard to follow",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Identify the appropriate metadata standard"
         },
@@ -175,6 +207,7 @@
           "id": "preparation.metadata",
           "label": "Fill in the description of your dataset",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R2",
             "R6"
@@ -193,6 +226,7 @@
           "id": "deposit.validate",
           "label": "Check the description is complete and correct",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R4"
           ],
@@ -202,6 +236,7 @@
           "id": "deposit.licence",
           "label": "Choose a licence",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Assign a licence"
         },
@@ -209,6 +244,7 @@
           "id": "deposit.links",
           "label": "Link to your paper, your ORCID iD, your institution and your grant",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R7"
           ],
@@ -218,6 +254,7 @@
           "id": "deposit.access",
           "label": "Set who can see or download the data",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Set access restrictions"
         },
@@ -225,6 +262,7 @@
           "id": "deposit.review-link",
           "label": "Create a private link for peer reviewers",
           "optional": true,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Generate a private peer review link"
         },
@@ -232,6 +270,7 @@
           "id": "deposit.upload",
           "label": "Upload your files",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Upload the files"
         },
@@ -239,6 +278,7 @@
           "id": "deposit.finalise",
           "label": "Review and submit",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Review and finalise the submission"
         }
@@ -251,9 +291,18 @@
       "number": 6,
       "steps": [
         {
+          "id": "post.dmp-update",
+          "label": "Update your Data Management Plan with what you published",
+          "optional": false,
+          "out_of_scope": true,
+          "requirements": [],
+          "text": "Update the Data Management Plan to reflect the data published"
+        },
+        {
           "id": "post.institutional-record",
           "label": "Record the deposit with your institution",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Record the deposit in institutional systems where required"
         },
@@ -261,6 +310,7 @@
           "id": "post.monitor",
           "label": "Follow downloads and citations",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Monitor access, downloads and citations"
         },
@@ -268,6 +318,7 @@
           "id": "post.embargo-release",
           "label": "Release your data when the delay ends",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [],
           "text": "Check embargo release"
         },
@@ -275,6 +326,7 @@
           "id": "post.fairness",
           "label": "Check how FAIR your published data are",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R12"
           ],
@@ -284,6 +336,7 @@
           "id": "post.retrofit",
           "label": "Improve the description of older datasets",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R9"
           ],
@@ -293,6 +346,7 @@
           "id": "post.links",
           "label": "Connect your data to related publications and datasets",
           "optional": false,
+          "out_of_scope": false,
           "requirements": [
             "R11"
           ],

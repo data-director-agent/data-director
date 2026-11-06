@@ -10,6 +10,7 @@ import yaml
 
 from dd_sdk.process_flow import (
     ENTRIES,
+    OUT_OF_SCOPE,
     PHASES,
     REQUIREMENTS,
     STEPS,
@@ -62,6 +63,21 @@ def test_every_step_has_a_unique_id_under_its_phase_and_none_is_a_requirement() 
     assert not STEPS & REQUIREMENTS
     prefixes = {p.number: {s.id.split(".")[0] for s in p.steps} for p in PHASES}
     assert all(len(prefix) == 1 for prefix in prefixes.values())
+
+
+def test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now() -> None:
+    assert {"setup.dmp-create", "setup.dmp-review", "post.dmp-update"} == OUT_OF_SCOPE
+    assert OUT_OF_SCOPE <= STEPS
+    # Verifying a deposit against an existing plan (R8) stays in scope.
+    assert "governance.dmp" not in OUT_OF_SCOPE
+    # An out-of-scope step is still planned, so an orchestrator and the phase tracker show it,
+    # with no agent.
+    planned = {p.step.id: p for p in plan(entry(1), [])}
+    assert all(planned[i].agent_ids == () for i in OUT_OF_SCOPE)
+    assert [s.id for s in PHASES[0].steps][-2:] == ["setup.dmp-create", "setup.dmp-review"]
+    text = describe_flow()
+    line = next(x for x in text.splitlines() if "[setup.dmp-create]" in x)
+    assert "optional" in line and "out of scope for now" in line
 
 
 def test_an_agent_is_planned_at_the_steps_it_names_and_no_other() -> None:

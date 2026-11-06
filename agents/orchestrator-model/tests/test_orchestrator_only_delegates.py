@@ -1,4 +1,5 @@
-"""The orchestrator's model has no tools except its delegations (docs/specs/orchestration.md).
+"""The orchestrator's model has no tools except its delegations and `offer_choices`, which runs
+nothing (docs/specs/orchestration.md).
 
 These tests fail if the model is offered a way to the outside world that is not a delegation
 through the harness: an MCP server, a server tool such as web search or code execution, Agent
@@ -16,7 +17,11 @@ from typing import Any, ClassVar
 import pytest
 
 from dd_agent_example_hello.agent import HelloWorld
-from dd_agent_orchestrator_model.agent import ModelOrchestrator
+from dd_agent_orchestrator_model.agent import (
+    CHOICE_TOOL,
+    CHOICE_TOOL_DEFINITION,
+    ModelOrchestrator,
+)
 from dd_agent_orchestrator_model.model import FALLBACK_BETA, AnthropicModel
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import Message, OutcomeStatus
@@ -96,8 +101,13 @@ def test_the_model_is_offered_only_delegations(runs_dir: Path) -> None:
     assert sent["betas"] == [FALLBACK_BETA]
     assert sent["tools"], "the manifest's agent should be offered as a tool"
     for tool in sent["tools"]:
-        assert set(tool) == TOOL_KEYS, f"{tool.get('name')} is not a delegation tool"
+        assert set(tool) == TOOL_KEYS, f"{tool.get('name')} is not a client tool"
+        if tool["name"] == CHOICE_TOOL:
+            # The one tool that is not a delegation: the loop ends on it and calls nothing.
+            assert tool == CHOICE_TOOL_DEFINITION
+            continue
         assert tool["description"].startswith("Ask the agent ")
+    assert [t["name"] for t in sent["tools"]].count(CHOICE_TOOL) == 1
 
 
 @pytest.mark.requirement("DD-DELEGATION")

@@ -23,6 +23,9 @@ VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 # One line of 1 to 80 characters (Reply.conversation_title).
 CONVERSATION_TITLE_PATTERN = r"^.{1,80}$"
 CONVERSATION_TITLE_MAX = 80
+# A choice question offers between 2 and 12 options (ChoiceQuestion.question_options).
+CHOICE_OPTIONS_MIN = 2
+CHOICE_OPTIONS_MAX = 12
 
 
 class Frozen(BaseModel):
@@ -212,6 +215,15 @@ class InventorySummary(Frozen):
     inventory_limitations: list[str] = Field(default_factory=list)
 
 
+class ChoiceAnswer(Frozen):
+    """The researcher's answer to the choice question the turn before asked, by the values they
+    chose or in their own words (docs/specs/orchestration.md)."""
+
+    answer_to: str = Field(pattern=UUID7_PATTERN)
+    answer_values: list[str] = Field(default_factory=list)
+    answer_other: str | None = None
+
+
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory` from the conversation's project; a caller never does."""
@@ -220,6 +232,7 @@ class Message(Frozen):
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
     project_inventory: InventorySummary | None = None
+    choice_answer: ChoiceAnswer | None = None
 
 
 class TableField(Frozen):
@@ -358,6 +371,35 @@ AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_p
 # (docs/specs/contract.md, docs/specs/projects.md).
 
 
+class ChoiceOption(Frozen):
+    """One option of a choice question. The value is a string: a number would reach the agent as
+    a floating-point value over A2A."""
+
+    option_value: str
+    option_label: str
+    option_help: str | None = None
+
+
+class ChoiceQuestion(Frozen):
+    """A question with fixed options a reply asks; one or several may be chosen, and the
+    researcher may answer in their own words where `question_other` is true."""
+
+    question_prompt: str
+    # The bounds are not in the schema (#333).
+    question_options: list[ChoiceOption] = Field(
+        min_length=CHOICE_OPTIONS_MIN, max_length=CHOICE_OPTIONS_MAX
+    )
+    question_multiple: bool = False
+    question_other: bool = False
+
+    @model_validator(mode="after")
+    def _values_are_unique(self) -> ChoiceQuestion:
+        values = [o.option_value for o in self.question_options]
+        if len(set(values)) != len(values):
+            raise ValueError("each option of a choice question has a value of its own")
+        return self
+
+
 class Reply(Grounded):
     """The payload of a conversational agent (docs/specs/orchestration.md)."""
 
@@ -366,6 +408,8 @@ class Reply(Grounded):
     reply_derivation: Derivation
     # Set by a model on a conversation's first turn only; what lists the conversation shows.
     conversation_title: str | None = Field(default=None, pattern=CONVERSATION_TITLE_PATTERN)
+    # A question with fixed options the reply asks, at most one.
+    reply_question: ChoiceQuestion | None = None
 
 
 class DocumentVersionRef(Frozen):

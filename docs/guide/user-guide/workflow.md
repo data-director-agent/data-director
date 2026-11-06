@@ -20,10 +20,14 @@ Researchers do not always start at the beginning. Say which of the three describ
 
 All three continue through every later phase to the end.
 
-In the chat, you can answer with "Entry 2", or describe your situation in your own words ("I have
-collected my data and want to share it"). On a first message that names no entry point, the Data
-Director asks which one you mean. It then lists the steps from that entry onwards and the agents
-that can help with each.
+On a first message that names no entry point, the Data Director asks which one you mean, with
+the three entry points as choices beneath its reply. Choose one and select **Send answer**, or
+type your answer instead: "Entry 2", or your situation in your own words ("I have collected my
+data and want to share it"). It then lists the steps from that entry onwards and the agents that
+can help with each.
+
+The Data Director asks other questions with a few known answers the same way. You never have to
+use the choices: whatever you type in the message box is sent as your reply.
 
 ## The map
 
@@ -44,7 +48,8 @@ flowchart TD
 
 Each step names the Blueprint requirement it applies (R1 to R12, from
 [§7.1](../../blueprint/07-functional-specification.md#71-functional-requirements)), where there is
-one. Steps marked *optional* may be left out.
+one. Steps marked *optional* may be left out. Steps marked *out of scope for now* are in the
+Blueprint's flow and shown here so the map is complete, but Data Director does not do them yet.
 
 ### Phase 1: Pre-collection setup
 
@@ -52,6 +57,8 @@ one. Steps marked *optional* may be left out.
 
 - Draft the data documentation (R5)
 - Select controlled vocabularies and ontologies (R3)
+- Create a Data Management Plan where none exists (*optional*, out of scope for now)
+- Review and update the Data Management Plan (out of scope for now)
 
 ### Phase 2: Governance and constraints
 
@@ -100,6 +107,7 @@ Metadata is validated before submission, while you can still act on what is foun
 
 Publication is not the end. This phase is a continuing loop.
 
+- Update the Data Management Plan to reflect the data published (out of scope for now)
 - Record the deposit in institutional systems where required
 - Monitor access, downloads and citations
 - Check embargo release
@@ -137,8 +145,8 @@ order. Open it to see, for each step, the agents here that serve it. It does not
 ## What is not covered
 
 - **Data Management Plans.** Creating, reviewing and updating a plan is out of scope for the
-  initial phase, so the steps for it in the Blueprint's figures are not offered
-  (TODO(#284)).
+  initial phase. The steps for it in the Blueprint's figures are shown and marked *out of scope
+  for now*, and the Data Director does not offer to do them (TODO(#284)).
 - **Governance as an entry point.** Routing researchers down open, restricted or unshared paths is
   deferred by the Blueprint to v2.0.
 - **The figures themselves.** The steps above are taken from the figure captions in

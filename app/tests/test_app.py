@@ -271,6 +271,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
         "label": "Choose standard terms to describe your data",
         "requirements": ["R3"],
         "optional": False,
+        "out_of_scope": False,
     }
     check_fixture("process-flow.json", body)
 
@@ -629,6 +630,58 @@ def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, A
     check_fixture("conversation.json", normalised_conversation(found))
 
 
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_choice_question_is_answered_by_choosing(in_projects: tuple[Governance, Any]):
+    governance, app = in_projects
+    client = TestClient(app)
+    conversation_id = start(client)
+    first = turn(client, conversation_id, "hi")
+    assert first.status_code == 200
+    asked = first.json()["envelope"]
+    question = asked["payload"]["reply_question"]
+    assert [o["option_value"] for o in question["question_options"]] == ["1", "2", "3"]
+    check_fixture(
+        "conversation-question.json",
+        normalised_conversation(client.get(f"/api/conversations/{conversation_id}").json()),
+    )
+
+    def answer(values: list[str], to: str = asked["invocation_id"], **kw: Any) -> Any:
+        return turn(
+            client,
+            conversation_id,
+            "Data already collected, being prepared for sharing",
+            asked["invocation_id"],
+            choice_answer={"answer_to": to, "answer_values": values, **kw},
+        )
+
+    refused = answer(["9"])
+    assert refused.status_code == 400
+    assert "not an option of the question: 9" in refused.json()["detail"]
+    assert answer(["1", "2"]).status_code == 400  # one answer only
+    assert answer(["2"], answer_other="ours").status_code == 400  # no answer in words
+    from_elsewhere = answer(["2"], to="0190a000-0000-7000-8000-000000000000")
+    assert "latest turn" in from_elsewhere.json()["detail"]
+    assert answer(["2"], answer_to_typo=True).status_code == 400  # not a ChoiceAnswer
+    assert len(client.get(f"/api/conversations/{conversation_id}").json()["turns"]) == 1
+
+    answered = answer(["2"])
+    assert answered.status_code == 200, answered.json()
+    envelope = answered.json()["envelope"]
+    stored = governance.conductor.store.get_request(envelope["invocation_id"]) or {}
+    assert stored["input"]["choice_answer"] == {
+        "answer_to": asked["invocation_id"],
+        "answer_values": ["2"],
+    }
+    assert envelope["outcome"]["statement"].startswith("Listed the steps from entry point 2")
+    # The answer reads as a normal message in the history; the question is written after the
+    # reply that asked it.
+    found = client.get(f"/api/conversations/{conversation_id}").json()
+    _, agent, again, _ = found["history"]
+    assert agent["turn_text"].endswith("(The researcher was offered these to choose one.)")
+    assert again["turn_text"] == "Data already collected, being prepared for sharing"
+    check_fixture("conversation-answered.json", normalised_conversation(found))
+
+
 def a_file_inventory(*paths: str) -> dict[str, Any]:
     """What `dd-inventory` writes for files at `paths`."""
     return {
@@ -849,7 +902,10 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
     ("body", "detail"),
     [
         ({"history": []}, "history"),
-        ({"input": {}}, "only `agent_id`, `message_text`, `follows` and `inventory`"),
+        (
+            {"input": {}},
+            "only `agent_id`, `message_text`, `follows`, `inventory` and `choice_answer`",
+        ),
         ({"message_text": 3}, "as strings"),
         ({"follows": 3}, "must give `follows`"),
         ({"message_text": "  "}, "empty"),

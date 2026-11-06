@@ -13,7 +13,8 @@ records the last released version of each package.
 - Each package is versioned on its own: `sdk`, `harness`, `workbench`, `app` and each agent in
   `agents/`. Its component name is in the configuration (`agent-orchestrator-stub`, `sdk`, …).
 - The [Conventional Commit](https://www.conventionalcommits.org/) subjects of the squash-merged
-  pull requests that touch a package's directory decide its next version. A commit that touches
+  pull requests (the only merge the repository allows; see
+  [Merging a pull request](CONTRIBUTING.md#merging-a-pull-request)) that touch a package's directory decide its next version. A commit that touches
   only the package's tests does not.
 - release-please keeps **one** release pull request open for every package with a pending release,
   titled `chore(main): release main`, and rewrites it after every merge to `main`. It changes each

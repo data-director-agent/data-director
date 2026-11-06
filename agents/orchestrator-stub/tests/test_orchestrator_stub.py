@@ -20,6 +20,7 @@ from dd_agent_orchestrator_stub.agent import (
 )
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
+    ChoiceAnswer,
     ConversationTurn,
     Derivation,
     GroundingMode,
@@ -154,12 +155,34 @@ def test_a_request_for_a_metadata_review_is_routed_to_the_advisor_quality(
 def test_a_first_turn_that_names_nothing_asks_which_entry_point_applies(runs_dir: Path) -> None:
     c, env = ask(runs_dir, "hi")
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    text = env.payload_as(Reply).reply_text
-    assert "before data collection begins" in text
-    assert "prepared for sharing" in text
-    assert "Ready to deposit" in text
+    reply = env.payload_as(Reply)
+    assert reply.reply_text.startswith("Where are you with your research data?")
+    question = reply.reply_question
+    assert question is not None and not question.question_multiple
+    assert [(o.option_value, o.option_label) for o in question.question_options] == [
+        ("1", "Starting a new project, before data collection begins"),
+        ("2", "Data already collected, being prepared for sharing"),
+        ("3", "Ready to deposit data into a repository"),
+    ]
     assert env.delegations == []
     assert c.grounding_reports[env.invocation_id].passed
+
+
+@pytest.mark.requirement("DD-ENTRY-POINTS")
+def test_a_chosen_entry_point_is_read_from_the_answer_not_the_text(runs_dir: Path) -> None:
+    c = conductor(runs_dir)
+    asked = c.invoke(
+        request("orchestrator.stub", Message(message_text="hi")), acting_for=TEST_PRINCIPAL
+    )
+    answer = ChoiceAnswer(answer_to=asked.invocation_id, answer_values=["3"])
+    message = Message(
+        message_text="Ready to deposit data into a repository",
+        history=[ConversationTurn(role=TurnRole.AGENT, turn_text="Where are you?")],
+        choice_answer=answer,
+    )
+    env = c.invoke(request("orchestrator.stub", message), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.statement.startswith("Listed the steps from entry point 3, as chosen")
+    assert "Phase 3" in env.payload_as(Reply).reply_text
 
 
 @pytest.mark.requirement("DD-ENTRY-POINTS")
@@ -177,6 +200,25 @@ def test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps(runs_dir
     assert "no agent yet (R1)" in text
     assert env.delegations == []
     assert c.grounding_reports[env.invocation_id].passed
+
+
+@pytest.mark.requirement("DD-ENTRY-POINTS")
+def test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope(
+    runs_dir: Path,
+) -> None:
+    _, env = ask(runs_dir, "We are starting a new project and have not collected data yet")
+    text = env.payload_as(Reply).reply_text
+    assert (
+        "Create a Data Management Plan where none exists (optional): out of scope for now." in text
+    )
+    assert "Review and update the Data Management Plan: out of scope for now." in text
+    assert (
+        "Update the Data Management Plan to reflect the data published: out of scope for now."
+        in text
+    )
+    # Checking a deposit against an existing plan (R8) is in scope: a gap, not out of scope.
+    assert "against the Data Management Plan: no agent yet (R8)" in text
+    assert env.delegations == []
 
 
 @pytest.mark.requirement("DD-ENTRY-POINTS")
