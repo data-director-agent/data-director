@@ -36,7 +36,7 @@ describe("Frame", () => {
     const names = within(nav)
       .getAllByRole("link")
       .map((link) => link.textContent);
-    expect(names).toEqual(["Projects", "Conversation", "Activity log", "Agents"]);
+    expect(names).toEqual(["Projects", "Conversation", "Activity log", "Agents", "Policy"]);
     const projects = within(nav).getByRole("link", { name: "Projects" });
     expect(projects).toHaveAttribute("href", "/projects");
     expect(projects).toHaveAttribute("aria-current", "page");
