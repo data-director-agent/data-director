@@ -73,6 +73,9 @@ function Phases({ flow }: { flow: ProcessFlow }) {
                   <p className="step-text">
                     {step.label}
                     {step.optional && <span className="muted"> (optional)</span>}
+                    {step.out_of_scope && (
+                      <span className="muted"> (out of scope for now)</span>
+                    )}
                   </p>
                 </li>
               ))}

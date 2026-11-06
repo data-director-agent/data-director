@@ -12,9 +12,11 @@ the requirements it bears on follow from its steps' `requirements`. A step's `id
 repository's label, not the Blueprint's. Governance as the entry point is deferred to the
 Blueprint's v2.0 (Appendix G, comment 1) and is not here.
 
-Creating, reviewing and updating a Data Management Plan are out of scope for the initial phase, so
-the figures' steps for them are left out; neither the orchestrator nor the phase tracker offers
-them. TODO(#284): a read-only check of a deposit against an existing Data Management Plan.
+Creating, reviewing and updating a Data Management Plan are out of scope for the initial phase.
+The figures' steps for them are kept so that the flow is complete, and marked `out_of_scope`: the
+phase tracker and the orchestrators name them and say so, no agent may serve them, and no
+orchestrator offers to do them. TODO(#284): a read-only check of a deposit against an existing
+Data Management Plan.
 
 The steps are taken from the figure captions in §8.2. TODO(#245): check them against Figures 1 to 6
 themselves, which are images and may show steps or decisions the captions leave out.
@@ -36,6 +38,10 @@ class Step:
     # The Blueprint requirements applied at this step; empty when the figure names none.
     requirements: tuple[str, ...] = ()
     optional: bool = False
+    # The Blueprint has the step but this project does not yet do it. It stays in the flow so the
+    # flow is complete; no agent may serve it (`AgentSpec`) and an orchestrator says it is out of
+    # scope rather than "no agent yet".
+    out_of_scope: bool = False
     # What the step is, in a researcher's words, for the people using the app. `text` is the
     # Blueprint's wording, which the orchestrator reasons over.
     label: str = ""
@@ -75,6 +81,21 @@ PHASES: tuple[Phase, ...] = (
                 "Select controlled vocabularies and ontologies",
                 ("R3",),
                 label="Choose standard terms to describe your data",
+            ),
+            # Figure 1: a decision, then create a plan where none exists (optional) or review
+            # and update the one that does.
+            Step(
+                "setup.dmp-create",
+                "Create a Data Management Plan where none exists",
+                optional=True,
+                out_of_scope=True,
+                label="Write a Data Management Plan",
+            ),
+            Step(
+                "setup.dmp-review",
+                "Review and update the Data Management Plan",
+                out_of_scope=True,
+                label="Review your Data Management Plan",
             ),
         ),
         name="Plan ahead",
@@ -234,6 +255,12 @@ PHASES: tuple[Phase, ...] = (
         "Post-publication",
         (
             Step(
+                "post.dmp-update",
+                "Update the Data Management Plan to reflect the data published",
+                out_of_scope=True,
+                label="Update your Data Management Plan with what you published",
+            ),
+            Step(
                 "post.institutional-record",
                 "Record the deposit in institutional systems where required",
                 label="Record the deposit with your institution",
@@ -283,6 +310,9 @@ REQUIREMENTS: frozenset[str] = frozenset(f"R{n}" for n in range(1, 13))
 
 # The steps' ids, which `AgentSpec.serves` names (docs/specs/orchestration.md).
 STEPS: frozenset[str] = frozenset(s.id for p in PHASES for s in p.steps)
+
+# The steps the Blueprint has and this project does not yet do; no agent may serve them.
+OUT_OF_SCOPE: frozenset[str] = frozenset(s.id for p in PHASES for s in p.steps if s.out_of_scope)
 
 
 def requirements_of(step_ids: Iterable[str]) -> tuple[str, ...]:
@@ -336,5 +366,7 @@ def describe_flow() -> str:
             notes = [", ".join(step.requirements)] if step.requirements else ["no requirement"]
             if step.optional:
                 notes.append("optional")
+            if step.out_of_scope:
+                notes.append("out of scope for now: say so, and do not offer to do it")
             lines.append(f"- [{step.id}] {step.text} ({'; '.join(notes)})")
     return "\n".join(lines)
