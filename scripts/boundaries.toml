@@ -86,6 +86,10 @@ problem = "reads outside"
 # Tests of the repository's own scripts/ and its shipped configuration, kept in the workbench.
 # TODO(#275): move them to a repository-level test directory.
 [[exception]]
+path = "workbench/tests/test_architecture_canary.py"
+problem = "reads outside"
+
+[[exception]]
 path = "workbench/tests/test_check_boundaries.py"
 problem = "reads outside"
 

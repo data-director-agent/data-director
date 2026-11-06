@@ -56,6 +56,12 @@ The contract, transport, grounding and the app's own process boundary are specif
    Enforced by `scripts/check_boundaries.py` in CI. Each known exception is listed in
    `scripts/boundaries.toml` with the issue that removes it; an exception that no longer occurs
    fails the check, so the list only shrinks. Do not add an exception to let a new tie pass.
+
+   The checks run together in the CI job "Architecture", which "CI passed" requires.
+   `workbench/tests/test_architecture_canary.py` plants a violation of each kind (direction,
+   undeclared import, read outside the member) in a copy of the repository and fails unless the
+   check reports it, so a misconfigured check cannot pass silently.
+   TODO(#497): add a canary for a cycle in `app/web` when its checks exist.
 6. The harness ships no deployment configuration: no institutional profile, agent list or source
    list, and no default run directory. Every path comes from its `DD_*` variable or from a default
    the caller passes; with neither, start-up stops with `SettingsError`. No harness module

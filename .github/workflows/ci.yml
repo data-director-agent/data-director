@@ -7,8 +7,8 @@ name: CI
 # counts a skipped job as passed. Pushes to main, the merge queue and the weekly run always run
 # every job. The cheap repository-wide jobs run on every pull request.
 #
-#   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, pytest with CONFORMANCE.md,
-#     packages, the agents as real services, the workbench viewer in a browser (#9)
+#   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, architecture checks,
+#     pytest with CONFORMANCE.md, packages, the agents as real services, the workbench viewer in a browser (#9)
 #   app/web (docs/specs/app.md): ESLint, tsc, Vitest with coverage, Vite build, Playwright
 #   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does
 #   Repository: links, citation file, workflows, sign-off, dependency review
@@ -115,6 +115,29 @@ jobs:
       # The SHACL file is excluded: rdflib does not order blank nodes stably, so it is compared as
       # a graph by sdk/tests/test_contract.py instead.
       - run: git diff --exit-code -- 'sdk/src/dd_sdk/schema/generated/*.json'
+
+  architecture:
+    name: Architecture (import direction, boundaries)
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          cache-dependency-glob: uv.lock
+      - run: uv sync --all-packages --all-extras
+      # Packages depend only in the direction docs/specs/system.md gives, directly or not.
+      - run: uv run lint-imports
+      # Each workspace member imports only what it declares and reads only its own files
+      # (docs/specs/system.md). Known exceptions only shrink: a stale one fails.
+      - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # The canary: a planted violation of each kind must fail its check, so that a misconfigured
+      # check cannot pass silently.
+      - run: uv run pytest workbench/tests/test_architecture_canary.py workbench/tests/test_check_boundaries.py
 
   test:
     name: pytest
@@ -347,9 +370,6 @@ jobs:
       - run: uv run --python 3.14 scripts/check_citation.py
       # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
-      # Each workspace member imports only what it declares and reads only its own files
-      # (docs/specs/system.md).
-      - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
 
   workflows:
     name: Workflows (actionlint, zizmor)
@@ -427,6 +447,7 @@ jobs:
       - changes
       - lint
       - typecheck
+      - architecture
       - test
       - packages
       - viewer
