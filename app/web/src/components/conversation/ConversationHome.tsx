@@ -29,7 +29,7 @@ import {
   useState,
 } from "react";
 
-import { FolderOpen, MessageSquarePlus, Paperclip, SendHorizontal, X } from "lucide-react";
+import { MessageSquarePlus, Paperclip, SendHorizontal, X } from "lucide-react";
 import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import {
@@ -52,6 +52,7 @@ import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { StatusBar } from "../workspace/StatusBar";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
+import { EarlierConversations } from "./EarlierConversations";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
@@ -412,20 +413,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               <p>{error}</p>
             </div>
           )}
-          {past.length > 0 && (
-            <section aria-labelledby="past-heading">
-              <h3 id="past-heading">Earlier conversations</h3>
-              <ul className="plain-list">
-                {past.map((c) => (
-                  <li key={c.conversation_id}>
-                    <Button variant="quiet" icon={FolderOpen} onPress={() => void reopen(c.conversation_id)}>
-                      {c.started_at} ({c.turns} {c.turns === 1 ? "turn" : "turns"})
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <EarlierConversations conversations={past} onOpen={(id) => void reopen(id)} />
         </section>
       }
       context={<ContextPanel orchestrator={orchestrator} conversation={conversation} />}

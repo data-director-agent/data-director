@@ -1,0 +1,25 @@
+/* Earlier conversations (EarlierConversations.tsx): a title, with the date and turns beneath. */
+
+@layer components {
+  .button.earlier-conversation {
+    justify-content: flex-start;
+    max-width: 100%;
+    text-align: start;
+  }
+
+  .earlier-conversation-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .earlier-conversation-title {
+    overflow-wrap: anywhere;
+  }
+
+  .earlier-conversation-meta {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-muted);
+  }
+}

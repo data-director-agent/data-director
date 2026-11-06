@@ -123,15 +123,24 @@ when repository selection or deposit needs it.
   serves callers with no request (the CLI, the evaluation, tests) and development servers, which
   have no provider configured. The app says on every page of a development server that it is not
   signing anyone in.
-- the app's session authenticator, which returns the principal of the request's session.
+- the session authenticator of a way in that signs people in (the app, and a deployed
+  workbench), which returns the principal of the request's session.
 - the harness server's bearer authenticator, which verifies an ID token sent as
   `Authorization: Bearer` on every request.
 
-Both the app's sign-in callback and the bearer authenticator verify a token with the one function
-in `dd_harness.identity`, so the two ways in agree on what a valid token is.
+Each sign-in callback and the bearer authenticator verify a token with the one function in
+`dd_harness.identity`, so every way in agrees on what a valid token is.
+
+**Admins.** A deployed workbench admits only the ORCID iDs its deployment lists
+(`DD_WORKBENCH_ADMINS`). The flow refuses anyone else after verifying their token and before
+opening a session, and every request is checked against the list, so an admin taken off it is
+refused at once. TODO(#154): the list stands in for an administrator role until people have
+roles.
 
 **Signing in.** The app is the relying party and a confidential client running the
-authorisation-code flow. The code names no provider; a provider is configuration (issuer, client
+authorisation-code flow. The flow and the sessions are the harness's (`dd_harness.signin`,
+`dd_harness.sessions`), so any way in that signs people in runs the same checks; the way in serves
+the routes and names its own cookies. The code names no provider; a provider is configuration (issuer, client
 identifier, client secret). The first version accepts one issuer, ORCID (`https://orcid.org`;
 the sandbox issuer in development and CI). The flow sends a fresh `state` and `nonce` per sign-in
 and checks both; binds `state` to the browser that started it, so a callback carried to another
@@ -164,7 +173,7 @@ agent whose model is optional must start without one, so a drop-in never names a
 there. Another
 provider follows the same rule under its own variable name. Each agent's manifest declares each
 model it sends data to (provider, model, `hosted` or `local`) and names no credential
-([Agents](agents.md)); the app's About tab shows the list. The declaration is the deployment's
+([Agents](agents.md)); the app's agent directory shows the list. The declaration is the deployment's
 configuration as the agent reports it, not proof. Rotating a key means replacing the credential
 file and restarting that agent's service; nothing else changes.
 

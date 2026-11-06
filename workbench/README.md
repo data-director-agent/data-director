@@ -115,10 +115,11 @@ three places.
 
 The Blueprint (§5.4) requires that no agent operates anonymously: every invocation is made on
 behalf of a named human, and the response and the provenance record say who. A request cannot
-name that person. Until the workbench has authentication, the operator of the deployment names
-one person in its configuration, and every invocation is recorded as acting for them, marked
-`assurance: asserted` to show that nobody's identity was checked. On a shared `workbench serve`,
-every caller is therefore recorded as the operator.
+name that person. On a developer's machine, the operator names one person in the workbench's
+configuration, and every invocation is recorded as acting for them, marked `assurance: asserted`
+to show that nobody's identity was checked. On a shared `workbench serve` without sign-in, every
+caller is therefore recorded as the operator. A deployed workbench signs admins in instead
+([below](#signing-admins-in)).
 
 To act for yourself, set both of these before running `invoke` or `serve`. With neither set, every
 invocation is recorded as acting for Josiah Carberry
@@ -135,6 +136,27 @@ Setting only one is an error: the workbench does not complete half a principal.
 for one command. If only one of them is set, the command stops with
 `DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME unset`; if the identifier is not an IRI, it stops with
 `the configured principal is malformed`.
+
+### Signing admins in
+
+With `DD_OIDC_ISSUER` set, `serve` signs people in with ORCID through the harness's flow
+(`dd_harness.signin`) and admits only the ORCID iDs in `DD_WORKBENCH_ADMINS`
+(`src/workbench/transport/signin.py`). Anyone else is refused at the callback, and no session is
+opened for them. Every route but `/api/sign-in`, its callback, `/api/sign-out` and `/api/session`
+then needs an admin's session: a page without one is sent to sign in and back, and any other
+request is answered `401`. Each run acts for the admin who started it, recorded `authenticated`.
+`/a2a` takes delegation callbacks only, as the app's does. The viewer's header shows who is signed
+in and offers to sign out.
+
+| Variable | Meaning |
+|---|---|
+| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID`, `DD_OIDC_CLIENT_SECRET` (or `_FILE`) | The ORCID client, as for the app. Not beside `DD_PRINCIPAL_*`. |
+| `DD_WORKBENCH_PUBLIC_URL` | Where admins reach the workbench; the redirect URI is this plus `/api/sign-in/callback`. Default: the address it serves on. |
+| `DD_WORKBENCH_ADMINS` | The ORCID iDs it admits, separated by commas or spaces. Required with an issuer. |
+
+Its cookies (`dd_workbench_session`, `dd_workbench_sign_in`) are named apart from the app's, because
+a browser scopes cookies by host and not by port. This is how the workbench runs on the VM
+(`../deploy/README.md`).
 
 ### Environment variables
 

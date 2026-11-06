@@ -13,12 +13,16 @@ connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
  VM: data-director-deploy.timer ──▶ deploy.sh ── build ──▶ /opt/data-director/releases/<sha>
                                               └─ switch /opt/data-director/current, restart
  browser ──HTTPS──▶ NGINX ──▶ app (ORCID sign-in) 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101–8117
+ admin ──HTTPS :8443──▶ NGINX ──▶ workbench (ORCID, admins only) 127.0.0.1:8000 ──┘
 ```
 
 The app signs people in with ORCID, and each run acts for the person who signed in
 ([Policy and identity](../docs/specs/policy-and-identity.md)). NGINX adds no password of its own; the app answers 401 to
 a request without a session. The app and agents listen on loopback only ([Agents](../docs/specs/agents.md)). Keep
 it that way: a request that reaches an agent directly carries no sign-in.
+
+The [workbench](#the-workbench) runs beside the app as a service of its own, on port 8443, for
+admins only.
 
 ## What is here
 
@@ -32,6 +36,7 @@ it that way: a request that reaches an agent directly carries no sign-in.
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
+| `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): every agent the app lists, and `@orchestrator-model` once it has a key. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
@@ -39,7 +44,7 @@ it that way: a request that reaches an agent directly carries no sign-in.
 | `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify` and systemdlint; run it before changing one. CI runs it. |
 | `systemd-lint-baseline.txt` | The systemdlint findings accepted, each with its reason. A new finding fails the check; so does a line that no longer matches one. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
-| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` closed from outside. |
+| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` closed from outside; the app on 443, the workbench on 8443. |
 
 Every agent, the standards advisor included, is a service of its own; the app runs none in its
 process ([The app](../docs/specs/app.md)).
@@ -55,8 +60,10 @@ process ([The app](../docs/specs/app.md)).
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/projects/` | The project store (`DD_PROJECTS_DIR`): each project's log and documents. It outlives releases. |
+| `/var/lib/data-director/workbench-runs/` | The workbench's run store, apart from the app's. |
 | `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |
 | `/etc/data-director/app.env` | The app's settings (`config/examples/app.env`); `DD_OIDC_*` and `DD_APP_PUBLIC_URL` are required. |
+| `/etc/data-director/workbench.env` | The workbench's settings (`config/examples/workbench.env`): `DD_OIDC_*`, `DD_WORKBENCH_PUBLIC_URL` and `DD_WORKBENCH_ADMINS`. |
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
@@ -75,7 +82,11 @@ whose redirect URI is `https://<name>/api/sign-in/callback`.
 
    ```bash
    sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw enable
+   sudo ufw allow 8443/tcp   # the workbench, if it is to run
    ```
+
+   A firewall in front of the VM, such as the university's, must let port 8443 through too for
+   the workbench to be reached.
 
 2. Clone the repository anywhere and run the installer. It gets the certificate with certbot
    (which asks for an email address the first time).
@@ -121,6 +132,43 @@ to the repository without write access, add GitHub's host key to
 in `deploy.env`. The checks API then needs `GITHUB_TOKEN` too, since a deploy key does not
 reach the API.
 
+## The workbench
+
+The workbench (`workbench/README.md`) is the development way in to the harness: it runs any agent
+on any input and shows the run, its evidence and its trace. On the VM it is a service of its own,
+`data-director-workbench`, reached at `https://<name>:8443/`. It shares the agents and the ORCID
+client with the app, and nothing else: its own unit, settings, run store and sessions. Its viewer
+is written for the root of a site, so it has a port of its own rather than a path under the app.
+
+It admits admins only. People sign in with ORCID as they do in the app, and the workbench refuses
+anyone whose iD is not in `DD_WORKBENCH_ADMINS`, before a session is opened. Every page and
+request then needs an admin's session, and each run acts for the admin who started it. An admin
+taken off the list is refused from their next request.
+
+`install.sh` creates `/etc/data-director/workbench.env`, copies the app's `DD_OIDC_ISSUER` and
+`DD_OIDC_CLIENT_ID` into it, and sets `DD_WORKBENCH_PUBLIC_URL=https://<name>:8443`. To turn the
+workbench on:
+
+1. Add a second redirect URI, `https://<name>:8443/api/sign-in/callback`, to the app's ORCID
+   client (ORCID's developer tools, **Redirect URIs**).
+2. List the admins' ORCID iDs, separated by commas or spaces, and run the installer again, which
+   enables and starts the unit:
+
+   ```bash
+   sudoedit /etc/data-director/workbench.env      # DD_WORKBENCH_ADMINS=0000-0002-1825-0097, …
+   sudo deploy/install.sh --domain data-director.example.ac.uk
+   ```
+
+3. Have port 8443 opened to the VM (step 1 of [Set up the VM](#set-up-the-vm)).
+
+To change the admins, edit the list and `sudo systemctl restart data-director-workbench`.
+Restarting signs everyone out of the workbench, as it does for the app. To turn it off, empty the
+list and run `install.sh` again, or `sudo systemctl disable --now data-director-workbench`.
+
+The workbench is restarted with the app on each deployment, but `deploy.sh` checks only the app's
+health: a workbench that fails to start does not roll the release back. `journalctl -u
+data-director-workbench` says why.
+
 ## Day to day
 
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
@@ -153,6 +201,7 @@ systemctl list-timers data-director-deploy.timer        # when it next looks
 journalctl -u data-director-deploy -n 50                # what each pass did
 sudo systemctl start data-director-deploy.service       # look now
 journalctl -u data-director -u 'data-director-agent@*' -f   # the app and agents
+journalctl -u data-director-workbench -f                # the workbench
 readlink /opt/data-director/current                     # which commit is linked
 curl -s http://127.0.0.1:7860/api/about                 # which commit is running
 ```
@@ -362,8 +411,9 @@ reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is 
   installed units differ from the live release's.
 - **An agent** added to `app/config/agents.yaml` also needs `agents/<name>.env` with its port,
   a `Wants=` line for its instance in `data-director.target`, an `After=` line in
-  `data-director-app.service`, and its port in that unit's `DD_WAIT_PORTS`.
-  `scripts/check_deploy.py`, run in CI, fails until all four agree with `agents.yaml`.
+  `data-director-app.service` and in `data-director-workbench.service`, and its port in each of
+  those units' `DD_WAIT_PORTS`. `scripts/check_deploy.py`, run in CI, fails until they all agree
+  with `agents.yaml`.
 
 ## Moving a VM from the operator and password to sign-in
 

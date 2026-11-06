@@ -138,7 +138,9 @@ CLI, transports or viewer, this agent will show it.
 
    An agent that calls a model keeps its system prompt in `system_prompt.md` beside the module
    that sends it, and reads it with `Path(__file__).with_name("system_prompt.md")`, so the prompt
-   can be read and reviewed as prose. CI treats that file as the agent's code, not as prose.
+   can be read and reviewed as prose. A second prompt is `<purpose>_prompt.md` beside it
+   (`orchestrator-model/`'s `title_prompt.md`). CI treats these files as the agent's code, not as
+   prose.
    It records each call with a `dd_sdk.prompts.ModelCallLog`, where it opens the call's `chat`
    span, with the system prompt, messages and tools it sent and the model the response names, and
    returns the log's `calls` and `prompts` in its `AgentResult`. The harness keeps the prompts

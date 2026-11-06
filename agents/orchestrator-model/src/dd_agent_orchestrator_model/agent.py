@@ -23,6 +23,10 @@ child is on the parent's `delegations` and its own envelope, and the reply repor
 (docs/specs/orchestration.md, "Discovery and failed children"). A turn the model declines, or an API
 failure, raises, and the conductor records failed(agent-error): a model-derived reply is never
 replaced by a template.
+
+On a conversation's first turn (an empty `Message.history`), once the model has replied, a
+`Titler` names the conversation from the researcher's message (`title.py`). The title is
+`Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it out.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ from typing import Any
 
 from dd_agent_orchestrator_model.model import Model, ModelError, ModelTurn, ToolCall
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
+from dd_agent_orchestrator_model.title import Titler, titled
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -200,7 +205,10 @@ class ModelOrchestrator:
         accepts=(ClassSchema.of(Message),),
         grounding_mode=GroundingMode.DELEGATION,
         payload=ClassSchema.of(Reply),
-        derivations={"reply_text": Derived(Derivation.MODEL, recorded_in="reply_derivation")},
+        derivations={
+            "reply_text": Derived(Derivation.MODEL, recorded_in="reply_derivation"),
+            "conversation_title": Derived(Derivation.MODEL),
+        },
     )
 
     def __init__(
@@ -209,8 +217,11 @@ class ModelOrchestrator:
         *,
         history_turns: int = DEFAULT_HISTORY_TURNS,
         max_delegations: int = DEFAULT_MAX_DELEGATIONS,
+        titler: Titler | None = None,
     ) -> None:
         self.model = model
+        # Names a conversation on its first turn; None writes no title.
+        self.titler = titler
         self.history_turns = history_turns
         self.max_delegations = max_delegations
 
@@ -274,7 +285,9 @@ class ModelOrchestrator:
             # Every result of one turn goes back in one message.
             messages.append({"role": "user", "content": results})
 
-        return self._reply(turn, delegated, ctx, model_id, input_tokens, output_tokens, calls)
+        return self._reply(
+            message, turn, delegated, ctx, model_id, input_tokens, output_tokens, calls
+        )
 
     def _call(
         self,
@@ -319,6 +332,7 @@ class ModelOrchestrator:
 
     def _reply(
         self,
+        message: Message,
         turn: ModelTurn,
         delegated: list[Delegated],
         ctx: RunContext,
@@ -341,6 +355,12 @@ class ModelOrchestrator:
             statement = f"Delegated to {asked}; each outcome is on its own envelope."
         else:
             statement = "Replied without delegating."
+        title = None
+        if self.titler is not None and not message.history:
+            title = titled(self.titler, message.message_text, ctx, calls)
+            if title is not None:
+                input_tokens += title.input_tokens
+                output_tokens += title.output_tokens
         input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
         return AgentResult(
             outcome=Outcome(
@@ -350,6 +370,7 @@ class ModelOrchestrator:
             payload=Reply(
                 reply_text=text,
                 reply_derivation=Derivation.MODEL,
+                conversation_title=title.text if title is not None else None,
                 grounded_on=[input_ref, *(d.ref for d in delegated)],
             ),
             evidence=[

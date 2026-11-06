@@ -1,30 +1,31 @@
 """Signing a person in through OpenID Connect (docs/specs/policy-and-identity.md, #152).
 
-The app is the relying party and a confidential client. `GET /api/sign-in` sends the browser to
-the provider's authorisation endpoint with a fresh `state` and `nonce`, asking for the `openid`
-scope only. The provider sends it back to `GET /api/sign-in/callback` with a code. The app checks
-the `state` against the one this browser was given, redeems the code at the token endpoint with
-`client_secret_post`, and verifies the ID token with `dd_harness.identity.verify_id_token`, the
-same function the harness's own server uses. It then keeps the principal in a server-side session
-(`dd_app.sessions`) and forgets every token. Nothing calls the provider's API.
+A way in that signs people in (the app, or the workbench) is the relying party and a confidential
+client; this module is the flow, and the way in serves the routes. Its sign-in route sends the
+browser to the provider's authorisation endpoint with a fresh `state` and `nonce`, asking for the
+`openid` scope only. The provider sends it back to the callback, `CALLBACK_PATH` unless the way in
+names another, with a code. `SignIn` checks the `state` against the one this browser was given,
+redeems the code at the token endpoint with `client_secret_post`, and verifies the ID token with
+`dd_harness.identity.verify_id_token`, the same function the harness's own server uses. It then
+keeps the principal in a server-side session (`dd_harness.sessions`) and forgets every token.
+Nothing calls the provider's API.
 
 The provider is configuration: `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` and `DD_OIDC_CLIENT_SECRET`
-(or `DD_OIDC_CLIENT_SECRET_FILE`). With no issuer, the app is a development server: every run acts
-for the operator named in `DD_PRINCIPAL_ID`, records `asserted`, and the shell says on every page
-that nobody is signed in. A provider beside an operator principal stops start-up.
+(or `DD_OIDC_CLIENT_SECRET_FILE`), and the public URL under the variable the way in names. With no
+issuer, the way in is a development server: every run acts for the operator named in
+`DD_PRINCIPAL_ID` and records `asserted`. A provider beside an operator principal stops start-up.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlencode
 
 import httpx
 
-from dd_app.sessions import DEFAULT_IDLE_S, DEFAULT_LIFETIME_S, SessionAuthenticator, SessionStore
 from dd_harness.identity import (
     FETCH_TIMEOUT_S,
     IssuerKeys,
@@ -34,13 +35,19 @@ from dd_harness.identity import (
     configuration_url,
     verify_id_token,
 )
+from dd_harness.sessions import (
+    DEFAULT_IDLE_S,
+    DEFAULT_LIFETIME_S,
+    SESSION_COOKIE,
+    SessionAuthenticator,
+    SessionStore,
+)
 from dd_harness.settings import Settings, build_authenticator
 from dd_sdk.contract.models import Principal
 from dd_sdk.credentials import ConfigError, api_key
 
 CALLBACK_PATH = "/api/sign-in/callback"
 SECRET_VARIABLE = "DD_OIDC_CLIENT_SECRET"
-PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 IDLE_VARIABLE = "DD_SESSION_IDLE_S"
 LIFETIME_VARIABLE = "DD_SESSION_LIFETIME_S"
 
@@ -49,22 +56,30 @@ LIFETIME_VARIABLE = "DD_SESSION_LIFETIME_S"
 class SignInSettings:
     provider: OidcProvider
     client_secret: str = field(repr=False)
-    # Where people reach the app, which the provider sends them back to. It must be the redirect
-    # URI registered with the provider, less `CALLBACK_PATH`.
+    # Where people reach the way in, which the provider sends them back to. It must be the
+    # redirect URI registered with the provider, less `callback_path`.
     public_url: str
     idle_s: int = DEFAULT_IDLE_S
     lifetime_s: int = DEFAULT_LIFETIME_S
+    callback_path: str = CALLBACK_PATH
 
     @property
     def redirect_uri(self) -> str:
-        return self.public_url.rstrip("/") + CALLBACK_PATH
+        return self.public_url.rstrip("/") + self.callback_path
 
     @classmethod
     def from_env(
-        cls, env: Mapping[str, str], settings: Settings, base_url: str
+        cls,
+        env: Mapping[str, str],
+        settings: Settings,
+        base_url: str,
+        *,
+        public_url_variable: str,
     ) -> SignInSettings | None:
-        """The provider the environment configures, or None for a development server. Raises
-        `IdentityError` or `ConfigError` for a configuration that cannot be served."""
+        """The provider the environment configures, or None for a development server. The way
+        in names the variable that holds its public URL (`DD_APP_PUBLIC_URL` for the app); unset,
+        it is `base_url`. Raises `IdentityError` or `ConfigError` for a configuration that cannot
+        be served."""
         if settings.oidc_issuer is None:
             return None
         # The harness's rules: no operator principal beside a provider, and a client ID.
@@ -78,7 +93,7 @@ class SignInSettings:
         return cls(
             provider=OidcProvider(settings.oidc_issuer, settings.oidc_client_id),
             client_secret=api_key(env, SECRET_VARIABLE),
-            public_url=env.get(PUBLIC_URL_VARIABLE) or base_url,
+            public_url=env.get(public_url_variable) or base_url,
             idle_s=_seconds(env, IDLE_VARIABLE, DEFAULT_IDLE_S),
             lifetime_s=_seconds(env, LIFETIME_VARIABLE, DEFAULT_LIFETIME_S),
         )
@@ -97,8 +112,18 @@ def _seconds(env: Mapping[str, str], name: str, default: int) -> int:
     return seconds
 
 
+class NotAdmitted(Unauthenticated):
+    """The provider vouched for the person, and the way in does not admit them: no session is
+    opened. Raised by `SignIn.finish` when its `admit` refuses the principal."""
+
+    def __init__(self, principal: Principal) -> None:
+        super().__init__(f"{principal.principal_id} may not use this server")
+        self.principal = principal
+
+
 def safe_return_to(value: str | None) -> str:
-    """A page of this app to come back to after signing in: a path, never another site's URL."""
+    """A page of this way in to come back to after signing in: a path, never another site's
+    URL."""
     if not value or not value.startswith("/") or value.startswith(("//", "/\\", "/api/")):
         return "/"
     return value
@@ -112,14 +137,19 @@ class SignIn:
         settings: SignInSettings,
         *,
         store: SessionStore | None = None,
+        session_cookie: str = SESSION_COOKIE,
+        admit: Callable[[Principal], bool] | None = None,
         keys: IssuerKeys | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> None:
-        """`keys` and `client` let a test stand in for the provider's keys and endpoints
-        (`dd_harness.testing.FakeIdentityProvider`)."""
+        """`session_cookie` names the cookie the way in keeps the session identifier in. `admit`,
+        if given, decides whom a verified sign-in opens a session for; the app admits everyone,
+        the workbench its admins. `keys` and `client` let a test stand in for the provider's keys
+        and endpoints (`dd_harness.testing.FakeIdentityProvider`)."""
         self.settings = settings
+        self.admit = admit
         self.store = store or SessionStore(settings.idle_s, settings.lifetime_s)
-        self.authenticator = SessionAuthenticator(self.store)
+        self.authenticator = SessionAuthenticator(self.store, session_cookie)
         self._keys = keys or IssuerKeys(settings.provider.issuer)
         self._client = client
         self._configuration: dict[str, Any] | None = None
@@ -180,6 +210,8 @@ class SignIn:
         if not code:
             raise Unauthenticated("the provider sent no code")
         principal = await self._redeem(code, pending.nonce)
+        if self.admit is not None and not self.admit(principal):
+            raise NotAdmitted(principal)
         return self.store.create(principal), pending.return_to
 
     async def _redeem(self, code: str, nonce: str) -> Principal:

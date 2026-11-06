@@ -8,7 +8,12 @@ import type { InventorySummary, ProjectInventory } from "./inventory";
 
 export interface ConversationSummary {
   conversation_id: string;
+  /** The project the conversation was started in, if the app keeps projects. */
+  project_id?: string | null;
   agent_id: string;
+  /** A model's title from the first turn, or else the start of the first message. */
+  title: string;
+  title_source: "model" | "message";
   turns: number;
   started_at: string;
   last_completed_at?: string;
