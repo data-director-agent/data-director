@@ -5,8 +5,7 @@
 #   sudo deploy/install.sh --domain data-director.example.ac.uk
 #
 # It is safe to run again, and running it again is how a change to the systemd units or the
-# NGINX site reaches the VM. It never overwrites the files in /etc/data-director or the
-# password file.
+# NGINX site reaches the VM. It never overwrites the files in /etc/data-director.
 set -euo pipefail
 
 # The uv the VM builds with. CI uses the latest, so raise this when uv.lock needs a newer one.
@@ -59,7 +58,8 @@ if ! id "$USER_NAME" &>/dev/null; then
   useradd --system --home-dir "$STATE" --create-home --shell /usr/sbin/nologin "$USER_NAME"
 fi
 install -d -o "$USER_NAME" -g "$USER_NAME" -m 0755 "$ROOT" "$ROOT/releases"
-install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$STATE" "$STATE/runs" "$STATE/projects"
+install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$STATE" "$STATE/runs" "$STATE/projects" \
+  "$STATE/workbench-runs"
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC"
 
 # Secrets and settings: root writes them, the services read them.
@@ -76,6 +76,8 @@ if ! grep -qE '^DD_APP_PUBLIC_URL=' "$ETC/app.env"; then
   echo "DD_APP_PUBLIC_URL=https://$domain" >>"$ETC/app.env"
 fi
 new_file "$ETC/agents.env"
+# The workbench's settings: its own file, so that nothing of the app's reaches it.
+new_file "$ETC/workbench.env" "$SRC/config/examples/workbench.env"
 # Each agent's own settings, and its secrets (docs/specs/policy-and-identity.md). A secret is root's alone: systemd
 # hands it to the one unit that loads it (LoadCredential=).
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
@@ -143,7 +145,7 @@ systemctl reload nginx
 
 # The app signs people in with ORCID and does not start without the client (docs/guide/operations/
 # configuration.md), so the first deployment waits until it is in place.
-setting() { sed -n "s/^$1=//p" "$ETC/app.env" | tail -n 1; }
+setting() { sed -n "s/^$1=//p" "${2:-$ETC/app.env}" | tail -n 1; }
 missing=()
 for name in DD_OIDC_ISSUER DD_OIDC_CLIENT_ID DD_APP_PUBLIC_URL; do
   [[ -n "$(setting "$name")" ]] || missing+=("$name in $ETC/app.env")
@@ -190,6 +192,34 @@ fi
 
 step "Enabling the services and the deployment timer"
 systemctl enable --now data-director.target data-director-deploy.timer
+
+step "Workbench, for admins, at https://$domain:8443/"
+# The workbench uses the app's ORCID client and is reached on port 8443. install.sh fills what it
+# knows into an empty setting, and leaves an operator's value alone.
+fill() { # fill NAME VALUE: set NAME in workbench.env if it is empty there
+  [[ -n "$(setting "$1" "$ETC/workbench.env")" ]] && return
+  if grep -qE "^$1=" "$ETC/workbench.env"; then
+    sed -i "s|^$1=.*|$1=$2|" "$ETC/workbench.env"
+  else
+    echo "$1=$2" >>"$ETC/workbench.env"
+  fi
+}
+fill DD_OIDC_ISSUER "$(setting DD_OIDC_ISSUER)"
+fill DD_OIDC_CLIENT_ID "$(setting DD_OIDC_CLIENT_ID)"
+fill DD_WORKBENCH_PUBLIC_URL "https://$domain:8443"
+# It admits only the ORCID iDs listed and does not start with none, so it is enabled once there is
+# one (deploy/README.md).
+if [[ -n "$(setting DD_WORKBENCH_ADMINS "$ETC/workbench.env")" ]]; then
+  systemctl enable --now data-director-workbench.service
+  echo "The workbench is https://$domain:8443/ for the admins in $ETC/workbench.env."
+else
+  systemctl disable --now data-director-workbench.service 2>/dev/null || true
+  echo "The workbench is not running. To run it:"
+  echo "  - add the redirect URI https://$domain:8443/api/sign-in/callback to the ORCID client;"
+  echo "  - set DD_WORKBENCH_ADMINS in $ETC/workbench.env to the admins' ORCID iDs;"
+  echo "  - ask for TCP port 8443 to be open to the VM;"
+  echo "and run this again."
+fi
 
 echo
 echo "Done. The site is https://$domain/ and people sign in with ORCID."

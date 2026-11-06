@@ -191,6 +191,7 @@ button.help[aria-expanded="true"] { color: var(--info); background: var(--info-b
 .panel-head .head-row { margin-bottom: 0; }
 .head-row h2 { margin: 0; }
 header.top .title-row #open-glossary { margin-left: auto; align-self: center; }
+header.top .title-row .signed-in { align-self: center; color: var(--muted); font-size: 0.85rem; }
 dialog.glossary { max-width: min(46rem, calc(100vw - 32px)); max-height: 85vh; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
 dialog.glossary::backdrop { background: rgb(0 0 0 / 0.4); }
 dialog.glossary .dialog-head { position: sticky; top: 0; background: var(--paper); display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--line); }

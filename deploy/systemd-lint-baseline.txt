@@ -5,6 +5,9 @@
 data-director-app.service InvalidSetting # LoadCredential= is in systemd 250 and later; systemdlint does not know it.
 data-director-app.service Security.Delegate # Delegate= hands out cgroup control; the service needs none.
 data-director-app.service Security.UMaskOW # UMask=0027 is not world-writable; the rule flags anything but 0077.
+data-director-workbench.service InvalidSetting # As for the app: LoadCredential= is in systemd 250 and later.
+data-director-workbench.service Security.Delegate # As for the app.
+data-director-workbench.service Security.UMaskOW # As for the app.
 data-director-agent@.service Security.Delegate # As for the app.
 data-director-agent@.service Security.UMaskOW # As for the app.
 data-director-restart.service Security.NoUser # Runs as root: it restarts other units with systemctl, which needs it.
