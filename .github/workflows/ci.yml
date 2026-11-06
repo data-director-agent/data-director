@@ -10,7 +10,8 @@ name: CI
 #   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, architecture checks,
 #     pytest with CONFORMANCE.md, packages, the agents as real services, the workbench viewer in a browser (#9)
 #   app/web (docs/specs/app.md): ESLint, tsc, Vitest with coverage, Vite build, Playwright
-#   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does
+#   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does, and the
+#     systemd units in deploy/systemd
 #   Repository: links, citation file, workflows, sign-off, dependency review
 #
 # The weekly run catches what changes without a commit: the latest uv and Python 3.14 patch
@@ -137,7 +138,7 @@ jobs:
       - run: uv run python scripts/check_deploy.py
       # The canary: a planted violation of each kind must fail its check, so that a misconfigured
       # check cannot pass silently.
-      - run: uv run pytest workbench/tests/test_architecture_canary.py workbench/tests/test_check_boundaries.py
+      - run: uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
 
   # Sources that agents build outside git, such as the repository advisor's re3data registry
   # (dd-sources, sdk/src/dd_sdk/sources.py). This job alone downloads what they are built from,
@@ -366,6 +367,22 @@ jobs:
       - run: sudo apt-get update -q && scripts/retry.sh sudo apt-get install -y -q nginx
       - run: sudo bash scripts/check_nginx.sh
 
+  systemd:
+    name: systemd units
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      # systemd-analyze verify over deploy/systemd, against a throwaway root that stands in for
+      # /opt/data-director/current and the service user: bad directives and values, missing units
+      # and executables. Then systemdlint, whose findings must be in deploy/systemd-lint-baseline.txt.
+      - run: bash scripts/check_systemd.sh
+
   # --- Repository ------------------------------------------------------------------------------
 
   docs:
@@ -485,6 +502,7 @@ jobs:
       - viewer
       - web
       - nginx
+      - systemd
       - docs
       - workflows
       - dco

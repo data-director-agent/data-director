@@ -1,0 +1,13 @@
+# What systemdlint reports on deploy/systemd and why none of it is acted on. One "<unit> <rule>" per
+# line, a reason after "#". scripts/check_systemd.sh fails on a finding not listed here, and on a line
+# here that systemdlint no longer reports. systemdlint's rules lag systemd, which the units are
+# written for (250 or later).
+data-director-app.service InvalidSetting # LoadCredential= is in systemd 250 and later; systemdlint does not know it.
+data-director-app.service Security.Delegate # Delegate= hands out cgroup control; the service needs none.
+data-director-app.service Security.UMaskOW # UMask=0027 is not world-writable; the rule flags anything but 0077.
+data-director-agent@.service Security.Delegate # As for the app.
+data-director-agent@.service Security.UMaskOW # As for the app.
+data-director-restart.service Security.NoUser # Runs as root: it restarts other units with systemctl, which needs it.
+data-director-deploy.service Security.Delegate # As for the app.
+data-director-deploy.service Security.UMaskOW # UMask=0022 so that what it deploys stays readable by the services.
+data-director-deploy.service Security.ProtectSystemNStrict # ProtectSystem=full: deploy.sh writes under /opt and /etc.
