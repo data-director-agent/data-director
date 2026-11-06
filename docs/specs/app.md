@@ -109,13 +109,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept. It makes no request to
     the provider and the app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
+21. **The policy page shows the profile the gate holds runs to.** `/policy`, in the main navigation
+    and linked from each place that names the policy, is drawn from `GET /api/policy`: the
+    profile's reference, description, digest and orchestrator, each agent it enables with the
+    action class it assigns, and the action classes that need approval. What happens to each
+    agent's runs here is read from `GET /api/agents`, never worked out in the shell, and an agent
+    the profile enables that the deployment does not reach is named by its identifier
+    (`app/tests/test_app.py`, `app/web/src/components/policy/PolicyPage.test.tsx`).
 
 ## Boundaries and contracts
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
 - **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
-  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`) hold types and API
+  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`) hold types and API
   clients; `components/` holds the interface, one folder per feature, with the shared kit in
   `components/ui/`. Three rules are checked: no file depends on itself through other files
   (dependency-cruiser, `.dependency-cruiser.cjs`, in `npm run lint`); the kit imports no feature
@@ -150,6 +157,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   or message an agent from it; they work through the conversation. Running one agent directly,
   its run history, grounding and derivation detail and oversight declarations belong to the
   workbench.
+- **The policy page** is read-only and for anyone signed in. A person sees the rules their runs
+  are held to, the same `policy_bundle_ref` every stored run records; a steward changes them in
+  the profile file, not here (TODO(#225)).
 - **What a deployment runs is public.** `GET /api/about`, open without a session, names the
   build (versions and commit), the profile the conductor holds runs to (its id, version, digest
   and orchestrator), and the configured agents it cannot reach, by name only. An operator's

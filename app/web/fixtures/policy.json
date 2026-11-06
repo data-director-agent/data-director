@@ -1,0 +1,91 @@
+{
+  "actions_requiring_approval": [
+    "deposit",
+    "metadata_write"
+  ],
+  "agents": [
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.dmp",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.documentation",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.ethics",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.fairness",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.files",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.linking",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.metadata",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.policy",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.quality",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.repository",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.rights",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "advisor.standards",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "example.hello",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "orchestrator.model",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
+      "agent_id": "orchestrator.stub",
+      "requires_approval": false
+    }
+  ],
+  "profile": {
+    "description": "Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.",
+    "digest": "5b25f385c6de206bea6d4cc1e30c239e398fd8e282b2f186086049e9d3b864c9",
+    "id": "data-director-app",
+    "orchestrator": "orchestrator.stub",
+    "ref": "profile:data-director-app@v7",
+    "version": 7
+  }
+}

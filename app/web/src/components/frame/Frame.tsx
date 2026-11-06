@@ -8,7 +8,7 @@
 
 import "./Frame.css";
 
-import { Activity, BookOpen, Bot, Bug, MessagesSquare, type LucideIcon } from "lucide-react";
+import { Activity, BookOpen, Bot, Bug, MessagesSquare, Shield, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Link } from "../../route";
@@ -19,6 +19,7 @@ const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/", label: "Conversation", icon: MessagesSquare },
   { to: "/activity", label: "Activity log", icon: Activity },
   { to: "/agents", label: "Agents", icon: Bot },
+  { to: "/policy", label: "Policy", icon: Shield },
 ];
 
 /** A banner icon: decoration beside a label that says the same, so hidden from screen readers. */

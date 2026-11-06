@@ -116,6 +116,18 @@ def test_a_profile_key_nothing_enforces_is_refused(tmp_path: Path) -> None:
 
 
 @pytest.mark.requirement("DD-POLICY")
+def test_a_profile_keeps_its_description(tmp_path: Path) -> None:
+    described = tmp_path / "described.yaml"
+    described.write_text(
+        "profile_id: described\ndescription: |\n  For tests.\nagents: {}\n", encoding="utf-8"
+    )
+    assert load_profile(described).description == "For tests."
+    undescribed = tmp_path / "undescribed.yaml"
+    undescribed.write_text("profile_id: undescribed\nagents: {}\n", encoding="utf-8")
+    assert load_profile(undescribed).description == ""
+
+
+@pytest.mark.requirement("DD-POLICY")
 def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: Path) -> None:
     base = PERMISSIVE.read_text(encoding="utf-8")
     named = tmp_path / "named.yaml"

@@ -10,6 +10,7 @@
 import "./StatusBar.css";
 
 import type { Directory } from "../../manifest/normalise";
+import { Link } from "../../route";
 import { assuranceText } from "../../session/api";
 
 export function StatusBar({ directory }: { directory: Directory }) {
@@ -26,7 +27,9 @@ export function StatusBar({ directory }: { directory: Directory }) {
         <div>
           <dt>Policy</dt>
           <dd>
-            <code>{profileRef}</code>
+            <Link to="/policy">
+              <code>{profileRef}</code>
+            </Link>
           </dd>
         </div>
       </dl>
