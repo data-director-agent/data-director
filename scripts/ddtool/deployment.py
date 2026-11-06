@@ -252,13 +252,15 @@ def plan(system: System, place: Place, vm: Vm | None = None) -> tuple[Deployment
                 0o644,
             )
         )
-        result.writes.append(
-            Write(
-                place.unit_dir / "data-director-app.service.d" / "agents.conf",
-                app_dropin(running),
-                0o644,
+        # The workbench reaches the same agents as the app, so it waits for the same ones.
+        for unit in ("data-director-app", "data-director-workbench"):
+            result.writes.append(
+                Write(
+                    place.unit_dir / f"{unit}.service.d" / "agents.conf",
+                    app_dropin(running),
+                    0o644,
+                )
             )
-        )
         names = {a.name for a in running}
         result.stop = [
             unit

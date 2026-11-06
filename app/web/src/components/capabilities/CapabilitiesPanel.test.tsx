@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -8,6 +8,7 @@ import several from "../../../fixtures/agents-several.json";
 import { type Directory, normalise, normaliseAgent } from "../../manifest/normalise";
 import type { RawAgentsResponse } from "../../manifest/types";
 import { DEVELOPMENT, WithSession, fakeSessionApi } from "../../test/session";
+import { AgentDetail } from "../agent/AgentDetail";
 import { AgentDirectory } from "./AgentDirectory";
 import { CapabilitiesPanel } from "./CapabilitiesPanel";
 
@@ -27,23 +28,23 @@ describe("CapabilitiesPanel", () => {
   });
 
   it("names the agent in a heading and shows what it takes and returns", () => {
-    render(<CapabilitiesPanel agent={agent("advisor.quality")} />);
-    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer advisor.quality" })).toBeVisible();
+    render(<AgentDetail agent={agent("advisor.quality")} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
     expect(screen.getByText("metadata record")).toBeVisible();
     expect(screen.getByText("quality review")).toBeVisible();
+  });
+
+  it("offers nothing to run and no technical tabs", () => {
+    render(<AgentDetail agent={agent("advisor.quality")} />);
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByText(/contract/i)).toBeNull();
+    expect(screen.queryByRole("heading", { name: /grounds its results/ })).toBeNull();
   });
 
   it("says when an agent returns no result", () => {
     render(<CapabilitiesPanel agent={agent("stub.abstain")} />);
     expect(screen.getByText("No result: it only reports an outcome")).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "How each field is produced" })).toBeNull();
-  });
-
-  it("tables each declared derivation", () => {
-    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
-    const table = screen.getByRole("table");
-    expect(within(table).getByRole("row", { name: /items\.rationale Written by a language model/ }))
-      .toBeVisible();
   });
 
   it("says when an agent has no AI model and is deterministic", () => {
@@ -85,17 +86,6 @@ describe("CapabilitiesPanel", () => {
     expect(screen.getByRole("listitem")).toHaveTextContent("Language model, local: ollama llama-test");
   });
 
-  it("says the grounding check is not proof of retrieval", () => {
-    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
-    expect(screen.getByText(/does not prove the agent retrieved them/)).toBeVisible();
-  });
-
-  it("shows each undeclared oversight field as Not declared, and reliability as unsubstantiated", () => {
-    render(<CapabilitiesPanel agent={agent("example.hello")} />);
-    expect(screen.getAllByText("Not declared")).toHaveLength(5);
-    expect(screen.getByText(/Treat its reliability as unsubstantiated/)).toBeVisible();
-  });
-
   it("says when the profile does not permit the agent", () => {
     const raw = severalAgents.agents.find((a) => a.agent_id === "advisor.standards");
     if (!raw) throw new Error("no advisor.standards");
@@ -118,7 +108,7 @@ describe("AgentDirectory", () => {
   it("selects an agent from the keyboard and shows its panel", async () => {
     const user = userEvent.setup();
     render(<AgentDirectory directory={directory} />);
-    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer advisor.quality" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
 
     await user.tab();
     expect(screen.getByRole("option", { name: /^Metadata Reviewer/ })).toHaveFocus();
@@ -127,7 +117,7 @@ describe("AgentDirectory", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("heading", { level: 2, name: "Standards Librarian advisor.standards" })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "Standards Librarian" })).toBeVisible();
   });
 
   it("lists agents that could not be registered", async () => {
@@ -164,7 +154,7 @@ describe("App", () => {
     );
     // The reference set has no orchestrator, so the home page points to the directory.
     await userEvent.click(await screen.findByRole("link", { name: "Open the agent directory" }));
-    expect(await screen.findByRole("heading", { name: "Standards Librarian advisor.standards" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Standards Librarian" })).toBeVisible();
     expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });

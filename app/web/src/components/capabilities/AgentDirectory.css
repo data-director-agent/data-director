@@ -32,10 +32,4 @@
     display: block;
     font-weight: var(--font-weight-strong);
   }
-
-  .agent-option-id {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-small);
-  }
 }

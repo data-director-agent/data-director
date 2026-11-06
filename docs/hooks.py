@@ -42,8 +42,8 @@ BRANCH = "main"
 
 # Tracked Markdown that is deliberately not on the site, with the reason.
 UNPUBLISHED = (
-    # An agent's system prompt is its code, read by the model rather than by people.
-    "agents/*/src/*/system_prompt.md",
+    # An agent's prompts are its code, read by the model rather than by people.
+    "agents/*/src/*/*_prompt.md",
     # The licence of a third-party data snapshot, which travels with the data.
     "agents/*/data/*",
     # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.
@@ -98,11 +98,19 @@ def _expand(entry: str, named: set[str]) -> list[str]:
     return [_mount(m) for m in matches if m not in named]
 
 
+def _title(src_uri: str) -> str | dict[str, str]:
+    """A nav entry for a mounted file: bare (titled by its heading), or titled by its folder."""
+    path = Path(src_uri)
+    if path.name != "CHANGELOG.md":
+        return src_uri
+    return {path.parent.name.replace("-", ".", 1): src_uri}
+
+
 def _walk(nav: list[Any], named: set[str]) -> list[Any]:
     out: list[Any] = []
     for item in nav:
         if isinstance(item, str) and item.startswith("/"):
-            out.extend(_expand(item, named))
+            out.extend(_title(src) for src in _expand(item, named))
         elif isinstance(item, dict):
             ((title, value),) = item.items()
             if isinstance(value, list):

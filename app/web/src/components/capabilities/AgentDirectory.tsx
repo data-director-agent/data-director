@@ -1,6 +1,5 @@
 /**
- * Every registered agent, one selected at a time, with its detail (run, about, history)
- * beside the list. The list is a React Aria listbox: arrow keys move, and the selection follows
+ * Every registered agent, one selected at a time, with its general information beside the list. The list is a React Aria listbox: arrow keys move, and the selection follows
  * focus.
  */
 
@@ -56,8 +55,7 @@ export function AgentDirectory({
             >
               {(a) => (
                 <ListBoxItem id={a.id} textValue={agentName(a)} className="agent-option">
-                  {a.title && <span className="agent-option-title">{a.title}</span>}
-                  <span className="agent-option-id">{a.id}</span>
+                  <span className="agent-option-title">{agentName(a)}</span>
                   <br />
                   <ModelTag agent={a} />
                 </ListBoxItem>

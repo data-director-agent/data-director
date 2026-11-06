@@ -127,7 +127,7 @@ The app supplies its own configuration to the harness ([System and boundaries](.
 | `config/profile.yaml.example` | The institutional profile. It enables every in-tree agent. Copy it to `config/profile.yaml` (not committed) to edit it locally; the app prefers that copy. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
-| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
+| `config/examples/` | Example inputs, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 | `projects/` (not committed) | Each project's log, with its documents and the decisions on them. | `DD_PROJECTS_DIR` |
 
@@ -175,9 +175,10 @@ cookie returns with the callback; the [operations guide](../docs/guide/operation
 has the full set-up and what its failures mean. A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
 for ORCID.
 
-- The app runs the authorisation-code flow itself (`src/dd_app/signin.py`), asks for the `openid`
-  scope alone, and verifies the ID token with the harness's `verify_id_token`. It keeps the
-  principal in a server-side session (`src/dd_app/sessions.py`) and no token. The browser holds an
+- The app serves the sign-in routes and runs the harness's authorisation-code flow
+  (`dd_harness.signin`), which asks for the `openid` scope alone and verifies the ID token with
+  `verify_id_token`. It keeps the principal in a server-side session (`dd_harness.sessions`) and no
+  token. The browser holds an
   opaque `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Browsers treat `127.0.0.1` as secure, so
   this works over plain HTTP locally; a deployment needs HTTPS (#155).
 - Every `/api` route that runs or reads anything answers `401` with an `unauthenticated` problem

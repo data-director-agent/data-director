@@ -331,6 +331,8 @@ def test_apply_writes_the_profile_the_units_and_dd_profile(vm: Vm) -> None:
     assert "orchestrator-model" not in wants  # model-backed: only as the orchestrator
     app = (vm.unit_dir / "data-director-app.service.d" / "agents.conf").read_text()
     assert 'Environment="DD_WAIT_PORTS=8101 8106"' in app
+    workbench = (vm.unit_dir / "data-director-workbench.service.d" / "agents.conf").read_text()
+    assert workbench == app
 
 
 def test_apply_again_changes_nothing_and_keeps_the_version(

@@ -13,6 +13,7 @@ only its own agent can read.
 |---|---|---|---|
 | What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`) and, on a server, the units that start the agents |
 | The ORCID client, the app's address, problem reports (and the operator, on a development server) | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
+| The workbench's ORCID client, address and admins | `/etc/data-director/workbench.env` ([example](../../../config/examples/workbench.env)) | none: a local workbench signs nobody in | The workbench |
 | Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |
 | One agent's own settings, such as `DD_STANDARDS_*` and `DD_MODEL_ID` | `/etc/data-director/agents/<name>.env` | `config/local/agents/<name>.env` ([examples](../../../config/examples/agents/)) | That agent |
 | A model key, or the app's ORCID client secret | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential; an agent's is put there by `sudo data-director secret set` | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
@@ -108,11 +109,28 @@ required, every run acts for this operator, whoever uses the page, and the banne
 page that nobody is signed in. Use an ORCID iD URL as the identifier where the operator has one.
 Setting both a provider and an operator stops the app at start-up.
 
+### The workbench on a server
+
+A deployed workbench signs people in with the same ORCID client and admits only admins
+([Deploying to a VM](../../../deploy/README.md#the-workbench)). Its settings are in
+`/etc/data-director/workbench.env`:
+
+| Setting | What it is |
+|---|---|
+| `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The app's; `install.sh` copies them. The secret is the app's file, loaded by the workbench's own unit. |
+| `DD_WORKBENCH_PUBLIC_URL` | Where admins reach it, `https://<host>:8443`. Register `DD_WORKBENCH_PUBLIC_URL/api/sign-in/callback` as a second redirect URI on the ORCID client. |
+| `DD_WORKBENCH_ADMINS` | The ORCID iDs it admits, bare or as iD URLs, separated by commas or spaces. Required: with none, or one that is not an iD, it does not start. |
+
+Anyone else who signs in is told they are not an admin, and no session is opened for them. A
+workbench without `DD_OIDC_ISSUER`, as on a developer's machine, signs nobody in and acts for the
+operator, as before.
+
 ## What is stored
 
 | What | Where | Notes |
 |---|---|---|
 | Each run: input, output, spans, evidence and, by default, a Process Run Crate | `/var/lib/data-director/runs/` (`DD_RUNS_DIR`) | It outlives releases, so back it up with the rest of the host. `DD_WRITE_CRATE=0` stops the crate being written. |
+| Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
 | Problem reports | A public GitHub issue, if a credential is set | Off without a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a token (`DD_FEEDBACK_GITHUB_TOKEN`), not both. Either needs Issues: write on one repository and nothing else. |
 
@@ -126,4 +144,4 @@ Setting both a provider and an operator stops the app at start-up.
    whose key. Tell users when the answer is yes, since their conversation then goes to a
    provider.
 4. Confirm the app and agent ports are on loopback or a private network.
-5. Open the app and read each agent's About tab: it states what the instance is configured to do.
+5. Open the app and read each agent's page in the agent directory: it states what the instance is configured to do.

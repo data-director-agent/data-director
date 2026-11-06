@@ -1,4 +1,5 @@
-"""Who is signed in: the app's server-side sessions (docs/specs/policy-and-identity.md).
+"""Who is signed in: server-side sessions for a way in that signs people in
+(docs/specs/policy-and-identity.md). The app and the workbench each keep their own.
 
 The browser holds an opaque, random session identifier in a cookie and nothing else. The store
 keeps, for each session, the `Principal` and the session's times, and nothing more: no token
@@ -9,9 +10,12 @@ A session ends after an idle time or a lifetime, whichever comes first, and when
 out. A sign-in that has been started but has not come back from the provider is held here too,
 for a short time, under its `state`, with the `nonce` it was sent with.
 
-The store is in memory, for the alpha's single server process: restarting the app signs everyone
-out. A run that is still going when its session ends finishes, and acts for whoever started it,
-because `acting_for` is fixed when the conductor is invoked.
+The store is in memory, for the alpha's single server process: restarting the server signs
+everyone out. A run that is still going when its session ends finishes, and acts for whoever
+started it, because `acting_for` is fixed when the conductor is invoked.
+
+The cookie names are the app's by default. A second way in served on the same host, such as the
+workbench on another port, names its own, because a browser scopes cookies by host and not by port.
 """
 
 from __future__ import annotations
@@ -140,11 +144,12 @@ class SessionAuthenticator:
     principal."""
 
     store: SessionStore
+    cookie_name: str = SESSION_COOKIE
 
     def session(self, headers: Mapping[str, str] | None, *, touch: bool = True) -> Session | None:
         """The live session the request's cookie names. Reading it restarts its idle time, unless
         `touch` is false: asking when a session ends does not keep it going."""
-        session_id = cookie(headers, SESSION_COOKIE)
+        session_id = cookie(headers, self.cookie_name)
         return self.store.get(session_id, touch=touch) if session_id else None
 
     def principal_for(self, headers: Mapping[str, str] | None) -> Principal:

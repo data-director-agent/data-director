@@ -65,7 +65,7 @@ code, and describe how you tested your change in the pull request description.
 
 Every pull request runs `.github/workflows/ci.yml`, which ends in one check, **CI passed**, that
 passes only when no job it waits for failed or was cancelled. A job skipped because a change does
-not touch what it checks counts as passed, and the advisory conformance job is not waited for.
+not touch what it checks counts as passed, and the advisory conformance job is not waited for and only warns when the file is stale.
 `scripts/check_ci_gate.py` fails the Workflows job when a job is left out of the wait. Network
 steps that download (browsers, images) retry through `scripts/retry.sh`. Each job can be run
 locally from the repository root:
