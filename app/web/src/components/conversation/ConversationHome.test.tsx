@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -13,7 +13,15 @@ import {
 } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
-import { httpProjectApi, type ProjectApi, ProjectApiContext } from "../../project/api";
+import projectFixture from "../../../fixtures/project-documents.json";
+import {
+  type DocumentVersion,
+  httpProjectApi,
+  type ProjectApi,
+  ProjectApiContext,
+  type ProjectDocument,
+  type ProjectDocuments,
+} from "../../project/api";
 import type { ProcessFlow } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
@@ -23,6 +31,7 @@ import type { RunResult } from "../../run/types";
 import { ConversationHome } from "./ConversationHome";
 
 const CONVERSATION = conversationFixture as unknown as Conversation;
+const PROJECT = projectFixture as ProjectDocuments;
 const FLOW: FlowApi = { get: () => Promise.resolve(flowFixture as ProcessFlow) };
 const raw = several as unknown as RawAgentsResponse;
 const template: RawManifestEntry | undefined = raw.agents[0];
@@ -431,15 +440,17 @@ describe("ConversationHome", () => {
           inventory_files: [],
         }),
       );
-      renderHome(withOrchestrator(), fakeApi({ get }), FLOW, { ...httpProjectApi, inventory });
+      const documents = vi.fn<ProjectApi["documents"]>(() =>
+        Promise.resolve({ ...PROJECT, project_id: CONVERSATION.project_id ?? "", documents: [] }),
+      );
+      renderHome(withOrchestrator(), fakeApi({ get }), FLOW, { ...httpProjectApi, inventory, documents });
       await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       const panel = screen.getByRole("region", { name: "Project" });
       expect(await within(panel).findByText(/No inventory of the dataset/)).toBeVisible();
-      expect(within(panel).getByRole("link", { name: "The documents drafted in this project" })).toHaveAttribute(
-        "href",
-        `/projects/${CONVERSATION.project_id ?? ""}`,
-      );
+      expect(await within(panel).findByText(/No documents drafted yet/)).toBeVisible();
+      expect(within(panel).queryByRole("link", { name: "All documents in this project" })).toBeNull();
+      expect(documents).toHaveBeenCalledWith(CONVERSATION.project_id, expect.any(AbortSignal));
       await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "again");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(await within(panel).findByText("Inventory: 42 files, made 1 Nov 2026")).toBeVisible();
@@ -449,6 +460,68 @@ describe("ConversationHome", () => {
       const dialog = await screen.findByRole("dialog", { name: "What the inventory holds" });
       expect(await within(dialog).findByText("The inventory lists no files.")).toBeVisible();
       expect(inventory).toHaveBeenCalledWith(CONVERSATION.project_id, expect.any(AbortSignal));
+    });
+
+    it("shows a drafted document on its turn and in the side bar, and says it was drafted", async () => {
+      const readme = PROJECT.documents[0] as ProjectDocument;
+      const draft = readme.versions[0] as DocumentVersion;
+      const child = CONVERSATION.turns[CONVERSATION.turns.length - 1]?.children[0];
+      if (!child || !draft.drafted_by) throw new Error("the fixtures have no drafter to match");
+      const drafted: ProjectDocuments = {
+        ...PROJECT,
+        project_id: CONVERSATION.project_id ?? "",
+        documents: [
+          { ...readme, versions: [{ ...draft, drafted_by: { ...draft.drafted_by, invocation_id: child.invocation_id } }] },
+          ...PROJECT.documents.slice(1),
+        ],
+      };
+      const documents = vi.fn<ProjectApi["documents"]>(() => Promise.resolve(drafted));
+      const { container } = renderHome(withOrchestrator(), fakeApi(), FLOW, { ...httpProjectApi, documents });
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+      // The fixture's data dictionary was drafted by the first turn's delegated run, the README by
+      // the last turn's: each is a card on its own turn.
+      const cards = await screen.findAllByRole("list", { name: "Documents drafted on this turn" });
+      expect(cards.map((card) => card.textContent)).toEqual([
+        expect.stringContaining("Data dictionary, version 1"),
+        expect.stringContaining("README, version 1"),
+      ]);
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "New reply from orchestrator.stub: Succeeded. README drafted, version 1: Proposed, not reviewed.",
+        ),
+      );
+
+      const panel = screen.getByRole("region", { name: "Project" });
+      expect(within(panel).getByRole("heading", { name: "Documents · 1 to review" })).toBeVisible();
+      const list = within(panel).getByRole("list", { name: /^Documents/ });
+      const rows = within(list).getAllByRole("listitem");
+      expect(rows.map((row) => row.textContent)).toEqual([
+        "README version 1 Proposed, not reviewed",
+        "Data dictionary version 1 Approved",
+      ]);
+      expect(within(list).getByRole("link", { name: "README" })).toHaveAttribute(
+        "href",
+        `/projects/${drafted.project_id}#document-${readme.document_id}`,
+      );
+      expect(within(panel).getByRole("link", { name: "All documents in this project" })).toHaveAttribute(
+        "href",
+        `/projects/${drafted.project_id}`,
+      );
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("says in the side bar when the project's documents cannot be read", async () => {
+      const documents = () => Promise.reject(new Error("the server answered 500"));
+      renderHome(withOrchestrator(), fakeApi(), FLOW, { ...httpProjectApi, documents });
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      const panel = screen.getByRole("region", { name: "Project" });
+      expect(
+        await within(panel).findByText(/could not read the project's documents: the server answered 500/),
+      ).toBeVisible();
+      expect(screen.queryByRole("list", { name: "Documents drafted on this turn" })).toBeNull();
     });
 
     it("keeps the conversation working when the phases cannot be loaded", async () => {

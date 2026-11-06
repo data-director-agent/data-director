@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -80,6 +80,19 @@ describe("digestOf", () => {
 });
 
 describe("ProjectPage", () => {
+  it("takes a link to one document to its heading", async () => {
+    history.replaceState(null, "", `/projects/${PROJECT.project_id}#document-${DICTIONARY.document_id}`);
+    try {
+      renderPage(fakeApi());
+      const article = await screen.findByRole("article", { name: "Data dictionary" });
+      expect(article).toHaveAttribute("id", `document-${DICTIONARY.document_id}`);
+      const heading = within(article).getByRole("heading", { level: 2, name: "Data dictionary" });
+      await waitFor(() => expect(heading).toHaveFocus());
+    } finally {
+      history.replaceState(null, "", "/");
+    }
+  });
+
   it("shows each document's state and text, and decides only on what is undecided", async () => {
     const { container } = renderPage(fakeApi());
     const article = await readme();

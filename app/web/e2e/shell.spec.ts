@@ -342,6 +342,44 @@ test("a delegated run opens inside its card at 320px, keeping focus and the conv
   await expect(toggle).toBeFocused();
 });
 
+test("a drafted document is a card on its turn and a row in the side bar, by keyboard at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  // The fixtures agree: the README was drafted on the second turn, the data dictionary by the
+  // first turn's delegated run.
+  await page.route("/api/projects/*/documents", (route) => route.fulfill({ json: project }));
+  await page.route("/api/projects/*/disclosure", (route) => route.fulfill({ json: disclosure }));
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("draft a README");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  const cards = page.getByRole("list", { name: "Documents drafted on this turn" });
+  await expect(cards).toHaveCount(2);
+  const readme = cards.nth(1);
+  await expect(readme).toContainText("README, version 1");
+  await expect(readme).toContainText("Proposed, not reviewed");
+  await expect(page.getByRole("status").first()).toContainText("README drafted, version 1");
+
+  const preview = readme.getByRole("button", { name: "Preview of README, version 1" });
+  await preview.focus();
+  await page.keyboard.press("Enter");
+  await expect(preview).toHaveAttribute("aria-expanded", "true");
+  await expect(preview).toBeFocused();
+  await expect(readme.getByRole("heading", { name: "Untitled dataset" })).toBeVisible();
+  expect(await overflow(page), "horizontal overflow with a preview open").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+
+  const panel = page.getByRole("region", { name: "Project" });
+  await expect(panel.getByRole("heading", { name: "Documents · 1 to review" })).toBeVisible();
+
+  // Review leads to the document's place on the project's page, with its heading focused.
+  await readme.getByRole("link", { name: "Review and approve README" }).click();
+  await expect(page).toHaveURL(new RegExp(`/projects/[^#]+#document-${project.documents[0]?.document_id}$`));
+  await expect(page.getByRole("heading", { level: 2, name: "README" })).toBeFocused();
+});
+
 test("the directory is a page: reachable from the navigation, survives a reload, and Back leaves it", async ({
   page,
 }) => {
