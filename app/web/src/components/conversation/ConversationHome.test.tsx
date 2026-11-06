@@ -376,30 +376,20 @@ describe("ConversationHome", () => {
   });
 
   describe("the workspace around the conversation", () => {
-    it("lists the six data management phases and the agents serving each step", async () => {
+    it("lists the six phases of the journey in plain words, with no agents or requirements", async () => {
       const { container } = renderHome(withOrchestrator(), fakeApi());
-      const phases = await screen.findByRole("navigation", { name: "Data management phases" });
+      const phases = await screen.findByRole("navigation", { name: "Your data journey" });
       const bar = await within(phases).findByRole("list", { name: "The phases in order" });
       expect(within(bar).getAllByRole("listitem")).toHaveLength(6);
-      expect(within(bar).getByText("Pre-collection setup")).toBeVisible();
-      await userEvent.click(within(phases).getByText(/^Show the steps in each phase/));
+      expect(within(bar).getByText("Plan ahead")).toBeVisible();
+      await userEvent.click(within(phases).getByText("Show what happens in each phase"));
       const items = within(phases).getAllByRole("listitem").filter((li) => li.querySelector("summary"));
       expect(items).toHaveLength(6);
-      const detail = items.find((li) => li.querySelector("summary")?.textContent?.includes("Pre-collection setup"));
+      const detail = items.find((li) => li.querySelector("summary")?.textContent?.includes("Plan ahead"));
       if (!detail) throw new Error("no phase");
-      await userEvent.click(within(detail).getByText("Pre-collection setup"));
-      const step = within(phases).getByText("Select controlled vocabularies and ontologies").closest("li");
-      if (!step) throw new Error("no step");
-      expect(within(step).getByText(/Requirements: R3/)).toBeVisible();
-      expect(within(step).getByRole("link", { name: "Standards Librarian" })).toHaveAttribute(
-        "href",
-        "/agents?agent=advisor.standards",
-      );
-      const unserved = within(phases)
-        .getByText("Draft the data documentation")
-        .closest("li");
-      if (!unserved) throw new Error("no step");
-      expect(within(unserved).getByText(/No agent here serves this step/)).toBeVisible();
+      await userEvent.click(within(detail).getByText("Plan ahead"));
+      expect(within(detail).getByText("Choose standard terms to describe your data")).toBeVisible();
+      expect(phases).not.toHaveTextContent(/Requirements|\bR\d|Served by|agent/);
       expect(await axe(container)).toHaveNoViolations();
     });
 
@@ -464,7 +454,7 @@ describe("ConversationHome", () => {
     it("keeps the conversation working when the phases cannot be loaded", async () => {
       const failing: FlowApi = { get: () => Promise.reject(new Error("the server answered 500")) };
       renderHome(withOrchestrator(), fakeApi(), failing);
-      const phases = screen.getByRole("navigation", { name: "Data management phases" });
+      const phases = screen.getByRole("navigation", { name: "Your data journey" });
       expect(await within(phases).findByRole("alert")).toHaveTextContent("the server answered 500");
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
     });
@@ -472,7 +462,7 @@ describe("ConversationHome", () => {
     it("keeps the phases when there is no conversation", async () => {
       renderHome(normalise(raw), fakeApi());
       expect(screen.getByRole("heading", { level: 1, name: "No conversation is available" })).toBeVisible();
-      expect((await screen.findAllByText("Pre-collection setup"))[0]).toBeVisible();
+      expect((await screen.findAllByText("Plan ahead"))[0]).toBeVisible();
     });
   });
 

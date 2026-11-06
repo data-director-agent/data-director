@@ -1,4 +1,4 @@
-/* The data management phases and their steps: a strip of six equal segments, like a progress
+/* The journey's phases and their steps: a strip of six equal segments, like a progress
    bar with no segment reached, that opens to the list of phases and steps. */
 
 @layer components {
@@ -80,9 +80,9 @@
     content: " ·";
   }
 
-  .phase-served {
-    font-weight: var(--font-weight-normal);
-    font-size: var(--font-size-small);
+  .phase-summary {
+    margin: var(--space-1) 0 0;
+    color: var(--color-text-muted);
   }
 
   .step-list {
@@ -96,12 +96,6 @@
   }
 
   .step-text {
-    margin-bottom: var(--space-1);
-  }
-
-  .step-meta {
-    font-size: var(--font-size-small);
-    color: var(--color-text-muted);
     margin: 0;
   }
 

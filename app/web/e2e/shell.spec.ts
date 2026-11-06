@@ -394,14 +394,14 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   await serveConversation(page);
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
   await page.goto("/");
-  const phases = page.getByRole("navigation", { name: "Data management phases" });
+  const phases = page.getByRole("navigation", { name: "Your data journey" });
   await expect(phases.getByRole("list", { name: "The phases in order" }).getByRole("listitem")).toHaveCount(6);
   await expect(page.getByRole("region", { name: "Conversations" })).toBeVisible();
   const documents = page.getByRole("region", { name: "Project" });
   await expect(documents).toBeVisible();
   expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
 
-  // The strip opens from the keyboard, then a phase, which names the agents serving its steps.
+  // The strip opens from the keyboard, then a phase, which lists what happens in it.
   const strip = phases.locator(".phase-strip-details > summary");
   await strip.focus();
   await page.keyboard.press("Enter");
@@ -409,7 +409,7 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   const first = phases.locator(".phase-list summary").first();
   await first.focus();
   await page.keyboard.press("Enter");
-  await expect(phases.getByRole("link", { name: "Standards Librarian" }).first()).toBeVisible();
+  await expect(phases.getByText("Choose standard terms to describe your data")).toBeVisible();
 
   // An open run sits inside its card in the transcript, and the documents stay beside it.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
@@ -432,7 +432,7 @@ test("the workspace reflows at 320px with every phase open", async ({ page }) =>
   await page.setViewportSize({ width: 320, height: 640 });
   await serveConversation(page);
   await page.goto("/");
-  const phases = page.getByRole("navigation", { name: "Data management phases" });
+  const phases = page.getByRole("navigation", { name: "Your data journey" });
   await phases.locator(".phase-strip-details > summary").click();
   const summaries = phases.locator(".phase-list summary");
   await expect(summaries).toHaveCount(6);

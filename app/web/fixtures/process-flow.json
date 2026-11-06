@@ -18,10 +18,12 @@
   ],
   "phases": [
     {
+      "name": "Plan ahead",
       "number": 1,
       "steps": [
         {
           "id": "setup.documentation",
+          "label": "Plan how your data will be documented",
           "optional": false,
           "requirements": [
             "R5"
@@ -30,6 +32,7 @@
         },
         {
           "id": "setup.vocabularies",
+          "label": "Choose standard terms to describe your data",
           "optional": false,
           "requirements": [
             "R3"
@@ -37,37 +40,44 @@
           "text": "Select controlled vocabularies and ontologies"
         }
       ],
+      "summary": "Before you collect any data: decide how it will be described.",
       "title": "Pre-collection setup"
     },
     {
+      "name": "Check the rules",
       "number": 2,
       "steps": [
         {
           "id": "governance.policies",
+          "label": "Check what your funder, journal and institution expect",
           "optional": false,
           "requirements": [],
           "text": "Check funder, journal and institutional data sharing policies"
         },
         {
           "id": "governance.sensitive-data-identify",
+          "label": "Spot any sensitive information in your data",
           "optional": false,
           "requirements": [],
           "text": "Identify sensitive data"
         },
         {
           "id": "governance.sensitive-data-handle",
+          "label": "Decide how sensitive data will be protected",
           "optional": false,
           "requirements": [],
           "text": "Handle sensitive data"
         },
         {
           "id": "governance.embargo",
+          "label": "Decide whether to delay public release",
           "optional": false,
           "requirements": [],
           "text": "Confirm whether an embargo is required"
         },
         {
           "id": "governance.dmp",
+          "label": "Check your plans match your Data Management Plan",
           "optional": false,
           "requirements": [
             "R8"
@@ -75,19 +85,23 @@
           "text": "Verify data sharing commitments against the Data Management Plan"
         }
       ],
+      "summary": "Find out what your funder, journal and institution require, and how your data must be protected.",
       "title": "Governance and constraints"
     },
     {
+      "name": "Choose where to share",
       "number": 3,
       "steps": [
         {
           "id": "repository.mandated",
+          "label": "Find out whether you must use a particular repository",
           "optional": false,
           "requirements": [],
           "text": "Check whether the funder, journal or institution mandates a repository"
         },
         {
           "id": "repository.recommend",
+          "label": "Choose a repository",
           "optional": false,
           "requirements": [
             "R1"
@@ -96,6 +110,7 @@
         },
         {
           "id": "repository.pid",
+          "label": "Make sure your data will get a permanent identifier, such as a DOI",
           "optional": false,
           "requirements": [
             "R7"
@@ -104,30 +119,36 @@
         },
         {
           "id": "repository.access-and-costs",
+          "label": "Check who can access the data and what depositing costs",
           "optional": false,
           "requirements": [],
           "text": "Check access options and deposit costs"
         },
         {
           "id": "repository.certification",
+          "label": "Check that the repository is trustworthy",
           "optional": true,
           "requirements": [],
           "text": "Verify repository certification"
         }
       ],
+      "summary": "Pick a repository that suits your data and meets those requirements.",
       "title": "Repository selection"
     },
     {
+      "name": "Get your data ready",
       "number": 4,
       "steps": [
         {
           "id": "preparation.files",
+          "label": "Tidy and version your files",
           "optional": false,
           "requirements": [],
           "text": "Clean and version the data files"
         },
         {
           "id": "preparation.formats",
+          "label": "Save your data in open formats",
           "optional": false,
           "requirements": [
             "R3"
@@ -136,6 +157,7 @@
         },
         {
           "id": "preparation.documentation",
+          "label": "Write a README and a data dictionary",
           "optional": false,
           "requirements": [
             "R5"
@@ -144,12 +166,14 @@
         },
         {
           "id": "preparation.metadata-standard",
+          "label": "Choose the metadata standard to follow",
           "optional": false,
           "requirements": [],
           "text": "Identify the appropriate metadata standard"
         },
         {
           "id": "preparation.metadata",
+          "label": "Fill in the description of your dataset",
           "optional": false,
           "requirements": [
             "R2",
@@ -158,13 +182,16 @@
           "text": "Complete metadata fields with FAIR-aligned, discipline-appropriate vocabularies and ontologies"
         }
       ],
+      "summary": "Tidy the files and describe them so others can understand and reuse them.",
       "title": "Data preparation and metadata creation"
     },
     {
+      "name": "Deposit your data",
       "number": 5,
       "steps": [
         {
           "id": "deposit.validate",
+          "label": "Check the description is complete and correct",
           "optional": false,
           "requirements": [
             "R4"
@@ -173,12 +200,14 @@
         },
         {
           "id": "deposit.licence",
+          "label": "Choose a licence",
           "optional": false,
           "requirements": [],
           "text": "Assign a licence"
         },
         {
           "id": "deposit.links",
+          "label": "Link to your paper, your ORCID iD, your institution and your grant",
           "optional": false,
           "requirements": [
             "R7"
@@ -187,54 +216,64 @@
         },
         {
           "id": "deposit.access",
+          "label": "Set who can see or download the data",
           "optional": false,
           "requirements": [],
           "text": "Set access restrictions"
         },
         {
           "id": "deposit.review-link",
+          "label": "Create a private link for peer reviewers",
           "optional": true,
           "requirements": [],
           "text": "Generate a private peer review link"
         },
         {
           "id": "deposit.upload",
+          "label": "Upload your files",
           "optional": false,
           "requirements": [],
           "text": "Upload the files"
         },
         {
           "id": "deposit.finalise",
+          "label": "Review and submit",
           "optional": false,
           "requirements": [],
           "text": "Review and finalise the submission"
         }
       ],
+      "summary": "Check the description, set the licence and access, and submit.",
       "title": "Deposit and submit"
     },
     {
+      "name": "After publication",
       "number": 6,
       "steps": [
         {
           "id": "post.institutional-record",
+          "label": "Record the deposit with your institution",
           "optional": false,
           "requirements": [],
           "text": "Record the deposit in institutional systems where required"
         },
         {
           "id": "post.monitor",
+          "label": "Follow downloads and citations",
           "optional": false,
           "requirements": [],
           "text": "Monitor access, downloads and citations"
         },
         {
           "id": "post.embargo-release",
+          "label": "Release your data when the delay ends",
           "optional": false,
           "requirements": [],
           "text": "Check embargo release"
         },
         {
           "id": "post.fairness",
+          "label": "Check how FAIR your published data are",
           "optional": false,
           "requirements": [
             "R12"
@@ -243,6 +282,7 @@
         },
         {
           "id": "post.retrofit",
+          "label": "Improve the description of older datasets",
           "optional": false,
           "requirements": [
             "R9"
@@ -251,6 +291,7 @@
         },
         {
           "id": "post.links",
+          "label": "Connect your data to related publications and datasets",
           "optional": false,
           "requirements": [
             "R11"
@@ -258,6 +299,7 @@
           "text": "Link datasets to related research outputs"
         }
       ],
+      "summary": "Follow how your data are used and keep their records up to date.",
       "title": "Post-publication"
     }
   ]

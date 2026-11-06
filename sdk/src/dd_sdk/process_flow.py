@@ -36,6 +36,9 @@ class Step:
     # The Blueprint requirements applied at this step; empty when the figure names none.
     requirements: tuple[str, ...] = ()
     optional: bool = False
+    # What the step is, in a researcher's words, for the people using the app. `text` is the
+    # Blueprint's wording, which the orchestrator reasons over.
+    label: str = ""
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,10 @@ class Phase:
     number: int
     title: str
     steps: tuple[Step, ...]
+    # The phase in a researcher's words: a short name and one sentence on what it is for. `title`
+    # is the Blueprint's.
+    name: str = ""
+    summary: str = ""
 
 
 @dataclass(frozen=True)
@@ -57,9 +64,21 @@ PHASES: tuple[Phase, ...] = (
         1,
         "Pre-collection setup",
         (
-            Step("setup.documentation", "Draft the data documentation", ("R5",)),
-            Step("setup.vocabularies", "Select controlled vocabularies and ontologies", ("R3",)),
+            Step(
+                "setup.documentation",
+                "Draft the data documentation",
+                ("R5",),
+                label="Plan how your data will be documented",
+            ),
+            Step(
+                "setup.vocabularies",
+                "Select controlled vocabularies and ontologies",
+                ("R3",),
+                label="Choose standard terms to describe your data",
+            ),
         ),
+        name="Plan ahead",
+        summary="Before you collect any data: decide how it will be described.",
     ),
     Phase(
         2,
@@ -68,18 +87,37 @@ PHASES: tuple[Phase, ...] = (
             Step(
                 "governance.policies",
                 "Check funder, journal and institutional data sharing policies",
+                label="Check what your funder, journal and institution expect",
             ),
             # Figure 2 has one step, "identifying and handling sensitive data". It is split here so
             # that an agent can flag sensitive data without deciding how it is treated
             # (docs/specs/orchestration.md).
-            Step("governance.sensitive-data-identify", "Identify sensitive data"),
-            Step("governance.sensitive-data-handle", "Handle sensitive data"),
-            Step("governance.embargo", "Confirm whether an embargo is required"),
+            Step(
+                "governance.sensitive-data-identify",
+                "Identify sensitive data",
+                label="Spot any sensitive information in your data",
+            ),
+            Step(
+                "governance.sensitive-data-handle",
+                "Handle sensitive data",
+                label="Decide how sensitive data will be protected",
+            ),
+            Step(
+                "governance.embargo",
+                "Confirm whether an embargo is required",
+                label="Decide whether to delay public release",
+            ),
             Step(
                 "governance.dmp",
                 "Verify data sharing commitments against the Data Management Plan",
                 ("R8",),
+                label="Check your plans match your Data Management Plan",
             ),
+        ),
+        name="Check the rules",
+        summary=(
+            "Find out what your funder, journal and institution require, "
+            "and how your data must be protected."
         ),
     ),
     Phase(
@@ -89,53 +127,107 @@ PHASES: tuple[Phase, ...] = (
             Step(
                 "repository.mandated",
                 "Check whether the funder, journal or institution mandates a repository",
+                label="Find out whether you must use a particular repository",
             ),
-            Step("repository.recommend", "Recommend a repository where none is mandated", ("R1",)),
+            Step(
+                "repository.recommend",
+                "Recommend a repository where none is mandated",
+                ("R1",),
+                label="Choose a repository",
+            ),
             Step(
                 "repository.pid",
                 "Confirm or arrange persistent identifier (PID) assignment",
                 ("R7",),
+                label="Make sure your data will get a permanent identifier, such as a DOI",
             ),
-            Step("repository.access-and-costs", "Check access options and deposit costs"),
-            Step("repository.certification", "Verify repository certification", optional=True),
+            Step(
+                "repository.access-and-costs",
+                "Check access options and deposit costs",
+                label="Check who can access the data and what depositing costs",
+            ),
+            Step(
+                "repository.certification",
+                "Verify repository certification",
+                optional=True,
+                label="Check that the repository is trustworthy",
+            ),
         ),
+        name="Choose where to share",
+        summary="Pick a repository that suits your data and meets those requirements.",
     ),
     Phase(
         4,
         "Data preparation and metadata creation",
         (
-            Step("preparation.files", "Clean and version the data files"),
-            Step("preparation.formats", "Recommend open formats", ("R3",)),
+            Step(
+                "preparation.files",
+                "Clean and version the data files",
+                label="Tidy and version your files",
+            ),
+            Step(
+                "preparation.formats",
+                "Recommend open formats",
+                ("R3",),
+                label="Save your data in open formats",
+            ),
             Step(
                 "preparation.documentation",
                 "Create or review data documentation: READMEs and data dictionaries",
                 ("R5",),
+                label="Write a README and a data dictionary",
             ),
-            Step("preparation.metadata-standard", "Identify the appropriate metadata standard"),
+            Step(
+                "preparation.metadata-standard",
+                "Identify the appropriate metadata standard",
+                label="Choose the metadata standard to follow",
+            ),
             Step(
                 "preparation.metadata",
                 "Complete metadata fields with FAIR-aligned, discipline-appropriate vocabularies "
                 "and ontologies",
                 ("R2", "R6"),
+                label="Fill in the description of your dataset",
             ),
         ),
+        name="Get your data ready",
+        summary="Tidy the files and describe them so others can understand and reuse them.",
     ),
     Phase(
         5,
         "Deposit and submit",
         (
-            Step("deposit.validate", "Validate metadata quality", ("R4",)),
-            Step("deposit.licence", "Assign a licence"),
+            Step(
+                "deposit.validate",
+                "Validate metadata quality",
+                ("R4",),
+                label="Check the description is complete and correct",
+            ),
+            Step("deposit.licence", "Assign a licence", label="Choose a licence"),
             Step(
                 "deposit.links",
                 "Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs",
                 ("R7",),
+                label="Link to your paper, your ORCID iD, your institution and your grant",
             ),
-            Step("deposit.access", "Set access restrictions"),
-            Step("deposit.review-link", "Generate a private peer review link", optional=True),
-            Step("deposit.upload", "Upload the files"),
-            Step("deposit.finalise", "Review and finalise the submission"),
+            Step(
+                "deposit.access",
+                "Set access restrictions",
+                label="Set who can see or download the data",
+            ),
+            Step(
+                "deposit.review-link",
+                "Generate a private peer review link",
+                optional=True,
+                label="Create a private link for peer reviewers",
+            ),
+            Step("deposit.upload", "Upload the files", label="Upload your files"),
+            Step(
+                "deposit.finalise", "Review and finalise the submission", label="Review and submit"
+            ),
         ),
+        name="Deposit your data",
+        summary="Check the description, set the licence and access, and submit.",
     ),
     Phase(
         6,
@@ -144,17 +236,39 @@ PHASES: tuple[Phase, ...] = (
             Step(
                 "post.institutional-record",
                 "Record the deposit in institutional systems where required",
+                label="Record the deposit with your institution",
             ),
-            Step("post.monitor", "Monitor access, downloads and citations"),
-            Step("post.embargo-release", "Check embargo release"),
+            Step(
+                "post.monitor",
+                "Monitor access, downloads and citations",
+                label="Follow downloads and citations",
+            ),
+            Step(
+                "post.embargo-release",
+                "Check embargo release",
+                label="Release your data when the delay ends",
+            ),
             Step(
                 "post.fairness",
                 "Evaluate the FAIRness of the published objects and discover related datasets",
                 ("R12",),
+                label="Check how FAIR your published data are",
             ),
-            Step("post.retrofit", "Retrofit FAIR-aligned metadata for existing datasets", ("R9",)),
-            Step("post.links", "Link datasets to related research outputs", ("R11",)),
+            Step(
+                "post.retrofit",
+                "Retrofit FAIR-aligned metadata for existing datasets",
+                ("R9",),
+                label="Improve the description of older datasets",
+            ),
+            Step(
+                "post.links",
+                "Link datasets to related research outputs",
+                ("R11",),
+                label="Connect your data to related publications and datasets",
+            ),
         ),
+        name="After publication",
+        summary="Follow how your data are used and keep their records up to date.",
     ),
 )
 

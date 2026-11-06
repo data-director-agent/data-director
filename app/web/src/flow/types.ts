@@ -6,7 +6,10 @@
 export interface FlowStep {
   /** A stable label, `<phase>.<step>`, that an agent's `serves` names (docs/specs/orchestration.md). */
   id: string;
+  /** The Blueprint's wording, for the orchestrator; the shell shows `label`. */
   text: string;
+  /** The step in a researcher's words. */
+  label: string;
   /** The Blueprint requirements applied at this step; empty when the figure names none. */
   requirements: string[];
   optional: boolean;
@@ -14,7 +17,12 @@ export interface FlowStep {
 
 export interface FlowPhase {
   number: number;
+  /** The Blueprint's title; the shell shows `name`. */
   title: string;
+  /** A short name for the phase in a researcher's words. */
+  name: string;
+  /** One sentence on what the phase is for. */
+  summary: string;
   steps: FlowStep[];
 }
 

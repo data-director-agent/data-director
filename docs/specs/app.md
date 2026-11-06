@@ -154,7 +154,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   names.
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
-  flow.
+  flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
+  short `name` and a one-sentence `summary`, and each step a `label`, all carried by the process
+  flow beside the Blueprint's own wording, which the orchestrator reasons over. The journey names
+  no agent and no requirement, since a researcher works through the conversation and needs to see
+  only the whole route; it is meant to become a progress bar over the project's record
+  (TODO(#160)).
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
   or message an agent from it; they work through the conversation. Running one agent directly,
