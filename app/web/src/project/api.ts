@@ -89,8 +89,44 @@ export class DecisionConflict extends Error {
   }
 }
 
+/** One approved version, as the harness's disclosure describes it (docs/specs/disclosure.md). */
+export interface DisclosedDocument {
+  document_id: string;
+  document_kind: string;
+  document_title: string | null;
+  version: number;
+  digest: string;
+  origin: "model" | "model_revised" | "template" | "template_revised" | "person";
+  draft: {
+    agent_id: string;
+    agent_version: string;
+    invocation_id: string;
+    derivation: string;
+    completed_at: string | null;
+    models: { provider: string; model_id: string; called_at: string; prompt_digest: string | null }[];
+  } | null;
+  edited_by: string[];
+  approved_by: string;
+  approved_at: string;
+  reason: string | null;
+}
+
+/**
+ * What a project's approved documents owe to generative AI: the harness's statement, in Markdown,
+ * and the same account as a PROV-O graph in JSON-LD. The shell shows and offers them as they are.
+ */
+export interface Disclosure {
+  project_id: string;
+  made_at: string;
+  pending: number;
+  statement: string;
+  documents: DisclosedDocument[];
+  prov: Record<string, unknown>;
+}
+
 export interface ProjectApi {
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
+  disclosure(projectId: string, signal?: AbortSignal): Promise<Disclosure>;
   decide(projectId: string, documentId: string, request: DecisionRequest): Promise<ProjectDocuments>;
 }
 
@@ -121,6 +157,14 @@ function documentsPath(projectId: string): string {
 export const httpProjectApi: ProjectApi = {
   async documents(projectId, signal) {
     return json(await fetch(documentsPath(projectId), signal ? { signal } : {}));
+  },
+  async disclosure(projectId, signal) {
+    return json(
+      await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/disclosure`,
+        signal ? { signal } : {},
+      ),
+    );
   },
   async decide(projectId, documentId, request) {
     return json(

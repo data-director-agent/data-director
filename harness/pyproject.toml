@@ -38,6 +38,8 @@ serve = ["uvicorn>=0.30"]
 dev = [
   "data-director-agent-example-hello",
   "data-director-agent-advisor-quality",
+  # Reads the disclosure's PROV-O graph as RDF in tests (docs/specs/dependencies.md).
+  "rdflib>=7.1",
 ]
 
 [tool.hatch.build.targets.wheel]

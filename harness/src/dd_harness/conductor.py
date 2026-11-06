@@ -68,6 +68,7 @@ from dd_sdk.contract.models import (
     Envelope,
     GroundingMode,
     InvocationRequest,
+    ModelCall,
     Outcome,
     OutcomeStatus,
     Principal,
@@ -80,6 +81,7 @@ from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.evidence import input_hash as compute_input_hash
+from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import (
     ATTR_OUTCOME,
     Tracing,
@@ -337,6 +339,10 @@ class Conductor:
         delegations: list[Delegation] = []
         grant: Grant | None = None
         from_agent = False
+        # The agent's model calls and the prompts they name, kept whatever becomes of its result
+        # (docs/specs/disclosure.md).
+        model_calls: tuple[ModelCall, ...] = ()
+        prompts: dict[str, dict[str, Any]] = {}
         with invoke_agent_span(
             tracer, spec.agent_id, spec.grounding_mode.value, input_hash, link=link
         ) as root:
@@ -431,10 +437,21 @@ class Conductor:
                     # this trace so the linter reads one tree (docs/specs/agents.md).
                     self.tracing.import_spans(trace_id, received.spans)
                     result = received.result
+                    model_calls = result.model_calls
+                    prompts, unmatched = _matched_prompts(result)
                     # An agent that returns a payload other than the class it declared, or one
-                    # its own class schema does not admit, is contradicting its specification: a
-                    # programmer error, handled the same way as an exception.
-                    if result.payload is not None and (
+                    # its own class schema does not admit, or prompts that are not those its
+                    # calls name, is contradicting its specification: a programmer error, handled
+                    # the same way as an exception.
+                    if unmatched:
+                        result = AgentResult(
+                            outcome=Outcome(
+                                status=OutcomeStatus.FAILED,
+                                statement=f"Agent contradicted its specification: {unmatched}",
+                            )
+                        )
+                        prob = problems.agent_error(spec.agent_id, ValueError(unmatched))
+                    elif result.payload is not None and (
                         mismatch := _payload_mismatch(spec, to_document(result.payload))
                     ):
                         result = AgentResult(
@@ -471,6 +488,7 @@ class Conductor:
                     model_id=result.model_id,
                     input_tokens=result.input_tokens,
                     output_tokens=result.output_tokens,
+                    model_calls=list(model_calls),
                 ),
                 problem=prob,
                 conversation_id=request.conversation_id,
@@ -571,7 +589,7 @@ class Conductor:
             checked = [accepted] if accepted else []
             if envelope.payload is not None and spec.payload is not None:
                 checked.append(spec.payload)
-            run_dir = self.store.append(doc, request_doc, checked)
+            run_dir = self.store.append(doc, request_doc, checked, prompts)
             spans_path = run_dir / "spans.jsonl"
             self.tracing.write_jsonl(spans_path, trace_id)
             (run_dir / "grounding.txt").write_text(report.summary() + "\n", encoding="utf-8")
@@ -600,6 +618,27 @@ def _input_refusal(spec: AgentSpec, document: dict[str, Any]) -> tuple[str, list
         return got, []
     errors = accepted.errors(document)
     return (got, errors) if errors else None
+
+
+def _matched_prompts(result: AgentResult) -> tuple[dict[str, dict[str, Any]], str | None]:
+    """The prompts the result's model calls name, each checked against its digest, and what is
+    wrong if the prompts are not exactly those (docs/specs/disclosure.md). Only prompts that hash
+    to their key are kept."""
+    kept = {
+        digest: dict(prompt)
+        for digest, prompt in result.prompts.items()
+        if prompt_digest(prompt) == digest
+    }
+    named = {call.prompt_digest for call in result.model_calls}
+    problems_found = []
+    if wrong := sorted(set(result.prompts) - set(kept)):
+        problems_found.append(f"prompts that do not hash to their digest: {', '.join(wrong)}")
+    if missing := sorted(named - set(kept)):
+        problems_found.append(f"model calls whose prompt was not returned: {', '.join(missing)}")
+    if extra := sorted(set(kept) - named):
+        problems_found.append(f"prompts no model call names: {', '.join(extra)}")
+        kept = {d: p for d, p in kept.items() if d in named}
+    return kept, "; ".join(problems_found) or None
 
 
 def _payload_mismatch(spec: AgentSpec, document: dict[str, Any]) -> TypeError | None:

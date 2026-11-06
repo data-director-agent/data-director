@@ -103,8 +103,10 @@ project log, and the Process Run Crate of each run behind an approved version
 through the DataCite to schema.org mapping, and it conforms to the standard. Each data file is a
 `File` entity with its path, size and SHA-256, marked as not included: the researcher adds the
 files at deposit, and the digests show they are the files described. Each document entity names
-its version, the run or person that produced it, and the decision that approved it. A full PROV-O
-account of those links is TODO(#26) (R10). The harness keeps the package by its digest and
+its version, the run or person that produced it, and the decision that approved it. The package
+carries the project's disclosure of generative AI, its statement and its PROV-O graph of each
+approved version ([Disclosure](disclosure.md)), TODO(#202). PROV-O alignment of the whole package
+is TODO(#26) (R10). The harness keeps the package by its digest and
 records it in the project log.
 
 **Elsewhere.** Which repositories an institution approves, and preferring them, are TODO(#320).

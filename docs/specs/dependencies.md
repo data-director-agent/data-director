@@ -70,7 +70,8 @@ fallback. It is not yet declared, because validation is not yet built: TODO(#19)
 
 Unconstrained, and listed so that nothing moves into the runtime tier unnoticed: `pytest` and
 its plugins, `linkml` (schema generation only; the generated files are committed, so runtime code
-never imports it), `ruff`, `mypy` and its stubs, `inspect-ai` (the workbench's `eval` extra),
+never imports it), `rdflib` (harness tests that read a disclosure's PROV-O graph as RDF), `ruff`,
+`mypy` and its stubs, `inspect-ai` (the workbench's `eval` extra),
 MkDocs and its theme, and the shell's build and test tools (`vite`, `typescript`, `vitest`,
 Testing Library, `jsdom`, `jest-axe`, Playwright, axe-core, ESLint, Stylelint).
 

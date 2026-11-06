@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { type ProjectDocuments, useProjectApi } from "../../project/api";
 import { PageHeader } from "../frame/PageHeader";
+import { DisclosurePanel } from "./DisclosurePanel";
 import { DocumentReview } from "./DocumentReview";
 
 type Load =
@@ -29,6 +30,8 @@ export function ProjectPage({ projectId }: { projectId: string }) {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [announcement, setAnnouncement] = useState("");
+  // Counts what the page has read, so that the disclosure is read again after a decision.
+  const [revision, setRevision] = useState(0);
 
   const read = useCallback(
     (signal?: AbortSignal) =>
@@ -55,6 +58,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
       api.documents(projectId).then(
         (value) => {
           setLoad({ state: "loaded", value });
+          setRevision((n) => n + 1);
           return null;
         },
         (error: unknown) => message(error),
@@ -65,6 +69,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
   const decided = useCallback((value: ProjectDocuments, said: string) => {
     setLoad({ state: "loaded", value });
     setAnnouncement(said);
+    setRevision((n) => n + 1);
   }, []);
 
   const content = () => {
@@ -85,16 +90,21 @@ export function ProjectPage({ projectId }: { projectId: string }) {
         </p>
       );
     }
-    return documents.map((document) => (
-      <DocumentReview
-        key={document.document_id}
-        projectId={projectId}
-        document={document}
-        rules={review}
-        onDecided={decided}
-        onStale={refresh}
-      />
-    ));
+    return (
+      <>
+        {documents.map((document) => (
+          <DocumentReview
+            key={document.document_id}
+            projectId={projectId}
+            document={document}
+            rules={review}
+            onDecided={decided}
+            onStale={refresh}
+          />
+        ))}
+        <DisclosurePanel projectId={projectId} revision={revision} />
+      </>
+    );
   };
 
   return (

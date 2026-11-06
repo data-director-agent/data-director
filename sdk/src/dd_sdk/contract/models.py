@@ -425,6 +425,18 @@ class EvidenceItem(Frozen):
     content: dict[str, Any] | None = None
 
 
+class ModelCall(Frozen):
+    """One call an agent made to a language model, as it reports it (docs/specs/disclosure.md).
+    `prompt_digest` names the messages sent; the harness keeps them beside the run."""
+
+    model_provider: str
+    model_id: str
+    called_at: datetime
+    prompt_digest: str = Field(pattern=SHA256_PATTERN)
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+
+
 class Telemetry(Frozen):
     trace_id: str | None = None
     model_id: str | None = None
@@ -432,6 +444,7 @@ class Telemetry(Frozen):
     output_tokens: int | None = None
     energy_estimate_j: float | None = None
     energy_method: EnergyMethod = EnergyMethod.NOT_MEASURED
+    model_calls: list[ModelCall] = Field(default_factory=list)
 
 
 # --- Envelope -------------------------------------------------------------------------------
@@ -519,10 +532,14 @@ class Envelope(Frozen):
         nullable in the generated schema). The one exception is `energy_estimate_j`, which is
         written as an explicit null: P14 asks for the footprint to be captured, and an explicit
         null says "slot exists, not measured" where an absent key says nothing. An empty
-        `delegations` list is omitted, so envelopes of agents that cannot delegate are unchanged.
+        `delegations` or `model_calls` list is omitted, so envelopes of agents that neither
+        delegate nor call a model are unchanged.
         """
         doc = to_document(self)
         doc["telemetry"].setdefault("energy_estimate_j", None)
+        if not doc["telemetry"]["model_calls"]:
+            # Only a run that called a model lists its calls (docs/specs/disclosure.md).
+            del doc["telemetry"]["model_calls"]
         if not doc["delegations"]:
             # Only a delegation agent's envelope lists them (docs/specs/orchestration.md).
             del doc["delegations"]

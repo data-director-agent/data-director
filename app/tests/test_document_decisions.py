@@ -209,3 +209,42 @@ def test_the_project_page_is_served_by_the_shell(client: TestClient) -> None:
     response = client.get("/projects/01900000-0000-7000-8000-000000000001")
     assert response.status_code == 200
     assert "<title>shell</title>" in response.text
+
+
+DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+
+
+def test_the_disclosure_says_how_each_approved_document_came_about(
+    client: TestClient, store: ProjectStore, governance: Governance
+) -> None:
+    """The server answers with the harness's disclosure, statement and PROV-O graph, for a draft
+    written with a model and approved as it stands (docs/specs/disclosure.md)."""
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    # The drafts' runs go to the store the server reads, as the conductor's own would.
+    conductor = make_conductor(governance.conductor.store.root, DocumentStub("test-model"))
+    for kind in (DocumentKind.README, DocumentKind.METADATA_RECORD):
+        envelope = conductor.invoke(
+            request("stub.document", document_request(kind)), acting_for=TEST_PRINCIPAL
+        )
+        store.record_draft(project_id, envelope)
+    readme = client.get(f"/api/projects/{project_id}/documents").json()["documents"][0]
+    assert decide(client, project_id, readme["versions"][0], decision="approved").status_code == 201
+
+    response = client.get(f"/api/projects/{project_id}/disclosure")
+    assert response.status_code == 200
+    body = response.json()
+    (document,) = body["documents"]
+    assert document["origin"] == "model"
+    assert document["draft"]["models"][0]["model_id"] == "test-model"
+    assert body["pending"] == 1
+    assert "reproduced verbatim" in body["statement"]
+    assert body["prov"]["@context"]["prov"] == "http://www.w3.org/ns/prov#"
+    check_fixture(
+        "project-disclosure.json",
+        json.loads(DATE.sub("2026-01-01", json.dumps(normalised(body)))),
+    )
+
+
+def test_the_disclosure_of_an_unknown_project_is_not_found(client: TestClient) -> None:
+    response = client.get("/api/projects/01900000-0000-7000-8000-000000000001/disclosure")
+    assert response.status_code == 404
