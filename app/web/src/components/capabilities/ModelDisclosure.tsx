@@ -56,7 +56,7 @@ export function Models({ agent }: { agent: ModelFacts }) {
         <li key={`${m.provider}/${m.model}`}>
           <strong>Language model, {HOSTING[m.hosting].label.toLowerCase()}:</strong>{" "}
           {PROVIDER[m.provider] ?? m.provider} <code>{m.model}</code>. As configured, it{" "}
-          {HOSTING[m.hosting].explanation}, and your input is sent to it.
+          {HOSTING[m.hosting].explanation}. It is given what you type and the descriptions of your files, never the research data itself.
         </li>
       ))}
     </ul>

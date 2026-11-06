@@ -45,6 +45,7 @@ which gets one line that points to the code.
 | [Policy and identity](policy-and-identity.md) | Institutional profiles, signing in, the human an invocation acts for, and model credentials. |
 | [The app](app.md) | The browser shell, the app's process boundary and problem reports. |
 | [Projects](projects.md) | Projects, file inventories, documents and their versions, proposed changes and approval, sharing. |
+| [Drafting documents](drafting.md) | What a drafter may infer, ask and write; gaps, questions to the researcher and their answers. |
 | [Deposit](deposit.md) | Repository requirements and the deposit package. |
 | [Storage](storage.md) | The run and project storage protocols, their guarantees, the file backends and how another backend is added. |
 | [Disclosure](disclosure.md) | Model calls and their prompts, and the disclosure of how each approved document came about, as a statement and a PROV-O graph. |

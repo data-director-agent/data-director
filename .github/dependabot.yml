@@ -30,8 +30,9 @@ updates:
     commit-message:
       prefix: build(deps)
 
+  # The shell and the inventory library it links (inventory/browser) share their tooling.
   - package-ecosystem: npm
-    directory: /app/web
+    directories: [/app/web, /inventory/browser]
     schedule:
       interval: weekly
     cooldown:

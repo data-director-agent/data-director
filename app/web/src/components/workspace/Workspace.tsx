@@ -1,5 +1,5 @@
 /**
- * The workspace around the researcher's task: whom it acts for across the top, then a strip
+ * The workspace around the researcher's task: a strip across the top
  * showing the Blueprint's phases, which opens for detail. Beneath that, three columns: the
  * person's conversations on the left, the open conversation in the centre, and an overview of
  * the project on the right (its current state, attached files and documents). A delegated run
@@ -16,7 +16,6 @@ import { PageHeader } from "../frame/PageHeader";
 export function Workspace({
   title,
   titleHidden,
-  status,
   phases,
   history,
   centre,
@@ -24,7 +23,6 @@ export function Workspace({
 }: {
   title: string;
   titleHidden?: boolean | undefined;
-  status: ReactNode;
   phases: ReactNode;
   history?: ReactNode;
   centre: ReactNode;
@@ -32,9 +30,7 @@ export function Workspace({
 }) {
   return (
     <div className="workspace">
-      <PageHeader title={title} titleHidden={titleHidden} className="workspace-head">
-        {status}
-      </PageHeader>
+      <PageHeader title={title} titleHidden={titleHidden} className="workspace-head" />
       {phases}
       {history}
       <div className="workspace-centre">{centre}</div>

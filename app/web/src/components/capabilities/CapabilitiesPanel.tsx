@@ -27,7 +27,7 @@ export function CapabilitiesPanel({ agent }: { agent: AgentView }) {
       <h3>Can this deployment run it?</h3>
       <Gate gate={agent.gate} />
 
-      <h3>What powers it, and where it sends your data</h3>
+      <h3>What powers it, and what it is given</h3>
       <Models agent={agent} />
     </div>
   );

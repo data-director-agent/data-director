@@ -49,7 +49,6 @@ import { RunRefused, errorMessage } from "../../run/api";
 import type { Envelope } from "../../run/types";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
-import { StatusBar } from "../workspace/StatusBar";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
@@ -119,7 +118,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   }, [flowApi]);
 
   const frame = {
-    status: <StatusBar directory={directory} />,
     phases: <PhaseTracker load={flow} />,
   };
 
@@ -374,6 +372,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   fileCount={attached.fileCount}
                   madeAt={attached.madeAt}
                   name={attached.name}
+                  source={{ document: attached.document }}
                   onRemove={removeInventory}
                 />
               ) : (

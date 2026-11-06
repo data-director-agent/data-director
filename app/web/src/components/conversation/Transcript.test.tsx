@@ -41,7 +41,20 @@ describe("Transcript", () => {
       if (input) input.project_inventory = summary;
     }
     expect(conversation.turns.length).toBeGreaterThan(1);
-    render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
+    const { rerender } = render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
     expect(screen.getAllByText("Inventory: 42 files, made 1 Nov 2026")).toHaveLength(1);
+
+    // Only the inventory the project holds now is served, so only its chip opens it.
+    const project = { project_id: "p1", inventory: null };
+    const replaced = { digest: "b".repeat(64), file_count: 1, inventory_made_at: "x", added_at: "x" };
+    rerender(
+      <Transcript conversation={{ ...conversation, ...project, inventory: replaced }} agents={[]} onToggleRun={() => {}} />,
+    );
+    expect(screen.queryByRole("button", { name: "View inventory" })).toBeNull();
+    const current = { ...replaced, digest: summary.inventory_digest };
+    rerender(
+      <Transcript conversation={{ ...conversation, ...project, inventory: current }} agents={[]} onToggleRun={() => {}} />,
+    );
+    expect(screen.getByRole("button", { name: "View inventory" })).toBeVisible();
   });
 });

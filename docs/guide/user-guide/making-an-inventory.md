@@ -38,12 +38,15 @@ running a workshop you are in, to make the inventory for you.
 
 On the conversation page, select **Attach inventory** under the message box and choose
 `inventory.json`. You can also drop the file onto the message box. The inventory shows as a chip
-naming how many files it lists and when it was made. Write your request, such as "Please draft a
-README for this dataset", and send it. You can also send the inventory on its own.
+naming how many files it lists and when it was made. Select **View inventory** on the chip to
+read everything it holds before you send it: the folders and files, their sizes and formats, and
+the column names of each table. That is all Data Director keeps of your data. Write your
+request, such as "Please draft a README for this dataset", and send it. You can also send the
+inventory on its own.
 
 The conversation's project keeps the inventory, so you attach it once. Data Director gives it to
 the agents that need it. If your files change, make a new inventory and attach it: the latest one
-counts. The panel beside the conversation shows which inventory the project holds, and links to
-the documents agents have drafted.
+counts. The panel beside the conversation shows which inventory the project holds, with
+**View inventory** to read it again, and links to the documents agents have drafted.
 
 See [What the Data Director records](records.md) for who can see what you attach.

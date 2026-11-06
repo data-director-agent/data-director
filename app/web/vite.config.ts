@@ -1,12 +1,21 @@
 import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
+import { searchForWorkspaceRoot } from "vite";
 import { defineConfig } from "vitest/config";
+
+// @data-director/inventory is linked from inventory/browser and served as source, so the dev
+// server may read it as well as this folder.
+const INVENTORY = fileURLToPath(new URL("../../inventory/browser", import.meta.url));
 
 // The app's Python server (`uv run data-director`) serves /api; `npm run dev` proxies to it.
 const API = process.env.DD_APP_URL ?? "http://127.0.0.1:7860";
 
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { "/api": API } },
+  server: {
+    proxy: { "/api": API },
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), INVENTORY] },
+  },
   build: {
     outDir: "dist",
     sourcemap: true,

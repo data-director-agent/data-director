@@ -128,6 +128,8 @@ export interface ProjectApi {
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
   disclosure(projectId: string, signal?: AbortSignal): Promise<Disclosure>;
   decide(projectId: string, documentId: string, request: DecisionRequest): Promise<ProjectDocuments>;
+  /** The inventory the project holds, as it was added; the inventory dialog reads it. */
+  inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
 }
 
 /**
@@ -162,6 +164,14 @@ export const httpProjectApi: ProjectApi = {
     return json(
       await fetch(
         `/api/projects/${encodeURIComponent(projectId)}/disclosure`,
+        signal ? { signal } : {},
+      ),
+    );
+  },
+  async inventory(projectId, signal) {
+    return json(
+      await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/inventory`,
         signal ? { signal } : {},
       ),
     );

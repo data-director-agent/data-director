@@ -10,6 +10,7 @@ import asyncio
 import json
 import re
 import threading
+import uuid
 import webbrowser
 from collections.abc import Iterator
 from pathlib import Path
@@ -674,6 +675,22 @@ def test_an_attached_inventory_is_kept_and_the_orchestrator_is_told_of_it(
     found = client.get(f"/api/conversations/{conversation_id}").json()
     assert found["inventory"]["file_count"] == 2
     assert found["inventory"]["digest"] == added["digest"]
+
+    # The whole inventory is served for the researcher to read (the shell's inventory dialog).
+    kept = client.get(f"/api/projects/{project_id}/inventory")
+    assert kept.status_code == 200
+    assert [f["file_path"] for f in kept.json()["inventory_files"]] == ["a.csv", "b.csv"]
+
+
+def test_a_project_without_an_inventory_serves_none(in_projects: tuple[Governance, Any]):
+    _governance, app = in_projects
+    client = TestClient(app)
+    started = client.post("/api/conversations").json()
+    none = client.get(f"/api/projects/{started['project_id']}/inventory")
+    assert (none.status_code, none.json()["title"]) == (404, "No inventory")
+    unknown = client.get(f"/api/projects/{uuid.uuid4()}/inventory")
+    assert (unknown.status_code, unknown.json()["title"]) == (404, "No such project")
+    assert client.get("/api/projects/..%2F..%2Fetc/inventory").status_code == 404
 
 
 @pytest.mark.parametrize(

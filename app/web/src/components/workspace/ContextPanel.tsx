@@ -9,8 +9,11 @@
 
 import "./ContextPanel.css";
 
-import { INVENTORY_GUIDE } from "../../conversation/inventory";
+import { useMemo } from "react";
+
+import { INVENTORY_GUIDE, type InventorySource } from "../../conversation/inventory";
 import type { Conversation } from "../../conversation/types";
+import { useProjectApi } from "../../project/api";
 import { Link } from "../../route";
 import { InventoryChip } from "../conversation/InventoryChip";
 import { IssueLinks } from "../NotBuilt";
@@ -27,6 +30,11 @@ const NOT_BUILT: { label: string; issues: number[] }[] = [
 export function ContextPanel({ conversation = null }: { conversation?: Conversation | null }) {
   const projectId = conversation?.project_id;
   const inventory = conversation?.inventory;
+  const projectApi = useProjectApi();
+  const source = useMemo<InventorySource | undefined>(
+    () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
+    [projectApi, projectId],
+  );
   return (
     <section aria-labelledby="context-heading" className="workspace-context">
       <h2 id="context-heading">Project</h2>
@@ -59,6 +67,7 @@ export function ContextPanel({ conversation = null }: { conversation?: Conversat
                 <InventoryChip
                   fileCount={inventory.file_count}
                   madeAt={inventory.inventory_made_at}
+                  source={source}
                 />
               </p>
             ) : (
