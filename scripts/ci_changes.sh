@@ -51,8 +51,8 @@ while IFS= read -r f; do
     # are on the site.
     CONFORMANCE.md | sdk/README.md | harness/README.md | workbench/README.md | inventory/README.md)
       python=true docs=true ;;
-    # An agent's system prompt is Markdown but is the agent's code, which its tests check.
-    agents/*/system_prompt.md) python=true ;;
+    # An agent's prompts are Markdown but are the agent's code, which its tests check.
+    agents/*_prompt.md) python=true ;;
     # The documentation site: docs/hooks.py publishes every other Markdown file, and
     # scripts/check_site_accessibility.py checks the site. The docs job in ci.yml checks links.
     *.md | docs/guide/* | docs/hooks.py | mkdocs.yml | scripts/check_site_accessibility.py) docs=true ;;

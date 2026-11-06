@@ -53,8 +53,15 @@ def test_the_orchestrator_key_reaches_no_stored_record(runs_dir: Path) -> None:
     assert payload.reply_text == "The greeting agent says: Hello, Ada!"
     assert [d.delegated_agent_id for d in env.delegations] == ["example.hello"]
     assert env.telemetry.model_id == "claude-sonnet-5-5"
-    # Cached input counts as input read.
-    assert env.telemetry.input_tokens == 900 + 600 + 80 + 600
+    # The first turn is titled by the title model, its quotes and full stop removed.
+    assert payload.conversation_title == "Greeting Ada"
+    assert [c.model_id for c in env.telemetry.model_calls] == [
+        "claude-sonnet-5-5",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5",
+    ]
+    # Cached input counts as input read; the title call's tokens count too.
+    assert env.telemetry.input_tokens == 900 + 600 + 80 + 600 + 120
     assert conductor.grounding_reports[env.invocation_id].passed
 
     stored = [p for p in runs_dir.rglob("*") if p.is_file()]

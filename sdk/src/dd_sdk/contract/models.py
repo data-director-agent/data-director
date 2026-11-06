@@ -20,6 +20,9 @@ SHA256_PATTERN = r"^[0-9a-f]{64}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
 IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
+# One line of 1 to 80 characters (Reply.conversation_title).
+CONVERSATION_TITLE_PATTERN = r"^.{1,80}$"
+CONVERSATION_TITLE_MAX = 80
 
 
 class Frozen(BaseModel):
@@ -361,6 +364,8 @@ class Reply(Grounded):
     schema_class: Literal["Reply"] = "Reply"
     reply_text: str
     reply_derivation: Derivation
+    # Set by a model on a conversation's first turn only; what lists the conversation shows.
+    conversation_title: str | None = Field(default=None, pattern=CONVERSATION_TITLE_PATTERN)
 
 
 class DocumentVersionRef(Frozen):

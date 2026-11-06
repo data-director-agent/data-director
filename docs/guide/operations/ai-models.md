@@ -8,7 +8,7 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 
 | Agent | Calls a model | Default model | Needs a key |
 |---|---|---|---|
-| `orchestrator.model` | Always. It writes the replies in the app's conversation. | `claude-sonnet-5-5` | Yes: it does not start without one. |
+| `orchestrator.model` | Always. It writes the replies in the app's conversation, and names each new conversation. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name | Yes: it does not start without one. |
 | `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=anthropic`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode. |
 | `advisor.policy` | Only with `DD_POLICY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
@@ -30,6 +30,10 @@ steward, and to the institution's data protection officer, before turning either
   `DD_ORCHESTRATOR_HISTORY`), the description of each agent the profile permits, and the result of
   each agent it delegates to: that agent's status, statement and payload. What a user types into
   the conversation, and what a delegated agent returns about their data, reaches the provider.
+  On a conversation's first turn it also sends the first message, and nothing else, to a second
+  model (`DD_TITLE_MODEL_ID`) that writes the title the app lists the conversation by.
+  `DD_TITLE_MODEL=none` turns that call off, and the app then names the conversation by the
+  start of its first message.
 - **The standards advisor's explainer** sends the dataset profile's title, description, keywords,
   themes and field names and types, and the candidate standards' names, descriptions and
   subjects. It never sends data values.
@@ -170,7 +174,7 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `ANTHROPIC_API_KEY_FILE=… is relative and CREDENTIALS_DIRECTORY is not set` | A relative path outside a systemd unit that loads the credential. |
 | `ANTHROPIC_API_KEY_FILE: cannot read …` / `… is empty` | The file is missing, unreadable or empty. |
 | `no model key` on the VM, after a key was put in place by hand | `install.sh` left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo deploy/secret.sh list` shows it as a `PROBLEM`. |
-| `DD_ORCHESTRATOR_EFFORT=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
+| `DD_ORCHESTRATOR_EFFORT=…`, `DD_TITLE_MODEL=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
 
 If the credential file is missing, systemd refuses to start the unit at all, since the unit
 declares `LoadCredential=`. That is why the orchestrator's unit is enabled only once its key is
