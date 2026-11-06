@@ -11,9 +11,12 @@
 - `DD_ORCHESTRATOR_EFFORT`: `low`, `medium`, `high` (default), `xhigh` or `max`.
 - `DD_ORCHESTRATOR_HISTORY`: how many earlier turns of the conversation it sends (default 20).
 - `DD_ORCHESTRATOR_MAX_DELEGATIONS`: how many delegations one turn may make (default 4).
+- `DD_TITLE_MODEL_ID`: the model that names a conversation on its first turn (`title.py`).
+  Claude Haiku 5.5 by default.
+- `DD_TITLE_MODEL`: `none` names no conversation, so no second model is sent the first message.
 
 A missing key or a value out of range is a configuration error (`ConfigError`):
-`dd-orchestrator-model serve` then stops at start-up. The spec declares the model it sends data to
+`dd-orchestrator-model serve` then stops at start-up. The spec declares the models it sends data to
 (`AgentSpec.models`).
 """
 
@@ -29,6 +32,7 @@ from dd_agent_orchestrator_model.agent import (
     ModelOrchestrator,
 )
 from dd_agent_orchestrator_model.model import DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, AnthropicModel
+from dd_agent_orchestrator_model.title import DEFAULT_TITLE_MODEL, AnthropicTitler
 from dd_sdk import serve
 from dd_sdk.agent import ModelUse
 from dd_sdk.credentials import ConfigError, api_key
@@ -56,12 +60,24 @@ def build(env: Mapping[str, str] | None = None) -> ModelOrchestrator:
             f"DD_ORCHESTRATOR_EFFORT={effort!r}: expected one of {', '.join(EFFORTS)}"
         )
     model_id = env.get("DD_MODEL_ID", DEFAULT_MODEL)
+    titles = env.get("DD_TITLE_MODEL")
+    if titles not in (None, "none"):
+        raise ConfigError(
+            f"DD_TITLE_MODEL={titles!r}: expected none, or leave it unset and name the model "
+            "with DD_TITLE_MODEL_ID"
+        )
+    title_model_id = None if titles == "none" else env.get("DD_TITLE_MODEL_ID", DEFAULT_TITLE_MODEL)
+    key = api_key(env)
     agent = ModelOrchestrator(
-        AnthropicModel(model_id=model_id, effort=effort, api_key=api_key(env)),
+        AnthropicModel(model_id=model_id, effort=effort, api_key=key),
         history_turns=_count(env, "DD_ORCHESTRATOR_HISTORY", DEFAULT_HISTORY_TURNS, 0),
         max_delegations=_count(env, "DD_ORCHESTRATOR_MAX_DELEGATIONS", DEFAULT_MAX_DELEGATIONS, 1),
+        titler=(AnthropicTitler(model_id=title_model_id, api_key=key) if title_model_id else None),
     )
-    agent.spec = replace(agent.spec, models=(ModelUse("anthropic", model_id, "hosted"),))
+    models = [ModelUse("anthropic", model_id, "hosted")]
+    if title_model_id and title_model_id != model_id:
+        models.append(ModelUse("anthropic", title_model_id, "hosted"))
+    agent.spec = replace(agent.spec, models=tuple(models))
     return agent
 
 

@@ -126,7 +126,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   TODO(#497) decide them and add them to the dependency-cruiser config.
 - **Conversations and delegation** are specified in [Orchestration](orchestration.md); the app
   supplies the conductor's callback and the conversation API over it. Which agent is the
-  orchestrator is a profile key ([Policy and identity](policy-and-identity.md)).
+  orchestrator is a profile key ([Policy and identity](policy-and-identity.md)). Earlier
+  conversations are listed by the title the harness derives, with the date and turn count beside
+  it; the app writes no title, since it calls no model.
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
   its process, so there is nothing in it to call a model.

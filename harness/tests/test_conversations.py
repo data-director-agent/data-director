@@ -3,6 +3,7 @@ delegated children, history for the next turn, and version changes between turns
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ from dd_sdk.contract.models import (
     GroundingMode,
     InvocationRequest,
     Message,
+    Reply,
     new_invocation_id,
 )
 
@@ -98,3 +100,63 @@ def test_a_version_change_between_turns_is_reported(tmp_path: Path) -> None:
     ]
     # A structured turn shows in the history as its JSON.
     assert found["history"][0]["turn_text"].startswith('{"creators":')
+
+
+def titled_reply(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+    """A first turn's Reply with a model-written title; later turns carry none."""
+    result = relay(req, ctx)
+    assert isinstance(result.payload, Reply) and isinstance(req.input, Message)
+    title = None if req.input.history else "Soil survey deposit"
+    payload = result.payload.model_copy(update={"conversation_title": title})
+    return dataclasses.replace(result, payload=payload)
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_conversation_is_titled_by_its_first_turns_reply(tmp_path: Path) -> None:
+    conductor = make_conductor(
+        tmp_path,
+        ScriptedAgent(GroundingMode.DELEGATION, titled_reply),
+        ScriptedAgent(GroundingMode.NONE, review_of_input),
+    )
+    conv = new_invocation_id()
+    first = conductor.invoke(
+        turn("fake.delegation", conv, message("I want to deposit my soil survey")),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert first.payload_as(Reply).conversation_title == "Soil survey deposit"
+    found = conversations.get_conversation(conductor.store, conv)
+    assert found is not None
+    later = Message(message_text="And the licence?", history=found["history"])
+    conductor.invoke(turn("fake.delegation", conv, later), acting_for=TEST_PRINCIPAL)
+
+    [summary] = conversations.list_conversations(conductor.store)
+    assert summary["turns"] == 2
+    assert summary["title"] == "Soil survey deposit"
+    assert summary["title_source"] == "model"
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_without_a_model_title_a_conversation_is_named_by_its_first_message(
+    tmp_path: Path,
+) -> None:
+    """As with orchestrator.stub, which writes no title."""
+    conductor = make_conductor(
+        tmp_path,
+        ScriptedAgent(GroundingMode.DELEGATION, relay),
+        ScriptedAgent(GroundingMode.NONE, review_of_input),
+    )
+    short, long = new_invocation_id(), new_invocation_id()
+    conductor.invoke(
+        turn("fake.delegation", short, message("Which  licence\nshould I use?")),
+        acting_for=TEST_PRINCIPAL,
+    )
+    text = "I have interview transcripts from a study of farmers and want to share them openly"
+    conductor.invoke(turn("fake.delegation", long, message(text)), acting_for=TEST_PRINCIPAL)
+
+    found = {s["conversation_id"]: s for s in conversations.list_conversations(conductor.store)}
+    assert found[short]["title"] == "Which licence should I use?"
+    assert found[short]["title_source"] == "message"
+    title = found[long]["title"]
+    assert title == "I have interview transcripts from a study of farmers and…"
+    assert len(title) <= conversations.MESSAGE_TITLE_MAX
+    assert found[long]["title_source"] == "message"
