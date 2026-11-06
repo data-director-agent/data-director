@@ -521,6 +521,7 @@ def build_app(
             *delegation,
             Route("/agents", shell, methods=["GET"]),
             Route("/feedback", shell, methods=["GET"]),
+            Route("/profile", shell, methods=["GET"]),
             Route("/projects/{project_id}", shell, methods=["GET"]),
             Route("/sign-in", shell, methods=["GET"]),
             Route("/signed-out", shell, methods=["GET"]),

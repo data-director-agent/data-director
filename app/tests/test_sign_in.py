@@ -271,6 +271,7 @@ def test_what_the_sign_in_page_needs_is_open(deployment: Deployment):
     assert browser.get("/api/about").status_code == 200
     assert browser.get("/sign-in").status_code == 200
     assert browser.get("/signed-out").status_code == 200
+    assert browser.get("/profile").status_code == 200
 
 
 def test_an_unknown_session_cookie_is_refused(deployment: Deployment):
