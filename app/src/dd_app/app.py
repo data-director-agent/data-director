@@ -346,7 +346,10 @@ def build_app(
     limiter = feedback.RateLimiter()
 
     async def get_about(request: Request) -> Response:
-        return JSONResponse({**identity, "feedback_enabled": feedback_source is not None})
+        deployment = await run_in_threadpool(governance.deployment)
+        return JSONResponse(
+            {**identity, **deployment, "feedback_enabled": feedback_source is not None}
+        )
 
     async def send_feedback(request: Request, _: Principal) -> Response:
         if feedback_source is None:
