@@ -233,6 +233,9 @@ filterwarnings = [
   # a2a-sdk 1.1 calls protobuf's deprecated FieldDescriptor.label(); with warnings as errors the
   # C-level call surfaces as a SystemError inside the JSON-RPC dispatcher. Not ours to fix.
   "ignore:label\\(\\) is deprecated:DeprecationWarning",
+  # pytest 9.2 flags pytest-base-url's session-scoped `base_url` fixture (an instance method, via
+  # pytest-playwright); with warnings as errors every browser test errors at setup. Not ours to fix.
+  "ignore:Session-scoped fixtures defined as instance methods are deprecated:pytest.PytestRemovedIn10Warning",
 ]
 markers = [
   "requirement(*ids): the requirement identifiers this test substantiates (see docs/requirements.yaml)",
