@@ -11,13 +11,12 @@ only its own agent can read.
 
 | What | On a server | In development | Read by |
 |---|---|---|---|
-| The operator's identity, the app's address, problem reports | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
+| The ORCID client, the app's address, problem reports (and the operator, on a development server) | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
 | Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |
 | One agent's own settings, such as `DD_STANDARDS_*` and `DD_MODEL_ID` | `/etc/data-director/agents/<name>.env` | `config/local/agents/<name>.env` ([examples](../../../config/examples/agents/)) | That agent |
-| A model key | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
+| A model key, or the app's ORCID client secret | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
 | An agent's port | `deploy/agents/<name>.env` in the release | `scripts/run-agents.sh` | The unit, and `agents.yaml` |
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
-| Who may use the site | `/etc/nginx/data-director.htpasswd` | none | NGINX |
 
 The app and the harness hold no model key ([Policy and identity](../../specs/policy-and-identity.md)), so the first two rows never contain one.
 
@@ -51,11 +50,14 @@ deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, th
 | `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | Optional: a session ends after 8 hours unused or 7 days at most |
 
 Sign-in needs HTTPS. Sessions are held in memory, so restarting the app signs everyone out. The
-app asks ORCID for the iD and the name only, and keeps no token. TODO(#155): `install.sh` and the
-NGINX configuration still set up the operator and the site's password; follow #155 before relying
-on sign-in in a deployment.
+app asks ORCID for the iD and the name only, and keeps no token. A deployment made with
+`deploy/install.sh` always signs people in: the installer fills `DD_APP_PUBLIC_URL`, waits for the
+other settings and the secret (`/etc/data-director/credentials/app/orcid-client-secret`, which the
+app's unit loads), and sets up no site password ([Deploying to a VM](../../../deploy/README.md)).
+The default session lengths are 8 hours unused and 7 days at most; confirm them against your
+institution's policy.
 
-Without `DD_OIDC_ISSUER`, nobody signs in. `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are then
+On a development server, without `DD_OIDC_ISSUER`, nobody signs in. `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` are then
 required, every run acts for this operator, whoever uses the page, and the banner says on every
 page that nobody is signed in. Use an ORCID iD URL as the identifier where the operator has one.
 Setting both a provider and an operator stops the app at start-up.
@@ -70,8 +72,8 @@ Setting both a provider and an operator stops the app at start-up.
 
 ## Before you open it to users
 
-1. Turn on sign-in (above), or set the operator in `app.env` and the site's password in NGINX,
-   which are then the only access controls.
+1. Check that sign-in works (above): sign in with an ORCID iD, and confirm that a request with no
+   session is answered 401 (`curl -i https://<your host>/api/agents`).
 2. Review the profile. List only the agents you intend to offer, and add to
    `actions_requiring_approval` any action that must be referred to a person.
 3. Decide on [AI models](ai-models.md): whether either model-backed agent is on, which model, and

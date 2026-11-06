@@ -13,7 +13,7 @@ An operator decides three things that a user and a developer do not:
 - **What leaves the institution.** An agent that calls a hosted AI model sends it part of the
   user's input. [AI models](ai-models.md) says which agents do, what they send, and how to choose
   and supply a model.
-- **Who holds which secret.** Model keys, the operator's identity and the site's password each
+- **Who holds which secret.** Model keys and the ORCID client's secret each
   have one place to live. [Configuration](configuration.md) lists them.
 
 ## In this guide
@@ -30,11 +30,8 @@ The [architecture](../../architecture.md) and the
 
 ## Limits of the alpha
 
-- People can sign in with ORCID ([configuration](configuration.md#who-a-run-acts-for)), but the
-  deployment scripts do not set it up yet (#155), and everyone signed in sees every run (#153).
-  Without sign-in, every run acts for the operator named in `DD_PRINCIPAL_ID`, and the site's
-  password is the only access control. Keep the app and agent ports on loopback or a private
-  network.
+- People sign in with ORCID ([configuration](configuration.md#who-a-run-acts-for)), and everyone
+  signed in sees every run (#153). Keep the app and agent ports on loopback or a private network.
 - No notice reaches anyone when a deployment fails (#144), and GitHub does not show what is
   deployed (#145). The journal and `systemctl --failed` are the record.
 - A profile cannot yet limit which models may receive which class of data (#40).

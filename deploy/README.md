@@ -12,13 +12,13 @@ connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
    │                                          ▼
  VM: data-director-deploy.timer ──▶ deploy.sh ── build ──▶ /opt/data-director/releases/<sha>
                                               └─ switch /opt/data-director/current, restart
- browser ──HTTPS──▶ NGINX (password) ──▶ app 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101–8117
+ browser ──HTTPS──▶ NGINX ──▶ app (ORCID sign-in) 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101–8117
 ```
 
-The app is alpha and has no authentication (#17): every run acts for the operator named in
-`/etc/data-director/app.env`, not for the person using the page ([Policy and identity](../docs/specs/policy-and-identity.md)). NGINX therefore asks
-for a password, and the app and agents listen on loopback only ([Agents](../docs/specs/agents.md)). Keep it that way until
-#17 is done.
+The app signs people in with ORCID, and each run acts for the person who signed in
+([Policy and identity](../docs/specs/policy-and-identity.md)). NGINX adds no password of its own; the app answers 401 to
+a request without a session. The app and agents listen on loopback only ([Agents](../docs/specs/agents.md)). Keep
+it that way: a request that reaches an agent directly carries no sign-in.
 
 ## What is here
 
@@ -34,7 +34,7 @@ for a password, and the app and agents listen on loopback only ([Agents](../docs
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
-| `nginx/data-director.conf` | The reverse proxy: HTTPS only, password, long timeouts for runs, `/a2a` closed from outside. |
+| `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` closed from outside. |
 
 Every agent, the standards advisor included, is a service of its own; the app runs none in its
 process ([The app](../docs/specs/app.md)).
@@ -50,16 +50,18 @@ process ([The app](../docs/specs/app.md)).
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |
-| `/etc/data-director/app.env` | The app's settings (`config/examples/app.env`); `DD_PRINCIPAL_*` are required. |
+| `/etc/data-director/app.env` | The app's settings (`config/examples/app.env`); `DD_OIDC_*` and `DD_APP_PUBLIC_URL` are required. |
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
-| `/etc/data-director/credentials/` | Model keys, readable by root alone. Never put a key in an `.env` file. |
+| `/etc/data-director/credentials/` | Model keys and the ORCID client's secret, readable by root alone. Never put a key or secret in an `.env` file. |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
-| `/etc/nginx/data-director.htpasswd` | Who may use the site. |
+| `/var/lib/data-director/.sign-in` | Marks that the run store has started afresh for sign-in (see the upgrade below). |
 
 ## Set up the VM
 
-You need Ubuntu 22.04 or later, sudo, and a DNS name that resolves to the VM.
+You need Ubuntu 22.04 or later, sudo, a DNS name that resolves to the VM, and an ORCID public API
+client (free, at <https://orcid.org/developer-tools>; use <https://sandbox.orcid.org> to try it out)
+whose redirect URI is `https://<name>/api/sign-in/callback`.
 
 1. Open the firewall to the web only. Port 80 must be reachable from the internet for Let's
    Encrypt to issue and renew the certificate; on a network where it is not, ask IT for a
@@ -70,8 +72,7 @@ You need Ubuntu 22.04 or later, sudo, and a DNS name that resolves to the VM.
    ```
 
 2. Clone the repository anywhere and run the installer. It gets the certificate with certbot
-   (which asks for an email address the first time) and asks for the first user name and
-   password for the site.
+   (which asks for an email address the first time).
 
    ```bash
    git clone https://github.com/data-director-agent/data-director.git
@@ -79,14 +80,20 @@ You need Ubuntu 22.04 or later, sudo, and a DNS name that resolves to the VM.
    sudo deploy/install.sh --domain data-director.example.ac.uk
    ```
 
-3. It stops to ask for the operator. Set `DD_PRINCIPAL_ID` (an ORCID iD URL, for example) and
-   `DD_PRINCIPAL_NAME` in `/etc/data-director/app.env`, then run it again. That builds the first
-   release, which takes some minutes, starts everything and enables the timer.
+3. It stops and lists what it still needs: the ORCID client. Uncomment and set `DD_OIDC_ISSUER`
+   (`https://orcid.org`) and `DD_OIDC_CLIENT_ID` in `/etc/data-director/app.env`
+   (`DD_APP_PUBLIC_URL` is already filled in), and put the client's secret in a root-only file.
+   Then run it again. That builds the first release, which takes some minutes, starts everything
+   and enables the timer.
 
    ```bash
    sudoedit /etc/data-director/app.env
+   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/app/orcid-client-secret   # paste, Ctrl-D
    sudo deploy/install.sh --domain data-director.example.ac.uk
    ```
+
+   Leave `DD_PRINCIPAL_ID` and `DD_PRINCIPAL_NAME` empty: the app stops at start-up if it is given
+   both a provider and an operator, and `install.sh` refuses to go on.
 
 The site is then HTTPS only: port 80 redirects, TLS 1.3 alone is offered, and HSTS is set. A
 certificate from IT needs renewing by hand. One from certbot renews itself, and a hook that
@@ -120,7 +127,6 @@ sudo systemctl start data-director-deploy.service       # look now
 journalctl -u data-director -u 'data-director-agent@*' -f   # the app and agents
 readlink /opt/data-director/current                     # which commit is linked
 curl -s http://127.0.0.1:7860/api/about                 # which commit is running
-sudo htpasswd -B /etc/nginx/data-director.htpasswd NAME # add a user (or change a password)
 ```
 
 `deploy.sh` waits while CI is running, and skips a commit whose CI failed until it passes on a
@@ -208,9 +214,17 @@ template explainer. After adding or removing a key, run `install.sh` again.
   `data-director-app.service`, and its port in that unit's `DD_WAIT_PORTS`.
   `scripts/check_deploy.py`, run in CI, fails until all four agree with `agents.yaml`.
 
+## Moving a VM from the operator and password to sign-in
+
+Pull the repository, delete the `DD_PRINCIPAL_*` lines from `app.env`, set the ORCID client as in
+step 3 and run `sudo deploy/install.sh --domain …`. It stops the services and moves the run store
+to `/var/lib/data-director/runs.before-sign-in-<date>`, because a store holds no run for a person
+who signed in beside runs recorded for an operator. Then remove the password file,
+`sudo rm /etc/nginx/data-director.htpasswd`.
+
 ## Not done yet
 
 - TODO(#144): no notice reaches anyone when a deployment fails; the journal and
   `systemctl --failed` are the record.
 - TODO(#145): GitHub does not show what is deployed.
-- The site's password is the only access control until the app authenticates people (#17).
+- Everyone signed in sees every run (#153).
