@@ -9,7 +9,7 @@ description = "advisor.policy: checks funder, journal and institutional data pol
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-dependencies = ["data-director-sdk>=0.2.0a0", "httpx>=0.28", "rank-bm25>=0.2.2"]
+dependencies = ["data-director-sdk>=0.2.0a0", "httpx>=0.28", "pydantic>=2.14.1,<3", "rank-bm25>=0.2.2"]
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.50"]

@@ -15,7 +15,7 @@ dependencies = [
   "data-director-sdk>=0.2.0a0",
   "data-director-harness>=0.2.0a0",
   "pydantic>=2.14.1,<3",
-  "httpx>=0.28",
+  "starlette>=0.40",
   "ag-ui-protocol>=1.0.0,<1.1",
   "uvicorn>=0.30",
 ]
@@ -34,6 +34,22 @@ dev = [
   "data-director-agent-example-hello",
   "data-director-agent-advisor-quality",
   "data-director-agent-advisor-standards",
+  # The viewer's browser tests (browser_tests/).
+  "pytest>=8.3",
+  "playwright",
+  "axe-playwright-python",
+]
+
+[tool.deptry.per_rule_ignores]
+# browser_tests/ is test code, but deptry counts only tests/ and conftest.py as such.
+DEP004 = [
+  "axe_playwright_python",
+  "dd_agent_advisor_quality",
+  "dd_agent_advisor_standards",
+  "dd_agent_example_hello",
+  "dd_agent_orchestrator_stub",
+  "playwright",
+  "pytest",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -9,7 +9,7 @@ description = "advisor.quality: a demonstration metadata-completeness agent"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-dependencies = ["data-director-sdk>=0.2.0a0", "pyyaml>=6.0"]
+dependencies = ["data-director-sdk>=0.2.0a0", "pydantic>=2.14.1,<3", "pyyaml>=6.0"]
 
 [project.scripts]
 dd-advisor-quality = "dd_agent_advisor_quality.agent:main"

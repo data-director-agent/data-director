@@ -247,6 +247,10 @@ layers, not selector specificity, decides which rule wins.
   `web/src/tokens/neutral.css` ([The app](../docs/specs/app.md)). Stylelint (`web/.stylelintrc.json`, part of
   `npm run lint`) rejects a literal colour outside the token file. The typeface, Inter, is
   self-hosted from `@fontsource-variable/inter`; no font is fetched from a third party.
+- **Imports.** `npm run lint` also checks the import graph: dependency-cruiser
+  (`web/.dependency-cruiser.cjs`) rejects cycles, and eslint-plugin-boundaries
+  (`web/eslint.config.js`) keeps `components/ui` free of feature components and the domain
+  folders free of components ([The app](../docs/specs/app.md)).
 - **Icons.** Icons are [Lucide](https://lucide.dev) (`lucide-react`, ISC licence), bundled with
   the app and imported one by one. A button takes one through its `icon` prop. The icon is
   decoration and hidden from screen readers, so the label alone says what the button does.
