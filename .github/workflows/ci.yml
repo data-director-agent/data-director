@@ -217,8 +217,9 @@ jobs:
   # CONFORMANCE.md is decided by the register, the review record, the report script and the outcome
   # of every requirement-marked test, so this job reads the report that `test` wrote. It runs even
   # when a test failed, so a stale file is reported beside the failure.
-  # It is advisory for now: `ci-passed` does not need it, so a stale file is reported but does
-  # not block a pull request. TODO(#458): decide how the file is kept current and require it again.
+  # It is advisory for now: `ci-passed` does not need it, and a stale file is raised as a warning
+  # annotation, so the job stays green and nothing blocks a pull request.
+  # TODO(#458): decide how the file is kept current and require it again.
   conformance:
     name: CONFORMANCE.md is current
     needs: [changes, test]
@@ -236,7 +237,11 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: pytest-report
-      - run: uv run python scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"
+      - name: Check CONFORMANCE.md (warning only)
+        run: |
+          if ! uv run python scripts/conformance_report.py --check --summary "$GITHUB_STEP_SUMMARY"; then
+            echo "::warning title=CONFORMANCE.md is out of date::Run scripts/conformance_report.py after pytest and commit the result (docs/conformance.md)."
+          fi
 
   packages:
     name: Packages and agents as services

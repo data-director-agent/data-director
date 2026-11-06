@@ -1,5 +1,5 @@
-"""The orchestrator's one way to the model, and its only importer of `anthropic`
-(docs/specs/dependencies.md).
+"""The orchestrator's way to the model that replies. With `title.py`, which names a conversation,
+it is the only importer of `anthropic` (docs/specs/dependencies.md).
 
 `Model.turn` sends the conversation so far, with the tools the run built from the manifest, and
 returns one `ModelTurn`: the text, the tool calls, why the model stopped, and the assistant

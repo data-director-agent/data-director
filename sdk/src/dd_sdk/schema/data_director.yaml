@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.6
+version: 0.9.7
 license: MIT
 
 prefixes:
@@ -399,6 +399,7 @@ classes:
       - schema_class
       - reply_text
       - reply_derivation
+      - conversation_title
 
   Document:
     description: >-
@@ -707,6 +708,14 @@ slots:
     description: How reply_text came about. template for a rule-based agent, model for a model.
     range: Derivation
     required: true
+  conversation_title:
+    description: >-
+      A short label a person can tell the conversation apart by, written by a model from the
+      researcher's first message. Set only on a conversation's first turn, and only by an agent
+      that declares it model-derived; absent otherwise.
+    slot_uri: dcterms:title
+    # One line of 1 to 80 characters; this LinkML has no maximum_length.
+    pattern: "^.{1,80}$"
   document_kind:
     range: DocumentKind
     required: true
