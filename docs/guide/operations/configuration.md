@@ -125,4 +125,4 @@ Setting both a provider and an operator stops the app at start-up.
    whose key. Tell users when the answer is yes, since their conversation then goes to a
    provider.
 4. Confirm the app and agent ports are on loopback or a private network.
-5. Open the app and read each agent's About tab: it states what the instance is configured to do.
+5. Open the app and read each agent's page in the agent directory: it states what the instance is configured to do.

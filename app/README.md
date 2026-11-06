@@ -127,7 +127,7 @@ The app supplies its own configuration to the harness ([System and boundaries](.
 | `config/profile.yaml.example` | The institutional profile. It enables every in-tree agent. Copy it to `config/profile.yaml` (not committed) to edit it locally; the app prefers that copy. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
-| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
+| `config/examples/` | Example inputs, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 | `projects/` (not committed) | Each project's log, with its documents and the decisions on them. | `DD_PROJECTS_DIR` |
 

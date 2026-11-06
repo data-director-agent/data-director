@@ -1,49 +1,18 @@
 /**
- * Capabilities and limits: what one agent can do, how it grounds its results, and what this
- * deployment allows it, drawn entirely from its manifest (checklist items 9 and 2).
- *
- * Nothing here names an agent. A field the agent has not declared is shown as "Not declared",
- * and a reliability nobody has evaluated is shown as unsubstantiated.
+ * What one agent can do for a person and whether this deployment will run it, drawn from its
+ * manifest. Nothing here names an agent. How it grounds results, how each field is produced, its
+ * version and its oversight declarations are for the workbench, not for end users.
  */
 
 import "./CapabilitiesPanel.css";
 
-import type { AgentView, Declared, GateStatus } from "../../manifest/normalise";
-import { DERIVATION, GROUNDING, className } from "../../manifest/wording";
-import { IssueLinks } from "../NotBuilt";
+import type { AgentView, GateStatus } from "../../manifest/normalise";
+import { className } from "../../manifest/wording";
 import { Models } from "./ModelDisclosure";
 
-const OVERSIGHT_FIELDS: { key: keyof AgentView["oversight"]; label: string }[] = [
-  { key: "actions", label: "What it may change" },
-  { key: "limits", label: "Limits" },
-  { key: "reliability", label: "Reliability" },
-  { key: "outcomes", label: "Outcomes it may return" },
-  { key: "dataSensitivity", label: "How it handles sensitive data" },
-];
-
-/**
- * `embedded` is for a page that already names the agent and gives its description in a heading
- * of its own (the agent workspace), so the panel does not repeat them.
- */
-export function CapabilitiesPanel({ agent, embedded = false }: { agent: AgentView; embedded?: boolean }) {
-  const headingId = `agent-${agent.id}-heading`;
-  const Wrapper = embedded ? "div" : "section";
+export function CapabilitiesPanel({ agent }: { agent: AgentView }) {
   return (
-    <Wrapper className="panel" {...(embedded ? {} : { "aria-labelledby": headingId })}>
-      {!embedded && (
-        <>
-          <h2 id={headingId}>
-            {agent.title ? (
-              <>
-                {agent.title} <code>{agent.id}</code>
-              </>
-            ) : (
-              <code>{agent.id}</code>
-            )}
-          </h2>
-          <p>{agent.description}</p>
-        </>
-      )}
+    <div className="panel">
       <dl className="facts">
         <dt>Takes</dt>
         <dd>{agent.accepts.map(className).join(", ")}</dd>
@@ -53,89 +22,14 @@ export function CapabilitiesPanel({ agent, embedded = false }: { agent: AgentVie
             ? "No result: it only reports an outcome"
             : className(agent.payload)}
         </dd>
-        <dt>Version</dt>
-        <dd>
-          {agent.version} (contract {agent.contractVersion})
-        </dd>
       </dl>
 
       <h3>Can this deployment run it?</h3>
       <Gate gate={agent.gate} />
 
-      <h3>How it grounds its results</h3>
-      <p>
-        <strong>{GROUNDING[agent.groundingMode].label}.</strong>{" "}
-        {GROUNDING[agent.groundingMode].explanation}
-      </p>
-
-      {agent.payload !== null && (
-        <>
-          <h3>How each field is produced</h3>
-          {agent.derivations.length === 0 ? (
-            <p>Every field is copied from your input or from the records it cites.</p>
-          ) : (
-            <>
-              <p>Fields not listed here are copied from your input or from the records it cites.</p>
-              <table className="derivations">
-                <thead>
-                  <tr>
-                    <th scope="col">Field</th>
-                    <th scope="col">How it is produced</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {agent.derivations.map((d) => (
-                    <tr key={d.path}>
-                      <td>
-                        <code>{d.path}</code>
-                      </td>
-                      <td>{DERIVATION[d.how]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </>
-      )}
-
       <h3>What powers it, and where it sends your data</h3>
       <Models agent={agent} />
-
-      <h3>Limits and reliability</h3>
-      {OVERSIGHT_FIELDS.every(({ key }) => agent.oversight[key].state === "undeclared") && (
-        <p>
-          This agent does not declare its limits, its reliability or how it handles sensitive
-          data. Treat its reliability as unsubstantiated.
-        </p>
-      )}
-      <dl className="facts">
-        {OVERSIGHT_FIELDS.map(({ key, label }) => (
-          <OversightFact key={key} label={label} value={agent.oversight[key]} />
-        ))}
-      </dl>
-      <p className="hint">
-        Agents cannot declare these yet: that needs the oversight extension (
-        <IssueLinks issues={[67]} />
-        ).
-      </p>
-    </Wrapper>
-  );
-}
-
-function OversightFact({ label, value }: { label: string; value: Declared<unknown> }) {
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>
-        {value.state === "undeclared" ? (
-          <span className="status status-undeclared">Not declared</span>
-        ) : (
-          // TODO(#67): render each declared field (increment 2, #67).
-          <span>Declared</span>
-        )}
-      </dd>
-    </>
+    </div>
   );
 }
 

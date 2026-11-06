@@ -235,60 +235,6 @@ test("a server failure is announced as an alert", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("the server answered 500");
 });
 
-test("keyboard only: load an example, run it, and land on the outcome", async ({ page }) => {
-  await serve(page, reference);
-  await gotoDirectory(page);
-  await expect(page.getByRole("tab", { name: "Run" })).toHaveAttribute("aria-selected", "true");
-
-  const load = page.getByRole("button", { name: "Load example: soil chemistry profile" });
-  await load.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByLabel("Title")).toHaveValue(soil.title);
-
-  await page.getByRole("button", { name: "Run", exact: true }).focus();
-  await page.keyboard.press("Enter");
-  const outcome = page.getByRole("heading", { name: "Outcome: Succeeded" });
-  await expect(outcome).toBeFocused();
-
-  // A "rests on" link moves to the evidence it names.
-  const link = page.getByRole("table").getByRole("link").first();
-  await link.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".evidence-list > li:target")).toHaveCount(1);
-});
-
-for (const [name, run] of [
-  ["succeeded", succeeded],
-  ["abstained", abstained],
-] as const) {
-  for (const scheme of ["light", "dark"] as const) {
-    test(`run outcome ${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
-      await useScheme(page, scheme);
-      await serve(page, reference, run);
-      await gotoDirectory(page);
-      await page.getByRole("button", { name: "Run", exact: true }).click();
-      await expect(page.getByRole("heading", { name: /^Outcome:/ })).toBeVisible();
-      expect(await axeViolations(page)).toEqual([]);
-    });
-  }
-}
-
-test("a run and the history reflow at 320 CSS pixels", async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  await serve(page, reference);
-  await gotoDirectory(page);
-  await page.getByRole("button", { name: "Load example: soil chemistry profile" }).click();
-  expect(await overflow(page), "horizontal overflow on the form").toBeLessThanOrEqual(0);
-  await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Outcome: Succeeded" })).toBeVisible();
-  expect(await overflow(page), "horizontal overflow on the outcome").toBeLessThanOrEqual(0);
-
-  await page.getByRole("tab", { name: "History" }).click();
-  await expect(page.getByRole("heading", { name: "Runs of this agent" })).toBeVisible();
-  expect(await overflow(page), "horizontal overflow on the history").toBeLessThanOrEqual(0);
-  expect(await axeViolations(page)).toEqual([]);
-});
-
 for (const scheme of ["light", "dark"] as const) {
   test(`conversation home, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
     await useScheme(page, scheme);
@@ -389,7 +335,7 @@ test("the directory is a page: reachable from the navigation, survives a reload,
 });
 
 for (const width of [1280, 320]) {
-  test(`at ${width}px the banner does not move between pages or tabs`, async ({ page }) => {
+  test(`at ${width}px the banner does not move between pages`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await serveConversation(page);
     const nav = page.getByRole("navigation", { name: "Main" });
@@ -410,11 +356,6 @@ for (const width of [1280, 320]) {
     await nav.getByRole("link", { name: "Agents" }).click();
     await expect(page.getByRole("listbox", { name: "Agents" })).toBeVisible();
     expect(await boxes(), "after opening Agents").toEqual(first);
-
-    for (const tab of ["About", "History", "Run"]) {
-      await page.getByRole("tab", { name: tab }).click();
-      expect(await boxes(), `after selecting ${tab}`).toEqual(first);
-    }
   });
 }
 

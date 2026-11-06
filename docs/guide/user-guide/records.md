@@ -58,8 +58,6 @@ from the inventory can be sent to that model's provider (see AI models, below).
   evidence.
 - **In a conversation**, each step handed to an agent appears as a card. Opening the card shows
   that run in full.
-- **On an agent's History tab**, every stored run for that agent is listed, newest first. Each
-  reopens in the same view as when it ran.
 - **Past conversations** reopen with their results in place.
 
 ## AI models
