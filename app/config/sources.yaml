@@ -1,7 +1,8 @@
 # Independent copies of the sources the app's agents cite (docs/specs/grounding.md), unless DD_SOURCES_CONFIG
 # names another list. Paths are relative to this file; each copy is pinned by sha256, and a
-# file that no longer matches its pin stops the app from starting. Format as in
-# workbench/sources.yaml.
+# file that no longer matches its pin stops the app from starting. A copy with a `build` command
+# that has not been built leaves evidence citing it unresolved, with a warning at start-up.
+# Format as in workbench/sources.yaml.
 # TODO(#225): how an institution pins a copy of a source of its own.
 sources:
   - snapshot_refs: ["snapshot:2026-09-04", "snapshot:2026-09-04 (stale)"]

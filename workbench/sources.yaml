@@ -3,6 +3,8 @@
 # snapshot_ref is not listed here is reported as unresolved, never as verified.
 # A copy is independent of the agent because its bytes are pinned by sha256, not because of
 # where it lives: a file that no longer matches its pin stops the workbench from starting.
+# An entry may name the command that builds a copy not kept in git (`build`); until it is built,
+# the workbench starts with a warning and evidence citing it is unresolved.
 # Rebuilding a snapshot changes its label and its hash; add a new entry for it.
 # Override the path with DD_SOURCES_CONFIG. Paths are relative to this file.
 # TODO(#246): a resolver for the standards advisor's `live` route (the FAIRsharing API needs credentials and network).

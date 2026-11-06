@@ -70,9 +70,10 @@ mixin are in [Contract](contract.md); the `dd.*` span attributes the rules read 
     checked them against hashes the conductor computed. In `retrieval` mode no rule does that,
     so such items are unresolved.
 12. A source file that does not match its pin, or is missing, is a configuration error, and the
-    harness does not start. An entry for a copy built outside git names the command that builds
-    it (`build`), and the error repeats it. The source check never reads a file without its pin and never imports an agent
-    to resolve a source.
+    harness does not start. The exception is a copy built outside git, whose entry names the
+    command that builds it (`build`): if it has not been built, the harness starts, logs that
+    command, and evidence citing it is unresolved. The source check never reads a file without
+    its pin and never imports an agent to resolve a source.
 13. A violation of either check turns `succeeded` into `failed` with problem type
     `grounding-violation`, and removes the payload and evidence. The two verdicts are stored
     separately (`grounding.txt`, `sources.txt`) and never combined into one.
@@ -108,8 +109,11 @@ What the copy of a source is independent of is the agent's process, not its loca
 may be a file inside an agent's package, as long as the deployment pins its bytes. It need not be
 committed. A copy too large for git, such as the repository advisor's re3data registry, is
 built from an archive pinned by URL and SHA-256. The build is deterministic, so the copy's own
-SHA-256 can be pinned in advance, and setup, CI and deployment build it before the harness
-starts. Each
+SHA-256 can be pinned in advance. Setup, `start`, CI and deployment build it, and `doctor`
+checks it. The harness does not require it: an unbuilt copy is one of the agent's sources, and
+one agent's data should not decide whether the harness starts, including where that agent is not
+deployed or not in the profile. Evidence citing an unbuilt copy is unresolved, which is never
+shown as verified. Each
 deployment (the workbench, the app) supplies its own list of copies; the harness itself holds
 none by default, so a test conductor reports synthetic sources as unresolved, not failed.
 

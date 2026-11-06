@@ -108,8 +108,10 @@ uv run scripts/pin_re3data.py     # then pin both sources.yaml files to it
 
 `dev.py setup` and `start`, CI and `deploy/deploy.sh` run `fetch`. It downloads an archive once per
 pin and keeps it in `data/re3data/archives/`, so a run never asks re3data. A registry that is
-missing or does not match its pin is an error that names the command to run. The agent then
-abstains, and the app does not start. Neither the archive nor the registry is committed. A
+missing or does not match its pin is an error that names the command to run, and the agent
+abstains. A registry that does not match its pin also stops the app from starting. A missing one
+does not: the harness warns with the command, and re3data evidence is unresolved rather than
+verified. Neither the archive nor the registry is committed. A
 monthly pull request moves the pin: TODO(#483).
 
 Evidence from it carries the `snapshot_ref` `re3data:export:YYYY-MM`, and both `sources.yaml` files

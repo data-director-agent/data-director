@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -71,14 +72,41 @@ def test_config_resolves_paths_beside_the_file(tmp_path: Path) -> None:
     assert Sources.from_config(config).by_snapshot_ref[SNAPSHOT_REF].record("src:a") == RECORD
 
 
-def test_a_copy_built_outside_git_names_how_to_build_it_when_missing(tmp_path: Path) -> None:
+def _config(tmp_path: Path, file: str, pin: str, build: str | None = None) -> Path:
     config = tmp_path / "sources.yaml"
+    extra = f"    build: {build}\n" if build else ""
     config.write_text(
-        f"sources:\n  - snapshot_refs: [{SNAPSHOT_REF}]\n    path: absent.jsonl\n"
-        f"    build: uv run dd-build-it\n    id_field: source_id\n    sha256: {'0' * 64}\n",
+        f"sources:\n  - snapshot_refs: [{SNAPSHOT_REF}]\n    path: {file}\n{extra}"
+        f"    id_field: source_id\n    sha256: {pin}\n",
         encoding="utf-8",
     )
-    with pytest.raises(SourceConfigError, match="build it with `uv run dd-build-it`"):
+    return config
+
+
+def test_an_unbuilt_copy_leaves_its_evidence_unresolved_and_names_how_to_build_it(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    config = _config(tmp_path, "absent.jsonl", "0" * 64, build="uv run dd-build-it")
+    with caplog.at_level(logging.WARNING, logger="dd_harness.sources"):
+        sources = Sources.from_config(config)
+    assert sources.unbuilt == {SNAPSHOT_REF: "uv run dd-build-it"}
+    assert "build it with `uv run dd-build-it`" in caplog.text
+    report = check(_envelope(_evidence()), sources)
+    assert report.passed and report.verified == 0
+    assert report.unresolved == [f"src:a ({SNAPSHOT_REF}, not built)"]
+
+
+def test_a_missing_copy_that_names_no_build_is_a_configuration_error(tmp_path: Path) -> None:
+    with pytest.raises(SourceConfigError, match=r"absent\.jsonl"):
+        Sources.from_config(_config(tmp_path, "absent.jsonl", "0" * 64))
+
+
+def test_a_built_copy_that_does_not_match_its_pin_is_a_configuration_error(
+    tmp_path: Path,
+) -> None:
+    path, _ = _pinned(tmp_path, [RECORD])
+    config = _config(tmp_path, path.name, "0" * 64, build="uv run dd-build-it")
+    with pytest.raises(SourceConfigError, match="not the pinned"):
         Sources.from_config(config)
 
 

@@ -23,13 +23,17 @@ need retrieval to go through the harness, as delegation does. TODO(#246) (docs/s
 
 A copy is independent of the agent because its bytes are pinned by `sha256` in `sources.yaml`,
 not because of where the file lives. A file that does not match its pin is a configuration
-error. Configuration shape:
+error, and so is a missing one, unless its entry names the command that builds it (`build`): a
+copy built outside git that has not been built is logged with that command, and evidence citing
+it is unresolved, so a deployment that serves no agent citing it need not build it.
+Configuration shape:
 
     sources:
       - snapshot_refs: ["snapshot:2026-09-04"]   # evidence snapshot_ref values this copy serves
         path: ../agents/advisor-standards/data/fairsharing/snapshot.jsonl   # relative to this file
         id_field: fairsharing_id                 # the record field that is the source_id
         sha256: 9696…                            # of the file's bytes
+        build: uv run dd-build-it                # optional: builds a copy not kept in git
 
 A file is JSON Lines, or one JSON array of records.
 """
@@ -38,6 +42,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -53,9 +58,12 @@ from dd_sdk.evidence import content_hash
 ATTESTED_PREFIXES = (input_source_id(""), invocation_source_id(""))
 ATTESTED_MODES = (GroundingMode.INPUT_ONLY, GroundingMode.NONE, GroundingMode.DELEGATION)
 
+log = logging.getLogger(__name__)
+
 
 class SourceConfigError(Exception):
-    """`sources.yaml` is malformed, or a file it lists is missing or does not match its pin."""
+    """`sources.yaml` is malformed, or a file it lists does not match its pin, or is missing and
+    names no command that builds it."""
 
 
 class Resolver(Protocol):
@@ -119,6 +127,9 @@ class Sources:
     """The copies of sources the harness holds, keyed by the `snapshot_ref` they serve."""
 
     by_snapshot_ref: Mapping[str, Resolver] = field(default_factory=dict)
+    # The snapshot_refs of copies built outside git that have not been built, each with the
+    # command that builds it. Evidence citing one is unresolved.
+    unbuilt: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
     def none(cls) -> Sources:
@@ -134,6 +145,7 @@ class Sources:
         if not isinstance(entries, list):
             raise SourceConfigError(f"{path}: expected a top-level 'sources' list")
         by_ref: dict[str, Resolver] = {}
+        unbuilt: dict[str, str] = {}
         for entry in entries:
             try:
                 refs, file, id_field, pin = (
@@ -146,17 +158,25 @@ class Sources:
                 raise SourceConfigError(
                     f"{path}: each source needs snapshot_refs, path, id_field and sha256"
                 ) from None
-            built_by = entry.get("build")
-            if not (path.parent / str(file)).is_file() and built_by:
-                raise SourceConfigError(
-                    f"{path}: source file {file} is not built; build it with `{built_by}`"
-                )
-            resolver = RecordsFile.load(path.parent / str(file), str(id_field), str(pin))
+            refs = [str(ref) for ref in refs]
             for ref in refs:
-                if ref in by_ref:
+                if ref in by_ref or ref in unbuilt:
                     raise SourceConfigError(f"{path}: snapshot_ref {ref!r} is listed twice")
-                by_ref[str(ref)] = resolver
-        return cls(by_snapshot_ref=by_ref)
+            built_by = entry.get("build")
+            if built_by and not (path.parent / str(file)).is_file():
+                log.warning(
+                    "%s: source file %s is not built, so evidence citing %s will be unresolved; "
+                    "build it with `%s`",
+                    path,
+                    file,
+                    ", ".join(refs),
+                    built_by,
+                )
+                unbuilt.update(dict.fromkeys(refs, str(built_by)))
+                continue
+            resolver = RecordsFile.load(path.parent / str(file), str(id_field), str(pin))
+            by_ref.update(dict.fromkeys(refs, resolver))
+        return cls(by_snapshot_ref=by_ref, unbuilt=unbuilt)
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:
@@ -172,7 +192,8 @@ def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:
         snapshot_ref = ev.get("snapshot_ref")
         resolver = sources.by_snapshot_ref.get(str(snapshot_ref))
         if resolver is None:
-            unresolved.append(f"{source_id} ({snapshot_ref})")
+            why = ", not built" if str(snapshot_ref) in sources.unbuilt else ""
+            unresolved.append(f"{source_id} ({snapshot_ref}{why})")
             continue
         record = resolver.record(source_id)
         if record is None:
