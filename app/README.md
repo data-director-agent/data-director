@@ -165,7 +165,9 @@ To try it locally, register a client through ORCID's
 with the redirect URI `http://127.0.0.1:7860/api/sign-in/callback`. Sign in with a sandbox account:
 create one at `https://sandbox.orcid.org/register`, using a `@mailinator.com` address, since the
 sandbox only sends email there, and verify it before editing records. Sandbox data is not backed up
-and may be deleted (#178). A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
+and may be deleted (#178). Open the app at `http://127.0.0.1:7860`, not `localhost`, so the sign-in
+cookie returns with the callback; the [operations guide](../docs/guide/operations/configuration.md#trying-sign-in-against-the-orcid-sandbox)
+has the full set-up and what its failures mean. A test needs neither: `dd_harness.testing.FakeIdentityProvider` stands in
 for ORCID.
 
 - The app runs the authorisation-code flow itself (`src/dd_app/signin.py`), asks for the `openid`
@@ -175,7 +177,8 @@ for ORCID.
   this works over plain HTTP locally; a deployment needs HTTPS (#155).
 - Every `/api` route that runs or reads anything answers `401` with an `unauthenticated` problem
   when there is no session, and the shell then shows its sign-in page. `/api/about`,
-  `/api/session` and the sign-in routes are open.
+  `/api/session` and the sign-in routes are open, as is `/server-status`, which answers a monitor's
+  `GET /server-status?auto` (collectd's apache plugin) with the app's uptime in `Key: value` lines.
 - Sessions are held in memory, so restarting the app signs everyone out.
 - Signing out ends the session here. ORCID offers no sign-out for the app, so the person may still
   be signed in at ORCID, and the signed-out page says so.
