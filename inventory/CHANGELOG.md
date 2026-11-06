@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha.1...inventory-v0.1.0-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **inventory:** publish to TestPyPI and add a data-director-inventory command ([#562](https://github.com/data-director-agent/data-director/issues/562)) ([d89c15d](https://github.com/data-director-agent/data-director/commit/d89c15d0b1223bfe70ad7e2163d7fe4cb80f3ec2)), closes [#552](https://github.com/data-director-agent/data-director/issues/552)
+
 ## [0.1.0-alpha.1](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha...inventory-v0.1.0-alpha.1) (2026-11-05)
 
 

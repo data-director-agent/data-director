@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/data-director-agent/data-director/compare/agent-advisor-repository-v0.1.0-alpha.1...agent-advisor-repository-v0.1.0-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **agents:** search every re3data repository from a pinned monthly export ([#489](https://github.com/data-director-agent/data-director/issues/489)) ([4a05699](https://github.com/data-director-agent/data-director/commit/4a056996f5ef9611cd97a03722dfdc38f67ab1b9))
+* **deploy:** one configuration tool with a doctor for the VM ([#548](https://github.com/data-director-agent/data-director/issues/548)) ([73f1db1](https://github.com/data-director-agent/data-director/commit/73f1db15081ccd20ff660b168d5249b4c30e29af))
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+* **sdk:** prepare every agent's built sources with one command ([#508](https://github.com/data-director-agent/data-director/issues/508)) ([3c76b2b](https://github.com/data-director-agent/data-director/commit/3c76b2ba0edb97ca58bc25910d4ac67224db0262)), closes [#507](https://github.com/data-director-agent/data-director/issues/507)
+
 ## [0.1.0-alpha.1](https://github.com/data-director-agent/data-director/compare/agent-advisor-repository-v0.1.0-alpha...agent-advisor-repository-v0.1.0-alpha.1) (2026-11-05)
 
 

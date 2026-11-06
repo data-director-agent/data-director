@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0-alpha.3](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.2...workbench-v0.2.0-alpha.3) (2026-11-06)
+
+
+### Features
+
+* **agents:** search every re3data repository from a pinned monthly export ([#489](https://github.com/data-director-agent/data-director/issues/489)) ([4a05699](https://github.com/data-director-agent/data-director/commit/4a056996f5ef9611cd97a03722dfdc38f67ab1b9))
+* **deploy:** one configuration tool with a doctor for the VM ([#548](https://github.com/data-director-agent/data-director/issues/548)) ([73f1db1](https://github.com/data-director-agent/data-director/commit/73f1db15081ccd20ff660b168d5249b4c30e29af))
+* **sdk:** prepare every agent's built sources with one command ([#508](https://github.com/data-director-agent/data-director/issues/508)) ([3c76b2b](https://github.com/data-director-agent/data-director/commit/3c76b2ba0edb97ca58bc25910d4ac67224db0262)), closes [#507](https://github.com/data-director-agent/data-director/issues/507)
+* **workbench:** serve the workbench on the VM to admins signed in with ORCID ([#563](https://github.com/data-director-agent/data-director/issues/563)) ([e1739ed](https://github.com/data-director-agent/data-director/commit/e1739edad10ede33e23091128f42694c4ca69faa)), closes [#549](https://github.com/data-director-agent/data-director/issues/549)
+
 ## [0.2.0-alpha.2](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.1...workbench-v0.2.0-alpha.2) (2026-11-05)
 
 
