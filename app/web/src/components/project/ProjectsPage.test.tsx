@@ -1,7 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
 import fixture from "../../../fixtures/projects.json";
+import { type ActiveProject, ActiveProjectTestContext } from "../../project/active";
 import { type ProjectApi, type ProjectSummary, ProjectApiContext } from "../../project/api";
 import { ProjectsPage, projectName } from "./ProjectsPage";
 
@@ -10,12 +12,21 @@ import { ProjectsPage, projectName } from "./ProjectsPage";
 const PROJECTS = fixture as ProjectSummary[];
 const FIRST = PROJECTS[0] as ProjectSummary;
 
-function renderPage(projects: ProjectApi["projects"]) {
+function renderPage(projects: ProjectApi["projects"], active: Partial<ActiveProject> = {}) {
   const api = { projects, documents: vi.fn(), disclosure: vi.fn(), decide: vi.fn() };
+  const value: ActiveProject = {
+    projectId: null,
+    projects: [],
+    setProjectId: vi.fn(),
+    reloadProjects: vi.fn(),
+    ...active,
+  };
   return render(
-    <ProjectApiContext.Provider value={api as unknown as ProjectApi}>
-      <ProjectsPage />
-    </ProjectApiContext.Provider>,
+    <ActiveProjectTestContext.Provider value={value}>
+      <ProjectApiContext.Provider value={api as unknown as ProjectApi}>
+        <ProjectsPage />
+      </ProjectApiContext.Provider>
+    </ActiveProjectTestContext.Provider>,
   );
 }
 
@@ -39,13 +50,35 @@ describe("ProjectsPage", () => {
     expect(screen.queryByText(/rejected/)).not.toBeInTheDocument();
   });
 
-  it("says how to start a project when there is none", async () => {
-    renderPage(() => Promise.resolve([]));
+  it("says how to start a project when there is none, and starts one with no project active", async () => {
+    history.pushState(null, "", "/projects");
+    const setProjectId = vi.fn();
+    renderPage(() => Promise.resolve([]), { projectId: "p1", setProjectId });
     expect(await screen.findByText(/You have no project yet/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Start a new conversation" })).toHaveAttribute(
-      "href",
-      "/",
+    await userEvent.click(screen.getByRole("button", { name: "Start a new project" }));
+    expect(setProjectId).toHaveBeenCalledWith(null);
+    expect(location.pathname).toBe("/");
+  });
+
+  it("marks the current project, and opens another's conversations", async () => {
+    history.pushState(null, "", "/projects");
+    const other = { ...FIRST, project_id: "p2", title: "River loggers" };
+    const setProjectId = vi.fn();
+    const { container } = renderPage(() => Promise.resolve([FIRST, other]), {
+      projectId: FIRST.project_id,
+      setProjectId,
+    });
+    const current = (await screen.findByRole("link", { name: "My logger data" })).closest("li");
+    expect(current).toHaveAttribute("aria-current", "true");
+    expect(within(current as HTMLElement).getByText("Current project")).toBeVisible();
+    const river = screen.getByRole("link", { name: "River loggers" }).closest("li") as HTMLElement;
+    expect(river).not.toHaveAttribute("aria-current");
+    await userEvent.click(
+      within(river).getByRole("button", { name: "Open the conversations of River loggers" }),
     );
+    expect(setProjectId).toHaveBeenCalledWith("p2");
+    expect(location.pathname).toBe("/");
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("says why when the projects cannot be read", async () => {

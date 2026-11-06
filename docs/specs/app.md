@@ -89,10 +89,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     filed in a window limited (`app/src/dd_app/feedback.py`, `app/tests/test_feedback.py`).
     Without a credential for GitHub the feature is off, the page says so and links to GitHub, and
     the app still starts.
-18. **Each conversation is started in a project of its own.** Where the app keeps projects,
-    `POST /api/conversations` creates a project and starts the conversation in it, acting for the
-    person signed in, and a conversation names its `project_id` and the inventory its project
-    holds. The app gives the conductor the same project store, so a turn's runs belong to the
+18. **Each conversation is started in a project.** Where the app keeps projects,
+    `POST /api/conversations` starts the conversation in the project its body names
+    (`{"project_id": …}`), or in a new project when it names none, acting for the person signed
+    in. A project that does not exist, or that the person may not read, is refused with a 404 and
+    nothing is started; a body with any other field is refused with a 400. A conversation names
+    its `project_id` and the inventory its project holds. The app gives the conductor the same project store, so a turn's runs belong to the
     project and a drafter's documents are kept in it ([Projects](projects.md),
     `app/tests/test_app.py`).
 19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,
@@ -201,9 +203,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   project's own page is marked as under it. A person still lands on the conversation, and their
   first message starts a project, so nobody has to make or choose a project before saying what
   they need. The app starts projects untitled, so the list names each by its first
-  conversation's title. Making the projects page the home, with the conversation inside a project
-  and a way to switch project, waits on starting a conversation in an existing project,
-  TODO(#160).
+  conversation's title.
+- **One project at a time.** The shell works in one active project: the workspace header names it
+  and switches to another or to **New project**, the left-hand list shows only its
+  conversations, **New conversation** starts another thread in it, and the right panel describes
+  it. With no project active, the first message starts one, which becomes active. Opening a
+  project from the projects page, or its documents page, makes it active; switching closes the
+  open conversation. Which project is active is a convenience of the browser, kept in
+  `localStorage`, and a remembered project the server no longer lists is dropped.
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
   policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
   each phase's steps and the agents serving them. On the left, the person's conversations, so
@@ -294,8 +301,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   cancellation.
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
-- TODO(#160): the project's documents and current phase in the workspace, and starting a
-  conversation in an existing project.
+- TODO(#160): the project's documents and current phase in the workspace.
 - TODO(#67): no agent declares limits, reliability or data handling yet.
 - TODO(#153): every signed-in person still sees every run and conversation.
 - TODO(#188): the report limits are provisional and counted for the whole process, not per

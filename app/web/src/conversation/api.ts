@@ -6,7 +6,8 @@
  * sends. An attached inventory goes to the conversation's project, never into the message. A turn that does not follow
  * the latest stored turn, or that arrives while another is running, is refused with a 409 and
  * nothing runs (docs/specs/orchestration.md), so a message sent again after a dropped connection is never
- * run twice (#337).
+ * run twice (#337). A conversation is started in the project the shell is working in, or in a new
+ * one (docs/specs/app.md).
  */
 
 import type { FileInventory } from "@data-director/inventory";
@@ -17,8 +18,15 @@ import type { Problem } from "../run/types";
 import { checkSignedIn } from "../session/api";
 import type { Conversation, ConversationSummary } from "./types";
 
+/** A conversation the server started, and the project it was started in, if it keeps them. */
+export interface Started {
+  conversation_id: string;
+  project_id: string | null;
+}
+
 export interface ConversationApi {
-  create(signal?: AbortSignal): Promise<string>;
+  /** Starts a conversation in `projectId`, or in a new project when it is null. */
+  create(projectId: string | null, signal?: AbortSignal): Promise<Started>;
   sendTurn(
     conversationId: string,
     agentId: string,
@@ -70,11 +78,20 @@ async function request(url: string, init: RequestInit): Promise<Response> {
 }
 
 export const httpConversationApi: ConversationApi = {
-  async create(signal) {
-    const created = await json<{ conversation_id: string }>(
-      await request("/api/conversations", { ...init(signal), method: "POST" }),
+  async create(projectId, signal) {
+    const created = await json<{ conversation_id: string; project_id?: string | null }>(
+      await request("/api/conversations", {
+        ...init(signal),
+        method: "POST",
+        ...(projectId === null
+          ? {}
+          : {
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ project_id: projectId }),
+            }),
+      }),
     );
-    return created.conversation_id;
+    return { conversation_id: created.conversation_id, project_id: created.project_id ?? null };
   },
   async sendTurn(conversationId, agentId, messageText, follows, inventory, signal) {
     await json(

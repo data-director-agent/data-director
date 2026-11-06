@@ -23,6 +23,7 @@ from dd_app.config import DEFAULT_PROJECTS_DIR
 from dd_harness import conversations
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.projects import UnknownProjectError
 from dd_harness.settings import (
     Settings,
     SettingsError,
@@ -152,19 +153,32 @@ class Governance:
         document = envelope.to_document()
         return {"envelope": document, "checks": self.checks(envelope.invocation_id)}
 
-    def start_conversation(self, acting_for: Principal) -> str:
+    def start_conversation(self, acting_for: Principal, project_id: str | None = None) -> str:
         """A new conversation's identifier (`POST /api/conversations`). The server mints it, so a
         turn can be sent only to a conversation the app started or has stored.
 
-        Where the app keeps projects, each conversation is started in a project of its own, so
-        that what the researcher attaches and what the agents draft are kept together
-        (docs/specs/app.md). Starting one in an existing project is TODO(#160)."""
+        Where the app keeps projects, every conversation is in one, so that what the researcher
+        attaches and what the agents draft are kept together (docs/specs/app.md). With
+        `project_id` the conversation is started in that project, which `acting_for` must be able
+        to read; without one, in a new project. Raises `UnknownProjectError` for a project that
+        does not exist or that they may not read, and for any project where the app keeps none.
+
+        TODO(#389): a person may read the projects they created; membership replaces this."""
         if self.projects is None:
+            if project_id is not None:
+                raise UnknownProjectError(f"no project {project_id!r}")
             conversation_id = new_invocation_id()
             self._started.add(conversation_id)
             return conversation_id
         caused_by = "POST /api/conversations"
-        project_id = self.projects.create(acted_for=acting_for, caused_by=caused_by)
+        if project_id is None:
+            project_id = self.projects.create(acted_for=acting_for, caused_by=caused_by)
+        elif (
+            not self.projects.exists(project_id)
+            or self.projects.summary(project_id)["created_by"].get("principal_id")
+            != acting_for.principal_id
+        ):
+            raise UnknownProjectError(f"no project {project_id!r}")
         return self.projects.start_conversation(
             project_id, acted_for=acting_for, caused_by=caused_by
         )

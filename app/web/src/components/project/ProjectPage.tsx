@@ -6,12 +6,16 @@
  * a decision it shows the state the server answered with, and after a refusal it reads the
  * project again, keeping what it showed if that read fails. What a decision did is said once, in the page's live region, which is in the
  * page from the start so that a screen reader announces each change to it.
+ *
+ * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
+ * link to it lands in that project, and its conversations are one press away.
  */
 
 import "./ProjectPage.css";
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useActiveProject } from "../../project/active";
 import { type ProjectDocuments, useProjectApi } from "../../project/api";
 import { Link } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
@@ -33,6 +37,12 @@ export function ProjectPage({ projectId }: { projectId: string }) {
   const [announcement, setAnnouncement] = useState("");
   // Counts what the page has read, so that the disclosure is read again after a decision.
   const [revision, setRevision] = useState(0);
+  const { setProjectId } = useActiveProject();
+  const readable = load.state === "loaded";
+
+  useEffect(() => {
+    if (readable) setProjectId(projectId);
+  }, [readable, projectId, setProjectId]);
 
   const read = useCallback(
     (signal?: AbortSignal) =>
@@ -111,7 +121,7 @@ export function ProjectPage({ projectId }: { projectId: string }) {
   return (
     <>
       <p>
-        <Link to="/projects">All projects</Link>
+        <Link to="/projects">All projects</Link> · <Link to="/">This project&apos;s conversations</Link>
       </p>
       <PageHeader title="Project documents">
         <p className="hint">

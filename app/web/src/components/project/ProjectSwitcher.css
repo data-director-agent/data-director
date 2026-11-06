@@ -1,0 +1,58 @@
+@layer components {
+  .project-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .project-switcher-label {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .project-switcher-button {
+    max-width: 100%;
+  }
+
+  .project-switcher-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .project-switcher-popover {
+    min-width: var(--trigger-width);
+    max-width: min(32rem, calc(100vw - 2 * var(--page-gutter)));
+    background: var(--color-bg);
+    border: var(--border-width) solid var(--color-border-subtle);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-floating);
+    overflow: auto;
+  }
+
+  .project-switcher-list {
+    padding: var(--space-1) 0;
+  }
+
+  .project-switcher-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    cursor: default;
+  }
+
+  .project-switcher-option[data-hovered],
+  .project-switcher-option[data-focused] {
+    background: var(--color-surface);
+  }
+
+  .project-switcher-option[data-selected] {
+    background: var(--color-surface-selected);
+    box-shadow: inset var(--focus-width) 0 0 var(--color-link);
+  }
+
+  .project-switcher-option[data-focus-visible] {
+    outline-offset: -3px;
+  }
+}

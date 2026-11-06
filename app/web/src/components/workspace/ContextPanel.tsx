@@ -1,5 +1,5 @@
 /**
- * Beside the conversation, an overview of the project it was started in (docs/specs/app.md):
+ * Beside the conversation, an overview of the project the workspace is in (docs/specs/app.md):
  * where the project stands, the files attached to it (the inventory it holds) and a link to the
  * documents agents have drafted in it. Where it stands, its dataset, phase, repository and open
  * governance flags, needs a record of the project (#160), so each is drawn as not built, linked
@@ -13,7 +13,7 @@ import { useMemo } from "react";
 
 import { INVENTORY_GUIDE, type InventorySource } from "../../conversation/inventory";
 import type { Conversation } from "../../conversation/types";
-import { useProjectApi } from "../../project/api";
+import { type ProjectSummary, useProjectApi } from "../../project/api";
 import { Link } from "../../route";
 import { InventoryChip } from "../conversation/InventoryChip";
 import { IssueLinks } from "../NotBuilt";
@@ -27,9 +27,19 @@ const NOT_BUILT: { label: string; issues: number[] }[] = [
   { label: "Governance", issues: [72, 39] },
 ];
 
-export function ContextPanel({ conversation = null }: { conversation?: Conversation | null }) {
-  const projectId = conversation?.project_id;
-  const inventory = conversation?.inventory;
+export function ContextPanel({
+  projectId = null,
+  project = null,
+  conversation = null,
+}: {
+  /** The project the workspace is in, or null before the first message starts one. */
+  projectId?: string | null;
+  /** What the projects list says of it, once it lists it. */
+  project?: ProjectSummary | null;
+  conversation?: Conversation | null;
+}) {
+  // The open conversation was read after the projects list, so it knows of a newer inventory.
+  const inventory = conversation ? conversation.inventory : project?.inventory;
   const projectApi = useProjectApi();
   const source = useMemo<InventorySource | undefined>(
     () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
@@ -40,7 +50,7 @@ export function ContextPanel({ conversation = null }: { conversation?: Conversat
       <h2 id="context-heading">Project</h2>
       {!projectId && (
         <p>
-          Your first message starts a project, which keeps the inventory you attach and the
+          Your first message starts a new project, which keeps the inventory you attach and the
           documents agents draft for you.
         </p>
       )}

@@ -5,17 +5,21 @@
  * starts one, so a person never has to make a project before saying what they need.
  *
  * The app starts projects untitled, so a project is named by its first conversation's title, as
- * the harness derives it, or else by when it was started. Each opens the project's documents.
+ * the harness derives it, or else by when it was started. The app works in one project at a time
+ * (docs/specs/app.md): each project here can be opened, which makes it the active one and goes to
+ * its conversations, and the active one is marked. Its name links to its documents.
  */
 
 import "./ProjectsPage.css";
 
-import { MessageSquarePlus } from "lucide-react";
+import { FolderOpen, FolderPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { useActiveProject } from "../../project/active";
 import { type ProjectSummary, useProjectApi } from "../../project/api";
-import { Link } from "../../route";
+import { Link, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
+import { Button } from "../ui/Button";
 
 type Load =
   | { state: "loading" }
@@ -69,6 +73,12 @@ function Documents({ counts }: { counts: ProjectSummary["documents"] }) {
 export function ProjectsPage() {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const { projectId: activeId, setProjectId } = useActiveProject();
+
+  function open(projectId: string | null) {
+    setProjectId(projectId);
+    navigate("/");
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,24 +104,41 @@ export function ProjectsPage() {
     if (load.value.length === 0) {
       return (
         <p>
-          You have no project yet. Your first message in a conversation starts one, and keeps the
+          You have no project yet. Start a new project: your first message in it keeps the
           inventory you attach and the documents agents draft for you.
         </p>
       );
     }
     return (
       <ul className="plain-list project-list">
-        {load.value.map((project) => (
-          <li key={project.project_id} className="project-card">
-            <h2 className="project-card-name">
-              <Link to={`/projects/${encodeURIComponent(project.project_id)}`}>
-                {projectName(project)}
-              </Link>
-            </h2>
-            <Holds project={project} />
-            <Documents counts={project.documents} />
-          </li>
-        ))}
+        {load.value.map((project) => {
+          const active = project.project_id === activeId;
+          const name = projectName(project);
+          return (
+            <li
+              key={project.project_id}
+              className={active ? "project-card project-card-active" : "project-card"}
+              {...(active ? { "aria-current": "true" as const } : {})}
+            >
+              <h2 className="project-card-name">
+                <Link to={`/projects/${encodeURIComponent(project.project_id)}`}>{name}</Link>
+                {active && <span className="status status-ok">Current project</span>}
+              </h2>
+              <Holds project={project} />
+              <Documents counts={project.documents} />
+              <p>
+                <Button
+                  icon={FolderOpen}
+                  size="small"
+                  onPress={() => open(project.project_id)}
+                  aria-label={`Open the conversations of ${name}`}
+                >
+                  Open conversations
+                </Button>
+              </p>
+            </li>
+          );
+        })}
       </ul>
     );
   };
@@ -125,10 +152,10 @@ export function ProjectsPage() {
         </p>
       </PageHeader>
       <p>
-        <Link to="/" className="project-new">
-          <MessageSquarePlus size="1.125em" aria-hidden="true" /> Start a new conversation
-        </Link>{" "}
-        <span className="hint">Your first message in it starts a new project.</span>
+        <Button icon={FolderPlus} onPress={() => open(null)}>
+          Start a new project
+        </Button>{" "}
+        <span className="hint">Your first message in it starts the project.</span>
       </p>
       {content()}
     </>

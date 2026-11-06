@@ -13,7 +13,14 @@ import {
 } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
-import { httpProjectApi, type ProjectApi, ProjectApiContext } from "../../project/api";
+import { ActiveProjectProvider } from "../../project/active";
+import {
+  httpProjectApi,
+  type ProjectApi,
+  ProjectApiContext,
+  type ProjectSummary,
+} from "../../project/api";
+import projectsFixture from "../../../fixtures/projects.json";
 import type { ProcessFlow } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
@@ -42,7 +49,7 @@ function withOrchestrator(assigned: string | null = "advise"): Directory {
 
 function fakeApi(overrides: Partial<ConversationApi> = {}): ConversationApi {
   return {
-    create: () => Promise.resolve("c1"),
+    create: () => Promise.resolve({ conversation_id: "c1", project_id: null }),
     sendTurn: () => Promise.resolve(),
     list: () => Promise.resolve([]),
     get: () => Promise.resolve(CONVERSATION),
@@ -59,15 +66,19 @@ function renderHome(
   return render(
     <FlowApiContext.Provider value={flow}>
       <ProjectApiContext.Provider value={project}>
-        <ConversationApiContext.Provider value={api}>
-          <ConversationHome directory={directory} />
-        </ConversationApiContext.Provider>
+        <ActiveProjectProvider>
+          <ConversationApiContext.Provider value={api}>
+            <ConversationHome directory={directory} />
+          </ConversationApiContext.Provider>
+        </ActiveProjectProvider>
       </ProjectApiContext.Provider>
     </FlowApiContext.Provider>,
   );
 }
 
 describe("ConversationHome", () => {
+  beforeEach(() => localStorage.clear());
+
   it("says plainly when there is no orchestrator, and links to the directory", async () => {
     renderHome(normalise(raw), fakeApi());
     expect(screen.getByRole("heading", { name: "No conversation is available" })).toBeVisible();
@@ -375,6 +386,81 @@ describe("ConversationHome", () => {
     expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
   });
 
+  describe("in one project at a time", () => {
+    // The fixture's project is named "My logger data" by its conversation; another is titled.
+    const LOGGERS = (projectsFixture as ProjectSummary[])[0] as ProjectSummary;
+    const RIVER: ProjectSummary = { ...LOGGERS, project_id: "p2", title: "River loggers" };
+    const withProjects: ProjectApi = {
+      ...httpProjectApi,
+      projects: () => Promise.resolve([LOGGERS, RIVER]),
+    };
+    const summary = (conversation_id: string, title: string, project_id: string) => ({
+      conversation_id,
+      project_id,
+      agent_id: "orchestrator.stub",
+      title,
+      title_source: "model" as const,
+      turns: 1,
+      started_at: "2026-01-01T09:30:00Z",
+    });
+    const list = () =>
+      Promise.resolve([
+        summary("c9", "Soil survey", LOGGERS.project_id),
+        summary("c8", "River gauges", RIVER.project_id),
+      ]);
+
+    it("lists the active project's conversations and starts a new one in it", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const create = vi.fn(() =>
+        Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id }),
+      );
+      renderHome(withOrchestrator(), fakeApi({ list, create }), FLOW, withProjects);
+      const history = screen.getByRole("region", { name: "Conversations" });
+      expect(await within(history).findByRole("button", { name: /^Soil survey / })).toBeVisible();
+      expect(within(history).queryByRole("button", { name: /^River gauges / })).toBeNull();
+      expect(await screen.findByRole("button", { name: /My logger data/ })).toBeVisible();
+
+      await userEvent.click(within(history).getByRole("button", { name: "New conversation" }));
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(create).toHaveBeenCalledWith(LOGGERS.project_id);
+    });
+
+    it("works in the project a first message starts when none is active", async () => {
+      const create = vi.fn(() => Promise.resolve({ conversation_id: "c1", project_id: "p-new" }));
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      renderHome(withOrchestrator(), fakeApi({ create, sendTurn }), FLOW, {
+        ...httpProjectApi,
+        projects: () => Promise.resolve([]),
+      });
+      expect(await screen.findByRole("button", { name: /New project/ })).toBeVisible();
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(create).toHaveBeenCalledWith(null);
+      expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hi", null, null);
+      // The conversation stays open in the project it started.
+      expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
+      expect(localStorage.getItem("dd-project")).toBe("p-new");
+    });
+
+    it("closes the open conversation when another project is chosen", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const get = () => Promise.resolve({ ...CONVERSATION, project_id: LOGGERS.project_id });
+      const { container } = renderHome(withOrchestrator(), fakeApi({ list, get }), FLOW, withProjects);
+      const history = screen.getByRole("region", { name: "Conversations" });
+      await userEvent.click(await within(history).findByRole("button", { name: /^Soil survey / }));
+      expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
+      expect(await axe(container)).toHaveNoViolations();
+
+      await userEvent.click(screen.getByRole("button", { name: /My logger data/ }));
+      await userEvent.click(await screen.findByRole("option", { name: "River loggers" }));
+      expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+      expect(await within(history).findByRole("button", { name: /^River gauges / })).toBeVisible();
+      expect(within(history).queryByRole("button", { name: /^Soil survey / })).toBeNull();
+      expect(localStorage.getItem("dd-project")).toBe("p2");
+    });
+  });
+
   describe("the workspace around the conversation", () => {
     it("lists the six phases of the journey in plain words, with no agents or requirements", async () => {
       const { container } = renderHome(withOrchestrator(), fakeApi());
@@ -409,7 +495,7 @@ describe("ConversationHome", () => {
     it("says a first message starts a project, and lists no conversations yet", () => {
       renderHome(withOrchestrator(), fakeApi());
       const panel = screen.getByRole("region", { name: "Project" });
-      expect(within(panel).getByText(/Your first message starts a project/)).toBeVisible();
+      expect(within(panel).getByText(/Your first message starts a new project/)).toBeVisible();
       expect(screen.queryByText("Who you are talking to")).not.toBeInTheDocument();
       const history = screen.getByRole("region", { name: "Conversations" });
       expect(within(history).getByText("No conversations yet.")).toBeVisible();
@@ -431,7 +517,9 @@ describe("ConversationHome", () => {
           inventory_files: [],
         }),
       );
-      renderHome(withOrchestrator(), fakeApi({ get }), FLOW, { ...httpProjectApi, inventory });
+      const create = () =>
+        Promise.resolve({ conversation_id: "c1", project_id: CONVERSATION.project_id ?? null });
+      renderHome(withOrchestrator(), fakeApi({ get, create }), FLOW, { ...httpProjectApi, inventory });
       await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       const panel = screen.getByRole("region", { name: "Project" });
