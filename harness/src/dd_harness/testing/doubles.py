@@ -30,6 +30,7 @@ from dd_sdk.contract.models import (
     Derivation,
     Document,
     DocumentKind,
+    DocumentQuestion,
     DraftRequest,
     EvidenceItem,
     GroundingMode,
@@ -52,6 +53,13 @@ from dd_sdk.tracing import chat_span, retrieval_span
 
 # The provider a double that stands for a model-backed agent names. No model is called.
 MODEL_PROVIDER = "test"
+
+# The question a DocumentStub with `asks` puts to the researcher.
+STUB_QUESTION = DocumentQuestion(
+    question_id="q-" + "0" * 16,
+    question_prompt="What does the dataset describe?",
+    gap_section="Description",
+)
 
 Behaviour = AgentResult | Exception | Callable[[InvocationRequest, RunContext], AgentResult]
 
@@ -204,7 +212,8 @@ class DocumentStub:
 
     Given a `model_id`, it stands for a drafter that writes with a language model: it records one
     model call, as a real agent would through `dd_sdk.prompts`, without calling any model, and
-    says its draft was derived by `model` (docs/specs/disclosure.md)."""
+    says its draft was derived by `model` (docs/specs/disclosure.md). With `asks`, its draft asks
+    `STUB_QUESTION` (docs/specs/drafting.md). Given any `draft_answers`, it says how many."""
 
     spec = AgentSpec(
         agent_id="stub.document",
@@ -216,8 +225,9 @@ class DocumentStub:
         payload=ClassSchema.of(Document),
     )
 
-    def __init__(self, model_id: str | None = None) -> None:
+    def __init__(self, model_id: str | None = None, *, asks: bool = False) -> None:
         self.model_id = model_id
+        self.asks = asks
         if model_id is not None:
             # A model call is allowed in input_only, not in none (docs/specs/grounding.md).
             self.spec = replace(
@@ -249,6 +259,8 @@ class DocumentStub:
             files = len(asked.inventory.inventory_files) if asked.inventory else None
             repository = asked.requirements.repository_name if asked.requirements else None
             text += f"\nGiven: files={files}, repository={repository}\n"
+            if asked.draft_answers:
+                text += f"Answers: {len(asked.draft_answers)}\n"
             revises = asked.current_version.version_ref if asked.current_version else None
         return AgentResult(
             outcome=Outcome(
@@ -265,6 +277,7 @@ class DocumentStub:
                 else Derivation.MODEL,
                 grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
                 revises=revises,
+                document_questions=[STUB_QUESTION] if self.asks else [],
             ),
             evidence=[
                 EvidenceItem(

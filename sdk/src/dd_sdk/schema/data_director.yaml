@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.8
+version: 0.9.9
 license: MIT
 
 prefixes:
@@ -329,13 +329,15 @@ classes:
       document, its current version with any decision on it. In a project, the conductor puts the
       inventory and the requirements in from the project, replacing whatever the caller sent, so a
       caller leaves them out; outside a project, the caller sends them. Filling current_version is
-      TODO(#394).
+      TODO(#394). The answers a person recorded to the current version's questions are filled in
+      by the conductor in the same way (docs/specs/drafting.md).
     slots:
       - schema_class
       - document_kind
       - inventory
       - requirements
       - current_version
+      - draft_answers
     slot_usage:
       document_kind:
         description: The kind of document to draft.
@@ -352,6 +354,15 @@ classes:
       - document_text
       - version_state
       - decision_reason
+
+  DraftAnswer:
+    description: >-
+      A person's answer to one question a version of the document asked (DocumentQuestion). The
+      drafter places answer_text, as given, in the gap or cell the question names and marks it
+      supplied (docs/specs/drafting.md).
+    slots:
+      - answered_question
+      - answer_text
 
   # --- Grounding ------------------------------------------------------------------------------
 
@@ -449,6 +460,22 @@ classes:
       - document_text
       - document_derivation
       - revises
+      - document_questions
+
+  DocumentQuestion:
+    description: >-
+      A question a drafter asks the researcher about one gap in the version it drafted: a README
+      section it could not write, or a data dictionary cell it could not fill. The target is
+      either gap_section, or gap_file, gap_field and gap_column together. question_id is derived
+      from the target, so it is the same in every version that leaves the same gap
+      (docs/specs/drafting.md).
+    slots:
+      - question_id
+      - question_prompt
+      - gap_section
+      - gap_file
+      - gap_field
+      - gap_column
 
   DocumentVersionRef:
     description: >-
@@ -825,6 +852,42 @@ slots:
     slot_uri: prov:wasRevisionOf
     range: DocumentVersionRef
     inlined: true
+  document_questions:
+    description: >-
+      The questions this version asks the researcher, one for each gap it leaves. A README marks
+      each gap with the HTML comment <!-- dd:gap question_id -->; a data dictionary leaves the cell
+      empty and its source unknown.
+    range: DocumentQuestion
+    multivalued: true
+    inlined_as_list: true
+  question_id:
+    description: >-
+      The question's identifier within its document: q- and 16 lower-case hexadecimal digits,
+      derived from the gap it targets.
+    required: true
+    pattern: "^q-[0-9a-f]{16}$"
+  gap_section:
+    description: The heading of the README section the question would fill, as the drafter wrote it.
+  gap_file:
+    description: The path of the file whose data dictionary row the question would fill.
+  gap_field:
+    description: The field whose data dictionary row the question would fill.
+  gap_column:
+    description: The data dictionary column the question would fill, such as unit.
+  draft_answers:
+    description: >-
+      The answers a person recorded to the current version's questions. In a project the
+      conductor fills them; a caller leaves them out.
+    range: DraftAnswer
+    multivalued: true
+    inlined_as_list: true
+  answered_question:
+    description: The question_id of the question answered.
+    required: true
+    pattern: "^q-[0-9a-f]{16}$"
+  answer_text:
+    description: The answer as the person gave it.
+    required: true
   document_id:
     description: The identifier the conductor minted for the document, a UUIDv7.
     required: true

@@ -409,6 +409,11 @@ class ProjectStore:
                         "invocation_id": envelope.invocation_id,
                         "document_derivation": document.document_derivation.value,
                     },
+                    "questions": [
+                        q.model_dump(mode="json", exclude_none=True)
+                        for q in document.document_questions
+                    ]
+                    or None,
                 },
             )
             self._append(
@@ -552,6 +557,7 @@ class ProjectStore:
                         "conforms_to": event.get("conforms_to"),
                         "revises": event.get("revises"),
                         "drafted_by": event.get("drafted_by"),
+                        "questions": event.get("questions", []),
                         "added_by": event["acted_for"],
                         "added_at": event["at"],
                         "state": PROPOSED,

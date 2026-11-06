@@ -22,6 +22,8 @@ IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 # One line of 1 to 80 characters (Reply.conversation_title).
 CONVERSATION_TITLE_PATTERN = r"^.{1,80}$"
+# A drafter's question about a gap, derived from the gap (docs/specs/drafting.md).
+QUESTION_ID_PATTERN = r"^q-[0-9a-f]{16}$"
 CONVERSATION_TITLE_MAX = 80
 # A choice question offers between 2 and 12 options (ChoiceQuestion.question_options).
 CHOICE_OPTIONS_MIN = 2
@@ -419,6 +421,30 @@ class DocumentVersionRef(Frozen):
     version: int = Field(ge=1)  # not in the schema (#333)
 
 
+class DocumentQuestion(Frozen):
+    """A drafter's question about one gap in its draft: a README section, or a data dictionary
+    cell named by file, field and column (docs/specs/drafting.md)."""
+
+    question_id: str = Field(pattern=QUESTION_ID_PATTERN)
+    question_prompt: str
+    gap_section: str | None = None
+    gap_file: str | None = None
+    gap_field: str | None = None
+    gap_column: str | None = None
+
+    @model_validator(mode="after")
+    def _one_target(self) -> DocumentQuestion:
+        cell = (self.gap_file, self.gap_field, self.gap_column)
+        if self.gap_section is not None:
+            if any(c is not None for c in cell):
+                raise ValueError("a question targets a README section or a cell, not both")
+        elif any(c is None for c in cell):
+            raise ValueError(
+                "a question targets a README section, or a cell by file, field and column"
+            )
+        return self
+
+
 class Document(Grounded):
     """A project document an agent drafts or regenerates, as text (docs/specs/projects.md)."""
 
@@ -430,6 +456,15 @@ class Document(Grounded):
     document_text: str
     document_derivation: Derivation
     revises: DocumentVersionRef | None = None
+    # One question for each gap the version leaves (docs/specs/drafting.md).
+    document_questions: list[DocumentQuestion] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _question_ids_are_unique(self) -> Document:
+        ids = [q.question_id for q in self.document_questions]
+        if len(set(ids)) != len(ids):
+            raise ValueError("each question of a document has an identifier of its own")
+        return self
 
 
 # --- Drafting ---------------------------------------------------------------------------------
@@ -448,6 +483,13 @@ class CurrentVersion(Frozen):
     decision_reason: str | None = None
 
 
+class DraftAnswer(Frozen):
+    """A person's answer to one of the current version's questions, placed as given."""
+
+    answered_question: str = Field(pattern=QUESTION_ID_PATTERN)
+    answer_text: str
+
+
 class DraftRequest(Frozen):
     """A project document of one kind to draft from the project's facts (docs/specs/projects.md)."""
 
@@ -456,6 +498,8 @@ class DraftRequest(Frozen):
     inventory: FileInventory | None = None
     requirements: RepositoryRequirements | None = None
     current_version: CurrentVersion | None = None
+    # Filled by the conductor in a project, from the answers people recorded.
+    draft_answers: list[DraftAnswer] = Field(default_factory=list)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

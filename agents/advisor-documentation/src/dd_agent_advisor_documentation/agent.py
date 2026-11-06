@@ -13,12 +13,20 @@ file, consults no source and calls no model, so its grounding mode is `none` and
 input. Regenerating a document drafts it afresh from the project's facts, and names the version it
 replaces in `revises`; a regenerated data dictionary keeps the values the researcher gave in that
 version. The real editor is TODO(#358).
+
+Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
+README section left for the researcher and each `unknown` data dictionary cell. A README gap is an
+italic placeholder followed by `<!-- dd:gap <question-id> -->`. A question's identifier is derived
+from its gap, so the same gap is asked under the same identifier in every version. An answer in
+the request's `draft_answers` is placed, as given, in the gap it answers and marked `supplied`.
 """
 
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
+import json
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -35,6 +43,8 @@ from dd_sdk.contract.models import (
     Derivation,
     Document,
     DocumentKind,
+    DocumentQuestion,
+    DraftAnswer,
     DraftRequest,
     EvidenceItem,
     FileInventory,
@@ -53,6 +63,10 @@ README = Path(__file__).with_name("readme.yaml")
 SOURCES = frozenset({"files", "tables", "licences"})
 # How the draft marks what the researcher writes. A person's edit replaces it.
 PLACEHOLDER = "_To be written by the researcher: {ask}_"
+# What follows a placeholder: the question that asks for it. Not shown in the rendered README.
+GAP_MARKER = "<!-- dd:gap {question_id} -->"
+# How many hexadecimal digits of the gap's SHA-256 a question identifier keeps.
+QUESTION_ID_DIGITS = 16
 # The data dictionary's columns: a row is keyed by its file and field, and each value is followed
 # by a column saying where it came from (Source).
 KEY_COLUMNS = ("file", "field")
@@ -79,6 +93,15 @@ INVENTORY_SOURCES = {
     "description": Source.SUPPLIED,
 }
 
+# What each data dictionary column asks of the researcher when it is unknown.
+CELL_ASKS = {
+    "type": "What type of value does `{field}` in `{file}` hold?",
+    "format": "In what format are the values of `{field}` in `{file}` written?",
+    "description": "What does `{field}` in `{file}` record?",
+    "unit": "In what unit is `{field}` in `{file}` measured? Say if it has none.",
+    "missing_values": "Which values of `{field}` in `{file}` mean that a value is missing?",
+}
+
 TITLES = {DocumentKind.README: "README", DocumentKind.DATA_DICTIONARY: "Data dictionary"}
 MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONARY: "text/csv"}
 
@@ -86,8 +109,9 @@ MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONAR
 # no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
     "This is a mock: it copies the inventory's file and field names and writes no prose of its "
-    "own. It does not open the files, infers no definitions, units or missing value codes, and "
-    "does not read the reason given for a decision on an earlier version."
+    "own. It does not open the files, infers no definitions, units or missing value codes, "
+    "suggests no answers to its questions, and does not read the reason given for a decision on "
+    "an earlier version."
 )
 
 
@@ -128,6 +152,7 @@ class DocumentationEditor:
         derivations={
             "document_title": Derived(Derivation.TEMPLATE),
             "document_text": Derived(Derivation.TEMPLATE),
+            "document_questions": Derived(Derivation.TEMPLATE),
         },
         serves=("setup.documentation", "preparation.documentation"),
     )
@@ -152,8 +177,9 @@ class DocumentationEditor:
                 "Add the project's file inventory first: the draft is made from it.",
             )
 
+        answers = _answers(asked.draft_answers)
         if kind == DocumentKind.README:
-            text, statement = self._readme(inventory, asked.requirements)
+            text, questions, statement = self._readme(inventory, asked.requirements, answers)
         else:
             fields = sum(len(f.file_fields) for f in inventory.inventory_files)
             if not fields:
@@ -162,12 +188,12 @@ class DocumentationEditor:
                     "The inventory lists no table with fields, so there is no data dictionary to "
                     "draft.",
                 )
-            text, counts = _dictionary(inventory, asked.current_version)
+            text, questions, counts = _dictionary(inventory, asked.current_version, answers)
             statement = (
                 f"Mock: a data dictionary of {fields} fields, each value marked with where it came "
                 f"from: {counts[Source.INFERRED]} inferred from the inventory, "
-                f"{counts[Source.SUPPLIED]} supplied by you and {counts[Source.UNKNOWN]} unknown, "
-                "left for you to fill in."
+                f"{counts[Source.SUPPLIED]} supplied by you and {counts[Source.UNKNOWN]} unknown. "
+                f"It asks {_count(len(questions), 'question')}, one for each unknown value."
             )
 
         current = asked.current_version
@@ -183,6 +209,7 @@ class DocumentationEditor:
                 document_text=text,
                 document_derivation=Derivation.TEMPLATE,
                 revises=current.version_ref if current else None,
+                document_questions=questions,
                 grounded_on=[ref],
             ),
             evidence=[
@@ -197,23 +224,42 @@ class DocumentationEditor:
         )
 
     def _readme(
-        self, inventory: FileInventory, requirements: RepositoryRequirements | None
-    ) -> tuple[str, str]:
+        self,
+        inventory: FileInventory,
+        requirements: RepositoryRequirements | None,
+        answers: Mapping[str, str],
+    ) -> tuple[str, list[DocumentQuestion], str]:
         parts = ["# README"]
-        drafted = 0
+        questions: list[DocumentQuestion] = []
+        drafted = answered = 0
         for section in self.sections:
             body = _drafted(section.source, inventory, requirements)
             drafted += body is not None
             parts.append(f"## {section.heading}")
             if body is not None:
                 parts.append(body)
-            parts.append(PLACEHOLDER.format(ask=section.ask))
+            question_id = _question_id({"section": section.heading})
+            answer = answers.get(question_id)
+            if answer is not None:
+                parts.append(answer)
+                answered += 1
+                continue
+            placeholder = PLACEHOLDER.format(ask=section.ask)
+            parts.append(f"{placeholder}\n{GAP_MARKER.format(question_id=question_id)}")
+            questions.append(
+                DocumentQuestion(
+                    question_id=question_id,
+                    question_prompt=f"For the README's {section.heading} section: {section.ask}",
+                    gap_section=section.heading,
+                )
+            )
         statement = (
             f"Mock: a README of {len(self.sections)} sections, {drafted} of them drafted from the "
-            "project's inventory and the repository chosen. What each section asks of you is "
-            "marked for you to write."
+            f"project's inventory and the repository chosen, and {answered} written from your "
+            f"answers. It leaves {_count(len(questions), 'gap')} for you to write, each marked and "
+            "asked as a question."
         )
-        return "\n\n".join(parts) + "\n", statement
+        return "\n\n".join(parts) + "\n", questions, statement
 
 
 def _drafted(
@@ -258,15 +304,17 @@ def _table(header: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
 
 
 def _dictionary(
-    inventory: FileInventory, current: CurrentVersion | None
-) -> tuple[str, dict[Source, int]]:
-    """The data dictionary as CSV, one row per field, and how many values came from each source.
+    inventory: FileInventory, current: CurrentVersion | None, answers: Mapping[str, str]
+) -> tuple[str, list[DocumentQuestion], dict[Source, int]]:
+    """The data dictionary as CSV, one row per field, a question for each unknown value, and how
+    many values came from each source.
 
-    A value the researcher gave in the current version wins over the inventory's, so that their
-    edits survive regenerating. The rows are the inventory's fields: a field no longer in it is
-    dropped.
+    An answer the researcher recorded wins, then a value they gave in the current version, then the
+    inventory's, so that their answers and edits survive regenerating. The rows are the
+    inventory's fields: a field no longer in it is dropped.
     """
     earlier = _earlier_rows(current)
+    questions: list[DocumentQuestion] = []
     counts = dict.fromkeys(Source, 0)
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\n")
@@ -281,11 +329,28 @@ def _dictionary(
             before = earlier.get((f.file_path, c.name), {})
             row = [f.file_path, c.name]
             for column in VALUE_COLUMNS:
-                value, source = _cell(column, given.get(column) or "", before)
+                question_id = _question_id({"file": f.file_path, "field": c.name, "column": column})
+                answer = answers.get(question_id)
+                if answer is not None:
+                    value, source = answer, Source.SUPPLIED
+                else:
+                    value, source = _cell(column, given.get(column) or "", before)
+                if source == Source.UNKNOWN:
+                    questions.append(
+                        DocumentQuestion(
+                            question_id=question_id,
+                            question_prompt=CELL_ASKS[column].format(
+                                field=c.name, file=f.file_path
+                            ),
+                            gap_file=f.file_path,
+                            gap_field=c.name,
+                            gap_column=column,
+                        )
+                    )
                 counts[source] += 1
                 row += [value, source.value]
             writer.writerow(row)
-    return out.getvalue(), counts
+    return out.getvalue(), questions, counts
 
 
 def _cell(column: str, given: str, before: Mapping[str, str]) -> tuple[str, Source]:
@@ -311,6 +376,24 @@ def _earlier_rows(current: CurrentVersion | None) -> dict[tuple[str, str], dict[
     if not reader.fieldnames or not set(KEY_COLUMNS) <= set(reader.fieldnames):
         return {}
     return {(row["file"], row["field"]): row for row in reader}
+
+
+def _question_id(target: Mapping[str, str]) -> str:
+    """A question's identifier, derived from the gap it targets and never from its position, so
+    that the same gap has the same identifier in every version (docs/specs/drafting.md)."""
+    canonical = json.dumps(target, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return f"q-{digest[:QUESTION_ID_DIGITS]}"
+
+
+def _answers(given: Sequence[DraftAnswer]) -> dict[str, str]:
+    """The recorded answers by the question they answer. A blank answer leaves its gap open; of
+    two answers to one question, the later in the list wins."""
+    return {a.answered_question: a.answer_text for a in given if a.answer_text.strip()}
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
 def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
