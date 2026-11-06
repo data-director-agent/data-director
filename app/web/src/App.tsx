@@ -135,7 +135,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (onProfile) return <ProfilePage session={session.value} />;
     if (onActivity) return <ActivityLog />;
     if (onProjects) return <ProjectsPage />;
-    if (projectId) return <ProjectPage projectId={projectId} />;
+    if (projectId) return <ProjectPage projectId={projectId} query={query ?? ""} />;
     if (state.state === "loading") return <p role="status">Loading the agents…</p>;
     if (state.state === "failed") {
       return (

@@ -167,8 +167,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
   otherwise with its line breaks kept, with actions to copy the text and download it as a file.
-  The project's documents page shows the stored text unrendered, since that is what a decision
-  names.
+  The project's documents page lists the documents beside a reader, those waiting for a decision
+  first, with the one open named in the address (`?doc=`, and `&v=` for an earlier version). The
+  reader previews a document by its media type (Markdown rendered, CSV as a table, JSON
+  indented), and its Source tab shows the stored text exactly, since that is what a decision names
+  by its digest and what the deposit package holds. Its Versions tab shows each version's
+  decision and the lines it changed from the one before. While a person edits, the preview shows
+  their version.
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
