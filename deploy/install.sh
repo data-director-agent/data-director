@@ -91,6 +91,31 @@ step "systemd units"
 (cd "$SRC/deploy/systemd" && find . -type f -printf '%P\n') | while read -r unit; do
   install -D -m 0644 "$SRC/deploy/systemd/$unit" "/etc/systemd/system/$unit"
 done
+
+# An agent that is no longer deployed (no deploy/agents/<name>.env), such as one renamed, is
+# stopped and loses its drop-ins; otherwise it would go on holding its port.
+for unit in $(systemctl list-units --all --plain --no-legend 'data-director-agent@*.service' | awk '{print $1}') \
+  $(cd /etc/systemd/system && compgen -G 'data-director-agent@*.service.d' | sed 's/\.d$//'); do
+  name="${unit#data-director-agent@}"
+  name="${name%.service}"
+  [[ -f "$SRC/deploy/agents/$name.env" ]] && continue
+  echo "$unit: no longer deployed; stopping it"
+  systemctl stop "$unit" || true
+  rm -rf "/etc/systemd/system/$unit.d"
+done
+
+# A model key's drop-in, only for an agent whose key is in place (deploy/credentials/).
+for conf in "$SRC"/deploy/credentials/*.conf; do
+  name="$(basename "$conf" .conf)"
+  dropin="/etc/systemd/system/data-director-agent@$name.service.d/credentials.conf"
+  if [[ -s "$ETC/credentials/$name/anthropic-api-key" ]]; then
+    echo "$name: model key in place"
+    install -D -m 0644 "$conf" "$dropin"
+  else
+    rm -f "$dropin"
+    rmdir "$(dirname "$dropin")" 2>/dev/null || true
+  fi
+done
 systemctl daemon-reload
 
 step "Certificate for $domain"
