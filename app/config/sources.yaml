@@ -2,16 +2,18 @@
 # names another list. Paths are relative to this file; each copy is pinned by sha256, and a
 # file that no longer matches its pin stops the app from starting. Format as in
 # workbench/sources.yaml.
-# TODO(#225): how to pin a copy that is not in the repository.
+# TODO(#225): how an institution pins a copy of a source of its own.
 sources:
   - snapshot_refs: ["snapshot:2026-09-04", "snapshot:2026-09-04 (stale)"]
     path: ../../agents/advisor-standards/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
     sha256: 969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1
-  - snapshot_refs: ["re3data:snapshot:2026-10-29", "re3data:snapshot:2026-10-29 (stale)"]
-    path: ../../agents/advisor-repository/data/re3data/snapshot.jsonl
+  - snapshot_refs: ["re3data:export:2026-11"]
+    path: ../../agents/advisor-repository/data/re3data/registry.jsonl
+    # Built from the pinned re3data export, not committed (agents/advisor-repository/README.md).
+    build: uv run dd-re3data fetch
     id_field: re3data_id
-    sha256: 84949843c4adf9812463eeb602da152d1001646fd744b9f1a46bad5eb36551b5
+    sha256: 37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd
   - snapshot_refs: ["fairsharing:snapshot:2026-10-29", "fairsharing:snapshot:2026-10-29 (stale)"]
     path: ../../agents/advisor-repository/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id

@@ -3,9 +3,10 @@
 `build` assembles the agent from its own environment variables (documented in
 `config/examples/agents.env`):
 
-- `DD_REPOSITORY_RETRIEVAL`: `snapshot` (default) reads the committed copies of re3data and
-  FAIRsharing. `live` asks both registries' public routes, which need no account, and falls back
-  to the snapshots, marked stale, when a route fails.
+- `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read. `snapshot` (default)
+  reads the committed copy; `live` asks FAIRsharing's public route, which needs no account, and
+  falls back to the snapshot, marked stale, when it fails. re3data is always read from the
+  registry built from its pinned export (`registry.py`, `dd-re3data fetch`).
 - `DD_REPOSITORY_EXPLAINER`: `template` (default) or `anthropic`.
 - `DD_MODEL_ID`: the model the Anthropic explainer calls.
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the Anthropic
@@ -29,8 +30,8 @@ from dd_agent_advisor_repository.explain import (
     Explainer,
     TemplateExplainer,
 )
-from dd_agent_advisor_repository.live import FairsharingLive, Re3dataLive
-from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataSnapshot
+from dd_agent_advisor_repository.live import FairsharingLive
+from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_sdk import serve
 from dd_sdk.agent import ModelUse
 from dd_sdk.credentials import ConfigError, api_key
@@ -53,13 +54,12 @@ def build(env: Mapping[str, str] | None = None) -> RepositoryAgent:
     explainer = build_explainer(env)
     choice = env.get("DD_REPOSITORY_RETRIEVAL", "snapshot")
     if choice == "snapshot":
-        agent = RepositoryAgent(Re3dataSnapshot(), FairsharingSnapshot(), explainer)
+        agent = RepositoryAgent(Re3dataRegistry(), FairsharingSnapshot(), explainer)
     elif choice == "live":
         agent = RepositoryAgent(
-            Re3dataLive(),
+            Re3dataRegistry(),
             FairsharingLive(),
             explainer,
-            fallback=Re3dataSnapshot(),
             databases_fallback=FairsharingSnapshot(),
         )
     else:

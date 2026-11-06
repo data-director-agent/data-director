@@ -29,6 +29,7 @@ from devstack.common import (
     load_agents,
     omissions_note,
     port_free,
+    prepare_re3data,
     prepare_web,
     profile_omissions,
     workspace_env,
@@ -136,6 +137,7 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
             f"port {', '.join(map(str, taken))} is in use; stop whatever holds it "
             "(an earlier `start`, `scripts/run-agents.sh` or Docker Compose?)"
         )
+    prepare_re3data()
     if not agents_only:
         prepare_web()
 

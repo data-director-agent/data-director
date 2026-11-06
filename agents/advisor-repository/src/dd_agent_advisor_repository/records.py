@@ -1,7 +1,8 @@
 """The two kinds of registry record this agent cites, and how each is read from its source.
 
-- **re3data** answers `GET https://www.re3data.org/api/v1/repository/<id>` with an XML record
-  (schema 2.2). `from_re3data_xml` keeps the fields Phase 3 asks about and drops contacts.
+- **re3data** publishes every record in a monthly export, one XML file per repository in metadata
+  schema 4.0 (https://doi.org/10.48440/re3.014; `registry.py`). `from_re3data_xml` keeps the
+  fields Phase 3 asks about and drops contact details.
 - **FAIRsharing** answers `GET https://fairsharing.org/<id>` with `Accept: application/json`, no
   account needed. `from_fairsharing_json` keeps the database fields re3data does not have.
 
@@ -20,11 +21,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 
-RE3DATA_RECORD_URL = "https://www.re3data.org/api/v1/repository/{id}"
+# A record's page, for one that has no DOI. re3data gives most records a DOI under 10.17616.
+RE3DATA_RECORD_URL = "https://www.re3data.org/repository/{id}"
 FAIRSHARING_RECORD_URL = "https://fairsharing.org/{id}"
 FAIRSHARING_DOI_PREFIX = "10.25504/"
 
-_NS = {"r3d": "http://www.re3data.org/schema/2-2"}
+_NS = {"r3d": "http://www.re3data.org/schema/4-0"}
 
 
 class Institution(BaseModel):
@@ -70,7 +72,6 @@ class Re3dataRecord(BaseModel):
     data_licences: list[str] = Field(default_factory=list)
     pid_systems: list[str] = Field(default_factory=list)
     certificates: list[str] = Field(default_factory=list)
-    quality_management: str | None = None
     metadata_standards: list[str] = Field(default_factory=list)
     fairsharing_id: str | None = None
     last_update: str | None = None
@@ -101,7 +102,8 @@ class Re3dataRecord(BaseModel):
 
     @property
     def source_uri(self) -> str:
-        return RE3DATA_RECORD_URL.format(id=self.re3data_id)
+        """The record's own DOI, by which a reader can cite it; else its page."""
+        return self.doi or RE3DATA_RECORD_URL.format(id=self.re3data_id)
 
     def document(self) -> dict[str, Any]:
         return self.model_dump(mode="json")
@@ -158,7 +160,7 @@ class DatabaseRecord(BaseModel):
         return content_hash(self.document(), DOCUMENT_CANONICALISATION)
 
 
-# --- re3data XML ------------------------------------------------------------------------------
+# --- re3data XML (schema 4.0) ------------------------------------------------------------------
 
 
 def _texts(parent: ET.Element, path: str) -> list[str]:
@@ -170,11 +172,25 @@ def _text(parent: ET.Element, path: str) -> str | None:
     return found[0] if found else None
 
 
-def _ror(identifiers: list[str]) -> str | None:
-    for identifier in identifiers:
-        if identifier.upper().startswith("ROR:"):
-            return bare_ror(identifier[4:])
-    return None
+def _english(parent: ET.Element, path: str) -> str | None:
+    """The English text of an element that may be given in several languages, else the first."""
+    found = [e for e in parent.findall(path, _NS) if e.text and e.text.strip()]
+    chosen = next((e for e in found if e.get("language") == "eng"), found[0] if found else None)
+    return chosen.text.strip() if chosen is not None and chosen.text else None
+
+
+def _identifiers(parent: ET.Element, element: str, value: str) -> list[tuple[str, str]]:
+    """(type, value) for each `<element>` holding `<elementType>` and a `<value>` child."""
+    out = []
+    for e in parent.findall(f"r3d:{element}", _NS):
+        kind, found = _text(e, f"r3d:{element}Type"), _text(e, f"r3d:{value}")
+        if kind and found:
+            out.append((kind, found))
+    return out
+
+
+def _ror(identifiers: list[tuple[str, str]]) -> str | None:
+    return next((bare_ror(v) for kind, v in identifiers if kind.upper() == "ROR"), None)
 
 
 def bare_ror(value: str) -> str:
@@ -182,8 +198,20 @@ def bare_ror(value: str) -> str:
     return value.strip().rstrip("/").rsplit("/", 1)[-1].lower()
 
 
+def _subjects(repo: ET.Element) -> list[str]:
+    """Each subject as `<id> <name>` (`34 Geosciences`), so a reader sees where it sits in the
+    DFG classification and a search can match either."""
+    out = []
+    for e in repo.findall("r3d:subject", _NS):
+        name = _text(e, "r3d:subjectName")
+        if name:
+            code = _text(e, "r3d:subjectId")
+            out.append(f"{code} {name}" if code else name)
+    return out
+
+
 def from_re3data_xml(body: str | bytes) -> Re3dataRecord | None:
-    """One re3data record. None when the body holds no repository (an unknown identifier).
+    """One re3data record. None when the body holds no repository.
 
     The standard library's parser does not fetch external entities, and the expat it ships with
     limits entity expansion, so a hostile record cannot reach the network or exhaust memory.
@@ -192,36 +220,40 @@ def from_re3data_xml(body: str | bytes) -> Re3dataRecord | None:
     repo = root.find("r3d:repository", _NS)
     if repo is None:
         return None
-    re3data_id = _text(repo, "r3d:re3data.orgIdentifier")
-    name = _text(repo, "r3d:repositoryName")
+    re3data_id = _text(repo, "r3d:identifiers/r3d:re3data")
+    name = _english(repo, "r3d:repositoryName")
     if not re3data_id or not name:
         return None
-    identifiers = _texts(repo, "r3d:repositoryIdentifier")
     fairsharing = next(
-        (i.removeprefix(FAIRSHARING_DOI_PREFIX) for i in identifiers if "FAIRsharing." in i), None
+        (
+            v.removeprefix(FAIRSHARING_DOI_PREFIX)
+            for kind, v in _identifiers(repo, "repositoryIdentifier", "repositoryIdentifierValue")
+            if kind == "FAIRsharing"
+        ),
+        None,
     )
     institutions = [
         Institution(
-            name=_text(i, "r3d:institutionName") or "",
+            name=_english(i, "r3d:institutionName") or "",
             country=_text(i, "r3d:institutionCountry"),
             type=_text(i, "r3d:institutionType"),
             responsibilities=_texts(i, "r3d:responsibilityType"),
-            ror=_ror(_texts(i, "r3d:institutionIdentifier")),
+            ror=_ror(_identifiers(i, "institutionIdentifier", "institutionIdentifierUrl")),
         )
         for i in repo.findall("r3d:institution", _NS)
         if _text(i, "r3d:institutionName")
     ]
     return Re3dataRecord(
         re3data_id=re3data_id,
-        doi=_text(repo, "r3d:doi") or None,
+        doi=_text(repo, "r3d:identifiers/r3d:doi"),
         name=name,
         additional_names=_texts(repo, "r3d:additionalName"),
-        url=_text(repo, "r3d:repositoryURL"),
-        description=_text(repo, "r3d:description"),
+        url=_text(repo, "r3d:repositoryUrl"),
+        description=_english(repo, "r3d:description"),
         types=_texts(repo, "r3d:type"),
-        subjects=_texts(repo, "r3d:subject"),
+        subjects=_subjects(repo),
         keywords=_texts(repo, "r3d:keyword"),
-        content_types=_texts(repo, "r3d:contentType"),
+        content_types=_texts(repo, "r3d:contentType/r3d:contentTypeName"),
         institutions=institutions,
         data_access_types=_texts(repo, "r3d:dataAccess/r3d:dataAccessType"),
         data_access_restrictions=_texts(repo, "r3d:dataAccess/r3d:dataAccessRestriction"),
@@ -229,18 +261,11 @@ def from_re3data_xml(body: str | bytes) -> Re3dataRecord | None:
         data_upload_restrictions=_texts(repo, "r3d:dataUpload/r3d:dataUploadRestriction"),
         data_licences=_texts(repo, "r3d:dataLicense/r3d:dataLicenseName"),
         pid_systems=_texts(repo, "r3d:pidSystem"),
-        certificates=_texts(repo, "r3d:certificate"),
-        quality_management=_text(repo, "r3d:qualityManagement"),
+        certificates=_texts(repo, "r3d:certificate/r3d:certificateName"),
         metadata_standards=_texts(repo, "r3d:metadataStandard/r3d:metadataStandardName"),
         fairsharing_id=fairsharing,
         last_update=_text(repo, "r3d:lastUpdate"),
     )
-
-
-def ids_from_re3data_list(body: str | bytes) -> list[str]:
-    """The identifiers in a re3data search or list response, in the order given."""
-    root = ET.fromstring(body)
-    return [e.text.strip() for e in root.iter("id") if e.text and e.text.strip()]
 
 
 # --- FAIRsharing JSON -------------------------------------------------------------------------

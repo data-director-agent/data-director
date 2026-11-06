@@ -1,0 +1,4 @@
+# Built by `uv run dd-re3data fetch` from the pinned export (manifest.json); not committed.
+registry.jsonl
+*.part
+archives/

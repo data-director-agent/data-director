@@ -160,6 +160,14 @@ implementation meetings since October 2026. We thank the participants for the id
 - Raymond Uzwyshyn (University of California, Riverside): a persona-based design of six agents.
 - Carlo Maria Zwölf (LUX, Observatoire de Paris): a post-mortem of an end-to-end deposit prototype.
 
+The advisors read two community registries, and we are grateful to the people who curate them:
+[re3data.org](https://www.re3data.org), the Registry of Research Data Repositories
+([doi:10.17616/R3D](https://doi.org/10.17616/R3D), CC0), and
+[FAIRsharing](https://fairsharing.org) (Sansone et al. 2019,
+[doi:10.1038/s41587-019-0080-8](https://doi.org/10.1038/s41587-019-0080-8); CC BY-SA 4.0). Each record an agent relies on is cited in its evidence, and how each copy is
+taken is described beside it (for example
+[`agents/advisor-repository/data/re3data/SOURCE.md`](agents/advisor-repository/data/re3data/SOURCE.md)).
+
 ## Contributing
 
 This is a community-driven, open-source project. See:

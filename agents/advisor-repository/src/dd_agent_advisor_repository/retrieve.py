@@ -50,12 +50,16 @@ class SnapshotRef:
 
 @runtime_checkable
 class Repositories(Protocol):
-    """re3data, or a copy of it."""
+    """re3data, as the pinned export (`snapshot.Re3dataRegistry`) or a test's copy."""
 
     def snapshot_ref(self) -> SnapshotRef: ...
 
+    def credit(self) -> str:
+        """The sentence that credits re3data in a statement."""
+        ...
+
     def search(self, query: Query) -> list[Hit]:
-        """Run one search. Raises RegistryUnavailable when the registry cannot be asked."""
+        """Run one search. Raises RegistryUnavailable when the registry cannot be read."""
         ...
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None: ...

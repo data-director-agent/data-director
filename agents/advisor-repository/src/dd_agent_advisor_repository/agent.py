@@ -109,12 +109,10 @@ class RepositoryAgent:
         repositories: Repositories,
         databases: Databases | None = None,
         explainer: Explainer | None = None,
-        fallback: Repositories | None = None,
         databases_fallback: Databases | None = None,
     ) -> None:
         self.repositories = repositories
         self.databases = databases
-        self.fallback = fallback
         self.databases_fallback = databases_fallback
         self.explainer = explainer or TemplateExplainer()
 
@@ -180,26 +178,13 @@ class RepositoryAgent:
             )
 
         source = self.repositories
-        got = _Retrieved(source.snapshot_ref())
         try:
+            got = _Retrieved(source.snapshot_ref())
             mandated, not_found, matches, hits = self._from_re3data(needs, source)
         except RegistryUnavailable as exc:
-            if self.fallback is None:
-                return _abstain(
-                    ReasonCode.REGISTRY_UNAVAILABLE,
-                    f"re3data could not be searched: {exc}. This is not an empty result.",
-                )
-            try:
-                mandated, not_found, matches, hits = self._from_re3data(needs, self.fallback)
-            except RegistryUnavailable as again:
-                return _abstain(
-                    ReasonCode.REGISTRY_UNAVAILABLE,
-                    f"re3data could not be searched ({exc}), nor its snapshot ({again}).",
-                )
-            got.re3data_ref = SnapshotRef(
-                label=self.fallback.snapshot_ref().label,
-                stale=True,
-                notes=[f"live route failed: {exc}"],
+            return _abstain(
+                ReasonCode.REGISTRY_UNAVAILABLE,
+                f"re3data could not be read: {exc}. This is not an empty result.",
             )
         for record in [*mandated, *hits.values()]:
             got.repositories[record.re3data_id] = record
@@ -331,7 +316,7 @@ class RepositoryAgent:
                 " No mandated repository was given; a funder, journal or institution may still "
                 "require one, so check their policies before choosing from this shortlist."
             )
-        statement += " The researcher chooses; human review is required."
+        statement += " The researcher chooses; human review is required. " + source.credit()
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=RepositoryOptions(

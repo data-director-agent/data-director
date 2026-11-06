@@ -155,7 +155,7 @@
                ]
             },
             "snapshot_ref": {
-               "description": "Which copies of the registries answered, e.g. re3data:snapshot:2026-10-29.",
+               "description": "Which copies of the registries answered, e.g. re3data:export:2026-11.",
                "type": [
                   "string",
                   "null"

@@ -1,9 +1,13 @@
-"""Snapshot backends: committed JSON Lines copies of both registries.
+"""Local copies of both registries, in JSON Lines.
 
-Used in CI and offline, and as the fallback when a live route fails. Each line is a record's whole
-document, as hashed, so the harness's source check can use the same file (docs/specs/grounding.md).
-re3data records are searched lexically with `rank_bm25`; this module is its only importer
-(docs/specs/dependencies.md).
+- re3data: the whole registry, built from the pinned monthly export (`registry.py`). It is the
+  only copy of re3data the agent reads.
+- FAIRsharing: a committed snapshot of the database records re3data cross-references, used by
+  default and as the fallback when the live route fails.
+
+Each line is a record's whole document, as hashed, so the harness's source check can use the same
+file (docs/specs/grounding.md). re3data records are searched lexically with `rank_bm25`; this
+module is its only importer (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations
@@ -15,11 +19,11 @@ from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
+from dd_agent_advisor_repository import registry
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_agent_advisor_repository.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-RE3DATA_SNAPSHOT = DATA_DIR / "re3data" / "snapshot.jsonl"
 FAIRSHARING_SNAPSHOT = DATA_DIR / "fairsharing" / "snapshot.jsonl"
 
 _TOKEN = re.compile(r"[a-z0-9]+")
@@ -66,21 +70,34 @@ def _lines(path: Path) -> list[dict[str, object]]:
     return out
 
 
-def _ref(registry: str, path: Path) -> SnapshotRef:
+def _ref(name: str, path: Path) -> SnapshotRef:
     manifest = path.with_name("manifest.json")
     fetched_at = None
     if manifest.is_file():
         fetched_at = json.loads(manifest.read_text(encoding="utf-8")).get("fetched_at")
-    label = f"{registry}:snapshot:{fetched_at[:10] if fetched_at else path.name}"
+    label = f"{name}:snapshot:{fetched_at[:10] if fetched_at else path.name}"
     return SnapshotRef(label=label, fetched_at=fetched_at)
 
 
-class Re3dataSnapshot:
-    def __init__(self, path: Path = RE3DATA_SNAPSHOT) -> None:
+class Re3dataRegistry:
+    """Every repository in the pinned re3data export. The registry is checked against its pin
+    when first read, so the label it gives the evidence is true of the records it holds."""
+
+    def __init__(self, path: Path = registry.REGISTRY, manifest: Path = registry.MANIFEST) -> None:
         self.path = path
+        self.manifest = manifest
+
+    @cached_property
+    def pin(self) -> registry.Pin:
+        try:
+            return registry.Pin.load(self.manifest)
+        except registry.RegistryError as exc:
+            raise RegistryUnavailable(str(exc)) from None
 
     @cached_property
     def records(self) -> list[Re3dataRecord]:
+        if (found := registry.problem(self.path, self.manifest)) is not None:
+            raise RegistryUnavailable(found)
         return [Re3dataRecord.model_validate(d) for d in _lines(self.path)]
 
     @cached_property
@@ -91,8 +108,15 @@ class Re3dataSnapshot:
     def _bm25(self) -> BM25Okapi:
         return BM25Okapi(self._tokens)
 
+    @cached_property
+    def _by_id(self) -> dict[str, Re3dataRecord]:
+        return {r.re3data_id: r for r in self.records}
+
     def snapshot_ref(self) -> SnapshotRef:
-        return _ref("re3data", self.path)
+        return SnapshotRef(label=self.pin.label, fetched_at=self.pin.fetched_at)
+
+    def credit(self) -> str:
+        return self.pin.credit
 
     def search(self, query: Query) -> list[Hit]:
         """Records that contain every word of the query, as re3data's own search requires, in
@@ -112,7 +136,7 @@ class Re3dataSnapshot:
         return hits[: query.limit]
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None:
-        return next((r for r in self.records if r.re3data_id == re3data_id), None)
+        return self._by_id.get(re3data_id)
 
     def find(self, name: str) -> Re3dataRecord | None:
         wanted = name.casefold().strip()

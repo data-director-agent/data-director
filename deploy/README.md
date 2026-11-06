@@ -45,8 +45,9 @@ process ([The app](../docs/specs/app.md)).
 | Path | Holds |
 |---|---|
 | `/opt/data-director/repo.git` | A bare clone of the branch. |
-| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, `app/web/dist`, and `REVISION`, the full commit hash the app reports as its build. The newest three are kept. |
+| `/opt/data-director/releases/<sha>/` | One built commit each: source, `.venv`, the re3data registry, `app/web/dist`, and `REVISION`, the full commit hash the app reports as its build. The newest three are kept. |
 | `/opt/data-director/current` | Link to the live release. The units run from it. |
+| `/opt/data-director/cache/re3data/` | The pinned re3data export the repository advisor's registry is built from, downloaded once per pin and shared by releases. |
 | `/opt/data-director/failed-commits` | Commits that did not start. They are not tried again. |
 | `/var/lib/data-director/runs/` | The run store (`DD_RUNS_DIR`). It outlives releases. |
 | `/var/lib/data-director/` | Also the service user's home: uv's Python and package cache, npm's cache. |

@@ -71,6 +71,17 @@ def test_config_resolves_paths_beside_the_file(tmp_path: Path) -> None:
     assert Sources.from_config(config).by_snapshot_ref[SNAPSHOT_REF].record("src:a") == RECORD
 
 
+def test_a_copy_built_outside_git_names_how_to_build_it_when_missing(tmp_path: Path) -> None:
+    config = tmp_path / "sources.yaml"
+    config.write_text(
+        f"sources:\n  - snapshot_refs: [{SNAPSHOT_REF}]\n    path: absent.jsonl\n"
+        f"    build: uv run dd-build-it\n    id_field: source_id\n    sha256: {'0' * 64}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(SourceConfigError, match="build it with `uv run dd-build-it`"):
+        Sources.from_config(config)
+
+
 # --- Rules ------------------------------------------------------------------------------------
 
 

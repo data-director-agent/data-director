@@ -16,6 +16,7 @@ anthropic = ["anthropic>=0.50"]
 
 [project.scripts]
 dd-advisor-repository = "dd_agent_advisor_repository.factory:main"
+dd-re3data = "dd_agent_advisor_repository.registry:main"
 
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]

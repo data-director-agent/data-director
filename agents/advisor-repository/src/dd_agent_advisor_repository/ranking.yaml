@@ -1,7 +1,7 @@
 # How advisor.repository shortlists repositories when none is mandated. Read by rank.py.
 #
 # Certification carries no weight. Figure 3 says the agent should not weight paid certification
-# above free evaluation, and re3data seldom names a certificate, so the fair weight is none.
+# above free evaluation, and re3data lists few certificates, so the fair weight is none.
 # A commercial operator is never dropped; at an equal score it is listed after the others, and
 # then one that lists a deposit fee after those that do not.
 #
@@ -22,14 +22,14 @@ order: [discipline, institutional, generalist]
 # At most this many repositories are recommended, besides those the researcher's own institution
 # operates.
 max_candidates: 5
-# Records retrieved per query. Each live hit costs one request to re3data (Blueprint P14).
+# Records retrieved per query from the registry.
 search_limit: 10
 # The score a repository needs to be recommended.
 confidence_floor: 0.3
 
 # Generalist repositories, which take data from any discipline: Figure 3's "domain-specific or
-# generalist". They are fetched by identifier for every shortlist, one request each when live
-# (Blueprint P14), and rank below any repository that matches the dataset's discipline.
+# generalist". They are taken by identifier for every shortlist, and rank below any repository
+# that matches the dataset's discipline.
 generalists:
   - r3d100010468  # Zenodo
   - r3d100010066  # figshare

@@ -146,6 +146,11 @@ class Sources:
                 raise SourceConfigError(
                     f"{path}: each source needs snapshot_refs, path, id_field and sha256"
                 ) from None
+            built_by = entry.get("build")
+            if not (path.parent / str(file)).is_file() and built_by:
+                raise SourceConfigError(
+                    f"{path}: source file {file} is not built; build it with `{built_by}`"
+                )
             resolver = RecordsFile.load(path.parent / str(file), str(id_field), str(pin))
             for ref in refs:
                 if ref in by_ref:

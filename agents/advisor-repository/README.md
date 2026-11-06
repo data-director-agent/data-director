@@ -7,7 +7,7 @@ The repository advisor helps with Phase 3 of the Blueprint's process flow, repos
 
 | Step | What the agent does |
 |---|---|
-| `repository.recommend` (R1) | Shortlists repositories from re3data, or describes the ones mandated. |
+| `repository.recommend` (R1) | Shortlists repositories from the whole of re3data, or describes the ones mandated. |
 | `repository.pid` (R7) | Reports whether re3data lists a persistent identifier system the repository uses. |
 | `repository.access-and-costs` | Compares the access the data needs with what the repository offers, and reports listed fees. |
 | `repository.certification` | Reports the certificates re3data lists. They carry no weight in ranking. |
@@ -28,8 +28,8 @@ Figure 3), and its statement says that a funder, journal or institution may stil
 repository, since an empty list often means only that no policy source records one.
 
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
-`grounded_on`: its re3data record, and the FAIRsharing database record that re3data
-cross-references, when there is one. What the reader is shown about the repository is the
+`grounded_on`: its re3data record, cited by the record's own DOI, and the FAIRsharing database
+record that re3data cross-references, when there is one. What the reader is shown about the repository is the
 evidence `content` of those records ([Evidence and grounding](../../docs/specs/grounding.md)). The candidate adds:
 
 - three answers read from the records, each `yes`, `no` or `unstated`: `assigns_pids`,
@@ -49,10 +49,11 @@ Mandated names with no re3data record are listed in `not_found`.
 The pipeline is retrieve, assess, rank, explain. Retrieval comes first, and no model chooses a
 repository or makes a judgement:
 
-- **Search.** One re3data query per theme and per kind of data, because re3data's search
-  requires every word of a query to match; the snapshot search requires it too. A further query
-  names the researcher's institution, and the generalist repositories listed in `ranking.yaml`
-  (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and Mendeley Data) are fetched by identifier.
+- **Search.** One query per theme and per kind of data over every repository in the registry
+  (BM25), where a hit must contain every word of the query, as re3data's own search requires. A
+  further query names the researcher's institution, and the generalist repositories listed in
+  `ranking.yaml` (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and Mendeley Data) are taken by
+  identifier.
 - **Assessment** (`assess.py`). Fixed rules over registry fields. Where the records are silent
   the answer is `unstated`, never a guess. A commercial institution counts as an operator only
   when its responsibility is general or funding. A commercial technical supplier, such as
@@ -80,39 +81,72 @@ repository or makes a judgement:
 - **Order at an equal score.** A commercial operator is listed after the others, and then a
   repository that lists a deposit fee; neither is dropped. Certification carries no weight,
   because Figure 3 says paid certification must not outweigh free evaluation.
+- **Credit.** Every statement ends by crediting re3data and naming the export it read.
 - **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=anthropic`, a model
   writes the rationale only, from `system_prompt.md`, and is sent registry text and the needs,
   never research data.
 
 ## Configuration
 
-- `DD_REPOSITORY_RETRIEVAL`: `snapshot` (the default) or `live`. Both live routes are public and
-  need no account. With `live`, the agent falls back to the snapshots, marked stale, when a route
-  fails.
+- `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read: `snapshot` (the
+  default) or `live`. The live route is public and needs no account; when it fails the agent falls
+  back to the snapshot, marked stale. re3data is always read from the pinned registry.
 - `DD_REPOSITORY_EXPLAINER`: `template` (the default) or `anthropic`, with `DD_MODEL_ID` and the
   key as for the standards advisor ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Sources
 
-`data/re3data/` and `data/fairsharing/` hold the committed snapshots, one record per line in the
-form that is hashed. They are pinned in `workbench/sources.yaml` and `app/config/sources.yaml`, so
-the harness's source check verifies the evidence against them ([Evidence and grounding](../../docs/specs/grounding.md)). To rebuild them, run
-`uv run python agents/advisor-repository/scripts/build_repository_snapshot.py`, then pin the new files. The
-re3data identifiers kept are listed in `data/re3data/ids.txt`.
+**re3data.** The agent reads every repository in re3data from one monthly export, pinned in
+`data/re3data/manifest.json` by URL and SHA-256. Build it with:
+
+```sh
+uv run dd-re3data fetch           # build registry.jsonl from the pinned export
+uv run dd-re3data check           # does registry.jsonl match the pin?
+uv run dd-re3data fetch --update-pin [--month YYYY-MM]   # pin another month's export
+uv run scripts/pin_re3data.py     # then pin both sources.yaml files to it
+```
+
+`dev.py setup` and `start`, CI and `deploy/deploy.sh` run `fetch`. It downloads an archive once per
+pin and keeps it in `data/re3data/archives/`, so a run never asks re3data. A registry that is
+missing or does not match its pin is an error that names the command to run. The agent then
+abstains, and the app does not start. Neither the archive nor the registry is committed. A
+monthly pull request moves the pin: TODO(#483).
+
+Evidence from it carries the `snapshot_ref` `re3data:export:YYYY-MM`, and both `sources.yaml` files
+pin `registry.jsonl` under that label, so the harness's source check verifies every re3data
+record the agent cites ([Evidence and grounding](../../docs/specs/grounding.md)). A change to
+`records.py` changes the registry's bytes: pin it again with
+`fetch --update-pin --month <the pinned month>` and `scripts/pin_re3data.py` in the same pull
+request. How we credit re3data and keep our load on it low is in
+[`data/re3data/SOURCE.md`](data/re3data/SOURCE.md).
+
+**FAIRsharing.** `data/fairsharing/` holds a committed snapshot of the database records that
+re3data cross-references for the repositories the agent was first tested on. It is pinned in
+both `sources.yaml` files. Rebuild it with
+`uv run python agents/advisor-repository/scripts/build_fairsharing_snapshot.py`, then pin the new
+file. Most repositories in the registry have no record in it. Their candidates stand on re3data
+alone unless `DD_REPOSITORY_RETRIEVAL=live`: TODO(#487).
 
 A cross-reference is followed as re3data states it. It need not be returned: re3data's CEDA
 Archive names FAIRsharing's record of the CEDA centre, which names a different re3data entry.
+
+The tests build a registry from `tests/data/re3data-export-fixture.zip`, about 30 records cut
+from the export (`tests/data/SOURCE.md`), so they need no network.
 
 ## Limits
 
 - re3data shows that a fee is required, but not how much, and does not say who pays. PID costs
   are not covered. TODO(#322)
-- re3data's API names most certificates only as "other"; a repository's CoreTrustSeal status is
-  often only in its free-text remarks. Free quality evaluations are not consulted. TODO(#323)
+- re3data names each certificate, with its dates, but only the names are kept, so a lapsed
+  certificate is reported as if current. TODO(#485). Free quality evaluations are not consulted.
+  TODO(#323)
 - re3data lists the PID systems a repository uses, but not whether assignment is automatic.
 - Only institutions that re3data lists are matched to the researcher's affiliation. There is no
-  preference for the deployment's approved repositories, and none for the researcher's country,
-  so a live search for "social science" offers national archives from anywhere. TODO(#320)
+  preference for the deployment's approved repositories (TODO(#320)), and none for the
+  researcher's country, so a search for "social science" offers national archives from anywhere
+  (TODO(#486)).
+- re3data's subjects follow the DFG classification, and its content types the COAR resource
+  types (`dataset`, `image`), so a kind of data matches only the words re3data uses.
 - The metadata standards each repository lists are in the evidence, but the chosen repository
   does not yet shape Phase 4. TODO(#321)
 - The FAIRsharing client is a copy of the standards advisor's, since an agent may not import

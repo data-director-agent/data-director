@@ -4,7 +4,8 @@
 #
 #   1. fetch the branch into the bare clone;
 #   2. stop if its tip is already live, failed here before, or has not passed CI;
-#   3. build the tip into its own release directory (uv sync, npm build of app/web);
+#   3. build the tip into its own release directory (uv sync, the re3data registry, npm build of
+#      app/web);
 #   4. point /opt/data-director/current at it and restart data-director.target;
 #   5. if the app does not answer, point `current` back and restart again.
 #
@@ -109,6 +110,9 @@ if [[ ! -f "$release/.built" ]]; then
   (
     cd "$release"
     uv sync --locked --no-dev --quiet
+    # The repository advisor's re3data registry, built from its pinned export. The archive is
+    # kept outside the releases, so it is downloaded once per pin, not once per release.
+    uv run --no-sync dd-re3data fetch --cache-dir "$ROOT/cache/re3data"
     cd app/web
     npm ci --no-audit --no-fund --loglevel=error
     npm run build --silent

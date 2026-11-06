@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from re3data_fixture import session_registry
 
 import dd_agent_advisor_repository
 from dd_agent_advisor_repository import rank
@@ -21,7 +22,7 @@ from dd_agent_advisor_repository.classes import (
 )
 from dd_agent_advisor_repository.records import DatabaseRecord, Institution, Re3dataRecord
 from dd_agent_advisor_repository.retrieve import Hit, Query, RegistryUnavailable, SnapshotRef
-from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataSnapshot
+from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import Envelope, OutcomeStatus, ReasonCode
@@ -103,6 +104,11 @@ NEEDS = RepositoryNeeds(
 )
 
 
+@pytest.fixture(scope="session")
+def re3data(tmp_path_factory: pytest.TempPathFactory) -> Re3dataRegistry:
+    return session_registry(tmp_path_factory)
+
+
 class FakeRepositories:
     """Word matching over a fixed record list; enough to drive ranking and the linter."""
 
@@ -112,6 +118,9 @@ class FakeRepositories:
 
     def snapshot_ref(self) -> SnapshotRef:
         return SnapshotRef(label="fake-re3data")
+
+    def credit(self) -> str:
+        return "Credit to the fake registry."
 
     def _check(self) -> None:
         if self.down:
@@ -517,10 +526,11 @@ def test_an_unreachable_registry_is_not_an_empty_result(runs_dir: Path) -> None:
     assert env.outcome.reason_code == ReasonCode.REGISTRY_UNAVAILABLE
 
 
-def test_a_failed_live_route_falls_back_to_the_snapshot_marked_stale(runs_dir: Path) -> None:
+def test_a_failed_fairsharing_route_falls_back_to_its_snapshot_marked_stale(
+    runs_dir: Path, re3data: Re3dataRegistry
+) -> None:
     advisor = agent(
-        repositories=FakeRepositories(down=True),
-        fallback=Re3dataSnapshot(),
+        repositories=re3data,
         databases=FakeDatabases(down=True),
         databases_fallback=FairsharingSnapshot(),
     )
@@ -529,8 +539,23 @@ def test_a_failed_live_route_falls_back_to_the_snapshot_marked_stale(runs_dir: P
     )
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     refs = {e.source_id: e.snapshot_ref for e in env.evidence}
-    assert refs["r3d100010230"] is not None and refs["r3d100010230"].endswith("(stale)")
+    assert refs["r3d100010230"] == "re3data:export:2026-11"
     assert refs["FAIRsharing.1ky0cs"] is not None and refs["FAIRsharing.1ky0cs"].endswith("(stale)")
+
+
+def test_re3data_is_credited_and_each_record_cited_by_its_doi(
+    runs_dir: Path, re3data: Re3dataRegistry
+) -> None:
+    advisor = agent(repositories=re3data, databases=FairsharingSnapshot())
+    env = invoke(runs_dir, RepositoryNeeds(mandated=[RepositoryRef(name="EIDC")]), advisor)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert env.outcome.statement is not None
+    assert env.outcome.statement.endswith(
+        "Repository details are from re3data.org, the Registry of Research Data Repositories "
+        "(export of 2026-11, CC0; https://doi.org/10.17616/R3D)."
+    )
+    uris = {e.source_id: e.source_uri for e in env.evidence}
+    assert uris["r3d100010199"] == "https://doi.org/10.17616/R3XG68"
 
 
 def test_without_fairsharing_a_candidate_stands_on_re3data_alone(runs_dir: Path) -> None:
