@@ -4,23 +4,32 @@ a stand-in for systemd, git and the app."""
 from __future__ import annotations
 
 import json
+import re
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from ddtool.common import DevError  # noqa: E402
+from ddtool.deployment import Place, apply, plan  # noqa: E402
 from ddtool.vm import Done, System, Vm  # noqa: E402
 from ddtool.vm_doctor import Doctor  # noqa: E402
+
+EXAMPLE_PROFILE = ROOT / "app" / "config" / "profile.yaml.example"
 
 SHA = "a" * 40
 TIP = "b" * 40
 AGENTS = """agents:
   - name: example-hello
     url: http://127.0.0.1:8101/
+  - name: orchestrator-stub
+    url: http://127.0.0.1:8106/
   - name: orchestrator-model
     url: http://127.0.0.1:8107/
 """
@@ -49,6 +58,11 @@ class FakeVm(System):
                 "UnitFileState": "static",
                 "NRestarts": "0",
             },
+            "data-director-agent@orchestrator-stub.service": {
+                "ActiveState": "active",
+                "UnitFileState": "static",
+                "NRestarts": "0",
+            },
             "data-director-agent@orchestrator-model.service": {
                 "ActiveState": "inactive",
                 "UnitFileState": "disabled",
@@ -61,10 +75,14 @@ class FakeVm(System):
         default_factory=lambda: {"data-director-deploy.timer", "data-director-restart.path"}
     )
     instances: list[str] = field(
-        default_factory=lambda: ["data-director-agent@example-hello.service"]
+        default_factory=lambda: [
+            "data-director-agent@example-hello.service",
+            "data-director-agent@orchestrator-stub.service",
+        ]
     )
+    calls: list[tuple[str, ...]] = field(default_factory=list)
     tip: str = SHA
-    about: dict[str, object] | None = field(
+    about: dict[str, Any] | None = field(
         default_factory=lambda: {
             "commit": SHA,
             "profile": dict(PROFILE),
@@ -72,10 +90,13 @@ class FakeVm(System):
             "incompatible": [],
         }
     )
-    answering: set[int] = field(default_factory=lambda: {8101})
+    answering: set[int] = field(default_factory=lambda: {8101, 8106})
 
     def run(self, *cmd: str) -> Done:
         match cmd:
+            case ("env", *_) | ("systemctl", "daemon-reload" | "disable" | "restart", *_):
+                self.calls.append(cmd)
+                return Done(0, "")
             case ("systemctl", "show", *rest):
                 units = [word for word in rest if not word.startswith("--")]
                 blocks = [
@@ -135,6 +156,10 @@ def vm(tmp_path: Path) -> Vm:
     for site in (layout.nginx_enabled, layout.nginx_available):
         site.mkdir(parents=True)
         (site / "data-director").write_text("server_name dd.example.ac.uk;\n")
+    shutil.copyfile(EXAMPLE_PROFILE, release / "app" / "config" / "profile.yaml.example")
+    (layout.etc / "deployment.yaml").write_text("name: test\norchestrator: stub\n")
+    # As `apply` left it.
+    assert apply(FakeVm(), Place.vm(layout), layout) == 0
     return layout
 
 
@@ -201,7 +226,7 @@ def test_a_model_backed_agent_turned_on_without_a_key_names_the_secret_command(
 
 
 def test_a_key_loaded_by_the_drop_in_is_enough(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
-    system = FakeVm(answering={8101, 8107})
+    system = FakeVm(answering={8101, 8106, 8107})
     system.units["data-director-agent@orchestrator-model.service"] = {
         "ActiveState": "active",
         "UnitFileState": "enabled",
@@ -283,3 +308,119 @@ def test_no_live_release_is_a_problem(tmp_path: Path, capsys: pytest.CaptureFixt
     status, out = check(FakeVm(about=None, instances=[]), empty, capsys)
     assert status == 1
     assert "no release is live" in out
+
+
+# --- deployment.yaml and apply ------------------------------------------------------------------
+
+
+def example_version() -> int:
+    found = re.search(r"^version: (\d+)", EXAMPLE_PROFILE.read_text(), re.MULTILINE)
+    assert found
+    return int(found[1])
+
+
+def test_apply_writes_the_profile_the_units_and_dd_profile(vm: Vm) -> None:
+    profile = (vm.etc / "profile.yaml").read_text()
+    assert "\nprofile_id: data-director-app-test\n" in profile
+    assert "\norchestrator: orchestrator.stub\n" in profile
+    assert f"\nversion: {example_version() + 1}\n" in profile
+    assert f"DD_PROFILE={vm.etc / 'profile.yaml'}" in vm.app_env.read_text()
+    wants = (vm.unit_dir / "data-director.target.d" / "agents.conf").read_text()
+    assert "Wants=data-director-agent@example-hello.service" in wants
+    assert "Wants=data-director-agent@orchestrator-stub.service" in wants
+    assert "orchestrator-model" not in wants  # model-backed: only as the orchestrator
+    app = (vm.unit_dir / "data-director-app.service.d" / "agents.conf").read_text()
+    assert 'Environment="DD_WAIT_PORTS=8101 8106"' in app
+
+
+def test_apply_again_changes_nothing_and_keeps_the_version(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    before = (vm.etc / "profile.yaml").read_text()
+    system = FakeVm()
+    assert apply(system, Place.vm(vm), vm, check=True) == 0
+    assert apply(system, Place.vm(vm), vm) == 0
+    assert "Nothing to change." in capsys.readouterr().out
+    assert (vm.etc / "profile.yaml").read_text() == before
+    assert not system.calls  # no reload, no restart
+
+
+def test_the_model_orchestrator_is_refused_without_its_key(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (vm.etc / "deployment.yaml").write_text("name: test\norchestrator: model\n")
+    before = (vm.etc / "profile.yaml").read_text()
+    assert apply(FakeVm(), Place.vm(vm), vm) == 1
+    out = capsys.readouterr().out
+    assert "orchestrator-model calls a model and has no key" in out
+    assert "data-director secret set orchestrator-model anthropic-api-key" in out
+    assert (vm.etc / "profile.yaml").read_text() == before
+
+
+def test_the_model_orchestrator_with_its_key_is_started_and_waited_for(vm: Vm) -> None:
+    (vm.etc / "deployment.yaml").write_text("name: test\norchestrator: model\n")
+    (vm.credentials / "orchestrator-model").mkdir()
+    (vm.credentials / "orchestrator-model" / "anthropic-api-key").write_text("sk-ant-x")
+    system = FakeVm()
+    system.active.add("data-director.target")
+    assert apply(system, Place.vm(vm), vm) == 0
+    profile = (vm.etc / "profile.yaml").read_text()
+    assert "\norchestrator: orchestrator.model\n" in profile
+    assert f"\nversion: {example_version() + 2}\n" in profile
+    wants = (vm.unit_dir / "data-director.target.d" / "agents.conf").read_text()
+    assert "Wants=data-director-agent@orchestrator-model.service" in wants
+    app = (vm.unit_dir / "data-director-app.service.d" / "agents.conf").read_text()
+    assert 'DD_WAIT_PORTS=8101 8106 8107"' in app
+    assert ("systemctl", "daemon-reload") in system.calls
+    assert ("systemctl", "restart", "data-director.target") in system.calls
+    assert any(call[0] == "env" for call in system.calls)  # credentials drop-ins rewritten
+
+
+def test_a_disabled_agent_leaves_the_profile_and_its_running_unit_is_stopped(vm: Vm) -> None:
+    (vm.etc / "deployment.yaml").write_text(
+        "name: test\norchestrator: stub\ndisabled: [example-hello]\n"
+    )
+    system = FakeVm()
+    system.active.add("data-director-agent@example-hello.service")
+    assert apply(system, Place.vm(vm), vm) == 0
+    assert "example.hello" not in (vm.etc / "profile.yaml").read_text()
+    wants = (vm.unit_dir / "data-director.target.d" / "agents.conf").read_text()
+    assert "example-hello" not in wants
+    assert (
+        "systemctl",
+        "disable",
+        "--now",
+        "data-director-agent@example-hello.service",
+    ) in system.calls
+
+
+def test_apply_on_a_vm_needs_root(vm: Vm) -> None:
+    (vm.etc / "deployment.yaml").write_text("name: other\norchestrator: stub\n")
+    with pytest.raises(DevError, match="run it as root"):
+        apply(FakeVm(root=False), Place.vm(vm), vm)
+
+
+def test_doctor_reports_a_deployment_not_yet_applied(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (vm.etc / "deployment.yaml").write_text("name: renamed\norchestrator: stub\n")
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 1
+    assert "is not yet what deployment.yaml says" in out
+    assert "fix: sudo data-director apply" in out
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("name: x\norchestrator: clever\n", "orchestrator is model or stub"),
+        ("name: x\ncolour: blue\n", "unknown key colour"),
+        ("name: Not A Name\n", "lower-case words"),
+        ("name: x\ndisabled: [advisor-nobody]\n", "advisor-nobody, not in agents.yaml"),
+        ("name: x\ndisabled: [orchestrator-stub]\n", "the orchestrator, orchestrator-stub"),
+    ],
+)
+def test_a_deployment_that_cannot_be_is_refused_with_why(vm: Vm, text: str, message: str) -> None:
+    (vm.etc / "deployment.yaml").write_text(text)
+    with pytest.raises(DevError, match=message):
+        plan(FakeVm(), Place.vm(vm), vm)

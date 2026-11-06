@@ -32,8 +32,12 @@ from ddtool.common import (
     prepare_sources,
     prepare_web,
     profile_omissions,
+    shown,
     workspace_env,
 )
+from ddtool.deployment import Place, apply
+from ddtool.deployment import load as load_deployment
+from ddtool.vm import System
 
 # How long a service may take to answer for the first time: `uv run` may first build the package.
 START_TIMEOUT_S = 120
@@ -115,6 +119,13 @@ class Stack:
 
 def start(agents_only: bool, web: bool, reload: bool = True) -> int:
     ensure_local_tree()
+    agents = load_agents()
+    # deployment.yaml says which agents run and which orchestrator the home page converses with;
+    # apply writes the profile from it, as on a VM (scripts/ddtool/deployment.py).
+    place = Place.dev()
+    if apply(System(), place) != 0:
+        raise DevError(f"{shown(place.deployment)} asks for what cannot run; see above")
+    running = {a.name for a in load_deployment(place.deployment, agents).runs(agents)}
     base = workspace_env()
     app = app_env()
     # An app that signs people in acts for no operator, and refuses one (docs/specs/policy-and-identity.md).
@@ -128,7 +139,6 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
         )
     if omitted := profile_omissions({**os.environ, **app}):
         print(f"Note: {omissions_note(omitted)}.")
-    agents = load_agents()
     ports = [a.port for a in agents] + (
         [] if agents_only else [APP_PORT] + ([WEB_PORT] if web else [])
     )
@@ -147,6 +157,9 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
         started: list[tuple[Agent, Service]] = []
         for agent in agents:
             env = base | agent_env(agent)
+            if agent.name not in running:
+                print(f"skip  {agent.script}: not run by {shown(place.deployment)}")
+                continue
             if agent.name in MODEL_BACKED and not has_key(env):
                 print(
                     f"skip  {agent.script}: no model key "

@@ -19,6 +19,7 @@ from ddtool.common import (
     compare_profile,
     load_agents,
 )
+from ddtool.deployment import Place, plan
 from ddtool.vm import (
     System,
     Vm,
@@ -314,6 +315,41 @@ class Doctor:
                 for problem in problems:
                     report.problem(problem)
 
+    def config(self) -> None:
+        """Whether the instance is what deployment.yaml says (`apply --check`)."""
+        system, vm, report = self.system, self.vm, self.report
+        place = Place.vm(vm)
+        if not system.readable(place.deployment):
+            if system.is_root() or system.readable(vm.app_env):
+                report.problem(
+                    f"no {place.deployment}, so nothing says what this instance runs",
+                    f"sudo cp {vm.clone}/config/examples/deployment.yaml {place.deployment}; "
+                    f"edit it, then {self.tool} apply",
+                )
+            else:
+                report.skip(str(place.deployment))
+            return
+        try:
+            deployment, planned = plan(system, place, vm)
+        except DevError as exc:
+            report.problem(str(exc), f"edit {place.deployment}")
+            return
+        report.note(
+            f"{place.deployment} says: {deployment.name}, orchestrator {deployment.orchestrator}"
+            + (
+                f", disabled {', '.join(sorted(deployment.disabled))}"
+                if deployment.disabled
+                else ""
+            )
+        )
+        for refusal in planned.refusals:
+            report.problem(refusal)
+        if pending := planned.pending(system):
+            report.problem(
+                f"the instance is not yet what {place.deployment.name} says: {', '.join(pending)}",
+                f"{self.tool} apply",
+            )
+
     # --- What the app reports ------------------------------------------------------------------
 
     def live(self, live: dict[str, Any] | None) -> None:
@@ -365,6 +401,7 @@ class Doctor:
         except (OSError, KeyError, TypeError) as exc:
             self.report.problem(f"cannot read the release's agents.yaml: {exc}")
             agents = []
+        self.config()
         self.agents(agents)
         self.secrets(agents)
         self.settings(release)

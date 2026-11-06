@@ -1,0 +1,14 @@
+# What this instance runs. Edit it, then run `sudo data-director apply` on a VM or
+# `uv run scripts/dd.py apply` in development, which write the profile and, on a VM, the systemd
+# units from it (docs/guide/operations/configuration.md). Agent settings stay in
+# agents/<name>.env and secrets in credentials/.
+
+# Names the instance and the profile generated for it: lower-case words joined by hyphens.
+name: local
+
+# The agent the home page converses with: `stub` (rule-based, no model) or `model` (writes its
+# replies with a model, and needs a key first: `secret set orchestrator-model anthropic-api-key`).
+orchestrator: stub
+
+# Agents in app/config/agents.yaml not to run, by name, such as advisor-policy.
+disabled: []

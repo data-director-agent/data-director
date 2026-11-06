@@ -90,33 +90,24 @@ new_file "$ETC/agents.env"
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
 install -d -o root -g root -m 0700 "$ETC/credentials" "$ETC/credentials/app"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
+# What this instance runs: `data-director apply`, below, makes it so (scripts/ddtool/deployment.py).
+if [[ ! -e "$ETC/deployment.yaml" ]]; then
+  new_file "$ETC/deployment.yaml" "$SRC/config/examples/deployment.yaml"
+  name="${domain%%.*}"
+  sed -i "s/^name: .*/name: ${name,,}/" "$ETC/deployment.yaml"
+fi
 
 step "systemd units"
 (cd "$SRC/deploy/systemd" && find . -type f -printf '%P\n') | while read -r unit; do
   install -D -m 0644 "$SRC/deploy/systemd/$unit" "/etc/systemd/system/$unit"
 done
 
-# An agent that is no longer deployed (no deploy/agents/<name>.env), such as one renamed, is
-# stopped and loses its drop-ins; otherwise it would go on holding its port.
-for unit in $(systemctl list-units --all --plain --no-legend 'data-director-agent@*.service' | awk '{print $1}') \
-  $(cd /etc/systemd/system && compgen -G 'data-director-agent@*.service.d' | sed 's/\.d$//'); do
-  name="${unit#data-director-agent@}"
-  name="${name%.service}"
-  [[ -f "$SRC/deploy/agents/$name.env" ]] && continue
-  echo "$unit: no longer deployed; stopping it"
-  systemctl stop "$unit" || true
-  rm -rf "/etc/systemd/system/$unit.d"
-done
-
-# Each agent's secrets, such as a model key, as a drop-in that loads them as systemd credentials:
-# one line per file in $ETC/credentials/<agent>/ (deploy/credentials.sh). deploy/secret.sh
-# puts a secret in place and does this for one agent.
-CREDENTIALS="$ETC/credentials" UNIT_DIR=/etc/systemd/system AGENTS_DIR="$SRC/deploy/agents"
-# shellcheck source=deploy/credentials.sh
-source "$SRC/deploy/credentials.sh"
-if ! sync_all_credentials; then
-  echo "Those secrets are not loaded; deploy/secret.sh list shows them all." >&2
-fi
+step "What $ETC/deployment.yaml says this instance runs"
+# The profile, the drop-ins that start each agent and make the app wait for it, and each
+# agent's credentials drop-in (deploy/credentials.sh), from deployment.yaml and the live
+# release's agents.yaml. It stops any agent that no longer runs. It refuses, and so stops this
+# script, if deployment.yaml turns on an agent that calls a model before it has its key.
+/usr/local/bin/data-director apply
 systemctl daemon-reload
 # deploy.sh, running as $USER_NAME, cannot restart the services. It writes
 # $ROOT/restart-requested instead, and root's path unit restarts them: it may ask for that

@@ -1,24 +1,12 @@
 # The Data Director app (app/README.md). It reads the agents' cards once at start-up, so it
-# starts after them and waits until their ports answer. NGINX is its only way in from outside
-# the host (deploy/nginx/data-director.conf).
+# starts after them and waits until their ports answer: `data-director apply` writes the After=
+# lines and DD_WAIT_PORTS for the agents /etc/data-director/deployment.yaml runs, in
+# data-director-app.service.d/agents.conf. NGINX is its only way in from outside the host
+# (deploy/nginx/data-director.conf).
 [Unit]
 Description=Data Director app
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
 After=network-online.target
-After=data-director-agent@example-hello.service
-After=data-director-agent@advisor-quality.service
-After=data-director-agent@advisor-standards.service
-After=data-director-agent@advisor-policy.service
-After=data-director-agent@advisor-repository.service
-After=data-director-agent@advisor-ethics.service
-After=data-director-agent@advisor-files.service
-After=data-director-agent@advisor-dmp.service
-After=data-director-agent@advisor-metadata.service
-After=data-director-agent@advisor-documentation.service
-After=data-director-agent@advisor-rights.service
-After=data-director-agent@advisor-linking.service
-After=data-director-agent@advisor-fairness.service
-After=data-director-agent@orchestrator-stub.service
 Wants=network-online.target
 PartOf=data-director.target
 
@@ -32,8 +20,6 @@ Environment=DD_APP_PORT=7860
 Environment=DD_RUNS_DIR=/var/lib/data-director/runs
 # Without this the project store goes under the release, which the unit cannot write.
 Environment=DD_PROJECTS_DIR=/var/lib/data-director/projects
-# The agents' ports to wait for.
-Environment="DD_WAIT_PORTS=8101 8102 8105 8108 8109 8111 8110 8112 8113 8114 8115 8116 8117 8106"
 # The ORCID client's secret, as a systemd credential readable by this unit alone. The unit does not
 # start without it: a deployment signs people in and has no operator (docs/specs/policy-and-identity.md).
 LoadCredential=orcid-client-secret:/etc/data-director/credentials/app/orcid-client-secret

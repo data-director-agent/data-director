@@ -14,7 +14,7 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
-The reference profile names `orchestrator.stub` as the agent a researcher converses with, so a
+A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with, so a
 default installation sends nothing to a model provider. It becomes model-backed when you choose,
 below.
 
@@ -76,7 +76,7 @@ do, and the key never appears in a run, a trace, a manifest or an export.
 | | Development | A server |
 |---|---|---|
 | Variable | `ANTHROPIC_API_KEY_FILE`, relative to `config/local/credentials/` | `ANTHROPIC_API_KEY_FILE` |
-| Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads (`scripts/dd.py setup` does this) | `sudo deploy/secret.sh set <name> anthropic-api-key`, which keeps it in a root-only file under `/etc/data-director/credentials/<name>/` and loads it as a systemd credential |
+| Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads (`scripts/dd.py setup` does this) | `sudo data-director secret set <name> anthropic-api-key`, which keeps it in a root-only file under `/etc/data-director/credentials/<name>/` and loads it as a systemd credential |
 
 `ANTHROPIC_API_KEY` itself also works in an agent's own file. Set one variable or the other, never both. A command-line login on the host, such as
 `ant auth login`, is never used. Never put a key in `app.env` or `agents.env`, in
@@ -99,7 +99,7 @@ per agent needs a workspace per agent.
 2. From your clone of the repository, give it its key:
 
    ```bash
-   sudo deploy/secret.sh set advisor-standards anthropic-api-key
+   sudo data-director secret set advisor-standards anthropic-api-key
    # paste the key at the prompt, which does not show it, then Enter
    ```
 
@@ -112,29 +112,42 @@ runs no agent in its own process, so there is nothing to change in the app ([The
 
 ## Turn on the model-backed orchestrator
 
-`orchestrator.model` is not part of `data-director.target`, because it cannot start without a
-key. Until the profile names it, the app converses with the rule-based `orchestrator.stub`.
+`deployment.yaml` names the orchestrator the home page converses with:
+- on a server, `/etc/data-director/deployment.yaml`;
+- in development, `config/local/deployment.yaml`.
 
-1. Give it its key, from your clone of the repository. Its optional settings go in
+`orchestrator: stub` is the rule-based `orchestrator.stub`, and `model` is `orchestrator.model`.
+The model-backed orchestrator runs only while it is the orchestrator, because it cannot start
+without a key.
+
+1. Give it its key. Its optional settings go in
    `/etc/data-director/agents/orchestrator-model.env`.
 
    ```bash
-   sudo deploy/secret.sh set orchestrator-model anthropic-api-key
+   sudo data-director secret set orchestrator-model anthropic-api-key
    ```
 
-2. Start it, and have it start with the rest:
+2. Set `orchestrator: model` in `/etc/data-director/deployment.yaml`.
+3. Apply it:
 
    ```bash
-   sudo systemctl enable --now data-director-agent@orchestrator-model.service
+   sudo data-director apply
    ```
 
-3. Add `8107` to `DD_WAIT_PORTS` in a drop-in for `data-director-app.service`, so the app waits
-   for it.
-4. In the deployment's profile, set `orchestrator: orchestrator.model` and raise `version`.
-   List the agent under `agents` too. Then restart the app.
+   This:
+   - writes the profile with `orchestrator.model` and a raised `version`;
+   - starts the agent with the rest;
+   - makes the app wait for it;
+   - restarts the services.
 
-To go back, set `orchestrator: orchestrator.stub` in the profile, raise `version` and restart the
-app. The orchestrator can then be stopped.
+   It refuses if the key is not in place, and says which command gives it.
+
+In development:
+1. `uv run scripts/dd.py setup` asks for the key and offers to make this change.
+2. `uv run scripts/dd.py start` applies `config/local/deployment.yaml` each time.
+
+To go back, set `orchestrator: stub` and apply again. The model-backed orchestrator is then
+stopped.
 
 ## Check it works
 
@@ -155,11 +168,11 @@ In development, `uv run scripts/dd.py doctor` does the same for `config/local/`.
 
 ## Rotate or revoke a key
 
-Run `sudo deploy/secret.sh set <name> anthropic-api-key` again with the new key; it replaces the
+Run `sudo data-director secret set <name> anthropic-api-key` again with the new key; it replaces the
 file and restarts that agent. No other component changes. To revoke a key at once, delete it at
 the provider; the agent's runs then fail until the new key is in place.
-`sudo deploy/secret.sh remove <name> anthropic-api-key` takes a key away, and
-`sudo deploy/secret.sh list` shows which agent has which secret, by size, never by value.
+`sudo data-director secret remove <name> anthropic-api-key` takes a key away, and
+`sudo data-director secret list` shows which agent has which secret, by size, never by value.
 
 ## Start-up errors
 
@@ -173,7 +186,7 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `no model key` | Neither variable is set. |
 | `ANTHROPIC_API_KEY_FILE=… is relative and CREDENTIALS_DIRECTORY is not set` | A relative path outside a systemd unit that loads the credential. |
 | `ANTHROPIC_API_KEY_FILE: cannot read …` / `… is empty` | The file is missing, unreadable or empty. |
-| `no model key` on the VM, after a key was put in place by hand | `install.sh` left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo deploy/secret.sh list` shows it as a `PROBLEM`. |
+| `no model key` on the VM, after a key was put in place by hand | `data-director apply` (or `install.sh`) left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo data-director secret list` shows it as a `PROBLEM`. |
 | `DD_ORCHESTRATOR_EFFORT=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
 
 If the credential file is missing, systemd refuses to start the unit at all, since the unit

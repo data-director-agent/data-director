@@ -131,8 +131,13 @@ The app supplies its own configuration to the harness ([System and boundaries](.
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 | `projects/` (not committed) | Each project's log, with its documents and the decisions on them. | `DD_PROJECTS_DIR` |
 
-To change the profile for your own machine, copy the example. `config/profile.yaml` is not
-committed, and the app uses it in place of the example when it exists:
+`scripts/dd.py` writes the profile the app runs under, `config/local/profile.yaml`, from the
+example and `config/local/deployment.yaml`, and names it with `DD_PROFILE`. It does this again
+on each `start`, so the profile follows the example. To choose the orchestrator or leave an
+agent out, edit `deployment.yaml`.
+
+Without `DD_PROFILE`, the app uses `config/profile.yaml` in place of the example when that file
+exists. It is not committed:
 
 ```bash
 cp app/config/profile.yaml.example app/config/profile.yaml
@@ -141,8 +146,8 @@ cp app/config/profile.yaml.example app/config/profile.yaml
 Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
 The copy does not follow the example: an agent added to the example later is not enabled in it,
-and the app refuses that agent as not enabled. `scripts/dd.py start` and `doctor` name any agent
-the example enables that the copy omits; add it to the copy, or delete the copy.
+and the app refuses that agent as not enabled. `scripts/dd.py doctor` names any agent the
+example enables that the copy omits; add it to the copy, or delete the copy.
 
 The app stops at start-up, with one line, if a setting is unset or wrong, a file is missing or
 malformed, or the shell has not been built.
@@ -221,15 +226,17 @@ rule-based `orchestrator.stub`, which needs no model key: its replies are templa
 by its `routing.yaml`.
 
 The model-backed `orchestrator.model` (`agents/orchestrator-model/`) decides which agents to ask
-from what each one declares, and writes its replies with a model. In development, `uv run scripts/dd.py setup` does
-both steps below when you give it a key. To use it, give it a model key
-(`config/local/agents/orchestrator-model.env` in development, `deploy/README.md` on a server), and in the
-profile the app runs under (your local `config/profile.yaml`) set
+from what each one declares, and writes its replies with a model. To use it:
 
-```yaml
-version: 5                         # one more than before
-orchestrator: orchestrator.model
-```
+1. Give it a model key: `uv run scripts/dd.py secret set orchestrator-model anthropic-api-key`,
+   or `sudo data-director secret set …` on a server.
+2. Set `orchestrator: model` in `deployment.yaml`: `config/local/` in development,
+   `/etc/data-director/` on a server.
+3. Apply it. `dd.py start` does this in development; on a server, run `sudo data-director apply`.
+
+`apply` writes the profile the app runs under, with `orchestrator: orchestrator.model` and a raised
+`version` ([Configuration](../docs/guide/operations/configuration.md)). In development,
+`uv run scripts/dd.py setup` does steps 1 and 2 when you give it a key.
 
 When the named agent is not running, does not delegate, or is not permitted, the home page says
 so and links to the agent directory; it does not fall back to another agent.
