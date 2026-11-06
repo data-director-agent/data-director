@@ -107,6 +107,11 @@ vocabulary snapshots and libraries usable without the contract.
 - Where an agent's work is useful without the contract (a lookup in a public registry, say), that
   work is built as a framework-neutral library or MCP server, and the agent is a thin wrapper
   that adds the contract: classes, grounding and evidence.
+- Prefer open, standard interfaces to private ones (A2A, MCP, Agent Skills, JSON Schema, LinkML,
+  SHACL), and keep each unit single-purpose with its own tests, README, licence and version, so
+  that publishing it separately is a copy. The SDK holds only what speaks the contract. An agent
+  may use MCP servers and Agent Skills if what it retrieves through them is still hashed and
+  cited; the orchestrator may not ([Orchestration](orchestration.md)).
 - A repository that evaluates an approach without committing to it (such as `classmark`) says it
   is an experiment in its README and in the organisation profile. Its work enters the ecosystem
   as a capability under the previous rule.

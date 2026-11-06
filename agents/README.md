@@ -77,6 +77,39 @@ It is also the check on the claim in the last line of this file. `example.hello`
 fail other than the harness. If adding an agent ever needs an edit to the conductor, linter,
 CLI, transports or viewer, this agent will show it.
 
+## Build for reuse
+
+An agent is the contract-bound layer over work that should stand without it. Before writing
+domain logic into an agent, decide which part is reusable by anyone, and build that part as its
+own asset ([System and boundaries](../docs/specs/system.md)):
+
+| The work is | Build it as | Repository |
+|---|---|---|
+| A lookup of or action on an external service or dataset | An MCP server, or a plain Python library | `mcp-<name>`, or a descriptive name |
+| Know-how, a checklist or a procedure a model follows | An Agent Skill (`SKILL.md` with optional scripts and references) | `skills` |
+| A formal artefact (vocabulary snapshot, profile, schema, evaluation set) | Versioned data with its own licence and provenance | descriptive name |
+| Answering a question under the contract, with grounding and evidence | An A2A agent | `agent-<name>`, or here |
+
+The agent then calls the library or MCP server, loads the skill's instructions into its prompt,
+and adds the contract: its classes, its grounding mode and the evidence for what it retrieved.
+Rules that keep this true:
+
+- Agent logic that needs no `dd_sdk` import sits in a module, or a separate package, that does
+  not import it, so the agent file stays thin. `advisor-standards/` is the nearest example: its
+  `fairsharing/` subpackage is a client that almost never imports `dd_sdk`, though it is still
+  inside the agent's package rather than published on its own (TODO(#280)).
+- An agent may use MCP servers and Agent Skills; it must still hash what it retrieved through
+  them and cite it (step 3 below), so a tool's answer is evidence like any other. An orchestrator
+  has no such tools of its own ([Orchestration](../docs/specs/orchestration.md)).
+- Use open standards for every interface: A2A, MCP, Agent Skills, JSON Schema, LinkML. Do not add
+  an agent-only protocol or a private config format where one of these serves.
+- Keep an agent to one question. Compose agents by delegation, not by one agent absorbing
+  another's logic.
+- An agent imports no other agent and nothing outside `sdk/` among workspace members, and reads
+  no path outside its directory, so that it can move to its own repository by copying it.
+- Give the package a README that says what it does, what it depends on, its licence and its
+  version, and say in it which parts are reusable without the contract.
+
 ## Adding an agent
 
 1. **Declare what it reads and returns.** A conversational agent can use the core's `Message`
