@@ -12,7 +12,7 @@ connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
    │                                          ▼
  VM: data-director-deploy.timer ──▶ deploy.sh ── build ──▶ /opt/data-director/releases/<sha>
                                               └─ switch /opt/data-director/current, restart
- browser ──HTTPS──▶ NGINX (password) ──▶ app 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101, 8102, 8105, 8106
+ browser ──HTTPS──▶ NGINX (password) ──▶ app 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101–8117
 ```
 
 The app is alpha and has no authentication (#17): every run acts for the operator named in
@@ -29,7 +29,7 @@ for a password, and the app and agents listen on loopback only ([Agents](../docs
 | `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
-| `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`, and `@orchestrator` once it has a key. |
+| `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): every agent the app lists, and `@orchestrator-model` once it has a key. |
 | `credentials/<agent>.conf` | A drop-in that loads the agent's model key as a systemd credential. `install.sh` installs it only while the key file exists. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
@@ -203,8 +203,9 @@ template explainer. After adding or removing a key, run `install.sh` again.
   clone and run `sudo deploy/install.sh --domain …` again. `deploy.sh` logs a warning while the
   installed units differ from the live release's.
 - **An agent** added to `app/config/agents.yaml` also needs `agents/<name>.env` with its port,
-  an instance in `data-director.target` and `data-director-app.service`, and its port in the
-  app's `ExecStartPre`.
+  a `Wants=` line for its instance in `data-director.target`, an `After=` line in
+  `data-director-app.service`, and its port in that unit's `DD_WAIT_PORTS`.
+  `scripts/check_deploy.py`, run in CI, fails until all four agree with `agents.yaml`.
 
 ## Not done yet
 

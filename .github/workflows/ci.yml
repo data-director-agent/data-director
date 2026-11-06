@@ -135,6 +135,8 @@ jobs:
       # Each workspace member imports only what it declares and reads only its own files
       # (docs/specs/system.md). Known exceptions only shrink: a stale one fails.
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # The VM runs every agent the app lists, on the port it expects (deploy/README.md).
+      - run: uv run python scripts/check_deploy.py
       # The canary: a planted violation of each kind must fail its check, so that a misconfigured
       # check cannot pass silently.
       - run: uv run pytest workbench/tests/test_architecture_canary.py workbench/tests/test_check_boundaries.py

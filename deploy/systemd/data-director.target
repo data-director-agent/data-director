@@ -3,7 +3,21 @@
 [Unit]
 Description=Data Director (app and agents)
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
-Wants=data-director-app.service data-director-agent@example-hello.service data-director-agent@advisor-quality.service data-director-agent@advisor-standards.service data-director-agent@orchestrator-stub.service
+Wants=data-director-app.service
+Wants=data-director-agent@example-hello.service
+Wants=data-director-agent@advisor-quality.service
+Wants=data-director-agent@advisor-standards.service
+Wants=data-director-agent@advisor-policy.service
+Wants=data-director-agent@advisor-repository.service
+Wants=data-director-agent@advisor-ethics.service
+Wants=data-director-agent@advisor-files.service
+Wants=data-director-agent@advisor-dmp.service
+Wants=data-director-agent@advisor-metadata.service
+Wants=data-director-agent@advisor-documentation.service
+Wants=data-director-agent@advisor-rights.service
+Wants=data-director-agent@advisor-linking.service
+Wants=data-director-agent@advisor-fairness.service
+Wants=data-director-agent@orchestrator-stub.service
 
 [Install]
 WantedBy=multi-user.target

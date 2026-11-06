@@ -4,7 +4,21 @@
 [Unit]
 Description=Data Director app
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
-After=network-online.target data-director-agent@example-hello.service data-director-agent@advisor-quality.service data-director-agent@advisor-standards.service data-director-agent@orchestrator-stub.service
+After=network-online.target
+After=data-director-agent@example-hello.service
+After=data-director-agent@advisor-quality.service
+After=data-director-agent@advisor-standards.service
+After=data-director-agent@advisor-policy.service
+After=data-director-agent@advisor-repository.service
+After=data-director-agent@advisor-ethics.service
+After=data-director-agent@advisor-files.service
+After=data-director-agent@advisor-dmp.service
+After=data-director-agent@advisor-metadata.service
+After=data-director-agent@advisor-documentation.service
+After=data-director-agent@advisor-rights.service
+After=data-director-agent@advisor-linking.service
+After=data-director-agent@advisor-fairness.service
+After=data-director-agent@orchestrator-stub.service
 Wants=network-online.target
 PartOf=data-director.target
 
@@ -17,7 +31,7 @@ Environment=DD_APP_HOST=127.0.0.1
 Environment=DD_APP_PORT=7860
 Environment=DD_RUNS_DIR=/var/lib/data-director/runs
 # The agents' ports to wait for.
-Environment="DD_WAIT_PORTS=8101 8102 8105 8106"
+Environment="DD_WAIT_PORTS=8101 8102 8105 8108 8109 8111 8110 8112 8113 8114 8115 8116 8117 8106"
 # DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME (required), and any override of the above.
 EnvironmentFile=/etc/data-director/app.env
 ExecStartPre=/opt/data-director/current/deploy/wait-for-ports.sh 60 $DD_WAIT_PORTS
