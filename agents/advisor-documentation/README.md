@@ -59,3 +59,5 @@ slot, so the outcome's statement says what the mock does not do (docs/specs/agen
 - It follows no data dictionary standard, such as CDIF's variable descriptions (#220).
 
 The real editor, drafting with a model from the files and the project record, is TODO(#358).
+What it will infer, ask and write is set out in
+[Drafting documents](../../docs/specs/drafting.md).
