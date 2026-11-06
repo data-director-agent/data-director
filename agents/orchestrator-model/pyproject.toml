@@ -9,7 +9,9 @@ description = "orchestrator.model: the model-backed Data Director orchestrator"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-dependencies = ["data-director-sdk>=0.2.0a0", "anthropic>=1.15.0"]
+# anthropic 2.3 moves to httpx2, which vcrpy does not patch, so the cassette replay in tests
+# would reach the network. Hold at 2.2 until replay works with httpx2.
+dependencies = ["data-director-sdk>=0.2.0a0", "anthropic>=1.15.0,<2.3"]
 
 [project.scripts]
 dd-orchestrator-model = "dd_agent_orchestrator_model.factory:main"
