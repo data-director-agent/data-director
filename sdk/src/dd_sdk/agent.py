@@ -36,7 +36,7 @@ from dd_sdk.contract.models import (
     Outcome,
 )
 from dd_sdk.contract.version import CONTRACT_VERSION, compatible
-from dd_sdk.process_flow import STEPS
+from dd_sdk.process_flow import OUT_OF_SCOPE, STEPS
 
 if TYPE_CHECKING:
     from dd_sdk.delegate import Delegated
@@ -105,6 +105,12 @@ class AgentSpec:
             raise SpecError(
                 f"agent {self.agent_id!r} serves {unknown}, which are not process flow steps; "
                 "name steps such as 'deposit.validate', and the requirements follow from them"
+            )
+        out = sorted(set(self.serves) & OUT_OF_SCOPE)
+        if out:
+            raise SpecError(
+                f"agent {self.agent_id!r} serves {out}, which are out of scope for now "
+                "(docs/specs/orchestration.md); no agent may serve them"
             )
         if self.payload is not None and not self.payload.grounded:
             raise SpecError(

@@ -22,8 +22,8 @@ roster ([Agents](agents.md)); which agent the app opens on and how the browser s
 conversation ([The app](app.md)); a conversation's project and who may see it
 ([Projects](projects.md)). Governance as an entry point (open, restricted or unshared paths) is
 deferred by the Blueprint to v2.0 (Appendix G, comment 1). Creating, reviewing and updating a Data
-Management Plan are out of scope for the initial phase, so the figures' steps for them are left
-out of the process flow.
+Management Plan are out of scope for the initial phase. The figures' steps for them stay in the
+process flow, marked out of scope, so that the flow is complete (invariant 16).
 
 ## Invariants
 
@@ -106,6 +106,16 @@ out of the process flow.
     with step ids, tells the model not to show ids to the researcher, names no agent, and is the
     same on every run so that it caches.
     (`test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent`)
+
+16. **A step the Blueprint has and this project does not yet do is in the flow, marked
+    `out_of_scope`.** The Data Management Plan steps (`setup.dmp-create`, `setup.dmp-review`,
+    `post.dmp-update`) are these. The phase tracker and the stub name them and say "out of scope
+    for now"; the model's prompt marks them and tells the model not to offer to do them or look for
+    a tool. An agent that serves one is a `SpecError`, so none can appear to cover it. Verifying a
+    deposit against an existing plan (`governance.dmp`, R8) is in scope.
+    (`test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now`,
+    `test_serving_a_step_that_is_out_of_scope_for_now_is_refused`,
+    `test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope`)
 
 ## Boundaries and contracts
 

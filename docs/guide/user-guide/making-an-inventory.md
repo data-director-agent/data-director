@@ -25,8 +25,12 @@ runs Python programs. Once it is installed, open a terminal and run this command
 `path/to/dataset` with the folder that holds your data:
 
 ```console
-uvx --from "git+https://github.com/data-director-agent/data-director#subdirectory=inventory" dd-inventory path/to/dataset -o inventory.json
+uvx data-director-inventory path/to/dataset -o inventory.json
 ```
+
+If you prefer pip, install the command once with `pip install data-director-inventory`, then run
+`data-director-inventory path/to/dataset -o inventory.json`. The package is published on
+[PyPI](https://pypi.org/project/data-director-inventory/).
 
 It writes `inventory.json` in the folder where you ran it. A large dataset can take a while,
 because every file is read to compute its digest. The command sends nothing anywhere.
