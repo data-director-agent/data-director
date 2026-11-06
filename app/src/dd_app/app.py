@@ -12,6 +12,8 @@ for the project to keep, answered as a run is, or refused with `409` unless it f
 turn (docs/specs/orchestration.md, docs/specs/app.md); `GET /api/conversations` and
 `GET /api/conversations/{id}` read them back as the harness derives them from the run store
 (docs/specs/orchestration.md, #130).
+`GET /api/projects` lists the projects the person signed in may read, each with what it holds and
+the conversations started in it (docs/specs/projects.md, docs/specs/app.md).
 `GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
@@ -284,6 +286,9 @@ def build_app(
             return _no_conversation(conversation_id)
         return JSONResponse(found)
 
+    async def list_projects(request: Request, reader: Principal) -> Response:
+        return JSONResponse(await run_in_threadpool(governance.projects_for, reader))
+
     async def get_documents(request: Request, _: Principal) -> Response:
         # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
@@ -375,6 +380,9 @@ def build_app(
         return Response("\n".join(lines) + "\n", media_type="text/plain")
 
     limiter = feedback.RateLimiter()
+
+    async def get_policy(request: Request, _: Principal) -> Response:
+        return JSONResponse(governance.policy())
 
     async def get_about(request: Request) -> Response:
         deployment = await run_in_threadpool(governance.deployment)
@@ -528,6 +536,7 @@ def build_app(
                 signed_in(send_turn),
                 methods=["POST"],
             ),
+            Route("/api/projects", signed_in(list_projects), methods=["GET"]),
             Route(
                 "/api/projects/{project_id}/documents",
                 signed_in(get_documents),
@@ -550,6 +559,7 @@ def build_app(
             ),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
+            Route("/api/policy", signed_in(get_policy), methods=["GET"]),
             Route("/api/about", get_about, methods=["GET"]),
             Route("/server-status", server_status, methods=["GET"]),
             Route("/api/feedback", signed_in(send_feedback), methods=["POST"]),
@@ -558,9 +568,12 @@ def build_app(
             Route(CALLBACK_PATH, finish_sign_in, methods=["GET"]),
             Route("/api/sign-out", sign_out, methods=["POST"]),
             *delegation,
+            Route("/activity", shell, methods=["GET"]),
             Route("/agents", shell, methods=["GET"]),
+            Route("/policy", shell, methods=["GET"]),
             Route("/feedback", shell, methods=["GET"]),
             Route("/profile", shell, methods=["GET"]),
+            Route("/projects", shell, methods=["GET"]),
             Route("/projects/{project_id}", shell, methods=["GET"]),
             Route("/sign-in", shell, methods=["GET"]),
             Route("/signed-out", shell, methods=["GET"]),

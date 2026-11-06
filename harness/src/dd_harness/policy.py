@@ -38,6 +38,8 @@ class Profile:
     # The agent a person converses with first (docs/specs/app.md). The app sends conversation turns
     # to it and to no other; None means the deployment offers no conversation.
     orchestrator: str | None = None
+    # What the steward says the profile is for, shown beside its rules (docs/specs/app.md).
+    description: str = ""
 
     @property
     def ref(self) -> str:
@@ -69,6 +71,7 @@ class Profile:
                 digest=digest,
                 source=source,
                 orchestrator=None if orchestrator is None else str(orchestrator),
+                description=str(data.get("description") or "").strip(),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc

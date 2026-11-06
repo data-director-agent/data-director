@@ -52,6 +52,11 @@ a newer inventory is added beside the earlier one, and the latest counts. An inv
 about your files and never their content. When an agent uses an AI model, the facts it is given
 from the inventory can be sent to that model's provider (see AI models, below).
 
+**Projects**, the first item in the menu at the top, lists your projects, the one you worked in
+most recently first. Each is named after its first conversation, and says how many files its
+inventory describes and how many of its documents are waiting for you to review. Select one to
+read its documents and decide on them.
+
 ## Where you can see it
 
 - **After a run**, the page shows the stages it went through, the outcome, the result and the
@@ -84,6 +89,13 @@ the app to read.
 
 If you report a problem from the app, the report includes what you type and, only if you agree,
 the identifiers of the run and conversation. It never includes your inputs or results.
+
+## The rules each run is held to
+
+Every run is checked against the deployment's policy before it starts, and its record names that
+policy, for example `profile:data-director-app@v7`. Select **Policy** in the banner to see it: which
+agents may run, what each is allowed to do, and which actions need a data steward's approval.
+A data steward sets the policy; it cannot be changed from the app.
 
 ## How long records are kept
 

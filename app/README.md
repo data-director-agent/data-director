@@ -35,6 +35,11 @@ The conversation sits in the centre of a workspace ([The app](../docs/specs/app.
 Each run the orchestrator delegates is a card in the conversation; opening it shows the run's
 stages, outcome and evidence inside the card. On a narrow screen the zones stack in that order.
 
+The **Policy** page shows the deployment's institutional profile, the rules the policy gate holds
+every run to: its reference and digest, the agent a conversation goes to, each agent it allows
+with its action class, and which action classes need a data steward's approval
+([The app](../docs/specs/app.md)).
+
 What is not built yet is drawn in place, marked "Not built yet", with a link to the issue that
 builds it, rather than filled with invented data (#75). `docs/ui/best-practices.md` is the design
 input.
@@ -63,6 +68,9 @@ It is built from:
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;
+  - `GET /api/projects`: the projects the person signed in created (until #389), most recently
+    active first, each with its inventory, its documents counted by state and the conversations
+    started in it. The shell draws it at `/projects`, the first item in the main navigation;
   - `GET /api/projects/{id}/documents`: a project's documents, each version with its text and
     state as the project log records it, and the harness's rule for when a decision needs a
     reason. The shell draws it at `/projects/{id}`;

@@ -124,7 +124,33 @@ export interface Disclosure {
   prov: Record<string, unknown>;
 }
 
+/** A conversation started in a project, as the projects list names it. */
+export interface ProjectConversation {
+  conversation_id: string;
+  title: string;
+  started_at: string;
+  last_completed_at?: string | null;
+  turns: number;
+}
+
+/**
+ * One project the person may read, as `GET /api/projects` lists it: what it holds, how many of
+ * its documents are in each state, and the conversations started in it, most recent first.
+ */
+export interface ProjectSummary {
+  project_id: string;
+  /** The app starts projects untitled, so this is usually null. */
+  title: string | null;
+  created_at: string;
+  created_by: RecordedPrincipal;
+  inventory: { digest: string; file_count: number; inventory_made_at: string; added_at: string } | null;
+  repository: { re3data_id: string; repository_name: string; chosen_at: string } | null;
+  documents: Record<VersionState, number>;
+  conversations: ProjectConversation[];
+}
+
 export interface ProjectApi {
+  projects(signal?: AbortSignal): Promise<ProjectSummary[]>;
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
   disclosure(projectId: string, signal?: AbortSignal): Promise<Disclosure>;
   decide(projectId: string, documentId: string, request: DecisionRequest): Promise<ProjectDocuments>;
@@ -157,6 +183,9 @@ function documentsPath(projectId: string): string {
 }
 
 export const httpProjectApi: ProjectApi = {
+  async projects(signal) {
+    return json(await fetch("/api/projects", signal ? { signal } : {}));
+  },
   async documents(projectId, signal) {
     return json(await fetch(documentsPath(projectId), signal ? { signal } : {}));
   },

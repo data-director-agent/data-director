@@ -128,13 +128,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `answer_problem` rejects, and nothing runs. The message box stays usable, so the researcher may
     type instead (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ChoiceQuestion.test.tsx`, `e2e/shell.spec.ts`).
+22. **The policy page shows the profile the gate holds runs to.** `/policy`, in the main navigation
+    and linked from each place that names the policy, is drawn from `GET /api/policy`: the
+    profile's reference, description, digest and orchestrator, each agent it enables with the
+    action class it assigns, and the action classes that need approval. What happens to each
+    agent's runs here is read from `GET /api/agents`, never worked out in the shell, and an agent
+    the profile enables that the deployment does not reach is named by its identifier
+    (`app/tests/test_app.py`, `app/web/src/components/policy/PolicyPage.test.tsx`).
 
 ## Boundaries and contracts
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules
   are in [System and boundaries](system.md).
 - **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
-  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`) hold types and API
+  `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`, `policy`) hold types and API
   clients, and reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
   `components/` holds the interface, one folder per feature, with the shared kit in
   `components/ui/`. Three rules are checked: no file depends on itself through other files
@@ -175,6 +182,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   or message an agent from it; they work through the conversation. Running one agent directly,
   its run history, grounding and derivation detail and oversight declarations belong to the
   workbench.
+- **The policy page** is read-only and for anyone signed in. A person sees the rules their runs
+  are held to, the same `policy_bundle_ref` every stored run records; a steward changes them in
+  the profile file, not here (TODO(#225)).
 - **What a deployment runs is public.** `GET /api/about`, open without a session, names the
   build (versions and commit), the profile the conductor holds runs to (its id, version, digest
   and orchestrator), and the configured agents it cannot reach, by name only. An operator's
@@ -195,6 +205,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   fixture keeps it so.
 - **Conversation first.** The Blueprint puts the chat interface first, and a person should not
   have to choose an agent before saying what they need.
+- **Projects first in the navigation, the conversation first on arrival.** The project is the unit
+  of work ([Projects](projects.md)): its conversations, inventory, documents and decisions belong
+  to it, so the projects page (`/projects`) is the first item in the main navigation, and a
+  project's own page is marked as under it. A person still lands on the conversation, and their
+  first message starts a project, so nobody has to make or choose a project before saying what
+  they need. The app starts projects untitled, so the list names each by its first
+  conversation's title. Making the projects page the home, with the conversation inside a project
+  and a way to switch project, waits on starting a conversation in an existing project,
+  TODO(#160).
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
   policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
   each phase's steps and the agents serving them. On the left, the person's conversations, so

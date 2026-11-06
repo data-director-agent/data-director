@@ -16,6 +16,7 @@ import re
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR
@@ -44,6 +45,17 @@ CONVERSATION_ID = re.compile(UUID7_PATTERN)
 # What a turn says when the researcher attached an inventory and wrote nothing, so that the
 # history reads as what happened (docs/specs/app.md).
 INVENTORY_ONLY_TEXT = "I have attached an inventory of my dataset's files."
+# What `GET /api/projects` says of each conversation in a project.
+LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
+
+
+def _last_active(project: Mapping[str, Any]) -> datetime:
+    """When the project was last worked in: its latest conversation's last turn, else when it
+    was created."""
+    times = [project["created_at"]] + [
+        c.get("last_completed_at") or c["started_at"] for c in project["conversations"]
+    ]
+    return max(datetime.fromisoformat(t) for t in times if t)
 
 
 class UnknownConversationError(LookupError):
@@ -294,6 +306,37 @@ class Governance:
         started but given no turn yet is not listed."""
         return conversations.list_conversations(self.conductor.store)
 
+    def projects_for(self, principal: Principal) -> list[dict[str, Any]]:
+        """The projects `principal` may read, most recently active first (`GET /api/projects`):
+        each project's summary, with the conversations started in it that have a turn, most
+        recent first, so that the shell can name a project the app created untitled. A project
+        with nothing in it yet (no conversation with a turn, no inventory and no document) is not
+        listed, as a conversation with no turn is not.
+
+        TODO(#389): a person may read the projects they created; membership replaces this."""
+        if self.projects is None:
+            return []
+        by_project: dict[str, list[dict[str, Any]]] = {}
+        for c in self.conversations():
+            if c.get("project_id"):
+                by_project.setdefault(c["project_id"], []).append(
+                    {key: c.get(key) for key in LISTED_CONVERSATION}
+                )
+        found = []
+        for summary in self.projects.projects():
+            if summary["created_by"].get("principal_id") != principal.principal_id:
+                continue
+            listed = by_project.get(summary["project_id"], [])
+            if (
+                not listed
+                and summary["inventory"] is None
+                and not any(summary["documents"].values())
+            ):
+                continue
+            found.append({**summary, "conversations": listed})
+        found.sort(key=_last_active, reverse=True)
+        return found
+
     def conversation(self, conversation_id: str) -> dict[str, Any] | None:
         """A conversation as `dd_harness.conversations` derives it (`GET /api/conversations/{id}`),
         or None. One started but given no turn yet has no turns."""
@@ -388,6 +431,35 @@ class Governance:
                 "orchestrator": profile.orchestrator,
             },
             "acting_for": principal_summary(acting_for),
+        }
+
+    def policy(self) -> dict[str, Any]:
+        """The rules the policy gate holds every run to (`GET /api/policy`), for the policy page.
+
+        The profile as the conductor loaded it: its identifier, version, digest and description,
+        the agent the conversation goes to, each agent it enables with the action class it assigns
+        and whether that class needs approval, and every class that needs approval. The shell
+        renders this and decides nothing from it (docs/specs/app.md).
+        """
+        profile = self.conductor.profile
+        return {
+            "profile": {
+                "id": profile.profile_id,
+                "version": profile.version,
+                "ref": profile.ref,
+                "digest": profile.digest,
+                "description": profile.description,
+                "orchestrator": profile.orchestrator,
+            },
+            "agents": [
+                {
+                    "agent_id": agent_id,
+                    "action_class": action_class,
+                    "requires_approval": action_class in profile.actions_requiring_approval,
+                }
+                for agent_id, action_class in sorted(profile.agents.items())
+            ],
+            "actions_requiring_approval": sorted(profile.actions_requiring_approval),
         }
 
     def deployment(self) -> dict[str, Any]:

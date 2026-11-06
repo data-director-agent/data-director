@@ -17,6 +17,8 @@ import answered from "../fixtures/conversation-answered.json" with { type: "json
 import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import disclosure from "../fixtures/project-disclosure.json" with { type: "json" };
+import projects from "../fixtures/projects.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -399,6 +401,34 @@ test("the directory is a page: reachable from the navigation, survives a reload,
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
   await expect(nav.getByRole("link", { name: "Conversation" })).toHaveAttribute("aria-current", "page");
+});
+
+test("Projects comes first in the navigation, lists the projects at 320px, and opens one", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await serve(page, several);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route("/api/projects/*/documents", (route) => route.fulfill({ json: project }));
+  await page.route("/api/projects/*/disclosure", (route) => route.fulfill({ json: disclosure }));
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await expect(nav.getByRole("link").first()).toHaveText("Projects");
+  await nav.getByRole("link", { name: "Projects" }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+  await page.reload();
+  const first = page.getByRole("link", { name: "My logger data" });
+  await expect(first).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+
+  await first.click();
+  await expect(page.getByRole("heading", { name: "Project documents" })).toBeVisible();
+  // A project's own page is under Projects.
+  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("link", { name: "All projects" }).click();
+  await expect(page).toHaveURL(/\/projects$/);
 });
 
 for (const width of [1280, 320]) {
