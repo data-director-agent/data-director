@@ -22,6 +22,10 @@ later be shown to be the files described.
 $ uv run dd-inventory path/to/dataset -o inventory.json
 ```
 
+The package installs two names for the same command, `dd-inventory` and `data-director-inventory`,
+so that `uvx data-director-inventory path/to/dataset` works once the package is on PyPI (#552).
+Until then it is published to TestPyPI only ([RELEASING.md](../RELEASING.md)).
+
 A researcher without a checkout runs it with `uvx` and attaches the file to a conversation in the
 app; the user guide's [Making an inventory](https://data-director-agent.github.io/data-director/user-guide/making-an-inventory/)
 says how.

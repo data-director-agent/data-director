@@ -46,7 +46,7 @@ jobs:
         env:
           RELEASED: ${{ steps.release.outputs.paths_released }}
         run: |
-          echo "paths=$(jq -c '[.[] | select(. == "sdk" or . == "harness")]' <<< "${RELEASED:-[]}")" >> "$GITHUB_OUTPUT"
+          echo "paths=$(jq -c '[.[] | select(. == "sdk" or . == "harness" or . == "inventory")]' <<< "${RELEASED:-[]}")" >> "$GITHUB_OUTPUT"
 
   # release-please edits each pyproject.toml but cannot regenerate uv.lock, which records the
   # workspace members' versions. Refresh it on every release PR branch.
@@ -84,8 +84,8 @@ jobs:
           git commit -s -m "chore: refresh uv.lock for release"
           git push "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
 
-  # Publish a released sdk or harness to TestPyPI, so that an agent outside this repository can
-  # install them (#277). Trusted publishing: TestPyPI trusts this workflow in the `testpypi`
+  # Publish a released sdk, harness or inventory to TestPyPI, so that an agent outside this
+  # repository can install them (#277), and the inventory command can be tried by uvx (#552). Trusted publishing: TestPyPI trusts this workflow in the `testpypi`
   # environment, and no token is stored. The commit is the one the release was tagged on.
   publish-testpypi:
     needs: release-please
