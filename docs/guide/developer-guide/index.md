@@ -2,6 +2,7 @@
 
 For people who write agents or work on the repository.
 
+- [Your first contribution](first-contribution.md): from a fresh clone to an open pull request.
 - [Setting up](setup.md)
 - [Writing an agent](writing-an-agent.md)
 - [Contributing](../../../CONTRIBUTING.md): how to propose and submit changes.

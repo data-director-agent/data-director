@@ -67,6 +67,7 @@ nav:
       - Repository requirements: /app/config/repositories/README.md
   - Developer guide:
       - developer-guide/index.md
+      - Your first contribution: developer-guide/first-contribution.md
       - Setting up: developer-guide/setup.md
       - Writing an agent: developer-guide/writing-an-agent.md
       - Documentation: developer-guide/documentation.md
