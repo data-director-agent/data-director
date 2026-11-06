@@ -95,6 +95,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 21. An envelope records each model call an agent reports in `telemetry.model_calls`, and names
     the call's prompt by its `dd-prompt-json-v1` digest only. The prompt itself never enters the
     envelope, the trace or the crate; the run store keeps it ([Disclosure](disclosure.md)).
+22. A `Reply` may carry `conversation_title`, one line of at most 80 characters that a person can
+    tell the conversation apart by. A model writes it from the researcher's first message, on a
+    conversation's first turn only; an agent that sets it declares it model-derived, and a later
+    turn, or a rule-based agent, leaves it out. The harness reads it to name the conversation
+    ([Orchestration](orchestration.md)) and checks nothing else about it.
 
 ## Boundaries and contracts
 

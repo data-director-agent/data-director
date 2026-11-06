@@ -11,6 +11,11 @@ without rebuilding it. `version_changes` marks where an agent's version differs 
 that agent had earlier in the same conversation, which is what a developer needs to see when an
 agent is rebuilt mid-conversation.
 
+A summary's `title` is derived like everything else: the first turn's
+`Reply.conversation_title`, which a model-backed orchestrator writes (docs/specs/contract.md),
+with `title_source` `model`; otherwise the start of the first turn's message, with `title_source`
+`message`. The harness calls no model to make one.
+
 TODO(#141): the file backend scans every envelope on each call. Add an index if the store grows
 large.
 """
@@ -23,10 +28,15 @@ from typing import Any
 from dd_harness.storage import RunStorage
 from dd_sdk.contract.models import ConversationTurn, TurnRole, to_document
 
+# How much of the first message names a conversation that has no model-written title.
+MESSAGE_TITLE_MAX = 60
+ELLIPSIS = "…"
+
 
 def list_conversations(store: RunStorage) -> list[dict[str, Any]]:
     """One summary per conversation, most recently active first."""
     summaries: dict[str, dict[str, Any]] = {}
+    first_turns: dict[str, dict[str, Any]] = {}
     for envelope in store.iter_envelopes():
         conversation_id = envelope.get("conversation_id")
         if not conversation_id or envelope.get("parent_invocation_id"):
@@ -41,10 +51,38 @@ def list_conversations(store: RunStorage) -> list[dict[str, Any]]:
                 "turns": 0,
                 "started_at": envelope["completed_at"],
             }
+            first_turns[conversation_id] = envelope
         summary["turns"] += 1
         summary["last_completed_at"] = envelope["completed_at"]
         summary["last_status"] = envelope["outcome"]["status"]
+    for conversation_id, envelope in first_turns.items():
+        summaries[conversation_id].update(title_of(store, envelope))
     return sorted(summaries.values(), key=lambda s: str(s["last_completed_at"]), reverse=True)
+
+
+def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:
+    """A conversation's `title` and `title_source`, from its first turn's envelope."""
+    payload = first_turn.get("payload") or {}
+    if payload.get("schema_class") == "Reply" and payload.get("conversation_title"):
+        return {"title": str(payload["conversation_title"]), "title_source": "model"}
+    request = store.get_request(first_turn["invocation_id"]) or {}
+    document = request.get("input") or {}
+    if document.get("schema_class") == "Message":
+        text = str(document.get("message_text", ""))
+    else:
+        text = str(document.get("schema_class", ""))
+    return {"title": shorten(text) or first_turn["agent_id"], "title_source": "message"}
+
+
+def shorten(text: str, limit: int = MESSAGE_TITLE_MAX) -> str:
+    """`text` on one line, cut at a word to at most `limit` characters."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - len(ELLIPSIS)]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;:.-") + ELLIPSIS
 
 
 def get_conversation(store: RunStorage, conversation_id: str) -> dict[str, Any] | None:

@@ -97,6 +97,7 @@ def test_generated_properties_keep_the_linkml_slot_order() -> None:
         "schema_class",
         "reply_text",
         "reply_derivation",
+        "conversation_title",
         "grounded_on",
     ]
 

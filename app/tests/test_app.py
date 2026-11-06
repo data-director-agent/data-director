@@ -601,6 +601,9 @@ def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, A
         ]
     (listed,) = client.get("/api/conversations").json()
     assert (listed["conversation_id"], listed["turns"]) == (conversation_id, 2)
+    # orchestrator.stub writes no title, so the conversation is named by its first message.
+    assert (listed["title"], listed["title_source"]) == ("hello world", "message")
+    assert listed["project_id"] == found["project_id"]
     check_fixture("conversation-turn.json", normalised_conversation(second.json()))
     check_fixture("conversation.json", normalised_conversation(found))
 

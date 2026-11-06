@@ -340,10 +340,19 @@ describe("ConversationHome", () => {
   it("reopens a past conversation and starts a new one", async () => {
     const list = () =>
       Promise.resolve([
-        { conversation_id: "c9", agent_id: "orchestrator.stub", turns: 2, started_at: "2026-01-01" },
+        {
+          conversation_id: "c9",
+          agent_id: "orchestrator.stub",
+          title: "Depositing a soil survey",
+          title_source: "model" as const,
+          turns: 2,
+          started_at: "2026-01-01T09:30:00Z",
+        },
       ]);
     renderHome(withOrchestrator(), fakeApi({ list }));
-    await userEvent.click(await screen.findByRole("button", { name: /2026-01-01 \(2 turns\)/ }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Depositing a soil survey .*, 2 turns$/ }),
+    );
     expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "New conversation" }));
     expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();

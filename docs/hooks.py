@@ -42,8 +42,8 @@ BRANCH = "main"
 
 # Tracked Markdown that is deliberately not on the site, with the reason.
 UNPUBLISHED = (
-    # An agent's system prompt is its code, read by the model rather than by people.
-    "agents/*/src/*/system_prompt.md",
+    # An agent's prompts are its code, read by the model rather than by people.
+    "agents/*/src/*/*_prompt.md",
     # The licence of a third-party data snapshot, which travels with the data.
     "agents/*/data/*",
     # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.
