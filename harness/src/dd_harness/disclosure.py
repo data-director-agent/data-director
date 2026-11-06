@@ -23,9 +23,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
-from dd_harness.projects import APPROVED, PROPOSED, ProjectStore
+from dd_harness.projects import APPROVED, PROPOSED
 from dd_harness.provenance import AGENT_BASE
-from dd_harness.store import RunStore
+from dd_harness.storage import ProjectStorage, RunStorage
 from dd_sdk.contract.models import now
 
 # Where a model is named, beside the agents (TODO(#3): the w3id namespace is not yet registered).
@@ -210,7 +210,7 @@ class Disclosure:
         return {"@context": CONTEXT, "@graph": list(graph.values())}
 
 
-def disclose(projects: ProjectStore, runs: RunStore, project_id: str) -> Disclosure:
+def disclose(projects: ProjectStorage, runs: RunStorage, project_id: str) -> Disclosure:
     """The disclosure of a project's approved documents. Raises `UnknownProjectError` for an
     unknown project."""
     found: list[DocumentDisclosure] = []
@@ -226,7 +226,7 @@ def disclose(projects: ProjectStore, runs: RunStore, project_id: str) -> Disclos
 
 
 def _disclose(
-    runs: RunStore, document: dict[str, Any], version: dict[str, Any]
+    runs: RunStorage, document: dict[str, Any], version: dict[str, Any]
 ) -> DocumentDisclosure:
     chain = _chain(document, version)
     drafted = next((v for v in reversed(chain) if v.get("drafted_by")), None)
@@ -271,12 +271,12 @@ def _chain(document: dict[str, Any], version: dict[str, Any]) -> list[dict[str, 
     return chain
 
 
-def _draft_of(runs: RunStore, version: dict[str, Any]) -> Draft | None:
+def _draft_of(runs: RunStorage, version: dict[str, Any]) -> Draft | None:
     drafted_by = version.get("drafted_by")
     return _draft(runs, drafted_by) if drafted_by else None
 
 
-def _draft(runs: RunStore, drafted_by: dict[str, Any]) -> Draft:
+def _draft(runs: RunStorage, drafted_by: dict[str, Any]) -> Draft:
     envelope = runs.get(drafted_by["invocation_id"]) or {}
     telemetry = envelope.get("telemetry", {})
     models = tuple(

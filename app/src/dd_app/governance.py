@@ -16,15 +16,20 @@ import re
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR
 from dd_harness import conversations
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
-from dd_harness.projects import ProjectStore
-from dd_harness.settings import Settings, SettingsError, build_conductor, projects_dir
+from dd_harness.settings import (
+    Settings,
+    SettingsError,
+    build_conductor,
+    project_storage,
+    projects_dir,
+)
+from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
     Envelope,
@@ -53,12 +58,12 @@ class TurnConflictError(Exception):
         self.detail = detail
 
 
-def _report(path: Path) -> dict[str, Any] | None:
+def _report(stored: bytes | None) -> dict[str, Any] | None:
     """A check's stored summary (`GroundingReport.summary`, `SourceReport.summary`), which says
     `FAILED` when the check failed."""
-    if not path.is_file():
+    if stored is None:
         return None
-    summary = path.read_text(encoding="utf-8").strip()
+    summary = stored.decode("utf-8").strip()
     return {"passed": "FAILED" not in summary, "summary": summary}
 
 
@@ -78,7 +83,7 @@ class Governance:
     authenticator: Authenticator
     # The projects' logs, which the harness alone writes (docs/specs/projects.md). None where the
     # app keeps no projects, as in a test that needs none.
-    projects: ProjectStore | None = None
+    projects: ProjectStorage | None = None
     # Conversations started in this process that have no turn yet. There is no conversation store
     # (docs/specs/orchestration.md): once a turn is stored the store holds the conversation, and an
     # id never used is forgotten when the app stops.
@@ -106,7 +111,7 @@ class Governance:
         conductor.harness_url = settings.harness_url or base_url
         root = projects_dir(DEFAULT_PROJECTS_DIR)
         try:
-            projects = ProjectStore(root)
+            projects = project_storage(root)
         except OSError as exc:
             # One line at start-up, like any other setting that is wrong.
             raise SettingsError(
@@ -337,9 +342,12 @@ class Governance:
     def checks(self, invocation_id: str) -> dict[str, Any]:
         """What the grounding linter and the source check reported on a run, from the summaries
         the conductor stores beside it. The conductor runs both over every envelope it stores,
-        even one the gate refused; a report missing from the run's directory is None."""
-        run_dir = self.conductor.store.root / invocation_id
-        return {name: _report(run_dir / f"{name}.txt") for name in ("grounding", "sources")}
+        even one the gate refused; a report the run does not have is None."""
+        store = self.conductor.store
+        return {
+            "grounding": _report(store.get_artifact(invocation_id, GROUNDING)),
+            "sources": _report(store.get_artifact(invocation_id, SOURCES)),
+        }
 
     def agents(self, acting_for: Principal) -> dict[str, Any]:
         """What the shell's capabilities panel is drawn from (`GET /api/agents`).

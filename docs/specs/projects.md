@@ -51,8 +51,8 @@ intended design, and each part says where it is not built yet.
    Appends to one project's log are serialised and each event goes in whole and is flushed before
    the call returns; a read of the log never sees part of an append. Each project has its own
    lock, so a change in one project never waits on another. Enforced in part by
-   `harness/tests/test_projects.py`; the serialisation holds within one harness process only
-   (`ProjectStore._lock`).
+   `harness/tests/test_projects.py` and the storage conformance kit ([Storage](storage.md)); in the
+   file backend the serialisation holds within one harness process only (`ProjectStore._lock`).
 3. **What the store refuses leaves no trace.** An inventory that fails the `FileInventory` class
    schema, or a call on an unknown project, records nothing and keeps no blob
    (`harness/tests/test_projects.py`).
