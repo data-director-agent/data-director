@@ -19,7 +19,6 @@ USER_NAME=datadirector
 ROOT=/opt/data-director
 STATE=/var/lib/data-director
 ETC=/etc/data-director
-HTPASSWD=/etc/nginx/data-director.htpasswd
 
 domain=""
 while [[ $# -gt 0 ]]; do
@@ -36,7 +35,7 @@ step() { echo; echo "==> $*"; }
 step "Packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
-apt-get install -y -q git curl jq ca-certificates gnupg nginx apache2-utils certbot python3-certbot-nginx
+apt-get install -y -q git curl jq ca-certificates gnupg nginx certbot python3-certbot-nginx
 
 if ! node --version 2>/dev/null | grep -qE "^v(2[2-9]|[3-9][0-9])\."; then
   step "Node $NODE_MAJOR (NodeSource)"
@@ -72,11 +71,15 @@ new_file() { # new_file DEST [SOURCE]
   echo "created $1"
 }
 new_file "$ETC/app.env" "$SRC/config/examples/app.env"
+# Where people reach the app is known from --domain, and ORCID needs it as the redirect URI's base.
+if ! grep -qE '^DD_APP_PUBLIC_URL=' "$ETC/app.env"; then
+  echo "DD_APP_PUBLIC_URL=https://$domain" >>"$ETC/app.env"
+fi
 new_file "$ETC/agents.env"
 # Each agent's own settings, and model keys (docs/specs/policy-and-identity.md). A key file is root's alone: systemd hands
 # it to the one unit that loads it (LoadCredential=).
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
-install -d -o root -g root -m 0700 "$ETC/credentials"
+install -d -o root -g root -m 0700 "$ETC/credentials" "$ETC/credentials/app"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
 
 step "Restart rule"
@@ -142,24 +145,43 @@ rm -f /etc/nginx/sites-enabled/default
 sed "s/SERVER_NAME/$domain/" "$SRC/deploy/nginx/data-director.conf" \
   >/etc/nginx/sites-available/data-director
 ln -sfn /etc/nginx/sites-available/data-director /etc/nginx/sites-enabled/data-director
-if [[ ! -s "$HTPASSWD" ]]; then
-  if [[ -t 0 ]]; then
-    read -rp "First user name for the site's password: " web_user
-    htpasswd -B -c "$HTPASSWD" "$web_user"
-  else
-    echo "warning: no $HTPASSWD; create it with: sudo htpasswd -B -c $HTPASSWD NAME" >&2
-  fi
-fi
-[[ -e "$HTPASSWD" ]] && chown root:www-data "$HTPASSWD" && chmod 0640 "$HTPASSWD"
 nginx -t
 systemctl reload nginx
 
-# The app does not start without whom it acts for (app/README.md), so the first deployment
-# waits until it is set.
-if ! grep -qE '^DD_PRINCIPAL_ID=.+' "$ETC/app.env" || ! grep -qE '^DD_PRINCIPAL_NAME=.+' "$ETC/app.env"; then
+# The app signs people in with ORCID and does not start without the client (docs/guide/operations/
+# configuration.md), so the first deployment waits until it is in place.
+setting() { sed -n "s/^$1=//p" "$ETC/app.env" | tail -n 1; }
+missing=()
+for name in DD_OIDC_ISSUER DD_OIDC_CLIENT_ID DD_APP_PUBLIC_URL; do
+  [[ -n "$(setting "$name")" ]] || missing+=("$name in $ETC/app.env")
+done
+[[ -s "$ETC/credentials/app/orcid-client-secret" ]] || missing+=("the client secret in $ETC/credentials/app/orcid-client-secret")
+if [[ -n "$(setting DD_PRINCIPAL_ID)$(setting DD_PRINCIPAL_NAME)" ]]; then
+  echo "Remove DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME from $ETC/app.env: the app stops at start-up" >&2
+  echo "if it is given both a sign-in provider and an operator." >&2
+  exit 1
+fi
+if ((${#missing[@]})); then
   echo
-  echo "Set DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME in $ETC/app.env, then run this again."
+  echo "Register an ORCID client with the redirect URI https://$domain/api/sign-in/callback, then set:"
+  printf '  %s\n' "${missing[@]}"
+  echo "and run this again."
   exit 0
+fi
+
+# Sign-in starts the run store afresh, so that no run recorded for an operator sits beside runs
+# for people who signed in (docs/specs/policy-and-identity.md). A deployment that ran before is
+# stopped and its store set aside, once.
+if [[ ! -e "$STATE/.sign-in" ]]; then
+  if [[ -L "$ROOT/current" ]] && [[ -n "$(ls -A "$STATE/runs")" ]]; then
+    step "Setting aside the runs recorded before sign-in"
+    systemctl stop data-director.target
+    aside="$STATE/runs.before-sign-in-$(date +%Y%m%d)"
+    mv "$STATE/runs" "$aside"
+    install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$STATE/runs"
+    echo "moved the old run store to $aside"
+  fi
+  install -m 0640 -o root -g "$USER_NAME" /dev/null "$STATE/.sign-in"
 fi
 
 if [[ ! -L "$ROOT/current" ]]; then
@@ -177,4 +199,4 @@ step "Enabling the services and the deployment timer"
 systemctl enable --now data-director.target data-director-deploy.timer
 
 echo
-echo "Done. The site is https://$domain/ (behind the password)."
+echo "Done. The site is https://$domain/ and people sign in with ORCID."
