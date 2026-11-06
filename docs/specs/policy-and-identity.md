@@ -131,7 +131,9 @@ Both the app's sign-in callback and the bearer authenticator verify a token with
 in `dd_harness.identity`, so the two ways in agree on what a valid token is.
 
 **Signing in.** The app is the relying party and a confidential client running the
-authorisation-code flow. The code names no provider; a provider is configuration (issuer, client
+authorisation-code flow. The flow and the sessions are the harness's (`dd_harness.signin`,
+`dd_harness.sessions`), so any way in that signs people in runs the same checks; the way in serves
+the routes and names its own cookies. The code names no provider; a provider is configuration (issuer, client
 identifier, client secret). The first version accepts one issuer, ORCID (`https://orcid.org`;
 the sandbox issuer in development and CI). The flow sends a fresh `state` and `nonce` per sign-in
 and checks both; binds `state` to the browser that started it, so a callback carried to another

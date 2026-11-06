@@ -27,9 +27,9 @@ from dd_app import app as dd_app
 from dd_app.app import build_app
 from dd_app.config import settings_from_env
 from dd_app.governance import Governance
-from dd_app.sessions import PENDING_S, SESSION_COOKIE, SessionStore
-from dd_app.signin import SignIn, SignInSettings, safe_return_to
 from dd_harness.identity import IdentityError, OperatorAssertion
+from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SessionStore
+from dd_harness.signin import SignIn, SignInSettings
 from dd_harness.testing import TEST_PRINCIPAL, FakeIdentityProvider
 
 PUBLIC_URL = "https://app.test"
@@ -78,7 +78,9 @@ def deployment(env: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> It
     idp = FakeIdentityProvider()
     provider_env(monkeypatch, idp)
     settings = settings_from_env()
-    configured = SignInSettings.from_env(os.environ, settings, "http://127.0.0.1:7860")
+    configured = SignInSettings.from_env(
+        os.environ, settings, "http://127.0.0.1:7860", public_url_variable="DD_APP_PUBLIC_URL"
+    )
     assert configured is not None
     clock = Clock()
     sign_in = SignIn(
@@ -203,22 +205,6 @@ def test_the_person_returns_to_the_page_they_were_on(deployment: Deployment):
     browser = deployment.browser()
     url = deployment.idp.approve(start(browser, "/agents?agent=advisor.standards"))
     assert come_back(browser, url).headers["location"] == "/agents?agent=advisor.standards"
-
-
-@pytest.mark.parametrize(
-    "value",
-    [
-        None,
-        "",
-        "https://evil.example/",
-        "//evil.example/",
-        "/\\evil.example",
-        "agents",
-        "/api/sign-out",
-    ],
-)
-def test_signing_in_never_returns_to_another_site(value: str | None):
-    assert safe_return_to(value) == "/"
 
 
 def test_no_token_reaches_the_run_store(deployment: Deployment):
