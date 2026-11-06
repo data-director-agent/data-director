@@ -164,7 +164,7 @@ agent whose model is optional must start without one, so a drop-in never names a
 there. Another
 provider follows the same rule under its own variable name. Each agent's manifest declares each
 model it sends data to (provider, model, `hosted` or `local`) and names no credential
-([Agents](agents.md)); the app's About tab shows the list. The declaration is the deployment's
+([Agents](agents.md)); the app's agent directory shows the list. The declaration is the deployment's
 configuration as the agent reports it, not proof. Rotating a key means replacing the credential
 file and restarting that agent's service; nothing else changes.
 

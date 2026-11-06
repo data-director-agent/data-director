@@ -70,7 +70,7 @@ and what an unknown value does, is in the agents' readmes:
 
 A model identifier is the provider's, and the services do not check it at start-up: a mistyped
 identifier shows as a failed run, not a failed start. After changing it, run one conversation turn
-and read the agent's About tab.
+and read the agent's page in the agent directory.
 
 ## Supply a key
 
@@ -142,7 +142,7 @@ app. The orchestrator can then be stopped.
 
 ## Check it works
 
-1. In the app, open the agent directory and the agent's About tab. It should name Anthropic and
+1. In the app, open the agent directory and the agent's page. It should name Anthropic and
    the model you chose.
 2. Have a short conversation on the home page. If the named agent is not running, is not
    permitted by the profile, or does not delegate, the page says so; it does not fall back to

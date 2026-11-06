@@ -144,9 +144,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow.
-- **Direct runs.** A person may run an agent from its Run page. That run goes through the
-  conductor under the profile's permission for that agent like any other; there is no separate
-  setting for direct runs.
+- **The agent directory** is read-only and for end users: each agent's name, description, what it
+  takes and returns, what powers it and whether this deployment will run it. A person does not run
+  or message an agent from it; they work through the conversation. Running one agent directly,
+  its run history, grounding and derivation detail and oversight declarations belong to the
+  workbench.
 - **What a deployment runs is public.** `GET /api/about`, open without a session, names the
   build (versions and commit), the profile the conductor holds runs to (its id, version, digest
   and orchestrator), and the configured agents it cannot reach, by name only. An operator's
