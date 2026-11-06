@@ -100,7 +100,9 @@ nav:
       - App:
           - /app/README.md
           - Configuration examples: /app/config/examples/README.md
-      - Inventory: /inventory/README.md
+      - Inventory:
+          - /inventory/README.md
+          - Inventory library (TypeScript): /inventory/browser/README.md
       - Agents:
           - /agents/README.md
           - Orchestrator: /agents/orchestrator-model/README.md

@@ -46,6 +46,7 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     documents: () => Promise.resolve(PROJECT),
     disclosure: () => Promise.resolve(DISCLOSURE),
     decide: () => Promise.resolve(decided("approved")),
+    inventory: () => Promise.resolve(null),
     ...overrides,
   };
 }

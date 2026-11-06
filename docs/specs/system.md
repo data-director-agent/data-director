@@ -16,6 +16,13 @@ fixes what the word "harness" names.
 | `agents/<name>/` | `data-director-agent-<name>` | One package and one A2A service per agent ([Agents](agents.md)). |
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
 
+Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a TypeScript
+library that reads a `FileInventory`: it parses, summarises, arranges the files as folders,
+searches them and puts the facts into words. It has no runtime dependencies, holds no user
+interface and no policy, and imports nothing else in the repository. `app/web` links it as source
+(`file:../../inventory/browser`) and never the reverse; the browser scanner (#554) is to join it.
+Its readme says how it is checked.
+
 The contract, transport, grounding and the app's own process boundary are specified elsewhere:
 [Contract](contract.md), [Transport and tracing](transport.md),
 [Evidence and grounding](grounding.md), [The app](app.md).

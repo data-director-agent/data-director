@@ -9,8 +9,15 @@
 import "./Transcript.css";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { AttachedInventory, InventorySummary } from "../../conversation/inventory";
+import { useMemo } from "react";
+
+import type {
+  AttachedInventory,
+  InventorySource,
+  InventorySummary,
+} from "../../conversation/inventory";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
+import { useProjectApi } from "../../project/api";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
@@ -130,6 +137,14 @@ export function Transcript({
   /** A message sent and not yet answered, shown after the turns with a sign that a reply is coming. */
   pending?: { agentId: string; message: string; inventory?: AttachedInventory | null } | null;
 }) {
+  // Only the inventory the project holds now is served, so only its chip opens it.
+  const projectId = conversation?.project_id;
+  const current = conversation?.inventory?.digest;
+  const projectApi = useProjectApi();
+  const source = useMemo<InventorySource | undefined>(
+    () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
+    [projectApi, projectId],
+  );
   return (
     <ol className="transcript" aria-label="Conversation">
       {conversation?.turns.map((turn, index) => {
@@ -149,7 +164,11 @@ export function Transcript({
           </p>
           {given && (
             <p>
-              <InventoryChip fileCount={given.inventory_file_count} madeAt={given.inventory_made_at} />
+              <InventoryChip
+                fileCount={given.inventory_file_count}
+                madeAt={given.inventory_made_at}
+                source={given.inventory_digest === current ? source : undefined}
+              />
             </p>
           )}
           <p>

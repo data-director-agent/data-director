@@ -133,6 +133,9 @@ the phase tracker show the whole intended design before each persona is built. A
 are a sketch, not a published format; its real implementation is its own piece of work and may
 replace them. The orchestrators tell the researcher when a result came from a mock.
 
+What a persona that drafts project documents may infer, ask and write is in
+[Drafting documents](drafting.md).
+
 ## Rationale
 
 - **Separate services.** An agent can be written, versioned, deployed, scaled and restarted apart
