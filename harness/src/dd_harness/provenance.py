@@ -1,9 +1,13 @@
 """Process Run Crate for one invocation (R10), written with ro-crate-py.
 
-One `CreateAction` per invocation: the agent is the instrument, the human it acted for the agent
+The invocation is one `CreateAction`: the agent is the instrument, the human it acted for the agent
 (Blueprint §5.4, docs/specs/policy-and-identity.md), the request the object, the envelope and the
-span file the results. Profile: https://w3id.org/ro/wfrun/process/0.5. This module is the only
-importer of `rocrate` (docs/specs/dependencies.md).
+span file the results. Each model call the agent made is a `CreateAction` of its own, with the
+model as instrument and the prompt as object (docs/specs/disclosure.md). The prompt is named by its
+`dd-prompt-json-v1` digest and is not in the crate: the run store keeps it.
+
+Profile: https://w3id.org/ro/wfrun/process/0.5. This module is the only importer of `rocrate`
+(docs/specs/dependencies.md).
 """
 
 from __future__ import annotations
@@ -108,6 +112,7 @@ def write_process_run_crate(
         result=results,
         properties=action_props,
     )
+    _add_model_calls(crate, envelope)
     # The outcome vocabulary is not schema.org; record it as an extra typed entity so a reader of
     # the crate sees the status without opening the envelope.
     crate.add(
@@ -124,3 +129,50 @@ def write_process_run_crate(
     out = run_dir / "crate"
     crate.write(out)
     return out
+
+
+def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:
+    """One `CreateAction` per model call, with the model as instrument and the prompt, named by
+    digest and not included, as object (docs/specs/disclosure.md)."""
+    models: dict[tuple[str, str], SoftwareApplication] = {}
+    for n, call in enumerate(envelope["telemetry"].get("model_calls", []), start=1):
+        key = (call["model_provider"], call["model_id"])
+        if key not in models:
+            models[key] = crate.add(
+                SoftwareApplication(
+                    crate,
+                    f"#model-{call['model_provider']}-{call['model_id']}",
+                    properties={
+                        "name": call["model_id"],
+                        "version": call["model_id"],
+                        "provider": call["model_provider"],
+                        "description": "A generative language model the agent called.",
+                    },
+                )
+            )
+        prompt = crate.add(
+            ContextEntity(
+                crate,
+                f"#prompt-{call['prompt_digest']}",
+                properties={
+                    "@type": "CreativeWork",
+                    "name": "Prompt sent to the model",
+                    "sha256": call["prompt_digest"],
+                    "description": (
+                        "Named by its dd-prompt-json-v1 digest. The prompt is kept with the run, "
+                        "not in this crate."
+                    ),
+                },
+            )
+        )
+        properties: dict[str, Any] = {
+            "name": f"call {call['model_id']}",
+            "startTime": call["called_at"],
+            "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
+        }
+        crate.add_action(
+            models[key],
+            identifier=f"#{envelope['invocation_id']}-model-call-{n}",
+            object=[prompt],
+            properties=properties,
+        )

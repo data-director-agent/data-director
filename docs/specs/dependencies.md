@@ -28,7 +28,14 @@ modules are not dependencies here.
    dependency edits the register in the same change.
 4. A dependency is declared by the workspace member that imports it, and only that member
    (see [System and boundaries](system.md)). A runtime dependency used only for one command or
-   one package (`dd-inventory`, an agent) is declared there and nowhere else.
+   one package (`dd-inventory`, an agent) is declared there and nowhere else. CI runs
+   `scripts/check_dependencies.py`, which runs [deptry](https://deptry.com) once per member in the
+   workspace environment and fails on an import the member does not declare, a declared package it
+   never imports, and a package it reaches only through another. The first-party members are the
+   business of `scripts/check_boundaries.py`; deptry covers everything else. A deliberate
+   exception is a `[tool.deptry.per_rule_ignores]` entry in the member's `pyproject.toml`, with the
+   reason beside it; a package whose import name differs from its distribution name is mapped in
+   `IMPORT_NAMES` in the script, never ignored.
 5. Our own fixed formats never depend on a library's representation. Envelopes, evidence and
    span records are plain documents that survive the library that produced them, which is what
    makes each fallback possible.
@@ -43,6 +50,7 @@ modules are not dependencies here.
 | `jsonschema` | SDK | `dd_sdk.contract.validate` | `fastjsonschema`, at the same single call site. |
 | `opentelemetry-sdk`, `opentelemetry-api` | SDK, harness | `dd_sdk.tracing` (span helpers); the trace-context propagator in the A2A client and server | Write the owned span attributes to a JSON-lines file directly; the linter reads plain span records, not SDK objects. `traceparent` is a W3C format that can be written and parsed by hand. |
 | `a2a-sdk[http-server]` | SDK, harness | `dd_sdk.serve`, `dd_sdk.delegate`; `dd_harness.remote`, `dd_harness.transport.a2a` | A hand-written JSON-RPC 2.0 `message/send` client and handler over httpx and Starlette. The request and envelope documents do not change. |
+| `protobuf` | SDK, harness | `dd_sdk.serve`, `dd_harness.transport.a2a`: A2A messages to and from plain documents | Whatever `a2a-sdk` uses; it is declared because the code imports it directly. |
 | `starlette` | SDK, harness, workbench, app | The ASGI applications in `dd_sdk.serve`, `dd_harness.server`, `dd_app.app` | Any ASGI framework; each application is a handful of routes. |
 | `uvicorn` | SDK, harness (`serve` extra), workbench, app | The `serve` commands | Any ASGI server. |
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
@@ -70,7 +78,8 @@ fallback. It is not yet declared, because validation is not yet built: TODO(#19)
 
 Unconstrained, and listed so that nothing moves into the runtime tier unnoticed: `pytest` and
 its plugins, `linkml` (schema generation only; the generated files are committed, so runtime code
-never imports it), `ruff`, `mypy` and its stubs, `inspect-ai` (the workbench's `eval` extra),
+never imports it), `rdflib` (harness tests that read a disclosure's PROV-O graph as RDF), `ruff`,
+`mypy` and its stubs, `inspect-ai` (the workbench's `eval` extra),
 MkDocs and its theme, and the shell's build and test tools (`vite`, `typescript`, `vitest`,
 Testing Library, `jsdom`, `jest-axe`, Playwright, axe-core, ESLint, Stylelint).
 

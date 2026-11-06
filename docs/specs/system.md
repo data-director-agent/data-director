@@ -31,9 +31,13 @@ The contract, transport, grounding and the app's own process boundary are specif
 
    The graph is what each member declares in `[project].dependencies`; no check compares the
    declarations with this list, so a new first-party dependency is a change to this spec.
-   `scripts/check_boundaries.py` (CI) fails code that imports a member it does not declare, and
-   `scripts/check_wheels.py` (CI) installs each built wheel alone and imports it. Invariants 2
-   and 3 test the two edges most likely to be added by mistake.
+   Import Linter contracts in the root `pyproject.toml` (`uv run lint-imports`, CI) fail an
+   import, direct or indirect, that runs against the direction above: the layers `sdk`,
+   `harness`, then `workbench`, `app` and each agent, with no agent importing another and
+   `inventory` importing no member. A known exception is an `ignore_imports` entry naming the
+   issue that removes it. `scripts/check_boundaries.py` (CI) fails code that imports a member it
+   does not declare, and `scripts/check_wheels.py` (CI) installs each built wheel alone and
+   imports it. Invariants 2 and 3 test the two edges most likely to be added by mistake.
 2. Nothing under `harness/src/` imports the workbench, the app, any agent package or Inspect AI.
    Enforced by `harness/tests/test_harness_boundary.py`.
 3. Nothing under `app/src/` imports the workbench or any agent package. The app reaches every
@@ -52,6 +56,12 @@ The contract, transport, grounding and the app's own process boundary are specif
    Enforced by `scripts/check_boundaries.py` in CI. Each known exception is listed in
    `scripts/boundaries.toml` with the issue that removes it; an exception that no longer occurs
    fails the check, so the list only shrinks. Do not add an exception to let a new tie pass.
+
+   The checks run together in the CI job "Architecture", which "CI passed" requires.
+   `workbench/tests/test_architecture_canary.py` plants a violation of each kind (direction,
+   undeclared import, read outside the member) in a copy of the repository and fails unless the
+   check reports it, so a misconfigured check cannot pass silently.
+   TODO(#497): add a canary for a cycle in `app/web` when its checks exist.
 6. The harness ships no deployment configuration: no institutional profile, agent list or source
    list, and no default run directory. Every path comes from its `DD_*` variable or from a default
    the caller passes; with neither, start-up stops with `SettingsError`. No harness module

@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from dd_agent_orchestrator_model.model import Model, ModelError, ModelTurn, ToolCall
+from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -49,11 +50,16 @@ from dd_sdk.contract.models import (
     ReasonCode,
     Reply,
     TurnRole,
+    now,
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 from dd_sdk.process_flow import requirements_of
+from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
+
+# Who serves the model, as the agent's card names it (factory.py).
+PROVIDER = "anthropic"
 
 AGENT_ID = "orchestrator.model"
 DEFAULT_HISTORY_TURNS = 20
@@ -226,14 +232,35 @@ class ModelOrchestrator:
         attempts = 0
         input_tokens = output_tokens = 0
         model_id = self.model.model_id
+        # Each call and what it sent, kept by digest with the run (docs/specs/disclosure.md).
+        calls = ModelCallLog(PROVIDER)
         while True:
             use_tools = bool(definitions) and attempts < self.max_delegations
+            prompt = json.loads(
+                json.dumps(
+                    {
+                        "system": SYSTEM_PROMPT,
+                        "messages": messages,
+                        "tools": definitions,
+                        "tool_choice": "auto" if use_tools else "none",
+                    },
+                    default=str,
+                )
+            )
+            called_at = now()
             with chat_span(ctx.tracer, self.model.model_id) as span:
                 turn = self.model.turn(messages, definitions, use_tools=use_tools)
                 if turn.model_id != self.model.model_id:
                     # A server-side fallback answered.
                     span.set_attribute(ATTR_MODEL_ID, turn.model_id)
                 record_tokens(span, turn.input_tokens, turn.output_tokens)
+            calls.record(
+                prompt,
+                turn.model_id,
+                called_at=called_at,
+                input_tokens=turn.input_tokens,
+                output_tokens=turn.output_tokens,
+            )
             input_tokens += turn.input_tokens
             output_tokens += turn.output_tokens
             model_id = turn.model_id
@@ -247,7 +274,7 @@ class ModelOrchestrator:
             # Every result of one turn goes back in one message.
             messages.append({"role": "user", "content": results})
 
-        return self._reply(turn, delegated, ctx, model_id, input_tokens, output_tokens)
+        return self._reply(turn, delegated, ctx, model_id, input_tokens, output_tokens, calls)
 
     def _call(
         self,
@@ -298,6 +325,7 @@ class ModelOrchestrator:
         model_id: str,
         input_tokens: int,
         output_tokens: int,
+        calls: ModelCallLog,
     ) -> AgentResult:
         text = turn.text.strip()
         if turn.stop_reason == "max_tokens":
@@ -337,6 +365,8 @@ class ModelOrchestrator:
             model_id=model_id,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            model_calls=calls.calls,
+            prompts=calls.prompts,
         )
 
 

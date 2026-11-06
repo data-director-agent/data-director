@@ -24,7 +24,7 @@ from dd_harness.testing.classes import (
     ProbeRecord,
     ProbeReview,
 )
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext
+from dd_sdk.agent import AgentResult, AgentSpec, ModelUse, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Derivation,
@@ -47,7 +47,11 @@ from dd_sdk.evidence import (
     INPUT_CANONICALISATION,
     content_hash,
 )
+from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import chat_span, retrieval_span
+
+# The provider a double that stands for a model-backed agent names. No model is called.
+MODEL_PROVIDER = "test"
 
 Behaviour = AgentResult | Exception | Callable[[InvocationRequest, RunContext], AgentResult]
 
@@ -196,7 +200,11 @@ class DocumentStub:
     """Drafts a placeholder `Document` of the kind a `ProbeDocumentRequest` or a core
     `DraftRequest` names, from a fixed template, grounded on its input. It declares grounding mode
     `none`. For a `DraftRequest` it says which facts it was given, so a test can see what the
-    conductor put in, and revises the `current_version` it was given, if any."""
+    conductor put in, and revises the `current_version` it was given, if any.
+
+    Given a `model_id`, it stands for a drafter that writes with a language model: it records one
+    model call, as a real agent would through `dd_sdk.prompts`, without calling any model, and
+    says its draft was derived by `model` (docs/specs/disclosure.md)."""
 
     spec = AgentSpec(
         agent_id="stub.document",
@@ -208,12 +216,34 @@ class DocumentStub:
         payload=ClassSchema.of(Document),
     )
 
+    def __init__(self, model_id: str | None = None) -> None:
+        self.model_id = model_id
+        if model_id is not None:
+            # A model call is allowed in input_only, not in none (docs/specs/grounding.md).
+            self.spec = replace(
+                self.spec,
+                grounding_mode=GroundingMode.INPUT_ONLY,
+                models=(ModelUse(MODEL_PROVIDER, model_id, "local"),),
+            )
+
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         asked = request.input
         # The conductor checked spec.accepts.
         assert isinstance(asked, ProbeDocumentRequest | DraftRequest)
         kind = asked.document_kind
         media_type, text = _DRAFTS[kind]
+        calls = ModelCallLog(MODEL_PROVIDER)
+        if self.model_id is not None:
+            with chat_span(ctx.tracer, self.model_id):
+                calls.record(
+                    {
+                        "system": "Draft the document asked for.",
+                        "messages": [{"role": "user", "content": f"Draft a {kind.value}."}],
+                    },
+                    self.model_id,
+                    input_tokens=12,
+                    output_tokens=34,
+                )
         revises = None
         if isinstance(asked, DraftRequest):
             files = len(asked.inventory.inventory_files) if asked.inventory else None
@@ -223,13 +253,16 @@ class DocumentStub:
         return AgentResult(
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
-                statement=f"Drafted a placeholder {kind.value}. No model was called.",
+                statement=f"Drafted a placeholder {kind.value}."
+                + (" No model was called." if self.model_id is None else ""),
             ),
             payload=Document(
                 document_kind=kind,
                 media_type=media_type,
                 document_text=text,
-                document_derivation=Derivation.TEMPLATE,
+                document_derivation=Derivation.TEMPLATE
+                if self.model_id is None
+                else Derivation.MODEL,
                 grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
                 revises=revises,
             ),
@@ -241,4 +274,6 @@ class DocumentStub:
                     content_hash=ctx.input_hash,
                 )
             ],
+            model_calls=calls.calls,
+            prompts=calls.prompts,
         )

@@ -92,6 +92,9 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 20. No agent builds, sends or parses an RO-Crate as part of a call, and nothing in the harness
     reads a crate back to make a decision. `dd_harness/provenance.py` is the only importer of
     `rocrate`.
+21. An envelope records each model call an agent reports in `telemetry.model_calls`, and names
+    the call's prompt by its `dd-prompt-json-v1` digest only. The prompt itself never enters the
+    envelope, the trace or the crate; the run store keeps it ([Disclosure](disclosure.md)).
 
 ## Boundaries and contracts
 

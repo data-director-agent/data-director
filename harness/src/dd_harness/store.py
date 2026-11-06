@@ -7,6 +7,11 @@ conductor refuses such a request before it runs (`DuplicateInvocation`).
 Each class schema a run was checked against is kept once, addressed by its digest, in
 `schemas/<digest>.json` (docs/specs/contract.md). An envelope names the digests, so a stored run is
 shown with the schema it was checked against, whatever its agent's card says now.
+
+The prompts a run sent to a model are kept beside its envelope in `prompts.json`, keyed by their
+`dd-prompt-json-v1` digest (docs/specs/disclosure.md). The envelope names them by digest only; a
+prompt may hold what a researcher wrote, so whoever may read the run may read it, and nothing that
+leaves the store (the envelope, the trace, the crate) carries it.
 """
 
 from __future__ import annotations
@@ -16,13 +21,14 @@ import os
 import re
 import tempfile
 import threading
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
 from dd_sdk.contract.classes import ClassSchema
 
 INDEX_NAME = "invocations.jsonl"
+PROMPTS_NAME = "prompts.json"
 SCHEMAS_DIR = "schemas"
 DIGEST = re.compile(r"[0-9a-f]{64}")
 
@@ -51,9 +57,11 @@ class RunStore:
         envelope: dict[str, Any],
         request: dict[str, Any] | None = None,
         schemas: Iterable[ClassSchema] = (),
+        prompts: Mapping[str, Mapping[str, Any]] | None = None,
     ) -> Path:
-        """Store one envelope, and each class schema it was checked against under its digest.
-        Raises FileExistsError if its `invocation_id` is already stored."""
+        """Store one envelope, each class schema it was checked against under its digest, and the
+        prompts its model calls name. Raises FileExistsError if its `invocation_id` is already
+        stored."""
         for schema in schemas:
             self._keep_schema(schema)
         run_dir = self.run_dir(envelope["invocation_id"])
@@ -61,6 +69,11 @@ class RunStore:
             fh.write(json.dumps(envelope, indent=2))
         if request is not None:
             (run_dir / "request.json").write_text(json.dumps(request, indent=2), encoding="utf-8")
+        if prompts:
+            (run_dir / PROMPTS_NAME).write_text(
+                json.dumps({k: dict(v) for k, v in prompts.items()}, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
         line = json.dumps(envelope, separators=(",", ":")) + "\n"
         with self._index_lock, self.index.open("a", encoding="utf-8") as fh:
             fh.write(line)
@@ -81,6 +94,10 @@ class RunStore:
     def get_request(self, invocation_id: str) -> dict[str, Any] | None:
         path = self.root / invocation_id / "request.json"
         return _read_json(path)
+
+    def get_prompts(self, invocation_id: str) -> dict[str, Any]:
+        """The prompts a stored run sent, keyed by digest; empty if it sent none."""
+        return _read_json(self.root / invocation_id / PROMPTS_NAME) or {}
 
     def _keep_schema(self, schema: ClassSchema) -> None:
         """Write a class schema once, under its digest. Its bytes never change, so a schema already

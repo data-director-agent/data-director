@@ -38,6 +38,7 @@ from dd_sdk.contract.models import (
     TurnRole,
 )
 from dd_sdk.process_flow import describe_flow
+from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import CHAT, DELEGATE, records_from_jsonl
 
 MODEL = "claude-test"
@@ -133,6 +134,27 @@ def test_the_model_delegates_and_its_reply_is_grounded_on_the_child(runs_dir: Pa
     [result] = results["content"]
     assert result["type"] == "tool_result" and result["is_error"] is False
     assert json.loads(result["content"])["payload"]["greeting_text"] == "Hello, Ada!"
+
+
+@pytest.mark.requirement("C13.4")
+def test_each_model_call_is_recorded_with_what_it_was_sent(runs_dir: Path) -> None:
+    """One call per turn, each with the prompt as it stood when sent, kept with the run and
+    named by digest in the envelope (docs/specs/disclosure.md)."""
+    model = ScriptedModel([call(("example_hello", {"greeted_name": "Ada"})), say("Hello, Ada!")])
+    c = conductor(runs_dir, model)
+    env = invoke(c)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+
+    calls = env.telemetry.model_calls
+    assert [(x.model_provider, x.model_id) for x in calls] == [("anthropic", MODEL)] * 2
+    kept = c.store.get_prompts(env.invocation_id)
+    for made, sent in zip(calls, model.sent, strict=True):
+        prompt = kept[made.prompt_digest]
+        assert prompt_digest(prompt) == made.prompt_digest
+        assert prompt["system"] == SYSTEM_PROMPT
+        assert prompt["messages"] == sent["messages"]
+        assert prompt["tools"] == sent["tools"]
+    assert "Please greet Ada" not in (runs_dir / env.invocation_id / "envelope.json").read_text()
 
 
 @pytest.mark.requirement("DD-DELEGATION")

@@ -10,7 +10,9 @@ outside its directory:
 - no Python file climbs out of the member with `Path(__file__)…parents[N]`.
 
 The uv workspace installs every member together, so none of this fails at run time; it fails
-only when the member is installed on its own.
+only when the member is installed on its own. Which member may depend on which, including
+indirectly, is checked by the Import Linter contracts in the root `pyproject.toml`
+(`uv run lint-imports`), not here.
 
     uv run --no-project python scripts/check_boundaries.py
 

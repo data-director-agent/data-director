@@ -21,7 +21,8 @@ from dd_agent_advisor_repository.assess import Assessment
 from dd_agent_advisor_repository.classes import CandidateBasis, RepositoryNeeds
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import Derivation
+from dd_sdk.contract.models import Derivation, now
+from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import chat_span, record_tokens
 
 if TYPE_CHECKING:
@@ -58,6 +59,8 @@ class Explanation:
 
     rationales: list[Rationale]
     usage: Usage
+    # The model calls made and the prompts sent (dd_sdk.prompts); None if no model was called.
+    calls: ModelCallLog | None = None
 
 
 class Explainer(Protocol):
@@ -101,6 +104,8 @@ class TemplateExplainer:
 
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
+# Who serves the model, as the agent's card names it (factory.py).
+PROVIDER = "anthropic"
 
 # What the model is told it may and may not do; the prose is a Markdown file beside this module.
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
@@ -154,15 +159,28 @@ class AnthropicExplainer:
         if not items:
             return Explanation([], Usage())
         assert self.model_id is not None
+        # What is sent, kept by digest with the run (docs/specs/disclosure.md).
+        content = self._prompt(needs, items)
+        prompt = {"system": SYSTEM_PROMPT, "messages": [{"role": "user", "content": content}]}
+        calls = ModelCallLog(PROVIDER)
         with chat_span(ctx.tracer, self.model_id) as span:
+            called_at = now()
             response = self._client.messages.create(
                 model=self.model_id,
                 max_tokens=4096,
                 system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": self._prompt(needs, items)}],
+                messages=[{"role": "user", "content": content}],
             )
             usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
             record_tokens(span, usage.input_tokens, usage.output_tokens)
+        calls.record(
+            prompt,
+            # The model the response names, which may be more exact than the one asked for.
+            getattr(response, "model", None) or self.model_id,
+            called_at=called_at,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+        )
         if response.stop_reason == "refusal":
             return Explanation(
                 [
@@ -173,9 +191,10 @@ class AnthropicExplainer:
                     for item in items
                 ],
                 usage,
+                calls,
             )
         text = "".join(block.text for block in response.content if block.type == "text")
-        return Explanation(self._parse(text, items), usage)
+        return Explanation(self._parse(text, items), usage, calls)
 
     def _parse(self, text: str, items: list[Item]) -> list[Rationale]:
         numbered: dict[int, str] = {}
