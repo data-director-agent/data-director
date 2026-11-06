@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1-alpha.2](https://github.com/data-director-agent/data-director/compare/agent-advisor-standards-v0.1.1-alpha.1...agent-advisor-standards-v0.1.1-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+
 ## [0.1.1-alpha.1](https://github.com/data-director-agent/data-director/compare/agent-advisor-standards-v0.1.1-alpha...agent-advisor-standards-v0.1.1-alpha.1) (2026-11-05)
 
 

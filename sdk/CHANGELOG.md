@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0-alpha.2](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha.1...sdk-v0.2.0-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **app:** give each earlier conversation a title ([#542](https://github.com/data-director-agent/data-director/issues/542)) ([0202dfa](https://github.com/data-director-agent/data-director/commit/0202dfaf94cbb60f951299d138c12877600e7e2f))
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+* **sdk:** prepare every agent's built sources with one command ([#508](https://github.com/data-director-agent/data-director/issues/508)) ([3c76b2b](https://github.com/data-director-agent/data-director/commit/3c76b2ba0edb97ca58bc25910d4ac67224db0262)), closes [#507](https://github.com/data-director-agent/data-director/issues/507)
+
 ## [0.2.0-alpha.1](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha...sdk-v0.2.0-alpha.1) (2026-11-05)
 
 

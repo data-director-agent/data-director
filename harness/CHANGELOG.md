@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0-alpha.2](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.1...harness-v0.2.0-alpha.2) (2026-11-06)
+
+
+### Features
+
+* **agents:** search every re3data repository from a pinned monthly export ([#489](https://github.com/data-director-agent/data-director/issues/489)) ([4a05699](https://github.com/data-director-agent/data-director/commit/4a056996f5ef9611cd97a03722dfdc38f67ab1b9))
+* **app:** give each earlier conversation a title ([#542](https://github.com/data-director-agent/data-director/issues/542)) ([0202dfa](https://github.com/data-director-agent/data-director/commit/0202dfaf94cbb60f951299d138c12877600e7e2f))
+* **harness:** disclose the generative AI behind each approved document ([#479](https://github.com/data-director-agent/data-director/issues/479)) ([31c0e31](https://github.com/data-director-agent/data-director/commit/31c0e31ae6465c954ecad99c91bc34e3a3193d54)), closes [#476](https://github.com/data-director-agent/data-director/issues/476)
+* **sdk:** prepare every agent's built sources with one command ([#508](https://github.com/data-director-agent/data-director/issues/508)) ([3c76b2b](https://github.com/data-director-agent/data-director/commit/3c76b2ba0edb97ca58bc25910d4ac67224db0262)), closes [#507](https://github.com/data-director-agent/data-director/issues/507)
+* **workbench:** serve the workbench on the VM to admins signed in with ORCID ([#563](https://github.com/data-director-agent/data-director/issues/563)) ([e1739ed](https://github.com/data-director-agent/data-director/commit/e1739edad10ede33e23091128f42694c4ca69faa)), closes [#549](https://github.com/data-director-agent/data-director/issues/549)
+
 ## [0.2.0-alpha.1](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha...harness-v0.2.0-alpha.1) (2026-11-05)
 
 
