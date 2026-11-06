@@ -180,6 +180,25 @@ def test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps(runs_dir
 
 
 @pytest.mark.requirement("DD-ENTRY-POINTS")
+def test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope(
+    runs_dir: Path,
+) -> None:
+    _, env = ask(runs_dir, "We are starting a new project and have not collected data yet")
+    text = env.payload_as(Reply).reply_text
+    assert (
+        "Create a Data Management Plan where none exists (optional): out of scope for now." in text
+    )
+    assert "Review and update the Data Management Plan: out of scope for now." in text
+    assert (
+        "Update the Data Management Plan to reflect the data published: out of scope for now."
+        in text
+    )
+    # Checking a deposit against an existing plan (R8) is in scope: a gap, not out of scope.
+    assert "against the Data Management Plan: no agent yet (R8)" in text
+    assert env.delegations == []
+
+
+@pytest.mark.requirement("DD-ENTRY-POINTS")
 def test_entry_one_starts_before_collection_and_names_the_documentation_gap(
     runs_dir: Path,
 ) -> None:

@@ -271,6 +271,7 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
         "label": "Choose standard terms to describe your data",
         "requirements": ["R3"],
         "optional": False,
+        "out_of_scope": False,
     }
     check_fixture("process-flow.json", body)
 

@@ -260,7 +260,9 @@ class DirectorStub:
             step = planned.step
             label = step.text + (" (optional)" if step.optional else "")
             requirements = ", ".join(step.requirements) or "no Blueprint requirement"
-            if planned.agent_ids:
+            if step.out_of_scope:
+                lines.append(f"- {label}: out of scope for now.")
+            elif planned.agent_ids:
                 asks = "; ".join(
                     f"{names.get(a, a)}, for example {examples[a]!r}"
                     if a in examples

@@ -393,6 +393,24 @@ describe("ConversationHome", () => {
       expect(await axe(container)).toHaveNoViolations();
     });
 
+    it("shows the Data Management Plan steps and says they are out of scope for now", async () => {
+      renderHome(withOrchestrator(), fakeApi());
+      const phases = await screen.findByRole("navigation", { name: "Your data journey" });
+      await within(phases).findByRole("list", { name: "The phases in order" });
+      await userEvent.click(within(phases).getByText("Show what happens in each phase"));
+      const detail = within(phases)
+        .getAllByRole("listitem")
+        .find((li) => li.querySelector("summary")?.textContent?.includes("Plan ahead"));
+      if (!detail) throw new Error("no phase");
+      await userEvent.click(within(detail).getByText("Plan ahead"));
+      const create = within(detail).getByText("Write a Data Management Plan").closest("li");
+      expect(create).toHaveTextContent("(optional)");
+      expect(create).toHaveTextContent("(out of scope for now)");
+      expect(within(detail).getByText("Review your Data Management Plan").closest("li")).toHaveTextContent(
+        "(out of scope for now)",
+      );
+    });
+
     it("draws the project's current state as not built, linked to its issues", () => {
       renderHome(withOrchestrator(), fakeApi());
       const state = screen.getByRole("region", { name: "Current state" });
