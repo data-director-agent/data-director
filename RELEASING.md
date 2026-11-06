@@ -23,7 +23,8 @@ records the last released version of each package.
   package `<component>-v<version>` (for example `harness-v0.2.0-alpha`) and creates a GitHub
   release, marked as a pre-release.
 - If the merge released `sdk`, `harness` or `inventory`, the workflow then builds that package and publishes
-  it to [TestPyPI](https://test.pypi.org/) (see below). No other package is published.
+  it to [TestPyPI](https://test.pypi.org/) (see below). If it released `inventory`, that package is
+  also published to PyPI. No other package is published.
 
 ## Publishing to TestPyPI
 
@@ -47,9 +48,24 @@ Set-up, once, by a maintainer:
 2. In this repository's settings, create the environment `testpypi`, limited to the `main`
    branch.
 
-Publishing to PyPI itself is a separate decision, after the contract reaches 1.0 or sooner
-(TODO(#260, #277)). The inventory command is the exception in intent: the user guide wants
-`uvx data-director-inventory` to work, which needs PyPI itself (#552).
+## Publishing the inventory to PyPI
+
+The inventory is also published to [PyPI](https://pypi.org/p/data-director-inventory), so that a
+researcher can run `uvx data-director-inventory path/to/dataset` without a checkout (#552). The
+`publish-pypi` job does this on the same trigger as the TestPyPI job, with the same build, and uses trusted
+publishing in the same way: PyPI trusts `.github/workflows/release.yaml` running in the `pypi`
+environment. A version already on PyPI is skipped.
+
+Set-up, once, by a maintainer:
+
+1. On PyPI, add a pending trusted publisher for `data-director-inventory`: owner
+   `data-director-agent`, repository `data-director`, workflow `release.yaml`, environment `pypi`.
+2. In this repository's settings, create the environment `pypi`, limited to the `main` branch,
+   with a required reviewer so that a release is published only when a maintainer approves it.
+
+A PyPI release cannot be replaced, only yanked, and its name cannot be reused. The sdk and harness
+stay on TestPyPI only; publishing them to PyPI is a separate decision, after the contract reaches
+1.0 or sooner (TODO(#260, #277)).
 
 ## Version numbers
 
