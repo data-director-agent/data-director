@@ -193,7 +193,10 @@ both a provider and an operator principal stops start-up.
 ### Version and problem reports
 
 `GET /api/about` names the build: the app and harness versions, and the commit (`DD_REVISION`,
-else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
+else a `REVISION` file at the root of a deployed release, else `git` in a checkout), and what
+the deployment runs: the profile (`id`, `version`, `digest`, `orchestrator`) and the names of the
+configured agents it cannot reach (`unavailable`, `incompatible`). It needs no session, so an
+operator can check a server without signing in. The
 footer of every page shows it, and the
 "Report a problem" page, linked from the banner, shows it too and files a GitHub issue through
 `POST /api/feedback` ([The app](../docs/specs/app.md)). It is on only if the app holds a credential for
