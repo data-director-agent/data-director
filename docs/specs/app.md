@@ -126,7 +126,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   TODO(#497) decide them and add them to the dependency-cruiser config.
 - **Conversations and delegation** are specified in [Orchestration](orchestration.md); the app
   supplies the conductor's callback and the conversation API over it. Which agent is the
-  orchestrator is a profile key ([Policy and identity](policy-and-identity.md)).
+  orchestrator is a profile key ([Policy and identity](policy-and-identity.md)). Earlier
+  conversations are listed by the title the harness derives, with the date and turn count beside
+  it; the app writes no title, since it calls no model.
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
   its process, so there is nothing in it to call a model.
@@ -147,6 +149,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   or message an agent from it; they work through the conversation. Running one agent directly,
   its run history, grounding and derivation detail and oversight declarations belong to the
   workbench.
+- **What a deployment runs is public.** `GET /api/about`, open without a session, names the
+  build (versions and commit), the profile the conductor holds runs to (its id, version, digest
+  and orchestrator), and the configured agents it cannot reach, by name only. An operator's
+  checks compare these with what was configured. The answer carries no address and no reason an
+  agent is missing, because a reason can name an internal address; the signed-in
+  `GET /api/agents` gives those.
 - **Problem reports** go to one repository, named in the app's configuration, as an issue of type
   Bug, Feature or Task with the label `area: app`. The person needs no GitHub account. The app
   files them as a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and

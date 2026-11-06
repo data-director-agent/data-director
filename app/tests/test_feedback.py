@@ -89,8 +89,37 @@ def test_server_status_answers_a_monitor_without_a_session(
 def test_about_says_whether_reports_are_on(governance: Governance, dist: Path) -> None:
     on, _ = client_for(governance, dist)
     off, _ = client_for(governance, dist, token=None)
-    assert on.get("/api/about").json() == {**BUILD, "feedback_enabled": True}
+    assert on.get("/api/about").json()["feedback_enabled"] is True
     assert off.get("/api/about").json()["feedback_enabled"] is False
+
+
+def test_about_names_the_build_and_the_profile_it_runs_to(
+    governance: Governance, dist: Path
+) -> None:
+    client, _ = client_for(governance, dist)
+    found = client.get("/api/about").json()
+    assert {key: found[key] for key in BUILD} == BUILD
+    profile = governance.conductor.profile
+    assert found["profile"] == {
+        "id": profile.profile_id,
+        "version": profile.version,
+        "digest": profile.digest,
+        "orchestrator": profile.orchestrator,
+    }
+    assert found["unavailable"] == [] and found["incompatible"] == []
+
+
+def test_about_names_an_unreachable_agent_without_its_address(
+    monkeypatch: pytest.MonkeyPatch, governance: Governance, dist: Path
+) -> None:
+    registry = governance.conductor.registry
+    monkeypatch.setattr(registry, "refresh", lambda: None)
+    registry.unavailable = {"nowhere": "http://10.0.0.9:8199/ refused the connection"}
+    client, _ = client_for(governance, dist)
+    found = client.get("/api/about")
+    assert found.status_code == 200
+    assert found.json()["unavailable"] == ["nowhere"]
+    assert "10.0.0.9" not in found.text
 
 
 def test_a_report_files_an_issue_with_the_build(governance: Governance, dist: Path) -> None:
