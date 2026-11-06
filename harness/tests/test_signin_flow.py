@@ -19,7 +19,13 @@ import pytest
 from dd_harness.identity import Unauthenticated
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SessionAuthenticator, SessionStore
 from dd_harness.settings import Settings
-from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings, safe_return_to
+from dd_harness.signin import (
+    CALLBACK_PATH,
+    NotAdmitted,
+    SignIn,
+    SignInSettings,
+    safe_return_to,
+)
 from dd_harness.testing import TEST_PRINCIPAL, FakeIdentityProvider
 from dd_sdk.credentials import ConfigError
 
@@ -135,3 +141,13 @@ def test_from_env_reads_the_public_url_the_way_in_names(tmp_path: Path) -> None:
     assert configured.redirect_uri == f"https://example.test:8443{CALLBACK_PATH}"
     with pytest.raises(ConfigError, match="DD_OIDC_CLIENT_SECRET unset"):
         SignInSettings.from_env({}, settings, "http://x", public_url_variable="DD_X")
+
+
+def test_a_person_the_way_in_does_not_admit_gets_no_session() -> None:
+    idp = FakeIdentityProvider()
+    sign_in = flow(idp, settings_for(idp), admit=lambda p: p.principal_id.endswith(JOSIAH))
+    assert signed_in(sign_in, idp, JOSIAH)
+    with pytest.raises(NotAdmitted) as refused:
+        signed_in(sign_in, idp, "0000-0001-5000-0007")
+    assert refused.value.principal.principal_id.endswith("0000-0001-5000-0007")
+    assert len(sign_in.store._sessions) == 1

@@ -19,7 +19,7 @@ issuer, the way in is a development server: every run acts for the operator name
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlencode
@@ -112,6 +112,15 @@ def _seconds(env: Mapping[str, str], name: str, default: int) -> int:
     return seconds
 
 
+class NotAdmitted(Unauthenticated):
+    """The provider vouched for the person, and the way in does not admit them: no session is
+    opened. Raised by `SignIn.finish` when its `admit` refuses the principal."""
+
+    def __init__(self, principal: Principal) -> None:
+        super().__init__(f"{principal.principal_id} may not use this server")
+        self.principal = principal
+
+
 def safe_return_to(value: str | None) -> str:
     """A page of this way in to come back to after signing in: a path, never another site's
     URL."""
@@ -129,13 +138,16 @@ class SignIn:
         *,
         store: SessionStore | None = None,
         session_cookie: str = SESSION_COOKIE,
+        admit: Callable[[Principal], bool] | None = None,
         keys: IssuerKeys | None = None,
         client: httpx.AsyncClient | None = None,
     ) -> None:
-        """`session_cookie` names the cookie the way in keeps the session identifier in. `keys`
-        and `client` let a test stand in for the provider's keys and endpoints
-        (`dd_harness.testing.FakeIdentityProvider`)."""
+        """`session_cookie` names the cookie the way in keeps the session identifier in. `admit`,
+        if given, decides whom a verified sign-in opens a session for; the app admits everyone,
+        the workbench its admins. `keys` and `client` let a test stand in for the provider's keys
+        and endpoints (`dd_harness.testing.FakeIdentityProvider`)."""
         self.settings = settings
+        self.admit = admit
         self.store = store or SessionStore(settings.idle_s, settings.lifetime_s)
         self.authenticator = SessionAuthenticator(self.store, session_cookie)
         self._keys = keys or IssuerKeys(settings.provider.issuer)
@@ -198,6 +210,8 @@ class SignIn:
         if not code:
             raise Unauthenticated("the provider sent no code")
         principal = await self._redeem(code, pending.nonce)
+        if self.admit is not None and not self.admit(principal):
+            raise NotAdmitted(principal)
         return self.store.create(principal), pending.return_to
 
     async def _redeem(self, code: str, nonce: str) -> Principal:

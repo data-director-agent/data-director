@@ -5,8 +5,9 @@ The app reaches the agents named in `app/config/agents.yaml` (docs/specs/agents.
 
 - `deploy/agents/<name>.env`, whose `PORT` is the port in the agent's URL;
 - `Wants=data-director-agent@<name>.service` in `deploy/systemd/data-director.target`;
-- `After=` the same unit in `deploy/systemd/data-director-app.service`;
-- its port in that unit's `DD_WAIT_PORTS`.
+- `After=` the same unit in `deploy/systemd/data-director-app.service`, and in
+  `deploy/systemd/data-director-workbench.service`, which reaches the same agents;
+- its port in each of those units' `DD_WAIT_PORTS`.
 
 An agent missing from these runs nowhere, and the app lists it as unavailable. An agent that
 cannot start without a model key (`NEEDS_KEY`) has its `.env` but is left out of the target and
@@ -31,6 +32,7 @@ AGENTS = ROOT / "app/config/agents.yaml"
 ENV_DIR = ROOT / "deploy/agents"
 TARGET = ROOT / "deploy/systemd/data-director.target"
 APP_UNIT = ROOT / "deploy/systemd/data-director-app.service"
+WORKBENCH_UNIT = ROOT / "deploy/systemd/data-director-workbench.service"
 
 # Agents that do not start without a model key, so are not started by default.
 NEEDS_KEY = frozenset({"orchestrator-model"})
@@ -68,7 +70,7 @@ def instances(units: list[str]) -> list[str]:
 
 
 def wait_ports(path: Path = APP_UNIT) -> list[int]:
-    """The ports in the app unit's DD_WAIT_PORTS."""
+    """The ports in a unit's DD_WAIT_PORTS."""
     text = path.read_text(encoding="utf-8")
     match = re.search(r'^Environment="?DD_WAIT_PORTS=([\d ]*)"?\s*$', text, flags=re.M)
     return [int(p) for p in match.group(1).split()] if match else []
@@ -88,7 +90,7 @@ def problems() -> list[str]:
     for name in envs.keys() - listed.keys():
         found.append(f"deploy/agents/{name}.env: {name} is not in app/config/agents.yaml")
 
-    for path, key in ((TARGET, "Wants"), (APP_UNIT, "After")):
+    for path, key in ((TARGET, "Wants"), (APP_UNIT, "After"), (WORKBENCH_UNIT, "After")):
         named = set(instances(unit_values(path, key)))
         where = f"{path.relative_to(ROOT)} {key}="
         found += [
@@ -99,12 +101,12 @@ def problems() -> list[str]:
             for n in sorted(named - started)
         ]
 
-    waits = wait_ports()
     expected = {listed[n] for n in started}
-    found += [f"DD_WAIT_PORTS: missing {p}" for p in sorted(expected - set(waits))]
-    found += [
-        f"DD_WAIT_PORTS: {p} is no started agent's port" for p in sorted(set(waits) - expected)
-    ]
+    for unit in (APP_UNIT, WORKBENCH_UNIT):
+        waits = set(wait_ports(unit))
+        where = f"{unit.relative_to(ROOT)} DD_WAIT_PORTS"
+        found += [f"{where}: missing {p}" for p in sorted(expected - waits)]
+        found += [f"{where}: {p} is no started agent's port" for p in sorted(waits - expected)]
     return found
 
 

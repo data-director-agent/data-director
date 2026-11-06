@@ -118,3 +118,31 @@ export async function postRun(request, threadId = "viewer", messages = []) {
   const fin = events.find((e) => e.type === "RUN_FINISHED");
   return { envelope: fin?.result, error: fin ? null : (events.map((e) => e.message).filter(Boolean).join("; ") || `HTTP ${r.status}`) };
 }
+
+// --- Signing in -------------------------------------------------------------------------
+// A deployed workbench signs admins in (src/workbench/transport/signin.py). The header then says
+// who is signed in and offers to sign out, and a request refused for want of a session reloads
+// the page, which the server sends to sign in and back. A development server signs nobody in, and
+// nothing here changes the page.
+let signsIn = false;
+const unwrappedFetch = window.fetch.bind(window);
+window.fetch = async (...args) => {
+  const response = await unwrappedFetch(...args);
+  if (response.status === 401 && signsIn) location.reload();
+  return response;
+};
+unwrappedFetch("/api/session")
+  .then((r) => (r.ok ? r.json() : null))
+  .then((session) => {
+    if (!session?.signs_in || !session.principal) return;
+    signsIn = true;
+    const { principal_id: id, name } = session.principal;
+    const out = el("button", { type: "button", className: "small", textContent: "Sign out" });
+    out.addEventListener("click", async () => {
+      await unwrappedFetch("/api/sign-out", { method: "POST" });
+      location.reload();
+    });
+    const who = el("span", { className: "signed-in" }, "Signed in as ", el("a", { href: id, textContent: name }));
+    document.querySelector("header.top .title-row")?.append(who, out);
+  })
+  .catch(() => {});
