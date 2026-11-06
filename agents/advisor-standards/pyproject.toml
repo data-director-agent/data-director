@@ -9,7 +9,7 @@ description = "advisor.standards: recommends standards from FAIRsharing"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-dependencies = ["data-director-sdk>=0.2.0a0", "httpx>=0.28", "pyyaml>=6.0", "rank-bm25>=0.2.2"]
+dependencies = ["data-director-sdk>=0.2.0a0", "httpx>=0.28", "pydantic>=2.14.1,<3", "pyyaml>=6.0", "rank-bm25>=0.2.2"]
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.50"]
@@ -23,6 +23,12 @@ dev = [
   "data-director-harness",
   "data-director-workbench",
 ]
+
+[tool.deptry.per_rule_ignores]
+# The evaluations and test kit in src/ use the workbench, its `eval` extra (Inspect AI) and the
+# harness; scripts/boundaries.toml lists the same ties. TODO(#275): move them out of src/.
+DEP003 = ["inspect_ai"]
+DEP004 = ["dd_harness", "workbench"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_agent_advisor_standards"]

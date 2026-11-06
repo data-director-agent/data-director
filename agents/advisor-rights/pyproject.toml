@@ -9,7 +9,7 @@ description = "advisor.rights: the Rights and Licensing Adviser persona (mock)"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-dependencies = ["data-director-sdk>=0.2.0a0", "pyyaml>=6.0"]
+dependencies = ["data-director-sdk>=0.2.0a0", "pydantic>=2.14.1,<3", "pyyaml>=6.0"]
 
 [project.scripts]
 dd-advisor-rights = "dd_agent_advisor_rights.agent:main"
