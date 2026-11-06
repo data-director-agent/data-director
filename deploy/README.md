@@ -118,14 +118,21 @@ systemctl list-timers data-director-deploy.timer        # when it next looks
 journalctl -u data-director-deploy -n 50                # what each pass did
 sudo systemctl start data-director-deploy.service       # look now
 journalctl -u data-director -u 'data-director-agent@*' -f   # the app and agents
-readlink /opt/data-director/current                     # which commit is live
+readlink /opt/data-director/current                     # which commit is linked
+curl -s http://127.0.0.1:7860/api/about                 # which commit is running
 sudo htpasswd -B /etc/nginx/data-director.htpasswd NAME # add a user (or change a password)
 ```
 
 `deploy.sh` waits while CI is running, and skips a commit whose CI failed until it passes on a
-re-run. If a release does not answer on `/api/agents` within two minutes of starting, it puts
-the previous release back, records the commit in `failed-commits`, and the deploy unit fails,
-which `systemctl --failed` shows.
+re-run. If the app does not report the new commit on `/api/about` within two minutes of
+starting, it puts the previous release back, records the commit in `failed-commits`, and the
+deploy unit fails, which `systemctl --failed` shows.
+
+`deploy.sh` restarts the services through one sudo rule, `/etc/sudoers.d/data-director`, which
+`install.sh` writes. If the rule is missing, the restart fails, `deploy.sh` puts the link back
+and the deploy unit fails on every pass, while the old release goes on running: the About page
+shows an old commit. Re-run `install.sh` to restore the rule. Where sudoers is managed centrally,
+the rule must be added there, or it will be removed again.
 
 To deploy a commit by hand anyway, or to retry one that failed to start (after removing it from
 `failed-commits`):
