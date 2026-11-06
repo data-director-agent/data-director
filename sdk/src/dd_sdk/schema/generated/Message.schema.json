@@ -1,6 +1,39 @@
 {
    "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
+      "ChoiceAnswer": {
+         "additionalProperties": false,
+         "description": "The researcher's answer to the choice question the turn before asked: the values they chose and any text they gave in place of an option. The app checks it against that question before it sends the turn (docs/specs/orchestration.md).",
+         "properties": {
+            "answer_to": {
+               "description": "The invocation whose reply asked the question.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "answer_values": {
+               "description": "The values of the options chosen; empty when the researcher answered in their own words.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "answer_other": {
+               "description": "The researcher's own answer, given in place of an option where the question allows it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "answer_to"
+         ],
+         "title": "ChoiceAnswer",
+         "type": "object"
+      },
       "ConversationTurn": {
          "additionalProperties": false,
          "description": "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.",
@@ -135,6 +168,17 @@
             }
          ],
          "description": "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory."
+      },
+      "choice_answer": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/ChoiceAnswer"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose."
       }
    },
    "required": [

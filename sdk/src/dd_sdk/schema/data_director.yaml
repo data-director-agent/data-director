@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.7
+version: 0.9.8
 license: MIT
 
 prefixes:
@@ -169,6 +169,7 @@ classes:
       - message_text
       - history
       - project_inventory
+      - choice_answer
 
   ConversationTurn:
     description: >-
@@ -180,6 +181,16 @@ classes:
       - turn_agent_id
       - turn_agent_version
       - turn_invocation_id
+
+  ChoiceAnswer:
+    description: >-
+      The researcher's answer to the choice question the turn before asked: the values they
+      chose and any text they gave in place of an option. The app checks it against that question
+      before it sends the turn (docs/specs/orchestration.md).
+    slots:
+      - answer_to
+      - answer_values
+      - answer_other
 
   InventorySummary:
     description: >-
@@ -400,6 +411,27 @@ classes:
       - reply_text
       - reply_derivation
       - conversation_title
+      - reply_question
+
+  ChoiceQuestion:
+    description: >-
+      A question with a fixed set of options that a conversational agent asks the researcher in
+      its reply, to be answered by choosing rather than typing. One or several options may be
+      chosen, and where question_other is true the researcher may answer in their own words
+      instead. Option values are unique within the question. Asking never suspends the run: the
+      researcher may ignore the question and type (docs/specs/orchestration.md).
+    slots:
+      - question_prompt
+      - question_options
+      - question_multiple
+      - question_other
+
+  ChoiceOption:
+    description: One option of a choice question.
+    slots:
+      - option_value
+      - option_label
+      - option_help
 
   Document:
     description: >-
@@ -716,6 +748,55 @@ slots:
     slot_uri: dcterms:title
     # One line of 1 to 80 characters; this LinkML has no maximum_length.
     pattern: "^.{1,80}$"
+  reply_question:
+    description: >-
+      A question with fixed options the reply asks, at most one; absent when the reply asks
+      nothing or asks in prose.
+    range: ChoiceQuestion
+    inlined: true
+  question_prompt:
+    description: The question, as a short line a person reads before the options.
+    required: true
+  question_options:
+    description: The options, in the order they are shown; between 2 and 12, with unique values.
+    range: ChoiceOption
+    multivalued: true
+    inlined_as_list: true
+    required: true
+    # No minimum_cardinality or maximum_cardinality: a card carries class schemas over A2A, which
+    # turns their integers into doubles and so breaks the schema digest (#333). The Pydantic model
+    # holds the bounds.
+  question_multiple:
+    description: True when several options may be chosen; one only otherwise.
+    range: boolean
+  question_other:
+    description: True when the researcher may answer in their own words instead of an option.
+    range: boolean
+  option_value:
+    description: >-
+      What the agent reads back when the option is chosen. A string, never a number: a number
+      reaches the agent as a floating-point value over A2A.
+    required: true
+  option_label:
+    description: What the researcher reads.
+    required: true
+  option_help:
+    description: One sentence that helps the researcher tell this option from the others.
+  choice_answer:
+    description: >-
+      The researcher's answer to the choice question the previous turn asked, when they answered
+      by choosing. message_text still carries the answer as prose.
+    range: ChoiceAnswer
+    inlined: true
+  answer_to:
+    description: The invocation whose reply asked the question.
+    required: true
+    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  answer_values:
+    description: The values of the options chosen; empty when the researcher answered in their own words.
+    multivalued: true
+  answer_other:
+    description: The researcher's own answer, given in place of an option where the question allows it.
   document_kind:
     range: DocumentKind
     required: true

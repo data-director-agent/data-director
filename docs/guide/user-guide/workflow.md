@@ -20,10 +20,14 @@ Researchers do not always start at the beginning. Say which of the three describ
 
 All three continue through every later phase to the end.
 
-In the chat, you can answer with "Entry 2", or describe your situation in your own words ("I have
-collected my data and want to share it"). On a first message that names no entry point, the Data
-Director asks which one you mean. It then lists the steps from that entry onwards and the agents
-that can help with each.
+On a first message that names no entry point, the Data Director asks which one you mean, with
+the three entry points as choices beneath its reply. Choose one and select **Send answer**, or
+type your answer instead: "Entry 2", or your situation in your own words ("I have collected my
+data and want to share it"). It then lists the steps from that entry onwards and the agents that
+can help with each.
+
+The Data Director asks other questions with a few known answers the same way. You never have to
+use the choices: whatever you type in the message box is sent as your reply.
 
 ## The map
 

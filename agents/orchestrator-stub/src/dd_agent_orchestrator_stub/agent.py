@@ -18,8 +18,9 @@ collection, data collected and being prepared for sharing, or ready to deposit. 
 every step from that entry's phase to the last, with the agents whose manifest entry serves the
 step, and says "no agent yet" with the step's requirement where none does
 (docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, it asks which
-entry applies. Otherwise it reads only the current message: `Message.history` is covered by the
-input hash, and used only to tell a first turn.
+entry applies, as a choice question (`Reply.reply_question`) whose values are the entry numbers; a
+`Message.choice_answer` naming one is read before any rule. Otherwise it reads only the current
+message: `Message.history` is covered by the input hash, and used only to tell a first turn.
 
 Grounding mode `delegation`: the reply cites the input and each child envelope it relays, and
 the linter checks those citations against the delegations the conductor recorded (R1, D1-D3,
@@ -44,6 +45,8 @@ from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    ChoiceOption,
+    ChoiceQuestion,
     Derivation,
     EvidenceItem,
     GroundingMode,
@@ -113,6 +116,30 @@ def entry_named(text: str, entries: list[EntryRule]) -> Entry | None:
     return next((e.entry for e in entries if e.pattern.search(text)), None)
 
 
+def entry_question() -> ChoiceQuestion:
+    """Which entry point applies, as a choice question whose values are the entry numbers."""
+    return ChoiceQuestion(
+        question_prompt="Where are you with your research data?",
+        question_options=[
+            ChoiceOption(
+                option_value=str(e.number), option_label=f"{e.text[0].upper()}{e.text[1:]}"
+            )
+            for e in ENTRIES
+        ],
+    )
+
+
+def entry_chosen(message: Message) -> Entry | None:
+    """The entry point the researcher chose in answer to `entry_question`, if they chose one."""
+    answer = message.choice_answer
+    if answer is None or len(answer.answer_values) != 1:
+        return None
+    try:
+        return entry(int(answer.answer_values[0]))
+    except KeyError, ValueError:
+        return None
+
+
 def fill(template: Any, values: dict[str, str]) -> Any:
     """Fill `{name}` placeholders in every string of a template document."""
     if isinstance(template, str):
@@ -164,7 +191,10 @@ class DirectorStub:
         accepts=(ClassSchema.of(Message),),
         grounding_mode=GroundingMode.DELEGATION,
         payload=ClassSchema.of(Reply),
-        derivations={"reply_text": Derived(Derivation.TEMPLATE, recorded_in="reply_derivation")},
+        derivations={
+            "reply_text": Derived(Derivation.TEMPLATE, recorded_in="reply_derivation"),
+            "reply_question": Derived(Derivation.TEMPLATE),
+        },
     )
 
     def __init__(
@@ -183,6 +213,14 @@ class DirectorStub:
                 "The workbench gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
             )
+        chosen = entry_chosen(message)
+        if chosen is not None:
+            return _template_reply(
+                self._plan_text(chosen, ctx.delegate.manifest()),
+                f"Listed the steps from entry point {chosen.number}, as chosen; "
+                "no agent was asked.",
+                ctx,
+            )
         found = route(message.message_text, self.rules)
         if isinstance(found, str):
             start = entry_named(message.message_text, self.entries)
@@ -194,9 +232,11 @@ class DirectorStub:
                 )
             if not message.history:
                 return _template_reply(
-                    self._entry_question(),
+                    f"Where are you with your research data? Choose one below, or ask for one "
+                    f"thing directly. {self._routable()}",
                     "Asked which entry point applies; no agent was asked.",
                     ctx,
+                    question=entry_question(),
                 )
             return _abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{found} {self._routable()}")
 
@@ -232,13 +272,6 @@ class DirectorStub:
                 grounded_on=[input_ref, delegated.ref],
             ),
             evidence=[_input_evidence(ctx), delegated.evidence],
-        )
-
-    def _entry_question(self) -> str:
-        options = " ".join(f"({e.number}) {e.text[0].upper()}{e.text[1:]}." for e in ENTRIES)
-        return (
-            f"Where are you with your research data? {options} Reply 1, 2 or 3. "
-            f"Or ask for one thing directly. {self._routable()}"
         )
 
     def _plan_text(self, start: Entry, manifest: list[dict[str, Any]]) -> str:
@@ -280,7 +313,9 @@ class DirectorStub:
         return f"Try: {examples}; or '@<agent_id> <text>'."
 
 
-def _template_reply(text: str, statement: str, ctx: RunContext) -> AgentResult:
+def _template_reply(
+    text: str, statement: str, ctx: RunContext, question: ChoiceQuestion | None = None
+) -> AgentResult:
     """A reply this agent writes itself, resting on the input alone."""
     return AgentResult(
         outcome=Outcome(
@@ -290,6 +325,7 @@ def _template_reply(text: str, statement: str, ctx: RunContext) -> AgentResult:
         payload=Reply(
             reply_text=text,
             reply_derivation=Derivation.TEMPLATE,
+            reply_question=question,
             grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
         ),
         evidence=[_input_evidence(ctx)],
