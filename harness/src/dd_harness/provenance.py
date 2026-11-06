@@ -6,12 +6,18 @@ span file the results. Each model call the agent made is a `CreateAction` of its
 model as instrument and the prompt as object (docs/specs/disclosure.md). The prompt is named by its
 `dd-prompt-json-v1` digest and is not in the crate: the run store keeps it.
 
+The crate is built in a temporary directory and returned as its files, which the conductor keeps
+as the run's `crate/...` artifacts (docs/specs/storage.md), so it does not depend on how the run
+store keeps them.
+
 Profile: https://w3id.org/ro/wfrun/process/0.5. This module is the only importer of `rocrate`
 (docs/specs/dependencies.md).
 """
 
 from __future__ import annotations
 
+import json
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -27,14 +33,41 @@ VOUCHED_BY = "vouchedBy"
 VOUCHED_BY_IRI = "https://w3id.org/data-director/vouched_by"
 
 
-def write_process_run_crate(
-    run_dir: Path,
+def process_run_crate(
+    envelope: dict[str, Any],
+    request: dict[str, Any],
+    spans: bytes | None,
+    started_at: datetime,
+) -> dict[str, bytes]:
+    """The Process Run Crate of one invocation, as its files: each path relative to the crate's
+    root, with its bytes. The envelope and request are written as the run store writes them."""
+    with tempfile.TemporaryDirectory(prefix="dd-crate-") as tmp:
+        work = Path(tmp)
+        request_path = work / "request.json"
+        request_path.write_text(json.dumps(request, indent=2), encoding="utf-8")
+        envelope_path = work / "envelope.json"
+        envelope_path.write_text(json.dumps(envelope, indent=2), encoding="utf-8")
+        spans_path = None
+        if spans is not None:
+            spans_path = work / "spans.jsonl"
+            spans_path.write_bytes(spans)
+        out = work / "crate"
+        _write_crate(out, envelope, request_path, envelope_path, spans_path, started_at)
+        return {
+            path.relative_to(out).as_posix(): path.read_bytes()
+            for path in sorted(out.rglob("*"))
+            if path.is_file()
+        }
+
+
+def _write_crate(
+    out: Path,
     envelope: dict[str, Any],
     request_path: Path,
     envelope_path: Path,
     spans_path: Path | None,
     started_at: datetime,
-) -> Path:
+) -> None:
     crate = ROCrate()
     crate.root_dataset["conformsTo"] = {"@id": PROCESS_RUN_CRATE}
     crate.root_dataset["name"] = f"Data Director invocation {envelope['invocation_id']}"
@@ -126,9 +159,7 @@ def write_process_run_crate(
             },
         )
     )
-    out = run_dir / "crate"
     crate.write(out)
-    return out
 
 
 def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:

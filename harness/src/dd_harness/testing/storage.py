@@ -1,0 +1,429 @@
+"""Conformance checks for a storage backend (docs/specs/storage.md).
+
+Each check holds a backend to one guarantee `RunStorage` or `ProjectStorage` states, through the
+protocol alone, so any backend can run them: the file backends in the harness's own tests, and a
+database backend in its own package. A check takes `make`, which opens a store by name. The same
+name opens the same store again, as after a restart; another name opens an empty one.
+
+    def test_my_run_storage(tmp_path):
+        check_run_storage(lambda name: MyRunStore(f"{database}/{name}"))
+
+`RUN_STORAGE_CHECKS` and `PROJECT_STORAGE_CHECKS` name each check, for a test that reports them
+one by one.
+"""
+
+from __future__ import annotations
+
+import tempfile
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from dd_harness.projects import (
+    APPROVED,
+    CONVERSATION_STARTED,
+    DOCUMENT_CHANGE_REFUSED,
+    DOCUMENT_VERSION_DECIDED,
+    INVENTORY_ADDED,
+    PROJECT_CREATED,
+    ChangeRefusedError,
+    Decision,
+    ProjectError,
+    UnknownProjectError,
+    text_digest,
+)
+from dd_harness.storage import ProjectStorage, RunStorage
+from dd_harness.testing.classes import ProbeClaim
+from dd_harness.testing.doubles import DocumentStub
+from dd_harness.testing.fixtures import TEST_PRINCIPAL, document_request, request
+from dd_harness.testing.serving import make_conductor
+from dd_sdk.contract.classes import ClassSchema
+from dd_sdk.contract.models import (
+    DocumentKind,
+    Envelope,
+    FileInventory,
+    IdentificationMethod,
+    InventoryFile,
+    new_invocation_id,
+)
+from dd_sdk.evidence import input_hash
+
+type MakeRunStorage = Callable[[str], RunStorage]
+type MakeProjectStorage = Callable[[str], ProjectStorage]
+
+# A well-formed identifier that names nothing stored.
+NOWHERE = "0" * 8 + "-0000-7000-8000-" + "0" * 12
+# Names that must never reach outside a run.
+MALFORMED_ARTIFACTS = ("", "/etc/passwd", "../escape", "a/../../escape", "a//b", "envelope.json")
+
+
+@contextmanager
+def _raises(kind: type[Exception], what: str) -> Iterator[None]:
+    """Fails unless the block raises `kind`; `what` says what should have been refused."""
+    try:
+        yield
+    except kind:
+        return
+    raise AssertionError(f"{what}: expected {kind.__name__}")
+
+
+def _named[S](make: Callable[[str], S], n: int) -> Callable[[str], S]:
+    """`make`, with names of the check's own, so that no two checks share a store."""
+
+    def named(name: str) -> S:
+        return make(f"check-{n}-{name}")
+
+    return named
+
+
+# --- Runs ----------------------------------------------------------------------------------------
+
+
+def stored_envelope(
+    conversation_id: str | None = None, parent_invocation_id: str | None = None
+) -> dict[str, Any]:
+    """An envelope document with the fields a backend might index. `append` stores what it is
+    given; the conductor has already checked it against the contract."""
+    return {
+        "invocation_id": new_invocation_id(),
+        "agent_id": "stub.storage",
+        "agent_version": "0.1.0",
+        "conversation_id": conversation_id,
+        "parent_invocation_id": parent_invocation_id,
+        "project_id": None,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "outcome": {"status": "succeeded", "statement": "Stored for a storage check."},
+    }
+
+
+def check_a_run_is_written_once(make: MakeRunStorage) -> None:
+    store = make("runs")
+    envelope = stored_envelope()
+    run_id = envelope["invocation_id"]
+    assert not store.has(run_id)
+    assert store.get(run_id) is None and store.get_request(run_id) is None
+    store.append(envelope, {"agent_id": "stub.storage", "input": {"n": 1}})
+    assert store.has(run_id)
+    assert store.get(run_id) == envelope
+    assert store.get_request(run_id) == {"agent_id": "stub.storage", "input": {"n": 1}}
+    with _raises(FileExistsError, "a run written twice"):
+        store.append({**envelope, "agent_version": "9.9.9"}, {"input": {"n": 2}})
+    assert store.get(run_id) == envelope
+    assert store.get_request(run_id) == {"agent_id": "stub.storage", "input": {"n": 1}}
+    assert [e["invocation_id"] for e in store.iter_envelopes()] == [run_id]
+    # Reopened, as after a restart, the store holds the same run.
+    assert make("runs").get(run_id) == envelope
+
+
+def check_envelopes_come_back_in_the_order_stored(make: MakeRunStorage) -> None:
+    store = make("runs")
+    envelopes = [stored_envelope() for _ in range(5)]
+    for envelope in envelopes:
+        store.append(envelope)
+    expected = [e["invocation_id"] for e in envelopes]
+    assert [e["invocation_id"] for e in store.iter_envelopes()] == expected
+    assert [e["invocation_id"] for e in make("runs").iter_envelopes()] == expected
+
+
+def check_envelopes_are_found_by_conversation(make: MakeRunStorage) -> None:
+    store = make("runs")
+    first, other = new_invocation_id(), new_invocation_id()
+    turn = stored_envelope(first)
+    child = stored_envelope(first, parent_invocation_id=turn["invocation_id"])
+    elsewhere = stored_envelope(other)
+    alone = stored_envelope()
+    later = stored_envelope(first)
+    for envelope in (turn, child, elsewhere, alone, later):
+        store.append(envelope)
+    found = [e["invocation_id"] for e in store.iter_envelopes(conversation_id=first)]
+    assert found == [turn["invocation_id"], child["invocation_id"], later["invocation_id"]]
+    assert list(store.iter_envelopes(conversation_id=NOWHERE)) == []
+    assert len(list(store.iter_envelopes())) == 5
+
+
+def check_artifacts_are_kept_once_beside_their_run(make: MakeRunStorage) -> None:
+    store = make("runs")
+    envelope = stored_envelope()
+    run_id = envelope["invocation_id"]
+    with _raises(KeyError, "an artifact for a run not stored"):
+        store.put_artifact(run_id, "spans.jsonl", b"{}\n")
+    store.append(envelope)
+    store.put_artifact(run_id, "spans.jsonl", b'{"name": "invoke_agent"}\n')
+    store.put_artifact(run_id, "crate/ro-crate-metadata.json", b'{"@graph": []}')
+    store.put_artifact(run_id, "crate/sub/file.bin", bytes(range(256)))
+    assert store.get_artifact(run_id, "spans.jsonl") == b'{"name": "invoke_agent"}\n'
+    assert store.get_artifact(run_id, "crate/ro-crate-metadata.json") == b'{"@graph": []}'
+    assert store.get_artifact(run_id, "crate/sub/file.bin") == bytes(range(256))
+    assert store.get_artifact(run_id, "grounding.txt") is None
+    assert store.get_artifact(NOWHERE, "spans.jsonl") is None
+    with _raises(FileExistsError, "an artifact written twice"):
+        store.put_artifact(run_id, "spans.jsonl", b"again")
+    assert store.get_artifact(run_id, "spans.jsonl") == b'{"name": "invoke_agent"}\n'
+    for name in MALFORMED_ARTIFACTS:
+        assert store.get_artifact(run_id, name) is None, name
+        with _raises(ValueError, f"the malformed artifact name {name!r}"):
+            store.put_artifact(run_id, name, b"x")
+    assert store.get(run_id) == envelope
+    assert store.where(run_id)
+    assert make("runs").get_artifact(run_id, "crate/sub/file.bin") == bytes(range(256))
+
+
+def check_schemas_are_kept_by_digest(make: MakeRunStorage) -> None:
+    store = make("runs")
+    schema = ClassSchema.of(ProbeClaim)
+    store.append(stored_envelope(), schemas=[schema])
+    store.append(stored_envelope(), schemas=[schema])
+    assert store.get_schema(schema.digest) == dict(schema.json_schema)
+    assert store.get_schema("0" * 64) is None
+    for malformed in ("", "../" + schema.digest, schema.digest.upper()):
+        assert store.get_schema(malformed) is None
+
+
+def check_prompts_are_kept_with_their_run_only(make: MakeRunStorage) -> None:
+    store = make("runs")
+    secret = "What the researcher wrote, which only readers of the run may see."
+    prompts = {"a" * 64: {"messages": [{"role": "user", "content": secret}]}}
+    envelope = stored_envelope()
+    run_id = envelope["invocation_id"]
+    store.append(envelope, {"input": {}}, prompts=prompts)
+    assert store.get_prompts(run_id) == prompts
+    assert secret not in str(store.get(run_id))
+    assert secret not in str(list(store.iter_envelopes()))
+    other = stored_envelope()
+    store.append(other)
+    assert store.get_prompts(other["invocation_id"]) == {}
+    assert store.get_prompts(NOWHERE) == {}
+
+
+def check_a_malformed_run_name_names_nothing(make: MakeRunStorage) -> None:
+    store = make("runs")
+    store.append(stored_envelope())
+    for malformed in ("", "..", "../runs", "/etc", "a/b"):
+        assert not store.has(malformed), malformed
+        assert store.get(malformed) is None
+        assert store.get_request(malformed) is None
+        assert store.get_prompts(malformed) == {}
+        assert store.get_artifact(malformed, "spans.jsonl") is None
+
+
+RUN_STORAGE_CHECKS: dict[str, Callable[[MakeRunStorage], None]] = {
+    "a run is written once": check_a_run_is_written_once,
+    "envelopes come back in the order stored": check_envelopes_come_back_in_the_order_stored,
+    "envelopes are found by conversation": check_envelopes_are_found_by_conversation,
+    "artifacts are kept once beside their run": check_artifacts_are_kept_once_beside_their_run,
+    "schemas are kept by digest": check_schemas_are_kept_by_digest,
+    "prompts are kept with their run only": check_prompts_are_kept_with_their_run_only,
+    "a malformed run name names nothing": check_a_malformed_run_name_names_nothing,
+}
+
+
+def check_run_storage(make: MakeRunStorage) -> None:
+    """Every `RunStorage` check, each on stores of its own."""
+    for n, check in enumerate(RUN_STORAGE_CHECKS.values()):
+        check(_named(make, n))
+
+
+# --- Projects ------------------------------------------------------------------------------------
+
+
+def file_inventory(*paths: str) -> dict[str, Any]:
+    """A `FileInventory` document listing `paths`."""
+    return FileInventory(
+        inventory_tool="dd-inventory",
+        inventory_tool_version="0.1.0",
+        inventory_made_at=datetime(2026, 10, 30, tzinfo=UTC),
+        inventory_files=[
+            InventoryFile(
+                file_path=path,
+                file_size=10,
+                file_sha256="a" * 64,
+                file_media_type="text/csv",
+                file_pronom_ids=["x-fmt/18"],
+                file_identified_by=IdentificationMethod.EXTENSION,
+            )
+            for path in paths
+        ],
+    ).model_dump(mode="json", exclude_none=True)
+
+
+def drafted_readme() -> Envelope:
+    """A succeeded run whose payload is a first draft of a README, from the document stub run
+    through a conductor of its own."""
+    with tempfile.TemporaryDirectory(prefix="dd-storage-check-") as runs:
+        conductor = make_conductor(Path(runs), DocumentStub())
+        return conductor.invoke(
+            request("stub.document", document_request(DocumentKind.README)),
+            acting_for=TEST_PRINCIPAL,
+        )
+
+
+def check_the_log_is_append_only_and_the_latest_inventory_wins(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.exists(project_id)
+    assert store.inventory(project_id) is None
+    first, second = file_inventory("a.csv"), file_inventory("a.csv", "b.csv")
+    digest = store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert digest == input_hash(first)
+    before = store.events(project_id)
+    store.add_inventory(project_id, second, acted_for=TEST_PRINCIPAL, caused_by="check")
+    store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="check")
+    after = store.events(project_id)
+    assert after[: len(before)] == before
+    assert [e["event"] for e in after] == [PROJECT_CREATED] + [INVENTORY_ADDED] * 3
+    ids = [e["event_id"] for e in after]
+    assert ids == sorted(ids) and len(set(ids)) == len(ids)
+    for event in after:
+        assert event["project_id"] == project_id
+        assert event["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
+        assert event["caused_by"] == "check"
+    assert store.inventory(project_id) == first
+    assert make("projects").events(project_id) == after
+
+
+def check_a_refused_change_records_nothing(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    absolute = file_inventory("data.csv")
+    absolute["inventory_files"][0]["file_path"] = "/home/someone/data.csv"
+    for document in ({"schema_class": "FileList", "files": []}, absolute):
+        with _raises(ProjectError, "not a FileInventory"):
+            store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="check")
+    with _raises(ProjectError, "a title too long"):
+        store.create(acted_for=TEST_PRINCIPAL, caused_by="check", title="x" * 10_000)
+    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
+    assert [s["project_id"] for s in store.projects()] == [project_id]
+
+
+def check_an_unknown_project_is_refused(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    for project_id in (NOWHERE, "../escape", "", "a/b"):
+        assert not store.exists(project_id)
+        with _raises(ProjectError, f"an inventory for {project_id!r}"):
+            store.add_inventory(
+                project_id, file_inventory(), acted_for=TEST_PRINCIPAL, caused_by="check"
+            )
+        with _raises(ProjectError, f"the events of {project_id!r}"):
+            store.events(project_id)
+        with _raises(UnknownProjectError, f"a conversation in {project_id!r}"):
+            store.start_conversation(project_id, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.projects() == []
+
+
+def check_projects_are_listed_in_the_order_created(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    first = store.create(acted_for=TEST_PRINCIPAL, caused_by="check", title="  First ")
+    second = store.create(acted_for=TEST_PRINCIPAL, caused_by="check", title="   ")
+    summaries = store.projects()
+    assert [s["project_id"] for s in summaries] == [first, second]
+    assert summaries[0]["title"] == "First" and summaries[1]["title"] is None
+    assert store.summary(first) == summaries[0]
+
+
+def check_a_conversation_is_found_after_a_restart(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    other = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    conversation_id = store.start_conversation(
+        project_id, acted_for=TEST_PRINCIPAL, caused_by="check"
+    )
+    assert store.project_of(conversation_id) == project_id
+    started = store.events(project_id)[-1]
+    assert started["event"] == CONVERSATION_STARTED
+    assert started["conversation_id"] == conversation_id
+    assert store.events(other)[-1]["event"] == PROJECT_CREATED
+
+    again = make("projects")
+    assert again.project_of(conversation_id) == project_id
+    assert again.project_of(NOWHERE) is None
+    later = again.start_conversation(other, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert again.project_of(later) == other
+    assert make("projects").project_of(later) == other
+
+
+def check_a_stale_change_is_refused_and_recorded(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    draft = drafted_readme()
+    first = store.record_draft(project_id, draft)
+    (document,) = store.documents(project_id)
+    shown = document["versions"][-1]
+    assert shown["text"] == draft.to_document()["payload"]["document_text"]
+    assert shown["digest"] == text_digest(shown["text"])
+    store.edit(
+        project_id,
+        first.document_id,
+        1,
+        shown["digest"],
+        "# Newer\n",
+        acted_for=TEST_PRINCIPAL,
+        caused_by="check",
+    )
+    stale = Decision(first.document_id, 1, shown["digest"], APPROVED)
+    with _raises(ChangeRefusedError, "a decision on a version no longer the latest"):
+        store.decide(project_id, stale, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.events(project_id)[-1]["event"] == DOCUMENT_CHANGE_REFUSED
+    (document,) = make("projects").documents(project_id)
+    assert [v["text"] for v in document["versions"]][-1] == "# Newer\n"
+    assert [v["state"] for v in document["versions"]] == ["proposed", "proposed"]
+
+
+def check_concurrent_decisions_on_one_version_admit_one(make: MakeProjectStorage) -> None:
+    """Two people decide on the same version at once: the read-then-append is atomic for the
+    project, so one decision is recorded and the other refused."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    ref = store.record_draft(project_id, drafted_readme())
+    (document,) = store.documents(project_id)
+    digest = document["versions"][-1]["digest"]
+    decision = Decision(ref.document_id, ref.version, digest, APPROVED)
+    deciders = 8
+    start = threading.Barrier(deciders)
+    outcomes: list[str] = []
+    guard = threading.Lock()
+
+    def decide() -> None:
+        start.wait()
+        try:
+            store.decide(project_id, decision, acted_for=TEST_PRINCIPAL, caused_by="check")
+            outcome = "decided"
+        except ChangeRefusedError:
+            outcome = "refused"
+        with guard:
+            outcomes.append(outcome)
+
+    threads = [threading.Thread(target=decide) for _ in range(deciders)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+    assert sorted(outcomes) == ["decided"] + ["refused"] * (deciders - 1), outcomes
+    kinds = [e["event"] for e in store.events(project_id)]
+    assert kinds.count(DOCUMENT_VERSION_DECIDED) == 1
+    assert kinds.count(DOCUMENT_CHANGE_REFUSED) == deciders - 1
+    (document,) = store.documents(project_id)
+    assert document["versions"][-1]["state"] == APPROVED
+
+
+PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
+    "the log is append-only and the latest inventory wins": (
+        check_the_log_is_append_only_and_the_latest_inventory_wins
+    ),
+    "a refused change records nothing": check_a_refused_change_records_nothing,
+    "an unknown project is refused": check_an_unknown_project_is_refused,
+    "projects are listed in the order created": check_projects_are_listed_in_the_order_created,
+    "a conversation is found after a restart": check_a_conversation_is_found_after_a_restart,
+    "a stale change is refused and recorded": check_a_stale_change_is_refused_and_recorded,
+    "concurrent decisions on one version admit one": (
+        check_concurrent_decisions_on_one_version_admit_one
+    ),
+}
+
+
+def check_project_storage(make: MakeProjectStorage) -> None:
+    """Every `ProjectStorage` check, each on stores of its own."""
+    for n, check in enumerate(PROJECT_STORAGE_CHECKS.values()):
+        check(_named(make, n))

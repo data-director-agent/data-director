@@ -174,7 +174,7 @@ def _fact_check(tmp_path: Path, source: fakes.Retrieve, sources: Sources) -> Any
     envelope = conductor.invoke(
         fakes.request("fake.retrieval", fakes.claim()), acting_for=fakes.TEST_PRINCIPAL
     )
-    return envelope, conductor.store.run_dir(envelope.invocation_id)
+    return envelope, tmp_path / "runs" / envelope.invocation_id
 
 
 def test_conductor_withholds_a_result_citing_a_record_the_source_does_not_hold(

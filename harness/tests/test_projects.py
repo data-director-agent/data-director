@@ -1,20 +1,20 @@
 """The project record: an append-only log that holds a project's inventory
-(docs/specs/projects.md)."""
+(docs/specs/projects.md).
+
+What any backend must do is in the conformance kit (`dd_harness.testing.storage`, run by
+`test_storage.py`). The tests here that read `store.root` are of the file backend's layout."""
 
 from __future__ import annotations
 
 import json
 import threading
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
 from requirement_sets import override, standard, write
 
 from dd_harness import server
 from dd_harness.projects import (
-    CONVERSATION_STARTED,
     INVENTORY_ADDED,
     PROJECT_CREATED,
     REPOSITORY_CHOSEN,
@@ -23,54 +23,15 @@ from dd_harness.projects import (
     UnknownProjectError,
 )
 from dd_harness.requirements import load_requirements
-from dd_harness.testing import TEST_PRINCIPAL
-from dd_sdk.contract.models import FileInventory, IdentificationMethod, InventoryFile
+from dd_harness.testing import TEST_PRINCIPAL, file_inventory
 from dd_sdk.evidence import input_hash
 
-
-def inventory(*paths: str) -> dict[str, Any]:
-    return FileInventory(
-        inventory_tool="dd-inventory",
-        inventory_tool_version="0.1.0",
-        inventory_made_at=datetime(2026, 10, 30, tzinfo=UTC),
-        inventory_files=[
-            InventoryFile(
-                file_path=path,
-                file_size=10,
-                file_sha256="a" * 64,
-                file_media_type="text/csv",
-                file_pronom_ids=["x-fmt/18"],
-                file_identified_by=IdentificationMethod.EXTENSION,
-            )
-            for path in paths
-        ],
-    ).model_dump(mode="json", exclude_none=True)
+inventory = file_inventory
 
 
 @pytest.fixture
 def store(tmp_path: Path) -> ProjectStore:
     return ProjectStore(tmp_path / "projects")
-
-
-def test_a_project_holds_the_inventory_it_was_given(store: ProjectStore) -> None:
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert store.inventory(project_id) is None
-    given = inventory("data/readings.csv")
-    digest = store.add_inventory(project_id, given, acted_for=TEST_PRINCIPAL, caused_by="test")
-    # The digest is the input hash the conductor records when an agent is given the inventory.
-    assert digest == input_hash(given)
-    assert store.inventory(project_id) == given
-
-    created, added = store.events(project_id)
-    assert created["event"] == PROJECT_CREATED
-    assert added["event"] == INVENTORY_ADDED
-    assert added["digest"] == digest
-    assert added["file_count"] == 1
-    for event in (created, added):
-        assert event["project_id"] == project_id
-        assert event["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
-        assert event["caused_by"] == "test"
-    assert created["event_id"] < added["event_id"]  # UUIDv7: in the order they happened
 
 
 def test_a_read_waits_for_its_project_and_not_for_another(store: ProjectStore) -> None:
@@ -117,14 +78,6 @@ def test_what_is_not_a_file_inventory_is_refused_and_nothing_is_recorded(
             store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
     assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
     assert not (store.root / project_id / "blobs").exists()
-
-
-@pytest.mark.parametrize("project_id", ["0192c0de-0000-7000-8000-000000000000", "../escape", ""])
-def test_an_unknown_project_is_refused(store: ProjectStore, project_id: str) -> None:
-    with pytest.raises(ProjectError, match="no project"):
-        store.add_inventory(project_id, inventory(), acted_for=TEST_PRINCIPAL, caused_by="t")
-    with pytest.raises(ProjectError, match="no project"):
-        store.events(project_id)
 
 
 @pytest.fixture
@@ -246,30 +199,6 @@ def test_a_project_is_named_by_its_title_and_a_blank_title_is_none(store: Projec
     with pytest.raises(ProjectError, match="at most 200"):
         store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="x" * 201)
     assert sorted(p.name for p in store.root.iterdir()) == before
-
-
-def test_a_conversation_started_in_a_project_is_found_after_a_restart(
-    store: ProjectStore,
-) -> None:
-    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
-    other = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
-    conversation_id = store.start_conversation(
-        project_id, acted_for=TEST_PRINCIPAL, caused_by="POST /api/conversations"
-    )
-    assert store.project_of(conversation_id) == project_id
-    started = store.events(project_id)[-1]
-    assert started["event"] == CONVERSATION_STARTED
-    assert started["conversation_id"] == conversation_id
-    assert started["caused_by"] == "POST /api/conversations"
-    assert store.events(other)[-1]["event"] == PROJECT_CREATED
-
-    # A new store, as after a restart, reads the association back from the log.
-    again = ProjectStore(store.root)
-    assert again.project_of(conversation_id) == project_id
-    assert again.project_of("0" * 8 + "-0000-7000-8000-" + "0" * 12) is None
-    # And keeps it up to date once it has read the logs.
-    later = again.start_conversation(other, acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert again.project_of(later) == other
 
 
 def test_a_conversation_in_an_unknown_project_is_refused(store: ProjectStore) -> None:

@@ -1,10 +1,10 @@
-"""Conversations, derived from the invocation store (docs/specs/orchestration.md).
+"""Conversations, derived from the run storage (docs/specs/orchestration.md).
 
 A conversation is the set of top-level invocations sharing a `conversation_id`. There is no
-conversation store: each turn is an ordinary invocation, so everything here is read back from
-`invocations.jsonl` and the per-run `request.json`. Turn order is file order, which is the order
-the conductor finished the turns in. A child invocation (one with `parent_invocation_id`) is not a
-turn; it is listed under the turn that delegated it.
+conversation store: each turn is an ordinary invocation, so everything here is read back from the
+stored envelopes and requests (`RunStorage`, docs/specs/storage.md). Turn order is the order the
+envelopes were stored, which is the order the conductor finished the turns in. A child invocation
+(one with `parent_invocation_id`) is not a turn; it is listed under the turn that delegated it.
 
 `history` is the conversation as a `Message.history` list, so a caller can send the next turn
 without rebuilding it. `version_changes` marks where an agent's version differs from the version
@@ -16,7 +16,8 @@ A summary's `title` is derived like everything else: the first turn's
 with `title_source` `model`; otherwise the start of the first turn's message, with `title_source`
 `message`. The harness calls no model to make one.
 
-TODO(#141): this scans the whole JSONL file on every call. Add an index if the store grows large.
+TODO(#141): the file backend scans every envelope on each call. Add an index if the store grows
+large.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from dd_harness.store import RunStore
+from dd_harness.storage import RunStorage
 from dd_sdk.contract.models import ConversationTurn, TurnRole, to_document
 
 # How much of the first message names a conversation that has no model-written title.
@@ -32,7 +33,7 @@ MESSAGE_TITLE_MAX = 60
 ELLIPSIS = "…"
 
 
-def list_conversations(store: RunStore) -> list[dict[str, Any]]:
+def list_conversations(store: RunStorage) -> list[dict[str, Any]]:
     """One summary per conversation, most recently active first."""
     summaries: dict[str, dict[str, Any]] = {}
     first_turns: dict[str, dict[str, Any]] = {}
@@ -59,7 +60,7 @@ def list_conversations(store: RunStore) -> list[dict[str, Any]]:
     return sorted(summaries.values(), key=lambda s: str(s["last_completed_at"]), reverse=True)
 
 
-def title_of(store: RunStore, first_turn: dict[str, Any]) -> dict[str, str]:
+def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:
     """A conversation's `title` and `title_source`, from its first turn's envelope."""
     payload = first_turn.get("payload") or {}
     if payload.get("schema_class") == "Reply" and payload.get("conversation_title"):
@@ -84,7 +85,7 @@ def shorten(text: str, limit: int = MESSAGE_TITLE_MAX) -> str:
     return cut.rstrip(" ,;:.-") + ELLIPSIS
 
 
-def get_conversation(store: RunStore, conversation_id: str) -> dict[str, Any] | None:
+def get_conversation(store: RunStorage, conversation_id: str) -> dict[str, Any] | None:
     """Every turn of one conversation, with its children, the inputs of both, version changes and
     history.
 
@@ -92,9 +93,7 @@ def get_conversation(store: RunStore, conversation_id: str) -> dict[str, Any] | 
     """
     top: list[dict[str, Any]] = []
     children: dict[str, list[dict[str, Any]]] = {}
-    for envelope in store.iter_envelopes():
-        if envelope.get("conversation_id") != conversation_id:
-            continue
+    for envelope in store.iter_envelopes(conversation_id=conversation_id):
         parent = envelope.get("parent_invocation_id")
         if parent:
             children.setdefault(parent, []).append(envelope)

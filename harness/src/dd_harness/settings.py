@@ -20,6 +20,8 @@ import os
 from collections.abc import Iterable, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
 from dotenv import dotenv_values
 
@@ -33,8 +35,10 @@ from dd_harness.identity import (
     OperatorAssertion,
 )
 from dd_harness.policy import load_profile
+from dd_harness.projects import ProjectStore
 from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
+from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.store import RunStore
 from dd_sdk.contract.models import Principal, PrincipalKind
 
@@ -69,10 +73,50 @@ def _path(variable: str, default: Path | None) -> Path:
     return default
 
 
+# The schemes a storage location may name in this build (docs/specs/storage.md). A location with no
+# scheme is a path; both mean the file backends.
+STORAGE_SCHEMES = ("file",)
+
+
+def storage_location(location: Path | str, variable: str = "a storage location") -> Path:
+    """The directory a storage location names: a path, or a `file://` URL. Raises `SettingsError`
+    for any other scheme, naming the ones this build supports."""
+    if isinstance(location, Path) or "://" not in location:
+        return Path(location)
+    parsed = urlsplit(location)
+    if parsed.scheme not in STORAGE_SCHEMES:
+        supported = ", ".join(f"{s}://" for s in STORAGE_SCHEMES)
+        raise SettingsError(
+            f"{variable}: {parsed.scheme}:// storage is not supported by this build; "
+            f"name a path or one of {supported} (docs/specs/storage.md)"
+        )
+    if parsed.netloc not in ("", "localhost"):
+        raise SettingsError(f"{variable}: a file:// URL names no host, not {parsed.netloc!r}")
+    return Path(url2pathname(parsed.path))
+
+
+def _storage(variable: str, default: Path | None) -> Path:
+    """The storage location `variable` names, else the caller's default."""
+    value = os.environ.get(variable)
+    return storage_location(value, variable) if value else _path(variable, default)
+
+
+def run_storage(location: Path | str) -> RunStorage:
+    """The run storage at `location` (`DD_RUNS_DIR`): a path or `file://` URL is the file
+    backend (docs/specs/storage.md)."""
+    return RunStore(storage_location(location))
+
+
+def project_storage(location: Path | str) -> ProjectStorage:
+    """The project storage at `location` (`DD_PROJECTS_DIR`): a path or `file://` URL is the file
+    backend (docs/specs/storage.md)."""
+    return ProjectStore(storage_location(location))
+
+
 def projects_dir(default: Path | None = None) -> Path:
     """Where project records are kept: `DD_PROJECTS_DIR`, which has no default
     (docs/specs/projects.md)."""
-    return _path("DD_PROJECTS_DIR", default)
+    return _storage("DD_PROJECTS_DIR", default)
 
 
 def repositories_dir(default: Path | None = None) -> Path:
@@ -157,7 +201,7 @@ class Settings:
         """The settings the environment names. A `DD_*` variable wins over the caller's default
         for that path; a path with neither raises `SettingsError`."""
         return cls(
-            runs_dir=_path("DD_RUNS_DIR", runs_dir),
+            runs_dir=_storage("DD_RUNS_DIR", runs_dir),
             profile=_path("DD_PROFILE", profile),
             agents_config=_path("DD_AGENTS_CONFIG", agents_config),
             sources_config=_path("DD_SOURCES_CONFIG", sources_config),
@@ -183,7 +227,7 @@ def build_registry(settings: Settings, agents: Iterable[Registered] = ()) -> Reg
 def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) -> Conductor:
     return Conductor(
         registry=build_registry(settings, agents),
-        store=RunStore(settings.runs_dir),
+        store=run_storage(settings.runs_dir),
         profile=load_profile(settings.profile),  # a bad profile stops start-up, not a request
         write_crate=settings.write_crate,
         sources=Sources.from_config(settings.sources_config),

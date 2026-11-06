@@ -173,9 +173,9 @@ What each step is for:
   consistency check, not proof.
 - **Source check.** Re-hashes each cited record against a pinned copy of its source, which does
   verify the citation ([Evidence and grounding](specs/grounding.md)).
-- **Run store.** Appends the envelope to `invocations.jsonl` and writes a folder per run with the
-  request, envelope, trace, both checks' verdicts and a
-  [Process Run Crate](specs/contract.md).
+- **Run store.** Keeps the envelope, the request, the trace, both checks' verdicts and a
+  [Process Run Crate](specs/contract.md) behind the `RunStorage` protocol ([Storage](specs/storage.md));
+  the file backend writes `invocations.jsonl` and a folder per run.
 
 A run that belongs to a project is also given the project facts its input class asks for. The
 conductor puts them into the input, so the agent never reads the project store itself. The

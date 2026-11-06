@@ -30,10 +30,11 @@ out of the process flow.
 1. **A turn is one invocation.** A conversation is the set of top-level invocations sharing a
    `conversation_id`; a delegated child belongs to the conversation but is not a turn. Each turn
    is held to every rule any invocation is. (`harness/tests/test_conversations.py`)
-2. **Conversations are derived from the run store, never stored apart from it.** Turn order is
-   the order in which the conductor stored the turns. So is a conversation's title: the first
-   turn's `Reply.conversation_title` if a model wrote one, otherwise the start of the first
-   message, with `title_source` saying which (`harness/tests/test_conversations.py`).
+2. **Conversations are derived from the run storage, never stored apart from it.** Turn order is
+   the order in which the conductor stored the turns ([Storage](storage.md), invariant 3). So is
+   a conversation's title: the first turn's `Reply.conversation_title` if a model wrote one,
+   otherwise the start of the first message, with `title_source` saying which
+   (`harness/tests/test_conversations.py`).
 3. **The history is part of the input.** What an agent was shown of earlier turns travels inside
    `Message`, so the input hash covers it and every transport gives the agent the same document.
    (`agents/orchestrator-stub/tests/test_orchestrator_stub.py`,
@@ -194,7 +195,8 @@ the parent would lose the reply's explanation, while the failure stays visible w
 - Turns to one conversation run one at a time; turns to different conversations, and parents with
   their children, run side by side.
   (`test_async_callers_run_parents_side_by_side_and_their_children_never_wait_on_them`)
-- Performance: conversations are found by scanning the run store, TODO(#141).
+- Performance: the file backend finds conversations by scanning every stored envelope
+  ([Storage](storage.md)), TODO(#141).
 
 ## Open questions
 

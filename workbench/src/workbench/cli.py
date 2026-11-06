@@ -30,6 +30,7 @@ from dd_harness.settings import (
     load_env_file,
 )
 from dd_harness.sources import SourceConfigError
+from dd_harness.storage import SOURCES
 from dd_sdk.contract.models import InvocationRequest, OpenInput
 from dd_sdk.credentials import ConfigError
 from dd_sdk.tracing import records_from_jsonl
@@ -131,9 +132,10 @@ def cmd_invoke(args: argparse.Namespace) -> int:
     report = conductor.grounding_reports[request.invocation_id]
     print(json.dumps(envelope.to_document(), indent=2))
     print(report.summary(), file=sys.stderr)
-    run_dir = conductor.store.run_dir(request.invocation_id)
-    print((run_dir / "sources.txt").read_text(encoding="utf-8").rstrip(), file=sys.stderr)
-    print(f"run directory: {run_dir}", file=sys.stderr)
+    store = conductor.store
+    checked = store.get_artifact(request.invocation_id, SOURCES) or b""
+    print(checked.decode("utf-8").rstrip(), file=sys.stderr)
+    print(f"stored at: {store.where(request.invocation_id)}", file=sys.stderr)
     return 0
 
 
