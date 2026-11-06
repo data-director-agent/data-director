@@ -1,7 +1,7 @@
 # Local development stack: agents, the app and its Vite dev server. See README.md, "With Docker
 # Compose". For development only; deployment is in deploy/. Ports are published on loopback only,
 # because the app does not authenticate callers. Settings are read from config/local/, which
-# `uv run scripts/dev.py setup` creates, as in deployment. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
+# `uv run scripts/dd.py setup` creates, as in deployment. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
 # DD_WORKBENCH_HOST_PORT in the shell if a port is taken. The agents are reached only inside the
 # network.
 

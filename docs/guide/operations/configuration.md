@@ -6,7 +6,7 @@ are used; this page is the map. On a server the paths are those that
 
 ## Layers
 
-A setting has one home, and development has the same tree as a server, rooted at `config/local/` (git-ignored; `uv run scripts/dev.py setup` creates it). `dev.py doctor` reports settings files of the old layout (`.env`, `workbench/.env`) and where each moves, and a local `app/config/profile.yaml` that has fallen behind the example (agents omitted, an older `version`, approval actions dropped, an orchestrator it does not enable). Secrets are the exception that matters: a key sits in the one file that
+A setting has one home, and development has the same tree as a server, rooted at `config/local/` (git-ignored; `uv run scripts/dd.py setup` creates it). On a server, `sudo data-director doctor` checks the deployment against this map and names the fix for each problem ([Deploying to a VM](../../../deploy/README.md)). In development, `dd.py doctor` reports settings files of the old layout (`.env`, `workbench/.env`) and where each moves, and a local `app/config/profile.yaml` that has fallen behind the example (agents omitted, an older `version`, approval actions dropped, an orchestrator it does not enable). Secrets are the exception that matters: a key sits in the one file that
 only its own agent can read.
 
 | What | On a server | In development | Read by |

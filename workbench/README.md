@@ -139,7 +139,7 @@ for one command. If only one of them is set, the command stops with
 ### Environment variables
 
 The workbench reads these from the environment when it starts. For local development, set
-`DD_CONFIG_DIR=config/local` (the tree `scripts/dev.py setup` creates, which the workbench does not
+`DD_CONFIG_DIR=config/local` (the tree `scripts/dd.py setup` creates, which the workbench does not
 own): the `workbench` command loads `app.env` and `agents.env` from it at start-up. A variable
 already set in the environment takes precedence over the files.
 

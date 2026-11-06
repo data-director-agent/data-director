@@ -24,6 +24,7 @@ it that way: a request that reaches an agent directly carries no sign-in.
 
 | File | What it does |
 |---|---|
+| `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director doctor` checks the deployment; `sudo data-director secret …` is `secret.sh`. See "Day to day". |
 | `secret.sh` | As root, gives an agent a secret such as its model key (`set`), takes it away (`remove`) or lists them (`list`); see "Secrets" below. |
 | `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
 | `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. |
@@ -124,6 +125,28 @@ reach the API.
 
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
 the merge commit, the VM runs it.
+
+Start with the doctor. It changes nothing, and names the command that fixes each problem it
+finds:
+
+```bash
+sudo data-director doctor
+```
+
+It checks:
+- that the app runs the release `current` points at, and whether the branch's tip is waiting or
+  has failed;
+- the deployment timer and the restart path unit, and that the installed units match the
+  release's;
+- that each agent the target starts is active and answers on its port, and that no unit is left
+  over from an agent since removed;
+- that each agent that calls a model has its key;
+- the sign-in settings and the ORCID secret, and that no key sits in a file every agent reads;
+- the profile, orchestrator and unreachable agents the app reports on `/api/about`;
+- the NGINX site.
+
+Run without `sudo`, it checks what that user can read and says what it skipped. The commands
+below are what it reads.
 
 ```bash
 systemctl list-timers data-director-deploy.timer        # when it next looks

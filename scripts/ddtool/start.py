@@ -1,4 +1,4 @@
-"""`dev.py start`: run the agents, the app and the shell's dev server; Ctrl-C stops them all."""
+"""`dd.py start`: run the agents, the app and the shell's dev server; Ctrl-C stops them all."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
-from devstack import paths
-from devstack.common import (
+from ddtool import paths
+from ddtool.common import (
     APP_PORT,
     EXAMPLE_PRINCIPAL,
     MODEL_BACKED,
@@ -124,7 +124,7 @@ def start(agents_only: bool, web: bool, reload: bool = True) -> int:
         app |= EXAMPLE_PRINCIPAL
         print(
             f"No principal is set, so runs act for the example, {EXAMPLE_PRINCIPAL['DD_PRINCIPAL_NAME']}. "
-            "Run `uv run scripts/dev.py setup` to give your own."
+            "Run `uv run scripts/dd.py setup` to give your own."
         )
     if omitted := profile_omissions({**os.environ, **app}):
         print(f"Note: {omissions_note(omitted)}.")

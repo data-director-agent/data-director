@@ -1,4 +1,4 @@
-"""`dev.py setup`: ask for the settings, write each where it belongs, then install and build."""
+"""`dd.py setup`: ask for the settings, write each where it belongs, then install and build."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from devstack import paths
-from devstack.common import (
+from ddtool import paths
+from ddtool.common import (
     EXAMPLE_PRINCIPAL,
     DevError,
     ensure_local_tree,
@@ -21,6 +21,7 @@ from devstack.common import (
     tool_problems,
     update_env,
 )
+from ddtool.secret import secret_file
 
 KEYS_URL = "https://console.anthropic.com/settings/keys"
 FAIRSHARING_URL = "https://fairsharing.org/accounts/signup"
@@ -98,13 +99,13 @@ def ask_principal(prompt: Prompter, changes: Changes) -> None:
     update_env(
         paths.APP_ENV,
         {"DD_PRINCIPAL_NAME": name, "DD_PRINCIPAL_ID": iri},
-        "# Written by `uv run scripts/dev.py setup`; read by the app (`dev.py start`, Docker Compose).",
+        "# Written by `uv run scripts/dd.py setup`; read by the app (`dd.py start`, Docker Compose).",
     )
     changes.note(paths.APP_ENV)
 
 
 def key_file(agent: str) -> Path:
-    return paths.CREDENTIALS_DIR / f"{agent}-anthropic-api-key"
+    return secret_file(agent, "anthropic-api-key")
 
 
 def write_key(agent: str, key: str, changes: Changes, extra: dict[str, str] | None = None) -> None:
@@ -119,7 +120,7 @@ def write_key(agent: str, key: str, changes: Changes, extra: dict[str, str] | No
     update_env(
         env_file,
         {"ANTHROPIC_API_KEY_FILE": path.name} | (extra or {}),
-        "# Written by `uv run scripts/dev.py setup`: this agent's own settings (docs/specs/policy-and-identity.md).",
+        "# Written by `uv run scripts/dd.py setup`: this agent's own settings (docs/specs/policy-and-identity.md).",
     )
     changes.note(env_file)
 
@@ -172,7 +173,7 @@ def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
         update_env(
             own,
             {switch: "live", "FAIRSHARING_LOGIN": login, "FAIRSHARING_PASSWORD": password},
-            "# Written by `uv run scripts/dev.py setup`: this agent's own settings (docs/specs/policy-and-identity.md).",
+            "# Written by `uv run scripts/dd.py setup`: this agent's own settings (docs/specs/policy-and-identity.md).",
         )
         changes.note(own)
 
@@ -218,5 +219,5 @@ def setup(prompt: Prompter, install: bool = True) -> int:
         run(["uv", "sync", "--all-packages", "--all-extras"])
         prepare_sources()
         prepare_web()
-    print("\nReady. Start everything with:  uv run scripts/dev.py start")
+    print("\nReady. Start everything with:  uv run scripts/dd.py start")
     return 0

@@ -1,4 +1,4 @@
-"""The development set-up in scripts/dev.py and scripts/devstack/: where `setup` writes each
+"""The development set-up in scripts/dd.py and scripts/ddtool/: where `setup` writes each
 setting, and the checks `start` and `doctor` make before running anything."""
 
 from __future__ import annotations
@@ -17,15 +17,20 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from devstack import common, paths  # noqa: E402
-from devstack.setup import Prompter, mask, setup  # noqa: E402
+import dd  # noqa: E402
+from ddtool import (  # noqa: E402
+    common,
+    paths,
+    secret,
+)
+from ddtool.setup import Prompter, mask, setup  # noqa: E402
 
 KEY = "sk-ant-test-0123456789abcd"
 
 
 @pytest.fixture
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A repository root holding only what dev.py reads, with its paths pointed at it."""
+    """A repository root holding only what dd.py reads, with its paths pointed at it."""
     config = tmp_path / "app" / "config"
     config.mkdir(parents=True)
     (config / "profile.yaml.example").write_text(
@@ -323,3 +328,33 @@ def test_the_shell_is_rebuilt_when_its_source_is_newer(tmp_path: Path) -> None:
     later = time.time() + 10
     os.utime(web / "src" / "main.tsx", (later, later))
     assert common.needs_build(web) and not common.needs_install(web)
+
+
+def test_secret_set_stores_the_file_and_names_it_in_the_agents_own_settings(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    secret.dev_set("advisor-policy", "fairsharing-password", "pa55")
+    stored = repo / "config" / "local" / "credentials" / "advisor-policy-fairsharing-password"
+    assert stored.read_text() == "pa55\n"
+    assert stat.S_IMODE(stored.stat().st_mode) == 0o600
+    own = common.read_env(repo / "config" / "local" / "agents" / "advisor-policy.env")
+    assert own["FAIRSHARING_PASSWORD_FILE"] == stored.name
+    secret.dev_list()
+    assert "FAIRSHARING_PASSWORD_FILE" in capsys.readouterr().out
+
+    secret.dev_remove("advisor-policy", "fairsharing-password")
+    assert not stored.exists()
+    own = common.read_env(repo / "config" / "local" / "agents" / "advisor-policy.env")
+    assert "FAIRSHARING_PASSWORD_FILE" not in own
+
+
+def test_secret_refuses_an_unknown_agent_or_a_bad_name(repo: Path) -> None:
+    with pytest.raises(common.DevError, match="no agent"):
+        secret.dev_set("advisor-nobody", "anthropic-api-key", "x")
+    with pytest.raises(common.DevError, match="lower-case"):
+        secret.dev_set("advisor-policy", "Bad_Name", "x")
+
+
+def test_setup_and_start_are_refused_on_a_vm(capsys: pytest.CaptureFixture[str]) -> None:
+    assert dd.main(["--target", "vm", "start"]) == 1
+    assert "is for development" in capsys.readouterr().err

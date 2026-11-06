@@ -54,6 +54,15 @@ if [[ "$(/usr/local/bin/uv --version 2>/dev/null)" != "uv $UV_VERSION"* ]]; then
     env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 fi
 
+step "The data-director command"
+# `sudo data-director doctor` checks this deployment and `data-director secret` gives an agent a
+# secret (scripts/dd.py, deploy/README.md). It runs from this clone, which root controls, never
+# from a release, which a commit to the branch can change.
+install -m 0755 /dev/stdin /usr/local/bin/data-director <<WRAPPER
+#!/bin/sh
+exec /usr/local/bin/uv run --quiet --script "$SRC/scripts/dd.py" --target vm "\$@"
+WRAPPER
+
 step "User and directories"
 if ! id "$USER_NAME" &>/dev/null; then
   useradd --system --home-dir "$STATE" --create-home --shell /usr/sbin/nologin "$USER_NAME"
@@ -193,3 +202,4 @@ systemctl enable --now data-director.target data-director-deploy.timer
 
 echo
 echo "Done. The site is https://$domain/ and people sign in with ORCID."
+echo "Check the deployment at any time with: sudo data-director doctor"

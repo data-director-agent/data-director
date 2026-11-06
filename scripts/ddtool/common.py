@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 
 import yaml
 
-from devstack import paths
+from ddtool import paths
 
 # The example principal the documentation uses (config/examples/app.env): ORCID's test record.
 EXAMPLE_PRINCIPAL = {
@@ -90,7 +90,12 @@ def read_env(path: Path) -> dict[str, str]:
     """`path`'s variables, or none if there is no such file."""
     if not path.is_file():
         return {}
-    return parse_env(path.read_text(encoding="utf-8"), str(path.relative_to(paths.ROOT)))
+    return parse_env(path.read_text(encoding="utf-8"), shown(path))
+
+
+def shown(path: Path) -> str:
+    """`path` as a message names it: relative to the repository if inside it, else in full."""
+    return str(path.relative_to(paths.ROOT)) if path.is_relative_to(paths.ROOT) else str(path)
 
 
 def _quoted(value: str) -> str:
@@ -124,7 +129,7 @@ def _without_key(path: Path) -> dict[str, str]:
     found = read_env(path)
     if leaked := [var for var in KEY_VARS if found.get(var)]:
         raise DevError(
-            f"{path.relative_to(paths.ROOT)} sets {leaked[0]}, which every agent would read; "
+            f"{shown(path)} sets {leaked[0]}, which every agent would read; "
             f"move it to the agent's own file, config/local/agents/<name>.env (docs/specs/policy-and-identity.md)"
         )
     return found
@@ -193,7 +198,7 @@ def profile_omissions(app: dict[str, str]) -> list[str]:
 def omissions_note(omitted: list[str]) -> str:
     """What `start` and `doctor` say about the agents `profile_omissions` found."""
     return (
-        f"{paths.PROFILE.relative_to(paths.ROOT)} does not enable {', '.join(omitted)}, which the "
+        f"{shown(paths.PROFILE)} does not enable {', '.join(omitted)}, which the "
         "example does, so the app refuses them as not enabled; add them to it, or delete it to "
         "use the example"
     )
@@ -204,7 +209,7 @@ def _load(path: Path) -> dict[str, Any]:
     try:
         return dict(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
     except yaml.YAMLError as exc:
-        raise DevError(f"{path.relative_to(paths.ROOT)} is not valid YAML: {exc}") from exc
+        raise DevError(f"{shown(path)} is not valid YAML: {exc}") from exc
 
 
 def _enabled(path: Path) -> set[str]:
@@ -222,16 +227,26 @@ def profile_drift(app: dict[str, str]) -> tuple[list[str], list[str]]:
     """
     if app.get("DD_PROFILE") or not paths.PROFILE.is_file():
         return [], []
-    name = paths.PROFILE.relative_to(paths.ROOT)
-    local, example = _load(paths.PROFILE), _load(paths.PROFILE_EXAMPLE)
+    return compare_profile(paths.PROFILE, paths.PROFILE_EXAMPLE)
+
+
+def compare_profile(local_path: Path, example_path: Path) -> tuple[list[str], list[str]]:
+    """How the profile at `local_path` has fallen behind the one at `example_path`, as (notes,
+    problems): `profile_drift`'s checks, for any two files."""
+    name = shown(local_path)
+    local, example = _load(local_path), _load(example_path)
     notes: list[str] = []
-    if omitted := sorted(_enabled(paths.PROFILE_EXAMPLE) - _enabled(paths.PROFILE)):
-        notes.append(omissions_note(omitted))
+    if omitted := sorted(_enabled(example_path) - _enabled(local_path)):
+        notes.append(
+            omissions_note(omitted)
+            if local_path == paths.PROFILE
+            else f"{name} does not enable {', '.join(omitted)}, which {shown(example_path)} does"
+        )
     have, want = local.get("version"), example.get("version")
     if isinstance(want, int) and (not isinstance(have, int) or have < want):
         notes.append(
             f"{name} is version {have}, behind the example's {want}; compare it with "
-            f"{paths.PROFILE_EXAMPLE.name}, or delete it to use the example"
+            f"{example_path.name}, or delete it to use the example"
         )
     if dropped := sorted(
         set(example.get("actions_requiring_approval") or [])
@@ -243,7 +258,7 @@ def profile_drift(app: dict[str, str]) -> tuple[list[str], list[str]]:
         )
     problems: list[str] = []
     orchestrator = local.get("orchestrator")
-    if orchestrator and orchestrator not in _enabled(paths.PROFILE):
+    if orchestrator and orchestrator not in _enabled(local_path):
         problems.append(f"{name} names {orchestrator} as the orchestrator but does not enable it")
     return notes, problems
 

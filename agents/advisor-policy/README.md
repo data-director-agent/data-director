@@ -62,7 +62,7 @@ Retrieval comes first, and no model matches a policy or states an obligation:
 
 - `DD_POLICY_RETRIEVAL`: `snapshot` (the default) or `live`. Live search needs a FAIRsharing
   account: `FAIRSHARING_LOGIN`, and `FAIRSHARING_PASSWORD` or `FAIRSHARING_PASSWORD_FILE`.
-  `uv run scripts/dev.py setup` writes them when it is given a login. With `live`, the agent
+  `uv run scripts/dd.py setup` writes them when it is given a login. With `live`, the agent
   falls back to the snapshot, marked stale, when the route fails.
 - `DD_POLICY_EXPLAINER`: `template` (the default) or `anthropic`, with `DD_MODEL_ID` and the
   key as for the standards advisor ([Policy and identity](../../docs/specs/policy-and-identity.md)).

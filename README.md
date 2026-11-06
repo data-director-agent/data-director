@@ -33,8 +33,8 @@ WSL). No account or API key is needed.
 Clone the repository, then from its root:
 
 ```sh
-uv run scripts/dev.py setup           # asks a few questions, then installs and builds everything
-uv run scripts/dev.py start           # the agents, the app and the shell; Ctrl-C stops them all
+uv run scripts/dd.py setup           # asks a few questions, then installs and builds everything
+uv run scripts/dd.py start           # the agents, the app and the shell; Ctrl-C stops them all
 ```
 
 `setup` asks for your name and ORCID iD, because every run acts for a named person, and,
@@ -54,7 +54,7 @@ included (`start --no-reload` turns that off).
 If something does not work, run
 
 ```sh
-uv run scripts/dev.py doctor          # checks the toolchain, the settings and the ports
+uv run scripts/dd.py doctor          # checks the toolchain, the settings and the ports
 ```
 
 which changes nothing and names each problem it finds, such as a missing tool, a settings file
@@ -68,7 +68,7 @@ uv run pytest                         # network blocked; everything runs offline
 
 ### By hand
 
-`scripts/dev.py` runs these steps for you. The app does not start the agents, and the agents do
+`scripts/dd.py` runs these steps for you. The app does not start the agents, and the agents do
 not start the app, so each needs its own terminal. Every invocation acts for a named person, so in
 each terminal set who that is:
 
@@ -103,7 +103,7 @@ ignored by git. On a server the same settings live in `/etc/data-director/agents
 Start the agents in one terminal and use the workbench from a second terminal in `workbench/`:
 
 ```sh
-scripts/run-agents.sh                 # first terminal; the same as `scripts/dev.py start --agents-only`
+scripts/run-agents.sh                 # first terminal; the same as `scripts/dd.py start --agents-only`
 ```
 ```sh
 cd workbench
@@ -114,7 +114,7 @@ To run the whole development stack in containers instead, you need only Docker w
 Source is bind-mounted, so edits to Python and to the shell take effect without a rebuild:
 
 ```sh
-uv run scripts/dev.py setup --no-install   # or: copy `config/examples/` to `config/local/` and edit it
+uv run scripts/dd.py setup --no-install   # or: copy `config/examples/` to `config/local/` and edit it
 docker compose up --build             # app at http://127.0.0.1:7860, shell at :5173
 docker compose --profile workbench up workbench   # viewer at http://127.0.0.1:8000/viewer/
 docker compose --profile llm up       # adds the model-backed orchestrator
@@ -128,15 +128,15 @@ running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_P
 
 ### Settings in `config/local/`
 
-`scripts/dev.py setup` creates `config/local/`, which mirrors `/etc/data-director/` on a server:
+`scripts/dd.py setup` creates `config/local/`, which mirrors `/etc/data-director/` on a server:
 `app.env` (the app), `agents.env` (every agent), `agents/<name>.env` (one agent) and
-`credentials/` (model keys, named by `*_FILE` variables). `dev.py start` and Docker Compose read
+`credentials/` (model keys, named by `*_FILE` variables). `dd.py start` and Docker Compose read
 it, and each agent is given `agents.env` and its own file only. The `workbench` command reads
 `app.env` and `agents.env` from the directory `DD_CONFIG_DIR` names (`DD_CONFIG_DIR=config/local`).
 These are ordinary dotenv files, so quote a value that contains a space: otherwise uv reports
 "Failed to parse environment file", and the file is not applied. Put a model key only in that
 agent's credential file, never in `agents.env`, which every agent reads. If you used the earlier
-layout (`.env`, `workbench/.env`, `workbench/agents/*.env`), `dev.py doctor` says where each file's
+layout (`.env`, `workbench/.env`, `workbench/agents/*.env`), `dd.py doctor` says where each file's
 settings move.
 
 ## Acknowledgements
