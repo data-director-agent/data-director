@@ -1,5 +1,7 @@
 # Coverage is enforced loosely: the project figure may not fall by more than a point against the
-# base commit, and new or changed lines need 80%. The absolute floor is `fail_under` in
+# base commit. New or changed lines are measured against 80%, but only as information: a shortfall
+# there is reported without failing the commit, so it does not put a red cross on `main` (the VM
+# deploys on the "CI passed" check alone, deploy/deploy.sh). The absolute floor is `fail_under` in
 # pyproject.toml for Python and the coverage thresholds in app/web/vite.config.ts for the browser
 # shell. The per-package flags are reported but do not fail a pull request; TODO(#243): set a floor for
 # each package once a few weeks of figures show where they sit.
@@ -12,6 +14,7 @@ coverage:
     patch:
       default:
         target: 80%
+        informational: true
 # The pytest job uploads one report carrying every Python flag, and the app/web job one carrying
 # `web`; each flag keeps only the files under its package. The two jobs run only when their side
 # changed, so a flag with no upload keeps the base commit's figure (carryforward) rather than

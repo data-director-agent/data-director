@@ -77,7 +77,7 @@ server or on your own machine. They are not sent to the Data Director project.
 
 Where the deployment signs people in, you sign in with your ORCID iD, and each run is recorded as
 done for you, with ORCID named as the one that vouched for who you are. Data Director asks ORCID
-for your iD and your name only. Where nobody signs in, the banner says so, and every run is
+for your iD and your name only; select your name in the banner to see them on your profile page. Where nobody signs in, the banner says so, and every run is
 recorded as acting for the person who set up the deployment.
 
 In this version anyone who can open the app, or who is signed in to it, can see every run and

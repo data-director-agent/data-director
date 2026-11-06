@@ -76,8 +76,8 @@ if ! grep -qE '^DD_APP_PUBLIC_URL=' "$ETC/app.env"; then
   echo "DD_APP_PUBLIC_URL=https://$domain" >>"$ETC/app.env"
 fi
 new_file "$ETC/agents.env"
-# Each agent's own settings, and model keys (docs/specs/policy-and-identity.md). A key file is root's alone: systemd hands
-# it to the one unit that loads it (LoadCredential=).
+# Each agent's own settings, and its secrets (docs/specs/policy-and-identity.md). A secret is root's alone: systemd
+# hands it to the one unit that loads it (LoadCredential=).
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
 install -d -o root -g root -m 0700 "$ETC/credentials" "$ETC/credentials/app"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
@@ -99,23 +99,15 @@ for unit in $(systemctl list-units --all --plain --no-legend 'data-director-agen
   rm -rf "/etc/systemd/system/$unit.d"
 done
 
-# A model key's drop-in, only for an agent whose key is in place (deploy/credentials/).
-for conf in "$SRC"/deploy/credentials/*.conf; do
-  name="$(basename "$conf" .conf)"
-  dropin="/etc/systemd/system/data-director-agent@$name.service.d/credentials.conf"
-  key="$ETC/credentials/$name/anthropic-api-key"
-  if [[ -f "$key" && -s "$key" ]]; then
-    echo "$name: model key in place"
-    install -D -m 0644 "$conf" "$dropin"
-  else
-    # A directory, or an empty file, is not a key; the unit would start without a credential.
-    if [[ -e "$key" ]]; then
-      echo "$name: $key is not a non-empty regular file; model key not installed" >&2
-    fi
-    rm -f "$dropin"
-    rmdir "$(dirname "$dropin")" 2>/dev/null || true
-  fi
-done
+# Each agent's secrets, such as a model key, as a drop-in that loads them as systemd credentials:
+# one line per file in $ETC/credentials/<agent>/ (deploy/credentials.sh). deploy/secret.sh
+# puts a secret in place and does this for one agent.
+CREDENTIALS="$ETC/credentials" UNIT_DIR=/etc/systemd/system AGENTS_DIR="$SRC/deploy/agents"
+# shellcheck source=deploy/credentials.sh
+source "$SRC/deploy/credentials.sh"
+if ! sync_all_credentials; then
+  echo "Those secrets are not loaded; deploy/secret.sh list shows them all." >&2
+fi
 systemctl daemon-reload
 # deploy.sh, running as $USER_NAME, cannot restart the services. It writes
 # $ROOT/restart-requested instead, and root's path unit restarts them: it may ask for that
