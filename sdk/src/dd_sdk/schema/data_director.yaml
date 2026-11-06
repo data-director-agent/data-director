@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.5
+version: 0.9.6
 license: MIT
 
 prefixes:
@@ -450,6 +450,25 @@ classes:
       - output_tokens
       - energy_estimate_j
       - energy_method
+      - model_calls
+
+  ModelCall:
+    description: >-
+      One call an agent made to a language model, as the agent reports it
+      (docs/specs/disclosure.md). model_id is the model the provider's response named, which may
+      be more exact than the one configured. prompt_digest identifies the messages sent: the
+      harness keeps them beside the run, never in the envelope, and checks that they hash to it.
+    class_uri: prov:Activity
+    slots:
+      - model_provider
+      - model_id
+      - called_at
+      - prompt_digest
+      - input_tokens
+      - output_tokens
+    slot_usage:
+      model_id:
+        required: true
 
 slots:
 
@@ -942,6 +961,27 @@ slots:
   trace_id:
     description: OpenTelemetry trace identifier, 32 lowercase hex characters.
   model_id:
+  model_calls:
+    description: >-
+      Each call to a language model the agent made during the run, in the order made. Absent for
+      an agent that called none.
+    range: ModelCall
+    multivalued: true
+    inlined_as_list: true
+  model_provider:
+    description: Who serves the model, as the agent's card names it (anthropic).
+    required: true
+  called_at:
+    description: When the agent sent the call.
+    range: datetime
+    required: true
+  prompt_digest:
+    description: >-
+      SHA-256 of the prompt sent, as dd-prompt-json-v1: the JSON object of what the agent sent
+      besides sampling parameters (system prompt, messages, tools), keys sorted, no whitespace,
+      UTF-8 (dd_sdk.prompts).
+    required: true
+    pattern: "^[0-9a-f]{64}$"
   input_tokens:
     range: integer
   output_tokens:

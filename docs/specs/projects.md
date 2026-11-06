@@ -212,7 +212,9 @@ them (whose grounding, evidence and trace are in the run store) or the person wh
 decisions name the decider, the digest and the reason; membership events are the record of who
 could see the project. Reading by a member is not recorded separately; reading by a steward is,
 TODO(#372). The grounding linter checks agent-drafted versions only; a person's edit carries no
-grounding, and the record names the person instead ([Evidence and grounding](grounding.md)).
+grounding, and the record names the person instead ([Evidence and grounding](grounding.md)). The
+disclosure of generative AI in a project's approved documents is read from this log and the run
+store, and writes to neither ([Disclosure](disclosure.md)).
 
 ## Rationale
 

@@ -16,6 +16,8 @@ turn (docs/specs/orchestration.md, docs/specs/app.md); `GET /api/conversations` 
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
 answers `409` if that version is no longer the latest or undecided (docs/specs/projects.md).
+`GET /api/projects/{id}/disclosure` says how each approved document came about and what
+generative AI was used, as a statement and as a PROV-O graph (docs/specs/disclosure.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (docs/specs/orchestration.md, #129).
 `GET /api/about` names the build (version and commit) and says whether reports can be filed;
@@ -74,6 +76,7 @@ from dd_app.governance import (
 from dd_app.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_app.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.conductor import UnknownAgent
+from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
 from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal, UnknownProjectError
@@ -275,6 +278,18 @@ def build_app(
             return _no_project(project_id)
         return JSONResponse(found)
 
+    async def get_disclosure(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            found = await run_in_threadpool(disclose, store, governance.conductor.store, project_id)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        return JSONResponse({**found.to_document(), "prov": found.prov_jsonld()})
+
     async def decide(request: Request, decider: Principal) -> Response:
         # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
         project_id = request.path_params["project_id"]
@@ -466,6 +481,11 @@ def build_app(
             Route(
                 "/api/projects/{project_id}/documents",
                 signed_in(get_documents),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/disclosure",
+                signed_in(get_disclosure),
                 methods=["GET"],
             ),
             Route(

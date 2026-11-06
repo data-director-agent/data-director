@@ -72,6 +72,8 @@ dev = [
   "types-PyYAML>=6.0",
   "pytest-cov>=7.1.0",
   "pytest-xdist>=3.8.0",
+  "deptry>=0.25.1",
+  "import-linter>=2.15",
 ]
 docs = [
   "mkdocs>=1.6",
@@ -111,6 +113,87 @@ data-director-agent-orchestrator-stub = { workspace = true }
 data-director-agent-orchestrator-model = { workspace = true }
 data-director-app = { workspace = true }
 data-director-inventory = { workspace = true }
+
+# Package direction (docs/specs/system.md, ADR-0031): `uv run lint-imports`. Imports a member
+# declares and the paths it reads are checked by scripts/check_boundaries.py.
+[tool.importlinter]
+root_packages = [
+  "dd_sdk",
+  "dd_harness",
+  "workbench",
+  "dd_app",
+  "dd_inventory",
+  "dd_agent_advisor_dmp",
+  "dd_agent_advisor_documentation",
+  "dd_agent_advisor_ethics",
+  "dd_agent_advisor_fairness",
+  "dd_agent_advisor_files",
+  "dd_agent_advisor_linking",
+  "dd_agent_advisor_metadata",
+  "dd_agent_advisor_policy",
+  "dd_agent_advisor_quality",
+  "dd_agent_advisor_repository",
+  "dd_agent_advisor_rights",
+  "dd_agent_advisor_standards",
+  "dd_agent_example_hello",
+  "dd_agent_orchestrator_model",
+  "dd_agent_orchestrator_stub",
+]
+include_external_packages = false
+
+[[tool.importlinter.contracts]]
+name = "sdk is below the harness, which is below everything that uses it"
+type = "layers"
+layers = [
+  "workbench | dd_app | dd_agent_advisor_dmp | dd_agent_advisor_documentation | dd_agent_advisor_ethics | dd_agent_advisor_fairness | dd_agent_advisor_files | dd_agent_advisor_linking | dd_agent_advisor_metadata | dd_agent_advisor_policy | dd_agent_advisor_quality | dd_agent_advisor_repository | dd_agent_advisor_rights | dd_agent_advisor_standards | dd_agent_example_hello | dd_agent_orchestrator_model | dd_agent_orchestrator_stub",
+  "dd_harness",
+  "dd_sdk",
+]
+# The standards advisor's evaluations and test kit live in its wheel but use the workbench.
+# TODO(#275): move them out of src/, or declare an extra, then delete these.
+ignore_imports = [
+  "dd_agent_advisor_standards.evals.* -> workbench.*",
+  "dd_agent_advisor_standards.testing -> workbench.*",
+]
+
+[[tool.importlinter.contracts]]
+name = "the app imports neither the workbench nor an agent"
+type = "forbidden"
+source_modules = ["dd_app"]
+forbidden_modules = ["workbench", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+
+[[tool.importlinter.contracts]]
+name = "the harness does not import the workbench, the app or an agent"
+type = "forbidden"
+source_modules = ["dd_harness"]
+forbidden_modules = ["workbench", "dd_app", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+
+[[tool.importlinter.contracts]]
+name = "agents do not import one another"
+type = "independence"
+modules = [
+  "dd_agent_advisor_dmp",
+  "dd_agent_advisor_documentation",
+  "dd_agent_advisor_ethics",
+  "dd_agent_advisor_fairness",
+  "dd_agent_advisor_files",
+  "dd_agent_advisor_linking",
+  "dd_agent_advisor_metadata",
+  "dd_agent_advisor_policy",
+  "dd_agent_advisor_quality",
+  "dd_agent_advisor_repository",
+  "dd_agent_advisor_rights",
+  "dd_agent_advisor_standards",
+  "dd_agent_example_hello",
+  "dd_agent_orchestrator_model",
+  "dd_agent_orchestrator_stub",
+]
+
+[[tool.importlinter.contracts]]
+name = "the inventory command imports no other member"
+type = "forbidden"
+source_modules = ["dd_inventory"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [tool.ruff]
 line-length = 100

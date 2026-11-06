@@ -18,6 +18,8 @@ dependencies = [
   "httpx>=0.28",
   "opentelemetry-sdk>=1.44",
   "a2a-sdk[http-server]>=1.2.2,<2",
+  "protobuf>=5",
+  "starlette>=0.40",
   "rocrate>=0.16.0",
   "pydantic>=2.14.1,<3",
   "pyyaml>=6.0",
@@ -38,6 +40,8 @@ serve = ["uvicorn>=0.30"]
 dev = [
   "data-director-agent-example-hello",
   "data-director-agent-advisor-quality",
+  # Reads the disclosure's PROV-O graph as RDF in tests (docs/specs/dependencies.md).
+  "rdflib>=7.1",
 ]
 
 [tool.hatch.build.targets.wheel]

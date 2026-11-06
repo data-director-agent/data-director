@@ -37,7 +37,10 @@ the authenticator returns the one principal the operator configured, marked `ass
 asserted` ([Policy and identity](../../docs/specs/policy-and-identity.md)). The agent is not told who it acts for.
 
 An agent returns only an `AgentResult`: an outcome, an optional payload, and the evidence it
-used, plus the model id and token counts if it called a model.
+used, plus, if it called a model, the model id and token counts, a record of each call and the
+prompts the calls name. The conductor keeps a prompt only if it hashes to its digest; any other
+prompt, or a call whose prompt is missing, fails the run with `agent-error`
+([Disclosure](../../docs/specs/disclosure.md)).
 
 ## The steps
 
@@ -101,9 +104,10 @@ line, written before its parent's.
 | `request.json` | The request as the agent was given it: as received, with the conductor's `project_id` and, in a project, the project's facts. |
 | `envelope.json` | The envelope returned. |
 | `spans.jsonl` | The OpenTelemetry trace of the run. |
+| `prompts.json` | What the agent sent to a language model, one prompt per digest its envelope's `telemetry.model_calls` names. Only for a run that called a model. Nothing else written carries a prompt ([Disclosure](../../docs/specs/disclosure.md)). |
 | `grounding.txt` | The grounding linter's verdict and any violations. |
 | `sources.txt` | The source check's verdict: how many cited records were verified, which were unresolved, and any violations. |
-| `crate/` | A Process Run Crate: `ro-crate-metadata.json`, a standard provenance record naming the agent, the human it acted for, the request and the outputs, beside copies of the files it names. It is written after the checks and never read back ([Contract](../../docs/specs/contract.md)). |
+| `crate/` | A Process Run Crate: `ro-crate-metadata.json`, a standard provenance record naming the agent, the human it acted for, the request, the outputs and each model call with its prompt's digest, beside copies of the files it names. It is written after the checks and never read back ([Contract](../../docs/specs/contract.md)). |
 
 `DD_RUNS_DIR` changes where runs are written. `DD_WRITE_CRATE=0` stops the Process Run Crate
 being written.
