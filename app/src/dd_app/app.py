@@ -328,6 +328,19 @@ def build_app(
         return JSONResponse(process_flow())
 
     identity = dict(build) if build is not None else about()
+    started = time.monotonic()
+
+    async def server_status(request: Request) -> Response:
+        # Answers a monitor's `GET /server-status?auto` (collectd's apache plugin), in the shape
+        # Apache's mod_status uses: `Key: value` lines. Open, and says only that the app is up.
+        uptime = int(time.monotonic() - started)
+        lines = [
+            f"ServerVersion: data-director/{identity.get('app_version')}",
+            f"ServerUptimeSeconds: {uptime}",
+            f"Uptime: {uptime}",
+        ]
+        return Response("\n".join(lines) + "\n", media_type="text/plain")
+
     limiter = feedback.RateLimiter()
 
     async def get_about(request: Request) -> Response:
@@ -496,6 +509,7 @@ def build_app(
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/about", get_about, methods=["GET"]),
+            Route("/server-status", server_status, methods=["GET"]),
             Route("/api/feedback", signed_in(send_feedback), methods=["POST"]),
             Route("/api/session", get_session, methods=["GET", "POST"]),
             Route("/api/sign-in", begin_sign_in, methods=["GET"]),

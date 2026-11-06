@@ -175,7 +175,8 @@ for ORCID.
   this works over plain HTTP locally; a deployment needs HTTPS (#155).
 - Every `/api` route that runs or reads anything answers `401` with an `unauthenticated` problem
   when there is no session, and the shell then shows its sign-in page. `/api/about`,
-  `/api/session` and the sign-in routes are open.
+  `/api/session` and the sign-in routes are open, as is `/server-status`, which answers a monitor's
+  `GET /server-status?auto` (collectd's apache plugin) with the app's uptime in `Key: value` lines.
 - Sessions are held in memory, so restarting the app signs everyone out.
 - Signing out ends the session here. ORCID offers no sign-out for the app, so the person may still
   be signed in at ORCID, and the signed-out page says so.
