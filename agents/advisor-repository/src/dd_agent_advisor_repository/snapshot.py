@@ -26,7 +26,6 @@ from dd_agent_advisor_repository.retrieve import (
     Query,
     RegistryUnavailable,
     SnapshotRef,
-    find_by_name,
 )
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -115,6 +114,27 @@ class Re3dataRegistry:
         return BM25Okapi(self._tokens)
 
     @cached_property
+    def _token_sets(self) -> list[frozenset[str]]:
+        return [frozenset(t) for t in self._tokens]
+
+    @cached_property
+    def _by_name(self) -> dict[str, list[Re3dataRecord]]:
+        """Records by their own name, casefolded."""
+        index: dict[str, list[Re3dataRecord]] = {}
+        for r in self.records:
+            index.setdefault(r.name.casefold().strip(), []).append(r)
+        return index
+
+    @cached_property
+    def _by_any_name(self) -> dict[str, list[Re3dataRecord]]:
+        """Records by every name they go by, casefolded."""
+        index: dict[str, list[Re3dataRecord]] = {}
+        for r in self.records:
+            for n in r.names():
+                index.setdefault(n, []).append(r)
+        return index
+
+    @cached_property
     def _by_id(self) -> dict[str, Re3dataRecord]:
         return {r.re3data_id: r for r in self.records}
 
@@ -131,12 +151,12 @@ class Re3dataRegistry:
         tokens = tokenise(query.text)
         if not tokens:
             return []
-        wanted = set(tokens)
+        wanted = frozenset(tokens)
         scores = self._bm25.get_scores(tokens)
         hits = [
             Hit(record=r, lexical_score=float(s))
-            for r, words, s in zip(self.records, self._tokens, scores, strict=True)
-            if s > 0 and wanted <= set(words)
+            for r, words, s in zip(self.records, self._token_sets, scores, strict=True)
+            if s > 0 and wanted <= words
         ]
         hits.sort(key=lambda h: (-h.lexical_score, h.record.re3data_id))
         return hits[: query.limit]
@@ -145,7 +165,10 @@ class Re3dataRegistry:
         return self._by_id.get(re3data_id)
 
     def find(self, name: str) -> list[Re3dataRecord]:
-        return find_by_name(self.records, name)
+        """As `find_by_name`, from indexes built once."""
+        wanted = name.casefold().strip()
+        found = self._by_name.get(wanted) or self._by_any_name.get(wanted, [])
+        return sorted(found, key=lambda r: r.re3data_id)
 
 
 class FairsharingSnapshot:

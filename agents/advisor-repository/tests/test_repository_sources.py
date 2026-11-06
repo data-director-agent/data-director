@@ -20,7 +20,7 @@ from dd_agent_advisor_repository.classes import Affiliation, Answer
 from dd_agent_advisor_repository.explain import AnthropicExplainer, TemplateExplainer
 from dd_agent_advisor_repository.live import FairsharingLive
 from dd_agent_advisor_repository.records import from_fairsharing_json, from_re3data_xml
-from dd_agent_advisor_repository.retrieve import Query, RegistryUnavailable
+from dd_agent_advisor_repository.retrieve import Query, RegistryUnavailable, find_by_name
 from dd_agent_advisor_repository.snapshot import (
     FAIRSHARING_SNAPSHOT,
     FairsharingSnapshot,
@@ -178,6 +178,9 @@ def test_registry_search_and_exact_name_lookup(re3data: Re3dataRegistry) -> None
     assert len(re3data.find("uk data service")) == 1
     assert re3data.find("UK Data") == []
     assert re3data.search(Query(text="the of and")) == []
+    for record in re3data.records:  # the indexes agree with a scan, for every name
+        for name in record.names():
+            assert re3data.find(name) == find_by_name(re3data.records, name)
     eidc = re3data.fetch("r3d100010199")
     assert eidc is not None and eidc.certificates == ["CoreTrustSeal"]  # named in schema 4.0
 
