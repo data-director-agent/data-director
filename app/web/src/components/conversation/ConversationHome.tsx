@@ -396,6 +396,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 id="message"
                 ref={box}
                 rows={3}
+                aria-describedby="message-hint"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onPaste={onPaste}
@@ -407,6 +408,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   }
                 }}
               />
+              <p id="message-hint" className="hint">
+                Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac)
+                to send.
+              </p>
             </div>
             <div className="composer-attach">
               {attached ? (
