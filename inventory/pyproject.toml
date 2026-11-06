@@ -5,19 +5,23 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-inventory"
 version = "0.1.0-alpha.2"
-description = "Data Director inventory: a command that describes a dataset's files where they live (path, size, digest, PRONOM format, table fields) without sending them anywhere (docs/specs/projects.md)"
+description = "Describe a dataset's files where they live: size, digest, PRONOM format and table fields, without uploading them"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-keywords = ["research data", "inventory", "FAIR", "PRONOM", "data management"]
+keywords = ["research data", "inventory", "FAIR", "PRONOM", "checksum", "data management", "Frictionless"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: System :: Archiving",
+  "Typing :: Typed",
 ]
 
 # No workspace member: the command runs without the contract (docs/specs/system.md). What it
@@ -37,7 +41,8 @@ data-director-inventory = "dd_inventory.cli:main"
 
 [project.urls]
 Homepage = "https://data-director-agent.github.io/data-director/"
-Source = "https://github.com/data-director-agent/data-director/tree/main/inventory"
+Documentation = "https://data-director-agent.github.io/data-director/user-guide/making-an-inventory/"
+Repository = "https://github.com/data-director-agent/data-director/tree/main/inventory"
 Changelog = "https://github.com/data-director-agent/data-director/blob/main/inventory/CHANGELOG.md"
 Issues = "https://github.com/data-director-agent/data-director/issues"
 

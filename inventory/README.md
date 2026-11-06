@@ -15,7 +15,7 @@ and writes a `FileInventory`, a JSON document of the core contract, that gives f
 
 The inventory holds facts about the files and never their content. Research data are not
 uploaded to Data Director: the researcher adds the inventory to their project instead
-([Projects](../docs/specs/projects.md)). The digests let the files deposited
+([Projects](https://github.com/data-director-agent/data-director/blob/main/docs/specs/projects.md)). The digests let the files deposited
 later be shown to be the files described.
 
 ```console
@@ -23,8 +23,7 @@ $ uv run dd-inventory path/to/dataset -o inventory.json
 ```
 
 The package installs two names for the same command, `dd-inventory` and `data-director-inventory`,
-so that `uvx data-director-inventory path/to/dataset` works once the package is on PyPI (#552).
-Until then it is published to TestPyPI only ([RELEASING.md](../RELEASING.md)).
+so that `uvx data-director-inventory path/to/dataset` works. It is published to [PyPI](https://pypi.org/p/data-director-inventory) and, for trying a release first, TestPyPI ([RELEASING.md](https://github.com/data-director-agent/data-director/blob/main/RELEASING.md)).
 
 A researcher without a checkout runs it with `uvx` and attaches the file to a conversation in the
 app; the user guide's [Making an inventory](https://data-director-agent.github.io/data-director/user-guide/making-an-inventory/)
@@ -35,11 +34,11 @@ followed, and both are counted in `inventory_limitations`. If fido cannot be loa
 guessed from file extensions and the inventory says so.
 
 To read an inventory in TypeScript, as the app does to show one to the researcher, use
-[`@data-director/inventory`](browser/README.md) in `browser/`, which is not part of this Python
+[`@data-director/inventory`](https://github.com/data-director-agent/data-director/blob/main/inventory/browser/README.md) in `browser/`, which is not part of this Python
 package.
 
 The package does not depend on the contract or any other part of Data Director
-([System and boundaries](../docs/specs/system.md)). Its tests check
+([System and boundaries](https://github.com/data-director-agent/data-director/blob/main/docs/specs/system.md)). Its tests check
 what it writes against the contract's `FileInventory` schema.
 
 | Module | What it does |

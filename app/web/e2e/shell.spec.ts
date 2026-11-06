@@ -387,7 +387,7 @@ test("a link names the agent to show", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
 });
 
-test("the workspace at 1280px: phases, conversation and the project side by side", async ({
+test("the workspace at 1280px: conversations, conversation and the project side by side", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -395,13 +395,18 @@ test("the workspace at 1280px: phases, conversation and the project side by side
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
   await page.goto("/");
   const phases = page.getByRole("navigation", { name: "Data management phases" });
-  await expect(phases.locator("summary")).toHaveCount(6);
+  await expect(phases.getByRole("list", { name: "The phases in order" }).getByRole("listitem")).toHaveCount(6);
+  await expect(page.getByRole("region", { name: "Conversations" })).toBeVisible();
   const documents = page.getByRole("region", { name: "Project" });
   await expect(documents).toBeVisible();
   expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
 
-  // A phase opens from the keyboard and names the agents serving its steps.
-  const first = phases.locator("summary").first();
+  // The strip opens from the keyboard, then a phase, which names the agents serving its steps.
+  const strip = phases.locator(".phase-strip-details > summary");
+  await strip.focus();
+  await page.keyboard.press("Enter");
+  await expect(phases.locator(".phase-list summary")).toHaveCount(6);
+  const first = phases.locator(".phase-list summary").first();
   await first.focus();
   await page.keyboard.press("Enter");
   await expect(phases.getByRole("link", { name: "Standards Librarian" }).first()).toBeVisible();
@@ -427,7 +432,9 @@ test("the workspace reflows at 320px with every phase open", async ({ page }) =>
   await page.setViewportSize({ width: 320, height: 640 });
   await serveConversation(page);
   await page.goto("/");
-  const summaries = page.getByRole("navigation", { name: "Data management phases" }).locator("summary");
+  const phases = page.getByRole("navigation", { name: "Data management phases" });
+  await phases.locator(".phase-strip-details > summary").click();
+  const summaries = phases.locator(".phase-list summary");
   await expect(summaries).toHaveCount(6);
   for (const summary of await summaries.all()) await summary.click();
   expect(await overflow(page), "horizontal overflow with the phases open").toBeLessThanOrEqual(0);

@@ -35,18 +35,19 @@
   }
 }
 
-/* The workspace (docs/specs/app.md): the head across the top, then phases, conversation and the
-   project's documents side by side, and the activity log beneath. The source order is the
-   reading order at every width. Narrower, the phases go above the conversation; narrower still,
-   everything is one column. A delegated run opens inside its card in the conversation (§14). */
+/* The workspace (docs/specs/app.md): the head across the top, then the phase strip, then the
+   person's conversations, the open conversation and the project overview side by side. The
+   source order is the reading order at every width. Narrower, the conversations go above the
+   open one; narrower still, everything is one column. A delegated run opens inside its card in
+   the conversation (§14). */
 .workspace {
   display: grid;
   gap: var(--space-4) var(--space-5);
-  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr) minmax(16rem, 26rem);
+  grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr) minmax(16rem, 24rem);
   grid-template-areas:
     "head head head"
-    "phases centre context"
-    "log log log";
+    "phases phases phases"
+    "history centre context";
   align-items: start;
 }
 
@@ -57,6 +58,14 @@
 
 .workspace-phases {
   grid-area: phases;
+  min-width: 0;
+}
+
+.workspace-history {
+  grid-area: history;
+  min-width: 0;
+  padding-inline-end: var(--space-4);
+  border-inline-end: var(--border-width) solid var(--color-border-subtle);
 }
 
 .workspace-centre {
@@ -71,20 +80,19 @@
   border-inline-start: var(--border-width) solid var(--color-border-subtle);
 }
 
-.workspace-log {
-  grid-area: log;
-  border-top: var(--border-width) solid var(--color-border-subtle);
-  padding-top: var(--space-3);
-}
-
 @media (width <= 64rem) {
   .workspace {
     grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
     grid-template-areas:
       "head head"
       "phases phases"
-      "centre context"
-      "log log";
+      "history history"
+      "centre context";
+  }
+
+  .workspace-history {
+    padding-inline-end: 0;
+    border-inline-end: none;
   }
 }
 
@@ -94,9 +102,9 @@
     grid-template-areas:
       "head"
       "phases"
+      "history"
       "centre"
-      "context"
-      "log";
+      "context";
   }
 
   .workspace-context {

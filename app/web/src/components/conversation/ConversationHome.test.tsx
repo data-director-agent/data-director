@@ -367,7 +367,12 @@ describe("ConversationHome", () => {
       await screen.findByRole("button", { name: /^Depositing a soil survey .*, 2 turns$/ }),
     );
     expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    const history = screen.getByRole("region", { name: "Conversations" });
+    expect(within(history).getByRole("button", { name: /^Depositing a soil survey / })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    await userEvent.click(within(history).getByRole("button", { name: "New conversation" }));
     expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
   });
 
@@ -375,10 +380,15 @@ describe("ConversationHome", () => {
     it("lists the six data management phases and the agents serving each step", async () => {
       const { container } = renderHome(withOrchestrator(), fakeApi());
       const phases = await screen.findByRole("navigation", { name: "Data management phases" });
+      const bar = await within(phases).findByRole("list", { name: "The phases in order" });
+      expect(within(bar).getAllByRole("listitem")).toHaveLength(6);
+      expect(within(bar).getByText("Pre-collection setup")).toBeVisible();
+      await userEvent.click(within(phases).getByText(/^Show the steps in each phase/));
       const items = within(phases).getAllByRole("listitem").filter((li) => li.querySelector("summary"));
       expect(items).toHaveLength(6);
-      expect(within(phases).getByText("Pre-collection setup")).toBeVisible();
-      await userEvent.click(within(phases).getByText("Pre-collection setup"));
+      const detail = items.find((li) => li.querySelector("summary")?.textContent?.includes("Pre-collection setup"));
+      if (!detail) throw new Error("no phase");
+      await userEvent.click(within(detail).getByText("Pre-collection setup"));
       const step = within(phases).getByText("Select controlled vocabularies and ontologies").closest("li");
       if (!step) throw new Error("no step");
       expect(within(step).getByText(/Requirements: R3/)).toBeVisible();
@@ -394,27 +404,28 @@ describe("ConversationHome", () => {
       expect(await axe(container)).toHaveNoViolations();
     });
 
-    it("draws what has no source yet as not built, linked to its issue", () => {
+    it("draws the project's current state as not built, linked to its issues", () => {
       renderHome(withOrchestrator(), fakeApi());
-      const status = screen.getByRole("region", { name: "Where this work stands" });
+      const state = screen.getByRole("region", { name: "Current state" });
       for (const label of ["Dataset", "Phase", "Repository", "Governance"]) {
-        const dd = within(status).getByText(label).nextElementSibling as HTMLElement;
+        const dd = within(state).getByText(label).nextElementSibling as HTMLElement;
         expect(within(dd).getByText("Not built yet")).toBeVisible();
         expect(within(dd).getAllByRole("link").length).toBeGreaterThan(0);
       }
-      expect(screen.getByRole("heading", { name: "Activity log" })).toBeVisible();
+      const status = screen.getByRole("region", { name: "Where this work stands" });
+      expect(within(status).getByText("Acting for")).toBeVisible();
+      expect(within(status).queryByText("Dataset")).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Activity log" })).not.toBeInTheDocument();
     });
 
-    it("says a first message starts a project, and shows whom you are talking to", () => {
+    it("says a first message starts a project, and lists no conversations yet", () => {
       renderHome(withOrchestrator(), fakeApi());
       const panel = screen.getByRole("region", { name: "Project" });
       expect(within(panel).getByText(/Your first message starts a project/)).toBeVisible();
-      expect(within(panel).getByText("orchestrator.stub@0.1.0")).toBeVisible();
-      expect(within(panel).getByText("Not declared")).toBeVisible();
-      expect(within(panel).getByRole("link", { name: "Its full capabilities and limits" })).toHaveAttribute(
-        "href",
-        "/agents?agent=orchestrator.stub",
-      );
+      expect(screen.queryByText("Who you are talking to")).not.toBeInTheDocument();
+      const history = screen.getByRole("region", { name: "Conversations" });
+      expect(within(history).getByText("No conversations yet.")).toBeVisible();
+      expect(within(history).getByRole("button", { name: "New conversation" })).toBeVisible();
     });
 
     it("links to the conversation's project and says what inventory it holds", async () => {
@@ -463,7 +474,7 @@ describe("ConversationHome", () => {
     it("keeps the phases and the bar when there is no conversation", async () => {
       renderHome(normalise(raw), fakeApi());
       expect(screen.getByRole("heading", { level: 1, name: "No conversation is available" })).toBeVisible();
-      expect(await screen.findByText("Pre-collection setup")).toBeVisible();
+      expect((await screen.findAllByText("Pre-collection setup"))[0]).toBeVisible();
       expect(screen.getByRole("region", { name: "Where this work stands" })).toBeVisible();
     });
   });
