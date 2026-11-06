@@ -59,7 +59,7 @@ if ! id "$USER_NAME" &>/dev/null; then
   useradd --system --home-dir "$STATE" --create-home --shell /usr/sbin/nologin "$USER_NAME"
 fi
 install -d -o "$USER_NAME" -g "$USER_NAME" -m 0755 "$ROOT" "$ROOT/releases"
-install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$STATE" "$STATE/runs"
+install -d -o "$USER_NAME" -g "$USER_NAME" -m 0750 "$STATE" "$STATE/runs" "$STATE/projects"
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC"
 
 # Secrets and settings: root writes them, the services read them.
