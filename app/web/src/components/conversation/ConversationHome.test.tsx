@@ -128,6 +128,12 @@ describe("ConversationHome", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("tells people that Ctrl+Enter sends, as the message box's description", () => {
+    renderHome(withOrchestrator(), fakeApi());
+    const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+    expect(box).toHaveAccessibleDescription(/Ctrl\+Enter.*to send/);
+  });
+
   it("sends the message on Ctrl+Enter but not when it is empty", async () => {
     const sendTurn = vi.fn().mockResolvedValue(undefined);
     renderHome(withOrchestrator(), fakeApi({ sendTurn }));
