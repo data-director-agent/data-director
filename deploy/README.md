@@ -30,8 +30,7 @@ for a password, and the app and agents listen on loopback only ([Agents](../docs
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`, and `@orchestrator` once it has a key. |
-| `systemd/data-director-agent@advisor-standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
-| `systemd/data-director-agent@orchestrator-model.service.d/` | The model-backed orchestrator's key, likewise. |
+| `credentials/<agent>.conf` | A drop-in that loads the agent's model key as a systemd credential. `install.sh` installs it only while the key file exists. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
@@ -180,8 +179,12 @@ advisor's optional explainer and the model-backed orchestrator, which is not in
 `data-director.target` because it cannot start without a key. The steps to supply a key, turn
 either on, rotate it and read a start-up error are in the operations guide,
 [AI models](../docs/guide/operations/ai-models.md). Each key is loaded as a systemd credential from
-`/etc/data-director/credentials/<name>/`, by the drop-in in
-`systemd/data-director-agent@<name>.service.d/`.
+`/etc/data-director/credentials/<name>/`, by the drop-in `credentials/<name>.conf`.
+
+systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
+to set up credentials"). So `install.sh` installs an agent's drop-in only while its key file
+exists, and removes it otherwise. The standards advisor therefore runs without a key, with its
+template explainer. After adding or removing a key, run `install.sh` again.
 
 ## Changing the deployment
 

@@ -103,7 +103,9 @@ per agent needs a workspace per agent.
    # DD_MODEL_ID=<another model, if you do not want the default>
    ```
 
-3. Restart it: `sudo systemctl restart data-director-agent@advisor-standards.service`.
+3. From your clone of the repository, run `sudo deploy/install.sh --domain <name>` again. It
+   installs the drop-in that loads the key, which it leaves out while there is no key. Then
+   restart the advisor: `sudo systemctl restart data-director-agent@advisor-standards.service`.
 
 The app runs no agent in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
 
@@ -114,6 +116,7 @@ key. Until the profile names it, the app converses with the rule-based `orchestr
 
 1. Install its key as above, under `/etc/data-director/credentials/orchestrator-model/`
    (`anthropic-api-key`). Its optional settings go in `/etc/data-director/agents/orchestrator-model.env`.
+   Run `sudo deploy/install.sh --domain <name>` again to install the drop-in that loads the key.
 2. Start it, and have it start with the rest:
 
    ```bash
