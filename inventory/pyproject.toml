@@ -10,6 +10,15 @@ readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["research data", "inventory", "FAIR", "PRONOM", "data management"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
 
 # No workspace member: the command runs without the contract (docs/specs/system.md). What it
 # writes is a core `FileInventory`, which the tests check against the contract's schema.
@@ -22,6 +31,15 @@ dependencies = [
 
 [project.scripts]
 dd-inventory = "dd_inventory.cli:main"
+# So that `uvx data-director-inventory path/to/dataset` works: uvx runs the script named like the
+# package.
+data-director-inventory = "dd_inventory.cli:main"
+
+[project.urls]
+Homepage = "https://data-director-agent.github.io/data-director/"
+Source = "https://github.com/data-director-agent/data-director/tree/main/inventory"
+Changelog = "https://github.com/data-director-agent/data-director/blob/main/inventory/CHANGELOG.md"
+Issues = "https://github.com/data-director-agent/data-director/issues"
 
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]

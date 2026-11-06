@@ -379,6 +379,27 @@ class Governance:
             "acting_for": principal_summary(acting_for),
         }
 
+    def deployment(self) -> dict[str, Any]:
+        """What this deployment runs, for an operator's check (`GET /api/about`, open to all).
+
+        The profile the conductor holds runs to, and which configured agents it reaches. An agent
+        is named by its entry in the agent configuration, never with its address or the reason it
+        is missing: the answer is public, and a reason can carry an internal address.
+        """
+        profile = self.conductor.profile
+        registry = self.conductor.registry
+        registry.refresh()  # retries only the agents still missing, as `agents` does
+        return {
+            "profile": {
+                "id": profile.profile_id,
+                "version": profile.version,
+                "digest": profile.digest,
+                "orchestrator": profile.orchestrator,
+            },
+            "unavailable": sorted(registry.unavailable),
+            "incompatible": sorted(registry.incompatible),
+        }
+
 
 def principal_summary(principal: Principal) -> dict[str, Any]:
     """What the shell is told about a principal: whom runs act for, and who vouched for them."""

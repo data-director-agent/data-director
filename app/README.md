@@ -127,7 +127,7 @@ The app supplies its own configuration to the harness ([System and boundaries](.
 | `config/profile.yaml.example` | The institutional profile. It enables every in-tree agent. Copy it to `config/profile.yaml` (not committed) to edit it locally; the app prefers that copy. | `DD_PROFILE` |
 | `config/agents.yaml` | Agents reached over A2A: every in-tree agent. | `DD_AGENTS_CONFIG` |
 | `config/sources.yaml` | The pinned FAIRsharing snapshot the source check uses. | `DD_SOURCES_CONFIG` |
-| `config/examples/` | Example inputs the Run tab offers, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
+| `config/examples/` | Example inputs, copied from the workbench's samples. TODO(#108): agents should declare their own. | — |
 | `runs/` (not committed) | Where each run is stored. | `DD_RUNS_DIR` |
 | `projects/` (not committed) | Each project's log, with its documents and the decisions on them. | `DD_PROJECTS_DIR` |
 
@@ -192,7 +192,10 @@ both a provider and an operator principal stops start-up.
 ### Version and problem reports
 
 `GET /api/about` names the build: the app and harness versions, and the commit (`DD_REVISION`,
-else a `REVISION` file at the root of a deployed release, else `git` in a checkout). The
+else a `REVISION` file at the root of a deployed release, else `git` in a checkout), and what
+the deployment runs: the profile (`id`, `version`, `digest`, `orchestrator`) and the names of the
+configured agents it cannot reach (`unavailable`, `incompatible`). It needs no session, so an
+operator can check a server without signing in. The
 footer of every page shows it, and the
 "Report a problem" page, linked from the banner, shows it too and files a GitHub issue through
 `POST /api/feedback` ([The app](../docs/specs/app.md)). It is on only if the app holds a credential for

@@ -151,8 +151,8 @@ sudo install -m 0644 /opt/data-director/current/deploy/systemd/data-director-res
 sudo systemctl daemon-reload && sudo systemctl enable --now data-director-restart.path
 ```
 
-A deployment that fails to restart needs this once, and then a pass of `deploy.sh --force` after
-removing its commit from `failed-commits`.
+A deployment that failed to restart needs this once. If the About page still shows an old commit
+afterwards, see [The app shows an old commit](#the-app-shows-an-old-commit).
 
 To deploy a commit by hand anyway, or to retry one that failed to start (after removing it from
 `failed-commits`):
@@ -170,6 +170,51 @@ sudo systemctl restart data-director.target
 
 The timer will move it forward again at the next new commit on `main`. To hold the VM on one
 release, stop the timer: `sudo systemctl disable --now data-director-deploy.timer`.
+
+### The app shows an old commit
+
+Every pass builds the new commit, and the About page (`/api/about`) still reports an old one.
+Compare what is linked, what is running and what has failed:
+
+```bash
+readlink /opt/data-director/current                     # the release linked
+curl -s http://127.0.0.1:7860/api/about                 # the commit running
+ls -t /opt/data-director/releases | head -3             # the releases built, newest first
+cat /opt/data-director/failed-commits                   # commits that did not start
+journalctl -u data-director-deploy -n 50                # why each pass stopped
+```
+
+The usual cause is that `deploy.sh` itself cannot finish a pass. The timer runs the copy of
+`deploy.sh` in the live release (`current`), so a copy that cannot restart the services, for
+example one that still asks for a sudo rule the host has withdrawn, builds each new release,
+links it, fails to restart, puts the old link back, and never reaches the release that has the
+fix. CI is not at fault: "CI passed" is green on those commits.
+
+`deploy.sh --bootstrap` breaks the loop. It points `current` at a release that is already
+built, restarts, and waits for the app to report that commit. It fetches nothing, checks no CI,
+builds nothing and does not record a failure. Without a commit it takes the newest release that
+finished building; with one (a unique prefix is enough) it takes that release. Run the copy in
+the release you want, not the one in `current`, so that the script that runs is the fixed one.
+It restarts through the path unit as the deploy user, or directly as root:
+
+```bash
+ls -t /opt/data-director/releases | head -3     # pick a release built after the fix
+sudo -u datadirector /opt/data-director/releases/<sha>/deploy/deploy.sh --bootstrap
+# or, where sudo may not run commands as datadirector:
+sudo /opt/data-director/releases/<sha>/deploy/deploy.sh --bootstrap
+```
+
+If the app does not report the release within two minutes, `--bootstrap` puts the previous link
+back and exits with an error. After it succeeds, the next pass of the timer runs the new
+`deploy.sh` and deploys the tip of `main` as usual.
+
+A release built before `--bootstrap` existed has no such option. On a VM whose releases all
+predate it, do the same by hand once, as root, with a release built after the fix to the restart:
+
+```bash
+sudo ln -sfn /opt/data-director/releases/<sha> /opt/data-director/current
+sudo systemctl restart data-director.target
+```
 
 ## Problem reports
 
@@ -285,7 +330,9 @@ reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is 
 
 - **`deploy.sh` and `wait-for-ports.sh`** run from the live release, so a change to them is
   deployed like any other; `deploy.sh`'s change takes effect from the pass after the one that
-  ships it.
+  ships it. A `deploy.sh` that cannot finish a pass blocks its own replacement; recover with
+  `deploy.sh --bootstrap` from a release that has the fix
+  ([The app shows an old commit](#the-app-shows-an-old-commit)).
 - **The units and the NGINX site** are installed by root, not from the release, so that a commit
   to `main` cannot change whom the services run as. After merging a change to them, pull the
   clone and run `sudo deploy/install.sh --domain …` again. `deploy.sh` logs a warning while the
