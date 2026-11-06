@@ -162,7 +162,7 @@ def ensure_local_tree() -> list[Path]:
     Returns what it created.
     """
     created: list[Path] = []
-    for name in ("app.env", "agents.env"):
+    for name in ("app.env", "agents.env", "deployment.yaml"):
         dest = paths.LOCAL_DIR / name
         if not dest.exists():
             dest.parent.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,9 @@
 # The Data Director Workbench (workbench/README.md): the development way in to the harness, for
 # admins only. It is a service of its own beside the app, sharing nothing with it but the agents
-# and the ORCID client. NGINX serves it on port 8443 (deploy/nginx/data-director.conf).
+# and the ORCID client. It starts after the agents and waits for their ports as the app does:
+# `data-director apply` writes the After= lines and DD_WAIT_PORTS in
+# data-director-workbench.service.d/agents.conf. NGINX serves it on port 8443
+# (deploy/nginx/data-director.conf).
 #
 # install.sh enables it only once DD_WORKBENCH_ADMINS is set in /etc/data-director/workbench.env:
 # a workbench that signs people in admits only the ORCID iDs listed there, and does not start
@@ -9,20 +12,6 @@
 Description=Data Director Workbench
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
 After=network-online.target
-After=data-director-agent@example-hello.service
-After=data-director-agent@advisor-quality.service
-After=data-director-agent@advisor-standards.service
-After=data-director-agent@advisor-policy.service
-After=data-director-agent@advisor-repository.service
-After=data-director-agent@advisor-ethics.service
-After=data-director-agent@advisor-files.service
-After=data-director-agent@advisor-dmp.service
-After=data-director-agent@advisor-metadata.service
-After=data-director-agent@advisor-documentation.service
-After=data-director-agent@advisor-rights.service
-After=data-director-agent@advisor-linking.service
-After=data-director-agent@advisor-fairness.service
-After=data-director-agent@orchestrator-stub.service
 Wants=network-online.target
 PartOf=data-director.target
 
@@ -33,8 +22,6 @@ Group=datadirector
 WorkingDirectory=/opt/data-director/current
 # The workbench's own run store, apart from the app's.
 Environment=DD_RUNS_DIR=/var/lib/data-director/workbench-runs
-# The agents' ports to wait for (the same as the app's).
-Environment="DD_WAIT_PORTS=8101 8102 8105 8108 8109 8111 8110 8112 8113 8114 8115 8116 8117 8106"
 # The ORCID client's secret. The workbench uses the app's client, registered with a second redirect
 # URI; systemd hands each unit its own copy of the credential.
 LoadCredential=orcid-client-secret:/etc/data-director/credentials/app/orcid-client-secret

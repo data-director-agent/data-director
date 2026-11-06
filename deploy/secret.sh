@@ -43,8 +43,8 @@ apply() { # apply AGENT
       systemctl restart "$unit"
       echo "restarted $unit"
     else
-      echo "$unit is not running; start it with: sudo systemctl enable --now $unit"
-      echo "(the model-backed orchestrator also needs the profile change in docs/guide/operations/ai-models.md)"
+      echo "$unit is not running. /etc/data-director/deployment.yaml says what runs; for the"
+      echo "model-backed orchestrator, set 'orchestrator: model' there, then: sudo data-director apply"
     fi
   fi
   return "$status"

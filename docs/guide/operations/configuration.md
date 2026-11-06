@@ -11,11 +11,12 @@ only its own agent can read.
 
 | What | On a server | In development | Read by |
 |---|---|---|---|
+| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`) and, on a server, the units that start the agents |
 | The ORCID client, the app's address, problem reports (and the operator, on a development server) | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
 | The workbench's ORCID client, address and admins | `/etc/data-director/workbench.env` ([example](../../../config/examples/workbench.env)) | none: a local workbench signs nobody in | The workbench |
 | Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |
 | One agent's own settings, such as `DD_STANDARDS_*` and `DD_MODEL_ID` | `/etc/data-director/agents/<name>.env` | `config/local/agents/<name>.env` ([examples](../../../config/examples/agents/)) | That agent |
-| A model key, or the app's ORCID client secret | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential; an agent's is put there by `sudo deploy/secret.sh set` | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
+| A model key, or the app's ORCID client secret | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential; an agent's is put there by `sudo data-director secret set` | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
 | An agent's port | `deploy/agents/<name>.env` in the release | `scripts/run-agents.sh` | The unit, and `agents.yaml` |
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
 
@@ -27,7 +28,7 @@ These are policy, not secrets, and are safe to review and to keep under version 
 
 | File | Sets | Override |
 |---|---|---|
-| Institutional profile (`app/config/profile.yaml.example`, or your `profile.yaml`) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
+| Institutional profile (`app/config/profile.yaml.example`; an instance runs the copy `apply` generates from it and `deployment.yaml`) | Which agents may run, the action class each is assigned, which classes need approval, and the agent the home page converses with. | `DD_PROFILE` |
 | `app/config/agents.yaml` | Where each agent is, by URL. | `DD_AGENTS_CONFIG` |
 | `app/config/sources.yaml` | The pinned source copies the source check resolves evidence against. | `DD_SOURCES_CONFIG` |
 

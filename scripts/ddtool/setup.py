@@ -18,10 +18,13 @@ from ddtool.common import (
     prepare_web,
     read_env,
     run,
+    shown,
     tool_problems,
     update_env,
 )
+from ddtool.deployment import Place, apply
 from ddtool.secret import secret_file
+from ddtool.vm import System
 
 KEYS_URL = "https://console.anthropic.com/settings/keys"
 FAIRSHARING_URL = "https://fairsharing.org/accounts/signup"
@@ -179,22 +182,16 @@ def ask_fairsharing(prompt: Prompter, changes: Changes) -> None:
 
 
 def use_model_orchestrator(changes: Changes) -> None:
-    """Name `orchestrator.model` in the local profile, raising its version (app/README.md)."""
-    profile = paths.PROFILE
-    text = (profile if profile.is_file() else paths.PROFILE_EXAMPLE).read_text(encoding="utf-8")
-    if re.search(r"^orchestrator:\s*orchestrator\.model\s*$", text, re.MULTILINE):
-        return
-    text, named = re.subn(
-        r"^orchestrator:.*$", "orchestrator: orchestrator.model", text, flags=re.M
-    )
-    version = re.search(r"^version:\s*(\d+)", text, re.MULTILINE)
-    if not named or not version:
-        raise DevError(
-            f"{profile.relative_to(paths.ROOT)} has no `orchestrator` or `version` to change"
-        )
-    text = text.replace(version[0], f"version: {int(version[1]) + 1}", 1)
-    profile.write_text(text, encoding="utf-8")
-    changes.note(profile)
+    """Name the model-backed orchestrator in `config/local/deployment.yaml`, which `apply` turns
+    into the profile (scripts/ddtool/deployment.py)."""
+    path = paths.LOCAL_DIR / "deployment.yaml"
+    text = path.read_text(encoding="utf-8")
+    changed, named = re.subn(r"^orchestrator:.*$", "orchestrator: model", text, flags=re.M)
+    if not named:
+        raise DevError(f"{shown(path)} has no `orchestrator` to change")
+    if changed != text:
+        path.write_text(changed, encoding="utf-8")
+        changes.note(path)
 
 
 def setup(prompt: Prompter, install: bool = True) -> int:
@@ -211,6 +208,9 @@ def setup(prompt: Prompter, install: bool = True) -> int:
         use_model_orchestrator(changes)
     ask_fairsharing(prompt, changes)
     print("\nWrote " + ", ".join(str(p.relative_to(paths.ROOT)) for p in changes.written) + ".")
+    print()
+    if apply(System(), Place.dev()) != 0:
+        return 1
     if problems:
         print("Install what is missing above, then run setup again to install and build.")
         return 1

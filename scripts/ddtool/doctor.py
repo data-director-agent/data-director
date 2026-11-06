@@ -25,10 +25,13 @@ from ddtool.common import (
     port_free,
     profile_drift,
     read_env,
+    shown,
     sources_problem,
     stray_files,
     tool_problems,
 )
+from ddtool.deployment import Place, plan
+from ddtool.vm import System
 
 
 def doctor() -> int:
@@ -59,8 +62,27 @@ def doctor() -> int:
         for note in notes:
             print(f"note: {note}")
         problems.extend(drift)
+        if env.get("DD_PROFILE") and paths.PROFILE.is_file():
+            print(
+                f"note: {shown(paths.PROFILE)} is no longer read (DD_PROFILE names "
+                f"{env['DD_PROFILE']}); delete it"
+            )
     except DevError as exc:
         problems.append(str(exc))
+    place = Place.dev()
+    if not place.deployment.is_file():
+        print(f"note: no {shown(place.deployment)} yet; `start` creates it from the example")
+    else:
+        try:
+            _, planned = plan(System(), place)
+            problems.extend(planned.refusals)
+            if pending := planned.pending(System()):
+                print(
+                    f"note: {shown(place.deployment)} is not applied yet "
+                    f"({', '.join(pending)}); `start` applies it"
+                )
+        except DevError as exc:
+            problems.append(str(exc))
     for agent in load_agents():
         try:
             keyed = has_key(agent_env(agent) | dict(os.environ))

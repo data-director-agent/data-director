@@ -7,12 +7,18 @@
     uv run scripts/dd.py setup     # development: ask for your settings, write them, install, build
     uv run scripts/dd.py start     # development: the agents, the app and the shell's dev server
     uv run scripts/dd.py doctor    # check everything and name the fix for each problem; changes nothing
+    uv run scripts/dd.py apply     # make the instance what deployment.yaml says (--check: only say)
     uv run scripts/dd.py secret set AGENT SECRET | remove AGENT SECRET | list
 
 On a VM deployed with deploy/install.sh, which installs this as `data-director`:
 
     sudo data-director doctor
     sudo data-director secret set orchestrator-model anthropic-api-key
+    sudoedit /etc/data-director/deployment.yaml      # orchestrator: model
+    sudo data-director apply
+
+`deployment.yaml` says what an instance runs: its name, the orchestrator (model or stub) and any
+agents disabled (scripts/ddtool/deployment.py). `apply` writes the rest from it.
 
 The target is the VM when /etc/data-director and /opt/data-director exist, else development;
 `--target` chooses. Development's settings are in `config/local/`, which mirrors
@@ -34,6 +40,7 @@ import argparse
 import sys
 
 from ddtool.common import DevError
+from ddtool.deployment import Place, apply
 from ddtool.doctor import doctor
 from ddtool.secret import secret
 from ddtool.setup import Prompter, setup
@@ -68,6 +75,12 @@ def main(argv: list[str] | None = None) -> int:
         "--no-reload", action="store_true", help="do not restart an agent when its files change"
     )
     commands.add_parser("doctor", help="check everything and name each fix; change nothing")
+    apply_cmd = commands.add_parser(
+        "apply", help="make the instance what deployment.yaml says: profile, units, credentials"
+    )
+    apply_cmd.add_argument(
+        "--check", action="store_true", help="say what would change, change nothing"
+    )
     secret_cmd = commands.add_parser(
         "secret", help="set, remove or list an agent's secrets, such as its model key"
     )
@@ -88,6 +101,10 @@ def main(argv: list[str] | None = None) -> int:
             )
         if args.command == "secret":
             return secret(target, args.args)
+        if args.command == "apply":
+            vm = Vm()
+            place = Place.vm(vm) if target == "vm" else Place.dev()
+            return apply(System(), place, vm if target == "vm" else None, check=args.check)
         return vm_doctor() if target == "vm" else doctor()
     except DevError as exc:
         print(f"dd.py: {exc}", file=sys.stderr)

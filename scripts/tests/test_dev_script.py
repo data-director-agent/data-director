@@ -33,10 +33,10 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A repository root holding only what dd.py reads, with its paths pointed at it."""
     config = tmp_path / "app" / "config"
     config.mkdir(parents=True)
-    (config / "profile.yaml.example").write_text(
-        (ROOT / "app" / "config" / "profile.yaml.example").read_text(encoding="utf-8")
-    )
+    for name in ("profile.yaml.example", "agents.yaml"):
+        shutil.copyfile(ROOT / "app" / "config" / name, config / name)
     monkeypatch.setattr(paths, "ROOT", tmp_path)
+    monkeypatch.setattr(paths, "AGENTS_CONFIG", config / "agents.yaml")
     shutil.copytree(ROOT / "config" / "examples", tmp_path / "config" / "examples")
     local = tmp_path / "config" / "local"
     monkeypatch.setattr(paths, "LOCAL_DIR", local)
@@ -65,11 +65,17 @@ def scripted(*answers: str, asked: list[str] | None = None) -> Prompter:
 
 def test_defaults_write_the_example_principal_and_no_key(repo: Path) -> None:
     assert setup(Prompter(accept_defaults=True), install=False) == 0
-    assert common.read_env(repo / "config" / "local" / "app.env") == common.EXAMPLE_PRINCIPAL
-    assert (repo / "config" / "local" / "agents.env").is_file()
-    assert not list((repo / "config" / "local" / "agents").iterdir())
-    assert not list((repo / "config" / "local" / "credentials").iterdir())
+    local = repo / "config" / "local"
+    assert common.read_env(local / "app.env") == common.EXAMPLE_PRINCIPAL | {
+        "DD_PROFILE": str(local / "profile.yaml")
+    }
+    assert (local / "agents.env").is_file()
+    assert not list((local / "agents").iterdir())
+    assert not list((local / "credentials").iterdir())
     assert not (repo / "app" / "config" / "profile.yaml").exists()
+    # The profile is generated from deployment.yaml, with the rule-based orchestrator.
+    assert "\norchestrator: stub\n" in (local / "deployment.yaml").read_text()
+    assert "\norchestrator: orchestrator.stub\n" in (local / "profile.yaml").read_text()
 
 
 def test_a_bare_orcid_id_is_given_its_prefix_and_a_name_with_a_space_is_quoted(
@@ -111,7 +117,9 @@ def test_the_key_goes_only_to_the_agents_that_use_it(repo: Path) -> None:
 
 def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(repo: Path) -> None:
     setup(scripted("", "", KEY, "n", "y", ""), install=False)
-    profile = (repo / "app" / "config" / "profile.yaml").read_text()
+    local = repo / "config" / "local"
+    assert "\norchestrator: model\n" in (local / "deployment.yaml").read_text()
+    profile = (local / "profile.yaml").read_text()
     example = (repo / "app" / "config" / "profile.yaml.example").read_text()
     assert "\norchestrator: orchestrator.model\n" in profile
     found = re.search(r"^version: (\d+)", example, re.MULTILINE)
@@ -120,7 +128,7 @@ def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(re
     assert f"\nversion: {old + 1}\n" in profile
     # A second run finds it already named and leaves the version alone.
     setup(scripted("", "", "", "n", "y", ""), install=False)
-    assert (repo / "app" / "config" / "profile.yaml").read_text() == profile
+    assert (local / "profile.yaml").read_text() == profile
 
 
 def test_a_local_profile_missing_an_agent_the_example_enables_is_reported(repo: Path) -> None:
@@ -269,7 +277,7 @@ def test_an_agent_reads_its_own_file_and_the_shared_one_but_not_the_apps_or_anot
 
 def test_the_tree_is_made_from_the_examples_and_never_overwritten(repo: Path) -> None:
     created = common.ensure_local_tree()
-    assert {p.name for p in created} == {"app.env", "agents.env"}
+    assert {p.name for p in created} == {"app.env", "agents.env", "deployment.yaml"}
     (repo / "config" / "local" / "app.env").write_text("DD_PRINCIPAL_NAME=mine\n")
     assert common.ensure_local_tree() == []
     assert common.read_env(repo / "config" / "local" / "app.env") == {"DD_PRINCIPAL_NAME": "mine"}
