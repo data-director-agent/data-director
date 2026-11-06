@@ -57,7 +57,7 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = pull_request ]; then
-            git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
           else
             bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
           fi
@@ -79,7 +79,7 @@ jobs:
       # The site as docs.yml builds and publishes it.
       - run: uv run --only-group docs mkdocs build --strict
       # Headless runs need only chromium-headless-shell, not the full browser.
-      - run: uv run --only-group accessibility playwright install --with-deps --only-shell chromium
+      - run: scripts/retry.sh uv run --only-group accessibility playwright install --with-deps --only-shell chromium
       - run: >-
           uv run --only-group docs --only-group accessibility
           scripts/check_site_accessibility.py site --summary "$GITHUB_STEP_SUMMARY"
@@ -98,7 +98,7 @@ jobs:
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
-      - run: uv run playwright install --with-deps --only-shell chromium
+      - run: scripts/retry.sh uv run playwright install --with-deps --only-shell chromium
       - run: >-
           uv run pytest workbench/browser_tests/test_viewer_accessibility.py
           --tracing=retain-on-failure --output=test-results

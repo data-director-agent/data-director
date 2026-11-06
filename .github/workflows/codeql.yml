@@ -40,7 +40,7 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = pull_request ]; then
-            git diff --name-only HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
+            git -c core.quotepath=off diff --name-only --no-renames HEAD^1 HEAD | bash scripts/ci_changes.sh >> "$GITHUB_OUTPUT"
           else
             bash scripts/ci_changes.sh --all >> "$GITHUB_OUTPUT"
           fi

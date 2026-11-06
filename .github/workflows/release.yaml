@@ -23,6 +23,7 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write # to tag releases and push the release branches
       pull-requests: write # to open and update the release PRs
@@ -53,6 +54,7 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read # the push uses RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN
     strategy:
@@ -65,7 +67,10 @@ jobs:
           ref: ${{ matrix.pr.headBranchName }}
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           persist-credentials: false
+      # No cache: this job holds a token that can push, so it restores nothing another run saved.
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
       - run: uv lock
       - name: Commit the lock file
         env:
