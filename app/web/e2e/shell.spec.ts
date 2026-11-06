@@ -260,17 +260,50 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await box.focus();
   await page.keyboard.type("hello world");
-  // Attaching an inventory, and how to make one, come between the message and Send.
+  // Attaching an inventory, and making one, come between the message and Send.
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Attach inventory" })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "How do I make an inventory?" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Make an inventory" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Send" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
   await expect(box).toBeFocused();
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
+});
+
+test("Make an inventory: tabs and copy by keyboard, fits 320px, no axe violations", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.goto("/");
+  const make = page.getByRole("button", { name: "Make an inventory" });
+  await make.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Make an inventory" });
+  await expect(dialog.getByText(/your data never leave it/)).toBeVisible();
+  // The browser's own system is selected; the arrow keys and End reach the others.
+  await dialog.getByRole("tab", { selected: true }).focus();
+  await page.keyboard.press("End");
+  const linux = dialog.getByRole("tab", { name: /Linux/ });
+  await expect(linux).toBeFocused();
+  await expect(linux).toHaveAttribute("aria-selected", "true");
+  await dialog
+    .getByRole("button", { name: "Copy the command that makes the inventory on Linux" })
+    .press("Enter");
+  await expect(dialog.getByText("Copied.")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "uvx data-director-inventory path/to/dataset -o inventory.json",
+  );
+  await expect(dialog.getByRole("button", { name: "Choose inventory.json" })).toBeVisible();
+  expect(await overflow(page), "horizontal overflow with Make an inventory open").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(make).toBeFocused();
 });
 
 for (const scheme of ["light", "dark"] as const) {

@@ -101,7 +101,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     inventory was attached. An inventory the project refuses, or one sent to a conversation in no
     project, refuses the turn and nothing runs or is recorded. The shell attaches one from a file
     chosen with a button, dropped on the message form, or pasted whole into the message box, and
-    shows it as a chip with a link to the user guide's page on making one, never as its text. The
+    shows it as a chip, never as its text. Beside the attach button, **Make an inventory** opens a
+    dialog for a researcher who has none: one sentence on what an inventory is and that the data
+    stay on their computer, a tab per operating system (the browser's own selected) with the
+    commands that install uv and run `dd-inventory`, each with a copy button, and at the end the
+    file picker, whose file is attached as if chosen with the button. Its text is
+    `@data-director/inventory`'s `making.json`, which the user guide's *Making an inventory* page
+    renders too (`docs/hooks_inventory.py`), so the two cannot drift; the dialog names no agent and
+    holds no policy. A browser scanner will be its first choice (TODO(#367))
+    (`app/web/src/components/inventory/MakeInventoryDialog.test.tsx`). The
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
