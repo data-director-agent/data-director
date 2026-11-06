@@ -120,7 +120,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const frame = {
     status: <StatusBar directory={directory} />,
-    phases: <PhaseTracker load={flow} agents={directory.agents} />,
+    phases: <PhaseTracker load={flow} />,
   };
 
   if (unusable || !orchestrator) {

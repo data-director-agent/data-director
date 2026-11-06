@@ -98,3 +98,11 @@ def test_the_prompt_text_names_every_entry_phase_and_requirement() -> None:
     named = {r for p in PHASES for s in p.steps for r in s.requirements}
     assert all(r in text for r in named)
     assert all(f"[{s}]" in text for s in STEPS)
+
+
+def test_every_phase_and_step_has_wording_for_researchers_free_of_requirement_ids() -> None:
+    for phase in PHASES:
+        assert phase.name and phase.summary
+        for step in phase.steps:
+            assert step.label, step.id
+            assert not any(r in step.label for r in REQUIREMENTS), step.id
