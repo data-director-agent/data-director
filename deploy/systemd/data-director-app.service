@@ -30,6 +30,8 @@ WorkingDirectory=/opt/data-director/current
 Environment=DD_APP_HOST=127.0.0.1
 Environment=DD_APP_PORT=7860
 Environment=DD_RUNS_DIR=/var/lib/data-director/runs
+# Without this the project store goes under the release, which the unit cannot write.
+Environment=DD_PROJECTS_DIR=/var/lib/data-director/projects
 # The agents' ports to wait for.
 Environment="DD_WAIT_PORTS=8101 8102 8105 8108 8109 8111 8110 8112 8113 8114 8115 8116 8117 8106"
 # The ORCID client's secret, as a systemd credential readable by this unit alone. The unit does not
@@ -46,10 +48,10 @@ TimeoutStartSec=90
 TimeoutStopSec=30
 SyslogIdentifier=data-director
 
-# Hardening: the app writes only its run store.
+# Hardening: the app writes only its run store and its project store.
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/var/lib/data-director/runs
+ReadWritePaths=/var/lib/data-director/runs /var/lib/data-director/projects
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
