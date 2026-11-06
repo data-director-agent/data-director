@@ -302,7 +302,7 @@ deployment is one Ubuntu VM that pulls `main` and serves it once CI has passed
 flowchart LR
     browser(["Browser"])
     subgraph vm["Ubuntu VM"]
-        nginx["NGINX<br/>HTTPS, password,<br/>/a2a closed"]
+        nginx["NGINX<br/>HTTPS,<br/>/a2a closed"]
         app["data-director-app<br/>127.0.0.1:7860"]
         agents["data-director-agent@…<br/>hello :8101, quality :8102,<br/>standards :8105, director :8106"]
         runs[("/var/lib/data-director/runs")]
@@ -319,9 +319,9 @@ flowchart LR
     timer -- "fetch, build, switch" --> github
 ```
 
-The app and agents listen on loopback only, and NGINX asks for a password, because callers are
-not yet authenticated: every run acts for the operator configured on the VM (#17). Do not expose
-the app or the agents beyond a trusted network until that is done. The VM holds no research
+The app and agents listen on loopback only. The app signs people in with ORCID and answers 401 to
+a request without a session; an agent reached directly carries no sign-in (#17), so only NGINX
+is exposed. The VM holds no research
 data: a project there holds only an inventory of its files and any uploaded documentation
 ([Projects](specs/projects.md)).
 

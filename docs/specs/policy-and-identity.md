@@ -246,9 +246,6 @@ file and restarting that agent's service; nothing else changes.
 - TODO(#372, #373): escalation to a data steward as a record the harness keeps, routed by the
   profile, and what a steward may do in a researcher's project.
 - TODO(#154): roles (researcher, steward, administrator), and per-user or per-group profiles.
-- TODO(#155): the public deployment still puts a shared site password in front of the app and
-  records every run as the operator's; sign-in is to replace both, with HTTPS required and session
-  lifetimes confirmed against the hosting institution's policy.
 - TODO(#179): a second provider, such as an institution's single sign-on, for staff without an
   iD; its principal form, and an explicit act of linking accounts.
 - TODO(#17): whether an ID token is the right credential for a program calling the harness, or
