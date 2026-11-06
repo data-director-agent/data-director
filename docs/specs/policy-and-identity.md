@@ -156,9 +156,12 @@ showing the sign-in page and decides nothing about identity itself.
 **Model credentials.** A key is supplied one way in development (the key in a variable) and one
 way in deployment (a path to a file, resolved against systemd's credentials directory when
 relative); both set, neither set, or an empty or unreadable file is a configuration error. On the
-VM, the drop-in that loads a key is installed only while the key file exists
-(`deploy/credentials/`): systemd does not start a unit whose credential file is missing, and an
-agent whose model is optional must start without one. Another
+VM, each agent's credentials drop-in is written from the files present in its directory under
+`/etc/data-director/credentials/` (`deploy/credentials.sh`, put there by `deploy/secret.sh`):
+a file `<secret>` is loaded as a credential of that name, and the agent is told its name in
+`<SECRET>_FILE`. systemd does not start a unit whose credential file is missing, and an
+agent whose model is optional must start without one, so a drop-in never names a file that is not
+there. Another
 provider follows the same rule under its own variable name. Each agent's manifest declares each
 model it sends data to (provider, model, `hosted` or `local`) and names no credential
 ([Agents](agents.md)); the app's About tab shows the list. The declaration is the deployment's

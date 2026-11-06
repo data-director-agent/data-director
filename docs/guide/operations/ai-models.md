@@ -1,6 +1,6 @@
 # AI models
 
-Most of Data Director runs without a model. Two agents can call a hosted AI model, and an operator
+Most of Data Director runs without a model. Four agents can call a hosted AI model, and an operator
 decides whether they do, which model they call, and whose key pays for it. This page covers those
 decisions. [Policy and identity](../../specs/policy-and-identity.md) records why the key is handled as it is.
 
@@ -10,7 +10,9 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 |---|---|---|---|
 | `orchestrator.model` | Always. It writes the replies in the app's conversation. | `claude-sonnet-5-5` | Yes: it does not start without one. |
 | `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=anthropic`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode. |
-| `example.hello`, `advisor.quality`, `orchestrator.stub` | Never. | none | No. |
+| `advisor.policy` | Only with `DD_POLICY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
+| `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
+| Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 The reference profile names `orchestrator.stub` as the agent a researcher converses with, so a
 default installation sends nothing to a model provider. It becomes model-backed when you choose,
@@ -74,7 +76,7 @@ do, and the key never appears in a run, a trace, a manifest or an export.
 | | Development | A server |
 |---|---|---|
 | Variable | `ANTHROPIC_API_KEY_FILE`, relative to `config/local/credentials/` | `ANTHROPIC_API_KEY_FILE` |
-| Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads | A root-only file under `/etc/data-director/credentials/<name>/`, loaded as a systemd credential |
+| Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads (`scripts/dev.py setup` does this) | `sudo deploy/secret.sh set <name> anthropic-api-key`, which keeps it in a root-only file under `/etc/data-director/credentials/<name>/` and loads it as a systemd credential |
 
 `ANTHROPIC_API_KEY` itself also works in an agent's own file. Set one variable or the other, never both. A command-line login on the host, such as
 `ant auth login`, is never used. Never put a key in `app.env` or `agents.env`, in
@@ -87,46 +89,39 @@ per agent needs a workspace per agent.
 
 ## Turn on the standards advisor's explainer
 
-1. Put the key where only root can read it. The unit loads it as a credential, so no other agent
-   can read it, although every agent runs as `datadirector`.
-
-   ```bash
-   sudo install -d -m 0700 /etc/data-director/credentials/advisor-standards
-   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/advisor-standards/anthropic-api-key
-   # paste the key, then Ctrl-D
-   ```
-
-2. Configure the advisor in `/etc/data-director/agents/advisor-standards.env`:
+1. Configure the advisor in `/etc/data-director/agents/advisor-standards.env`:
 
    ```bash
    DD_STANDARDS_EXPLAINER=anthropic
    # DD_MODEL_ID=<another model, if you do not want the default>
    ```
 
-3. From your clone of the repository, run `sudo deploy/install.sh --domain <name>` again. It
-   installs the drop-in that loads the key, which it leaves out while there is no key. Then
-   restart the advisor: `sudo systemctl restart data-director-agent@advisor-standards.service`.
+2. From your clone of the repository, give it its key:
 
-The app runs no agent in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
+   ```bash
+   sudo deploy/secret.sh set advisor-standards anthropic-api-key
+   # paste the key at the prompt, which does not show it, then Enter
+   ```
+
+   The command keeps the key in a file only root can read, has systemd hand it to this agent
+   alone (every agent runs as `datadirector`), and restarts the advisor.
+
+The policy and repository advisors are turned on the same way, with `DD_POLICY_EXPLAINER` or
+`DD_REPOSITORY_EXPLAINER` and their own names (`advisor-policy`, `advisor-repository`). The app
+runs no agent in its own process, so there is nothing to change in the app ([The app](../../specs/app.md)).
 
 ## Turn on the model-backed orchestrator
 
 `orchestrator.model` is not part of `data-director.target`, because it cannot start without a
 key. Until the profile names it, the app converses with the rule-based `orchestrator.stub`.
 
-1. Put its key where only root can read it, as for the standards advisor. The key is a file
-   named `anthropic-api-key`; create the directory above it, not the file's own path.
+1. Give it its key, from your clone of the repository. Its optional settings go in
+   `/etc/data-director/agents/orchestrator-model.env`.
 
    ```bash
-   sudo install -d -m 0700 /etc/data-director/credentials/orchestrator-model
-   sudo install -m 0600 /dev/stdin /etc/data-director/credentials/orchestrator-model/anthropic-api-key
-   # paste the key, then Ctrl-D
+   sudo deploy/secret.sh set orchestrator-model anthropic-api-key
    ```
 
-   Check that `sudo ls -l /etc/data-director/credentials/orchestrator-model/` shows
-   `-rw-------` for `anthropic-api-key`, not `drwx------`. Its optional settings go in
-   `/etc/data-director/agents/orchestrator-model.env`. Run `sudo deploy/install.sh --domain <name>`
-   again to install the drop-in that loads the key.
 2. Start it, and have it start with the rest:
 
    ```bash
@@ -156,9 +151,11 @@ app. The orchestrator can then be stopped.
 
 ## Rotate or revoke a key
 
-Replace the credential file and restart that agent's unit. No other component changes. To revoke
-a key at once, delete it at the provider; the agent's runs then fail until the new key is in
-place.
+Run `sudo deploy/secret.sh set <name> anthropic-api-key` again with the new key; it replaces the
+file and restarts that agent. No other component changes. To revoke a key at once, delete it at
+the provider; the agent's runs then fail until the new key is in place.
+`sudo deploy/secret.sh remove <name> anthropic-api-key` takes a key away, and
+`sudo deploy/secret.sh list` shows which agent has which secret, by size, never by value.
 
 ## Start-up errors
 
@@ -172,6 +169,7 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `no model key` | Neither variable is set. |
 | `ANTHROPIC_API_KEY_FILE=… is relative and CREDENTIALS_DIRECTORY is not set` | A relative path outside a systemd unit that loads the credential. |
 | `ANTHROPIC_API_KEY_FILE: cannot read …` / `… is empty` | The file is missing, unreadable or empty. |
+| `no model key` on the VM, after a key was put in place by hand | `install.sh` left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo deploy/secret.sh list` shows it as a `PROBLEM`. |
 | `DD_ORCHESTRATOR_EFFORT=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
 
 If the credential file is missing, systemd refuses to start the unit at all, since the unit
