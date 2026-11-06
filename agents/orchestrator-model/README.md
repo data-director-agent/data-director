@@ -125,9 +125,11 @@ TODO(#40): a profile rule that limits which models an agent may send a given cla
 
 ## Using it in the app
 
-The app converses with the agent its profile names under `orchestrator`. The reference profile
-names `orchestrator.stub`, so the app runs with no key. See `app/README.md`, "Choosing the
-orchestrator".
+The app converses with the agent its profile names under `orchestrator`. An instance chooses it
+with `orchestrator: model` in `deployment.yaml` and `data-director apply`, which writes the
+profile; a new `deployment.yaml` names `stub`, so the app runs with no key. See `app/README.md`,
+"Choosing the orchestrator", and the operations guide's
+[command reference](../../docs/guide/operations/commands.md).
 
 ## Tests
 

@@ -145,6 +145,11 @@ cp app/config/profile.yaml.example app/config/profile.yaml
 
 Edit the copy (raise `version` when you change it). Delete it to return to the example.
 
+This copy is the fallback. `scripts/dd.py apply` generates a profile from `deployment.yaml`
+(`config/local/profile.yaml`) and names it in `DD_PROFILE`, which takes precedence; the
+orchestrator and the agents that run are better changed there
+([the command](../docs/guide/operations/commands.md)).
+
 The copy does not follow the example: an agent added to the example later is not enabled in it,
 and the app refuses that agent as not enabled. `scripts/dd.py start` and `doctor` name any agent
 the example enables that the copy omits; add it to the copy, or delete the copy.

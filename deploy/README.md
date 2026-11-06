@@ -28,7 +28,7 @@ admins only.
 
 | File | What it does |
 |---|---|
-| `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director apply` makes the instance what `/etc/data-director/deployment.yaml` says; `doctor` checks the deployment; `secret …` is `secret.sh`. See "Changing the deployment" and "Day to day". |
+| `/usr/local/bin/data-director` | Installed by `install.sh`: `scripts/dd.py`, run from the clone, never from a release. `sudo data-director apply` makes the instance what `/etc/data-director/deployment.yaml` says; `doctor` checks the deployment; `secret …` is `secret.sh`. See "Changing the deployment" and "Day to day", and the [command reference](../docs/guide/operations/commands.md). |
 | `secret.sh` | As root, gives an agent a secret such as its model key (`set`), takes it away (`remove`) or lists them (`list`); see "Secrets" below. |
 | `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
 | `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. |

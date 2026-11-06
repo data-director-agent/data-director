@@ -62,6 +62,7 @@ nav:
       - operations/index.md
       - AI models: operations/ai-models.md
       - Configuration: operations/configuration.md
+      - The data-director command: operations/commands.md
       - Deploying to a VM: /deploy/README.md
       - Institutional profiles: /workbench/profiles/README.md
       - Repository requirements: /app/config/repositories/README.md
