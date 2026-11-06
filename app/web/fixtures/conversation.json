@@ -10,7 +10,7 @@
       "turn_agent_id": "orchestrator.stub",
       "turn_agent_version": "0.1.0",
       "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
-      "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+      "turn_text": "Routed to example.hello@0.1.1a1 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
     },
     {
       "role": "user",
@@ -21,7 +21,7 @@
       "turn_agent_id": "orchestrator.stub",
       "turn_agent_version": "0.1.0",
       "turn_invocation_id": "01900000-0000-7000-8000-000000000003",
-      "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!"
+      "turn_text": "Routed to example.hello@0.1.1a1 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!"
     }
   ],
   "inputs": {
@@ -41,7 +41,7 @@
           "turn_agent_id": "orchestrator.stub",
           "turn_agent_version": "0.1.0",
           "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
-          "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+          "turn_text": "Routed to example.hello@0.1.1a1 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
         }
       ],
       "message_text": "hello again",
@@ -71,7 +71,7 @@
             "principal_kind": "person"
           },
           "agent_id": "example.hello",
-          "agent_version": "0.1.0",
+          "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
           "contract_version": "0.9.6",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
@@ -132,7 +132,7 @@
           {
             "content_hash": "0000000000000000000000000000000000000000000000000000000000000011",
             "delegated_agent_id": "example.hello",
-            "delegated_agent_version": "0.1.0",
+            "delegated_agent_version": "0.1.1a1",
             "delegated_invocation_id": "01900000-0000-7000-8000-000000000004",
             "delegated_status": "succeeded"
           }
@@ -157,7 +157,7 @@
         "input_schema": "0000000000000000000000000000000000000000000000000000000000000013",
         "invocation_id": "01900000-0000-7000-8000-000000000002",
         "outcome": {
-          "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+          "statement": "Delegated to example.hello@0.1.1a1; its outcome is on the delegated envelope. Rule-based; human review is required.",
           "status": "succeeded"
         },
         "payload": {
@@ -172,7 +172,7 @@
             }
           ],
           "reply_derivation": "template",
-          "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!",
+          "reply_text": "Routed to example.hello@0.1.1a1 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!",
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
@@ -207,7 +207,7 @@
             "principal_kind": "person"
           },
           "agent_id": "example.hello",
-          "agent_version": "0.1.0",
+          "agent_version": "0.1.1a1",
           "completed_at": "2026-01-01T00:00:00Z",
           "contract_version": "0.9.6",
           "conversation_id": "01900000-0000-7000-8000-000000000001",
@@ -268,7 +268,7 @@
           {
             "content_hash": "0000000000000000000000000000000000000000000000000000000000000016",
             "delegated_agent_id": "example.hello",
-            "delegated_agent_version": "0.1.0",
+            "delegated_agent_version": "0.1.1a1",
             "delegated_invocation_id": "01900000-0000-7000-8000-000000000005",
             "delegated_status": "succeeded"
           }
@@ -293,7 +293,7 @@
         "input_schema": "0000000000000000000000000000000000000000000000000000000000000013",
         "invocation_id": "01900000-0000-7000-8000-000000000003",
         "outcome": {
-          "statement": "Delegated to example.hello@0.1.0; its outcome is on the delegated envelope. Rule-based; human review is required.",
+          "statement": "Delegated to example.hello@0.1.1a1; its outcome is on the delegated envelope. Rule-based; human review is required.",
           "status": "succeeded"
         },
         "payload": {
@@ -308,7 +308,7 @@
             }
           ],
           "reply_derivation": "template",
-          "reply_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
+          "reply_text": "Routed to example.hello@0.1.1a1 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, again!",
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000014",
@@ -333,7 +333,7 @@
             "turn_agent_id": "orchestrator.stub",
             "turn_agent_version": "0.1.0",
             "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
-            "turn_text": "Routed to example.hello@0.1.0 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
+            "turn_text": "Routed to example.hello@0.1.1a1 by rule 'greet'. It succeeded: Greeted the name given. Deterministic; human review is required. greeting_text: Hello, world!"
           }
         ],
         "message_text": "hello again",

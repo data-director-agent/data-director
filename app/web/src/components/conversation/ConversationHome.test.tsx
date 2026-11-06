@@ -115,7 +115,7 @@ describe("ConversationHome", () => {
     expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello world", null, null);
     const transcript = await screen.findByRole("list", { name: "Conversation" });
     expect(within(transcript).getAllByText("orchestrator.stub@0.1.0")).toHaveLength(2);
-    expect(within(transcript).getAllByText("example.hello@0.1.0")).toHaveLength(2);
+    expect(within(transcript).getAllByText("example.hello@0.1.1a1")).toHaveLength(2);
     expect(screen.getByRole("status")).toHaveTextContent("New reply from orchestrator.stub: Succeeded.");
     expect(box).toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();

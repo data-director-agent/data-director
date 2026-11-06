@@ -85,6 +85,8 @@ def test_an_input_class_it_did_not_declare_is_refused(runs_dir: Path) -> None:
 def test_the_template_ships_everything_the_manifest_needs() -> None:
     entry = describe(HelloWorld.spec)
     assert entry["agent_id"] == "example.hello"
+    assert entry["title"] == "Friendly Greeter"
+    assert entry["serves"] == []
     assert entry["accepts"] == ["Salutation"]
     assert entry["grounding_mode"] == "none"
     assert entry["payload"] == "Greeting"

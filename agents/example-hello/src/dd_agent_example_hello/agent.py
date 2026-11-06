@@ -51,7 +51,10 @@ class HelloWorld:
     # institutional profile's `actions_requiring_approval`.
     spec = AgentSpec(
         agent_id="example.hello",
-        version="0.1.0",
+        version="0.1.1a1",
+        # The name people see (docs/specs/agents.md). Advisors name a role; a template names what
+        # it does, in plain words.
+        title="Friendly Greeter",
         description=(
             "Greets whoever the input names. A template: it demonstrates the agent contract and "
             "does nothing useful."
@@ -65,6 +68,10 @@ class HelloWorld:
         derivations={
             "greeting_text": Derived(Derivation.TEMPLATE, recorded_in="greeting_derivation")
         },
+        # Which steps of the Blueprint's process flow the agent helps with (`dd_sdk.process_flow`).
+        # A template serves none, so no orchestrator offers it to a researcher; a real agent names
+        # its steps here, for example `serves=("setup.vocabularies",)`.
+        serves=(),
     )
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:

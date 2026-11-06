@@ -687,8 +687,8 @@
         }
       },
       "serves": [],
-      "title": "",
-      "version": "0.1.0"
+      "title": "Friendly Greeter",
+      "version": "0.1.1a1"
     },
     {
       "accepts": [
