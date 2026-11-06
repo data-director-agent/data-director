@@ -112,7 +112,8 @@ missing or does not match its pin is an error that names the command to run, and
 abstains. A registry that does not match its pin also stops the app from starting. A missing one
 does not: the harness warns with the command, and re3data evidence is unresolved rather than
 verified. Neither the archive nor the registry is committed. A
-monthly pull request moves the pin: TODO(#483).
+pull request moves the pin each month: `.github/workflows/re3data.yml` pins the newest export on
+the 3rd, runs this agent's tests and opens it for review, with the repositories added and removed.
 
 Evidence from it carries the `snapshot_ref` `re3data:export:YYYY-MM`, and both `sources.yaml` files
 pin `registry.jsonl` under that label, so the harness's source check verifies every re3data
