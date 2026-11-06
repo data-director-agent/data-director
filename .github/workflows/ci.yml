@@ -347,6 +347,8 @@ jobs:
       # Each workspace member imports only what it declares and reads only its own files
       # (docs/specs/system.md).
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # Every tracked path has a code owner and no CODEOWNERS rule is dead (.github/CODEOWNERS).
+      - run: uv run --no-project --python 3.14 scripts/check_codeowners.py
 
   workflows:
     name: Workflows (actionlint, zizmor)
