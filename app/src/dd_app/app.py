@@ -16,6 +16,8 @@ turn (docs/specs/orchestration.md, docs/specs/app.md); `GET /api/conversations` 
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
 answers `409` if that version is no longer the latest or undecided (docs/specs/projects.md).
+`GET /api/projects/{id}/inventory` is the inventory the project holds, as it was added, for the
+researcher to read; it answers `404` when there is none.
 `GET /api/projects/{id}/disclosure` says how each approved document came about and what
 generative AI was used, as a statement and as a PROV-O graph (docs/specs/disclosure.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
@@ -283,6 +285,22 @@ def build_app(
             return _no_project(project_id)
         return JSONResponse(found)
 
+    async def get_inventory(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            found = await run_in_threadpool(store.inventory, project_id)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        if found is None:
+            return _problem(
+                404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
+            )
+        return JSONResponse(found)
+
     async def get_disclosure(request: Request, _: Principal) -> Response:
         # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
@@ -503,6 +521,11 @@ def build_app(
             Route(
                 "/api/projects/{project_id}/documents",
                 signed_in(get_documents),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/inventory",
+                signed_in(get_inventory),
                 methods=["GET"],
             ),
             Route(
