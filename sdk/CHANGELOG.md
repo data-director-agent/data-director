@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.0-alpha.3](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha.2...sdk-v0.2.0-alpha.3) (2026-11-06)
+
+
+### Features
+
+* **app:** ask categorical questions as clickable choices ([#586](https://github.com/data-director-agent/data-director/issues/586)) ([57b4e9f](https://github.com/data-director-agent/data-director/commit/57b4e9f0d7e5dedea4b9e45201de64365c04b90b))
+* **app:** show the phases as a plain-language data journey ([df64bb0](https://github.com/data-director-agent/data-director/commit/df64bb0e12f13210f7a5c55d24bfd6cff55c4db5))
+* **app:** show the phases as a plain-language data journey ([ab98cf6](https://github.com/data-director-agent/data-director/commit/ab98cf69959982c18ea60a76df5cdeb2146e2e42))
+* **sdk:** show the data management plan steps as out of scope ([631f442](https://github.com/data-director-agent/data-director/commit/631f442c5ee6bfeb3f73813bda88ac648901df60))
+* **sdk:** show the data management plan steps as out of scope ([7109c17](https://github.com/data-director-agent/data-director/commit/7109c1790d13d84cbdfe54668ad0cfc2803fb2df))
+
 ## [0.2.0-alpha.2](https://github.com/data-director-agent/data-director/compare/sdk-v0.2.0-alpha.1...sdk-v0.2.0-alpha.2) (2026-11-06)
 
 
