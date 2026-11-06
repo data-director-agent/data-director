@@ -26,6 +26,7 @@ describe("servingStep", () => {
     const step = {
       id: "deposit.upload",
       text: "Upload the files",
+      label: "Upload the files",
       requirements: [],
       optional: false,
     };
@@ -39,6 +40,7 @@ describe("servingStep", () => {
     const formats = {
       id: "preparation.formats",
       text: "Recommend open formats",
+      label: "Recommend open formats",
       requirements: ["R3"],
       optional: false,
     };

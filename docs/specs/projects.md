@@ -34,8 +34,11 @@ What is built: the project log with its creation (with an optional title), inven
 choice and conversation-start events, and a summary of each project, reached through the
 `dd-harness project` command; the conductor taking a run's project from its conversation, giving
 an agent the project's facts and recording its draft; document versions and a person's decision on each,
-which the app shows and takes at `/projects/{project_id}`; the app starting each conversation in a
-project of its own and adding an inventory attached to a turn; the inventory command; and the core
+which the app shows and takes at `/projects/{project_id}`; the app's list of a person's projects
+at `/projects` (`GET /api/projects`), which shows only the projects they created until membership
+and the access check exist, TODO(#389), and leaves out a project with nothing in it yet; the app
+starting each conversation in a project of its own and adding an inventory attached to a turn;
+the inventory command; and the core
 classes `FileInventory`, `InventorySummary` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
 

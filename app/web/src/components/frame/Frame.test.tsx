@@ -26,6 +26,22 @@ describe("Frame", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("puts Projects first in the main navigation, before the conversation", () => {
+    render(
+      <Frame current="/projects">
+        <p>Content</p>
+      </Frame>,
+    );
+    const nav = screen.getByRole("navigation", { name: "Main" });
+    const names = within(nav)
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(names).toEqual(["Projects", "Conversation", "Activity log", "Agents"]);
+    const projects = within(nav).getByRole("link", { name: "Projects" });
+    expect(projects).toHaveAttribute("href", "/projects");
+    expect(projects).toHaveAttribute("aria-current", "page");
+  });
+
   it("has the activity log as a page of its own in the main navigation", () => {
     render(
       <Frame current="/activity">
@@ -58,7 +74,7 @@ describe("Frame", () => {
       </Frame>,
     );
     const banner = screen.getByRole("banner");
-    for (const name of ["Conversation", "Activity log", "Agents", "User guide", "Report a problem", "Dark mode"]) {
+    for (const name of ["Projects", "Conversation", "Activity log", "Agents", "User guide", "Report a problem", "Dark mode"]) {
       const control = within(banner).getByRole(name === "Dark mode" ? "button" : "link", { name });
       const icon = control.querySelector("svg");
       expect(icon).not.toBeNull();

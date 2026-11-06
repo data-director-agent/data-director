@@ -161,7 +161,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   names.
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
-  flow.
+  flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
+  short `name` and a one-sentence `summary`, and each step a `label`, all carried by the process
+  flow beside the Blueprint's own wording, which the orchestrator reasons over. The journey names
+  no agent and no requirement, since a researcher works through the conversation and needs to see
+  only the whole route; it is meant to become a progress bar over the project's record
+  (TODO(#160)).
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
   or message an agent from it; they work through the conversation. Running one agent directly,
@@ -190,6 +195,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   fixture keeps it so.
 - **Conversation first.** The Blueprint puts the chat interface first, and a person should not
   have to choose an agent before saying what they need.
+- **Projects first in the navigation, the conversation first on arrival.** The project is the unit
+  of work ([Projects](projects.md)): its conversations, inventory, documents and decisions belong
+  to it, so the projects page (`/projects`) is the first item in the main navigation, and a
+  project's own page is marked as under it. A person still lands on the conversation, and their
+  first message starts a project, so nobody has to make or choose a project before saying what
+  they need. The app starts projects untitled, so the list names each by its first
+  conversation's title. Making the projects page the home, with the conversation inside a project
+  and a way to switch project, waits on starting a conversation in an existing project,
+  TODO(#160).
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
   policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
   each phase's steps and the agents serving them. On the left, the person's conversations, so

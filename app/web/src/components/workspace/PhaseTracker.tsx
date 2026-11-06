@@ -1,18 +1,16 @@
 /**
- * The Blueprint's six phases (§8.2), each with its steps, the requirements applied at each, and
- * which of the agents here serve them (docs/specs/orchestration.md). The phases come from the server's process flow
- * and the agents from the manifest; the tracker names no agent of its own.
+ * The journey from planning a dataset to sharing it, in a researcher's words: six phases, each
+ * with the things they will do in it. It names no agent and no Blueprint requirement; which
+ * agents help is for the conversation to say. The phases come from the server's process flow, so
+ * the shell keeps no copy of it.
  *
- * Drawn as a strip: the six phases in order, like a progress bar, opening to show each phase's
- * steps. Where the researcher stands in these phases is not known yet: that needs a record of the
- * project (#160), so it is drawn as not built rather than guessed.
+ * Drawn as a strip, like a progress bar, opening to show each phase's steps. Where the
+ * researcher stands in it is not known yet: that needs a record of the project (#160), so it is
+ * drawn as not built rather than guessed.
  */
 
 import "./PhaseTracker.css";
 
-import type { AgentView } from "../../manifest/normalise";
-import { Link } from "../../route";
-import { servingIndex, servingStep } from "../../flow/serving";
 import type { ProcessFlow } from "../../flow/types";
 import { IssueLinks } from "../NotBuilt";
 
@@ -21,20 +19,20 @@ export type FlowLoad =
   | { state: "failed"; message: string }
   | { state: "loaded"; flow: ProcessFlow };
 
-export function PhaseTracker({ load, agents }: { load: FlowLoad; agents: AgentView[] }) {
+export function PhaseTracker({ load }: { load: FlowLoad }) {
   return (
     <nav aria-labelledby="phases-heading" className="workspace-phases phase-strip">
       <div className="phase-strip-head">
-        <h2 id="phases-heading">Data management phases</h2>
+        <h2 id="phases-heading">Your data journey</h2>
         <p className="phase-strip-where">
           Where your project is: <span className="status status-undeclared">Not built yet</span>{" "}
           (<IssueLinks issues={[160]} />)
         </p>
       </div>
-      {load.state === "loading" && <p role="status">Loading the phases…</p>}
+      {load.state === "loading" && <p role="status">Loading the journey…</p>}
       {load.state === "failed" && (
         <div role="alert" className="callout status-danger">
-          <p>Data Director could not load the data management phases: {load.message}.</p>
+          <p>Data Director could not load the journey: {load.message}.</p>
         </div>
       )}
       {load.state === "loaded" && (
@@ -45,13 +43,13 @@ export function PhaseTracker({ load, agents }: { load: FlowLoad; agents: AgentVi
                 <span className="phase-bar-number" aria-hidden="true">
                   {phase.number}
                 </span>
-                <span className="phase-bar-title">{phase.title}</span>
+                <span className="phase-bar-title">{phase.name}</span>
               </li>
             ))}
           </ol>
           <details className="phase-strip-details">
-            <summary>Show the steps in each phase and the agents that serve them</summary>
-            <Phases flow={load.flow} agents={agents} />
+            <summary>Show what happens in each phase</summary>
+            <Phases flow={load.flow} />
           </details>
         </>
       )}
@@ -59,61 +57,29 @@ export function PhaseTracker({ load, agents }: { load: FlowLoad; agents: AgentVi
   );
 }
 
-function Phases({ flow, agents }: { flow: ProcessFlow; agents: AgentView[] }) {
-  const index = servingIndex(agents);
-  const titles = new Map(agents.map((a) => [a.id, a.title]));
+function Phases({ flow }: { flow: ProcessFlow }) {
   return (
     <ol className="phase-list">
-      {flow.phases.map((phase) => {
-        const served = phase.steps.filter((s) => servingStep(s, index).length > 0).length;
-        return (
-          <li key={phase.number}>
-            <details>
-              <summary>
-                <span className="phase-number">Phase {phase.number}</span> {phase.title}{" "}
-                <span className="muted phase-served">
-                  ({served} of {phase.steps.length} {phase.steps.length === 1 ? "step" : "steps"}{" "}
-                  with an agent here)
-                </span>
-              </summary>
-              <ol className="step-list">
-                {phase.steps.map((step) => {
-                  const serving = servingStep(step, index);
-                  return (
-                    <li key={step.text}>
-                      <p className="step-text">
-                        {step.text}
-                        {step.optional && <span className="muted"> (optional)</span>}
-                      </p>
-                      <p className="step-meta">
-                        {step.requirements.length > 0
-                          ? `Requirements: ${step.requirements.join(", ")}. `
-                          : ""}
-                        {serving.length > 0 ? (
-                          <>
-                            Served by{" "}
-                            {serving.map((id, i) => (
-                              <span key={id}>
-                                {i > 0 && ", "}
-                                <Link to={`/agents?agent=${encodeURIComponent(id)}`}>
-                                  {titles.get(id) || <code>{id}</code>}
-                                </Link>
-                              </span>
-                            ))}
-                            .
-                          </>
-                        ) : (
-                          "No agent here serves this step."
-                        )}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ol>
-            </details>
-          </li>
-        );
-      })}
+      {flow.phases.map((phase) => (
+        <li key={phase.number}>
+          <details>
+            <summary>
+              <span className="phase-number">Phase {phase.number}</span> {phase.name}
+            </summary>
+            <p className="phase-summary">{phase.summary}</p>
+            <ol className="step-list">
+              {phase.steps.map((step) => (
+                <li key={step.id}>
+                  <p className="step-text">
+                    {step.label}
+                    {step.optional && <span className="muted"> (optional)</span>}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </details>
+        </li>
+      ))}
     </ol>
   );
 }

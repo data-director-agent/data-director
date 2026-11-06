@@ -15,6 +15,8 @@ import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import disclosure from "../fixtures/project-disclosure.json" with { type: "json" };
+import projects from "../fixtures/projects.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -356,6 +358,34 @@ test("the directory is a page: reachable from the navigation, survives a reload,
   await expect(nav.getByRole("link", { name: "Conversation" })).toHaveAttribute("aria-current", "page");
 });
 
+test("Projects comes first in the navigation, lists the projects at 320px, and opens one", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await serve(page, several);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route("/api/projects/*/documents", (route) => route.fulfill({ json: project }));
+  await page.route("/api/projects/*/disclosure", (route) => route.fulfill({ json: disclosure }));
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await expect(nav.getByRole("link").first()).toHaveText("Projects");
+  await nav.getByRole("link", { name: "Projects" }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+  await page.reload();
+  const first = page.getByRole("link", { name: "My logger data" });
+  await expect(first).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+
+  await first.click();
+  await expect(page.getByRole("heading", { name: "Project documents" })).toBeVisible();
+  // A project's own page is under Projects.
+  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("link", { name: "All projects" }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+});
+
 for (const width of [1280, 320]) {
   test(`at ${width}px the banner does not move between pages`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
@@ -394,14 +424,14 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   await serveConversation(page);
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
   await page.goto("/");
-  const phases = page.getByRole("navigation", { name: "Data management phases" });
+  const phases = page.getByRole("navigation", { name: "Your data journey" });
   await expect(phases.getByRole("list", { name: "The phases in order" }).getByRole("listitem")).toHaveCount(6);
   await expect(page.getByRole("region", { name: "Conversations" })).toBeVisible();
   const documents = page.getByRole("region", { name: "Project" });
   await expect(documents).toBeVisible();
   expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
 
-  // The strip opens from the keyboard, then a phase, which names the agents serving its steps.
+  // The strip opens from the keyboard, then a phase, which lists what happens in it.
   const strip = phases.locator(".phase-strip-details > summary");
   await strip.focus();
   await page.keyboard.press("Enter");
@@ -409,7 +439,7 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   const first = phases.locator(".phase-list summary").first();
   await first.focus();
   await page.keyboard.press("Enter");
-  await expect(phases.getByRole("link", { name: "Standards Librarian" }).first()).toBeVisible();
+  await expect(phases.getByText("Choose standard terms to describe your data")).toBeVisible();
 
   // An open run sits inside its card in the transcript, and the documents stay beside it.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
@@ -432,7 +462,7 @@ test("the workspace reflows at 320px with every phase open", async ({ page }) =>
   await page.setViewportSize({ width: 320, height: 640 });
   await serveConversation(page);
   await page.goto("/");
-  const phases = page.getByRole("navigation", { name: "Data management phases" });
+  const phases = page.getByRole("navigation", { name: "Your data journey" });
   await phases.locator(".phase-strip-details > summary").click();
   const summaries = phases.locator(".phase-list summary");
   await expect(summaries).toHaveCount(6);

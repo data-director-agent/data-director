@@ -118,7 +118,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   }, [flowApi]);
 
   const frame = {
-    phases: <PhaseTracker load={flow} agents={directory.agents} />,
+    phases: <PhaseTracker load={flow} />,
   };
 
   if (unusable || !orchestrator) {

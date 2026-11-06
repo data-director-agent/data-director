@@ -13,6 +13,7 @@ import "./ProjectPage.css";
 import { useCallback, useEffect, useState } from "react";
 
 import { type ProjectDocuments, useProjectApi } from "../../project/api";
+import { Link } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
 import { DocumentReview } from "./DocumentReview";
@@ -109,6 +110,9 @@ export function ProjectPage({ projectId }: { projectId: string }) {
 
   return (
     <>
+      <p>
+        <Link to="/projects">All projects</Link>
+      </p>
       <PageHeader title="Project documents">
         <p className="hint">
           Check each draft before it goes into the deposit package. Approve it as it is, edit it

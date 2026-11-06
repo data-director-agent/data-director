@@ -231,6 +231,7 @@ PROTECTED = [
     ("POST", "/api/conversations"),
     ("GET", "/api/conversations/01900000-0000-7000-8000-000000000001"),
     ("POST", "/api/conversations/01900000-0000-7000-8000-000000000001/turns"),
+    ("GET", "/api/projects"),
     ("GET", "/api/examples"),
     ("GET", "/api/process-flow"),
     ("GET", "/api/policy"),
