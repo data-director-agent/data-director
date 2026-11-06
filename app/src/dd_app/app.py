@@ -25,8 +25,8 @@ delegation agent's callback under a live grant and nothing else (docs/specs/orch
 (docs/specs/app.md). `GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through
 the configured OpenID Connect provider, `POST /api/sign-out` ends their session, and
 `GET /api/session` says who is signed in, until when, and whether this server signs anyone in
-(docs/specs/policy-and-identity.md, `dd_app.signin`); `POST /api/session` says the same and keeps
-the session going.
+(docs/specs/policy-and-identity.md, `dd_harness.signin`); `POST /api/session` says the same and
+keeps the session going.
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
 
@@ -75,8 +75,6 @@ from dd_app.governance import (
     UnknownConversationError,
     principal_summary,
 )
-from dd_app.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
-from dd_app.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.conductor import UnknownAgent
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
@@ -84,7 +82,9 @@ from dd_harness.policy import PolicyError
 from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal, UnknownProjectError
 from dd_harness.registry import RegistryError
 from dd_harness.server import LOOPBACK
+from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_harness.settings import SettingsError
+from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_sdk.contract.models import Principal
@@ -95,6 +95,9 @@ from dd_sdk.process_flow import ENTRIES, PHASES
 
 log = logging.getLogger(__name__)
 Handler = Callable[[Request, Principal], Awaitable[Response]]
+
+# Where people reach the app, which the provider sends them back to (dd_harness.signin).
+PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 
 FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
@@ -611,7 +614,9 @@ def main() -> int:
     base_url = f"http://{host}:{port}"
     try:
         settings = settings_from_env()
-        sign_in_settings = SignInSettings.from_env(os.environ, settings, base_url)
+        sign_in_settings = SignInSettings.from_env(
+            os.environ, settings, base_url, public_url_variable=PUBLIC_URL_VARIABLE
+        )
         sign_in = SignIn(sign_in_settings) if sign_in_settings is not None else None
         governance = Governance.create(
             settings, base_url, sign_in.authenticator if sign_in is not None else None

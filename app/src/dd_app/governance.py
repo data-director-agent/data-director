@@ -93,7 +93,7 @@ class Governance:
     ) -> Governance:
         """`base_url` is where the app is reached; `DD_HARNESS_URL` (`settings.harness_url`)
         overrides it as the delegation callback. `authenticator` is the sign-in's
-        (`dd_app.signin.SignIn`). Without one the app is a development server, and every run
+        (`dd_harness.signin.SignIn`). Without one the app is a development server, and every run
         acts for the operator's assertion (docs/specs/policy-and-identity.md)."""
         if authenticator is None:
             if settings.oidc_issuer is not None:
