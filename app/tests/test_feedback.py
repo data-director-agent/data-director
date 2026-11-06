@@ -74,6 +74,16 @@ def test_about_names_the_installed_versions(tmp_path: Path) -> None:
     assert found["app_version"] and found["harness_version"]
 
 
+def test_server_status_answers_a_monitor_without_a_session(
+    governance: Governance, dist: Path
+) -> None:
+    client, _ = client_for(governance, dist)
+    found = client.get("/server-status?auto")
+    assert found.status_code == 200
+    assert found.headers["content-type"].startswith("text/plain")
+    assert "Uptime: " in found.text
+
+
 def test_about_says_whether_reports_are_on(governance: Governance, dist: Path) -> None:
     on, _ = client_for(governance, dist)
     off, _ = client_for(governance, dist, token=None)
