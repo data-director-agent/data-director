@@ -33,6 +33,10 @@ Hidden files and folders (names beginning with `.`) are skipped, symbolic links 
 followed, and both are counted in `inventory_limitations`. If fido cannot be loaded, formats are
 guessed from file extensions and the inventory says so.
 
+To read an inventory in TypeScript, as the app does to show one to the researcher, use
+[`@data-director/inventory`](https://github.com/data-director-agent/data-director/blob/main/inventory/browser/README.md) in `browser/`, which is not part of this Python
+package.
+
 The package does not depend on the contract or any other part of Data Director
 ([System and boundaries](https://github.com/data-director-agent/data-director/blob/main/docs/specs/system.md)). Its tests check
 what it writes against the contract's `FileInventory` schema.

@@ -13,6 +13,7 @@ import {
 } from "../../conversation/api";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
+import { httpProjectApi, type ProjectApi, ProjectApiContext } from "../../project/api";
 import type { ProcessFlow } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
@@ -49,12 +50,19 @@ function fakeApi(overrides: Partial<ConversationApi> = {}): ConversationApi {
   };
 }
 
-function renderHome(directory: Directory, api: ConversationApi, flow: FlowApi = FLOW) {
+function renderHome(
+  directory: Directory,
+  api: ConversationApi,
+  flow: FlowApi = FLOW,
+  project: ProjectApi = httpProjectApi,
+) {
   return render(
     <FlowApiContext.Provider value={flow}>
-      <ConversationApiContext.Provider value={api}>
-        <ConversationHome directory={directory} />
-      </ConversationApiContext.Provider>
+      <ProjectApiContext.Provider value={project}>
+        <ConversationApiContext.Provider value={api}>
+          <ConversationHome directory={directory} />
+        </ConversationApiContext.Provider>
+      </ProjectApiContext.Provider>
     </FlowApiContext.Provider>,
   );
 }
@@ -137,7 +145,12 @@ describe("ConversationHome", () => {
       inventory_tool: "dd-inventory",
       inventory_tool_version: "0.1.0",
       inventory_made_at: "2026-11-01T09:00:00Z",
-      inventory_files: [{ file_path: "a.csv" }, { file_path: "b.csv" }],
+      inventory_files: ["a.csv", "b.csv"].map((file_path) => ({
+        file_path,
+        file_size: 10,
+        file_sha256: "0".repeat(64),
+        file_identified_by: "extension",
+      })),
     };
     const file = (content: string, name = "inventory.json") =>
       new File([content], name, { type: "application/json" });
@@ -419,7 +432,16 @@ describe("ConversationHome", () => {
         inventory: { digest: "d", file_count: 42, inventory_made_at: "2026-11-01T09:00:00Z", added_at: "x" },
       };
       const get = vi.fn().mockResolvedValueOnce(CONVERSATION).mockResolvedValue(held);
-      renderHome(withOrchestrator(), fakeApi({ get }));
+      const inventory = vi.fn<ProjectApi["inventory"]>(() =>
+        Promise.resolve({
+          schema_class: "FileInventory",
+          inventory_tool: "dd-inventory",
+          inventory_tool_version: "0.1.0",
+          inventory_made_at: "2026-11-01T09:00:00Z",
+          inventory_files: [],
+        }),
+      );
+      renderHome(withOrchestrator(), fakeApi({ get }), FLOW, { ...httpProjectApi, inventory });
       await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       const panel = screen.getByRole("region", { name: "Project" });
@@ -431,6 +453,12 @@ describe("ConversationHome", () => {
       await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "again");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(await within(panel).findByText("Inventory: 42 files, made 1 Nov 2026")).toBeVisible();
+
+      // The whole inventory opens from the chip, fetched from the project.
+      await userEvent.click(within(panel).getByRole("button", { name: "View inventory" }));
+      const dialog = await screen.findByRole("dialog", { name: "What the inventory holds" });
+      expect(await within(dialog).findByText("The inventory lists no files.")).toBeVisible();
+      expect(inventory).toHaveBeenCalledWith(CONVERSATION.project_id, expect.any(AbortSignal));
     });
 
     it("keeps the conversation working when the phases cannot be loaded", async () => {

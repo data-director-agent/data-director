@@ -1,0 +1,31 @@
+{
+  "name": "@data-director/inventory",
+  "private": true,
+  "version": "0.1.0-alpha.0",
+  "description": "Reading a Data Director FileInventory in TypeScript: parse, summarise, arrange as folders, search and describe (README.md)",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@vitest/coverage-v8": "5.0.5",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.0.5"
+  }
+}

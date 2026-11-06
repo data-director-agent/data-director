@@ -9,6 +9,7 @@
  * run twice (#337).
  */
 
+import type { FileInventory } from "@data-director/inventory";
 import { createContext, useContext } from "react";
 
 import { RunRefused } from "../run/api";
@@ -23,7 +24,7 @@ export interface ConversationApi {
     agentId: string,
     messageText: string,
     follows: string | null,
-    inventory?: Record<string, unknown> | null,
+    inventory?: FileInventory | null,
     signal?: AbortSignal,
   ): Promise<void>;
   list(signal?: AbortSignal): Promise<ConversationSummary[]>;
