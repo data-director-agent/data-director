@@ -98,7 +98,8 @@
       "component": "inventory",
       "release-type": "python",
       "exclude-paths": [
-        "inventory/tests"
+        "inventory/tests",
+        "inventory/browser"
       ]
     }
   }

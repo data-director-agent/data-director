@@ -318,7 +318,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: app/web/package-lock.json
+          cache-dependency-path: |
+            app/web/package-lock.json
+            inventory/browser/package-lock.json
+      # The inventory library the shell links (inventory/browser/README.md): its own lint, types
+      # and tests. The shell compiles its source, so the shell's checks cover it as used.
+      - name: Inventory library
+        working-directory: inventory/browser
+        run: npm ci && npm run lint && npm run typecheck && npm test -- --coverage
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck

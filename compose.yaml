@@ -114,6 +114,7 @@ services:
       target: node
     volumes:
       - ./app/web:/workspace/app/web
+      - ./inventory/browser:/workspace/inventory/browser:ro
       - ./app/config:/workspace/app/config:ro
       - node-modules:/workspace/app/web/node_modules
     command: sh -c "npm ci && npm run build"
@@ -172,6 +173,7 @@ services:
         condition: service_healthy
     volumes:
       - ./app/web:/workspace/app/web
+      - ./inventory/browser:/workspace/inventory/browser:ro
       - ./app/config:/workspace/app/config:ro
       - node-modules:/workspace/app/web/node_modules
     environment:

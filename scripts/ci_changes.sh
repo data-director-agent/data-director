@@ -4,7 +4,7 @@
 # stdin and prints the jobs' outputs:
 #
 #   python=true|false   the Python workspace (ci.yml; the viewer in accessibility.yml)
-#   web=true|false      app/web (ci.yml)
+#   web=true|false      app/web and the inventory library it links, inventory/browser (ci.yml)
 #   deploy=true|false   the NGINX site and the systemd units (ci.yml)
 #   docs=true|false     the documentation site (accessibility.yml, which builds it)
 #   codeql=[...]        the languages CodeQL analyses, as a JSON list (codeql.yml)
@@ -45,7 +45,9 @@ while IFS= read -r f; do
       python=true deploy=true ;;
     # app/tests writes app/web/fixtures and checks that they are current.
     app/web/fixtures/*) python=true web=true ;;
-    app/web/*) web=true ;;
+    # The inventory library's readme is also on the documentation site.
+    inventory/browser/README.md) web=true docs=true ;;
+    app/web/* | inventory/browser/*) web=true ;;
     app/*) python=true web=true ;;
     # CONFORMANCE.md is checked by the test job, and the packages' readmes by twine; all of them
     # are on the site.

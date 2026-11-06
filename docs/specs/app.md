@@ -105,6 +105,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
+    A chip whose whole inventory the page can read, the one attached and the one the project holds
+    now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
+    that says this is everything Data Director keeps and agents are shown, then what the inventory
+    amounts to and leaves out, its formats, its files as folders with a search, and the columns of
+    its tables. A chip for an inventory the project has since replaced has no button, because
+    only the latest is served. The facts come from `@data-director/inventory`
+    ([System and boundaries](system.md)); the dialog only lays them out, and lets nothing be left
+    out yet (TODO(#472))
+    (`app/web/src/components/inventory/InventoryView.test.tsx`, `app/web/e2e/shell.spec.ts`).
 20. **The profile page shows only what the session holds.** `/profile`, reached from the name in
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept. It makes no request to
@@ -116,7 +125,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   are in [System and boundaries](system.md).
 - **Web source layout and import rules.** In `app/web/src`, the domain folders (`run`,
   `manifest`, `conversation`, `flow`, `session`, `project`, `feedback`) hold types and API
-  clients; `components/` holds the interface, one folder per feature, with the shared kit in
+  clients, and reading an inventory is `@data-director/inventory`'s (`inventory/browser/`);
+  `components/` holds the interface, one folder per feature, with the shared kit in
   `components/ui/`. Three rules are checked: no file depends on itself through other files
   (dependency-cruiser, `.dependency-cruiser.cjs`, in `npm run lint`); the kit imports no feature
   component; and a domain folder imports no component (eslint-plugin-boundaries, in
