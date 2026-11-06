@@ -17,7 +17,8 @@
  *
  * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
  * or pasted, which shows as a chip and goes to the conversation's project, never into the text
- * (#443, docs/specs/app.md). A link beside the button says how to make one.
+ * (#443, docs/specs/app.md). Make an inventory, beside the button, opens a dialog that says how
+ * to make one and ends by choosing it (#553).
  */
 
 import {
@@ -35,7 +36,6 @@ import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import {
   type AttachedInventory,
-  INVENTORY_GUIDE,
   NotAnInventory,
   looksLikeInventory,
   readInventory,
@@ -52,6 +52,7 @@ import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
+import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
@@ -159,6 +160,18 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     } catch (e) {
       setAttachError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
     }
+  }
+
+  /**
+   * A file chosen at the end of the Make an inventory dialog. Once it is attached the dialog's
+   * button gives way to the chip, so focus goes to the message box rather than nowhere; if it is
+   * not an inventory, the dialog's button stays and takes the focus back.
+   */
+  async function attachFromDialog(file: File) {
+    await attachFile(file);
+    requestAnimationFrame(() => {
+      if (!document.activeElement || document.activeElement === document.body) box.current?.focus();
+    });
   }
 
   function removeInventory() {
@@ -376,14 +389,19 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   onRemove={removeInventory}
                 />
               ) : (
-                <FileTrigger
-                  acceptedFileTypes={["application/json", ".json"]}
-                  onSelect={(files) => void attachFile(files?.[0])}
-                >
-                  <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
-                </FileTrigger>
+                <>
+                  <FileTrigger
+                    acceptedFileTypes={["application/json", ".json"]}
+                    onSelect={(files) => void attachFile(files?.[0])}
+                  >
+                    <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
+                  </FileTrigger>
+                  <MakeInventoryDialog
+                    isDisabled={busy}
+                    onAttach={(file) => void attachFromDialog(file)}
+                  />
+                </>
               )}
-              <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
             </div>
             {attachError && (
               <p role="alert" className="callout status-danger">

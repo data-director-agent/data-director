@@ -47,6 +47,8 @@ while IFS= read -r f; do
     app/web/fixtures/*) python=true web=true ;;
     # The inventory library's readme is also on the documentation site.
     inventory/browser/README.md) web=true docs=true ;;
+    # How to make an inventory, which the user guide renders too (docs/hooks_inventory.py).
+    inventory/browser/src/making.json) web=true docs=true ;;
     app/web/* | inventory/browser/*) web=true ;;
     app/*) python=true web=true ;;
     # CONFORMANCE.md is checked by the test job, and the packages' readmes by twine; all of them
@@ -57,7 +59,7 @@ while IFS= read -r f; do
     agents/*_prompt.md) python=true ;;
     # The documentation site: docs/hooks.py publishes every other Markdown file, and
     # scripts/check_site_accessibility.py checks the site. The docs job in ci.yml checks links.
-    *.md | docs/guide/* | docs/hooks.py | mkdocs.yml | scripts/check_site_accessibility.py) docs=true ;;
+    *.md | docs/guide/* | docs/hooks.py | docs/hooks_inventory.py | mkdocs.yml | scripts/check_site_accessibility.py) docs=true ;;
     LICENSE | CITATION.cff) ;;
     *) python=true ;;
   esac

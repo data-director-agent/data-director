@@ -10,6 +10,8 @@ on:
     paths:
       - mkdocs.yml
       - docs/hooks.py
+      - docs/hooks_inventory.py
+      - inventory/browser/src/making.json
       - docs/guide/**
       - "**/*.md"
       - .github/workflows/docs.yml

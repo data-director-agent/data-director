@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -155,13 +155,9 @@ describe("ConversationHome", () => {
     const file = (content: string, name = "inventory.json") =>
       new File([content], name, { type: "application/json" });
 
-    it("shows a chosen file as a chip, sends it beside the message, and links to how to make one", async () => {
+    it("shows a chosen file as a chip and sends it beside the message", async () => {
       const sendTurn = vi.fn().mockResolvedValue(undefined);
       const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
-      expect(screen.getByRole("link", { name: "How do I make an inventory?" })).toHaveAttribute(
-        "href",
-        expect.stringContaining("/user-guide/making-an-inventory/"),
-      );
       const input = container.querySelector<HTMLInputElement>('input[type="file"]');
       if (!input) throw new Error("no file input");
       await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
@@ -174,6 +170,22 @@ describe("ConversationHome", () => {
       expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "", null, INVENTORY);
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
       expect(await screen.findByRole("button", { name: "Attach inventory" })).toBeVisible();
+    });
+
+    it("says how to make an inventory, and attaches the file chosen at the end", async () => {
+      renderHome(withOrchestrator(), fakeApi());
+      await userEvent.click(screen.getByRole("button", { name: "Make an inventory" }));
+      const dialog = await screen.findByRole("dialog", { name: "Make an inventory" });
+      expect(within(dialog).getAllByText(/uvx data-director-inventory/).length).toBeGreaterThan(0);
+      const input = dialog.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input in the dialog");
+      await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
+      expect(await screen.findByText(/Inventory: 2 files, made 1 Nov 2026/)).toBeVisible();
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Make an inventory" })).toBeNull();
+      await waitFor(() =>
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus(),
+      );
     });
 
     it("says why a file is not an inventory, and attaches nothing", async () => {
