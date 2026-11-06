@@ -1333,7 +1333,7 @@ dev = [
 
 [[package]]
 name = "data-director-app"
-version = "0.3.0a5"
+version = "0.3.0a6"
 source = { editable = "app" }
 dependencies = [
     { name = "data-director-harness" },
@@ -1426,7 +1426,7 @@ dev = [
 
 [[package]]
 name = "data-director-inventory"
-version = "0.1.0a2"
+version = "0.1.0a3"
 source = { editable = "inventory" }
 dependencies = [
     { name = "frictionless" },

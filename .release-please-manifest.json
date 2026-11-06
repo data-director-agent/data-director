@@ -2,7 +2,7 @@
   "sdk": "0.2.0-alpha.2",
   "harness": "0.2.0-alpha.2",
   "workbench": "0.2.0-alpha.3",
-  "app": "0.3.0-alpha.5",
+  "app": "0.3.0-alpha.6",
   "agents/orchestrator-stub": "0.1.1-alpha.1",
   "agents/example-hello": "0.1.1-alpha.1",
   "agents/advisor-quality": "0.1.1-alpha.1",
@@ -10,5 +10,5 @@
   "agents/orchestrator-model": "0.1.1-alpha.2",
   "agents/advisor-repository": "0.1.0-alpha.2",
   "agents/advisor-policy": "0.1.0-alpha.2",
-  "inventory": "0.1.0-alpha.2"
+  "inventory": "0.1.0-alpha.3"
 }

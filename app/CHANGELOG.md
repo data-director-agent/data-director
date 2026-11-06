@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0-alpha.6](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.5...app-v0.3.0-alpha.6) (2026-11-06)
+
+
+### Features
+
+* **app:** put conversations left, the project right and the activity log on its own page ([0ed2f31](https://github.com/data-director-agent/data-director/commit/0ed2f3118533c0d4d9d20b4c8fa966515f55dd13))
+* **app:** put conversations left, the project right and the activity log on its own page ([93477f9](https://github.com/data-director-agent/data-director/commit/93477f92effb6b51701c851ea7e1fc05194d0d29))
+* **app:** remove the acting for and policy strip from the workspace ([9e6a3f0](https://github.com/data-director-agent/data-director/commit/9e6a3f04166ca0c0eed03f1446e09e59d28af78c))
+* **app:** remove the acting for and policy strip from the workspace ([75d755b](https://github.com/data-director-agent/data-director/commit/75d755b6a6b8b5384b9fd72e7eb4ee23c1d67ba7))
+* **app:** serve a project's inventory for the researcher to read ([46d9e8b](https://github.com/data-director-agent/data-director/commit/46d9e8bd570fdfbc3b04299c2272c918ca301175))
+* **app:** show an inventory in readable form ([e4461f1](https://github.com/data-director-agent/data-director/commit/e4461f1b6314bcdb938cc9a6f5d3f05b1809886c))
+* **app:** show an inventory in readable form ([d38c95d](https://github.com/data-director-agent/data-director/commit/d38c95ddf8a5ded75c85c27f50a23d9e259c6de0))
+
+
+### Bug Fixes
+
+* **app:** say what an agent is given, not where it sends your data ([6be219e](https://github.com/data-director-agent/data-director/commit/6be219eb3bbdd0a83e1a2861258e2391ebe33595))
+* **app:** say what an agent is given, not where it sends your data ([d33153a](https://github.com/data-director-agent/data-director/commit/d33153a95491794cf2589c627dcc408211f89e4a))
+
 ## [0.3.0-alpha.5](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.4...app-v0.3.0-alpha.5) (2026-11-06)
 
 
