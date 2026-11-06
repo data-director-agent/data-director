@@ -30,8 +30,7 @@ for a password, and the app and agents listen on loopback only ([Agents](../docs
 | `systemd/data-director.target` | The app and the agents, started and restarted together. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-agent@.service` | One agent per instance: `@hello`, `@quality`, `@standards`, `@director`, and `@orchestrator` once it has a key. |
-| `systemd/data-director-agent@advisor-standards.service.d/` | The standards advisor's model key, loaded as a systemd credential. |
-| `systemd/data-director-agent@orchestrator-model.service.d/` | The model-backed orchestrator's key, likewise. |
+| `credentials/<agent>.conf` | A drop-in that loads the agent's model key as a systemd credential. `install.sh` installs it only while the key file exists. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
@@ -119,14 +118,21 @@ systemctl list-timers data-director-deploy.timer        # when it next looks
 journalctl -u data-director-deploy -n 50                # what each pass did
 sudo systemctl start data-director-deploy.service       # look now
 journalctl -u data-director -u 'data-director-agent@*' -f   # the app and agents
-readlink /opt/data-director/current                     # which commit is live
+readlink /opt/data-director/current                     # which commit is linked
+curl -s http://127.0.0.1:7860/api/about                 # which commit is running
 sudo htpasswd -B /etc/nginx/data-director.htpasswd NAME # add a user (or change a password)
 ```
 
 `deploy.sh` waits while CI is running, and skips a commit whose CI failed until it passes on a
-re-run. If a release does not answer on `/api/agents` within two minutes of starting, it puts
-the previous release back, records the commit in `failed-commits`, and the deploy unit fails,
-which `systemctl --failed` shows.
+re-run. If the app does not report the new commit on `/api/about` within two minutes of
+starting, it puts the previous release back, records the commit in `failed-commits`, and the
+deploy unit fails, which `systemctl --failed` shows.
+
+`deploy.sh` restarts the services through one sudo rule, `/etc/sudoers.d/data-director`, which
+`install.sh` writes. If the rule is missing, the restart fails, `deploy.sh` puts the link back
+and the deploy unit fails on every pass, while the old release goes on running: the About page
+shows an old commit. Re-run `install.sh` to restore the rule. Where sudoers is managed centrally,
+the rule must be added there, or it will be removed again.
 
 To deploy a commit by hand anyway, or to retry one that failed to start (after removing it from
 `failed-commits`):
@@ -181,8 +187,12 @@ advisor's optional explainer and the model-backed orchestrator, which is not in
 `data-director.target` because it cannot start without a key. The steps to supply a key, turn
 either on, rotate it and read a start-up error are in the operations guide,
 [AI models](../docs/guide/operations/ai-models.md). Each key is loaded as a systemd credential from
-`/etc/data-director/credentials/<name>/`, by the drop-in in
-`systemd/data-director-agent@<name>.service.d/`.
+`/etc/data-director/credentials/<name>/`, by the drop-in `credentials/<name>.conf`.
+
+systemd does not start a unit whose credential file is missing (`status=243/CREDENTIALS`, "Failed
+to set up credentials"). So `install.sh` installs an agent's drop-in only while its key file
+exists, and removes it otherwise. The standards advisor therefore runs without a key, with its
+template explainer. After adding or removing a key, run `install.sh` again.
 
 ## Changing the deployment
 
