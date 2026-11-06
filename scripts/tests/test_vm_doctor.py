@@ -7,6 +7,7 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -64,7 +65,7 @@ class FakeVm(System):
         default_factory=lambda: ["data-director-agent@example-hello.service"]
     )
     tip: str = SHA
-    about: dict[str, object] | None = field(
+    about: dict[str, Any] | None = field(
         default_factory=lambda: {
             "commit": SHA,
             "profile": dict(PROFILE),

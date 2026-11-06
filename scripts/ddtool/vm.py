@@ -115,7 +115,8 @@ class System:
         """The body at `url`, or None if it does not answer with 2xx."""
         try:
             with urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT_S) as response:
-                return response.read().decode("utf-8", errors="replace")
+                body: str = response.read().decode("utf-8", errors="replace")
+                return body
         except OSError:
             return None
 

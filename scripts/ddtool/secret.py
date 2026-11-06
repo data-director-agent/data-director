@@ -23,28 +23,28 @@ SECRET_NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 HEADER = "# This agent's own settings (docs/specs/policy-and-identity.md)."
 
 
-def variable(secret: str) -> str:
+def variable(label: str) -> str:
     """The variable an agent reads a secret's file name from (anthropic-api-key ->
     ANTHROPIC_API_KEY_FILE), as deploy/credentials.sh names it."""
-    return f"{secret.upper().replace('-', '_')}_FILE"
+    return f"{label.upper().replace('-', '_')}_FILE"
 
 
-def secret_file(agent: str, secret: str) -> Path:
+def secret_file(agent: str, label: str) -> Path:
     """Where development keeps an agent's secret."""
-    return paths.CREDENTIALS_DIR / f"{agent}-{secret}"
+    return paths.CREDENTIALS_DIR / f"{agent}-{label}"
 
 
-def _check(agent: str, secret: str) -> None:
+def _check(agent: str, label: str) -> None:
     names = {a.name for a in load_agents()}
     if agent not in names:
         raise DevError(f"no agent {agent!r} in app/config/agents.yaml")
-    if not SECRET_NAME.match(secret):
-        raise DevError(f"{secret!r}: a secret's name is lower-case words joined by hyphens")
+    if not SECRET_NAME.match(label):
+        raise DevError(f"{label!r}: a secret's name is lower-case words joined by hyphens")
 
 
-def _value(agent: str, secret: str) -> str:
+def _value(agent: str, label: str) -> str:
     if sys.stdin.isatty():
-        value = getpass.getpass(f"Value for {secret} of {agent} (not shown): ")
+        value = getpass.getpass(f"Value for {label} of {agent} (not shown): ")
     else:
         value = sys.stdin.read()
     value = value.strip()
@@ -53,21 +53,21 @@ def _value(agent: str, secret: str) -> str:
     return value
 
 
-def dev_set(agent: str, secret: str, value: str | None = None) -> None:
-    _check(agent, secret)
-    value = _value(agent, secret) if value is None else value
-    path = secret_file(agent, secret)
+def dev_set(agent: str, label: str, value: str | None = None) -> None:
+    _check(agent, label)
+    value = _value(agent, label) if value is None else value
+    path = secret_file(agent, label)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     path.touch(mode=0o600)
     path.chmod(0o600)
     path.write_text(value + "\n", encoding="utf-8")
-    update_env(paths.AGENT_ENV_DIR / f"{agent}.env", {variable(secret): path.name}, HEADER)
-    print(f"stored {shown(path)}, named by {variable(secret)} in {agent}'s settings")
+    update_env(paths.AGENT_ENV_DIR / f"{agent}.env", {variable(label): path.name}, HEADER)
+    print(f"stored {shown(path)}, named by {variable(label)} in {agent}'s settings")
 
 
-def dev_remove(agent: str, secret: str) -> None:
-    _check(agent, secret)
-    path = secret_file(agent, secret)
+def dev_remove(agent: str, label: str) -> None:
+    _check(agent, label)
+    path = secret_file(agent, label)
     if not path.exists():
         raise DevError(f"{shown(path)} does not exist")
     path.unlink()
@@ -76,7 +76,7 @@ def dev_remove(agent: str, secret: str) -> None:
         kept = [
             line
             for line in env_file.read_text(encoding="utf-8").splitlines()
-            if line.strip().removeprefix("export ").partition("=")[0].strip() != variable(secret)
+            if line.strip().removeprefix("export ").partition("=")[0].strip() != variable(label)
         ]
         env_file.write_text("\n".join(kept) + "\n", encoding="utf-8")
     print(f"removed {shown(path)}")
