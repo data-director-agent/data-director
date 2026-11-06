@@ -63,6 +63,9 @@ It is built from:
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;
+  - `GET /api/projects`: the projects the person signed in created (until #389), most recently
+    active first, each with its inventory, its documents counted by state and the conversations
+    started in it. The shell draws it at `/projects`, the first item in the main navigation;
   - `GET /api/projects/{id}/documents`: a project's documents, each version with its text and
     state as the project log records it, and the harness's rule for when a decision needs a
     reason. The shell draws it at `/projects/{id}`;

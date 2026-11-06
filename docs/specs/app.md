@@ -185,6 +185,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   fixture keeps it so.
 - **Conversation first.** The Blueprint puts the chat interface first, and a person should not
   have to choose an agent before saying what they need.
+- **Projects first in the navigation, the conversation first on arrival.** The project is the unit
+  of work ([Projects](projects.md)): its conversations, inventory, documents and decisions belong
+  to it, so the projects page (`/projects`) is the first item in the main navigation, and a
+  project's own page is marked as under it. A person still lands on the conversation, and their
+  first message starts a project, so nobody has to make or choose a project before saying what
+  they need. The app starts projects untitled, so the list names each by its first
+  conversation's title. Making the projects page the home, with the conversation inside a project
+  and a way to switch project, waits on starting a conversation in an existing project,
+  TODO(#160).
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
   policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
   each phase's steps and the agents serving them. On the left, the person's conversations, so

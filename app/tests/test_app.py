@@ -59,7 +59,7 @@ from dd_harness.testing import (
 )
 from dd_harness.transport.a2a import DELEGATED_ONLY
 from dd_sdk.agent import Agent
-from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest
+from dd_sdk.contract.models import UUID7_PATTERN, InvocationRequest, Principal
 from dd_sdk.process_flow import ENTRIES, PHASES
 
 # The fixtures (`support.check_fixture`): `agents.json` is the reference set;
@@ -712,6 +712,51 @@ def test_an_inventory_that_is_refused_leaves_no_trace_and_nothing_runs(
     assert list(governance.conductor.store.iter_envelopes()) == []
     assert governance.projects is not None
     assert governance.projects.summary(started["project_id"])["inventory"] is None
+
+
+def test_a_person_sees_the_projects_they_started_with_what_each_holds(
+    in_projects: tuple[Governance, Any],
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    conversation_id = start(client)
+    first = turn(client, conversation_id, "My logger data", inventory=a_file_inventory("a.csv"))
+    assert first.status_code == 200, first.json()
+    project_id = first.json()["envelope"]["project_id"]
+    start(client)  # A project with nothing in it yet is not listed.
+    store = governance.projects
+    assert store is not None
+    # Someone else's project, which holds an inventory, is not theirs to read (#389).
+    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
+    theirs = store.create(acted_for=someone, caused_by="test")
+    store.add_inventory(theirs, a_file_inventory("b.csv"), acted_for=someone, caused_by="test")
+
+    response = client.get("/api/projects")
+    assert response.status_code == 200
+    (listed,) = response.json()
+    assert listed["project_id"] == project_id
+    assert listed["created_by"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    assert listed["inventory"]["file_count"] == 1
+    assert listed["documents"] == {"proposed": 0, "approved": 0, "rejected": 0}
+    # The app starts projects untitled, so the shell names one by its conversations.
+    assert listed["title"] is None
+    (conversation,) = listed["conversations"]
+    assert (conversation["conversation_id"], conversation["title"]) == (
+        conversation_id,
+        "My logger data",
+    )
+    check_fixture("projects.json", normalised_conversation(response.json()))
+
+
+def test_the_projects_page_is_served_and_lists_nothing_without_projects(
+    delegating: tuple[Governance, Any],
+):
+    _governance, app = delegating
+    client = TestClient(app)
+    assert client.get("/api/projects").json() == []
+    page = client.get("/projects")
+    assert page.status_code == 200
+    assert "<title>shell</title>" in page.text
 
 
 def test_an_inventory_needs_a_project_to_keep_it(delegating: tuple[Governance, Any]):
