@@ -126,9 +126,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   TODO(#497) decide them and add them to the dependency-cruiser config.
 - **Conversations and delegation** are specified in [Orchestration](orchestration.md); the app
   supplies the conductor's callback and the conversation API over it. Which agent is the
-  orchestrator is a profile key ([Policy and identity](policy-and-identity.md)). Earlier
-  conversations are listed by the title the harness derives, with the date and turn count beside
-  it; the app writes no title, since it calls no model.
+  orchestrator is a profile key ([Policy and identity](policy-and-identity.md)). A person's
+  conversations are listed beside the open one by the title the harness derives, with the date and
+  turn count beside it, and the open one marked as current; the app writes no title, since it
+  calls no model.
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
   its process, so there is nothing in it to call a model.
@@ -169,9 +170,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   fixture keeps it so.
 - **Conversation first.** The Blueprint puts the chat interface first, and a person should not
   have to choose an agent before saying what they need.
-- **The conversation at the centre of a workspace.** Around it: whom the work acts for and whose
-  policy applies; the Blueprint's six phases; the project's documents and the orchestrator's
-  declared limits; an activity log. Evidence belongs beside the claim it supports
+- **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
+  policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
+  each phase's steps and the agents serving them. On the left, the person's conversations, so
+  that another is one press away; on the right, an overview of the project: its current state
+  (dataset, phase, repository, governance flags), the files attached to it and its documents.
+  The activity log spans runs and conversations, so it is a page of its own in the main
+  navigation. What the orchestrator is and how far to rely on it is on the agents page, not
+  beside every conversation. Evidence belongs beside the claim it supports
   (`docs/ui/best-practices.md` §4), so a delegated run opens in its card. When proposals and a
   review gate exist they take the centre and the conversation docks beside them.
 - **Policy in the profile.** Which agent a person talks to first is a policy choice. The profile

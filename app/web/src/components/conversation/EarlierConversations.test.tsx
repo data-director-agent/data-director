@@ -51,8 +51,23 @@ describe("EarlierConversations", () => {
     expect(screen.getByText("Which licence should I use?")).toBeVisible();
   });
 
-  it("draws nothing when there is no earlier conversation", () => {
-    const { container } = render(<EarlierConversations conversations={[]} onOpen={() => undefined} />);
-    expect(container).toBeEmptyDOMElement();
+  it("says there are none yet, and still offers a new conversation", async () => {
+    const onNew = vi.fn();
+    render(<EarlierConversations conversations={[]} onOpen={() => undefined} onNew={onNew} />);
+    expect(screen.getByText("No conversations yet.")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    expect(onNew).toHaveBeenCalled();
+  });
+
+  it("marks the open conversation as current", () => {
+    render(
+      <EarlierConversations
+        conversations={[summary({ conversation_id: "c1" }), summary({ conversation_id: "c2", turns: 3 })]}
+        currentId="c2"
+        onOpen={() => undefined}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /, 3 turns$/ })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: /, 1 turn$/ })).not.toHaveAttribute("aria-current");
   });
 });

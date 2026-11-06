@@ -1,7 +1,8 @@
 /**
  * The home page: a conversation with the orchestrator (docs/specs/app.md), in the centre of the
- * workspace (§18), with the Blueprint's phases on one side and the project's documents on the
- * other. A delegated run opens inside its card in the transcript (§14).
+ * workspace (§18), with the person's conversations on the left, an overview of the project on the
+ * right and the Blueprint's phases in a strip above. A delegated run opens inside its card in the
+ * transcript (§14).
  *
  * The orchestrator is the agent the profile names (docs/specs/app.md), never one the shell picks.
  * When the profile names none, the named agent is not running, its card does not declare
@@ -29,7 +30,7 @@ import {
   useState,
 } from "react";
 
-import { MessageSquarePlus, Paperclip, SendHorizontal, X } from "lucide-react";
+import { Paperclip, SendHorizontal, X } from "lucide-react";
 import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import {
@@ -46,7 +47,6 @@ import { Link, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
 import { RunRefused, errorMessage } from "../../run/api";
 import type { Envelope } from "../../run/types";
-import { ActivityLog } from "../workspace/ActivityLog";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { StatusBar } from "../workspace/StatusBar";
@@ -121,7 +121,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const frame = {
     status: <StatusBar directory={directory} />,
     phases: <PhaseTracker load={flow} agents={directory.agents} />,
-    log: <ActivityLog />,
   };
 
   if (unusable || !orchestrator) {
@@ -137,7 +136,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             </p>
           </>
         }
-        context={<ContextPanel orchestrator={undefined} />}
+        context={<ContextPanel />}
       />
     );
   }
@@ -236,7 +235,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         void reloadPast();
         setError(
           "Your message was sent and answered, but Data Director could not show the reply " +
-            `(${errorMessage(e)}). Open this conversation from Earlier conversations to see it.`,
+            `(${errorMessage(e)}). Open this conversation from Conversations to see it.`,
         );
         setAnnouncement("");
         return;
@@ -316,9 +315,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           <h2 id="conversation-heading" className="visually-hidden">
             Conversation
           </h2>
-          <p>
-            <Button icon={MessageSquarePlus} onPress={reset}>New conversation</Button>
-          </p>
           {((conversation && conversation.turns.length > 0) || sent !== null) && (
             <Transcript
               conversation={conversation}
@@ -413,10 +409,17 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               <p>{error}</p>
             </div>
           )}
-          <EarlierConversations conversations={past} onOpen={(id) => void reopen(id)} />
         </section>
       }
-      context={<ContextPanel orchestrator={orchestrator} conversation={conversation} />}
+      history={
+        <EarlierConversations
+          conversations={past}
+          currentId={conversationId}
+          onOpen={(id) => void reopen(id)}
+          onNew={reset}
+        />
+      }
+      context={<ContextPanel conversation={conversation} />}
     />
   );
 }

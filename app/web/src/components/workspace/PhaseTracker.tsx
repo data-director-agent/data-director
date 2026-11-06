@@ -3,7 +3,8 @@
  * which of the agents here serve them (docs/specs/orchestration.md). The phases come from the server's process flow
  * and the agents from the manifest; the tracker names no agent of its own.
  *
- * Where the researcher stands in these phases is not known yet: that needs a record of the
+ * Drawn as a strip: the six phases in order, like a progress bar, opening to show each phase's
+ * steps. Where the researcher stands in these phases is not known yet: that needs a record of the
  * project (#160), so it is drawn as not built rather than guessed.
  */
 
@@ -13,7 +14,7 @@ import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { servingIndex, servingStep } from "../../flow/serving";
 import type { ProcessFlow } from "../../flow/types";
-import { NotBuilt } from "../NotBuilt";
+import { IssueLinks } from "../NotBuilt";
 
 export type FlowLoad =
   | { state: "loading" }
@@ -22,16 +23,38 @@ export type FlowLoad =
 
 export function PhaseTracker({ load, agents }: { load: FlowLoad; agents: AgentView[] }) {
   return (
-    <nav aria-labelledby="phases-heading" className="workspace-phases">
-      <h2 id="phases-heading">Data management phases</h2>
-      <NotBuilt title="Where your project is in these phases" issues={[160]} />
+    <nav aria-labelledby="phases-heading" className="workspace-phases phase-strip">
+      <div className="phase-strip-head">
+        <h2 id="phases-heading">Data management phases</h2>
+        <p className="phase-strip-where">
+          Where your project is: <span className="status status-undeclared">Not built yet</span>{" "}
+          (<IssueLinks issues={[160]} />)
+        </p>
+      </div>
       {load.state === "loading" && <p role="status">Loading the phases…</p>}
       {load.state === "failed" && (
         <div role="alert" className="callout status-danger">
           <p>Data Director could not load the data management phases: {load.message}.</p>
         </div>
       )}
-      {load.state === "loaded" && <Phases flow={load.flow} agents={agents} />}
+      {load.state === "loaded" && (
+        <>
+          <ol className="phase-bar" aria-label="The phases in order">
+            {load.flow.phases.map((phase) => (
+              <li key={phase.number} className="phase-bar-segment">
+                <span className="phase-bar-number" aria-hidden="true">
+                  {phase.number}
+                </span>
+                <span className="phase-bar-title">{phase.title}</span>
+              </li>
+            ))}
+          </ol>
+          <details className="phase-strip-details">
+            <summary>Show the steps in each phase and the agents that serve them</summary>
+            <Phases flow={load.flow} agents={agents} />
+          </details>
+        </>
+      )}
     </nav>
   );
 }

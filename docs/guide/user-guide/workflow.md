@@ -130,8 +130,8 @@ the Data Director says "no agent yet", and gives the requirement if the Blueprin
 does not skip the step or do the work itself. The set of steps with an agent depends on which
 agents your deployment has registered, so the list differs between deployments.
 
-The **Blueprint phases** panel in the app shows the same phases and, for each step, the agents
-here that serve it. It does not yet show where your own project has reached in them
+The **Data management phases** strip above the conversation in the app shows the same phases in
+order. Open it to see, for each step, the agents here that serve it. It does not yet show where your own project has reached in them
 (TODO(#160)).
 
 ## What is not covered
