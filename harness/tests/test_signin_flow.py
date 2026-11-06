@@ -61,7 +61,7 @@ def signed_in(sign_in: SignIn, idp: FakeIdentityProvider, sub: str = JOSIAH) -> 
     return asyncio.run(go())
 
 
-def test_the_flow_opens_a_session_for_the_person_who_signed_in():
+def test_the_flow_opens_a_session_for_the_person_who_signed_in() -> None:
     idp = FakeIdentityProvider()
     sign_in = flow(idp, settings_for(idp))
     session_id = signed_in(sign_in, idp)
@@ -70,7 +70,7 @@ def test_the_flow_opens_a_session_for_the_person_who_signed_in():
     assert principal.assurance == "authenticated"
 
 
-def test_a_way_in_names_its_own_callback_and_cookie():
+def test_a_way_in_names_its_own_callback_and_cookie() -> None:
     idp = FakeIdentityProvider()
     settings = settings_for(idp, public_url="https://example.test:8443/", callback_path="/back")
     assert settings.redirect_uri == "https://example.test:8443/back"
@@ -81,7 +81,7 @@ def test_a_way_in_names_its_own_callback_and_cookie():
     assert sign_in.authenticator.session({"cookie": f"dd_other_session={session_id}"}) is not None
 
 
-def test_a_callback_with_another_browsers_state_is_refused():
+def test_a_callback_with_another_browsers_state_is_refused() -> None:
     idp = FakeIdentityProvider()
     sign_in = flow(idp, settings_for(idp))
 
@@ -94,7 +94,7 @@ def test_a_callback_with_another_browsers_state_is_refused():
         asyncio.run(go())
 
 
-def test_a_session_ends_when_idle_and_a_sign_in_when_left():
+def test_a_session_ends_when_idle_and_a_sign_in_when_left() -> None:
     clock = Clock()
     store = SessionStore(idle_s=60, lifetime_s=3600, clock=clock)
     authenticator = SessionAuthenticator(store)
@@ -113,11 +113,11 @@ def test_a_session_ends_when_idle_and_a_sign_in_when_left():
     "value",
     [None, "", "https://evil.example/", "//evil.example/", "/\\evil.example", "agents", "/api/x"],
 )
-def test_signing_in_never_returns_to_another_site(value: str | None):
+def test_signing_in_never_returns_to_another_site(value: str | None) -> None:
     assert safe_return_to(value) == "/"
 
 
-def test_from_env_reads_the_public_url_the_way_in_names(tmp_path: Path):
+def test_from_env_reads_the_public_url_the_way_in_names(tmp_path: Path) -> None:
     idp = FakeIdentityProvider()
     settings = Settings(
         runs_dir=tmp_path,
