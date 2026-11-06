@@ -161,8 +161,8 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
 
 /**
  * Whom runs act for and whose rules apply: the signed-in person and who vouched for them, or on a
- * development server the operator's assertion, and the line says which. On the conversation the
- * workspace's status bar says this.
+ * development server the operator's assertion, and the line says which. The conversation
+ * workspace does not show it.
  */
 function ActingFor({ directory: { actingFor, profileRef } }: { directory: Directory }) {
   return (
