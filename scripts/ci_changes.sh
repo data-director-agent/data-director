@@ -41,7 +41,7 @@ while IFS= read -r f; do
       python=true web=true deploy=true docs=true ;;
     # The NGINX site and the systemd units are checked on their own; the rest of deploy/ is still
     # the Python workspace's.
-    deploy/nginx/* | deploy/systemd/* | deploy/install.sh | scripts/check_nginx.sh | scripts/check_systemd.sh)
+    deploy/nginx/* | deploy/systemd/* | deploy/systemd-lint-baseline.txt | deploy/install.sh | scripts/check_nginx.sh | scripts/check_systemd.sh)
       python=true deploy=true ;;
     # app/tests writes app/web/fixtures and checks that they are current.
     app/web/fixtures/*) python=true web=true ;;

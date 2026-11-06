@@ -34,7 +34,8 @@ it that way: a request that reaches an agent directly carries no sign-in.
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
-| `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify`; run it before changing one. CI runs it. |
+| `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify` and systemdlint; run it before changing one. CI runs it. |
+| `systemd-lint-baseline.txt` | The systemdlint findings accepted, each with its reason. A new finding fails the check; so does a line that no longer matches one. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
 | `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` closed from outside. |
 

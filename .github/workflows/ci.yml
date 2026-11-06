@@ -379,9 +379,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       # systemd-analyze verify over deploy/systemd, against a throwaway root that stands in for
       # /opt/data-director/current and the service user: bad directives and values, missing units
-      # and executables.
+      # and executables. Then systemdlint, whose findings must be in deploy/systemd-lint-baseline.txt.
       - run: bash scripts/check_systemd.sh
 
   # --- Repository ------------------------------------------------------------------------------
