@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.3...agent-orchestrator-model-v0.1.1-alpha.4) (2026-11-07)
+
+
+### Features
+
+* **agents:** lead the loop from the files to a package with both orchestrators ([#630](https://github.com/data-director-agent/data-director/issues/630)) ([22f22e2](https://github.com/data-director-agent/data-director/commit/22f22e2f43f9c582fbcb58e5442dd5ad187a5c1f))
+* **agents:** suggest data dictionary definitions and units as questions ([#638](https://github.com/data-director-agent/data-director/issues/638)) ([05f1330](https://github.com/data-director-agent/data-director/commit/05f133061b033ba066088a10eed9c784a77c0228))
+* **agents:** write readme prose with a model and answer drafter questions ([#627](https://github.com/data-director-agent/data-director/issues/627)) ([764d6ea](https://github.com/data-director-agent/data-director/commit/764d6ea3393ab54eb53843912ea0423fb9f22747))
+* track project progress from process flow logs ([#628](https://github.com/data-director-agent/data-director/issues/628)) ([fc5be95](https://github.com/data-director-agent/data-director/commit/fc5be95bdfe9a3d66c4ed023a04765199973db1a))
+
 ## [0.1.1-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.2...agent-orchestrator-model-v0.1.1-alpha.3) (2026-11-06)
 
 

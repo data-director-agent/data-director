@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-alpha.4](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha.3...inventory-v0.1.0-alpha.4) (2026-11-07)
+
+
+### Features
+
+* **inventory:** detect pyodide runtime and report per-file progress ([#620](https://github.com/data-director-agent/data-director/issues/620)) ([0634caa](https://github.com/data-director-agent/data-director/commit/0634caa87667a6aa4bb9acc906f91397023883dd))
+
 ## [0.1.0-alpha.3](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha.2...inventory-v0.1.0-alpha.3) (2026-11-06)
 
 

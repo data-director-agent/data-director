@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0-alpha.5](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.4...workbench-v0.2.0-alpha.5) (2026-11-07)
+
+
+### Features
+
+* **agents:** draft a readme from the project's approved metadata record ([#617](https://github.com/data-director-agent/data-director/issues/617)) ([281cc59](https://github.com/data-director-agent/data-director/commit/281cc594db577a1517294e429a88b1e35f063d81))
+* **harness:** keep project documentation from hosted models unless the profile allows it ([#634](https://github.com/data-director-agent/data-director/issues/634)) ([a47d148](https://github.com/data-director-agent/data-director/commit/a47d1486706ceaa081b947fe69c3fea17d6ae02b))
+
+
+### Documentation
+
+* split AGENTS.md by package and say "harness", not "workbench" ([#626](https://github.com/data-director-agent/data-director/issues/626)) ([5336385](https://github.com/data-director-agent/data-director/commit/5336385430e05c4dd2be27152620f3a48a453dbb))
+
 ## [0.2.0-alpha.4](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.3...workbench-v0.2.0-alpha.4) (2026-11-06)
 
 

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0-alpha.8](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.7...app-v0.3.0-alpha.8) (2026-11-07)
+
+
+### Features
+
+* **agents:** ask the researcher about each gap in a drafted document ([#602](https://github.com/data-director-agent/data-director/issues/602)) ([bf91107](https://github.com/data-director-agent/data-director/commit/bf911077a941a6a4199d1c0b293d2d26533b4cf7))
+* **agents:** draft a readme from the project's approved metadata record ([#617](https://github.com/data-director-agent/data-director/issues/617)) ([281cc59](https://github.com/data-director-agent/data-director/commit/281cc594db577a1517294e429a88b1e35f063d81))
+* **agents:** suggest data dictionary definitions and units as questions ([#638](https://github.com/data-director-agent/data-director/issues/638)) ([05f1330](https://github.com/data-director-agent/data-director/commit/05f133061b033ba066088a10eed9c784a77c0228))
+* **agents:** write readme prose with a model and answer drafter questions ([#627](https://github.com/data-director-agent/data-director/issues/627)) ([764d6ea](https://github.com/data-director-agent/data-director/commit/764d6ea3393ab54eb53843912ea0423fb9f22747))
+* **app:** browse a project's documents in a list and a reader ([#601](https://github.com/data-director-agent/data-director/issues/601)) ([297ebea](https://github.com/data-director-agent/data-director/commit/297ebeace08b97108e7774ce392d18a3e76872c6))
+* **app:** check an inventory and leave things out before it is attached ([#605](https://github.com/data-director-agent/data-director/issues/605)) ([d275526](https://github.com/data-director-agent/data-director/commit/d2755264c831a9d566d114a97626f3de9f7450be))
+* **app:** show the chosen repository's requirements on the project page ([#642](https://github.com/data-director-agent/data-director/issues/642)) ([b3f0ae1](https://github.com/data-director-agent/data-director/commit/b3f0ae1322e2e4812c206885857ad77709a6fe27))
+* **app:** validate a project and download its deposit package ([#636](https://github.com/data-director-agent/data-director/issues/636)) ([a4e9dce](https://github.com/data-director-agent/data-director/commit/a4e9dce1169f8bca09edc43f63be54ef31e6911b))
+* **app:** work in one project at a time ([#600](https://github.com/data-director-agent/data-director/issues/600)) ([23a3913](https://github.com/data-director-agent/data-director/commit/23a39136afb1421ae2c3012c3bc53fc11b9d1342))
+* **harness:** implement project validation and deposit package building ([#625](https://github.com/data-director-agent/data-director/issues/625)) ([529fea5](https://github.com/data-director-agent/data-director/commit/529fea59de999f95dbf8a75bb4c69f5c402ea388))
+* **harness:** keep project documentation from hosted models unless the profile allows it ([#634](https://github.com/data-director-agent/data-director/issues/634)) ([a47d148](https://github.com/data-director-agent/data-director/commit/a47d1486706ceaa081b947fe69c3fea17d6ae02b))
+* **harness:** resolve a chosen repository from the pinned re3data export ([#633](https://github.com/data-director-agent/data-director/issues/633)) ([6a5d862](https://github.com/data-director-agent/data-director/commit/6a5d862f158f61031adceddd7741bbc8a4e1b3ee))
+* track project progress from process flow logs ([#628](https://github.com/data-director-agent/data-director/issues/628)) ([fc5be95](https://github.com/data-director-agent/data-director/commit/fc5be95bdfe9a3d66c4ed023a04765199973db1a))
+
+
+### Performance Improvements
+
+* **ci:** parallelize CI jobs and improve test assertions ([#621](https://github.com/data-director-agent/data-director/issues/621)) ([c0a53da](https://github.com/data-director-agent/data-director/commit/c0a53da72790e3db30fbf98688948562b7cc7882))
+
 ## [0.3.0-alpha.7](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.6...app-v0.3.0-alpha.7) (2026-11-06)
 
 
