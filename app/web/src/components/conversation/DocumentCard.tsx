@@ -15,7 +15,8 @@ import { useState } from "react";
 import { type DraftedVersion, documentHref } from "../../project/drafted";
 import { Link } from "../../route";
 import { DocumentText } from "../run/result/DocumentText";
-import { STATES, documentName } from "../project/DocumentReview";
+import { documentName } from "../../project/name";
+import { STATES } from "../project/DocumentFacts";
 import { Button } from "../ui/Button";
 
 export function DocumentCard({

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -52,16 +52,42 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
   };
 }
 
-function renderPage(api: ProjectApi) {
+function renderPage(api: ProjectApi, query = "") {
   return render(
     <ProjectApiContext.Provider value={api}>
-      <ProjectPage projectId={PROJECT.project_id} />
+      <ProjectPage projectId={PROJECT.project_id} query={query} />
     </ProjectApiContext.Provider>,
   );
 }
 
+/** `PROJECT` with the README's text and media type replaced, as the given kind of document. */
+function withText(text: string, media_type: string): ProjectDocuments {
+  const version = { ...DRAFT, text, media_type, digest: digestOf(text) };
+  return { ...PROJECT, documents: [{ ...README, versions: [version] }, DICTIONARY] };
+}
+
+/** The README rejected at version 1 and redrafted as version 2, still to be decided. */
+function redrafted(): ProjectDocuments {
+  const text = "# Soil cores\n\nDrafted by a stub.\n";
+  const rejected = {
+    ...DRAFT,
+    state: "rejected" as const,
+    decision: { reason: "No site named.", decided_by: DRAFT.added_by, decided_at: DRAFT.added_at },
+  };
+  const second = { ...DRAFT, version: 2, text, digest: digestOf(text) };
+  return { ...PROJECT, documents: [{ ...README, versions: [rejected, second] }, DICTIONARY] };
+}
+
 async function readme() {
   return screen.findByRole("article", { name: "README" });
+}
+
+/** The page's live region, which says what a decision did; a reader has its own for copying. */
+async function pageStatus() {
+  const regions = await screen.findAllByRole("status");
+  const region = regions.find((element) => !element.closest("article"));
+  if (!region) throw new Error("the page has no live region of its own");
+  return region;
 }
 
 describe("digestOf", () => {
@@ -80,30 +106,163 @@ describe("digestOf", () => {
 });
 
 describe("ProjectPage", () => {
-  it("takes a link to one document to its heading", async () => {
-    history.replaceState(null, "", `/projects/${PROJECT.project_id}#document-${DICTIONARY.document_id}`);
-    try {
-      renderPage(fakeApi());
-      const article = await screen.findByRole("article", { name: "Data dictionary" });
-      expect(article).toHaveAttribute("id", `document-${DICTIONARY.document_id}`);
-      const heading = within(article).getByRole("heading", { level: 2, name: "Data dictionary" });
-      await waitFor(() => expect(heading).toHaveFocus());
-    } finally {
-      history.replaceState(null, "", "/");
-    }
-  });
-
-  it("shows each document's state and text, and decides only on what is undecided", async () => {
+  it("lists the documents by state and opens the first waiting for a decision", async () => {
     const { container } = renderPage(fakeApi());
     const article = await readme();
-    expect(within(article).getByText("Proposed, not reviewed")).toBeVisible();
-    expect(within(article).getByText(/Drafted by a stub/)).toBeVisible();
-    expect(within(article).getByRole("group", { name: "Your decision on version 1" })).toBeVisible();
+    const list = screen.getByRole("navigation", { name: "Documents" });
+    expect(within(list).getByRole("heading", { name: "To review (1)" })).toBeVisible();
+    expect(within(list).getByRole("heading", { name: "Approved (1)" })).toBeVisible();
+    expect(within(list).getByRole("link", { name: /README/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(list).getByRole("link", { name: /Data dictionary/ })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT.project_id}?doc=${DICTIONARY.document_id}`,
+    );
 
-    const dictionary = screen.getByRole("article", { name: "Data dictionary" });
+    expect(await within(article).findByRole("heading", { name: "Untitled dataset" })).toBeVisible();
+    expect(within(article).getByText("Proposed, not reviewed")).toBeVisible();
+    expect(within(article).getByRole("group", { name: "Your decision on version 1" })).toBeVisible();
+    expect(screen.queryByRole("article", { name: "Data dictionary" })).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("opens the document the address names, and decides only on what is undecided", async () => {
+    renderPage(fakeApi(), `doc=${DICTIONARY.document_id}`);
+    const dictionary = await screen.findByRole("article", { name: "Data dictionary" });
     expect(within(dictionary).getByText("Approved")).toBeVisible();
     expect(within(dictionary).queryByRole("group")).not.toBeInTheDocument();
+  });
+
+  it("says so when the address names a document the project does not hold", async () => {
+    renderPage(fakeApi(), "doc=nonesuch");
+    expect(await screen.findByText(/That document is not in this project/)).toBeVisible();
+    expect(screen.getByRole("navigation", { name: "Documents" })).toBeVisible();
+  });
+
+  it("names the page after the project", async () => {
+    const summary = {
+      project_id: PROJECT.project_id,
+      title: "River loggers",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+    };
+    renderPage(fakeApi({ projects: () => Promise.resolve([summary]) }));
+    expect(await screen.findByRole("heading", { level: 1, name: "River loggers" })).toBeVisible();
+  });
+
+  it("shows the stored text exactly in the Source tab", async () => {
+    const user = userEvent.setup();
+    renderPage(fakeApi());
+    const article = await readme();
+    await user.click(within(article).getByRole("tab", { name: "Source" }));
+    const panel = within(article).getByRole("tabpanel");
+    expect(panel.querySelector("pre")?.textContent).toBe(DRAFT.text);
+  });
+
+  it("previews a data dictionary as a table", async () => {
+    renderPage(fakeApi(), `doc=${DICTIONARY.document_id}`);
+    const dictionary = await screen.findByRole("article", { name: "Data dictionary" });
+    const table = await within(dictionary).findByRole("table", { name: "Data dictionary" });
+    expect(within(table).getByRole("columnheader", { name: "description" })).toBeVisible();
+    expect(within(table).getByRole("cell", { name: "Drafted by a stub." })).toBeVisible();
+  });
+
+  it("previews JSON indented, and shows it as stored if it cannot be read", async () => {
+    const json = withText('{"title":"Soil"}', "application/json");
+    const { unmount } = renderPage(fakeApi({ documents: () => Promise.resolve(json) }));
+    let article = await readme();
+    expect(await within(article).findByText(/"title": "Soil"/)).toBeVisible();
+    unmount();
+
+    const broken = withText("{not json", "application/json");
+    renderPage(fakeApi({ documents: () => Promise.resolve(broken) }));
+    article = await readme();
+    expect(await within(article).findByText(/could not be read as JSON/)).toBeVisible();
+    expect(within(article).getByText("{not json")).toBeVisible();
+  });
+
+  it("previews the person's edit before they approve it", async () => {
+    const user = userEvent.setup();
+    renderPage(fakeApi());
+    const article = await readme();
+    await user.click(within(article).getByLabelText("Edit it, then approve my version"));
+    const edited = within(article).getByLabelText("Your version of the text");
+    await user.clear(edited);
+    await user.type(edited, "# Soil cores");
+    expect(within(article).getByText(/The preview shows your edited version/)).toBeVisible();
+    expect(within(article).getByRole("heading", { name: "Soil cores" })).toBeVisible();
+
+    await user.click(within(article).getByLabelText("Approve version 1 as it is"));
+    expect(within(article).getByRole("heading", { name: "Untitled dataset" })).toBeVisible();
+  });
+
+  it("lists every version, with what each changed", async () => {
+    const user = userEvent.setup();
+    renderPage(fakeApi({ documents: () => Promise.resolve(redrafted()) }));
+    const article = await readme();
+    await user.click(within(article).getByRole("tab", { name: "Versions (2)" }));
+    const panel = within(article).getByRole("tabpanel");
+    expect(within(panel).getByText("Version 2 (shown)")).toBeVisible();
+    expect(within(panel).getByRole("link", { name: "Version 1" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT.project_id}?doc=${README.document_id}&v=1`,
+    );
+    expect(within(panel).getByText("No site named.")).toBeVisible();
+
+    await user.click(within(panel).getByText("Changes from version 1"));
+    expect(panel.querySelector("del")).toHaveTextContent("Untitled dataset");
+    expect(panel.querySelector("ins")).toHaveTextContent("Soil cores");
+    expect(within(panel).getByText("1 line added, 1 line removed.")).toBeVisible();
+  });
+
+  it("shows an earlier version read-only, with a way back to the latest", async () => {
+    renderPage(
+      fakeApi({ documents: () => Promise.resolve(redrafted()) }),
+      `doc=${README.document_id}&v=1`,
+    );
+    const article = await readme();
+    expect(within(article).getByText(/This is version 1, kept as it was/)).toBeVisible();
+    expect(within(article).getByRole("link", { name: "Read the latest version" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT.project_id}?doc=${README.document_id}`,
+    );
+    expect(within(article).getByText("Rejected")).toBeVisible();
+    expect(within(article).queryByRole("group")).not.toBeInTheDocument();
+  });
+
+  it("shows how generative AI was used as the list's last entry", async () => {
+    const { container } = renderPage(fakeApi(), "doc=disclosure");
+    expect(await screen.findByRole("heading", { name: "Use of generative AI" })).toBeVisible();
+    expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("offers the next document to review once one is decided", async () => {
+    const waiting = {
+      ...DICTIONARY,
+      versions: [{ ...at(DICTIONARY.versions, 0), state: "proposed" as const, decision: null }],
+    };
+    const both = { ...PROJECT, documents: [README, waiting] };
+    const approved = decided("approved");
+    const after = { ...approved, documents: [at(approved.documents, 0), waiting] };
+    const user = userEvent.setup();
+    renderPage(
+      fakeApi({ documents: () => Promise.resolve(both), decide: () => Promise.resolve(after) }),
+    );
+    const article = await readme();
+    await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+    const said = await screen.findByText(/README: version 1 approved/);
+    expect(said).toHaveTextContent("README: version 1 approved. Next to review: Data dictionary");
+    expect(within(said).getByRole("link", { name: "Data dictionary" })).toHaveAttribute(
+      "href",
+      `/projects/${PROJECT.project_id}?doc=${DICTIONARY.document_id}`,
+    );
   });
 
   it("approves as drafted without asking for a reason, naming the text shown", async () => {
@@ -119,7 +278,7 @@ describe("ProjectPage", () => {
       digest: DRAFT.digest,
       decision: "approved",
     });
-    expect(await screen.findByRole("status")).toHaveTextContent("README: version 1 approved.");
+    expect(await pageStatus()).toHaveTextContent("README: version 1 approved.");
     expect(within(article).getByText("Approved")).toBeVisible();
     expect(within(article).queryByRole("group")).not.toBeInTheDocument();
     // The form has gone, so the focus goes to the document it was about.
@@ -142,7 +301,7 @@ describe("ProjectPage", () => {
     await user.type(reason, "No site named.");
     await user.click(within(article).getByRole("button", { name: "Reject version 1" }));
     expect(decide.mock.lastCall?.[2]).toMatchObject({ decision: "rejected", reason: "No site named." });
-    expect(await screen.findByRole("status")).toHaveTextContent("README: version 1 rejected.");
+    expect(await pageStatus()).toHaveTextContent("README: version 1 rejected.");
     expect(within(article).getByText("No site named.")).toBeVisible();
   });
 
@@ -167,7 +326,7 @@ describe("ProjectPage", () => {
       reason: "Named it.",
       edited_text: "# Soil cores",
     });
-    expect(await screen.findByRole("status")).toHaveTextContent(
+    expect(await pageStatus()).toHaveTextContent(
       "README: your edited version 2 approved.",
     );
   });
@@ -207,7 +366,8 @@ describe("ProjectPage", () => {
     expect(alert).toHaveTextContent("Version 1 is not the latest: version 2 is.");
     expect(alert).toHaveTextContent("could not read the latest version: The network is down.");
     expect(alert).toHaveFocus();
-    expect(screen.getByRole("article", { name: "Data dictionary" })).toBeVisible();
+    expect(within(article).getByRole("heading", { name: "Untitled dataset" })).toBeVisible();
+    expect(screen.getByRole("link", { name: /Data dictionary/ })).toBeVisible();
   });
 
   it("gives an edit of a CRLF document its CRLF line endings back", async () => {

@@ -175,18 +175,23 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
   otherwise with its line breaks kept, with actions to copy the text and download it as a file.
-  The project's documents page shows the stored text unrendered, since that is what a decision
-  names.
+  The project's documents page lists the documents beside a reader, those waiting for a decision
+  first, with the one open named in the address (`?doc=`, and `&v=` for an earlier version). The
+  reader previews a document by its media type (Markdown rendered, CSV as a table, JSON
+  indented), and its Source tab shows the stored text exactly, since that is what a decision names
+  by its digest and what the deposit package holds. Its Versions tab shows each version's
+  decision and the lines it changed from the one before. While a person edits, the preview shows
+  their version.
 - **A drafted document is shown on the turn that drafted it.** The workspace reads the project's
   documents (`GET /api/projects/{id}/documents`) when the conversation's project is known and
   again after each turn. A version whose `drafted_by.invocation_id` is the turn's invocation or
   one of its delegated children's is a card on that turn, after the reply and before the
   delegated runs. The card names the document, its version and the state the project log records
   (and says when a later version has replaced it). It has a preview, closed at first, drawn as a
-  run's result is, and a link to the document on the documents page (`#document-{id}`), which
-  focuses its heading. The new reply's announcement says what the turn drafted. The side bar
-  lists every document of the project with its latest version's state and says how many await a
-  decision. A decision is made only on the documents page.
+  run's result is, and a link that opens the document on the documents page (`?doc={id}`). The
+  new reply's announcement says what the turn drafted. The side bar lists every document of the
+  project with its latest version's state and says how many await a decision. A decision is made
+  only on the documents page.
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a

@@ -40,12 +40,7 @@ export function draftedBy(
   });
 }
 
-/** The element id a document has on its project's documents page, so that it can be linked to. */
-export function documentAnchor(documentId: string): string {
-  return `document-${documentId}`;
-}
-
-/** Where a document is reviewed: its place on the project's documents page. */
+/** Where a document is reviewed: open in the reader on the project's documents page. */
 export function documentHref(projectId: string, documentId: string): string {
-  return `/projects/${encodeURIComponent(projectId)}#${documentAnchor(documentId)}`;
+  return `/projects/${encodeURIComponent(projectId)}?doc=${encodeURIComponent(documentId)}`;
 }

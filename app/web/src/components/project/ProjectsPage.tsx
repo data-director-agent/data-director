@@ -14,6 +14,7 @@ import { MessageSquarePlus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { type ProjectSummary, useProjectApi } from "../../project/api";
+import { day, projectName } from "../../project/name";
 import { Link } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 
@@ -22,20 +23,8 @@ type Load =
   | { state: "failed"; message: string }
   | { state: "loaded"; value: ProjectSummary[] };
 
-function day(at: string): string {
-  const date = new Date(at);
-  return Number.isNaN(date.getTime()) ? at : date.toLocaleDateString([], { dateStyle: "medium" });
-}
-
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
-}
-
-/** A project's name: its title, else its first conversation's, else when it was started. */
-export function projectName(project: ProjectSummary): string {
-  if (project.title) return project.title;
-  const first = project.conversations[project.conversations.length - 1];
-  return first?.title || `Project started ${day(project.created_at)}`;
 }
 
 function Holds({ project }: { project: ProjectSummary }) {

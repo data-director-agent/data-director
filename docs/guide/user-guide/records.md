@@ -57,6 +57,13 @@ most recently first. Each is named after its first conversation, and says how ma
 inventory describes and how many of its documents are waiting for you to review. Select one to
 read its documents and decide on them.
 
+A project's page lists its documents on the left, those waiting for you first, and opens the one
+you choose beside them. **Preview** shows the document laid out, with a data dictionary as a
+table. **Source** shows the exact text your decision is on, which is what goes into the deposit
+package. **Versions** lists each earlier version, what was decided on it and why, and what each
+version changed. Your decision form is under the document. If you edit the text, the preview
+shows your version before you approve it.
+
 ## Where you can see it
 
 - **After a run**, the page shows the stages it went through, the outcome, the result and the

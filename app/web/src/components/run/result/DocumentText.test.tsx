@@ -4,7 +4,7 @@ import { axe } from "jest-axe";
 
 import type { JsonSchema } from "../../../run/schema";
 import { ResultView } from "../ResultView";
-import { fileName } from "./DocumentText";
+import { fileName } from "../../../project/media";
 
 // The parts of the contract's Document that the result view reads.
 const SCHEMA: JsonSchema = {

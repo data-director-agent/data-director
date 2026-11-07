@@ -19,7 +19,7 @@ import "./ResultView.css";
 import type { Derivation } from "../../manifest/normalise";
 import { type JsonSchema, properties, shapeOf } from "../../run/schema";
 import type { EvidenceItem } from "../../run/types";
-import { documentName } from "../project/DocumentReview";
+import { documentName } from "../../project/name";
 import { isEmpty, makeContext, recorders } from "./result/context";
 import { DocumentText } from "./result/DocumentText";
 import { Facts } from "./result/Facts";

@@ -206,7 +206,8 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
     sent.push(route.request().postDataJSON());
     return route.fulfill({ status: 201, json: rejected });
   });
-  await page.goto(`/projects/${project.project_id}`);
+  // At 320px the list comes first, so the README is opened by its address, as a link to it would.
+  await page.goto(`/projects/${project.project_id}?doc=${readme.document_id}`);
   const article = page.getByRole("article", { name: "README" });
   await expect(article.getByText("Proposed, not reviewed")).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -221,7 +222,10 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("status")).toContainText("README: version 1 rejected.");
+  // The reader has a live region of its own, for copying, so the page's is found by what it says.
+  await expect(page.getByRole("status").filter({ hasText: "README:" })).toContainText(
+    "README: version 1 rejected.",
+  );
   await expect(article.getByRole("heading", { name: "README" })).toBeFocused();
   expect(sent).toEqual([
     { version: 1, digest: draft.digest, decision: "rejected", reason: "No site named." },
@@ -452,10 +456,10 @@ test("a drafted document is a card on its turn and a row in the side bar, by key
   const panel = page.getByRole("region", { name: "Project" });
   await expect(panel.getByRole("heading", { name: "Documents · 1 to review" })).toBeVisible();
 
-  // Review leads to the document's place on the project's page, with its heading focused.
+  // Review opens the document in the project's reader.
   await readme.getByRole("link", { name: "Review and approve README" }).click();
-  await expect(page).toHaveURL(new RegExp(`/projects/[^#]+#document-${project.documents[0]?.document_id}$`));
-  await expect(page.getByRole("heading", { level: 2, name: "README" })).toBeFocused();
+  await expect(page).toHaveURL(new RegExp(`/projects/[^?]+\\?doc=${project.documents[0]?.document_id}$`));
+  await expect(page.getByRole("heading", { level: 2, name: "README" })).toBeVisible();
 });
 
 test("the directory is a page: reachable from the navigation, survives a reload, and Back leaves it", async ({
@@ -495,7 +499,16 @@ test("Projects comes first in the navigation, lists the projects at 320px, and o
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 
   await first.click();
-  await expect(page.getByRole("heading", { name: "Project documents" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "My logger data" })).toBeVisible();
+  // At 320px the list and the reader take turns: the list first, then the document chosen.
+  const documents = page.getByRole("navigation", { name: "Documents" });
+  await documents.getByRole("link", { name: /README/ }).click();
+  await expect(page.getByRole("article", { name: "README" })).toBeVisible();
+  await expect(documents).toBeHidden();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  await page.getByRole("link", { name: "All documents" }).click();
+  await expect(documents).toBeVisible();
   // A project's own page is under Projects.
   await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
   await page.getByRole("link", { name: "All projects" }).click();
