@@ -35,7 +35,6 @@ from dd_sdk.contract.models import (
 )
 
 DICTIONARY = "soil-survey.data-dictionary.draft.json"
-WORKBENCH = Path(__file__).resolve().parents[3] / "workbench" / "samples"
 
 
 def suggestible(document: Document) -> list[DocumentQuestion]:
@@ -208,7 +207,9 @@ def test_in_a_project_a_suggestion_counts_only_once_a_person_records_it(
     dictionary holds none of them, and confirming one in the project fills its cell as supplied."""
     projects = ProjectStore(tmp_path / "projects")
     project = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
-    inventory = json.loads((WORKBENCH / "soil-survey.inventory.json").read_text(encoding="utf-8"))
+    given = sample(DICTIONARY).inventory
+    assert given is not None
+    inventory = given.model_dump(mode="json", exclude_none=True)
     projects.add_inventory(project, inventory, acted_for=TEST_PRINCIPAL, caused_by="test")
     conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
 
