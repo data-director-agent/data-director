@@ -17,7 +17,13 @@ from typing import Any, Protocol
 from dd_harness.projects import Decision
 from dd_harness.requirements import Resolved
 from dd_sdk.contract.classes import ClassSchema
-from dd_sdk.contract.models import DocumentVersionRef, Envelope, Principal
+from dd_sdk.contract.models import (
+    DocumentKind,
+    DocumentVersionRef,
+    DraftAnswer,
+    Envelope,
+    Principal,
+)
 
 # The artifacts the conductor keeps with each run.
 SPANS = "spans.jsonl"  # the OpenTelemetry trace the grounding linter checked
@@ -105,9 +111,9 @@ class ProjectStorage(Protocol):
 
     1. A project's log is append-only: an event is never changed or removed, and events come
        back in the order they were appended.
-    2. A change checked against the log (`edit`, `decide`, `record_draft`) reads the log and
-       appends its events as one atomic step for that project: no other change to the project
-       comes between. The file backend holds a per-project lock; a database would use a
+    2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`) reads the
+       log and appends its events as one atomic step for that project: no other change to the
+       project comes between. The file backend holds a per-project lock; a database would use a
        transaction or a conditional insert. Events a change writes together (an edit and its
        approval) are kept together or not at all.
     3. Projects do not wait on one another.
@@ -182,8 +188,27 @@ class ProjectStorage(Protocol):
         """Record a person's decision on the latest version."""
         ...
 
+    def answer(
+        self,
+        project_id: str,
+        document_id: str,
+        version: int,
+        answers: list[DraftAnswer],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> DocumentVersionRef:
+        """Record a person's answers to questions the latest version asks."""
+        ...
+
+    def answers(self, project_id: str, document_kind: DocumentKind) -> list[dict[str, Any]] | None:
+        """The latest answer to each question of the documents of `document_kind`, as
+        `DraftAnswer`s, or None."""
+        ...
+
     def documents(self, project_id: str) -> list[dict[str, Any]]:
-        """Each document of the project, with every version and its text."""
+        """Each document of the project, with every version and its text, and the answers
+        given to its questions."""
         ...
 
     def events(self, project_id: str) -> list[dict[str, Any]]:

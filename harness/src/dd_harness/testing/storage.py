@@ -27,6 +27,7 @@ from dd_harness.projects import (
     APPROVED,
     CONVERSATION_STARTED,
     DOCUMENT_CHANGE_REFUSED,
+    DOCUMENT_QUESTION_ANSWERED,
     DOCUMENT_VERSION_DECIDED,
     INVENTORY_ADDED,
     PACKAGE_BUILT,
@@ -36,18 +37,20 @@ from dd_harness.projects import (
     ChangeRefusedError,
     Decision,
     ProjectError,
+    Refusal,
     UnknownProjectError,
     Verdict,
     text_digest,
 )
 from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.testing.classes import ProbeClaim
-from dd_harness.testing.doubles import DocumentStub
+from dd_harness.testing.doubles import STUB_QUESTION, DocumentStub
 from dd_harness.testing.fixtures import TEST_PRINCIPAL, document_request, request
 from dd_harness.testing.serving import make_conductor
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     DocumentKind,
+    DraftAnswer,
     DraftRequest,
     Envelope,
     FileInventory,
@@ -261,11 +264,11 @@ def drafted_readme() -> Envelope:
     return drafted(DocumentKind.README)
 
 
-def drafted(kind: DocumentKind) -> Envelope:
+def drafted(kind: DocumentKind, *, asks: bool = False) -> Envelope:
     """A succeeded run whose payload is a first draft of a document of `kind`, from the document
-    stub run through a conductor of its own."""
+    stub run through a conductor of its own. With `asks`, the draft asks `STUB_QUESTION`."""
     with tempfile.TemporaryDirectory(prefix="dd-storage-check-") as runs:
-        conductor = make_conductor(Path(runs), DocumentStub())
+        conductor = make_conductor(Path(runs), DocumentStub(asks=asks))
         return conductor.invoke(
             request("stub.document", document_request(kind)), acting_for=TEST_PRINCIPAL
         )
@@ -497,6 +500,80 @@ def check_a_report_and_a_package_are_kept_by_digest(make: MakeProjectStorage) ->
         )
 
 
+def check_answers_stand_until_answered_again(make: MakeProjectStorage) -> None:
+    """A person answers the latest version's questions. An answer to another version, or to a
+    question it does not ask, is refused and recorded; a malformed one records nothing. The
+    latest answer to a question stands across versions and documents, and only for its kind."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    asked = STUB_QUESTION.question_id
+    assert store.answers(project_id, DocumentKind.README) is None
+    ref = store.record_draft(project_id, drafted(DocumentKind.README, asks=True))
+
+    def answer(text: str, version: int = 1, question: str = asked) -> None:
+        given = [DraftAnswer(answered_question=question, answer_text=text)]
+        store.answer(
+            project_id, ref.document_id, version, given, acted_for=TEST_PRINCIPAL, caused_by="check"
+        )
+
+    for malformed in ("   ", "x" * 10_000):
+        with _raises(ProjectError, f"the answer {malformed[:5]!r}"):
+            answer(malformed)
+    twice = [DraftAnswer(answered_question=asked, answer_text="a")] * 2
+    with _raises(ProjectError, "a question answered twice"):
+        store.answer(
+            project_id, ref.document_id, 1, twice, acted_for=TEST_PRINCIPAL, caused_by="check"
+        )
+    assert [e["event"] for e in store.events(project_id)][-1] != DOCUMENT_CHANGE_REFUSED
+
+    for version, question, refusal in (
+        (2, asked, Refusal.NOT_LATEST),
+        (1, "q-" + "1" * 16, Refusal.NOT_ASKED),
+    ):
+        try:
+            answer("Soil", version, question)
+        except ChangeRefusedError as refused:
+            assert refused.refusal == refusal
+        else:
+            raise AssertionError(f"an answer refused as {refusal} was recorded")
+        assert store.events(project_id)[-1]["event"] == DOCUMENT_CHANGE_REFUSED
+
+    answer("  Soil cores  ")
+    answer("Soil cores from two fields")
+    answered = store.events(project_id)[-1]
+    assert answered["event"] == DOCUMENT_QUESTION_ANSWERED
+    assert answered["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    expected = [{"answered_question": asked, "answer_text": "Soil cores from two fields"}]
+    assert make("projects").answers(project_id, DocumentKind.README) == expected
+    (document,) = store.documents(project_id)
+    assert [(a["question_id"], a["version"]) for a in document["answers"]] == [(asked, 1)]
+    assert store.answers(project_id, DocumentKind.DATA_DICTIONARY) is None
+
+    # A person's edit asks nothing, but the answers still stand for the next draft.
+    (document,) = store.documents(project_id)
+    store.edit(
+        project_id,
+        ref.document_id,
+        1,
+        document["versions"][-1]["digest"],
+        "# Edited\n",
+        acted_for=TEST_PRINCIPAL,
+        caused_by="check",
+    )
+    assert store.answers(project_id, DocumentKind.README) == expected
+
+    # A redraft is a document of its own until it names the version it revises: the answers
+    # outlive the document they were given to, and the latest answer to a question stands.
+    newer = store.record_draft(project_id, drafted(DocumentKind.README, asks=True))
+    assert store.answers(project_id, DocumentKind.README) == expected
+    given = [DraftAnswer(answered_question=asked, answer_text="Topsoil cores")]
+    store.answer(
+        project_id, newer.document_id, 1, given, acted_for=TEST_PRINCIPAL, caused_by="check"
+    )
+    latest = [{"answered_question": asked, "answer_text": "Topsoil cores"}]
+    assert store.answers(project_id, DocumentKind.README) == latest
+
+
 PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "the log is append-only and the latest inventory wins": (
         check_the_log_is_append_only_and_the_latest_inventory_wins
@@ -513,6 +590,7 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
         check_the_metadata_record_is_the_one_approved_last
     ),
     "a report and a package are kept by digest": check_a_report_and_a_package_are_kept_by_digest,
+    "answers stand until answered again": check_answers_stand_until_answered_again,
 }
 
 

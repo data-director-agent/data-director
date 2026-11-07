@@ -55,7 +55,10 @@ one question in `document_questions` for each README section left for the resear
 which the rendered README does not show. A question's identifier is derived from its gap, so the
 same gap has the same identifier in every version. An answer in the request's `draft_answers` is
 placed, as given, in the gap or cell it answers, marked `supplied` in a data dictionary, and that
-gap is not asked again. The editor suggests no answers (#574).
+gap is not asked again. In a project, the researcher answers the questions on the draft's card in
+the conversation; the harness records each answer and the conductor fills the recorded answers
+into the next request, replacing any a caller sent, so only a person's answer is ever placed as
+`supplied` (`tests/test_answers_in_a_project.py`). The editor suggests no answers (#574).
 
 The README's sections are the common core of the research data README templates compared in
 #200: Cornell's Data README, Dryad's and the Borealis working group's minimum README.

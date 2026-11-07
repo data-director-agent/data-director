@@ -4,7 +4,9 @@
  * version and the state the project log records, and says when a later version has replaced it.
  * Its preview, closed at first, shows the text as a run's result does, with copy and download.
  * Deciding on the version is done on the project's documents page, which the card links to, so
- * that there is one place where a decision is made, with its rules.
+ * that there is one place where a decision is made, with its rules. While the version is its
+ * document's latest, the card puts its open questions to the researcher, a few at a time
+ * (`DocumentQuestions`, docs/specs/drafting.md).
  */
 
 import "./DocumentCard.css";
@@ -12,22 +14,28 @@ import "./DocumentCard.css";
 import { ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { useState } from "react";
 
+import type { ProjectDocuments } from "../../project/api";
 import { type DraftedVersion, documentHref } from "../../project/drafted";
 import { Link } from "../../route";
 import { DocumentText } from "../run/result/DocumentText";
 import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
 import { Button } from "../ui/Button";
+import { DocumentQuestions } from "./DocumentQuestions";
 
 export function DocumentCard({
   projectId,
   drafted,
   idPrefix,
+  onAnswered,
 }: {
   projectId: string;
   drafted: DraftedVersion;
   /** Unique within the page, for the preview's ids. */
   idPrefix: string;
+  /** Called with the project's documents after the researcher answers; without it, the card
+   * asks nothing. */
+  onAnswered?: (value: ProjectDocuments) => void;
 }) {
   const { document, version, latest } = drafted;
   const [open, setOpen] = useState(false);
@@ -83,6 +91,15 @@ export function DocumentCard({
           />
         )}
       </div>
+      {onAnswered && latest.version === version.version && (
+        <DocumentQuestions
+          projectId={projectId}
+          document={document}
+          version={version}
+          name={name}
+          onAnswered={onAnswered}
+        />
+      )}
     </li>
   );
 }

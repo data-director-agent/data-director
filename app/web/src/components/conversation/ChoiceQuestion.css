@@ -11,6 +11,10 @@
     background: var(--color-surface);
   }
 
+  .document-questions textarea {
+    width: 100%;
+  }
+
   .choice-question .field-check {
     align-items: flex-start;
     margin-block: var(--space-2);

@@ -17,7 +17,10 @@ the conversations started in it (docs/specs/projects.md, docs/specs/app.md).
 `GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
-answers `409` if that version is no longer the latest or undecided (docs/specs/projects.md).
+answers `409` if that version is no longer the latest or undecided (docs/specs/projects.md);
+`POST /api/projects/{id}/documents/{document_id}/answers` records the person's answers to questions
+the latest version asks, for the next draft to place as supplied, and answers `409` if that
+version is no longer the latest or does not ask them (docs/specs/drafting.md).
 `GET /api/projects/{id}/inventory` is the inventory the project holds, as it was added, for the
 researcher to read; it answers `404` when there is none.
 `GET /api/projects/{id}/disclosure` says how each approved document came about and what
@@ -105,6 +108,7 @@ PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 
 FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
+ANSWERS_REFUSED = "Data Director could not record these answers"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -378,6 +382,43 @@ def build_app(
         found = await run_in_threadpool(documents.view, store, project_id)
         return JSONResponse({**found, "decided": decided.model_dump()}, status_code=201)
 
+    async def answer(request: Request, answerer: Principal) -> Response:
+        # Who answered is whom the authenticator names, never the body (docs/specs/drafting.md).
+        project_id = request.path_params["project_id"]
+        document_id = request.path_params["document_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", ANSWERS_REFUSED)
+        try:
+            version, answers = documents.parse_answers(document_id, body)
+        except documents.DecisionRequestError as exc:
+            return _refused(str(exc), ANSWERS_REFUSED)
+        try:
+            answered = await run_in_threadpool(
+                lambda: store.answer(
+                    project_id,
+                    document_id,
+                    version,
+                    answers,
+                    acted_for=answerer,
+                    caused_by=f"POST {request.url.path}",
+                )
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ChangeRefusedError as exc:
+            if exc.refusal is Refusal.NO_DOCUMENT:
+                return _problem(404, exc.refusal.value, "No such document", exc.detail)
+            return _problem(409, exc.refusal.value, "The document has moved on", exc.detail)
+        except ProjectError as exc:
+            return _refused(str(exc), ANSWERS_REFUSED)
+        found = await run_in_threadpool(documents.view, store, project_id)
+        return JSONResponse({**found, "answered": answered.model_dump()}, status_code=201)
+
     async def list_examples(request: Request, _: Principal) -> Response:
         return JSONResponse(examples(examples_dir))
 
@@ -574,6 +615,11 @@ def build_app(
             Route(
                 "/api/projects/{project_id}/documents/{document_id}/decisions",
                 signed_in(decide),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/documents/{document_id}/answers",
+                signed_in(answer),
                 methods=["POST"],
             ),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),

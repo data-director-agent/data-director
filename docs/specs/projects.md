@@ -34,7 +34,9 @@ What is built: the project log with its creation (with an optional title), inven
 choice and conversation-start events, and a summary of each project, reached through the
 `dd-harness project` command; the conductor taking a run's project from its conversation, giving
 an agent the project's facts and recording its draft; document versions and a person's decision on each,
-which the app shows and takes at `/projects/{project_id}`; the app's list of a person's projects
+which the app shows and takes at `/projects/{project_id}`; a person's answers to a draft's
+questions, taken on the draft's card in the conversation and given to the next draft
+([Drafting documents](drafting.md)); the app's list of a person's projects
 at `/projects` (`GET /api/projects`), which shows only the projects they created until membership
 and the access check exist, TODO(#389), and leaves out a project with nothing in it yet; the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
@@ -73,10 +75,12 @@ intended design, and each part says where it is not built yet.
    project store, and refers to a data file by path and digest. An inventory's stored digest is
    already its `dd-input-json-v1` input hash. Today the conductor fills three core classes
    (`dd_harness.project_facts`, `harness/tests/test_project_runs.py`). In a project, a
-   `DraftRequest`'s `inventory`, `requirements` and `metadata_record` are the project's,
+   `DraftRequest`'s `inventory`, `requirements`, `metadata_record` and `draft_answers` are the project's,
    replacing what the caller sent, and a slot the project has no value for is removed. The
    metadata record is given with the version it is, its media type, its schema and its text, so a
-   drafter can treat it as supplied ([Drafting documents](drafting.md), invariant 2). A plain `FileInventory` input is the
+   drafter can treat it as supplied ([Drafting documents](drafting.md), invariant 2). Its
+   `draft_answers` are the latest answer a person recorded to each question of the project's
+   documents of the kind asked for ([Drafting documents](drafting.md), invariant 6). A plain `FileInventory` input is the
    project's inventory when it holds one, so an orchestrator sends an empty one. A `Message`'s
    `project_inventory` says what the project's inventory is (its digest, file count, tool and
    date, and its limitations) without its files, so an orchestrator knows the researcher has
@@ -196,8 +200,8 @@ form and the user guide state the rule. Adding documentation is not built yet, T
 a `Document` payload. No agent writes anywhere or holds credentials to. A general proposed action
 for a change outside the project waits for the first agent that needs one, TODO(#72). A drafted
 version may also carry questions to the researcher, which the log keeps with the version. A
-person's answers are to be project log events that the conductor puts into the next
-`DraftRequest` ([Drafting documents](drafting.md), TODO(#575)).
+person's answers are project log events that the conductor puts into the next `DraftRequest`
+([Drafting documents](drafting.md)).
 
 **Runs and decisions are separate.** A drafting run ends `succeeded` with a proposed version, so no
 run waits for a person. A decision acts on the project, is not an invocation of an agent and

@@ -23,12 +23,12 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_change_refused`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
 | `acted_for` | The `Principal` the change was made for ([Policy and identity](../../docs/specs/policy-and-identity.md)). |
-| `caused_by` | What caused it: the command a person ran, such as `dd-harness project add-inventory`; the request, such as `POST /api/projects/…/decisions`; or the `invocation_id` of the run that drafted a version. |
+| `caused_by` | What caused it: the command a person ran, such as `dd-harness project add-inventory`; the request, such as `POST /api/projects/…/decisions` or `…/answers`; or the `invocation_id` of the run that drafted a version. |
 
 `project_created` also gives `title`, if one was given: free text of at most `TITLE_MAX_LENGTH`
 (200) characters that tells the project apart from others. A blank title is none.
@@ -160,16 +160,32 @@ in one write.
 `document_version_decided` also gives `document_id`, `version`, `digest`, `decision`
 (`approved` or `rejected`) and, if one was given, `reason`. Its `acted_for` is the decider.
 
-`document_change_refused` records a decision or edit refused because it named no document of the
-project (`document-not-found`), not the latest version (`version-not-latest`), a version
-already decided (`version-decided`) or another text (`digest-mismatch`). It gives
-`document_id`, `version` and `digest` as sent, the `refusal`, and the `latest_version` if
-there is one. A decision malformed in itself, such as a rejection without a reason, is refused
-with `ProjectError` and records nothing.
+`document_question_answered` records one answer a person gave to a question the document's latest
+version asks ([Drafting documents](../../docs/specs/drafting.md), invariant 6). It gives
+`document_id`, `version`, `question_id` and `answer_text`, stripped of surrounding white space and
+at most `ANSWER_MAX_LENGTH` (2,000) characters. Its `acted_for` is whoever answered. Answers sent
+together are appended in one write. A decided version's questions may still be answered: the
+answers go into the next draft, not into that version.
+
+`document_change_refused` records a decision, edit or answer refused because it named no document
+of the project (`document-not-found`), not the latest version (`version-not-latest`), a version
+already decided (`version-decided`), another text (`digest-mismatch`) or a question the latest
+version does not ask (`question-not-asked`). It gives `document_id` and `version` as sent, the
+`digest` for a decision or edit, the `questions` not asked for an answer, the `refusal`, and the
+`latest_version` if there is one. A change malformed in itself, such as a rejection without a
+reason or a blank answer, is refused with `ProjectError` and records nothing.
 
 `documents(project_id)` folds the log into each document, in the order first drafted, with every
 version oldest first, its text and its `state` (`proposed`, `approved` or `rejected`) with the
-`decision` on it. It is what the app serves at `GET /api/projects/{id}/documents`.
+`decision` on it, and the document's `answers`: the latest answer to each question, with the
+`version` it answered, `answered_by` and `answered_at`. It is what the app serves at
+`GET /api/projects/{id}/documents`.
+
+`answers(project_id, document_kind)` is the latest answer to each question of any document of that
+kind, as `DraftAnswer`s, in the order last answered, or None. A question's identifier is derived
+from the gap it fills, so it is the same in every draft of that kind; and until the conductor
+gives a drafter the version it regenerates, each redraft is a new document. The conductor gives
+these answers to every drafter of that kind in the project.
 
 `metadata_record(project_id)` is the version of a `metadata_record` document named by the last
 approval in the log, as an `ApprovedMetadataRecord`: its `version_ref`, `media_type`,
@@ -179,8 +195,8 @@ until a person approves one. The conductor gives it to every drafter in the proj
 ## Not yet built
 
 - Only owners are to decide, and membership is not built, TODO(#389).
-- The conductor fills only a `DraftRequest`'s `inventory`, `requirements` and
-  `metadata_record`, not its `current_version` nor any other class, and does not apply
+- The conductor fills only a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`
+  and `draft_answers`, not its `current_version` nor any other class, and does not apply
   `hosted_models` ([Projects](../../docs/specs/projects.md)), TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
 - The app cannot validate a project or build its package, TODO(#623).
