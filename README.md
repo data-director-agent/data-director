@@ -120,8 +120,9 @@ docker compose --profile workbench up workbench   # viewer at http://127.0.0.1:8
 docker compose --profile llm up       # adds the model-backed orchestrator
 ```
 
-The first start installs the dependencies into a volume, which takes a few minutes. The agents are
-reachable only inside the Compose network. Model keys go in `config/local/credentials/`, named in `config/local/agents/<name>.env`, as when
+The first start installs the dependencies into a volume, which takes a few minutes. Every agent
+the app lists runs as a service of its own (`docker/agents.yaml`), reachable only inside the
+Compose network; runs and projects are kept in volumes. Model keys go in `config/local/credentials/`, named in `config/local/agents/<name>.env`, as when
 running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_PORT` or
 `DD_WORKBENCH_HOST_PORT` in the shell. Containers run as uid 1000. This stack is for development only;
 `deploy/` covers deployment.
