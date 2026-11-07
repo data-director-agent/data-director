@@ -22,6 +22,11 @@ The app opens on a conversation with the orchestrator, the agent whose grounding
 a child opens its run, and past conversations reopen. Without a permitted orchestrator the page
 says so and links to the pages above, which are one step away (#131).
 
+The app works in one project at a time. The workspace header names the active project and
+switches to another or to **New project**; the conversations listed are that project's, and
+**New conversation** starts another thread in it. With no project active, the first message
+starts one.
+
 The conversation sits in the centre of a workspace ([The app](../docs/specs/app.md)):
 
 - across the top, whom the work acts for and whose policy applies, then the project's dataset,
@@ -57,7 +62,9 @@ It is built from:
   - `GET /api/runs` and `GET /api/runs/{id}`: the run store, newest first;
   - `GET /api/examples`: the example inputs in `config/examples/`;
   - `GET /api/process-flow`: the Blueprint's entry points and phases (`dd_sdk.process_flow`);
-  - `POST /api/conversations`: starts a conversation and gives its `conversation_id`;
+  - `POST /api/conversations` (optionally `{project_id}`): starts a conversation in that project,
+    or in a new one, and gives its `conversation_id` and `project_id`; an unknown project, or
+    one the person may not read, is a 404;
   - `POST /api/conversations/{id}/turns` (`{agent_id, message_text, follows}`): sends one
     `Message` to the agent through the conductor and answers as `POST /api/runs` does. The server
     builds the message's history from the stored turns; a request that gives one is refused

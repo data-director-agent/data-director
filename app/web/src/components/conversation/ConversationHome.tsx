@@ -1,7 +1,10 @@
 /**
  * The home page: a conversation with the orchestrator (docs/specs/app.md), in the centre of the
- * workspace (§18), with the person's conversations on the left, an overview of the project on the
- * right and the Blueprint's phases in a strip above. A delegated run opens inside its card in the
+ * workspace (§18), in the project the shell is working in. The project's conversations are on the
+ * left, an overview of it on the right, and the Blueprint's phases in a strip above. New
+ * conversation starts another thread in the same project; with no project active, the first
+ * message starts one, which becomes the active project. Switching project closes the open
+ * conversation. A delegated run opens inside its card in the
  * transcript (§14).
  *
  * The orchestrator is the agent the profile names (docs/specs/app.md), never one the shell picks.
@@ -50,6 +53,7 @@ import {
 import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
+import { useActiveProject } from "../../project/active";
 import { useProjectApi } from "../../project/api";
 import { type DocumentsRead, draftedBy } from "../../project/drafted";
 import { Link, navigate, useLocation } from "../../route";
@@ -61,6 +65,7 @@ import { STATES } from "../project/DocumentFacts";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { Workspace } from "../workspace/Workspace";
+import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
 import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
@@ -91,7 +96,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const named = directory.orchestratorId;
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
+  const { projectId, projects, setProjectId, reloadProjects } = useActiveProject();
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // The project of the open conversation, once it has been started or reopened.
+  const [openProject, setOpenProject] = useState<string | null | undefined>(undefined);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [past, setPast] = useState<ConversationSummary[]>([]);
   const [text, setText] = useState("");
@@ -123,7 +131,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   // turn, for the cards on the turns that drafted them and the side bar's list. A read is kept
   // with the project it is of, so that another project's documents are never shown.
   const projectApi = useProjectApi();
-  const projectId = conversation?.project_id ?? null;
   const turnCount = conversation?.turns.length ?? 0;
   const [documentsOf, setDocumentsOf] = useState<{ projectId: string; read: DocumentsRead } | null>(
     null,
@@ -169,9 +176,21 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     return () => abort.abort();
   }, [flowApi]);
 
+  // Switching project closes the conversation open in another; starting a project by sending the
+  // first message does not, since the open conversation is the one that started it.
+  if (openProject !== undefined && openProject !== projectId) {
+    setConversationId(null);
+    setConversation(null);
+    setOpenProject(undefined);
+    setError(null);
+    setAnnouncement("");
+  }
+
   const frame = {
+    project: <ProjectSwitcher />,
     phases: <PhaseTracker load={flow} />,
   };
+  const project = projects.find((p) => p.project_id === projectId) ?? null;
 
   if (unusable || !orchestrator) {
     return (
@@ -186,7 +205,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             </p>
           </>
         }
-        context={<ContextPanel />}
+        context={<ContextPanel projectId={projectId} project={project} />}
       />
     );
   }
@@ -288,7 +307,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     // moved on since, so a message sent again after a dropped connection never runs twice.
     const follows = conversation?.turns[conversation.turns.length - 1]?.invocation_id ?? null;
     try {
-      id ??= await api.create();
+      if (id === null) {
+        const started = await api.create(projectId);
+        id = started.conversation_id;
+        setOpenProject(started.project_id);
+        // With no project active, the server started one: the shell is now working in it.
+        if (started.project_id !== projectId) setProjectId(started.project_id);
+      }
       setConversationId(id);
       const document = inventory?.document ?? null;
       await (answer
@@ -315,9 +340,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       setConversation(updated);
       setAnnouncement(said);
       void reloadPast();
+      reloadProjects();
     } catch (e) {
       if (stored) {
         void reloadPast();
+        reloadProjects();
         setError(
           "Your message was sent and answered, but Data Director could not show the reply " +
             `(${errorMessage(e)}). Open this conversation from Conversations to see it.`,
@@ -362,6 +389,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   function reset() {
     setConversationId(null);
     setConversation(null);
+    setOpenProject(undefined);
+    if (runId) navigate("/");
     setError(null);
     setText("");
     setAttached(null);
@@ -372,8 +401,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   async function reopen(id: string) {
     try {
-      setConversation(await api.get(id));
+      const found = await api.get(id);
+      setConversation(found);
       setConversationId(id);
+      setOpenProject(found.project_id ?? null);
+      // A conversation is opened in its own project, so the workspace follows it there.
+      if ((found.project_id ?? null) !== projectId) setProjectId(found.project_id ?? null);
       setError(null);
       box.current?.focus();
     } catch (e) {
@@ -513,13 +546,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       }
       history={
         <EarlierConversations
-          conversations={past}
+          conversations={past.filter((c) => (c.project_id ?? null) === projectId)}
           currentId={conversationId}
           onOpen={(id) => void reopen(id)}
           onNew={reset}
         />
       }
-      context={<ContextPanel conversation={conversation} documents={documents} />}
+      context={<ContextPanel projectId={projectId} project={project} conversation={conversation} documents={documents} />}
     />
   );
 }

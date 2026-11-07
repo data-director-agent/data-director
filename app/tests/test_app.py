@@ -717,6 +717,56 @@ def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governanc
         assert (found["project_id"], found["inventory"]) == (started["project_id"], None)
 
 
+def test_a_conversation_is_started_in_the_project_it_names(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    first = client.post("/api/conversations").json()
+    response = client.post("/api/conversations", json={"project_id": first["project_id"]})
+    assert response.status_code == 201
+    second = response.json()
+    assert second["project_id"] == first["project_id"]
+    assert second["conversation_id"] != first["conversation_id"]
+    store = governance.projects
+    assert store is not None
+    assert store.project_of(second["conversation_id"]) == first["project_id"]
+    events = store.events(first["project_id"])
+    assert [e["event"] for e in events] == [
+        "project_created",
+        "conversation_started",
+        "conversation_started",
+    ]
+    # A null project is a new one, as no body is.
+    other = client.post("/api/conversations", json={"project_id": None}).json()
+    assert other["project_id"] != first["project_id"]
+
+
+def test_a_conversation_is_not_started_in_a_project_the_person_may_not_read(
+    governance: Governance, dist: Path
+):
+    client = TestClient(build_app(governance, dist))
+    store = governance.projects
+    assert store is not None
+    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
+    theirs = store.create(acted_for=someone, caused_by="test")
+    for project_id in (theirs, str(uuid.uuid4()), "../../etc"):
+        response = client.post("/api/conversations", json={"project_id": project_id})
+        assert response.status_code == 404
+        assert response.json()["type"].endswith("project-not-found")
+    assert [e["event"] for e in store.events(theirs)] == ["project_created"]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{"project_id": 7}, {"project_id": None, "title": "x"}, ["a"]],
+)
+def test_a_conversation_start_with_a_malformed_body_is_refused(
+    governance: Governance, dist: Path, body: Any
+):
+    client = TestClient(build_app(governance, dist))
+    response = client.post("/api/conversations", json=body)
+    assert response.status_code == 400
+    assert response.headers["content-type"] == "application/problem+json"
+
+
 def test_an_attached_inventory_is_kept_and_the_orchestrator_is_told_of_it(
     in_projects: tuple[Governance, Any],
 ):

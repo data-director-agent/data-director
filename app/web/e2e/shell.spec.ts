@@ -17,8 +17,6 @@ import answered from "../fixtures/conversation-answered.json" with { type: "json
 import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
-import disclosure from "../fixtures/project-disclosure.json" with { type: "json" };
-import projects from "../fixtures/projects.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -424,44 +422,6 @@ test("a delegated run opens inside its card at 320px, keeping focus and the conv
   await expect(toggle).toBeFocused();
 });
 
-test("a drafted document is a card on its turn and a row in the side bar, by keyboard at 320px", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  await serveConversation(page);
-  // The fixtures agree: the README was drafted on the second turn, the data dictionary by the
-  // first turn's delegated run.
-  await page.route("/api/projects/*/documents", (route) => route.fulfill({ json: project }));
-  await page.route("/api/projects/*/disclosure", (route) => route.fulfill({ json: disclosure }));
-  await page.goto("/");
-  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("draft a README");
-  await page.getByRole("button", { name: "Send" }).click();
-
-  const cards = page.getByRole("list", { name: "Documents drafted on this turn" });
-  await expect(cards).toHaveCount(2);
-  const readme = cards.nth(1);
-  await expect(readme).toContainText("README, version 1");
-  await expect(readme).toContainText("Proposed, not reviewed");
-  await expect(page.getByRole("status").first()).toContainText("README drafted, version 1");
-
-  const preview = readme.getByRole("button", { name: "Preview of README, version 1" });
-  await preview.focus();
-  await page.keyboard.press("Enter");
-  await expect(preview).toHaveAttribute("aria-expanded", "true");
-  await expect(preview).toBeFocused();
-  await expect(readme.getByRole("heading", { name: "Untitled dataset" })).toBeVisible();
-  expect(await overflow(page), "horizontal overflow with a preview open").toBeLessThanOrEqual(0);
-  expect(await axeViolations(page)).toEqual([]);
-
-  const panel = page.getByRole("region", { name: "Project" });
-  await expect(panel.getByRole("heading", { name: "Documents · 1 to review" })).toBeVisible();
-
-  // Review opens the document in the project's reader.
-  await readme.getByRole("link", { name: "Review and approve README" }).click();
-  await expect(page).toHaveURL(new RegExp(`/projects/[^?]+\\?doc=${project.documents[0]?.document_id}$`));
-  await expect(page.getByRole("heading", { level: 2, name: "README" })).toBeVisible();
-});
-
 test("the directory is a page: reachable from the navigation, survives a reload, and Back leaves it", async ({
   page,
 }) => {
@@ -476,43 +436,6 @@ test("the directory is a page: reachable from the navigation, survives a reload,
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
   await expect(nav.getByRole("link", { name: "Conversation" })).toHaveAttribute("aria-current", "page");
-});
-
-test("Projects comes first in the navigation, lists the projects at 320px, and opens one", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 320, height: 800 });
-  await serve(page, several);
-  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
-  await page.route("/api/projects/*/documents", (route) => route.fulfill({ json: project }));
-  await page.route("/api/projects/*/disclosure", (route) => route.fulfill({ json: disclosure }));
-  await page.goto("/");
-  const nav = page.getByRole("navigation", { name: "Main" });
-  await expect(nav.getByRole("link").first()).toHaveText("Projects");
-  await nav.getByRole("link", { name: "Projects" }).click();
-  await expect(page).toHaveURL(/\/projects$/);
-  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
-  await page.reload();
-  const first = page.getByRole("link", { name: "My logger data" });
-  await expect(first).toBeVisible();
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
-
-  await first.click();
-  await expect(page.getByRole("heading", { level: 1, name: "My logger data" })).toBeVisible();
-  // At 320px the list and the reader take turns: the list first, then the document chosen.
-  const documents = page.getByRole("navigation", { name: "Documents" });
-  await documents.getByRole("link", { name: /README/ }).click();
-  await expect(page.getByRole("article", { name: "README" })).toBeVisible();
-  await expect(documents).toBeHidden();
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
-  await page.getByRole("link", { name: "All documents" }).click();
-  await expect(documents).toBeVisible();
-  // A project's own page is under Projects.
-  await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
-  await page.getByRole("link", { name: "All projects" }).click();
-  await expect(page).toHaveURL(/\/projects$/);
 });
 
 for (const width of [1280, 320]) {

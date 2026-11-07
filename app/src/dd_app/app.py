@@ -6,7 +6,7 @@ checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `G
 lists example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
 (`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
 until runs stream over AG-UI (#68, #69).
-`POST /api/conversations` starts a conversation, in a project of its own, and
+`POST /api/conversations` starts a conversation, in the project it names or else a new one, and
 `POST /api/conversations/{id}/turns` sends it one message, which may attach a `dd-inventory` file
 for the project to keep, answered as a run is, or refused with `409` unless it follows the latest
 turn (docs/specs/orchestration.md, docs/specs/app.md); `GET /api/conversations` and
@@ -194,7 +194,26 @@ def build_app(
         return JSONResponse(run)
 
     async def start_conversation(request: Request, acting_for: Principal) -> Response:
-        conversation_id = await run_in_threadpool(governance.start_conversation, acting_for)
+        # No body starts the conversation in a new project; `{"project_id": …}` in that one.
+        body: Any = {}
+        if (await request.body()).strip():
+            try:
+                body = await request.json()
+            except ValueError:
+                return _refused("The body is not JSON.")
+        if not isinstance(body, dict):
+            return _refused("The body must be an object, with at most `project_id`.")
+        if extra := sorted(set(body) - {"project_id"}):
+            return _refused(f"A conversation takes only `project_id`, not {extra}.")
+        project_id = body.get("project_id")
+        if not (project_id is None or isinstance(project_id, str)):
+            return _refused("`project_id` must be a string, or null for a new project.")
+        try:
+            conversation_id = await run_in_threadpool(
+                governance.start_conversation, acting_for, project_id
+            )
+        except UnknownProjectError:
+            return _no_project(str(project_id))
         found = governance.conversation(conversation_id) or {}
         return JSONResponse(
             {"conversation_id": conversation_id, "project_id": found.get("project_id")},

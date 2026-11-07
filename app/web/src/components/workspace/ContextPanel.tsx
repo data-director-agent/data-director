@@ -1,8 +1,8 @@
 /**
- * Beside the conversation, an overview of the project it was started in (docs/specs/app.md):
+ * Beside the conversation, an overview of the project the workspace is in (docs/specs/app.md):
  * where the project stands, the files attached to it (the inventory it holds) and the documents
- * agents have drafted in it, each with its latest version's state and a link to review it. Where it stands, its dataset, phase, repository and open
- * governance flags, needs a record of the project (#160), so each is drawn as not built, linked
+ * agents have drafted in it, each with its latest version's state and a link to review it. Where it
+ * stands, its dataset, phase, repository and open governance flags, needs a record of the project (#160), so each is drawn as not built, linked
  * to its issues, with no value standing in for it. A delegated run and its evidence open in the
  * transcript, beside the turn they support.
  */
@@ -13,7 +13,7 @@ import { useMemo } from "react";
 
 import { INVENTORY_GUIDE, type InventorySource } from "../../conversation/inventory";
 import type { Conversation } from "../../conversation/types";
-import { useProjectApi } from "../../project/api";
+import { type ProjectSummary, useProjectApi } from "../../project/api";
 import { type DocumentsRead, documentHref, latestOf } from "../../project/drafted";
 import { Link } from "../../route";
 import { InventoryChip } from "../conversation/InventoryChip";
@@ -86,15 +86,21 @@ function ProjectDocuments({ projectId, read }: { projectId: string; read: Docume
 }
 
 export function ContextPanel({
+  projectId = null,
+  project = null,
   conversation = null,
   documents = { state: "loading" },
 }: {
+  /** The project the workspace is in, or null before the first message starts one. */
+  projectId?: string | null;
+  /** What the projects list says of it, once it lists it. */
+  project?: ProjectSummary | null;
   conversation?: Conversation | null;
   /** The project's documents, as the workspace last read them. */
   documents?: DocumentsRead;
 }) {
-  const projectId = conversation?.project_id;
-  const inventory = conversation?.inventory;
+  // The open conversation was read after the projects list, so it knows of a newer inventory.
+  const inventory = conversation ? conversation.inventory : project?.inventory;
   const projectApi = useProjectApi();
   const source = useMemo<InventorySource | undefined>(
     () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
@@ -105,7 +111,7 @@ export function ContextPanel({
       <h2 id="context-heading">Project</h2>
       {!projectId && (
         <p>
-          Your first message starts a project, which keeps the inventory you attach and the
+          Your first message starts a new project, which keeps the inventory you attach and the
           documents agents draft for you.
         </p>
       )}

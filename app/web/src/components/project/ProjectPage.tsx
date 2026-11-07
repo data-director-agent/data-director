@@ -14,6 +14,9 @@
  * project again, keeping what it showed if that read fails. What a decision did is said once, in
  * the page's live region, which is in the page from the start so that a screen reader announces
  * each change to it; it offers the next document waiting for a decision, without moving to it.
+ *
+ * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
+ * link to it lands in that project, and its conversations are one press away.
  */
 
 import "./ProjectPage.css";
@@ -21,6 +24,7 @@ import "./ProjectPage.css";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { useActiveProject } from "../../project/active";
 import { type DocumentVersion, type ProjectDocuments, useProjectApi } from "../../project/api";
 import { documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
@@ -55,6 +59,12 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
   } | null>(null);
   // Counts what the page has read, so that the disclosure is read again after a decision.
   const [revision, setRevision] = useState(0);
+  const { setProjectId } = useActiveProject();
+  const readable = load.state === "loaded";
+
+  useEffect(() => {
+    if (readable) setProjectId(projectId);
+  }, [readable, projectId, setProjectId]);
 
   const params = new URLSearchParams(query);
   const asked = params.get("doc");
@@ -190,7 +200,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
   return (
     <>
       <p>
-        <Link to="/projects">All projects</Link>
+        <Link to="/projects">All projects</Link> · <Link to="/">This project&apos;s conversations</Link>
       </p>
       <PageHeader title={title ?? "Project documents"}>
         <p className="hint">

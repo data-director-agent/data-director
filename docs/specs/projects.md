@@ -163,11 +163,12 @@ project, using the invocation's `acting_for`, and the app's server makes it for 
 **The app** ([The app](app.md)) renders the project and passes a person's request to the harness
 with the principal from its authenticator. It shows the state it reads back from the log, never a
 state it inferred, and holds no policy. The right panel, phase tracker and status bar are drawn
-for a project but have no record behind them yet, TODO(#160). Each conversation the app starts is
-started in a new project. A turn may attach the file `dd-inventory` writes, which the app's server
+for a project but have no record behind them yet, TODO(#160). The app works in one project at a
+time: each conversation it starts is started in the active project, or in a new one when none is
+active ([The app](app.md)). A turn may attach the file `dd-inventory` writes, which the app's server
 adds to the conversation's project before the turn runs, acting for the person signed in and
 caused by the turn's request; an inventory the store refuses refuses the turn, and nothing runs.
-Starting a conversation in an existing project is TODO(#160). Adding documentation from the app
+Adding documentation from the app
 is TODO(#395); a page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).
 

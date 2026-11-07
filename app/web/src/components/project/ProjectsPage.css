@@ -1,4 +1,5 @@
-/* The person's projects (ProjectsPage.tsx): one card each, its name a link to the project. */
+/* The person's projects (ProjectsPage.tsx): one card each, its name a link to the
+   project's documents; the project the app is working in is marked. */
 
 @layer components {
   .project-list {
@@ -28,9 +29,13 @@
     gap: var(--space-2);
   }
 
-  .project-new {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
+  .project-card-active {
+    box-shadow: inset var(--focus-width) 0 0 var(--color-link);
+  }
+
+  .project-card-name .status {
+    margin-left: var(--space-2);
+    font-size: var(--font-size-small);
+    vertical-align: middle;
   }
 }
