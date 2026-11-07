@@ -23,6 +23,10 @@ the latest version asks, for the next draft to place as supplied, and answers `4
 version is no longer the latest or does not ask them (docs/specs/drafting.md).
 `GET /api/projects/{id}/inventory` is the inventory the project holds, as it was added, for the
 researcher to read; it answers `404` when there is none.
+`GET /api/projects/{id}/repository` is the requirements of the repository the project chose last,
+and `404` when none has been; `PUT` on it chooses one by its re3data identifier, which the pinned
+re3data export resolves to the repository's name and declared standards, for the person signed in,
+and answers with the requirements it resolved to and their warnings (docs/specs/deposit.md).
 `GET /api/projects/{id}/disclosure` says how each approved document came about and what
 generative AI was used, as a statement and as a PROV-O graph (docs/specs/disclosure.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
@@ -88,6 +92,7 @@ from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
 from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal, UnknownProjectError
 from dd_harness.registry import RegistryError
+from dd_harness.requirements import RequirementsError
 from dd_harness.server import LOOPBACK
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_harness.settings import SettingsError
@@ -110,6 +115,7 @@ FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
+REPOSITORY_REFUSED = "Data Director could not record this repository"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -400,6 +406,71 @@ def build_app(
         except ProjectError as exc:
             return _refused(str(exc), PROGRESS_REFUSED)
 
+    async def get_repository(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            found = await run_in_threadpool(store.requirements, project_id)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        if found is None:
+            return _problem(
+                404,
+                "repository-not-chosen",
+                "No repository chosen",
+                f"Project {project_id!r} has not chosen one.",
+            )
+        return JSONResponse(found)
+
+    async def choose_repository(request: Request, person: Principal) -> Response:
+        """The researcher's choice of repository, by its re3data identifier alone: its name and
+        declared standards come from the pinned re3data export (docs/specs/deposit.md). Whom it
+        acts for is whom the authenticator names, never the body. Answers with the requirements
+        it resolved to; a change is a new choice, and the last one counts."""
+        project_id = request.path_params["project_id"]
+        store, requirements = governance.projects, governance.requirements
+        if store is None:
+            return _no_project(project_id)
+        if requirements is None:
+            return _problem(
+                503,
+                "repositories-unavailable",
+                REPOSITORY_REFUSED,
+                "This server has no repository requirement sets.",
+            )
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", REPOSITORY_REFUSED)
+        re3data_id = body.get("re3data_id") if isinstance(body, dict) else None
+        if not isinstance(re3data_id, str):
+            return _refused(
+                "`re3data_id` is the repository's re3data identifier.", REPOSITORY_REFUSED
+            )
+
+        def choose() -> dict[str, Any] | None:
+            store.choose_repository(
+                project_id,
+                re3data_id,
+                registry=governance.conductor.sources,
+                requirements=requirements,
+                acted_for=person,
+                caused_by=f"PUT {request.url.path}",
+            )
+            return store.requirements(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(choose), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except SourceConfigError as exc:
+            return _problem(503, "re3data-unavailable", REPOSITORY_REFUSED, str(exc))
+        except (ProjectError, RequirementsError) as exc:
+            return _refused(str(exc), REPOSITORY_REFUSED)
+
     async def decide(request: Request, decider: Principal) -> Response:
         # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
         project_id = request.path_params["project_id"]
@@ -662,6 +733,16 @@ def build_app(
                 methods=["GET"],
             ),
             Route(
+                "/api/projects/{project_id}/repository",
+                signed_in(get_repository),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/repository",
+                signed_in(choose_repository),
+                methods=["PUT"],
+            ),
+            Route(
                 "/api/projects/{project_id}/progress",
                 signed_in(get_progress),
                 methods=["GET"],
@@ -801,14 +882,16 @@ def main() -> int:
         )
     # No principal (docs/specs/policy-and-identity.md), a provider set wrongly or beside an operator
     # (docs/specs/policy-and-identity.md), or a profile, agent list or source list that is unset,
-    # missing or malformed (docs/specs/system.md), or an agent in this process configured wrongly:
-    # nothing may run.
+    # missing or malformed (docs/specs/system.md), requirement sets that are malformed or
+    # contradict one another (docs/specs/deposit.md), or an agent in this process configured
+    # wrongly: nothing may run.
     except (
         IdentityError,
         SettingsError,
         PolicyError,
         RegistryError,
         SourceConfigError,
+        RequirementsError,
         ConfigError,
     ) as exc:
         sys.exit(f"data-director: {exc}")

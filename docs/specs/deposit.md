@@ -31,8 +31,9 @@ What is built:
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
   `dd-harness project package`).
 
-Choosing a repository in the app is TODO(#400). Validating and building the package in the app
-is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
+A researcher chooses a repository in the app from an advisor's shortlist
+(`PUT /api/projects/{id}/repository`, [App](app.md)). Validating and building the package in the
+app is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
 
 ## Invariants
 
