@@ -35,9 +35,13 @@ actions_requiring_approval:  # action classes a human must approve before an age
 
 orchestrator: orchestrator.stub  # optional: the agent a person converses with in the app; it must be
                              # listed under `agents`. Without it the app offers no conversation.
+
+hosted_models:               # optional: the classes of project content an agent that calls a
+  - inventory                # hosted model may be given; `documentation` is the other. Without
+                             # this key only `inventory` may (docs/specs/projects.md, invariant 8)
 ```
 
-Those six keys are the whole vocabulary. A profile with any other key is refused when the
+Those seven keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied
@@ -53,6 +57,10 @@ Before an agent runs, the conductor checks:
 3. Does the assigned class appear in `actions_requiring_approval`? If so, the invocation is
    **referred** to the data steward with reason `policy_requires_approval`. Nothing is run.
    There is not yet a way to approve a referred run and let it continue; see issue #16.
+
+4. In a project, if the agent's card declares a `hosted` model, are all the classes of project
+   content it would be given listed under `hosted_models`? If not, the invocation **fails** with
+   the problem `project-content-withheld`. Nothing is sent to the agent.
 
 That is all the gate does. It cannot express conditions ("allow deposit if the dataset is under
 1 GB"). If such a rule is ever needed, the profile format will be extended and compiled to a

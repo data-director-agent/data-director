@@ -140,6 +140,42 @@ def test_the_orchestrator_a_profile_names_must_be_an_agent_it_enables(tmp_path: 
         load_profile(stranger)
 
 
+@pytest.mark.requirement("DD-POLICY", "C13.5")
+@pytest.mark.parametrize(
+    ("written", "expected"),
+    [
+        ("", {"inventory"}),
+        ("hosted_models: []\n", set()),
+        ("hosted_models: [inventory, documentation]\n", {"inventory", "documentation"}),
+    ],
+)
+def test_hosted_models_defaults_to_the_inventory_alone(
+    tmp_path: Path, written: str, expected: set[str]
+) -> None:
+    """docs/specs/projects.md, invariant 8."""
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: hosted\nagents: {}\n" + written, encoding="utf-8")
+    assert load_profile(path).hosted_models == expected
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("written", "match"),
+    [
+        ("hosted_models: documentation\n", "must list"),
+        ("hosted_models: [inventory, personal_data]\n", "personal_data"),
+    ],
+)
+def test_hosted_models_names_only_classes_of_project_content(
+    tmp_path: Path, written: str, match: str
+) -> None:
+    """A class nothing enforces would tell a steward a rule is in force when it is not."""
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: hosted\nagents: {}\n" + written, encoding="utf-8")
+    with pytest.raises(PolicyError, match=match):
+        load_profile(path)
+
+
 @pytest.mark.requirement("DD-POLICY", "C13.2")
 def test_disabled_agent_fails_with_problem_details(runs_dir: Path) -> None:
     agent = ScriptedAgent(GroundingMode.INPUT_ONLY, fakes.review_of_input)

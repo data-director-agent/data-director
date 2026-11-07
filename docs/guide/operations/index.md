@@ -37,4 +37,5 @@ The [architecture](../../architecture.md) and the
   signed in sees every run (#153). Keep the app and agent ports on loopback or a private network.
 - No notice reaches anyone when a deployment fails (#144), and GitHub does not show what is
   deployed (#145). The journal and `systemctl --failed` are the record.
-- A profile cannot yet limit which models may receive which class of data (#40).
+- A profile limits which classes of project content go to a hosted model (`hosted_models`), but
+  not other data, such as a conversation's text (#40).

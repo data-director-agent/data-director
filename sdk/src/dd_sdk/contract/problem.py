@@ -79,6 +79,18 @@ def input_not_accepted(
     )
 
 
+def project_content_withheld(
+    agent_id: str, classes: tuple[str, ...], profile_id: str
+) -> ProblemDetails:
+    return problem(
+        "project-content-withheld",
+        "Project content the profile keeps from hosted models",
+        f"Agent {agent_id!r} calls a hosted model, and hosted_models of profile {profile_id!r} "
+        f"does not list {', '.join(classes)}. Nothing was sent to the agent.",
+        http_status=403,
+    )
+
+
 def revision_refused(detail: str) -> ProblemDetails:
     """A drafted document the project could not record: it revises no version of the project, or
     a version of a document of another kind (docs/specs/projects.md)."""
