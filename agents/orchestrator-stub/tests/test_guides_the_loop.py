@@ -146,9 +146,7 @@ def approve_every_proposed(projects: ProjectStore, project: str) -> None:
 def approve_the_record_with_a_title(projects: ProjectStore, project: str, title: str) -> None:
     """The researcher edits the latest metadata record to give it a title, and approves it."""
     (document,) = [
-        d
-        for d in projects.documents(project)
-        if d["document_kind"] == "metadata_record" and d["versions"][-1]["state"] == "proposed"
+        d for d in projects.documents(project) if d["document_kind"] == "metadata_record"
     ]
     latest: dict[str, Any] = document["versions"][-1]
     record = json.loads(latest["text"])
@@ -238,6 +236,10 @@ def test_the_stub_leads_from_the_files_to_a_package(
     # and the package is built.
     env = researcher.say("Fill in the description of your dataset", choose="preparation.metadata")
     assert delegated_agents(env) == {"advisor.metadata"}
+    # The redraft is the next version of the one metadata record, not a second record (#631).
+    (record,) = [d for d in projects.documents(project) if d["document_kind"] == "metadata_record"]
+    assert [v["state"] for v in record["versions"]] == ["approved", "proposed"]
+    assert record["versions"][1]["revises"] == {"document_id": record["document_id"], "version": 1}
     approve_the_record_with_a_title(projects, project, "Soil cores 2024")
     build_package(projects, runs, project, acted_for=TEST_PRINCIPAL, caused_by="test")
     steps = projects.progress(project)["steps"]

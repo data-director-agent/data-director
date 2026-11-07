@@ -295,6 +295,7 @@ class Conductor:
         sent = to_document(request.input)
         filled = project_facts.give(self.projects, in_project, sent)
         given = project_facts.given(self.projects, in_project, filled)
+        refused = project_facts.refusal(self.projects, in_project, filled)
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
                 {**to_document(request), "input": filled, "project_id": in_project}
@@ -310,7 +311,7 @@ class Conductor:
                 )
             self._running.add(invocation_id)
         try:
-            return self._run(request, request_doc, acting_for, link, given)
+            return self._run(request, request_doc, acting_for, link, given, refused)
         finally:
             with self._running_lock:
                 self._running.discard(invocation_id)
@@ -322,8 +323,10 @@ class Conductor:
         acting_for: Principal,
         link: SpanContext | None,
         given: frozenset[str] = frozenset(),
+        unfillable: str | None = None,
     ) -> Envelope:
-        """`given` is the classes of project content the conductor put into the input."""
+        """`given` is the classes of project content the conductor put into the input, and
+        `unfillable` why it could not fill it from the project, if it could not."""
         agent = self.registry.get(request.agent_id)
         if agent is None:
             self.registry.refresh()  # it may have started since the registry was built
@@ -406,10 +409,20 @@ class Conductor:
                 prob = problems.input_not_accepted(
                     spec.agent_id, got, spec.accepts_names(), tuple(errors)
                 )
+            elif unfillable is not None:
+                # 3. Project facts: the document a redraft names must be one of the project's,
+                # of the kind asked for (docs/specs/projects.md, invariant 6).
+                result = AgentResult(
+                    outcome=Outcome(
+                        status=OutcomeStatus.FAILED,
+                        statement=f"{unfillable}. The agent was not run.",
+                    )
+                )
+                prob = problems.revision_refused(unfillable)
             elif kept_back := policy.withheld(
                 profile, (model.hosting for model in spec.models), given
             ):
-                # 3. Project content, against the profile's `hosted_models`
+                # 4. Project content, against the profile's `hosted_models`
                 # (docs/specs/projects.md, invariant 8): nothing is sent that the profile does not
                 # let an agent calling a hosted model see.
                 result = AgentResult(
@@ -426,7 +439,7 @@ class Conductor:
                     spec.agent_id, tuple(kept_back), profile.profile_id
                 )
             else:
-                # 4. Run the agent. An exception becomes a failed outcome; never a crash.
+                # 5. Run the agent. An exception becomes a failed outcome; never a crash.
                 prob = None
                 # A grant travels on the A2A wire, so only a remote agent can be sent one.
                 sent_grant: DelegationGrant | None = None
@@ -523,14 +536,14 @@ class Conductor:
             root.set_attribute(ATTR_OUTCOME, envelope.outcome.status.value)
 
         try:
-            # 5. Grounding linter, over the finished tree of this trace.
+            # 6. Grounding linter, over the finished tree of this trace.
             records = self.tracing.finished_records(trace_id)
             report = grounding.lint(records, envelope.to_document())
             with self._reports_lock:  # invocations finish side by side
                 self.grounding_reports[request.invocation_id] = report
                 while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
                     del self.grounding_reports[next(iter(self.grounding_reports))]
-            # 5a. Source check, over the evidence the linter has just read
+            # 6a. Source check, over the evidence the linter has just read
             # (docs/specs/grounding.md).
             source_report = source_check.check(envelope.to_document(), self.sources)
             withheld = [
@@ -559,7 +572,7 @@ class Conductor:
                     }
                 )
 
-            # 6. Validate, store, trace file, provenance. A result the agent returned that still
+            # 7. Validate, store, trace file, provenance. A result the agent returned that still
             # breaks the contract is the agent's error, as a payload of the wrong class is: it is
             # stored as failed(agent-error), not raised past the store. An envelope the conductor
             # built itself that breaks the contract is a conductor bug, and raises.
@@ -583,7 +596,7 @@ class Conductor:
                     )
                     doc = envelope.to_document()
             validate.validate_envelope(doc)
-            # 5a. A draft in a project becomes a proposed version of it, caused by this run. A
+            # 7a. A draft in a project becomes a proposed version of it, caused by this run. A
             # draft the project refuses fails the run, and that failed run is the record.
             if (
                 self.projects is not None

@@ -75,7 +75,10 @@ version as a `DocumentVersionRef`, its media type, the schema it `conforms_to` a
 payload's `revises`. Because the class is the core's, a drafter can be replaced without its
 caller changing. In a project, the conductor fills the inventory, the requirements and the
 metadata record from the project, and a caller leaves them out; outside a project, the caller
-sends them. Filling `current_version` from the project is TODO(#631).
+sends them. In a project the conductor also fills `current_version`, the latest version of the
+project's document of that kind, so a redraft is that document's next version; a caller may name
+which document with `redraft_document` where the project holds more than one of the kind
+([Projects](specs/projects.md), invariant 6).
 
 A `Document` may ask the researcher about what its drafter could not know: `document_questions`
 holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it

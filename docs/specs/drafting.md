@@ -114,10 +114,11 @@ the project's documents page ([The app](app.md)). It sends the answers to
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.
 
-**An answer outlives its document.** Until the conductor gives a drafter the version it
-regenerates (TODO(#631)), each redraft is a new document. So the conductor gives a drafter the
-answers recorded for every document of the kind it drafts, not only the latest, and a question's
-identifier, derived from its target, finds its answer in whichever draft asked it.
+**An answer outlives its version.** The conductor gives a drafter the latest version of the
+document it redrafts, so a redraft is that document's next version. A drafter is given the answers
+recorded for every document of the kind it drafts, not only the latest version's: a project drafted
+before redrafts kept their document may hold two of one kind, and a question's identifier,
+derived from its target, finds its answer in whichever draft asked it.
 
 **Model access.** A metadata record and a person's answers are `documentation`-class project
 content, so they go to a drafter with a hosted model only where the institutional profile allows

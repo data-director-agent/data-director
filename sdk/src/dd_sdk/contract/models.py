@@ -533,6 +533,8 @@ class DraftRequest(Frozen):
     current_version: CurrentVersion | None = None
     # Filled by the conductor in a project, from the answers people recorded.
     draft_answers: list[DraftAnswer] = Field(default_factory=list)
+    # The project document to redraft, where the project holds more than one of the kind.
+    redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

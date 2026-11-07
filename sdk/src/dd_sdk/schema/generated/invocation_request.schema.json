@@ -484,7 +484,7 @@
       },
       "DraftRequest": {
          "additionalProperties": false,
-         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394). The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md).",
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -548,6 +548,14 @@
                },
                "type": [
                   "array",
+                  "null"
+               ]
+            },
+            "redraft_document": {
+               "description": "The project document to redraft, by its document_id, where the project holds more than one of the kind asked for. Without it the conductor gives the latest. In a project the conductor refuses a document that is not the project's or is of another kind; outside a project it is removed.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": [
+                  "string",
                   "null"
                ]
             }
