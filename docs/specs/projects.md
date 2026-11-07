@@ -97,8 +97,14 @@ intended design, and each part says where it is not built yet.
    `inventory` and `documentation` (uploaded text, and any document version given back to an
    agent). The profile lists the classes that may be given to an agent whose card declares a
    `hosted` model; where it does not say, only `inventory` may. The conductor refuses anything
-   else before it is sent, with a Problem Details response, and records the refusal. Not built
-   yet, TODO(#394, #40).
+   else before it is sent, with a Problem Details response, and records the refusal. The key is
+   `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
+   and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
+   drafter regenerates and a person's answers are `documentation`; a repository's requirements
+   are neither (`dd_harness.project_facts.given`). The conductor checks after the input check: a
+   run it refuses fails with problem `project-content-withheld` and is stored, and the agent is
+   not called (`harness/tests/test_project_runs.py`). What a caller sends outside a project is
+   not the project's, and the key does not apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload

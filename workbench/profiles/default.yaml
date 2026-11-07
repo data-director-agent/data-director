@@ -1,6 +1,6 @@
 # Default institutional profile. See README.md in this directory for what each key means.
 profile_id: default
-version: 6
+version: 7
 description: Development profile for the workbench; enables every in-tree agent, requires approval for writes.
 
 # Each agent that may run, and the action class the steward assigns it. An agent whose card
@@ -21,6 +21,13 @@ agents:
   advisor.fairness: advise
   orchestrator.stub: advise
   orchestrator.model: advise
+
+# The classes of project content an agent whose card declares a hosted model may be given
+# (docs/specs/projects.md, invariant 8). Without this key only `inventory` may. `documentation`
+# lets advisor.documentation write a project's documents with its hosted model.
+hosted_models:
+  - inventory
+  - documentation
 
 actions_requiring_approval:
   - deposit

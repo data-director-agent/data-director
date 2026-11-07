@@ -121,7 +121,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000007",
-        "policy_bundle_ref": "profile:data-director-app@v7",
+        "policy_bundle_ref": "profile:data-director-app@v8",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000008",
         "project_id": "01900000-0000-7000-8000-000000000004",
         "requires_human_review": true,
@@ -185,7 +185,7 @@
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000007",
-        "policy_bundle_ref": "profile:data-director-app@v7",
+        "policy_bundle_ref": "profile:data-director-app@v8",
         "policy_digest": "0000000000000000000000000000000000000000000000000000000000000008",
         "project_id": "01900000-0000-7000-8000-000000000004",
         "requires_human_review": true,

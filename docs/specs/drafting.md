@@ -109,7 +109,7 @@ identifier, derived from its target, finds its answer in whichever draft asked i
 
 **Model access.** A metadata record and a person's answers are `documentation`-class project
 content, so they go to a drafter with a hosted model only where the institutional profile allows
-it ([Projects](projects.md), invariant 8, TODO(#394, #40)). A drafter places answers by rule, so it
+it in its `hosted_models` ([Projects](projects.md), invariant 8). A drafter places answers by rule, so it
 can use them without a model.
 
 **Limitations go in the statement.** The core `Document` has no `limitations` slot, so a drafter

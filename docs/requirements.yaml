@@ -176,6 +176,10 @@ requirements:
     source: project
     parent: C13
     title: Each model call an agent makes is recorded with the model the provider named, when it was made and the digest of the prompt sent; the harness keeps the prompt beside the run and refuses a run whose prompts are not those its calls name; that an agent reports every call is not checked (#26)
+  - id: C13.5
+    source: project
+    parent: C13
+    title: An agent whose card declares a hosted model is given only the classes of project content the profile's hosted_models lists, inventory alone by default, and is otherwise refused before anything is sent; that the card declares every model the agent calls is not checked
   - id: C14
     source: blueprint
     title: Explainability — human-readable explanations for recommendations and decisions

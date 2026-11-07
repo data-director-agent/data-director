@@ -2,7 +2,7 @@
 # names another (docs/specs/policy-and-identity.md, docs/specs/system.md). Keys are as in workbench/profiles/README.md.
 # TODO(#225): how a steward edits and reviews this profile in a deployment (#41).
 profile_id: data-director-app
-version: 7
+version: 8
 description: Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.
 
 agents:
@@ -25,6 +25,13 @@ agents:
 # The agent the home page converses with (docs/specs/app.md). The rule-based stub needs no model key.
 # A deployment with a key names orchestrator.model instead, and raises `version`.
 orchestrator: orchestrator.stub
+
+# The classes of project content an agent whose card declares a hosted model may be given
+# (docs/specs/projects.md, invariant 8). Without this key only `inventory` may. `documentation`
+# lets advisor.documentation write a project's documents with its hosted model.
+hosted_models:
+  - inventory
+  - documentation
 
 actions_requiring_approval:
   - deposit
