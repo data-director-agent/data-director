@@ -4,9 +4,11 @@
 
 A dataset's metadata record, README and data dictionary are research outputs, published under
 the researcher's name. Institutions and publishers ask that any use of generative AI in producing
-them be disclosed. A typical policy, the University of Sheffield's *Principles for Using GenAI in
-Research and Innovation*, asks for the name and version of the tool, the date it was used,
-whether the output was validated, which sections are reproduced verbatim, and the prompt texts.
+them be disclosed. A typical policy, the University of Sheffield's [*Principles for Using GenAI
+in Research and Innovation*](https://sheffield.ac.uk/rpi/ethics-integrity/generative-ai-principles-research-and-innovation),
+asks for the name and version of the tool, the date it was used, whether the output was
+validated, and which sections are reproduced verbatim. It asks that the prompt texts be
+recorded, not that they be published.
 The Blueprint asks for the same record: R10 (provenance of AI agent actions, with PROV-O), C13
 (actions attributable and under human oversight) and C14 (explanations kept alongside metadata
 records).
@@ -128,6 +130,12 @@ media, so they are carried alongside the PROV account, not instead of it.
   differ from the record.
 - **DataCite contributor roles or CRediT.** Both name people's roles, and publishing ethics (COPE)
   hold that an AI tool is not an author or contributor.
+- **Prompts in the deposit package, at the researcher's choice.** The policies that ask about
+  prompts ask that they be recorded, and the run store records them. The statement names each by
+  its digest, so a researcher can produce a prompt on request and show it is the one used. A
+  published prompt cannot be withdrawn, and may hold paths, draft text or personal data whose
+  erasure is not yet decided (TODO(#156)). This is revisited if a publisher or funder requires
+  the prompt texts themselves.
 - **C2PA content credentials.** They are made for signed media assets, not for text records that
   are edited and approved in a log.
 
@@ -146,8 +154,6 @@ media, so they are carried alongside the PROV account, not instead of it.
   profile: TODO(#477).
 - Whether, and how, the statement is offered for the researcher to add to the README or the
   metadata record's description, which they would then approve: TODO(#478).
-- Whether a researcher may choose to include the prompts themselves in the deposit package:
-  TODO(#624).
 - A run that raises after calling a model reports none of its calls, and the grounding linter
   does not check that each `chat` span has a call. Both bear on audit-trail completeness:
   TODO(#26).
