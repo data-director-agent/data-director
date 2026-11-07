@@ -15,6 +15,7 @@ the contract's class schema before a project keeps it ([Projects](../../docs/spe
 | `parse` | `parseInventory(text)`, `asInventory(value)` and `looksLikeInventory(text)`; `NotAnInventory` says in a sentence what is wrong |
 | `summary` | `summarise(inventory)`: totals, formats by media type, how formats were identified, ambiguous and unrecognised files, tables, limitations |
 | `tree` | `folderTree(files)`: the files as folders, each with its file count and size |
+| `omit` | `omit(inventory, omission)`: the inventory without the files, folders and columns a researcher left out, with one limitation that counts them and names none; `countOmitted`, `describeOmitted`, `isOmitted` |
 | `search` | `searchFiles(files, query)`: by path, media type, PRONOM identifier or column name |
 | `format` | `formatBytes`, `formatFileCount`, `formatDate`, `describeInventory`, `identificationLabel`, `pronomUrl` |
 | `making` | `MAKING_AN_INVENTORY`, how to make an inventory on each operating system, and `systemFromPlatform(platform)` |

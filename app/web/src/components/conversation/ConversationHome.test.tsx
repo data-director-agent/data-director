@@ -6,6 +6,7 @@ import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
 import answeredFixture from "../../../fixtures/conversation-answered.json";
 import questionFixture from "../../../fixtures/conversation-question.json";
+import leftOut from "../../../fixtures/inventory-left-out.json";
 import flowFixture from "../../../fixtures/process-flow.json";
 import {
   type ConversationApi,
@@ -244,6 +245,11 @@ describe("ConversationHome", () => {
     };
     const file = (content: string, name = "inventory.json") =>
       new File([content], name, { type: "application/json" });
+    /** Confirms the inventory being checked, leaving nothing out. */
+    async function confirm() {
+      const review = await screen.findByRole("dialog", { name: "Check the inventory before attaching it" });
+      await userEvent.click(within(review).getByRole("button", { name: "Attach this inventory" }));
+    }
 
     it("shows a chosen file as a chip and sends it beside the message", async () => {
       const sendTurn = vi.fn().mockResolvedValue(undefined);
@@ -251,6 +257,7 @@ describe("ConversationHome", () => {
       const input = container.querySelector<HTMLInputElement>('input[type="file"]');
       if (!input) throw new Error("no file input");
       await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
+      await confirm();
       expect(await screen.findByText(/Inventory: 2 files, made 1 Nov 2026/)).toBeVisible();
       expect(screen.queryByRole("button", { name: "Attach inventory" })).toBeNull();
       expect(await axe(container)).toHaveNoViolations();
@@ -270,6 +277,7 @@ describe("ConversationHome", () => {
       const input = dialog.querySelector<HTMLInputElement>('input[type="file"]');
       if (!input) throw new Error("no file input in the dialog");
       await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
+      await confirm();
       expect(await screen.findByText(/Inventory: 2 files, made 1 Nov 2026/)).toBeVisible();
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(screen.queryByRole("button", { name: "Make an inventory" })).toBeNull();
@@ -295,7 +303,8 @@ describe("ConversationHome", () => {
       await userEvent.click(box);
       await userEvent.paste(JSON.stringify(INVENTORY));
       expect(box).toHaveValue("");
-      expect(screen.getByText(/Inventory: 2 files/)).toBeVisible();
+      await confirm();
+      expect(await screen.findByText(/Inventory: 2 files/)).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Remove inventory" }));
       expect(screen.queryByText(/Inventory: 2 files/)).toBeNull();
       expect(box).toHaveFocus();
@@ -310,11 +319,55 @@ describe("ConversationHome", () => {
       const box = screen.getByRole("textbox", { name: "What would you like to do?" });
       await userEvent.click(box);
       await userEvent.paste(JSON.stringify(INVENTORY));
+      await confirm();
       await userEvent.type(box, "describe these");
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(await screen.findByText(/could not reach the server/)).toBeVisible();
       expect(box).toHaveValue("describe these");
       expect(screen.getByRole("button", { name: "Remove inventory" })).toBeVisible();
+    });
+
+    it("attaches nothing until the inventory is checked, and nothing when it is cancelled", async () => {
+      const { container } = renderHome(withOrchestrator(), fakeApi());
+      const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input");
+      await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
+      const review = await screen.findByRole("dialog", { name: "Check the inventory before attaching it" });
+      expect(within(review).getByText(/names of your files and folders/)).toBeVisible();
+      expect(within(review).getByText(/AI model hosted outside your institution/)).toBeVisible();
+      expect(screen.queryByText(/Inventory: 2 files/)).toBeNull();
+      await userEvent.click(within(review).getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(screen.queryByText(/Inventory: 2 files/)).toBeNull();
+      expect(screen.getByRole("button", { name: "Attach inventory" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+      await waitFor(() =>
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus(),
+      );
+    });
+
+    it("sends the inventory without the folder and column left out, naming neither", async () => {
+      // `app/tests/test_app.py` checks that the project keeps nothing of what is left out of `sent`.
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+      const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input");
+      await userEvent.upload(input, file(JSON.stringify(leftOut.attached)));
+      const review = await screen.findByRole("dialog", { name: "Check the inventory before attaching it" });
+      await userEvent.click(within(review).getByRole("checkbox", { name: "Include the folder participants/" }));
+      await userEvent.click(within(review).getByText("readings.csv", { selector: "summary *" }));
+      await userEvent.click(
+        within(review).getByRole("checkbox", { name: "Include the column hiv_status of readings.csv" }),
+      );
+      expect(within(review).getByRole("status")).toHaveTextContent("Left out: 1 file and 1 column.");
+      await userEvent.click(within(review).getByRole("button", { name: "Attach this inventory" }));
+      expect(await screen.findByText(/Inventory: 1 file/)).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      const sent: unknown = sendTurn.mock.calls[0]?.[4];
+      expect(sent).toEqual(leftOut.sent);
+      const text = JSON.stringify(sent);
+      for (const name of leftOut.left_out) expect(text).not.toContain(name);
     });
   });
 

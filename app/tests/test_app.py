@@ -24,6 +24,7 @@ from a2a.types import TaskState
 from starlette.testclient import TestClient
 from support import (
     APP_URL,
+    FIXTURES,
     check_fixture,
     configure_env,
     dist_dir,
@@ -802,6 +803,41 @@ def test_an_attached_inventory_is_kept_and_the_orchestrator_is_told_of_it(
     kept = client.get(f"/api/projects/{project_id}/inventory")
     assert kept.status_code == 200
     assert [f["file_path"] for f in kept.json()["inventory_files"]] == ["a.csv", "b.csv"]
+
+
+def test_what_the_researcher_left_out_of_an_inventory_is_kept_nowhere(
+    in_projects: tuple[Governance, Any],
+):
+    """The shell sends an inventory without what the researcher left out when checking it
+    (#472); `inventory-left-out.json` holds it as attached and as sent, and
+    `ConversationHome.test.tsx` checks the shell sends exactly `sent`. Nothing left out is in
+    any file the project keeps, and the agent is told that something was left out."""
+    governance, app = in_projects
+    fixture = json.loads((FIXTURES / "inventory-left-out.json").read_text(encoding="utf-8"))
+    client = TestClient(app)
+    conversation_id = start(client)
+    response = turn(client, conversation_id, " ", inventory=fixture["sent"])
+    assert response.status_code == 200, response.json()
+    envelope = response.json()["envelope"]
+    store = governance.projects
+    assert store is not None
+    added = store.events(envelope["project_id"])[-1]
+    assert added["event"] == "inventory_added"
+    assert added["file_count"] == 1
+
+    kept = [p for p in (store.root / envelope["project_id"]).rglob("*") if p.is_file()]
+    assert kept
+    for path in kept:
+        text = path.read_text(encoding="utf-8")
+        for name in fixture["left_out"]:
+            assert name not in text, f"{name!r} is in {path.name}"
+    served = client.get(f"/api/projects/{envelope['project_id']}/inventory").json()
+    assert served == fixture["sent"]
+
+    shown = (governance.conductor.store.get_request(envelope["invocation_id"]) or {})["input"]
+    assert shown["project_inventory"]["inventory_limitations"][-1].startswith(
+        "Before this inventory was added, the researcher left out 1 file and 1 column."
+    )
 
 
 def test_a_project_without_an_inventory_serves_none(in_projects: tuple[Governance, Any]):

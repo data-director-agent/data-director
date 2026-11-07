@@ -101,9 +101,23 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the file `dd-inventory` writes, which the server adds to the conversation's project before the
     turn runs; with one, the message may be blank and the server supplies a sentence saying an
     inventory was attached. An inventory the project refuses, or one sent to a conversation in no
-    project, refuses the turn and nothing runs or is recorded. The shell attaches one from a file
+    project, refuses the turn and nothing runs or is recorded. The shell reads one from a file
     chosen with a button, dropped on the message form, or pasted whole into the message box, and
-    shows it as a chip, never as its text. Beside the attach button, **Make an inventory** opens a
+    first opens it to be checked: a dialog says that this is everything that will be stored and
+    sent to agents, that file and folder names and column headings are included and may
+    themselves be sensitive, and that agents may show it to a hosted model
+    ([Projects](projects.md), rule 8), then lays the inventory out as **View inventory** does
+    (below) with an Include checkbox on every file, folder and column. Nothing is attached until
+    the researcher presses **Attach this inventory**; closing the dialog any other way discards
+    it. What they untick is removed from the document before it is attached, and so is never
+    sent or stored: a folder takes every file beneath it, a limitation that names a file left
+    out goes with it, and one limitation is added to `inventory_limitations` that counts the
+    files and columns left out without naming them, so that an agent does not take the omission
+    for an absence. Removing them is `@data-director/inventory`'s `omit`; the dialog only
+    records the choice (`inventory/browser/tests/omit.test.ts`,
+    `app/web/src/components/conversation/ConversationHome.test.tsx` and, with the same
+    `app/web/fixtures/inventory-left-out.json`, `app/tests/test_app.py`). The checked inventory
+    shows as a chip, never as its text. Beside the attach button, **Make an inventory** opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
     stay on their computer, a tab per operating system (the browser's own selected) with the
     commands that install uv and run `dd-inventory`, each with a copy button, and at the end the
@@ -121,8 +135,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     amounts to and leaves out, its formats, its files as folders with a search, and the columns of
     its tables. A chip for an inventory the project has since replaced has no button, because
     only the latest is served. The facts come from `@data-director/inventory`
-    ([System and boundaries](system.md)); the dialog only lays them out, and lets nothing be left
-    out yet (TODO(#472))
+    ([System and boundaries](system.md)); the dialog only lays them out. Folders are drawn only
+    while open and a search draws at most 200 matches, so an inventory of thousands of files
+    stays usable; checkboxes and folders work by keyboard and are named for screen readers
     (`app/web/src/components/inventory/InventoryView.test.tsx`, `app/web/e2e/shell.spec.ts`).
 20. **The profile page shows only what the session holds.** `/profile`, reached from the name in
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is

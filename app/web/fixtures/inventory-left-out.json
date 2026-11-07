@@ -1,0 +1,74 @@
+{
+  "left_out": [
+    "participants",
+    "jane-doe",
+    "hiv_status"
+  ],
+  "attached": {
+    "schema_class": "FileInventory",
+    "inventory_tool": "dd-inventory",
+    "inventory_tool_version": "0.1.0",
+    "inventory_made_at": "2026-11-01T09:00:00Z",
+    "inventory_files": [
+      {
+        "file_path": "participants/jane-doe.csv",
+        "file_size": 10,
+        "file_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "file_media_type": "text/csv",
+        "file_identified_by": "extension",
+        "file_fields": [
+          {
+            "name": "id",
+            "field_type": "integer"
+          }
+        ]
+      },
+      {
+        "file_path": "readings.csv",
+        "file_size": 10,
+        "file_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "file_media_type": "text/csv",
+        "file_identified_by": "extension",
+        "file_fields": [
+          {
+            "name": "site",
+            "field_type": "string"
+          },
+          {
+            "name": "hiv_status",
+            "field_type": "string"
+          }
+        ]
+      }
+    ],
+    "inventory_limitations": [
+      "participants/jane-doe.csv: 2 rows could not be parsed.",
+      "Table fields are inferred from a sample of rows; a later row may not fit the type given."
+    ]
+  },
+  "sent": {
+    "schema_class": "FileInventory",
+    "inventory_tool": "dd-inventory",
+    "inventory_tool_version": "0.1.0",
+    "inventory_made_at": "2026-11-01T09:00:00Z",
+    "inventory_files": [
+      {
+        "file_path": "readings.csv",
+        "file_size": 10,
+        "file_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "file_media_type": "text/csv",
+        "file_identified_by": "extension",
+        "file_fields": [
+          {
+            "name": "site",
+            "field_type": "string"
+          }
+        ]
+      }
+    ],
+    "inventory_limitations": [
+      "Table fields are inferred from a sample of rows; a later row may not fit the type given.",
+      "Before this inventory was added, the researcher left out 1 file and 1 column. That they are not listed here does not mean they are not in the dataset."
+    ]
+  }
+}
