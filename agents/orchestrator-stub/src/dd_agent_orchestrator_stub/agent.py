@@ -22,6 +22,17 @@ entry applies, as a choice question (`Reply.reply_question`) whose values are th
 `Message.choice_answer` naming one is read before any rule. Otherwise it reads only the current
 message: `Message.history` is covered by the input hash, and used only to tell a first turn.
 
+In a project, the conductor says which entry point the researcher chose and how far each step has
+gone (`Message.project_entry`, `Message.project_progress`), derived from the project log on every
+turn. The stub keeps no place of its own: its list of steps marks each one done, started or
+skipped, and ends with the step `suggested_next` names. Asked what to do next ("what next?"), or on
+a first turn in a project whose entry point is known, it offers that step and a few other open
+ones as a choice question whose values are step ids. Choosing a step delegates the inputs
+`routing.yaml` gives for it to the agent serving it, which the conductor fills from the project;
+a step with agents but no template is answered with how to ask them, and a step with no agent is
+named as having none. Nothing is a gate: any step may be chosen, and any rule still routes
+(docs/specs/orchestration.md).
+
 Grounding mode `delegation`: the reply cites the input and each child envelope it relays, and
 the linter checks those citations against the delegations the conductor recorded (R1, D1-D3,
 G4). This agent calls no model, so its telemetry carries none.
@@ -61,7 +72,16 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
-from dd_sdk.process_flow import ENTRIES, Entry, entry, plan
+from dd_sdk.process_flow import (
+    ENTRIES,
+    PHASES,
+    Entry,
+    ProgressStep,
+    Step,
+    entry,
+    progress,
+    suggested_next,
+)
 
 HERE = Path(__file__).resolve().parent
 ROUTING = HERE / "routing.yaml"
@@ -110,6 +130,19 @@ def load_entries(path: Path = ROUTING) -> list[EntryRule]:
     ]
 
 
+def load_next(path: Path = ROUTING) -> re.Pattern[str] | None:
+    """How a message asks what to do next, if `routing.yaml` says."""
+    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    pattern = doc.get("next")
+    return re.compile(pattern, re.IGNORECASE) if pattern else None
+
+
+def load_steps(path: Path = ROUTING) -> dict[str, list[dict[str, Any]]]:
+    """The inputs to send when a step is chosen, by step id."""
+    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return {str(k): list(v) for k, v in (doc.get("steps") or {}).items()}
+
+
 def entry_named(text: str, entries: list[EntryRule]) -> Entry | None:
     """The entry point a message names, if any."""
     text = text.strip()
@@ -138,6 +171,62 @@ def entry_chosen(message: Message) -> Entry | None:
         return entry(int(answer.answer_values[0]))
     except KeyError, ValueError:
         return None
+
+
+STEP_IDS = {s.id for p in PHASES for s in p.steps}
+# How many open steps a "what next?" question offers besides the suggested one.
+OTHER_STEPS = 3
+
+
+def step_chosen(message: Message) -> str | None:
+    """The step the researcher chose in answer to `next_question`, if they chose one."""
+    answer = message.choice_answer
+    if answer is None or len(answer.answer_values) != 1:
+        return None
+    value = answer.answer_values[0]
+    return value if value in STEP_IDS else None
+
+
+def project_entry(message: Message) -> Entry | None:
+    """The entry point the conductor says the project's researcher chose, if any."""
+    return entry(message.project_entry) if message.project_entry is not None else None
+
+
+def states_of(message: Message) -> dict[str, str]:
+    """Each step's state as the conductor derived it from the project log; open if left out."""
+    return {p.step_id: p.step_state.value for p in message.project_progress or []}
+
+
+def next_question(steps: list[ProgressStep], start: Entry | None) -> ChoiceQuestion | None:
+    """The suggested step and up to `OTHER_STEPS` other open or started ones, as a choice whose
+    values are step ids; None when fewer than two are left to offer."""
+    first = suggested_next(steps, start)
+    offered = [first] if first is not None else []
+    for s in steps:
+        if len(offered) > OTHER_STEPS:
+            break
+        if (
+            s not in offered
+            and s.state in ("open", "started")
+            and not s.step.out_of_scope
+            and (start is None or s.phase.number >= start.starts_at)
+        ):
+            offered.append(s)
+    if len(offered) < 2:
+        return None
+    return ChoiceQuestion(
+        question_prompt="What would you like to do next?",
+        question_options=[
+            ChoiceOption(
+                option_value=s.step.id,
+                option_label=s.step.label or s.step.text,
+                option_help=("Suggested next. " if s is first else "")
+                + f"Phase {s.phase.number}, {s.phase.name or s.phase.title}.",
+            )
+            for s in offered
+        ],
+        question_other=True,
+    )
 
 
 def fill(template: Any, values: dict[str, str]) -> Any:
@@ -198,10 +287,16 @@ class DirectorStub:
     )
 
     def __init__(
-        self, rules: list[Rule] | None = None, entries: list[EntryRule] | None = None
+        self,
+        rules: list[Rule] | None = None,
+        entries: list[EntryRule] | None = None,
+        next_pattern: re.Pattern[str] | None = None,
+        steps: dict[str, list[dict[str, Any]]] | None = None,
     ) -> None:
         self.rules = rules if rules is not None else load_rules()
         self.entries = entries if entries is not None else load_entries()
+        self.next_pattern = next_pattern if next_pattern is not None else load_next()
+        self.steps = steps if steps is not None else load_steps()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         message = request.input
@@ -213,22 +308,36 @@ class DirectorStub:
                 "The conductor gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
             )
+        step_id = step_chosen(message)
+        if step_id is not None:
+            return self._do_step(step_id, message, ctx)
         chosen = entry_chosen(message)
         if chosen is not None:
-            return _template_reply(
-                self._plan_text(chosen, ctx.delegate.manifest()),
+            return self._where(
+                chosen,
+                message,
+                ctx,
                 f"Listed the steps from entry point {chosen.number}, as chosen; "
                 "no agent was asked.",
-                ctx,
             )
         found = route(message.message_text, self.rules)
         if isinstance(found, str):
             start = entry_named(message.message_text, self.entries)
             if start is not None:
-                return _template_reply(
-                    self._plan_text(start, ctx.delegate.manifest()),
-                    f"Listed the steps from entry point {start.number}; no agent was asked.",
+                return self._where(
+                    start,
+                    message,
                     ctx,
+                    f"Listed the steps from entry point {start.number}; no agent was asked.",
+                )
+            known = project_entry(message)
+            asks_next = bool(self.next_pattern and self.next_pattern.search(message.message_text))
+            if asks_next or (known is not None and not message.history):
+                return self._where(
+                    known,
+                    message,
+                    ctx,
+                    "Listed where the project is and suggested a next step; no agent was asked.",
                 )
             if not message.history:
                 return _template_reply(
@@ -274,27 +383,53 @@ class DirectorStub:
             evidence=[_input_evidence(ctx), delegated.evidence],
         )
 
-    def _plan_text(self, start: Entry, manifest: list[dict[str, Any]]) -> str:
-        examples = {r.agent_id: r.example for r in self.rules}
+    def _where(
+        self, start: Entry | None, message: Message, ctx: RunContext, statement: str
+    ) -> AgentResult:
+        """The steps from `start` with how far each has gone, and the suggested next step offered
+        with a few others as a choice."""
+        assert ctx.delegate is not None
+        manifest = ctx.delegate.manifest()
+        steps = progress(start, states_of(message), manifest)
+        return _template_reply(
+            self._plan_text(start, steps, manifest),
+            statement,
+            ctx,
+            question=next_question(steps, start),
+        )
+
+    def _names(self, manifest: list[dict[str, Any]]) -> dict[str, str]:
         # The persona's title where its card gives one (docs/specs/agents.md), with the id to
         # @-mention it by.
-        names = {
+        return {
             str(e.get("agent_id")): f"{e['title']} ({e.get('agent_id')})"
             if e.get("title")
             else str(e.get("agent_id"))
             for e in manifest
         }
-        lines = [f"Entry point {start.number}: {start.text}. The steps from here:"]
+
+    def _plan_text(
+        self, start: Entry | None, steps: list[ProgressStep], manifest: list[dict[str, Any]]
+    ) -> str:
+        examples = {r.agent_id: r.example for r in self.rules}
+        names = self._names(manifest)
+        if start is not None:
+            lines = [f"Entry point {start.number}: {start.text}. The steps from here:"]
+        else:
+            lines = ["Every step of the journey:"]
         phase = None
-        for planned in plan(start, manifest):
+        for planned in steps:
             if planned.phase is not phase:
                 phase = planned.phase
                 lines.append(f"Phase {phase.number}, {phase.title}:")
             step = planned.step
             label = step.text + (" (optional)" if step.optional else "")
             requirements = ", ".join(step.requirements) or "no Blueprint requirement"
+            state = {"done": "[done] ", "started": "[started] ", "skipped": "[skipped] "}.get(
+                planned.state, ""
+            )
             if step.out_of_scope:
-                lines.append(f"- {label}: out of scope for now.")
+                lines.append(f"- {state}{label}: out of scope for now.")
             elif planned.agent_ids:
                 asks = "; ".join(
                     f"{names.get(a, a)}, for example {examples[a]!r}"
@@ -302,11 +437,102 @@ class DirectorStub:
                     else names.get(a, a)
                     for a in planned.agent_ids
                 )
-                lines.append(f"- {label} ({requirements}): {asks}.")
+                lines.append(f"- {state}{label} ({requirements}): {asks}.")
             else:
-                lines.append(f"- {label}: no agent yet ({requirements}).")
+                lines.append(f"- {state}{label}: no agent yet ({requirements}).")
+        suggested = suggested_next(steps, start)
+        if suggested is not None:
+            lines.append(
+                f"Suggested next: {suggested.step.text}. You may do any step in any order, and "
+                "mark one done or skipped in your project when nothing here records it."
+            )
+        elif any(s.state != "open" for s in steps):
+            lines.append("Every step from here is done or skipped.")
         lines.append("The work and every decision are yours; the agents only advise.")
         return "\n".join(lines)
+
+    def _do_step(self, step_id: str, message: Message, ctx: RunContext) -> AgentResult:
+        """Delegate the inputs `routing.yaml` gives for the chosen step to the agents serving it,
+        or say why none can be asked."""
+        assert ctx.delegate is not None
+        manifest = ctx.delegate.manifest()
+        planned = next(
+            p for p in progress(None, states_of(message), manifest) if p.step.id == step_id
+        )
+        step = planned.step
+        requirements = ", ".join(step.requirements) or "no Blueprint requirement"
+        if step.out_of_scope:
+            return _template_reply(
+                f"{step.text}: out of scope for now.",
+                f"Chosen step {step_id} is out of scope; no agent was asked.",
+                ctx,
+            )
+        if not planned.agent_ids:
+            return _template_reply(
+                f"{step.text}: no agent yet ({requirements}). The work is yours; mark the step "
+                "done or skipped in your project when it is.",
+                f"Chosen step {step_id} has no agent; no agent was asked.",
+                ctx,
+            )
+        accepts = {
+            str(e.get("agent_id")): {str(c) for c in e.get("accepts") or []} for e in manifest
+        }
+        sends = [
+            (agent_id, template)
+            for template in self.steps.get(step_id, [])
+            for agent_id in [
+                next(
+                    (
+                        a
+                        for a in planned.agent_ids
+                        if template["schema_class"] in accepts.get(a, ())
+                    ),
+                    None,
+                )
+            ]
+            if agent_id is not None
+        ]
+        if not sends:
+            names = self._names(manifest)
+            who = "; ".join(names.get(a, a) for a in planned.agent_ids)
+            return _template_reply(
+                f"{step.text} ({requirements}): ask {who} directly, with "
+                f"'@{planned.agent_ids[0]} <what you need>'.",
+                f"Chosen step {step_id} needs the researcher's words; no agent was asked.",
+                ctx,
+            )
+        delegated = [
+            ctx.delegate(agent_id, OpenInput.model_validate(template))
+            for agent_id, template in sends
+        ]
+        return self._relay_step(step, delegated, ctx)
+
+    def _relay_step(self, step: Step, delegated: list[Delegated], ctx: RunContext) -> AgentResult:
+        lines = [f"{step.text}:"]
+        for d in delegated:
+            child = d.envelope
+            lines.append(
+                f"- {child.agent_id}@{child.agent_version} {child.outcome.status.value}: "
+                f"{child.outcome.statement}"
+            )
+        lines.append("Ask 'what next?' when you are ready.")
+        input_ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        agents = ", ".join(f"{d.envelope.agent_id}@{d.envelope.agent_version}" for d in delegated)
+        return AgentResult(
+            outcome=Outcome(
+                status=OutcomeStatus.SUCCEEDED,
+                statement=(
+                    f"Delegated step {step.id} to {agents}; each outcome is on its delegated "
+                    "envelope. Rule-based; human review is required."
+                ),
+            ),
+            payload=Reply(
+                reply_text="\n".join(lines),
+                reply_derivation=Derivation.TEMPLATE,
+                grounded_on=[input_ref, *(d.ref for d in delegated)],
+            ),
+            evidence=[_input_evidence(ctx), *(d.evidence for d in delegated)],
+        )
 
     def _routable(self) -> str:
         examples = "; ".join(f"{r.example!r} → {r.agent_id}" for r in self.rules)

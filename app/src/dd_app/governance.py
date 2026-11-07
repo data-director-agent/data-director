@@ -371,8 +371,12 @@ class Governance:
             }
         if found is not None and self.projects is not None and project_id is not None:
             # What the project holds now, which a turn's input shows only as it was then.
+            summary = self.projects.summary(project_id)
             found["project_id"] = project_id
-            found["inventory"] = self.projects.summary(project_id)["inventory"]
+            found["inventory"] = summary["inventory"]
+            # Where the project is in the process flow, derived from its log now
+            # (docs/specs/orchestration.md).
+            found["progress"] = summary["progress"]
         return found
 
     def runs(self) -> list[dict[str, Any]]:

@@ -13,9 +13,11 @@ Three core classes are filled. Within a project:
   filled from the project, TODO(#394);
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
-  knows the project holds one without being given its files.
+  knows the project holds one without being given its files; its `project_entry` and
+  `project_progress` say which entry point the researcher chose and how far each step of the
+  process flow has gone, derived from the log on every turn (`dd_harness.progress`).
 
-A `Message`'s `project_inventory` is the conductor's alone: outside a project it is removed. Any
+A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
 hash covers what the agent was shown.
 
@@ -23,7 +25,8 @@ hash covers what the agent was shown.
 conductor can refuse to send `documentation` to an agent that calls a hosted model unless the
 profile's `hosted_models` allows it. An inventory, and what it is, are `inventory`. A metadata
 record, a version to regenerate and a person's answers are `documentation`. A repository's
-requirements are the repository's, not the project's, and are neither.
+requirements are the repository's, not the project's, and a `Message`'s entry point and progress
+say only which steps of the process flow have gone how far; they are neither.
 """
 
 from __future__ import annotations
@@ -39,6 +42,8 @@ from dd_sdk.evidence import input_hash
 DRAFT_REQUEST = "DraftRequest"
 FILE_INVENTORY = "FileInventory"
 MESSAGE = "Message"
+# A `Message`'s slots that only the conductor fills.
+MESSAGE_PROJECT_SLOTS = ("project_inventory", "project_entry", "project_progress")
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
 INVENTORY = "inventory"
@@ -56,10 +61,24 @@ def give(
     schema_class = filled.get("schema_class")
     if store is None or project_id is None:
         if schema_class == MESSAGE:
-            filled.pop("project_inventory", None)
+            for slot in MESSAGE_PROJECT_SLOTS:
+                filled.pop(slot, None)
         return filled
     if schema_class == MESSAGE:
-        _put(filled, {"project_inventory": summarise(store, project_id)})
+        where = store.progress(project_id)
+        _put(
+            filled,
+            {
+                "project_inventory": summarise(store, project_id),
+                "project_entry": where["entry"],
+                # Left out while every step is open, as `project_entry` is until one is chosen.
+                "project_progress": [
+                    {"step_id": step_id, "step_state": state}
+                    for step_id, state in where["steps"].items()
+                ]
+                or None,
+            },
+        )
     elif schema_class == DRAFT_REQUEST:
         _put(
             filled,

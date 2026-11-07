@@ -195,6 +195,27 @@ def cmd_project_package(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_project_choose_entry(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).choose_entry(
+        args.project_id,
+        args.entry,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="choose-entry"),
+    )
+    return 0
+
+
+def cmd_project_mark_step(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).mark_step(
+        args.project_id,
+        args.step_id,
+        args.mark,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="mark-step"),
+    )
+    return 0
+
+
 def cmd_project_events(args: argparse.Namespace) -> int:
     for event in project_storage(projects_dir()).events(args.project_id):
         sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
@@ -257,6 +278,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project_id")
     p.add_argument("-o", "--output", help="also write the package's zip to this file")
     p.set_defaults(func=cmd_project_package)
+    p = project.add_parser(
+        "choose-entry", help="record the Blueprint entry point the researcher is at (1, 2 or 3)"
+    )
+    p.add_argument("project_id")
+    p.add_argument("entry", type=int, choices=(1, 2, 3))
+    p.set_defaults(func=cmd_project_choose_entry)
+    p = project.add_parser(
+        "mark-step",
+        help="mark a process-flow step done, skipped or open again (docs/specs/orchestration.md)",
+    )
+    p.add_argument("project_id")
+    p.add_argument("step_id", help="a step id, such as governance.embargo")
+    p.add_argument("mark", choices=("done", "skipped", "open"))
+    p.set_defaults(func=cmd_project_mark_step)
     p = project.add_parser("events", help="print the project's events, oldest first, as JSONL")
     p.add_argument("project_id")
     p.set_defaults(func=cmd_project_events)
