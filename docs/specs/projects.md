@@ -85,7 +85,10 @@ intended design, and each part says where it is not built yet.
    `project_inventory` says what the project's inventory is (its digest, file count, tool and
    date, and its limitations) without its files, so an orchestrator knows the researcher has
    given one; outside a project, or in one with no inventory, it is removed, so a caller can
-   never claim one. Filling `current_version` to regenerate a document, and any other class, are
+   never claim one. Its `project_entry` and `project_progress` say which entry point the
+   researcher chose and which steps of the process flow the log shows started, done or skipped,
+   derived on every turn and removed outside a project ([Orchestration](orchestration.md),
+   invariant 18). Filling `current_version` to regenerate a document, and any other class, are
    not built yet, TODO(#394).
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
@@ -97,8 +100,14 @@ intended design, and each part says where it is not built yet.
    `inventory` and `documentation` (uploaded text, and any document version given back to an
    agent). The profile lists the classes that may be given to an agent whose card declares a
    `hosted` model; where it does not say, only `inventory` may. The conductor refuses anything
-   else before it is sent, with a Problem Details response, and records the refusal. Not built
-   yet, TODO(#394, #40).
+   else before it is sent, with a Problem Details response, and records the refusal. The key is
+   `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
+   and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
+   drafter regenerates and a person's answers are `documentation`; a repository's requirements
+   are neither (`dd_harness.project_facts.given`). The conductor checks after the input check: a
+   run it refuses fails with problem `project-content-withheld` and is stored, and the agent is
+   not called (`harness/tests/test_project_runs.py`). What a caller sends outside a project is
+   not the project's, and the key does not apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload
@@ -170,8 +179,12 @@ project, using the invocation's `acting_for`, and the app's server makes it for 
 
 **The app** ([The app](app.md)) renders the project and passes a person's request to the harness
 with the principal from its authenticator. It shows the state it reads back from the log, never a
-state it inferred, and holds no policy. The right panel, phase tracker and status bar are drawn
-for a project but have no record behind them yet, TODO(#160). The app works in one project at a
+state it inferred, and holds no policy. The phase tracker shows where the project is in the
+process flow, which the harness derives from the log: the researcher's entry point
+(`entry_chosen`) and their marks on steps (`step_marked`: done, skipped, or open again) are
+events of the log, written through the app's server like a decision ([Orchestration](orchestration.md),
+invariant 18). The right panel and status bar are drawn for a project but have no record behind
+them yet, TODO(#160). The app works in one project at a
 time: each conversation it starts is started in the active project, or in a new one when none is
 active ([The app](app.md)). A turn may attach the file `dd-inventory` writes, which the app's server
 adds to the conversation's project before the turn runs, acting for the person signed in and

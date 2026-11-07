@@ -34,6 +34,11 @@ an answer stands until the person answers the same question again. `answers` giv
 answer to each question of the documents of a kind, which the conductor puts into the next
 `DraftRequest`.
 
+Where the project is in the Blueprint's process flow is derived from the log by `progress`, never
+stored (`dd_harness.progress`, docs/specs/orchestration.md). The researcher's own word on it is two
+events: `entry_chosen` (`choose_entry`, the last counts) and `step_marked` (`mark_step`: done,
+skipped, or open again).
+
 A project may have a title, given when it is created, so that a person can tell projects apart.
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from an index of those events built when first asked.
@@ -56,7 +61,9 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final, Literal, NoReturn
 
-from dd_harness.requirements import Resolved
+from dd_harness import progress as flow
+from dd_harness.requirements import RE3DATA_ID, Requirements, RequirementsError
+from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     QUESTION_ID_PATTERN,
@@ -322,6 +329,7 @@ class ProjectStore:
             else None,
             "conversation_count": sum(1 for e in events if e["event"] == CONVERSATION_STARTED),
             "documents": states,
+            "progress": flow.describe(events),
         }
 
     def _conversation_index(self) -> dict[str, str]:
@@ -376,14 +384,34 @@ class ProjectStore:
         return digest
 
     def choose_repository(
-        self, project_id: str, resolved: Resolved, *, acted_for: Principal, caused_by: str
+        self,
+        project_id: str,
+        re3data_id: str,
+        *,
+        registry: Sources,
+        requirements: Requirements,
+        acted_for: Principal,
+        caused_by: str,
     ) -> str:
-        """Record the repository a researcher chose, and the requirements it resolved to.
-        Returns the merged set's digest. Raises `ProjectError` for an unknown project."""
+        """Record the repository a researcher chose by its re3data identifier, and the
+        requirements it resolved to. Its name and declared metadata standards come from the
+        latest re3data export `registry` pins, and the event names that record by `snapshot_ref`
+        and content hash (docs/specs/deposit.md). Returns the merged set's digest. Raises
+        `ProjectError` for an unknown project, `RequirementsError` for an identifier the export
+        does not hold, and `SourceConfigError` if no built export is pinned."""
         self._require(project_id)
-        requirements = resolved.requirements()
-        digest = input_hash(requirements)
-        self._keep_blob(project_id, digest, canonicalise(requirements, INPUT_CANONICALISATION))
+        if not RE3DATA_ID.fullmatch(re3data_id):
+            raise RequirementsError(f"{re3data_id!r} is not a re3data identifier (r3d + 9 digits)")
+        entry = registry.re3data(re3data_id)
+        if entry is None:
+            raise RequirementsError(
+                f"the pinned re3data export holds no repository {re3data_id}; "
+                "check the identifier at re3data.org"
+            )
+        resolved = requirements.resolve(entry.re3data_id, entry.name, entry.metadata_standards)
+        merged = resolved.requirements()
+        digest = input_hash(merged)
+        self._keep_blob(project_id, digest, canonicalise(merged, INPUT_CANONICALISATION))
         self._append(
             project_id,
             REPOSITORY_CHOSEN,
@@ -393,6 +421,9 @@ class ProjectStore:
                 "re3data_id": resolved.re3data_id,
                 "repository_name": resolved.repository_name,
                 "declared_standards": list(resolved.declared_standards),
+                "snapshot_ref": entry.snapshot_ref,
+                "record_hash": entry.content_hash,
+                "record_canonicalisation": entry.canonicalisation,
                 "requirement_sets": [s.describe() for s in resolved.sets],
                 "digest": digest,
                 "canonicalisation": INPUT_CANONICALISATION,
@@ -400,6 +431,40 @@ class ProjectStore:
             },
         )
         return digest
+
+    def choose_entry(
+        self, project_id: str, entry: int, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record the Blueprint entry point (1, 2 or 3) the researcher chose; the last counts.
+        Raises `ProjectError` for an unknown project or entry point."""
+        self._require(project_id)
+        if entry not in (1, 2, 3):
+            raise ProjectError(f"the Blueprint has no entry point {entry!r}")
+        self._append(project_id, flow.ENTRY_CHOSEN, acted_for, caused_by, {"entry": entry})
+
+    def mark_step(
+        self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record the researcher marking a process-flow step done, skipped, or open again.
+        Raises `ProjectError` for an unknown project, a step that is not in scope, or a mark
+        that is none of those."""
+        self._require(project_id)
+        if not flow.markable(step_id):
+            raise ProjectError(f"{step_id!r} is not a process-flow step that may be marked")
+        if mark not in flow.MARKS:
+            raise ProjectError(f"a step is marked one of {', '.join(flow.MARKS)}, not {mark!r}")
+        self._append(
+            project_id,
+            flow.STEP_MARKED,
+            acted_for,
+            caused_by,
+            {"step_id": step_id, "mark": mark},
+        )
+
+    def progress(self, project_id: str) -> dict[str, Any]:
+        """The entry point chosen and each step the log shows started, done or skipped. Raises
+        `UnknownProjectError`."""
+        return flow.describe(self.events(project_id))
 
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:
         """Record a run's `Document` payload as a proposed version (docs/specs/projects.md,
@@ -596,7 +661,7 @@ class ProjectStore:
 
         A question's identifier is derived from the gap it fills, so it is the same in every
         draft of that kind. Until the conductor gives a drafter the version it regenerates,
-        TODO(#394), each redraft is a new document, and an answer must outlive the document it
+        TODO(#631), each redraft is a new document, and an answer must outlive the document it
         was given to."""
         kinds: dict[str, str] = {}
         latest: dict[str, str] = {}

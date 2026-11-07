@@ -11,13 +11,13 @@
 
 import { useEffect, useState } from "react";
 
-import { type RecordedPrincipal, type RepositoryChoice, useProjectApi } from "../../project/api";
+import { type RepositoryRequirements, useProjectApi } from "../../project/api";
 import { Link } from "../../route";
 
 type Load =
   | { state: "loading" }
   | { state: "failed"; message: string }
-  | { state: "loaded"; value: RepositoryChoice | null };
+  | { state: "loaded"; value: RepositoryRequirements | null };
 
 const HEADING_ID = "repository-heading";
 
@@ -32,12 +32,8 @@ function kindName(kind: string): string {
   return DOCUMENT_KINDS[kind] ?? kind.replace(/_/g, " ");
 }
 
-function who(principal: RecordedPrincipal): string {
-  return principal.name;
-}
-
-function Fields({ choice, obligation }: { choice: RepositoryChoice; obligation: string }) {
-  const fields = (choice.requirements?.fields ?? []).filter((f) => f.obligation === obligation);
+function Fields({ choice, obligation }: { choice: RepositoryRequirements; obligation: string }) {
+  const fields = choice.fields.filter((f) => f.obligation === obligation);
   if (fields.length === 0) return <p className="muted">None.</p>;
   return (
     <ul>
@@ -53,8 +49,7 @@ function Fields({ choice, obligation }: { choice: RepositoryChoice; obligation: 
   );
 }
 
-function Chosen({ choice }: { choice: RepositoryChoice }) {
-  const requirements = choice.requirements;
+function Chosen({ choice }: { choice: RepositoryRequirements }) {
   return (
     <>
       <dl className="facts">
@@ -67,10 +62,6 @@ function Chosen({ choice }: { choice: RepositoryChoice }) {
             (<code>{choice.re3data_id}</code>)
           </span>
         </dd>
-        <dt>Chosen by</dt>
-        <dd>
-          {who(choice.chosen_by)}, <time dateTime={choice.chosen_at}>{choice.chosen_at}</time>
-        </dd>
         <dt>Checked against</dt>
         <dd>
           {choice.requirement_sets.map((s, i) => (
@@ -80,12 +71,6 @@ function Chosen({ choice }: { choice: RepositoryChoice }) {
             </span>
           ))}
         </dd>
-        {choice.declared_standards.length > 0 && (
-          <>
-            <dt>Standards re3data lists</dt>
-            <dd>{choice.declared_standards.join(", ")}</dd>
-          </>
-        )}
       </dl>
       {choice.warnings.length > 0 && (
         <div className="callout status-warn">
@@ -99,25 +84,21 @@ function Chosen({ choice }: { choice: RepositoryChoice }) {
           </ul>
         </div>
       )}
-      {requirements && (
+      <h3>Documents</h3>
+      <dl className="facts">
+        <dt>Required</dt>
+        <dd>{choice.required_documents.map(kindName).join(", ") || "None"}</dd>
+        <dt>Recommended</dt>
+        <dd>{choice.recommended_documents.map(kindName).join(", ") || "None"}</dd>
+      </dl>
+      <h3>Metadata the record must have</h3>
+      <Fields choice={choice} obligation="required" />
+      <h3>Metadata the record should have</h3>
+      <Fields choice={choice} obligation="recommended" />
+      {choice.licences && choice.licences.length > 0 && (
         <>
-          <h3>Documents</h3>
-          <dl className="facts">
-            <dt>Required</dt>
-            <dd>{requirements.required_documents.map(kindName).join(", ") || "None"}</dd>
-            <dt>Recommended</dt>
-            <dd>{requirements.recommended_documents.map(kindName).join(", ") || "None"}</dd>
-          </dl>
-          <h3>Metadata the record must have</h3>
-          <Fields choice={choice} obligation="required" />
-          <h3>Metadata the record should have</h3>
-          <Fields choice={choice} obligation="recommended" />
-          {requirements.licences && requirements.licences.length > 0 && (
-            <>
-              <h3>Licences the repository offers</h3>
-              <p>{requirements.licences.join(", ")}</p>
-            </>
-          )}
+          <h3>Licences the repository offers</h3>
+          <p>{choice.licences.join(", ")}</p>
         </>
       )}
     </>

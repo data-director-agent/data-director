@@ -5,14 +5,14 @@ import { axe } from "jest-axe";
 import disclosureFixture from "../../../fixtures/project-disclosure.json";
 import answersFixture from "../../../fixtures/project-answers.json";
 import fixture from "../../../fixtures/project-documents.json";
-import repositoryFixture from "../../../fixtures/project-repository.json";
+import repositoryFixture from "../../../fixtures/repository-chosen.json";
 import validationFixture from "../../../fixtures/project-validation.json";
 import {
   DecisionConflict,
   type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
-  type RepositoryChoice,
+  type RepositoryRequirements,
   type Validation,
   ProjectApiContext,
   digestOf,
@@ -26,7 +26,7 @@ const PROJECT = fixture as ProjectDocuments;
 // and a person approved as it stood, and a metadata record awaiting a decision.
 const DISCLOSURE = disclosureFixture as Disclosure;
 // ORDA, chosen from a shortlist (app/tests/test_repository_choice.py).
-const REPOSITORY = repositoryFixture as RepositoryChoice;
+const REPOSITORY = repositoryFixture as RepositoryRequirements;
 // A project valid for ORDA (app/tests/test_deposit_routes.py).
 const VALID = validationFixture as Validation;
 
@@ -59,9 +59,12 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     answer: () => Promise.resolve(PROJECT),
     inventory: () => Promise.resolve(null),
     repository: () => Promise.resolve(REPOSITORY),
-    chooseRepository: () => Promise.resolve(REPOSITORY),
     validate: () => Promise.resolve(VALID),
     buildPackage: () => Promise.resolve({ digest: "0".repeat(64), size: 1, media_type: "application/zip", validation: VALID }),
+    progress: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
+    chooseEntry: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
+    markStep: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
+    chooseRepository: () => Promise.resolve(REPOSITORY),
     ...overrides,
   };
 }
@@ -278,7 +281,7 @@ describe("ProjectPage", () => {
   it("shows the repository chosen and what it asks for", async () => {
     const { container } = renderPage(fakeApi(), "doc=repository");
     const panel = await screen.findByRole("region", { name: "Repository" });
-    expect(await within(panel).findByRole("link", { name: "ORDA" })).toHaveAttribute(
+    expect(await within(panel).findByRole("link", { name: /^ORDA/ })).toHaveAttribute(
       "href",
       "https://www.re3data.org/repository/r3d100012124",
     );

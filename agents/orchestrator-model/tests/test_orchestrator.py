@@ -35,6 +35,8 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     ReasonCode,
     Reply,
+    StepProgress,
+    StepState,
     TurnRole,
 )
 from dd_sdk.process_flow import describe_flow
@@ -327,6 +329,31 @@ def test_the_model_is_told_of_the_projects_inventory_only_when_it_holds_one() ->
     assert note.startswith("[From the harness, not the researcher]")
     assert "42 files, made 2026-11-01 09:00 UTC by dd-inventory 0.1.0" in note
     assert "skipped 1 unreadable file" in note
+
+
+def test_the_model_is_told_where_the_project_is_only_in_a_project() -> None:
+    """The note is derived by the conductor from the project log on every turn; the model keeps
+    no place in the flow of its own (docs/specs/orchestration.md)."""
+    assert len(conversation(Message(message_text="now"), history_turns=0)) == 1
+    message = Message(
+        message_text="now",
+        project_entry=2,
+        project_progress=[
+            StepProgress(step_id="governance.policies", step_state=StepState.DONE),
+            StepProgress(step_id="preparation.metadata", step_state=StepState.STARTED),
+        ],
+    )
+    (sent,) = conversation(message, history_turns=0)
+    note, text = sent["content"].split("\n\n")
+    assert text == "now"
+    assert note.startswith("[From the harness, not the researcher]")
+    assert "entry point 2" in note
+    assert "governance.policies" in note
+    # A started step is suggested before an earlier open one.
+    assert "Suggested next: [preparation.metadata]" in note
+    # In a project with no entry chosen and nothing done, the note still says so.
+    (sent,) = conversation(Message(message_text="now", project_progress=[]), history_turns=0)
+    assert "no entry point" in sent["content"]
 
 
 CHOICES: dict[str, Any] = {

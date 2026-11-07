@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 from starlette.testclient import TestClient
-from support import check_fixture, configure_env, dist_dir, new_governance
+from support import ORDA, check_fixture, configure_env, dist_dir, new_governance, pin_export
 
 from dd_app.app import PACKAGE_REFUSED, build_app
 from dd_app.governance import Governance
@@ -31,7 +31,6 @@ from dd_harness.testing import (
 )
 from dd_sdk.contract.models import DocumentKind, new_invocation_id
 
-ORDA = "r3d100012124"
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 FIXED_TIME = "2026-01-01T00:00:00+00:00"
 # A DataCite record with every field ORDA's override requires (app/config/repositories).
@@ -51,6 +50,7 @@ RECORD: dict[str, Any] = {
 @pytest.fixture
 def governance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Governance]:
     configure_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("DD_SOURCES_CONFIG", str(pin_export(tmp_path / "re3data")))
     yield from new_governance()
 
 
@@ -73,8 +73,14 @@ def chosen(governance: Governance, store: ProjectStorage) -> str:
     store.add_inventory(
         project_id, file_inventory("data/cores.csv"), acted_for=TEST_PRINCIPAL, caused_by="test"
     )
-    resolved = governance.requirements.resolve(ORDA, "ORDA", ["Dublin Core"])
-    store.choose_repository(project_id, resolved, acted_for=TEST_PRINCIPAL, caused_by="test")
+    store.choose_repository(
+        project_id,
+        ORDA,
+        registry=governance.conductor.sources,
+        requirements=governance.requirements,
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
     return project_id
 
 

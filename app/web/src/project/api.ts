@@ -12,6 +12,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { createContext, useContext } from "react";
 
+import type { ProjectProgress, StepMark } from "../flow/types";
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
 import { checkSignedIn } from "../session/api";
@@ -159,41 +160,6 @@ export interface Disclosure {
   prov: Record<string, unknown>;
 }
 
-/** One field of a repository's requirements: a property of the standard and its obligation. */
-export interface RequirementField {
-  property: string;
-  schema_org: string;
-  obligation: "required" | "recommended";
-  form_label?: string;
-  qualifier?: Record<string, string>;
-}
-
-/**
- * The repository chosen last for a project, as the harness resolved it (docs/specs/deposit.md):
- * the requirement sets it resolved to, by version and digest, the warnings from resolving it, and
- * the merged requirements validation reads.
- */
-export interface RepositoryChoice {
-  re3data_id: string;
-  repository_name: string;
-  declared_standards: string[];
-  requirement_sets: { ref: string; sha256: string }[];
-  digest: string;
-  warnings: string[];
-  chosen_at: string;
-  chosen_by: RecordedPrincipal;
-  requirements: {
-    conforms_to: string;
-    fields: RequirementField[];
-    required_documents: string[];
-    recommended_documents: string[];
-    media_types?: string[];
-    max_file_size?: number;
-    max_item_size?: number;
-    licences?: string[];
-  } | null;
-}
-
 /** One result of a validation, with the message the harness wrote (docs/specs/deposit.md). */
 export interface ValidationResult {
   severity: "violation" | "warning";
@@ -248,6 +214,45 @@ export interface ProjectConversation {
   turns: number;
 }
 
+/** The repository a project chose last, as its summary names it. */
+export interface ChosenRepository {
+  re3data_id: string;
+  repository_name: string;
+  /** What the choice does not check, for example that re3data does not list DataCite for it. */
+  warnings: string[];
+  chosen_at: string;
+}
+
+/** One field a repository's requirements name, and how much the deposit needs it. */
+export interface RequiredField {
+  property: string;
+  schema_org: string;
+  obligation: "required" | "recommended";
+  /** What the repository's own deposit form calls it, where an override says. */
+  form_label?: string;
+  qualifier?: Record<string, string>;
+}
+
+/**
+ * The requirements a chosen repository resolved to (docs/specs/deposit.md): the repository's
+ * override, if the deployment has one, merged on its standard's set. Its name and declared
+ * standards came from the pinned re3data export, not from anyone typing them.
+ */
+export interface RepositoryRequirements {
+  re3data_id: string;
+  repository_name: string;
+  conforms_to: string;
+  requirement_sets: { ref: string; sha256: string }[];
+  fields: RequiredField[];
+  required_documents: string[];
+  recommended_documents: string[];
+  media_types?: string[];
+  licences?: string[];
+  max_file_size?: number;
+  max_item_size?: number;
+  warnings: string[];
+}
+
 /**
  * One project the person may read, as `GET /api/projects` lists it: what it holds, how many of
  * its documents are in each state, and the conversations started in it, most recent first.
@@ -259,12 +264,7 @@ export interface ProjectSummary {
   created_at: string;
   created_by: RecordedPrincipal;
   inventory: { digest: string; file_count: number; inventory_made_at: string; added_at: string } | null;
-  repository: {
-    re3data_id: string;
-    repository_name: string;
-    warnings?: string[];
-    chosen_at: string;
-  } | null;
+  repository: ChosenRepository | null;
   documents: Record<VersionState, number>;
   conversations: ProjectConversation[];
 }
@@ -284,12 +284,16 @@ export interface ProjectApi {
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
   /** The repository chosen for the project, or null if none has been. */
-  repository(projectId: string, signal?: AbortSignal): Promise<RepositoryChoice | null>;
-  /**
-   * Chooses a repository an `advisor.repository` run in the project shortlisted. The server takes
-   * its name and standards from the run's evidence, so only the run and the candidate are sent.
-   */
-  chooseRepository(projectId: string, invocationId: string, re3dataId: string): Promise<RepositoryChoice>;
+  repository(projectId: string, signal?: AbortSignal): Promise<RepositoryRequirements | null>;
+  /** Where the project is in the process flow, derived anew by the harness. */
+  progress(projectId: string, signal?: AbortSignal): Promise<ProjectProgress>;
+  /** Record the entry point the researcher chose; answers with the progress derived anew. */
+  chooseEntry(projectId: string, entry: number): Promise<ProjectProgress>;
+  /** Record a step marked done, skipped or open again; answers with the progress anew. */
+  markStep(projectId: string, stepId: string, mark: StepMark): Promise<ProjectProgress>;
+  /** Choose a repository by its re3data identifier; answers with the requirements it resolved
+   * to. A change is a new choice, and the last one counts. */
+  chooseRepository(projectId: string, re3dataId: string): Promise<RepositoryRequirements>;
   /** Validates the project against its chosen repository's requirements; the report is kept. */
   validate(projectId: string): Promise<Validation>;
   /** Builds the deposit package, or throws `PackageRefused` with the validation that says why. */
@@ -318,6 +322,18 @@ async function json<T>(response: Response): Promise<T> {
 
 function projectPath(projectId: string): string {
   return `/api/projects/${encodeURIComponent(projectId)}`;
+}
+
+function progressPath(projectId: string): string {
+  return `/api/projects/${encodeURIComponent(projectId)}/progress`;
+}
+
+function put(body: unknown): RequestInit {
+  return {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  };
 }
 
 function documentsPath(projectId: string): string {
@@ -355,13 +371,23 @@ export const httpProjectApi: ProjectApi = {
     }
     return json(response);
   },
-  async chooseRepository(projectId, invocationId, re3dataId) {
+  async progress(projectId, signal) {
+    return json(await fetch(progressPath(projectId), signal ? { signal } : {}));
+  },
+  async chooseEntry(projectId, entry) {
+    return json(await fetch(`${progressPath(projectId)}/entry`, put({ entry })));
+  },
+  async markStep(projectId, stepId, mark) {
     return json(
-      await fetch(`${projectPath(projectId)}/repository`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ invocation_id: invocationId, re3data_id: re3dataId }),
-      }),
+      await fetch(`${progressPath(projectId)}/steps/${encodeURIComponent(stepId)}`, put({ mark })),
+    );
+  },
+  async chooseRepository(projectId, re3dataId) {
+    return json(
+      await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/repository`,
+        put({ re3data_id: re3dataId }),
+      ),
     );
   },
   async validate(projectId) {

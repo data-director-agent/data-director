@@ -23,13 +23,12 @@ the latest version asks, for the next draft to place as supplied, and answers `4
 version is no longer the latest or does not ask them (docs/specs/drafting.md).
 `GET /api/projects/{id}/inventory` is the inventory the project holds, as it was added, for the
 researcher to read; it answers `404` when there is none.
+`GET /api/projects/{id}/repository` is the requirements of the repository the project chose last,
+and `404` when none has been; `PUT` on it chooses one by its re3data identifier, which the pinned
+re3data export resolves to the repository's name and declared standards, for the person signed in,
+and answers with the requirements it resolved to and their warnings (docs/specs/deposit.md).
 `GET /api/projects/{id}/disclosure` says how each approved document came about and what
 generative AI was used, as a statement and as a PROV-O graph (docs/specs/disclosure.md).
-`GET /api/projects/{id}/repository` is the repository chosen for the project, the requirement
-sets it resolved to and the warnings from resolving it; `POST /api/projects/{id}/repository`
-chooses one of the candidates an `advisor.repository` run in the project shortlisted, named by
-the run and the candidate's re3data identifier, and takes everything else about the repository
-from the run's evidence (docs/specs/deposit.md).
 `POST /api/projects/{id}/validations` validates the project against its chosen repository's
 requirements, keeps the SHACL report in the project log and answers with each violation and
 warning; `POST /api/projects/{id}/packages` validates it again and, if it has no violation,
@@ -83,7 +82,7 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Re
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_app import deposit, documents, feedback, repository
+from dd_app import deposit, documents, feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
@@ -122,8 +121,9 @@ PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
-CHOICE_REFUSED = "Data Director could not record this choice of repository"
 PACKAGE_REFUSED = "The project is not ready to deposit"
+PROGRESS_REFUSED = "Data Director could not record where the project is"
+REPOSITORY_REFUSED = "Data Director could not record this repository"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -366,6 +366,54 @@ def build_app(
             return _no_project(project_id)
         return JSONResponse({**found.to_document(), "prov": found.prov_jsonld()})
 
+    async def get_progress(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            return JSONResponse(await run_in_threadpool(store.progress, project_id))
+        except UnknownProjectError:
+            return _no_project(project_id)
+
+    async def change_progress(request: Request, person: Principal) -> Response:
+        """The researcher's word on where the project is: the entry point they chose, or a step
+        they marked done, skipped or open again (docs/specs/orchestration.md). Whom it acts for is
+        whom the authenticator names, never the body. Answers with the progress derived anew."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", PROGRESS_REFUSED)
+        if not isinstance(body, dict):
+            return _refused("The body is not a JSON object.", PROGRESS_REFUSED)
+        step_id = request.path_params.get("step_id")
+        caused_by = f"{request.method} {request.url.path}"
+
+        def change() -> dict[str, Any]:
+            if step_id is None:
+                entry = body.get("entry")
+                if not isinstance(entry, int) or isinstance(entry, bool):
+                    raise ProjectError("`entry` is the entry point's number, 1, 2 or 3.")
+                store.choose_entry(project_id, entry, acted_for=person, caused_by=caused_by)
+            else:
+                mark = body.get("mark")
+                if not isinstance(mark, str):
+                    raise ProjectError("`mark` is one of done, skipped or open.")
+                store.mark_step(project_id, step_id, mark, acted_for=person, caused_by=caused_by)
+            return store.progress(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(change), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _refused(str(exc), PROGRESS_REFUSED)
+
     async def get_repository(request: Request, _: Principal) -> Response:
         # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
@@ -373,7 +421,7 @@ def build_app(
         if store is None:
             return _no_project(project_id)
         try:
-            found = await run_in_threadpool(repository.view, store, project_id)
+            found = await run_in_threadpool(store.requirements, project_id)
         except UnknownProjectError:
             return _no_project(project_id)
         if found is None:
@@ -381,44 +429,55 @@ def build_app(
                 404,
                 "repository-not-chosen",
                 "No repository chosen",
-                f"Project {project_id!r} has no repository chosen.",
+                f"Project {project_id!r} has not chosen one.",
             )
         return JSONResponse(found)
 
-    async def choose_repository(request: Request, chooser: Principal) -> Response:
-        # Who chose is whom the authenticator names, and the repository is what the run's
-        # evidence says of it, never the body (docs/specs/deposit.md).
+    async def choose_repository(request: Request, person: Principal) -> Response:
+        """The researcher's choice of repository, by its re3data identifier alone: its name and
+        declared standards come from the pinned re3data export (docs/specs/deposit.md). Whom it
+        acts for is whom the authenticator names, never the body. Answers with the requirements
+        it resolved to; a change is a new choice, and the last one counts."""
         project_id = request.path_params["project_id"]
         store, requirements = governance.projects, governance.requirements
-        if store is None or requirements is None:
+        if store is None:
             return _no_project(project_id)
+        if requirements is None:
+            return _problem(
+                503,
+                "repositories-unavailable",
+                REPOSITORY_REFUSED,
+                "This server has no repository requirement sets.",
+            )
         try:
             body = await request.json()
         except ValueError:
-            return _refused("The body is not JSON.", CHOICE_REFUSED)
-        try:
-            invocation_id, re3data_id = repository.parse_choice(body)
-        except repository.ChoiceRequestError as exc:
-            return _refused(str(exc), CHOICE_REFUSED)
-        try:
-            if not await run_in_threadpool(store.exists, project_id):
-                return _no_project(project_id)
-            envelope = await run_in_threadpool(governance.conductor.store.get, invocation_id)
-            chosen = repository.candidate(envelope, project_id, re3data_id)
-            resolved = requirements.resolve(
-                chosen.re3data_id, chosen.repository_name, chosen.declared_standards
+            return _refused("The body is not JSON.", REPOSITORY_REFUSED)
+        re3data_id = body.get("re3data_id") if isinstance(body, dict) else None
+        if not isinstance(re3data_id, str):
+            return _refused(
+                "`re3data_id` is the repository's re3data identifier.", REPOSITORY_REFUSED
             )
-            await run_in_threadpool(
-                lambda: store.choose_repository(
-                    project_id, resolved, acted_for=chooser, caused_by=f"POST {request.url.path}"
-                )
+
+        def choose() -> dict[str, Any] | None:
+            store.choose_repository(
+                project_id,
+                re3data_id,
+                registry=governance.conductor.sources,
+                requirements=requirements,
+                acted_for=person,
+                caused_by=f"PUT {request.url.path}",
             )
+            return store.requirements(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(choose), status_code=201)
         except UnknownProjectError:
             return _no_project(project_id)
-        except (repository.ChoiceRequestError, RequirementsError, ProjectError) as exc:
-            return _refused(str(exc), CHOICE_REFUSED)
-        found = await run_in_threadpool(repository.view, store, project_id)
-        return JSONResponse(found, status_code=201)
+        except SourceConfigError as exc:
+            return _problem(503, "re3data-unavailable", REPOSITORY_REFUSED, str(exc))
+        except (ProjectError, RequirementsError) as exc:
+            return _refused(str(exc), REPOSITORY_REFUSED)
 
     async def validate_project(request: Request, checker: Principal) -> Response:
         # The harness alone says whether a project is valid; the app passes on what it says
@@ -767,7 +826,22 @@ def build_app(
             Route(
                 "/api/projects/{project_id}/repository",
                 signed_in(choose_repository),
-                methods=["POST"],
+                methods=["PUT"],
+            ),
+            Route(
+                "/api/projects/{project_id}/progress",
+                signed_in(get_progress),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/progress/entry",
+                signed_in(change_progress),
+                methods=["PUT"],
+            ),
+            Route(
+                "/api/projects/{project_id}/progress/steps/{step_id}",
+                signed_in(change_progress),
+                methods=["PUT"],
             ),
             Route(
                 "/api/projects/{project_id}/validations",
@@ -909,14 +983,16 @@ def main() -> int:
         )
     # No principal (docs/specs/policy-and-identity.md), a provider set wrongly or beside an operator
     # (docs/specs/policy-and-identity.md), or a profile, agent list or source list that is unset,
-    # missing or malformed (docs/specs/system.md), or an agent in this process configured wrongly:
-    # nothing may run.
+    # missing or malformed (docs/specs/system.md), requirement sets that are malformed or
+    # contradict one another (docs/specs/deposit.md), or an agent in this process configured
+    # wrongly: nothing may run.
     except (
         IdentityError,
         SettingsError,
         PolicyError,
         RegistryError,
         SourceConfigError,
+        RequirementsError,
         ConfigError,
     ) as exc:
         sys.exit(f"data-director: {exc}")

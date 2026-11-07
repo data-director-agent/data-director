@@ -8,7 +8,8 @@ drafter is given the same requirements, so that it knows what to write.
 
 The sets are YAML so that the people who know a repository, its research data management team
 and the deployment's stewards, can read them and propose changes. The harness loads them and
-records a researcher's choice (`dd-harness project choose-repository`), and checks a project
+records a researcher's choice (`dd-harness project choose-repository`, which reads the
+repository's name and declared standards from the pinned re3data export), and checks a project
 against the merged set it recorded (`dd-harness project validate`). `app/tests/test_repositories.py` checks that they
 load and that ORDA resolves as intended.
 
@@ -35,8 +36,7 @@ its `form_label`; it may not lower one. Documents are the union of both. Media t
 licences come from the override alone.
 
 The harness loads the directory that `DD_REPOSITORIES_DIR` names. The app defaults to this
-directory and loads it at start-up, so a malformed set stops the app. In the app, a researcher
-chooses a repository from `advisor.repository`'s shortlist (`POST /api/projects/{id}/repository`). When a researcher chooses a
+directory and loads it at start-up, so a malformed set stops the app. When a researcher chooses a
 repository, the project records each set it used as `<requirement_set_id>@v<version>`, with the
 SHA-256 of the file, so a later reader can tell which requirements a package was checked against.
 

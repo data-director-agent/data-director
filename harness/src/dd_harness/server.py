@@ -11,7 +11,9 @@ No `.env` file is read.
 
 `dd-harness project` keeps a project's record under `DD_PROJECTS_DIR` for the operator's principal
 (docs/specs/projects.md): `create`, `add-inventory` for a `FileInventory` that `dd-inventory` wrote,
-`choose-repository` with the requirement sets under `DD_REPOSITORIES_DIR` (docs/specs/deposit.md),
+`choose-repository` by re3data identifier, reading the repository's name and declared standards
+from the re3data export `DD_SOURCES_CONFIG` pins and its requirement sets from `DD_REPOSITORIES_DIR`
+(docs/specs/deposit.md),
 `validate` against the requirements recorded for the repository chosen, `package` to build the
 deposit package from a valid project and the runs under `DD_RUNS_DIR`, and `events`.
 
@@ -47,8 +49,9 @@ from dd_harness.settings import (
     repositories_dir,
     run_storage,
     runs_dir,
+    sources_config,
 )
-from dd_harness.sources import SourceConfigError
+from dd_harness.sources import SourceConfigError, Sources
 from dd_harness.transport.a2a import a2a_routes
 
 # Hosts that are reachable from this machine only; any other prints the warning below.
@@ -139,14 +142,17 @@ def cmd_project_add_inventory(args: argparse.Namespace) -> int:
 
 def cmd_project_choose_repository(args: argparse.Namespace) -> int:
     store = project_storage(projects_dir())
-    resolved = load_requirements(repositories_dir()).resolve(args.re3data, args.name, args.standard)
+    requirements = load_requirements(repositories_dir())
+    registry = Sources.from_config(sources_config())
     digest = store.choose_repository(
         args.project_id,
-        resolved,
+        args.re3data,
+        registry=registry,
+        requirements=requirements,
         acted_for=principal_from_env(),
         caused_by=CAUSED_BY_COMMAND.format(command="choose-repository"),
     )
-    for warning in resolved.warnings:
+    for warning in (store.requirements(args.project_id) or {}).get("warnings", []):
         sys.stderr.write(f"dd-harness: warning: {warning}\n")
     sys.stdout.write(digest + "\n")
     return 0
@@ -195,6 +201,27 @@ def cmd_project_package(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_project_choose_entry(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).choose_entry(
+        args.project_id,
+        args.entry,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="choose-entry"),
+    )
+    return 0
+
+
+def cmd_project_mark_step(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).mark_step(
+        args.project_id,
+        args.step_id,
+        args.mark,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="mark-step"),
+    )
+    return 0
+
+
 def cmd_project_events(args: argparse.Namespace) -> int:
     for event in project_storage(projects_dir()).events(args.project_id):
         sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
@@ -233,13 +260,11 @@ def main(argv: list[str] | None = None) -> int:
         help="record the repository chosen, and print the digest of its requirements",
     )
     p.add_argument("project_id")
-    p.add_argument("--re3data", required=True, help="the repository's re3data identifier")
-    p.add_argument("--name", required=True, help="the repository's name")
     p.add_argument(
-        "--standard",
-        action="append",
-        default=[],
-        help="a metadata standard its re3data record declares, as re3data names it; repeatable",
+        "--re3data",
+        required=True,
+        help="the repository's re3data identifier; its name and declared metadata standards are "
+        "read from the re3data export DD_SOURCES_CONFIG pins",
     )
     p.set_defaults(func=cmd_project_choose_repository)
     p = project.add_parser(
@@ -257,6 +282,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("project_id")
     p.add_argument("-o", "--output", help="also write the package's zip to this file")
     p.set_defaults(func=cmd_project_package)
+    p = project.add_parser(
+        "choose-entry", help="record the Blueprint entry point the researcher is at (1, 2 or 3)"
+    )
+    p.add_argument("project_id")
+    p.add_argument("entry", type=int, choices=(1, 2, 3))
+    p.set_defaults(func=cmd_project_choose_entry)
+    p = project.add_parser(
+        "mark-step",
+        help="mark a process-flow step done, skipped or open again (docs/specs/orchestration.md)",
+    )
+    p.add_argument("project_id")
+    p.add_argument("step_id", help="a step id, such as governance.embargo")
+    p.add_argument("mark", choices=("done", "skipped", "open"))
+    p.set_defaults(func=cmd_project_mark_step)
     p = project.add_parser("events", help="print the project's events, oldest first, as JSONL")
     p.add_argument("project_id")
     p.set_defaults(func=cmd_project_events)

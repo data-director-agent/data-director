@@ -15,7 +15,8 @@ from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Protocol
 
 from dd_harness.projects import Decision
-from dd_harness.requirements import Resolved
+from dd_harness.requirements import Requirements
+from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     DocumentKind,
@@ -159,9 +160,33 @@ class ProjectStorage(Protocol):
         ...
 
     def choose_repository(
-        self, project_id: str, resolved: Resolved, *, acted_for: Principal, caused_by: str
+        self,
+        project_id: str,
+        re3data_id: str,
+        *,
+        registry: Sources,
+        requirements: Requirements,
+        acted_for: Principal,
+        caused_by: str,
     ) -> str:
-        """Record the repository chosen; returns the merged requirement set's digest."""
+        """Record the repository chosen by its re3data identifier; returns the merged
+        requirement set's digest."""
+        ...
+
+    def choose_entry(
+        self, project_id: str, entry: int, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record the entry point chosen."""
+        ...
+
+    def mark_step(
+        self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record a step marked done, skipped or open."""
+        ...
+
+    def progress(self, project_id: str) -> dict[str, Any]:
+        """The entry point chosen and the step states, derived from the log."""
         ...
 
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:

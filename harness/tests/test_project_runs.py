@@ -5,13 +5,14 @@ a proposed version caused by the run."""
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 from a2a.helpers import get_data_parts
-from requirement_sets import override, standard, write
+from requirement_sets import ORDA, override, pinned, standard, write
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor, ProjectAssignmentError
@@ -101,8 +102,14 @@ def project(projects: ProjectStore, tmp_path: Path) -> str:
     repositories = write(
         tmp_path / "repositories", ("standards", standard()), ("overrides", override())
     )
-    orda = load_requirements(repositories).resolve("r3d100012124", "ORDA", ["Dublin Core"])
-    projects.choose_repository(project_id, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.choose_repository(
+        project_id,
+        ORDA,
+        registry=pinned(tmp_path / "re3data"),
+        requirements=load_requirements(repositories),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
     return project_id
 
 
@@ -527,3 +534,172 @@ def test_a_draft_that_revises_no_version_of_the_project_fails_the_run(
     assert stored is not None
     assert stored["outcome"]["status"] == "failed"
     assert projects.documents(project) == []
+
+
+def withholding(conductor: Conductor, hosted_models: frozenset[str]) -> Conductor:
+    conductor.profile = replace(conductor.profile, hosted_models=hosted_models)
+    return conductor
+
+
+@pytest.mark.requirement("C13.5")
+def test_documentation_is_withheld_from_a_hosted_model_by_default(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Only `inventory` goes to an agent that calls a hosted model unless the profile says
+    otherwise (docs/specs/projects.md, invariant 8). The run is refused before anything is sent,
+    and the refusal is stored."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    assert conductor.profile.hosted_models == {"inventory"}
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    record_in(projects, project, approve=True)  # a metadata record is documentation
+    before = len(projects.documents(project))
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert "not run" in (env.outcome.statement or "")
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "project-content-withheld"
+    assert "documentation" in (env.problem.detail or "")
+    assert env.payload is None and not env.telemetry.model_calls
+    assert (tmp_path / "runs" / env.invocation_id / "envelope.json").is_file()
+    assert len(projects.documents(project)) == before
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_hosted_model_is_given_the_inventory(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "files=2" in env.payload_as(Document).document_text
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_let_a_hosted_model_be_given_documentation(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(
+        conductor_over(tmp_path / "runs", projects, hosted),
+        frozenset({"inventory", "documentation"}),
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    record_in(projects, project, approve=True)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "metadata_record" in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_withhold_even_the_inventory(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(conductor_over(tmp_path / "runs", projects, hosted), frozenset())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "project-content-withheld"
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_local_model_or_none_is_given_everything(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    for stub in (DocumentStub("local-model"), DocumentStub()):
+        conductor = withholding(conductor_over(tmp_path / "runs", projects, stub), frozenset())
+        conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+        record_in(projects, project, approve=True)
+        env = conductor.invoke(
+            in_conversation(request("stub.document", draft_request()), conversation),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+
+
+@pytest.mark.requirement("C13.5")
+def test_outside_a_project_a_hosted_model_is_given_what_the_caller_sent(tmp_path: Path) -> None:
+    """What a caller sends is not the project's, so `hosted_models` does not apply to it."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(make_conductor(tmp_path / "runs", hosted), frozenset())
+    made_up = ApprovedMetadataRecord(
+        version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=1),
+        media_type="application/json",
+        document_text="{}",
+    )
+
+    env = conductor.invoke(
+        request("stub.document", draft_request(metadata_record=made_up)),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+
+
+def test_a_message_in_a_project_is_told_its_entry_point_and_progress(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """The conductor derives where the project is from its log on every turn; whatever a caller
+    says of it is replaced (docs/specs/orchestration.md)."""
+    projects.choose_entry(project, 2, acted_for=TEST_PRINCIPAL, caused_by="t")
+    projects.mark_step(
+        project, "governance.embargo", "skipped", acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_entry": 3,
+            "project_progress": [{"step_id": "deposit.finalise", "step_state": "done"}],
+        }
+    )
+    env = conductor.invoke(
+        in_conversation(request("stub.abstain", forged), conversation), acting_for=TEST_PRINCIPAL
+    )
+    given = stored_input(tmp_path / "runs", env.invocation_id)
+    assert given["project_entry"] == 2
+    states = {s["step_id"]: s["step_state"] for s in given["project_progress"]}
+    assert states["preparation.files"] == "done"  # the inventory
+    assert states["repository.recommend"] == "done"  # ORDA chosen
+    assert states["governance.embargo"] == "skipped"
+    assert "deposit.finalise" not in states
+
+
+def test_a_message_outside_a_project_is_told_no_progress(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_entry": 3,
+            "project_progress": [{"step_id": "deposit.finalise", "step_state": "done"}],
+        }
+    )
+    env = conductor.invoke(request("stub.abstain", forged), acting_for=TEST_PRINCIPAL)
+    given = stored_input(tmp_path / "runs", env.invocation_id)
+    assert "project_entry" not in given and "project_progress" not in given

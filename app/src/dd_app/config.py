@@ -1,8 +1,9 @@
 """The app's reference configuration: the files it supplies to the harness as defaults.
 
 The harness has no defaults of its own (docs/specs/system.md). The app brings a reference set in
-`app/config/` (its profile, agent list and source list), writes runs to `app/runs/` and keeps
-projects in `app/projects/`. A `DD_*` variable still wins over each of them.
+`app/config/` (its profile, agent list, source list and repository requirement sets), writes runs
+to `app/runs/` and keeps projects in `app/projects/`. A `DD_*` variable still wins over each of
+them.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ DEFAULT_SOURCES_CONFIG = CONFIG_DIR / "sources.yaml"
 DEFAULT_RUNS_DIR = APP_ROOT / "runs"
 # Each project's log and the content its events added (`dd_harness.projects`).
 DEFAULT_PROJECTS_DIR = APP_ROOT / "projects"
-# The deployment's repository requirement sets (docs/specs/deposit.md, `dd_harness.requirements`).
+# The requirement sets a chosen repository resolves to (docs/specs/deposit.md).
 DEFAULT_REPOSITORIES_DIR = CONFIG_DIR / "repositories"
 # Example inputs the Run tab offers, each naming its class (`examples/README.md`).
 EXAMPLES_DIR = CONFIG_DIR / "examples"

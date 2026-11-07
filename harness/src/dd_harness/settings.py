@@ -130,6 +130,12 @@ def repositories_dir(default: Path | None = None) -> Path:
     return _path("DD_REPOSITORIES_DIR", default)
 
 
+def sources_config(default: Path | None = None) -> Path:
+    """The deployment's `sources.yaml`: `DD_SOURCES_CONFIG`, which has no default
+    (harness/src/dd_harness/sources.py)."""
+    return _path("DD_SOURCES_CONFIG", default)
+
+
 def named_principal(
     principal_id: str | None, principal_name: str | None, principal_kind: str
 ) -> Principal:

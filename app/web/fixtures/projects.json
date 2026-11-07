@@ -28,6 +28,13 @@
       "file_count": 1,
       "inventory_made_at": "2026-01-01T00:00:00Z"
     },
+    "progress": {
+      "entry": null,
+      "steps": {
+        "preparation.files": "done"
+      },
+      "suggested": "setup.documentation"
+    },
     "project_id": "01900000-0000-7000-8000-000000000002",
     "repository": null,
     "title": null

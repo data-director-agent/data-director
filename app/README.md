@@ -87,13 +87,10 @@ It is built from:
     refused. A decision on a version that is no longer the latest or undecided, or whose
     `digest` is not that of its text, is a 409 and is recorded as refused
     ([Projects](../docs/specs/projects.md));
-  - `GET /api/projects/{id}/repository`: the repository chosen for a project, the requirement
-    sets it resolved to by version and digest, the warnings from resolving it and the merged
-    requirements; a 404 `repository-not-chosen` when none has been;
-  - `POST /api/projects/{id}/repository` (`{invocation_id, re3data_id}`): chooses one of the
-    candidates an `advisor.repository` run in the project shortlisted. The server reads the
-    repository's name and declared standards from the run's evidence and refuses a run of another
-    agent or project, or a repository it did not shortlist ([Deposit](../docs/specs/deposit.md));
+  - `GET /api/projects/{id}/repository`: the requirements of the repository chosen last, with
+    the requirement sets by version and digest and their warnings; a 404 `repository-not-chosen`
+    when none has been. `PUT` on it (`{re3data_id}`) chooses one, its name and declared standards
+    read from the pinned re3data export ([Deposit](../docs/specs/deposit.md));
   - `POST /api/projects/{id}/validations`: validates the project against its chosen repository's
     requirements and keeps the SHACL Validation Report in the project log. It answers whether
     the project conforms, each violation and warning in the harness's words, and the report;
@@ -336,8 +333,7 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   afterwards rather than watched, and a run cannot be cancelled. Streaming runs over AG-UI
   replaces it (#68, #69).
 - A person can approve, edit then approve, or reject a project's documents at `/projects/{id}`,
-  but no run adds a document to a project yet (#394), nothing links to that page, and anyone
-  signed in can decide (#389). Risk tiers and batching for review are #72 and #73.
+  but anyone signed in can decide (#389). Risk tiers and batching for review are #72 and #73.
 - The form checks only required fields and numbers; the conductor's input check decides.
 - The conversation is with the rule-based `orchestrator.stub` unless the profile names the
   model-backed orchestrator, which needs a key (see "Choosing the orchestrator"). Replies are not

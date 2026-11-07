@@ -18,7 +18,7 @@ import question from "../fixtures/conversation-question.json" with { type: "json
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import answeredProject from "../fixtures/project-answers.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
-import repository from "../fixtures/project-repository.json" with { type: "json" };
+import repository from "../fixtures/repository-chosen.json" with { type: "json" };
 import valid from "../fixtures/project-validation.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
@@ -256,7 +256,7 @@ test("a project's repository is shown and its package checked, built and offered
 
   await page.goto(`/projects/${project.project_id}?doc=repository`);
   const chosen = page.getByRole("region", { name: "Repository" });
-  await expect(chosen.getByRole("link", { name: "ORDA" })).toBeVisible();
+  await expect(chosen.getByRole("link", { name: /^ORDA/ })).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
   await page.goto(`/projects/${project.project_id}?doc=deposit`);

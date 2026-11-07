@@ -38,6 +38,10 @@ Configuration shape:
         built: true                              # optional: the copy is built, not kept in git
 
 A file is JSON Lines, or one JSON array of records.
+
+The same copies answer one other question: what re3data says about a repository a researcher
+chooses (docs/specs/deposit.md). `Sources.re3data` reads the latest re3data export pinned under
+`re3data:export:YYYY-MM` and returns the record with the hash a citation of it would carry.
 """
 
 from __future__ import annotations
@@ -53,13 +57,16 @@ from typing import Any, Protocol
 import yaml
 
 from dd_sdk.contract.models import GroundingMode, input_source_id, invocation_source_id
-from dd_sdk.evidence import content_hash
+from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from dd_sdk.sources import PREPARE_COMMAND
 
 # The prefixes of source ids whose hashes the conductor computed itself, and the grounding modes
 # whose linter rules check them against those hashes.
 ATTESTED_PREFIXES = (input_source_id(""), invocation_source_id(""))
 ATTESTED_MODES = (GroundingMode.INPUT_ONLY, GroundingMode.NONE, GroundingMode.DELEGATION)
+
+# The snapshot_ref prefix of a pinned monthly re3data export, followed by its month (YYYY-MM).
+RE3DATA_EXPORT = "re3data:export:"
 
 log = logging.getLogger(__name__)
 
@@ -126,6 +133,18 @@ class SourceReport:
 
 
 @dataclass(frozen=True)
+class RegistryEntry:
+    """What a pinned re3data export says about one repository, and which record said it."""
+
+    re3data_id: str
+    name: str
+    metadata_standards: tuple[str, ...]
+    snapshot_ref: str
+    content_hash: str
+    canonicalisation: str = DOCUMENT_CANONICALISATION
+
+
+@dataclass(frozen=True)
 class Sources:
     """The copies of sources the harness holds, keyed by the `snapshot_ref` they serve."""
 
@@ -182,6 +201,40 @@ class Sources:
             resolver = RecordsFile.load(path.parent / str(file), str(id_field), str(pin))
             by_ref.update(dict.fromkeys(refs, resolver))
         return cls(by_snapshot_ref=by_ref, unbuilt=frozenset(unbuilt))
+
+    def re3data(self, re3data_id: str) -> RegistryEntry | None:
+        """The record the latest pinned re3data export holds for `re3data_id`, or `None` if it
+        holds none. Raises `SourceConfigError` if no export is pinned or the latest is not built.
+        """
+        refs = sorted(
+            ref for ref in (*self.by_snapshot_ref, *self.unbuilt) if ref.startswith(RE3DATA_EXPORT)
+        )
+        if not refs:
+            raise SourceConfigError(
+                f"sources.yaml pins no re3data export ({RE3DATA_EXPORT}YYYY-MM), so a repository "
+                "cannot be looked up"
+            )
+        ref = refs[-1]
+        resolver = self.by_snapshot_ref.get(ref)
+        if resolver is None:
+            raise SourceConfigError(
+                f"the re3data export {ref} is not built; build it with `{PREPARE_COMMAND}`"
+            )
+        record = resolver.record(re3data_id)
+        if record is None:
+            return None
+        name, standards = record.get("name"), record.get("metadata_standards") or []
+        if not isinstance(name, str) or not all(isinstance(s, str) for s in standards):
+            raise SourceConfigError(
+                f"{ref}: the record of {re3data_id} has no name or a malformed metadata_standards"
+            )
+        return RegistryEntry(
+            re3data_id=re3data_id,
+            name=name,
+            metadata_standards=tuple(standards),
+            snapshot_ref=ref,
+            content_hash=content_hash(record, DOCUMENT_CANONICALISATION),
+        )
 
 
 def check(envelope: dict[str, Any], sources: Sources) -> SourceReport:

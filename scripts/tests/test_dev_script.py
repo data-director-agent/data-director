@@ -123,6 +123,8 @@ def test_a_key_makes_the_model_orchestrator_the_home_pages_with_a_new_version(re
     profile = (local / "profile.yaml").read_text()
     example = (repo / "app" / "config" / "profile.yaml.example").read_text()
     assert "\norchestrator: orchestrator.model\n" in profile
+    # What may go to a hosted model is the example's (docs/specs/projects.md, invariant 8).
+    assert "\nhosted_models:\n- inventory\n- documentation\n" in profile
     found = re.search(r"^version: (\d+)", example, re.MULTILINE)
     assert found
     old = int(found[1])

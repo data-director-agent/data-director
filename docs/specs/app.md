@@ -175,20 +175,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/tests/test_document_answers.py`,
     `app/web/src/components/conversation/DocumentQuestions.test.tsx`, `e2e/shell.spec.ts`).
 
-24. **A repository is chosen from a shortlist, never typed.** On a succeeded `advisor.repository`
-    run in a project, each candidate the run shortlisted has a **Choose** button named after the
-    repository. It sends `POST /api/projects/{id}/repository` with only the run's `invocation_id` and
-    the candidate's re3data identifier. The server refuses a run of another agent or another
-    project, or a repository the run did not shortlist, and nothing is recorded. It reads the
-    repository's name and declared metadata standards from the re3data record the run kept as
-    evidence. The harness resolves them against the deployment's requirement sets
-    (`DD_REPOSITORIES_DIR`, by default `app/config/repositories`, loaded at start-up) and records
-    the choice for the person signed in. The live region says what was chosen and each warning
-    from resolving it. The project page's **Repository** entry
+24. **The project page shows the repository chosen and what it asks for.** A repository is
+    chosen from the shortlist on the turn that made it (`PUT /api/projects/{id}/repository`, see
+    *Boundaries and contracts*). The project page's **Repository** entry
     (`GET /api/projects/{id}/repository`) shows the repository chosen last, the requirement sets
-    by version, the warnings, and the documents and fields they ask for. Choosing again changes it
-    (`app/tests/test_repository_choice.py`,
-    `app/web/src/components/run/RepositoryShortlist.test.tsx`,
+    by version, the warnings, and the documents and fields they ask for; with none chosen it says
+    how to choose one. Choosing again changes it (`app/tests/test_repository_choice.py`,
     `app/web/src/components/project/ProjectPage.test.tsx`).
 
 25. **A package is built only from a check with no violation, and downloaded by its digest.**
@@ -251,14 +243,32 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   new reply's announcement says what the turn drafted. The side bar lists every document of the
   project with its latest version's state and says how many await a decision. A decision is made
   only on the documents page.
+- **A repository is chosen from the shortlist on the turn that made it.** A run whose payload is a
+  `RepositoryOptions`, on the turn or among its delegated children, is a card on that turn listing
+  each candidate by the re3data record it rests on: the `grounded_on` entry that is a re3data
+  identifier, named by the evidence citing it from a pinned `re3data:export:YYYY-MM`. The shell
+  recognises the class, not the agent. Choosing one sends only that identifier
+  (`PUT /api/projects/{id}/repository`); the server records it for the person signed in, the
+  harness reads the repository's name and declared standards from the pinned export, and the card
+  shows what the choice resolved to: the requirement sets used, the documents and metadata a
+  deposit needs, and each warning of what is not checked ([Deposit](deposit.md)). The side bar
+  names the repository chosen last, with its warnings; choosing another from a shortlist changes
+  it, as a new choice, and the last one counts. An identifier the export does not hold is refused
+  with nothing recorded (`app/tests/test_repository_choice.py`,
+  `app/web/src/components/conversation/RepositoryShortlist.test.tsx`).
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
   short `name` and a one-sentence `summary`, and each step a `label`, all carried by the process
   flow beside the Blueprint's own wording, which the orchestrator reasons over. The journey names
   no agent and no requirement, since a researcher works through the conversation and needs to see
-  only the whole route; it is meant to become a progress bar over the project's record
-  (TODO(#160)).
+  only the whole route. In a project it shows where the project is, as the harness derives it
+  from the project log (`GET /api/projects/{id}/progress`, [Orchestration](orchestration.md),
+  invariant 18): how many steps of each phase are done or skipped, each step's state, and the step
+  suggested next. The researcher may choose their entry point and mark any step done or skipped,
+  or open it again (`PUT .../progress/entry`, `PUT .../progress/steps/{step_id}`); the server
+  records it acting for the person signed in and answers with the progress derived anew. The
+  shell computes no state and no suggestion of its own.
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
   or message an agent from it; they work through the conversation. Running one agent directly,
@@ -306,6 +316,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   each phase's steps and the agents serving them. On the left, the person's conversations, so
   that another is one press away; on the right, an overview of the project: its current state
   (dataset, phase, repository, governance flags), the files attached to it and its documents.
+  Only the repository is built; the others await a record of where the project is (#160).
   The activity log spans runs and conversations, so it is a page of its own in the main
   navigation. What the orchestrator is and how far to rely on it is on the agents page, not
   beside every conversation. Evidence belongs beside the claim it supports

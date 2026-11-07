@@ -14,7 +14,7 @@
       "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
     },
     "dd:requirements": {
-      "@id": "ni:///sha-256;Vo00yY_7oV0z1TEHfNPtUCrEqOivq84R1Q-Xj-VkfaU"
+      "@id": "ni:///sha-256;KI-q5vJAoEc1-K_jAqpXtmLWnmRXlcRGaD-uykethtE"
     },
     "dd:validated_at": {
       "@type": "xsd:dateTime",
@@ -27,7 +27,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
         },
-        "sh:resultMessage": "ORDA recommends a data dictionary, and none has been approved.",
+        "sh:resultMessage": "ORDA - The University of Sheffield Research Data Catalogue and Repository recommends a data dictionary, and none has been approved.",
         "sh:resultSeverity": {
           "@id": "sh:Warning"
         },
@@ -40,7 +40,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
-        "sh:resultMessage": "The metadata record has no contributors, which ORDA recommends.",
+        "sh:resultMessage": "The metadata record has no contributors, which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
         "sh:resultPath": {
           "@id": "http://schema.org/contributor"
         },
@@ -56,7 +56,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
-        "sh:resultMessage": "The metadata record has no dates, dateType Created, which ORDA recommends.",
+        "sh:resultMessage": "The metadata record has no dates, dateType Created, which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
         "sh:resultPath": {
           "@id": "http://schema.org/dateCreated"
         },
@@ -72,7 +72,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
-        "sh:resultMessage": "The metadata record has no Related materials (relatedIdentifiers), which ORDA recommends.",
+        "sh:resultMessage": "The metadata record has no Related materials (relatedIdentifiers), which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
         "sh:resultPath": {
           "@id": "http://schema.org/citation"
         },
@@ -88,7 +88,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
-        "sh:resultMessage": "The metadata record has no geoLocations, which ORDA recommends.",
+        "sh:resultMessage": "The metadata record has no geoLocations, which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
         "sh:resultPath": {
           "@id": "http://schema.org/spatialCoverage"
         },
@@ -104,7 +104,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
-        "sh:resultMessage": "The metadata record has no Funding (fundingReferences), which ORDA recommends.",
+        "sh:resultMessage": "The metadata record has no Funding (fundingReferences), which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
         "sh:resultPath": {
           "@id": "http://schema.org/funding"
         },
@@ -117,48 +117,48 @@
       }
     ]
   },
-  "requirements_digest": "568d34c98ffba15d33d531077cd3ed502ac4a8e8afabce11d50f978fe5647da5",
+  "requirements_digest": "288faae6f240a04735f8afe302aa57b662d69e645795c446683faeca47ad86d1",
   "violations": [],
   "warnings": [
     {
       "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
-      "message": "ORDA recommends a data dictionary, and none has been approved.",
+      "message": "ORDA - The University of Sheffield Research Data Catalogue and Repository recommends a data dictionary, and none has been approved.",
       "path": null,
       "severity": "warning"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
-      "message": "The metadata record has no contributors, which ORDA recommends.",
+      "message": "The metadata record has no contributors, which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
       "path": "http://schema.org/contributor",
       "severity": "warning"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
-      "message": "The metadata record has no dates, dateType Created, which ORDA recommends.",
+      "message": "The metadata record has no dates, dateType Created, which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
       "path": "http://schema.org/dateCreated",
       "severity": "warning"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
-      "message": "The metadata record has no Related materials (relatedIdentifiers), which ORDA recommends.",
+      "message": "The metadata record has no Related materials (relatedIdentifiers), which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
       "path": "http://schema.org/citation",
       "severity": "warning"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
-      "message": "The metadata record has no geoLocations, which ORDA recommends.",
+      "message": "The metadata record has no geoLocations, which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
       "path": "http://schema.org/spatialCoverage",
       "severity": "warning"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
-      "message": "The metadata record has no Funding (fundingReferences), which ORDA recommends.",
+      "message": "The metadata record has no Funding (fundingReferences), which ORDA - The University of Sheffield Research Data Catalogue and Repository recommends.",
       "path": "http://schema.org/funding",
       "severity": "warning"
     }

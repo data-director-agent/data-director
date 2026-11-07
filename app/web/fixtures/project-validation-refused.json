@@ -14,7 +14,7 @@
       "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
     },
     "dd:requirements": {
-      "@id": "ni:///sha-256;Vo00yY_7oV0z1TEHfNPtUCrEqOivq84R1Q-Xj-VkfaU"
+      "@id": "ni:///sha-256;KI-q5vJAoEc1-K_jAqpXtmLWnmRXlcRGaD-uykethtE"
     },
     "dd:validated_at": {
       "@type": "xsd:dateTime",
@@ -27,7 +27,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
         },
-        "sh:resultMessage": "ORDA requires a metadata record, and none has been approved.",
+        "sh:resultMessage": "ORDA - The University of Sheffield Research Data Catalogue and Repository requires a metadata record, and none has been approved.",
         "sh:resultSeverity": {
           "@id": "sh:Violation"
         },
@@ -40,7 +40,7 @@
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
         },
-        "sh:resultMessage": "ORDA recommends a data dictionary, and none has been approved.",
+        "sh:resultMessage": "ORDA - The University of Sheffield Research Data Catalogue and Repository recommends a data dictionary, and none has been approved.",
         "sh:resultSeverity": {
           "@id": "sh:Warning"
         },
@@ -50,12 +50,12 @@
       }
     ]
   },
-  "requirements_digest": "568d34c98ffba15d33d531077cd3ed502ac4a8e8afabce11d50f978fe5647da5",
+  "requirements_digest": "288faae6f240a04735f8afe302aa57b662d69e645795c446683faeca47ad86d1",
   "violations": [
     {
       "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
-      "message": "ORDA requires a metadata record, and none has been approved.",
+      "message": "ORDA - The University of Sheffield Research Data Catalogue and Repository requires a metadata record, and none has been approved.",
       "path": null,
       "severity": "violation"
     }
@@ -64,7 +64,7 @@
     {
       "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
-      "message": "ORDA recommends a data dictionary, and none has been approved.",
+      "message": "ORDA - The University of Sheffield Research Data Catalogue and Repository recommends a data dictionary, and none has been approved.",
       "path": null,
       "severity": "warning"
     }
