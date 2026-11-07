@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -238,6 +239,19 @@ def test_the_latest_re3data_export_pinned_is_the_one_read(tmp_path: Path) -> Non
     entry = Sources.from_config(config).re3data(ORDA)
     assert entry is not None
     assert (entry.name, entry.snapshot_ref) == ("ORDA", EXPORT)
+
+
+def test_a_re3data_record_without_a_name_or_with_malformed_standards_is_refused(
+    tmp_path: Path,
+) -> None:
+    broken_records: tuple[dict[str, Any], ...] = (
+        {"name": None},
+        {"metadata_standards": ["Dublin Core", 3]},
+    )
+    for i, broken in enumerate(broken_records):
+        sources = Sources.from_config(registry(tmp_path / str(i), ({**RECORDS[0], **broken},)))
+        with pytest.raises(SourceConfigError, match="has no name or a malformed"):
+            sources.re3data(ORDA)
 
 
 def test_the_command_records_a_choice_from_re3data_and_warns_of_what_is_not_checked(
