@@ -202,3 +202,32 @@ class ProjectStorage(Protocol):
         """The `metadata_record` version a person approved last, as an `ApprovedMetadataRecord`, or
         None."""
         ...
+
+    def record_validation(
+        self,
+        project_id: str,
+        report: Mapping[str, Any],
+        *,
+        conforms: bool,
+        requirements_digest: str | None,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep a SHACL Validation Report of the project; returns its digest."""
+        ...
+
+    def record_package(
+        self,
+        project_id: str,
+        package: bytes,
+        *,
+        about: Mapping[str, Any],
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep a deposit package by the SHA-256 of its bytes; returns the digest."""
+        ...
+
+    def package(self, project_id: str, digest: str) -> bytes | None:
+        """The bytes of a package the log records as built, or None."""
+        ...

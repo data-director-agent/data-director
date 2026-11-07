@@ -75,7 +75,11 @@ REPOSITORY_CHOSEN = "repository_chosen"
 DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"
 DOCUMENT_CHANGE_REFUSED = "document_change_refused"
+PROJECT_VALIDATED = "project_validated"
+PACKAGE_BUILT = "package_built"
 PROJECT_ID = re.compile(UUID7_PATTERN)
+# Members every event has, which what an event carries never replaces.
+_ENVELOPE_KEYS = frozenset({"event", "event_id", "project_id", "at", "acted_for", "caused_by"})
 DIGEST = re.compile(r"[0-9a-f]{64}")
 
 # A version's state (docs/specs/projects.md, invariant 11); a decision gives one of the last two.
@@ -543,6 +547,66 @@ class ProjectStore:
                 record["conforms_to"] = version["conforms_to"]
             return record
         return None
+
+    def record_validation(
+        self,
+        project_id: str,
+        report: Mapping[str, Any],
+        *,
+        conforms: bool,
+        requirements_digest: str | None,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep a SHACL Validation Report of the project against its requirements
+        (docs/specs/deposit.md, invariant 8), and its `project_validated` event. Returns the
+        report's digest. Raises `ProjectError` for an unknown project."""
+        self._require(project_id)
+        document = dict(report)
+        digest = input_hash(document)
+        self._keep_blob(project_id, digest, canonicalise(document, INPUT_CANONICALISATION))
+        self._append(
+            project_id,
+            PROJECT_VALIDATED,
+            acted_for,
+            caused_by,
+            {
+                "digest": digest,
+                "canonicalisation": INPUT_CANONICALISATION,
+                "conforms": conforms,
+                "requirements_digest": requirements_digest,
+            },
+        )
+        return digest
+
+    def record_package(
+        self,
+        project_id: str,
+        package: bytes,
+        *,
+        about: Mapping[str, Any],
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep a deposit package by the SHA-256 of its bytes, and its `package_built` event,
+        which carries `about` (docs/specs/deposit.md, invariant 9). Returns the digest. Raises
+        `ProjectError` for an unknown project."""
+        self._require(project_id)
+        digest = hashlib.sha256(package).hexdigest()
+        self._keep_blob(project_id, digest, package)
+        detail = {key: value for key, value in about.items() if key not in _ENVELOPE_KEYS}
+        self._append(project_id, PACKAGE_BUILT, acted_for, caused_by, {**detail, "digest": digest})
+        return digest
+
+    def package(self, project_id: str, digest: str) -> bytes | None:
+        """The bytes of a package the project log records as built, or None if it records no
+        package with this digest. Raises `ProjectError` for an unknown project."""
+        built = any(
+            e["event"] == PACKAGE_BUILT and e["digest"] == digest for e in self.events(project_id)
+        )
+        if not built:
+            return None
+        return self._blob_path(project_id, digest).read_bytes()
 
     def _latest(self, project_id: str, kind: str) -> dict[str, Any] | None:
         """The blob the last event of `kind` kept, or None if there is no such event."""

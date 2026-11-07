@@ -10,7 +10,7 @@
 # source: blueprint  — the identifier and title are the Blueprint's own (docs/blueprint/07-functional-specification.md).
 # source: project    — a decomposition or obligation this project introduced; the Blueprint does
 #                      not use the identifier. R3.1–R3.6 come from agents/advisor-standards; the other sub-IDs
-#                      (R4.1, R10.n, C5.1, C13.n, C14.1) split a Blueprint
+#                      (R4.n, R10.n, C5.1, C13.n, C14.1) split a Blueprint
 #                      requirement so that a row claims only what its tests show.
 #
 # assessed_by      — how the requirement is assessed (docs/specs/evaluation.md): `test` (a marked test in a pytest
@@ -73,6 +73,10 @@ requirements:
     source: project
     parent: R4
     title: Completeness of a metadata record scored against declared criteria, each finding explained
+  - id: R4.2
+    source: project
+    parent: R4
+    title: A project is validated against its chosen repository's requirements in a SHACL Validation Report, a violation blocks the deposit package and says why, and the package passes the RO-Crate validator
   - id: R5
     source: blueprint
     title: Draft data documentation including READMEs and data dictionaries at publication
@@ -98,7 +102,7 @@ requirements:
   - id: R10.2
     source: project
     parent: R10
-    title: Each approved project document is disclosed as a statement and a PROV-O graph naming the run and models that drafted it, each prompt by digest, each person's edit and the approval; carrying the disclosure in the deposit package is not exercised (#202)
+    title: Each approved project document is disclosed as a statement and a PROV-O graph naming the run and models that drafted it, each prompt by digest, each person's edit and the approval, and carried in the deposit package
   - id: R11
     source: blueprint
     title: Link datasets to related research outputs including publications, people, grants and software
