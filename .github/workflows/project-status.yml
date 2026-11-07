@@ -1,0 +1,102 @@
+name: Project status
+
+# Puts a new issue in the project board's "Inbox" status and a new pull request in "In review".
+# A draft pull request is added when it is marked ready for review, not when it is opened.
+#
+# Setup, once, by an organisation owner:
+#   - repository variable PROJECT_NUMBER: the number in the project's URL;
+#   - repository secret PROJECT_TOKEN: a token that can write to the organisation's projects (a
+#     fine-grained personal access token with "Projects" read and write, or a GitHub App's token).
+#     The workflow's own GITHUB_TOKEN cannot write to an organisation project.
+# Until PROJECT_NUMBER is set the job is skipped, so this file does nothing in a fork.
+#
+# It runs on pull_request_target so that it also covers pull requests from forks, which a
+# pull_request run would give no secrets. That is safe here because it checks out nothing and runs
+# no code from the pull request. The only value it reads from the event is the item's node ID,
+# which reaches the script through the environment, never interpolated into the shell.
+on:
+  issues:
+    types: [opened]
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.issue.node_id || github.event.pull_request.node_id }}
+  cancel-in-progress: false
+
+jobs:
+  status:
+    name: Set the project status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.repository == 'data-director-agent/data-director'
+      && vars.PROJECT_NUMBER != ''
+      && (github.event_name == 'issues' || github.event.pull_request.draft == false)
+    steps:
+      - name: Add the item and set its status
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          CONTENT_ID: ${{ github.event.issue.node_id || github.event.pull_request.node_id }}
+          STATUS: ${{ github.event_name == 'issues' && 'Inbox' || 'In review' }}
+          # The GraphQL documents are kept here so that their $variables are not mistaken for
+          # shell expansions.
+          FIND_QUERY: |
+            query($owner: String!, $number: Int!) {
+              organization(login: $owner) {
+                projectV2(number: $number) {
+                  id
+                  field(name: "Status") {
+                    ... on ProjectV2SingleSelectField { id options { id name } }
+                  }
+                }
+              }
+            }
+          ADD_QUERY: |
+            mutation($project: ID!, $content: ID!) {
+              addProjectV2ItemById(input: {projectId: $project, contentId: $content}) {
+                item { id }
+              }
+            }
+          SET_QUERY: |
+            mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $project, itemId: $item, fieldId: $field,
+                value: {singleSelectOptionId: $option}
+              }) { projectV2Item { id } }
+            }
+        run: |
+          set -euo pipefail
+
+          # The project and its Status options are found by name, so no identifier is configured.
+          project=$(gh api graphql \
+            -f owner="$OWNER" -F number="$PROJECT_NUMBER" \
+            -f query="$FIND_QUERY")
+
+          project_id=$(jq -r '.data.organization.projectV2.id' <<<"$project")
+          field_id=$(jq -r '.data.organization.projectV2.field.id' <<<"$project")
+          option_id=$(jq -r --arg s "$STATUS" \
+            '.data.organization.projectV2.field.options[] | select(.name == $s) | .id' \
+            <<<"$project")
+
+          for value in "$project_id" "$field_id" "$option_id"; do
+            if [ -z "$value" ] || [ "$value" = null ]; then
+              echo "::error::Project $PROJECT_NUMBER, its Status field or the option \"$STATUS\" was not found"
+              exit 1
+            fi
+          done
+
+          # Adding an item already on the board returns the existing item, so a rerun is safe.
+          item_id=$(gh api graphql \
+            -f project="$project_id" -f content="$CONTENT_ID" \
+            -f query="$ADD_QUERY" --jq '.data.addProjectV2ItemById.item.id')
+
+          gh api graphql \
+            -f project="$project_id" -f item="$item_id" -f field="$field_id" -f option="$option_id" \
+            -f query="$SET_QUERY" >/dev/null
+
+          echo "Set the status to \"$STATUS\"."
