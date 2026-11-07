@@ -10,7 +10,7 @@ Three core classes are filled. Within a project:
   answers are the latest a person recorded to each question of the project's documents of the
   kind asked for (docs/specs/drafting.md, invariant 6): a drafter marks an answer
   `supplied`, so no caller may send one. `current_version` is removed until regeneration is
-  filled from the project, TODO(#394);
+  filled from the project, TODO(#631);
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
