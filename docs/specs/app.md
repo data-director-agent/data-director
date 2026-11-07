@@ -215,8 +215,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   indented), and its Source tab shows the stored text exactly, since that is what a decision names
   by its digest and what the deposit package holds. Its Versions tab shows each version's
   decision and the lines it changed from the one before. While a person edits, the preview shows
-  their version. The list ends with the statement of how generative AI was used and the
-  deposit package. The deposit package entry checks the project against its chosen repository's
+  their version. The list ends with the repository chosen, the statement of how generative AI
+  was used and the deposit package, and these are listed before any document is drafted. The
+  repository entry (`GET /api/projects/{id}/repository`) shows the repository chosen last, the
+  requirement sets by version, the warnings, and the documents and metadata they ask for, as
+  the harness resolved them; with none chosen it says to choose one from a shortlist in the
+  project's conversations. Whether a package meets them is the deposit check's to say. The
+  deposit package entry checks the project against its chosen repository's
   requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
   what is worth fixing, each in the harness's words. It offers to build the package only after
   a check the project passed, and then a link to download the zip by its digest. A decision made

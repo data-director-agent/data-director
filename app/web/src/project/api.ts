@@ -284,6 +284,8 @@ export interface ProjectApi {
   ): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
+  /** The repository chosen for the project, or null if none has been. */
+  repository(projectId: string, signal?: AbortSignal): Promise<RepositoryRequirements | null>;
   /** Where the project is in the process flow, derived anew by the harness. */
   progress(projectId: string, signal?: AbortSignal): Promise<ProjectProgress>;
   /** Record the entry point the researcher chose; answers with the progress derived anew. */
@@ -368,6 +370,14 @@ export const httpProjectApi: ProjectApi = {
         signal ? { signal } : {},
       ),
     );
+  },
+  async repository(projectId, signal) {
+    const response = await fetch(`${projectPath(projectId)}/repository`, signal ? { signal } : {});
+    if (response.status === 404) {
+      const problem = (await response.clone().json().catch(() => null)) as Problem | null;
+      if (problem?.type?.endsWith("/repository-not-chosen")) return null;
+    }
+    return json(response);
   },
   async progress(projectId, signal) {
     return json(await fetch(progressPath(projectId), signal ? { signal } : {}));

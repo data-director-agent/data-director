@@ -87,6 +87,12 @@ It is built from:
     refused. A decision on a version that is no longer the latest or undecided, or whose
     `digest` is not that of its text, is a 409 and is recorded as refused
     ([Projects](../docs/specs/projects.md));
+  - `GET /api/projects/{id}/repository`: the requirements of the repository chosen last, with
+    the requirement sets by version and digest and their warnings, or a 404
+    `repository-not-chosen` problem when none has been. `PUT` on it (`{re3data_id}`) chooses one,
+    its name and declared standards read from the pinned re3data export
+    ([Deposit](../docs/specs/deposit.md)). The shell draws it as the project page's Repository
+    entry;
   - `POST /api/projects/{id}/validation`: validates the project against the requirements
     recorded for the repository chosen last, for the person signed in, and keeps the report;
     answers with each violation and warning in the harness's words and the SHACL Validation

@@ -5,11 +5,13 @@ import { axe } from "jest-axe";
 import disclosureFixture from "../../../fixtures/project-disclosure.json";
 import answersFixture from "../../../fixtures/project-answers.json";
 import fixture from "../../../fixtures/project-documents.json";
+import repositoryFixture from "../../../fixtures/repository-chosen.json";
 import {
   DecisionConflict,
   type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
+  type RepositoryRequirements,
   ProjectApiContext,
   digestOf,
 } from "../../project/api";
@@ -21,6 +23,8 @@ const PROJECT = fixture as ProjectDocuments;
 // The disclosure the server gives (app/tests/test_document_decisions.py): a README a model drafted
 // and a person approved as it stood, and a metadata record awaiting a decision.
 const DISCLOSURE = disclosureFixture as Disclosure;
+// ORDA, chosen by its re3data identifier (app/tests/test_repository_choice.py).
+const REPOSITORY = repositoryFixture as RepositoryRequirements;
 
 function at<T>(items: T[], index: number): T {
   const item = items[index];
@@ -50,6 +54,7 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     decide: () => Promise.resolve(decided("approved")),
     answer: () => Promise.resolve(PROJECT),
     inventory: () => Promise.resolve(null),
+    repository: () => Promise.resolve(REPOSITORY),
     progress: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
     chooseEntry: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
     markStep: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
@@ -297,6 +302,34 @@ describe("ProjectPage", () => {
     expect(await screen.findByRole("heading", { name: "Use of generative AI" })).toBeVisible();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows the repository chosen and what it asks for", async () => {
+    const { container } = renderPage(fakeApi(), "doc=repository");
+    const panel = await screen.findByRole("region", { name: "Repository" });
+    expect(await within(panel).findByRole("link", { name: /^ORDA/ })).toHaveAttribute(
+      "href",
+      "https://www.re3data.org/repository/r3d100012124",
+    );
+    expect(within(panel).getByText("orda@v2")).toBeVisible();
+    expect(
+      within(panel).getByRole("heading", { name: "Metadata the record must have" }),
+    ).toBeVisible();
+    expect(within(panel).getByText("Title")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Repository", current: "page" })).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says how to choose a repository when none has been", async () => {
+    renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "doc=repository");
+    expect(await screen.findByText(/No repository has been chosen yet/)).toBeVisible();
+  });
+
+  it("reaches the repository even before any document is drafted", async () => {
+    const empty = { ...PROJECT, documents: [] };
+    renderPage(fakeApi({ documents: () => Promise.resolve(empty) }));
+    expect(await screen.findByText(/No document has been drafted/)).toBeVisible();
+    expect(screen.getByRole("link", { name: "Repository" })).toBeVisible();
   });
 
   it("offers the deposit package after the statement", async () => {
