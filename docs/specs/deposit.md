@@ -22,13 +22,18 @@ approves it under the profile's `deposit` action class, is TODO(#383).
 What is built:
 
 - the `RequirementSet` class, loading and checking the sets, resolving a choice and recording it
-  in the project (`dd_harness.requirements`, `dd-harness project choose-repository`);
+  in the project (`dd_harness.requirements`, `dd-harness project choose-repository`). A choice
+  names only the repository's re3data identifier: its name and the metadata standards it declares
+  are read from the pinned re3data export, which the harness reads through `sources.yaml`
+  (`DD_SOURCES_CONFIG`, `dd_harness.sources`) and never from the agent's directory
+  ([System](system.md)). An identifier that export does not hold is refused;
 - the DataCite and ORDA sets;
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
   `dd-harness project package`).
 
-Choosing a repository in the app is TODO(#400). Validating and building the package in the app
-is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
+A researcher chooses a repository in the app from an advisor's shortlist
+(`PUT /api/projects/{id}/repository`, [App](app.md)). Validating and building the package in the
+app is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
 
 ## Invariants
 
@@ -53,7 +58,10 @@ is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
    repository declares; else DataCite's, with a warning. A repository without an override gets a
    warning that its own form, formats, sizes and licences are not checked
    (`harness/tests/test_requirements.py`, `app/tests/test_repositories.py`).
-6. **A choice records exactly what it resolved to.** The project log names each set used by
+6. **A choice records exactly what it resolved to.** The project log names the re3data record the
+   repository's name and declared standards were read from, by its `snapshot_ref` (the latest
+   `re3data:export:YYYY-MM` pinned) and its content hash under `dd-json-document-v1`, the hash
+   evidence citing that record carries ([Grounding](grounding.md)). It names each set used by
    `<requirement_set_id>@v<version>` and the SHA-256 of its file, keeps the merged set by its
    digest, and records the warnings. The last choice counts (`harness/tests/test_projects.py`).
    A set's version is raised on every change; nothing checks this.

@@ -648,10 +648,12 @@ describe("ConversationHome", () => {
       );
     });
 
-    it("draws the project's current state as not built, linked to its issues", () => {
+    it("draws what is not built of the project's state, linked to its issues", () => {
       renderHome(withOrchestrator(), fakeApi());
       const state = screen.getByRole("region", { name: "Current state" });
-      for (const label of ["Dataset", "Phase", "Repository", "Governance"]) {
+      const repository = within(state).getByText("Repository").nextElementSibling as HTMLElement;
+      expect(repository).toHaveTextContent(/None chosen yet/);
+      for (const label of ["Dataset", "Phase", "Governance"]) {
         const dd = within(state).getByText(label).nextElementSibling as HTMLElement;
         expect(within(dd).getByText("Not built yet")).toBeVisible();
         expect(within(dd).getAllByRole("link").length).toBeGreaterThan(0);

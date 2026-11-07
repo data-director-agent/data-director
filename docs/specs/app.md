@@ -223,6 +223,19 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   new reply's announcement says what the turn drafted. The side bar lists every document of the
   project with its latest version's state and says how many await a decision. A decision is made
   only on the documents page.
+- **A repository is chosen from the shortlist on the turn that made it.** A run whose payload is a
+  `RepositoryOptions`, on the turn or among its delegated children, is a card on that turn listing
+  each candidate by the re3data record it rests on: the `grounded_on` entry that is a re3data
+  identifier, named by the evidence citing it from a pinned `re3data:export:YYYY-MM`. The shell
+  recognises the class, not the agent. Choosing one sends only that identifier
+  (`PUT /api/projects/{id}/repository`); the server records it for the person signed in, the
+  harness reads the repository's name and declared standards from the pinned export, and the card
+  shows what the choice resolved to: the requirement sets used, the documents and metadata a
+  deposit needs, and each warning of what is not checked ([Deposit](deposit.md)). The side bar
+  names the repository chosen last, with its warnings; choosing another from a shortlist changes
+  it, as a new choice, and the last one counts. An identifier the export does not hold is refused
+  with nothing recorded (`app/tests/test_repository_choice.py`,
+  `app/web/src/components/conversation/RepositoryShortlist.test.tsx`).
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
@@ -283,6 +296,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   each phase's steps and the agents serving them. On the left, the person's conversations, so
   that another is one press away; on the right, an overview of the project: its current state
   (dataset, phase, repository, governance flags), the files attached to it and its documents.
+  Only the repository is built; the others await a record of where the project is (#160).
   The activity log spans runs and conversations, so it is a page of its own in the main
   navigation. What the orchestrator is and how far to rely on it is on the agents page, not
   beside every conversation. Evidence belongs beside the claim it supports

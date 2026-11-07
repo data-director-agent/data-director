@@ -113,6 +113,12 @@ were started in it, and how many documents have a latest version in each state.
 ## The repository chosen
 
 A researcher may choose any repository in re3data, usually one `advisor.repository` shortlisted.
+The choice names only its re3data identifier. The repository's name and the metadata standards
+its record declares are read from the latest re3data export pinned in the deployment's
+`sources.yaml` (`DD_SOURCES_CONFIG`, under `re3data:export:YYYY-MM`), so nothing is typed by hand
+and the choice cannot disagree with the registry. The event records that `snapshot_ref` and the
+record's content hash. An identifier the export does not hold is refused, as is a choice when no
+export is pinned or the pinned one is not built (`uv run dd-sources prepare` builds it).
 What a deposit to it must or should have comes from the deployment's requirement sets under
 `DD_REPOSITORIES_DIR`, loaded and checked by `dd_harness.requirements`
 ([Deposit](../../docs/specs/deposit.md)): the repository's override, if there is one, merged on the set of the standard it names, or
@@ -121,9 +127,8 @@ blob, and the requirements of the repository chosen last are the project's. Sets
 malformed or contradict one another stop the command before anything is recorded.
 
 ```console
-$ export DD_REPOSITORIES_DIR=app/config/repositories
-$ uv run dd-harness project choose-repository 0192f3a4-… --re3data r3d100012124 \
-    --name ORDA --standard "Dublin Core"
+$ export DD_REPOSITORIES_DIR=app/config/repositories DD_SOURCES_CONFIG=workbench/sources.yaml
+$ uv run dd-harness project choose-repository 0192f3a4-… --re3data r3d100012124
 ```
 
 ## Documents and decisions
@@ -198,6 +203,6 @@ until a person approves one. The conductor gives it to every drafter in the proj
 - The conductor fills only a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`
   and `draft_answers`, not its `current_version` ([Projects](../../docs/specs/projects.md)),
   TODO(#394).
-- The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
+- The app cannot add an inventory to a project, TODO(#395).
 - The app cannot validate a project or build its package, TODO(#623).
 - How long a project is kept, and what deleting one removes, TODO(#141).
