@@ -144,9 +144,9 @@ researcher adds the files at deposit, and the digests show they are the files de
 them are `inventory.json`, `requirements.json`, `validation-report.jsonld` and
 `project-log.jsonl`, the log as it stood when the package was built. The package carries the
 project's disclosure of generative AI: its statement, `use-of-generative-ai.md`, and its PROV-O
-graph of each approved version, `provenance.jsonld` ([Disclosure](disclosure.md)). Whether a
-researcher may include the prompts themselves is TODO(#624). PROV-O alignment of the whole package
-is TODO(#26) (R10). The harness keeps the package by the SHA-256 of its bytes and records it in
+graph of each approved version, `provenance.jsonld` ([Disclosure](disclosure.md)). Both name
+each prompt by its digest; the prompts themselves stay in the run store and are not packaged.
+PROV-O alignment of the whole package is TODO(#26) (R10). The harness keeps the package by the SHA-256 of its bytes and records it in
 the project log with a `package_built` event, which names the report, the merged set, each
 document version and each run it holds.
 
