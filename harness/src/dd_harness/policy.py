@@ -10,6 +10,7 @@ checked against it, never trusted on its own.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,8 +20,22 @@ import yaml
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
 # a rule is in force when it is not (docs/specs/policy-and-identity.md).
 PROFILE_KEYS = frozenset(
-    {"profile_id", "version", "description", "agents", "actions_requiring_approval", "orchestrator"}
+    {
+        "profile_id",
+        "version",
+        "description",
+        "agents",
+        "actions_requiring_approval",
+        "orchestrator",
+        "hosted_models",
+    }
 )
+
+# The classes of project content (docs/specs/projects.md, invariant 8): the inventory of the data
+# files, and documentation (a document's text, or what a person wrote about one).
+CONTENT_CLASSES = ("inventory", "documentation")
+# What may be given to an agent whose card declares a hosted model, where the profile does not say.
+DEFAULT_HOSTED_MODELS = frozenset({"inventory"})
 
 
 class PolicyError(Exception):
@@ -40,6 +55,9 @@ class Profile:
     orchestrator: str | None = None
     # What the steward says the profile is for, shown beside its rules (docs/specs/app.md).
     description: str = ""
+    # The classes of project content that may be given to an agent whose card declares a
+    # `hosted` model (docs/specs/projects.md, invariant 8).
+    hosted_models: frozenset[str] = DEFAULT_HOSTED_MODELS
 
     @property
     def ref(self) -> str:
@@ -63,6 +81,14 @@ class Profile:
                 raise ValueError(
                     f"orchestrator {orchestrator!r} is not one of the agents the profile enables"
                 )
+            hosted = data.get("hosted_models", sorted(DEFAULT_HOSTED_MODELS))
+            if not isinstance(hosted, list):
+                raise TypeError("hosted_models must list classes of project content")
+            if wrong := sorted({str(c) for c in hosted} - set(CONTENT_CLASSES)):
+                raise ValueError(
+                    f"hosted_models names {', '.join(map(repr, wrong))}; "
+                    f"the classes of project content are {', '.join(CONTENT_CLASSES)}"
+                )
             return cls(
                 profile_id=str(data["profile_id"]),
                 version=int(data.get("version", 1)),
@@ -72,6 +98,7 @@ class Profile:
                 source=source,
                 orchestrator=None if orchestrator is None else str(orchestrator),
                 description=str(data.get("description") or "").strip(),
+                hosted_models=frozenset(str(c) for c in hosted),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc
@@ -117,3 +144,12 @@ def gate(profile: Profile, agent_id: str, declared_action_class: str) -> GateDec
             f"action class {assigned!r} requires approval under {profile.profile_id!r}",
         )
     return GateDecision(True, False, "permitted")
+
+
+def withheld(profile: Profile, hostings: Iterable[str], given: Iterable[str]) -> list[str]:
+    """The classes of project content in `given` that may not go to an agent whose models are
+    hosted as `hostings`, sorted; empty if the agent calls no hosted model
+    (docs/specs/projects.md, invariant 8)."""
+    if "hosted" not in set(hostings):
+        return []
+    return sorted(set(given) - profile.hosted_models)

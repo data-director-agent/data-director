@@ -18,6 +18,12 @@ phase tracker and the orchestrators name them and say so, no agent may serve the
 orchestrator offers to do them. TODO(#284): a read-only check of a deposit against an existing
 Data Management Plan.
 
+Where a researcher is in the flow is never stored: the harness derives each step's state (open,
+started, done or skipped) from the project log on every turn, and `progress` joins those states
+to the plan. Work is not linear, so a step done out of order counts wherever it falls, and the
+next step `suggested_next` names is a suggestion an orchestrator offers, never a gate
+(docs/specs/orchestration.md).
+
 The steps are taken from the figure captions in §8.2. TODO(#245): check them against Figures 1 to 6
 themselves, which are images and may show steps or decisions the captions leave out.
 """
@@ -26,7 +32,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 
 @dataclass(frozen=True)
@@ -352,6 +358,58 @@ def plan(start: Entry, manifest: Iterable[Mapping[str, Any]]) -> list[PlannedSte
         for phase in phases_from(start)
         for step in phase.steps
     ]
+
+
+# How far a step has gone, as the project log shows it (docs/specs/orchestration.md).
+StepState = Literal["open", "started", "done", "skipped"]
+STEP_STATES: tuple[StepState, ...] = ("open", "started", "done", "skipped")
+
+
+@dataclass(frozen=True)
+class ProgressStep:
+    phase: Phase
+    step: Step
+    agent_ids: tuple[str, ...]  # the agents serving the step
+    state: StepState
+
+
+def progress(
+    start: Entry | None, states: Mapping[str, str], manifest: Iterable[Mapping[str, Any]]
+) -> list[ProgressStep]:
+    """Each step from `start` with its state and the agents serving it. A phase before `start` is
+    included where one of its steps has started, since work done out of order still counts. With
+    no `start`, every phase is included. A step `states` leaves out is open."""
+    first = start.starts_at if start is not None else 1
+    earlier = {p.number for p in PHASES if any(_state(states.get(s.id)) != "open" for s in p.steps)}
+    included = {p.number for p in PHASES if p.number >= first} | earlier
+    planned = plan(entry(1), manifest)
+    return [
+        ProgressStep(p.phase, p.step, p.agent_ids, _state(states.get(p.step.id)))
+        for p in planned
+        if p.phase.number in included
+    ]
+
+
+def _state(value: str | None) -> StepState:
+    return next((s for s in STEP_STATES if s == value), "open")
+
+
+def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> ProgressStep | None:
+    """The step to suggest next: the first one from `start`'s phase that is neither done nor
+    skipped, in scope and not optional; a started step before an open one. Whether an agent
+    serves it does not matter: a step with no agent is suggested and named as having none. None
+    when all are done."""
+    first = start.starts_at if start is not None else 1
+    candidates = [
+        s
+        for s in steps
+        if s.phase.number >= first
+        and s.state in ("open", "started")
+        and not s.step.out_of_scope
+        and not s.step.optional
+    ]
+    started = [s for s in candidates if s.state == "started"]
+    return next(iter(started or candidates), None)
 
 
 def describe_flow() -> str:

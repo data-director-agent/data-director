@@ -17,7 +17,9 @@ from dd_sdk.process_flow import (
     describe_flow,
     entry,
     plan,
+    progress,
     requirements_of,
+    suggested_next,
 )
 
 REGISTER = Path(__file__).resolve().parents[2] / "docs" / "requirements.yaml"
@@ -122,3 +124,51 @@ def test_every_phase_and_step_has_wording_for_researchers_free_of_requirement_id
         for step in phase.steps:
             assert step.label, step.id
             assert not any(r in step.label for r in REQUIREMENTS), step.id
+
+
+def test_progress_from_an_entry_keeps_earlier_work_and_marks_each_step() -> None:
+    manifest: list[dict[str, Any]] = [
+        {"agent_id": "advisor.files", "serves": ["preparation.files"]}
+    ]
+    states = {"setup.vocabularies": "done", "preparation.files": "started"}
+    steps = progress(entry(3), states, manifest)
+    # Phase 1 work done before the researcher's entry point still shows; Phase 2 does not.
+    assert {s.phase.number for s in steps} == {1, 3, 4, 5, 6}
+    by_id = {s.step.id: s for s in steps}
+    assert by_id["setup.vocabularies"].state == "done"
+    assert by_id["preparation.files"].state == "started"
+    assert by_id["preparation.files"].agent_ids == ("advisor.files",)
+    assert by_id["deposit.upload"].state == "open"
+    # With no entry point, every phase.
+    assert {s.phase.number for s in progress(None, {}, manifest)} == {1, 2, 3, 4, 5, 6}
+
+
+def test_the_suggestion_is_the_first_open_step_from_the_entry_and_never_a_gate() -> None:
+    start = entry(2)
+    first = suggested_next(progress(start, {}, []), start)
+    assert first is not None and first.step.id == "governance.policies"
+    # Done and skipped steps are passed, whatever order they were done in; a step with no agent
+    # is still suggested.
+    states = {"governance.policies": "done", "governance.sensitive-data-identify": "skipped"}
+    found = suggested_next(progress(start, states, []), start)
+    assert found is not None and found.step.id == "governance.sensitive-data-handle"
+    assert found.agent_ids == ()
+    # A step begun is suggested before an earlier one not begun.
+    states = {"preparation.metadata": "started"}
+    begun = suggested_next(progress(start, states, []), start)
+    assert begun is not None and begun.step.id == "preparation.metadata"
+
+
+def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all_are_done() -> None:
+    start = entry(1)
+    states = {"setup.documentation": "done", "setup.vocabularies": "done"}
+    found = suggested_next(progress(start, states, []), start)
+    # setup.dmp-create is optional and out of scope, setup.dmp-review out of scope.
+    assert found is not None and found.step.id == "governance.policies"
+    every = {s.id: "done" for p in PHASES for s in p.steps}
+    assert suggested_next(progress(start, every, []), start) is None
+    # Optional steps never hold the suggestion back.
+    required = {
+        s.id: "done" for p in PHASES for s in p.steps if not s.optional and not s.out_of_scope
+    }
+    assert suggested_next(progress(start, required, []), start) is None

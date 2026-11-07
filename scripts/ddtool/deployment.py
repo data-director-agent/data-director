@@ -122,6 +122,8 @@ def profile(deployment: Deployment, example: Path, current: str | None) -> str:
         "orchestrator": f"orchestrator.{deployment.orchestrator}",
         "actions_requiring_approval": list(base.get("actions_requiring_approval") or []),
     }
+    if "hosted_models" in base:
+        body["hosted_models"] = list(base["hosted_models"] or [])
     have: dict[str, Any] = (yaml.safe_load(current) or {}) if current else {}
     base_version = int(base.get("version") or 1)
     have_version = int(have.get("version") or 0) if isinstance(have, dict) else 0

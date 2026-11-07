@@ -164,6 +164,22 @@ class ProjectStorage(Protocol):
         """Record the repository chosen; returns the merged requirement set's digest."""
         ...
 
+    def choose_entry(
+        self, project_id: str, entry: int, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record the entry point chosen."""
+        ...
+
+    def mark_step(
+        self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record a step marked done, skipped or open."""
+        ...
+
+    def progress(self, project_id: str) -> dict[str, Any]:
+        """The entry point chosen and the step states, derived from the log."""
+        ...
+
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:
         """Record a run's `Document` payload as a proposed version."""
         ...

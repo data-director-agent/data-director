@@ -330,8 +330,7 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   afterwards rather than watched, and a run cannot be cancelled. Streaming runs over AG-UI
   replaces it (#68, #69).
 - A person can approve, edit then approve, or reject a project's documents at `/projects/{id}`,
-  but no run adds a document to a project yet (#394), nothing links to that page, and anyone
-  signed in can decide (#389). Risk tiers and batching for review are #72 and #73.
+  but anyone signed in can decide (#389). Risk tiers and batching for review are #72 and #73.
 - The form checks only required fields and numbers; the conductor's input check decides.
 - The conversation is with the rule-based `orchestrator.stub` unless the profile names the
   model-backed orchestrator, which needs a key (see "Choosing the orchestrator"). Replies are not

@@ -12,6 +12,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { createContext, useContext } from "react";
 
+import type { ProjectProgress, StepMark } from "../flow/types";
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
 import { checkSignedIn } from "../session/api";
@@ -240,6 +241,12 @@ export interface ProjectApi {
   ): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
+  /** Where the project is in the process flow, derived anew by the harness. */
+  progress(projectId: string, signal?: AbortSignal): Promise<ProjectProgress>;
+  /** Record the entry point the researcher chose; answers with the progress derived anew. */
+  chooseEntry(projectId: string, entry: number): Promise<ProjectProgress>;
+  /** Record a step marked done, skipped or open again; answers with the progress anew. */
+  markStep(projectId: string, stepId: string, mark: StepMark): Promise<ProjectProgress>;
   /** Validates the project against its chosen repository's requirements; the log keeps it. */
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
@@ -277,6 +284,18 @@ function projectPath(projectId: string): string {
   return `/api/projects/${encodeURIComponent(projectId)}`;
 }
 
+function progressPath(projectId: string): string {
+  return `${projectPath(projectId)}/progress`;
+}
+
+function put(body: unknown): RequestInit {
+  return {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
 function documentsPath(projectId: string): string {
   return `${projectPath(projectId)}/documents`;
 }
@@ -302,6 +321,17 @@ export const httpProjectApi: ProjectApi = {
         `/api/projects/${encodeURIComponent(projectId)}/inventory`,
         signal ? { signal } : {},
       ),
+    );
+  },
+  async progress(projectId, signal) {
+    return json(await fetch(progressPath(projectId), signal ? { signal } : {}));
+  },
+  async chooseEntry(projectId, entry) {
+    return json(await fetch(`${progressPath(projectId)}/entry`, put({ entry })));
+  },
+  async markStep(projectId, stepId, mark) {
+    return json(
+      await fetch(`${progressPath(projectId)}/steps/${encodeURIComponent(stepId)}`, put({ mark })),
     );
   },
   async validate(projectId) {

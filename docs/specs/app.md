@@ -236,8 +236,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   short `name` and a one-sentence `summary`, and each step a `label`, all carried by the process
   flow beside the Blueprint's own wording, which the orchestrator reasons over. The journey names
   no agent and no requirement, since a researcher works through the conversation and needs to see
-  only the whole route; it is meant to become a progress bar over the project's record
-  (TODO(#160)).
+  only the whole route. In a project it shows where the project is, as the harness derives it
+  from the project log (`GET /api/projects/{id}/progress`, [Orchestration](orchestration.md),
+  invariant 18): how many steps of each phase are done or skipped, each step's state, and the step
+  suggested next. The researcher may choose their entry point and mark any step done or skipped,
+  or open it again (`PUT .../progress/entry`, `PUT .../progress/steps/{step_id}`); the server
+  records it acting for the person signed in and answers with the progress derived anew. The
+  shell computes no state and no suggestion of its own.
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
   or message an agent from it; they work through the conversation. Running one agent directly,

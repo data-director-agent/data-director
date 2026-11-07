@@ -28,7 +28,7 @@ import {
   type ProjectDocuments,
   type ProjectSummary,
 } from "../../project/api";
-import type { ProcessFlow } from "../../flow/types";
+import type { ProcessFlow, ProjectProgress } from "../../flow/types";
 import { type Directory, normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse, RawManifestEntry } from "../../manifest/types";
 import runFixture from "../../../fixtures/run-succeeded.json";
@@ -113,10 +113,11 @@ describe("ConversationHome", () => {
         answer_to: asked,
         answer_values: ["2"],
       });
-      // Answered, the question is read-only with the choice marked in words.
+      // Answered, the question is read-only with the choice marked in words, and the reply leads
+      // on with a question of its own: what to do next (docs/specs/orchestration.md).
       expect(await screen.findByText("(your choice)")).toBeVisible();
-      expect(screen.queryByRole("button", { name: "Send answer" })).toBeNull();
-      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus();
+      expect(await screen.findByRole("group", { name: "What would you like to do next?" })).toBeVisible();
+      expect(screen.getAllByRole("button", { name: "Send answer" })).toHaveLength(1);
     });
 
     it("keeps the choice, and leaves the message box alone, when the answer is refused", async () => {
@@ -849,6 +850,76 @@ describe("ConversationHome", () => {
         for (const c of t.children) c.outcome.status = "suspended";
       await sendAndSelect(suspended);
       expect((await screen.findAllByText(/Waiting for review/))[0]).toBeVisible();
+    });
+  });
+
+  describe("where the project is in the journey", () => {
+    const LOGGERS = (projectsFixture as ProjectSummary[])[0] as ProjectSummary;
+    const flow = flowFixture as ProcessFlow;
+    const label = (id: string) => {
+      const found = flow.phases.flatMap((p) => p.steps).find((s) => s.id === id);
+      if (!found) throw new Error(`no step ${id} in the fixture`);
+      return found.label;
+    };
+    const AT_ENTRY_TWO: ProjectProgress = {
+      entry: 2,
+      steps: { "preparation.files": "done" },
+      suggested: "governance.policies",
+    };
+
+    function withProgress(overrides: Partial<ProjectApi> = {}): ProjectApi {
+      return {
+        ...httpProjectApi,
+        projects: () => Promise.resolve([LOGGERS]),
+        documents: () => Promise.resolve(PROJECT),
+        progress: () => Promise.resolve(AT_ENTRY_TWO),
+        ...overrides,
+      };
+    }
+
+    it("shows the harness's suggestion and each step's state, without computing either", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const { container } = renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress());
+      const phases = await screen.findByRole("navigation", { name: "Your data journey" });
+      expect(await within(phases).findByRole("status")).toHaveTextContent(
+        `Suggested next: ${label("governance.policies")}`,
+      );
+      expect(within(phases).getByRole("combobox", { name: "Where you started" })).toHaveValue("2");
+      await userEvent.click(within(phases).getByText("Show what happens in each phase"));
+      expect(
+        within(phases).getByRole("button", { name: `Open again: ${label("preparation.files")}` }),
+      ).toBeInTheDocument();
+      expect(phases).not.toHaveTextContent(/\bR\d|agent/);
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("records a step marked, or the entry point chosen, and draws what the server reads back", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const markStep = vi.fn(() =>
+        Promise.resolve<ProjectProgress>({
+          entry: 2,
+          steps: { "preparation.files": "done", "governance.policies": "skipped" },
+          suggested: "governance.sensitive-data-identify",
+        }),
+      );
+      const chooseEntry = vi.fn(() => Promise.resolve<ProjectProgress>({ ...AT_ENTRY_TWO, entry: 3 }));
+      renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress({ markStep, chooseEntry }));
+      const phases = await screen.findByRole("navigation", { name: "Your data journey" });
+      await within(phases).findByRole("status");
+      await userEvent.click(within(phases).getByText("Show what happens in each phase"));
+      await userEvent.click(
+        within(phases).getByRole("button", { name: `Skip: ${label("governance.policies")}` }),
+      );
+      expect(markStep).toHaveBeenCalledWith(LOGGERS.project_id, "governance.policies", "skipped");
+      expect(await within(phases).findByRole("status")).toHaveTextContent(
+        label("governance.sensitive-data-identify"),
+      );
+
+      await userEvent.selectOptions(
+        within(phases).getByRole("combobox", { name: "Where you started" }),
+        "3",
+      );
+      expect(chooseEntry).toHaveBeenCalledWith(LOGGERS.project_id, 3);
     });
   });
 });

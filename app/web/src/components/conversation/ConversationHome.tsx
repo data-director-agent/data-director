@@ -52,6 +52,7 @@ import {
   readInventory,
 } from "../../conversation/inventory";
 import { useFlowApi } from "../../flow/api";
+import type { ProjectProgress } from "../../flow/types";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
@@ -64,7 +65,7 @@ import type { Envelope } from "../../run/types";
 import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
 import { ContextPanel } from "../workspace/ContextPanel";
-import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
+import { type FlowLoad, PhaseTracker, type TrackedProgress } from "../workspace/PhaseTracker";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
@@ -170,6 +171,44 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const documents: DocumentsRead =
     projectId && documentsOf?.projectId === projectId ? documentsOf.read : { state: "loading" };
 
+  // Where the project is in the flow, read with its documents: when the project is known and
+  // after each turn. A read is kept with the project it is of, as the documents are.
+  const [progressOf, setProgressOf] = useState<{ projectId: string; progress: ProjectProgress } | null>(
+    null,
+  );
+  const [progressError, setProgressError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    const abort = new AbortController();
+    projectApi.progress(projectId, abort.signal).then(
+      (progress) => setProgressOf({ projectId, progress }),
+      () => undefined,
+    );
+    return () => abort.abort();
+  }, [projectApi, projectId, turnCount]);
+  const changeProgress = useCallback(
+    (change: Promise<ProjectProgress>, of: string) => {
+      change.then(
+        (progress) => {
+          setProgressError(null);
+          setProgressOf({ projectId: of, progress });
+        },
+        (e: unknown) => setProgressError(errorMessage(e)),
+      );
+    },
+    [],
+  );
+  const tracked: TrackedProgress | null =
+    projectId && progressOf?.projectId === projectId
+      ? {
+          progress: progressOf.progress,
+          chooseEntry: (entry) => changeProgress(projectApi.chooseEntry(projectId, entry), projectId),
+          markStep: (stepId, mark) =>
+            changeProgress(projectApi.markStep(projectId, stepId, mark), projectId),
+          error: progressError,
+        }
+      : null;
+
   // The phases do not depend on the conversation: if they fail, only the tracker says so.
   useEffect(() => {
     const abort = new AbortController();
@@ -192,7 +231,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const frame = {
     project: <ProjectSwitcher />,
-    phases: <PhaseTracker load={flow} />,
+    phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
   const project = projects.find((p) => p.project_id === projectId) ?? null;
 

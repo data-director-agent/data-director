@@ -245,3 +245,17 @@ def test_the_command_names_a_project_and_lists_projects(
     listed = json.loads(line)
     assert listed["project_id"] == project_id
     assert listed["title"] == "Soil cores 2024"
+
+
+def test_the_commands_record_the_entry_point_and_a_marked_step(
+    operator: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    server.main(["project", "create"])
+    project_id = capsys.readouterr().out.strip()
+    assert server.main(["project", "choose-entry", project_id, "2"]) == 0
+    assert server.main(["project", "mark-step", project_id, "governance.embargo", "skipped"]) == 0
+    found = ProjectStore(operator).progress(project_id)
+    assert found["entry"] == 2
+    assert found["steps"] == {"governance.embargo": "skipped"}
+    with pytest.raises(SystemExit):
+        server.main(["project", "mark-step", project_id, "R5", "done"])

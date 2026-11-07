@@ -34,6 +34,11 @@ an answer stands until the person answers the same question again. `answers` giv
 answer to each question of the documents of a kind, which the conductor puts into the next
 `DraftRequest`.
 
+Where the project is in the Blueprint's process flow is derived from the log by `progress`, never
+stored (`dd_harness.progress`, docs/specs/orchestration.md). The researcher's own word on it is two
+events: `entry_chosen` (`choose_entry`, the last counts) and `step_marked` (`mark_step`: done,
+skipped, or open again).
+
 A project may have a title, given when it is created, so that a person can tell projects apart.
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from an index of those events built when first asked.
@@ -56,6 +61,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Final, Literal, NoReturn
 
+from dd_harness import progress as flow
 from dd_harness.requirements import Resolved
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -322,6 +328,7 @@ class ProjectStore:
             else None,
             "conversation_count": sum(1 for e in events if e["event"] == CONVERSATION_STARTED),
             "documents": states,
+            "progress": flow.describe(events),
         }
 
     def _conversation_index(self) -> dict[str, str]:
@@ -400,6 +407,40 @@ class ProjectStore:
             },
         )
         return digest
+
+    def choose_entry(
+        self, project_id: str, entry: int, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record the Blueprint entry point (1, 2 or 3) the researcher chose; the last counts.
+        Raises `ProjectError` for an unknown project or entry point."""
+        self._require(project_id)
+        if entry not in (1, 2, 3):
+            raise ProjectError(f"the Blueprint has no entry point {entry!r}")
+        self._append(project_id, flow.ENTRY_CHOSEN, acted_for, caused_by, {"entry": entry})
+
+    def mark_step(
+        self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Record the researcher marking a process-flow step done, skipped, or open again.
+        Raises `ProjectError` for an unknown project, a step that is not in scope, or a mark
+        that is none of those."""
+        self._require(project_id)
+        if not flow.markable(step_id):
+            raise ProjectError(f"{step_id!r} is not a process-flow step that may be marked")
+        if mark not in flow.MARKS:
+            raise ProjectError(f"a step is marked one of {', '.join(flow.MARKS)}, not {mark!r}")
+        self._append(
+            project_id,
+            flow.STEP_MARKED,
+            acted_for,
+            caused_by,
+            {"step_id": step_id, "mark": mark},
+        )
+
+    def progress(self, project_id: str) -> dict[str, Any]:
+        """The entry point chosen and each step the log shows started, done or skipped. Raises
+        `UnknownProjectError`."""
+        return flow.describe(self.events(project_id))
 
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:
         """Record a run's `Document` payload as a proposed version (docs/specs/projects.md,
@@ -596,7 +637,7 @@ class ProjectStore:
 
         A question's identifier is derived from the gap it fills, so it is the same in every
         draft of that kind. Until the conductor gives a drafter the version it regenerates,
-        TODO(#394), each redraft is a new document, and an answer must outlive the document it
+        TODO(#631), each redraft is a new document, and an answer must outlive the document it
         was given to."""
         kinds: dict[str, str] = {}
         latest: dict[str, str] = {}
