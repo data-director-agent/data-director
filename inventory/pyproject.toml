@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-inventory"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 description = "Describe a dataset's files where they live: size, digest, PRONOM format and table fields, without uploading them"
 readme = "README.md"
 requires-python = ">=3.14"
