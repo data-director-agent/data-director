@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -37,6 +38,7 @@ def dist(tmp_path: Path) -> Path:
 
 
 BUILD = {"app_version": "1.2.3", "harness_version": "0.4.5", "commit": "abc1234def"}
+EXAMPLE = Path(__file__).resolve().parents[1] / "config/examples/soil-chemistry.profile.json"
 REPORT = {"kind": "bug", "title": "  The run  hangs ", "description": "It never ends."}
 
 
@@ -215,6 +217,26 @@ def test_context_is_attached_only_with_consent_and_only_identifiers(
         assert client.post("/api/feedback", json=body).status_code == 201
         text = json.loads(seen[0].content)["body"]
         assert (started in text) is consent
+
+
+def test_a_report_attaches_nothing_the_reporter_may_not_read(
+    governance: Governance, dist: Path
+) -> None:
+    """Someone else's run or conversation is not attached, even with consent (#153)."""
+    other = TEST_PRINCIPAL.model_copy(
+        update={"principal_id": "https://orcid.org/0000-0001-5000-0007", "name": "Ada Example"}
+    )
+    profile = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+    theirs = asyncio.run(governance.run("advisor.standards", profile, other))["envelope"]
+    mine = asyncio.run(governance.run("advisor.standards", profile, TEST_PRINCIPAL))["envelope"]
+    conversation = governance.start_conversation(other)
+    for run_id, attached in ((theirs["invocation_id"], False), (mine["invocation_id"], True)):
+        client, seen = client_for(governance, dist)
+        body = {**REPORT, "run": run_id, "conversation": conversation, "include_context": True}
+        assert client.post("/api/feedback", json=body).status_code == 201
+        text = json.loads(seen[0].content)["body"]
+        assert (f"Run `{run_id}`" in text) is attached
+        assert f"Conversation `{conversation}`" not in text
 
 
 def test_the_token_comes_from_a_value_or_a_credential_file(tmp_path: Path) -> None:
