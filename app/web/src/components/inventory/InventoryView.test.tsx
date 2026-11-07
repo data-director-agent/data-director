@@ -1,4 +1,10 @@
-import type { FileInventory, InventoryFile } from "@data-director/inventory";
+import {
+  NOTHING_OMITTED,
+  type FileInventory,
+  type InventoryFile,
+  type Omission,
+} from "@data-director/inventory";
+import { useState } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
@@ -117,6 +123,61 @@ describe("InventoryView", () => {
     expect(screen.getByText("The inventory lists no files.")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Formats" })).toBeNull();
     expect(screen.queryByRole("region", { name: "Tables" })).toBeNull();
+  });
+});
+
+describe("InventoryView, choosing what to leave out", () => {
+  let latest: Omission = NOTHING_OMITTED;
+  function Choosing() {
+    const [omission, setOmission] = useState<Omission>(NOTHING_OMITTED);
+    latest = omission;
+    return <InventoryView inventory={INVENTORY} omission={omission} onOmit={setOmission} />;
+  }
+
+  it("offers no checkboxes when read-only", () => {
+    render(<InventoryView inventory={INVENTORY} />);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  it("leaves out a folder, unopened, with every file beneath it", async () => {
+    const { container } = render(<Choosing />);
+    expect(screen.getByText("Nothing is left out.")).toBeInTheDocument();
+    const folder = screen.getByRole("checkbox", { name: "Include the folder docs/" });
+    expect(folder).toBeChecked();
+    await userEvent.click(folder);
+    expect(folder).not.toBeChecked();
+    expect(latest.paths).toEqual(new Set(["docs"]));
+    expect(screen.getByText("Left out: 2 files.")).toBeInTheDocument();
+    // Its files show as left out, and stay so until the folder is included again.
+    await userEvent.click(screen.getByText("docs/"));
+    const pdf = screen.getByRole("checkbox", { name: "Include docs/protocol.pdf" });
+    expect(pdf).not.toBeChecked();
+    expect(pdf).toBeDisabled();
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(folder);
+    expect(pdf).toBeChecked();
+    expect(pdf).toBeEnabled();
+    expect(screen.getByText("Nothing is left out.")).toBeInTheDocument();
+  });
+
+  it("leaves out a file found by search, and a column of a table", async () => {
+    render(<Choosing />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Find files" }), "participant");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Include data/readings.csv" }));
+    expect(latest.paths).toEqual(new Set(["data/readings.csv"]));
+    // A table left out leaves its columns out with it.
+    const tables = screen.getByRole("region", { name: "Tables" });
+    await userEvent.click(within(tables).getByText("data/readings.csv"));
+    const column = within(tables).getByRole("checkbox", {
+      name: "Include the column participant_name of data/readings.csv",
+    });
+    expect(column).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Include data/readings.csv" }));
+    await userEvent.click(column);
+    expect(latest.columns).toEqual(new Map([["data/readings.csv", new Set(["participant_name"])]]));
+    expect(screen.getByText("Left out: 1 column.")).toBeInTheDocument();
+    await userEvent.click(column);
+    expect(latest.columns.size).toBe(0);
   });
 });
 

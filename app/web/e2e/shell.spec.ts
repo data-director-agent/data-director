@@ -351,7 +351,7 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-test("an attached inventory shows as a chip, not JSON, at 320px with no axe violations", async ({
+test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px with no axe violations", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
@@ -377,7 +377,24 @@ test("an attached inventory shows as a chip, not JSON, at 320px with no axe viol
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(inventory)),
   });
-  await expect(page.getByText(/Inventory: 42 files, made 1 Nov 2026/)).toBeVisible();
+
+  // It is checked first: nothing is attached until it is confirmed (#472).
+  const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });
+  await expect(review.getByText(/names of your files and folders/)).toBeVisible();
+  await expect(page.getByText(/Inventory: 42 files/)).toHaveCount(0);
+  expect(await overflow(page), "horizontal overflow while checking the inventory").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+  // A file is left out by keyboard, and the dialog counts it.
+  const leaveOut = review.getByRole("checkbox", { name: "Include data/file-1.csv" });
+  await leaveOut.focus();
+  await page.keyboard.press("Space");
+  await expect(leaveOut).not.toBeChecked();
+  await expect(review.getByText("Left out: 1 file.")).toBeVisible();
+  await review.getByRole("button", { name: "Attach this inventory" }).press("Enter");
+  await expect(review).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
+
+  await expect(page.getByText(/Inventory: 41 files, made 1 Nov 2026/)).toBeVisible();
   await expect(page.getByText("data/file-0.csv")).toHaveCount(0);
   expect(await overflow(page), "horizontal overflow with an inventory attached").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
@@ -386,7 +403,9 @@ test("an attached inventory shows as a chip, not JSON, at 320px with no axe viol
   const view = page.getByRole("button", { name: "View inventory" });
   await view.press("Enter");
   const dialog = page.getByRole("dialog", { name: "What the inventory holds" });
-  await expect(dialog.getByText("42 files, 50.4 kB in all")).toBeVisible();
+  await expect(dialog.getByText("41 files, 49.2 kB in all")).toBeVisible();
+  await expect(dialog.getByText("file-1.csv", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText(/the researcher left out 1 file\./)).toBeVisible();
   // The only top-level folder is open already.
   await expect(dialog.getByText("file-0.csv", { exact: true })).toBeVisible();
   expect(await overflow(page), "horizontal overflow with the inventory open").toBeLessThanOrEqual(0);

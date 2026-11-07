@@ -6,7 +6,13 @@
  * (docs/specs/projects.md). Its text never goes into the message.
  */
 
-import { asInventory, parseInventory, type FileInventory } from "@data-director/inventory";
+import {
+  asInventory,
+  omit,
+  parseInventory,
+  type FileInventory,
+  type Omission,
+} from "@data-director/inventory";
 
 export { describeInventory, looksLikeInventory, NotAnInventory } from "@data-director/inventory";
 
@@ -51,15 +57,26 @@ export type InventorySource =
   | { document: FileInventory }
   | { load: (signal: AbortSignal) => Promise<unknown> };
 
-/** `text` read as an inventory, or `NotAnInventory` saying why it is not one. */
-export function readInventory(text: string, name: string | null): AttachedInventory {
-  const document = parseInventory(text);
+function attachedFrom(document: FileInventory, name: string | null): AttachedInventory {
   return {
     document,
     name,
     fileCount: document.inventory_files?.length ?? 0,
     madeAt: document.inventory_made_at,
   };
+}
+
+/** `text` read as an inventory, or `NotAnInventory` saying why it is not one. */
+export function readInventory(text: string, name: string | null): AttachedInventory {
+  return attachedFrom(parseInventory(text), name);
+}
+
+/**
+ * `attached` without what the researcher left out when checking it (#472): the document that is
+ * sent, and so all the project keeps, with one limitation counting what was left out.
+ */
+export function withOmission(attached: AttachedInventory, omission: Omission): AttachedInventory {
+  return attachedFrom(omit(attached.document, omission), attached.name);
 }
 
 /** The inventory a source gives, read as one. */

@@ -15,8 +15,14 @@ For each file under a folder, the inventory records:
 - its format;
 - for a table (CSV or TSV), its column names and types, worked out from a sample of rows.
 
-It never holds what is in a file. It is a JSON file that you can open and read before you attach
-it. Hidden files and folders (names beginning with `.`) are left out, and the inventory says so.
+It never holds what is in a file. It does hold **the names of your files and folders** and **the
+column headings of your tables**, and these can say more than you expect: a file named after a
+participant, a folder named after a place, or a column called `hiv_status`. Agents may show the
+inventory to an AI model hosted outside your institution; it is the one part of your project that
+may go to such a model unless your institution says otherwise. Before you attach it, the app shows
+you everything in it and lets you leave out anything that should not leave your computer.
+
+Hidden files and folders (names beginning with `.`) are left out, and the inventory says so.
 
 ## Making one
 
@@ -42,12 +48,22 @@ running a workshop you are in, to make the inventory for you.
 
 On the conversation page, select **Attach inventory** under the message box and choose
 `inventory.json`, or select **Choose inventory.json** at the end of **Make an inventory**. You can
-also drop the file onto the message box. The inventory shows as a chip
-naming how many files it lists and when it was made. Select **View inventory** on the chip to
-read everything it holds before you send it: the folders and files, their sizes and formats, and
-the column names of each table. That is all Data Director keeps of your data. Write your
-request, such as "Please draft a README for this dataset", and send it. You can also send the
-inventory on its own.
+also drop the file onto the message box.
+
+The app then shows you everything the inventory holds, before anything is kept: the folders and
+files, their sizes and formats, and the column names of each table. That is all Data Director
+will keep of your data, and all that agents will see. Each file, folder and column has an
+**Include** tick box. Untick anything you would rather not share, such as a folder of consent
+forms or a column whose name is sensitive; leaving out a folder leaves out everything in it. Use
+**Find files** to look for a name in a large inventory. When you are content, select **Attach
+this inventory**. If you select **Cancel**, nothing is attached.
+
+What you leave out is not sent or kept anywhere, not even its name. The inventory says only how
+many files and columns you left out, so that an agent does not assume they do not exist.
+
+The inventory then shows as a chip naming how many files it lists and when it was made. Select
+**View inventory** on the chip to read it again. Write your request, such as "Please draft a
+README for this dataset", and send it. You can also send the inventory on its own.
 
 The conversation's project keeps the inventory, so you attach it once. Data Director gives it to
 the agents that need it. If your files change, make a new inventory and attach it: the latest one
