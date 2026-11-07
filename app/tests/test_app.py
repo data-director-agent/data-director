@@ -953,6 +953,17 @@ def test_every_project_route_answers_someone_elses_project_as_one_that_does_not_
     assert store.events(theirs) == before
 
 
+def test_a_server_that_keeps_no_projects_answers_every_project_route_with_404(
+    delegating: tuple[Governance, Any],
+):
+    governance, app = delegating
+    assert governance.projects is None
+    client = TestClient(app)
+    response = client.get(f"/api/projects/{uuid.uuid4()}/documents")
+    assert response.status_code == 404
+    assert response.json()["type"].endswith("project-not-found")
+
+
 def test_a_member_asking_for_an_owners_action_is_forbidden_and_may_still_read(
     in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
 ):
