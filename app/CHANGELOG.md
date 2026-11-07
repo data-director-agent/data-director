@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0-alpha.8](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.7...app-v0.3.0-alpha.8) (2026-11-07)
+
+
+### Features
+
+* **agents:** ask the researcher about each gap in a drafted document ([#602](https://github.com/data-director-agent/data-director/issues/602)) ([bf91107](https://github.com/data-director-agent/data-director/commit/bf911077a941a6a4199d1c0b293d2d26533b4cf7))
+* **app:** browse a project's documents in a list and a reader ([#601](https://github.com/data-director-agent/data-director/issues/601)) ([297ebea](https://github.com/data-director-agent/data-director/commit/297ebeace08b97108e7774ce392d18a3e76872c6))
+* **app:** check an inventory and leave things out before it is attached ([#605](https://github.com/data-director-agent/data-director/issues/605)) ([d275526](https://github.com/data-director-agent/data-director/commit/d2755264c831a9d566d114a97626f3de9f7450be))
+* **app:** work in one project at a time ([#600](https://github.com/data-director-agent/data-director/issues/600)) ([23a3913](https://github.com/data-director-agent/data-director/commit/23a39136afb1421ae2c3012c3bc53fc11b9d1342))
+
 ## [0.3.0-alpha.7](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.6...app-v0.3.0-alpha.7) (2026-11-06)
 
 
