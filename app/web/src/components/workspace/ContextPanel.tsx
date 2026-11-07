@@ -17,7 +17,8 @@ import { type ProjectSummary, useProjectApi } from "../../project/api";
 import { type DocumentsRead, documentHref, latestOf } from "../../project/drafted";
 import { Link } from "../../route";
 import { InventoryChip } from "../conversation/InventoryChip";
-import { STATES, documentName } from "../project/DocumentReview";
+import { documentName } from "../../project/name";
+import { STATES } from "../project/DocumentFacts";
 import { IssueLinks } from "../NotBuilt";
 
 const NOT_BUILT: { label: string; issues: number[] }[] = [

@@ -95,7 +95,7 @@ describe("Transcript", () => {
       expect(within(card).getByText("Proposed, not reviewed")).toBeVisible();
       expect(within(card).getByRole("link", { name: "Review and approve README" })).toHaveAttribute(
         "href",
-        `/projects/${projectId}#document-${readmeDraftedBy("x").document_id}`,
+        `/projects/${projectId}?doc=${readmeDraftedBy("x").document_id}`,
       );
       // The card comes before the delegated runs that are its evidence.
       const runs = screen.getAllByRole("list", { name: /delegated to/ })[0] as HTMLElement;

@@ -694,7 +694,7 @@ describe("ConversationHome", () => {
       ]);
       expect(within(list).getByRole("link", { name: "README" })).toHaveAttribute(
         "href",
-        `/projects/${drafted.project_id}#document-${readme.document_id}`,
+        `/projects/${drafted.project_id}?doc=${readme.document_id}`,
       );
       expect(within(panel).getByRole("link", { name: "All documents in this project" })).toHaveAttribute(
         "href",

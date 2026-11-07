@@ -5,7 +5,8 @@ import { axe } from "jest-axe";
 import fixture from "../../../fixtures/projects.json";
 import { type ActiveProject, ActiveProjectTestContext } from "../../project/active";
 import { type ProjectApi, type ProjectSummary, ProjectApiContext } from "../../project/api";
-import { ProjectsPage, projectName } from "./ProjectsPage";
+import { projectName } from "../../project/name";
+import { ProjectsPage } from "./ProjectsPage";
 
 // What the server says (app/tests/test_app.py): one untitled project with an inventory of one
 // file and one conversation, "My logger data".

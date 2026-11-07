@@ -19,7 +19,7 @@ import {
 } from "react-aria-components";
 
 import { useActiveProject } from "../../project/active";
-import { projectName } from "./ProjectsPage";
+import { projectName } from "../../project/name";
 
 /** The key of the New project choice; no project identifier (a UUIDv7) can be it. */
 const NEW = "new-project";

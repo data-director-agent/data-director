@@ -1,33 +1,268 @@
-/* A project's documents, one after another, each with its decision form (ProjectPage.tsx). */
+/*
+ * A project's documents (ProjectPage.tsx): the list beside the reader. On a narrow screen they
+ * take turns, the list until a document is chosen (`data-open`), then the reader with a link back.
+ */
 
-.document-review {
-  max-width: var(--measure);
-  padding-top: var(--space-4);
-  margin-bottom: var(--space-6);
-  border-top: var(--border-width) solid var(--color-border-subtle);
-}
+@layer components {
+  .document-browser {
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+    align-items: start;
+  }
 
-/* The stored text, wrapped (`.json-view`) rather than widening the page or scrolling within it. */
-.document-text {
-  margin-bottom: var(--space-4);
-}
+  .document-browser-reader {
+    min-width: 0;
+    max-width: calc(var(--measure) + var(--space-6));
+  }
 
-.document-edit {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-small);
-}
+  .document-browser-back {
+    display: none;
+  }
 
-.decision-form {
-  margin-bottom: var(--space-4);
-}
+  @media (width <= 48rem) {
+    .document-browser {
+      grid-template-columns: minmax(0, 1fr);
+    }
 
-.document-history ol {
-  margin-top: var(--space-2);
-}
+    .document-browser[data-open="list"] .document-browser-reader,
+    .document-browser[data-open="reader"] .document-list {
+      display: none;
+    }
 
-/* How the approved documents came about (DisclosurePanel.tsx). */
-.disclosure {
-  max-width: var(--measure);
-  padding-top: var(--space-4);
-  border-top: var(--border-width) solid var(--color-border-subtle);
+    .document-browser-back {
+      display: block;
+    }
+
+    .document-browser-back a {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+  }
+
+  /* The list: a group per state, each entry a link with the document's kind as an icon. */
+  .document-list {
+    position: sticky;
+    top: var(--space-4);
+    padding-inline-end: var(--space-4);
+    border-inline-end: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  @media (width <= 48rem) {
+    .document-list {
+      position: static;
+      padding-inline-end: 0;
+      border-inline-end: none;
+    }
+  }
+
+  .document-group + .document-group {
+    margin-top: var(--space-4);
+  }
+
+  .document-group-heading {
+    margin: 0 0 var(--space-1);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+    color: var(--color-text-muted);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .document-group-count {
+    font-weight: var(--font-weight-normal);
+  }
+
+  .document-entry {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-2);
+    align-items: center;
+    padding: var(--space-2);
+    border-radius: var(--radius);
+    border-inline-start: var(--focus-width) solid transparent;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .document-entry-name {
+    overflow-wrap: anywhere;
+  }
+
+  .document-entry:hover {
+    background: var(--color-surface-selected);
+  }
+
+  .document-entry:hover .document-entry-name {
+    text-decoration: underline;
+  }
+
+  .document-entry[aria-current="page"] {
+    background: var(--color-surface-selected);
+    border-inline-start-color: var(--color-link);
+  }
+
+  .document-entry[aria-current="page"] .document-entry-name {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .document-entry-icon {
+    grid-row: span 2;
+    color: var(--color-text-muted);
+  }
+
+  .document-group-proposed .document-entry-icon {
+    color: var(--color-warn-fg);
+  }
+
+  .document-group-approved .document-entry-icon {
+    color: var(--color-ok-fg);
+  }
+
+  .document-group-rejected .document-entry-icon {
+    color: var(--color-danger-fg);
+  }
+
+  .document-entry-detail {
+    grid-column: 2;
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+
+  /* The reader: the document's facts, then its tabs, then the decision. */
+  .document-reader-head h2 {
+    margin-top: 0;
+  }
+
+  .document-tabs {
+    margin-bottom: var(--space-5);
+  }
+
+  .document-tabs-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+
+  .document-tabs-bar .document-actions {
+    margin: 0 0 var(--space-1);
+  }
+
+  .document-tab-list {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .document-tab {
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-text-muted);
+    font-weight: var(--font-weight-strong);
+    cursor: default;
+    box-shadow: inset 0 calc(-1 * var(--focus-width)) 0 transparent;
+  }
+
+  .document-tab[data-hovered] {
+    color: var(--color-text);
+    background: var(--color-surface-selected);
+  }
+
+  .document-tab[data-selected] {
+    color: var(--color-link);
+    box-shadow: inset 0 calc(-1 * var(--focus-width)) 0 var(--color-link);
+  }
+
+  .document-tab[data-focus-visible] {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: calc(-1 * var(--focus-width));
+  }
+
+  .document-tab-panel {
+    padding-top: var(--space-4);
+  }
+
+  .document-tab-panel[data-focus-visible] {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+
+  .document-tab-panel .document-body {
+    padding: var(--space-4) var(--space-5);
+    border: var(--border-width) solid var(--color-border-subtle);
+    border-radius: var(--radius);
+  }
+
+  /* The stored text, wrapped (`.json-view`) rather than widening the page or scrolling within it. */
+  .document-text {
+    margin-bottom: var(--space-4);
+  }
+
+  .document-table {
+    margin-bottom: var(--space-4);
+  }
+
+  .document-edit {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+  }
+
+  .decision-form {
+    margin-bottom: var(--space-4);
+    padding: var(--space-4);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  /* A document's versions, newest first, each with what it changed. */
+  .document-history-entry {
+    padding: var(--space-3) 0;
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .document-history-entry > :last-child {
+    margin-bottom: 0;
+  }
+
+  .document-history-title {
+    margin-bottom: var(--space-1);
+  }
+
+  .document-changes summary {
+    cursor: pointer;
+  }
+
+  .version-diff {
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-small);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .diff-line {
+    display: block;
+    text-decoration: none;
+  }
+
+  .diff-added {
+    color: var(--color-ok-fg);
+    background: var(--color-ok-bg);
+  }
+
+  .diff-removed {
+    color: var(--color-danger-fg);
+    background: var(--color-danger-bg);
+  }
+
+  /* How the approved documents came about (DisclosurePanel.tsx). */
+  .disclosure h2 {
+    margin-top: 0;
+  }
 }

@@ -204,7 +204,8 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
     sent.push(route.request().postDataJSON());
     return route.fulfill({ status: 201, json: rejected });
   });
-  await page.goto(`/projects/${project.project_id}`);
+  // At 320px the list comes first, so the README is opened by its address, as a link to it would.
+  await page.goto(`/projects/${project.project_id}?doc=${readme.document_id}`);
   const article = page.getByRole("article", { name: "README" });
   await expect(article.getByText("Proposed, not reviewed")).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -219,7 +220,10 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("status")).toContainText("README: version 1 rejected.");
+  // The reader has a live region of its own, for copying, so the page's is found by what it says.
+  await expect(page.getByRole("status").filter({ hasText: "README:" })).toContainText(
+    "README: version 1 rejected.",
+  );
   await expect(article.getByRole("heading", { name: "README" })).toBeFocused();
   expect(sent).toEqual([
     { version: 1, digest: draft.digest, decision: "rejected", reason: "No site named." },

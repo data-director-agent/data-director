@@ -1,6 +1,6 @@
 import fixture from "../../fixtures/project-documents.json";
 import type { DocumentVersion, ProjectDocument, ProjectDocuments } from "./api";
-import { documentAnchor, documentHref, draftedBy, latestOf } from "./drafted";
+import { documentHref, draftedBy, latestOf } from "./drafted";
 
 const PROJECT = fixture as ProjectDocuments;
 const README = PROJECT.documents[0] as ProjectDocument;
@@ -41,8 +41,7 @@ describe("draftedBy", () => {
 });
 
 describe("documentHref", () => {
-  it("links to the document's place on the project's page", () => {
-    expect(documentAnchor("d 1")).toBe("document-d 1");
-    expect(documentHref("p/1", "d1")).toBe("/projects/p%2F1#document-d1");
+  it("links to the document open in the project's reader", () => {
+    expect(documentHref("p/1", "d 1")).toBe("/projects/p%2F1?doc=d%201");
   });
 });
