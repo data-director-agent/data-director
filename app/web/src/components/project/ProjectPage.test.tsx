@@ -214,7 +214,7 @@ describe("ProjectPage", () => {
     const user = userEvent.setup();
     renderPage(fakeApi());
     const article = await readme();
-    await user.click(within(article).getByRole("tab", { name: "Source" }));
+    await user.click(await within(article).findByRole("tab", { name: "Source" }));
     const panel = within(article).getByRole("tabpanel");
     expect(panel.querySelector("pre")?.textContent).toBe(DRAFT.text);
   });
@@ -260,7 +260,7 @@ describe("ProjectPage", () => {
     const user = userEvent.setup();
     renderPage(fakeApi({ documents: () => Promise.resolve(redrafted()) }));
     const article = await readme();
-    await user.click(within(article).getByRole("tab", { name: "Versions (2)" }));
+    await user.click(await within(article).findByRole("tab", { name: "Versions (2)" }));
     const panel = within(article).getByRole("tabpanel");
     expect(within(panel).getByText("Version 2 (shown)")).toBeVisible();
     expect(within(panel).getByRole("link", { name: "Version 1" })).toHaveAttribute(
