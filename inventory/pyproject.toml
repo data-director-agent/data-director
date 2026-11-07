@@ -50,6 +50,10 @@ Issues = "https://github.com/data-director-agent/data-director/issues"
 [dependency-groups]
 dev = ["data-director-sdk"]
 
+[tool.deptry.per_rule_ignores]
+# `pyodide` is provided by the Pyodide runtime itself, not installed from PyPI (dd_inventory.scan.detect_runtime).
+DEP001 = ["pyodide"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_inventory"]
 
