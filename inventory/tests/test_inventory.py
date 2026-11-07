@@ -6,14 +6,17 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import sys
+import types
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
+from packaging.version import Version
 
-from dd_inventory import cli, identify, make_inventory, scan
+from dd_inventory import FileProgress, cli, identify, make_inventory, scan
 from dd_inventory.identify import ExtensionIdentifier, FidoUnavailableError
 from dd_inventory.tables import TableError
 from dd_sdk.contract.classes import ClassSchema
@@ -198,3 +201,61 @@ def test_a_zip_based_format_is_identified_by_its_container_signature(dataset: Pa
     found = _by_path(make_inventory(dataset))["docs/consent-form.docx"]
     assert found["file_identified_by"] == "container"
     assert found["file_pronom_ids"] == ["fmt/412"]  # Microsoft Word for Windows 2007 onwards
+
+
+def test_progress_is_reported_once_per_file_in_order(inventory: Inventory) -> None:
+    seen: list[FileProgress] = []
+    made = make_inventory(FIXTURE, on_file=seen.append)
+    files = inventory["inventory_files"]
+    assert [(p.path, p.size) for p in seen] == [(f["file_path"], f["file_size"]) for f in files]
+    assert [p.done for p in seen] == list(range(1, len(files) + 1))
+    assert {p.total for p in seen} == {len(files)}
+    assert made["inventory_files"] == files
+
+
+def test_a_file_that_cannot_be_read_still_reports_progress(
+    dataset: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = scan.sha256
+
+    def flaky(path: Path) -> str:
+        if path.name == "sites.tsv":
+            raise PermissionError(13, "Permission denied")
+        return real(path)
+
+    monkeypatch.setattr(scan, "sha256", flaky)
+    seen: list[FileProgress] = []
+    made = make_inventory(dataset, on_file=seen.append)
+    assert "data/sites.tsv" not in _by_path(made)
+    assert FileProgress("data/sites.tsv", 0, 3, 5) in seen
+    assert [p.done for p in seen] == [1, 2, 3, 4, 5]
+
+
+def test_a_native_inventory_names_no_runtime(inventory: Inventory) -> None:
+    assert inventory["inventory_tool"] == "dd-inventory"
+    assert inventory["inventory_tool_version"] == scan.tool_version()
+    assert Version(inventory["inventory_tool_version"]).local is None
+
+
+def test_a_runtime_passed_in_is_a_local_version_label() -> None:
+    made = make_inventory(FIXTURE, runtime="pyodide.314.0.7")
+    assert made["inventory_tool"] == "dd-inventory"
+    assert made["inventory_tool_version"] == f"{scan.tool_version()}+pyodide.314.0.7"
+    assert Version(made["inventory_tool_version"]).local == "pyodide.314.0.7"
+    assert ClassSchema.of(FileInventory).errors(made) == []
+
+
+def test_under_pyodide_the_runtime_is_detected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    monkeypatch.setitem(sys.modules, "pyodide", types.SimpleNamespace(__version__="314.0.7"))
+    made = make_inventory(FIXTURE)
+    assert Version(made["inventory_tool_version"]).local == "pyodide.314.0.7"
+    assert make_inventory(FIXTURE, runtime=None)["inventory_tool_version"] == scan.tool_version()
+
+
+def test_a_runtime_version_is_made_a_valid_label(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "platform", "emscripten")
+    monkeypatch.setitem(sys.modules, "pyodide", types.SimpleNamespace(__version__="0.29.0-dev"))
+    assert scan.detect_runtime() == "pyodide.0.29.0.dev"
+    monkeypatch.setitem(sys.modules, "pyodide", None)  # cannot be imported
+    assert scan.detect_runtime() == "emscripten"

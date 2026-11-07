@@ -13,7 +13,7 @@ describe("ProfilePage", () => {
       "href",
       "https://sandbox.orcid.org/0000-0002-1825-0097",
     );
-    expect(screen.getByText("authenticated by sandbox.orcid.org")).toBeVisible();
+    expect(screen.getByText(/authenticated by sandbox\.orcid\.org/)).toBeVisible();
     expect(screen.getByText(/keeps no email address/)).toBeVisible();
   });
 

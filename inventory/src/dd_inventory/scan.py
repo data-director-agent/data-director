@@ -3,16 +3,24 @@
 The inventory is a plain JSON document of the core contract class `FileInventory`; this package
 does not need the contract to make one. Paths are relative to the root and sorted, so two runs
 over the same files differ only in `inventory_made_at`.
+
+The same code runs in a browser under Pyodide. There the inventory's tool version carries a local
+version label naming the runtime, such as `0.1.0a3+pyodide.314.0.7`, so that it can be told from
+the command's.
 """
 
 from __future__ import annotations
 
 import hashlib
 import os
+import re
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Final
 
 from dd_inventory.identify import Identifier, default_identifier
 from dd_inventory.tables import TableError, is_table, table_fields
@@ -21,8 +29,40 @@ TOOL = "dd-inventory"
 SCHEMA_CLASS = "FileInventory"
 
 
-def tool_version() -> str:
-    return version("data-director-inventory")
+class _Detect:
+    """The default of `make_inventory`'s `runtime`: detect it, as opposed to `None`, native."""
+
+
+DETECT: Final = _Detect()
+
+
+@dataclass(frozen=True)
+class FileProgress:
+    """One file handled by `make_inventory`: its path relative to the root, its size in bytes
+    (0 if it could not be read), and how many of the `total` files are done, this one included."""
+
+    path: str
+    size: int
+    done: int
+    total: int
+
+
+def detect_runtime() -> str | None:
+    """The runtime this code runs in, as a version label, or `None` when it runs natively."""
+    platform: str = sys.platform  # read at call time, so that type checkers do not fix it
+    if platform != "emscripten":
+        return None
+    try:
+        import pyodide  # type: ignore[import-not-found]  # only under Pyodide
+    except ImportError:
+        return "emscripten"
+    return "pyodide." + re.sub(r"[^A-Za-z0-9.]+", ".", str(pyodide.__version__)).strip(".")
+
+
+def tool_version(runtime: str | None = None) -> str:
+    """The command's version, with the runtime as a local version label when one is given."""
+    base = version("data-director-inventory")
+    return f"{base}+{runtime}" if runtime else base
 
 
 def sha256(path: Path) -> str:
@@ -61,9 +101,20 @@ def _walk(root: Path) -> tuple[list[Path], list[str]]:
 
 
 def make_inventory(
-    root: Path, *, identifier: Identifier | None = None, now: datetime | None = None
+    root: Path,
+    *,
+    identifier: Identifier | None = None,
+    now: datetime | None = None,
+    runtime: str | _Detect | None = DETECT,
+    on_file: Callable[[FileProgress], None] | None = None,
 ) -> dict[str, Any]:
-    """The `FileInventory` of every file under `root`, as a JSON-ready dict."""
+    """The `FileInventory` of every file under `root`, as a JSON-ready dict.
+
+    `runtime` names the runtime in the tool version; by default it is detected, and `None` means
+    native. `on_file`, if given, is called once per file, in order, after the file is handled.
+    """
+    if isinstance(runtime, _Detect):
+        runtime = detect_runtime()
     root = root.resolve()
     if not root.is_dir():
         raise NotADirectoryError(root)
@@ -75,13 +126,17 @@ def make_inventory(
     paths, skipped = _walk(root)
     limitations += skipped
     files = []
-    for path in paths:
+    for done, path in enumerate(paths, start=1):
+        relative = path.relative_to(root).as_posix()
+        size = 0
         try:
-            files.append(_describe(root, path, identifier, limitations))
+            entry = _describe(root, path, identifier, limitations)
+            files.append(entry)
+            size = entry["file_size"]
         except OSError as exc:
-            limitations.append(
-                f"{path.relative_to(root).as_posix()} could not be read: {exc.strerror}."
-            )
+            limitations.append(f"{relative} could not be read: {exc.strerror}.")
+        if on_file is not None:
+            on_file(FileProgress(path=relative, size=size, done=done, total=len(paths)))
     limitations.append(
         "Table fields are inferred from a sample of rows; a later row may not fit the type given."
     )
@@ -90,7 +145,7 @@ def make_inventory(
         "schema_class": SCHEMA_CLASS,
         "inventory_files": files,
         "inventory_tool": TOOL,
-        "inventory_tool_version": tool_version(),
+        "inventory_tool_version": tool_version(runtime),
         "inventory_identified_with": identifier.description,
         "inventory_made_at": made_at,
         "inventory_limitations": limitations,

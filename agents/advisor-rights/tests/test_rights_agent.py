@@ -15,6 +15,7 @@ from dd_agent_advisor_rights.agent import (
     SENSITIVE_QUESTION,
     THIRD_PARTY_QUESTION,
     RightsAdviser,
+    load_table,
 )
 from dd_agent_advisor_rights.classes import RightsContext, RightsOptions
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
@@ -67,7 +68,9 @@ def test_unknown_reuse_offers_every_licence_and_asks(runs_dir: Path) -> None:
         request("advisor.rights", RightsContext(sensitive=False)), acting_for=TEST_PRINCIPAL
     )
     payload = env.payload_as(RightsOptions)
-    assert len(payload.licences) == 5
+    assert {lic.spdx_id for lic in payload.licences} == {
+        row["spdx_id"] for row in load_table()["licences"]
+    }
     assert REUSE_QUESTION in payload.questions
 
 

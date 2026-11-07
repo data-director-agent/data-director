@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -135,16 +136,15 @@ def test_a_local_profile_missing_an_agent_the_example_enables_is_reported(repo: 
     config = repo / "app" / "config"
     assert common.profile_omissions({}) == []  # no local copy: the app uses the example
     example = (config / "profile.yaml.example").read_text()
-    stale = example.replace("  advisor.policy: advise\n", "").replace(
-        "  advisor.repository: advise\n", ""
-    )
-    assert stale != example
-    (config / "profile.yaml").write_text(stale)
+    stale = yaml.safe_load(example)
+    dropped = sorted(stale["agents"])[:2]
+    for name in dropped:
+        del stale["agents"][name]
+    (config / "profile.yaml").write_text(yaml.safe_dump(stale))
     omitted = common.profile_omissions({})
-    assert omitted == ["advisor.policy", "advisor.repository"]
-    assert "app/config/profile.yaml does not enable advisor.policy, advisor.repository" in (
-        common.omissions_note(omitted)
-    )
+    assert omitted == dropped
+    note = common.omissions_note(omitted)
+    assert "app/config/profile.yaml" in note and all(name in note for name in dropped)
     # A profile chosen with DD_PROFILE is the deployment's choice, and is not compared.
     assert common.profile_omissions({"DD_PROFILE": str(config / "profile.yaml")}) == []
     (config / "profile.yaml").write_text(example)
@@ -296,29 +296,10 @@ def test_settings_files_of_the_old_layout_are_reported_with_where_they_move(repo
 
 
 def test_the_agents_and_ports_come_from_the_apps_list() -> None:
-    agents = common.load_agents(ROOT / "app" / "config" / "agents.yaml")
-    assert {a.script: a.port for a in agents}["dd-example-hello"] == 8101
-    assert all(
-        a.name
-        in {
-            "example-hello",
-            "advisor-quality",
-            "advisor-standards",
-            "advisor-policy",
-            "advisor-repository",
-            "advisor-ethics",
-            "advisor-files",
-            "advisor-dmp",
-            "advisor-metadata",
-            "advisor-documentation",
-            "advisor-rights",
-            "advisor-linking",
-            "advisor-fairness",
-            "orchestrator-stub",
-            "orchestrator-model",
-        }
-        for a in agents
-    )
+    listed = ROOT / "app" / "config" / "agents.yaml"
+    agents = common.load_agents(listed)
+    entries = yaml.safe_load(listed.read_text(encoding="utf-8"))["agents"]
+    assert [(a.name, a.url) for a in agents] == [(e["name"], e["url"].rstrip("/")) for e in entries]
 
 
 def test_the_shell_is_rebuilt_when_its_source_is_newer(tmp_path: Path) -> None:

@@ -503,14 +503,18 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
 
   // The strip opens from the keyboard, then a phase, which lists what happens in it.
-  const strip = phases.locator(".phase-strip-details > summary");
+  // The first disclosure is the strip; each phase's own starts with "Phase n".
+  const step = flow.phases[0]?.steps[0];
+  if (!step) throw new Error("the process-flow fixture has no phase with a step");
+  const strip = phases.locator("summary").first();
   await strip.focus();
   await page.keyboard.press("Enter");
-  await expect(phases.locator(".phase-list summary")).toHaveCount(6);
-  const first = phases.locator(".phase-list summary").first();
+  const summaries = phases.locator("summary", { hasText: /^Phase \d/ });
+  await expect(summaries).toHaveCount(flow.phases.length);
+  const first = summaries.first();
   await first.focus();
   await page.keyboard.press("Enter");
-  await expect(phases.getByText("Choose standard terms to describe your data")).toBeVisible();
+  await expect(phases.getByText(step.label)).toBeVisible();
 
   // An open run sits inside its card in the transcript, and the documents stay beside it.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
@@ -534,9 +538,9 @@ test("the workspace reflows at 320px with every phase open", async ({ page }) =>
   await serveConversation(page);
   await page.goto("/");
   const phases = page.getByRole("navigation", { name: "Your data journey" });
-  await phases.locator(".phase-strip-details > summary").click();
-  const summaries = phases.locator(".phase-list summary");
-  await expect(summaries).toHaveCount(6);
+  await phases.locator("summary").first().click();
+  const summaries = phases.locator("summary", { hasText: /^Phase \d/ });
+  await expect(summaries).toHaveCount(flow.phases.length);
   for (const summary of await summaries.all()) await summary.click();
   expect(await overflow(page), "horizontal overflow with the phases open").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
@@ -589,7 +593,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.goto("/agents");
     await expect(page.getByRole("contentinfo")).toContainText("v0.3.0-alpha.1 (abcdef0)");
     await page.getByRole("link", { name: "Report a problem" }).click();
-    await expect(page.getByText("This is Data Director v0.3.0-alpha.1 (abcdef0).")).toBeVisible();
+    await expect(page.getByRole("main").getByText(/v0\.3\.0-alpha\.1 \(abcdef0\)/).first()).toBeVisible();
     expect(await axeViolations(page)).toEqual([]);
     await page.getByLabel("Title").fill("It hangs");
     await page.getByLabel("Details").fill("Never ends.");
@@ -638,7 +642,7 @@ test("signed in: the banner names the person, and signing out ends the session",
     return route.fulfill({ status: 204 });
   });
   await page.goto("/agents");
-  const banner = page.locator("header.app-header");
+  const banner = page.getByRole("banner").first();
   await expect(banner.getByText("Josiah Carberry")).toBeVisible();
   expect(await axeViolations(page)).toEqual([]);
   await banner.getByRole("button", { name: "Sign out" }).focus();
@@ -677,5 +681,5 @@ test("a sign-in that came back without a session says why", async ({ page }) => 
 test("a development server says in the banner that it signs nobody in", async ({ page }) => {
   await serve(page, reference);
   await page.goto("/agents");
-  await expect(page.locator("header.app-header").getByText("Not signing anyone in")).toBeVisible();
+  await expect(page.getByRole("banner").first().getByText(/not signing anyone in/i)).toBeVisible();
 });

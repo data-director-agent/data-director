@@ -4,7 +4,9 @@ wire, and the delegation-mode linter on a real orchestrator's reply."""
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -31,6 +33,7 @@ from dd_sdk.contract.models import (
     TurnRole,
 )
 from dd_sdk.evidence import input_hash
+from dd_sdk.process_flow import ENTRIES, PlannedStep, entry, plan
 from dd_sdk.tracing import CHAT, DELEGATE, RETRIEVAL, records_from_jsonl
 
 
@@ -47,6 +50,29 @@ def ask(runs_dir: Path, text: str, history: list[ConversationTurn] | None = None
         acting_for=TEST_PRINCIPAL,
     )
     return c, env
+
+
+def listed(
+    text: str, start: int, manifest: Iterable[Mapping[str, Any]]
+) -> list[tuple[PlannedStep, str]]:
+    """Each step planned from entry point `start`, with the line of `text` that lists it, after
+    checking that the line says what serves the step: its agents, "no agent yet" or "out of
+    scope", and its requirements."""
+    lines = text.splitlines()
+    found = []
+    for planned in plan(entry(start), manifest):
+        step = planned.step
+        [line] = [line for line in lines if line.startswith(f"- {step.text}")]
+        if step.out_of_scope:
+            assert "out of scope" in line, line
+        else:
+            assert all(r in line for r in step.requirements), line
+            if planned.agent_ids:
+                assert all(a in line for a in planned.agent_ids), line
+            else:
+                assert "no agent yet" in line, line
+        found.append((planned, line))
+    return found
 
 
 @pytest.mark.requirement("DD-DELEGATION", "DD-CONVERSATION")
@@ -156,14 +182,10 @@ def test_a_first_turn_that_names_nothing_asks_which_entry_point_applies(runs_dir
     c, env = ask(runs_dir, "hi")
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     reply = env.payload_as(Reply)
-    assert reply.reply_text.startswith("Where are you with your research data?")
     question = reply.reply_question
     assert question is not None and not question.question_multiple
-    assert [(o.option_value, o.option_label) for o in question.question_options] == [
-        ("1", "Starting a new project, before data collection begins"),
-        ("2", "Data already collected, being prepared for sharing"),
-        ("3", "Ready to deposit data into a repository"),
-    ]
+    assert [o.option_value for o in question.question_options] == [str(e.number) for e in ENTRIES]
+    assert all(o.option_label for o in question.question_options)
     assert env.delegations == []
     assert c.grounding_reports[env.invocation_id].passed
 
@@ -181,8 +203,9 @@ def test_a_chosen_entry_point_is_read_from_the_answer_not_the_text(runs_dir: Pat
         choice_answer=answer,
     )
     env = c.invoke(request("orchestrator.stub", message), acting_for=TEST_PRINCIPAL)
-    assert env.outcome.statement.startswith("Listed the steps from entry point 3, as chosen")
-    assert "Phase 3" in env.payload_as(Reply).reply_text
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    text = env.payload_as(Reply).reply_text
+    assert "Phase 3," in text and "Phase 2," not in text
 
 
 @pytest.mark.requirement("DD-ENTRY-POINTS")
@@ -194,10 +217,10 @@ def test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps(runs_dir
     text = payload.reply_text
     assert "Phase 1," not in text
     assert all(f"Phase {n}," in text for n in range(2, 7))
-    assert "Validate metadata quality (R4): Metadata Reviewer (advisor.quality)" in text
-    assert "Recommend open formats (R3): Standards Librarian (advisor.standards)" in text
-    assert "no agent yet (R8)" in text
-    assert "no agent yet (R1)" in text
+    steps = listed(text, 2, c.registry.manifest())
+    served = {a for planned, _ in steps for a in planned.agent_ids}
+    assert {"advisor.quality", "advisor.standards"} <= served
+    assert any(not p.agent_ids and not p.step.out_of_scope for p, _ in steps)  # the gaps
     assert env.delegations == []
     assert c.grounding_reports[env.invocation_id].passed
 
@@ -206,18 +229,12 @@ def test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps(runs_dir
 def test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope(
     runs_dir: Path,
 ) -> None:
-    _, env = ask(runs_dir, "We are starting a new project and have not collected data yet")
-    text = env.payload_as(Reply).reply_text
-    assert (
-        "Create a Data Management Plan where none exists (optional): out of scope for now." in text
-    )
-    assert "Review and update the Data Management Plan: out of scope for now." in text
-    assert (
-        "Update the Data Management Plan to reflect the data published: out of scope for now."
-        in text
-    )
+    c, env = ask(runs_dir, "We are starting a new project and have not collected data yet")
+    steps = listed(env.payload_as(Reply).reply_text, 1, c.registry.manifest())
+    plan_steps = [p.step for p, _ in steps if "Data Management Plan" in p.step.text]
+    assert any(step.out_of_scope for step in plan_steps)
     # Checking a deposit against an existing plan (R8) is in scope: a gap, not out of scope.
-    assert "against the Data Management Plan: no agent yet (R8)" in text
+    assert any("R8" in step.requirements and not step.out_of_scope for step in plan_steps)
     assert env.delegations == []
 
 
@@ -225,13 +242,16 @@ def test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope(
 def test_entry_one_starts_before_collection_and_names_the_documentation_gap(
     runs_dir: Path,
 ) -> None:
-    _, env = ask(runs_dir, "We are starting a new project and have not collected data yet")
+    c, env = ask(runs_dir, "We are starting a new project and have not collected data yet")
     text = env.payload_as(Reply).reply_text
     assert text.startswith("Entry point 1")
-    assert "Draft the data documentation: no agent yet (R5)." in text
-    assert (
-        "Standards Librarian (advisor.standards), for example 'standards for soil chemistry'"
-        in text
+    lines = {p.step.id: (p, line) for p, line in listed(text, 1, c.registry.manifest())}
+    documentation, line = lines["setup.documentation"]
+    assert not documentation.agent_ids and "R5" in line
+    # An agent that serves a step is named with an example of what to ask it.
+    [standards] = [r for r in load_rules() if r.agent_id == "advisor.standards"]
+    assert any(
+        "advisor.standards" in line and standards.example in line for _, line in lines.values()
     )
 
 

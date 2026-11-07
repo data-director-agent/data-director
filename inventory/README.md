@@ -33,6 +33,15 @@ Hidden files and folders (names beginning with `.`) are skipped, symbolic links 
 followed, and both are counted in `inventory_limitations`. If fido cannot be loaded, formats are
 guessed from file extensions and the inventory says so.
 
+The same package runs in a web browser under [Pyodide](https://pyodide.org/), so that a researcher
+can describe a folder without installing anything ([#367](https://github.com/data-director-agent/data-director/issues/367)). The inventory it makes there is the
+command's, except that its `inventory_tool_version` carries a local version label naming the
+runtime, such as `0.1.0a3+pyodide.314.0.7`; `inventory_tool` is `dd-inventory` in both. An
+inventory whose version has no `+` label was made by the command. `make_inventory` detects the
+runtime, and a caller may pass it in as `runtime=`. A caller may also pass `on_file=`, which is
+called once per file with a `FileProgress` (its relative path and size, and how many of the
+files are done), to show progress.
+
 To read an inventory in TypeScript, as the app does to show one to the researcher, use
 [`@data-director/inventory`](https://github.com/data-director-agent/data-director/blob/main/inventory/browser/README.md) in `browser/`, which is not part of this Python
 package.

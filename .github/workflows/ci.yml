@@ -9,10 +9,15 @@ name: CI
 #
 #   Python workspace (docs/specs/agents.md): Ruff, mypy, generated schemas, architecture checks,
 #     pytest with CONFORMANCE.md, packages, the agents as real services, the workbench viewer in a browser (#9)
-#   app/web (docs/specs/app.md): ESLint, tsc, Vitest with coverage, Vite build, Playwright
+#   app/web (docs/specs/app.md): ESLint, tsc and the Vite build; Vitest with coverage; Playwright,
+#     as three jobs side by side so that the slowest, not their sum, sets how long the run takes
 #   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does, and the
 #     systemd units in deploy/systemd
 #   Repository: links, citation file, workflows, sign-off, dependency review
+#
+# The jobs that test the Python workspace do not wait for one another: each restores the built
+# sources and the Playwright browser from the cache (.github/actions/), so the longest single job
+# decides when "CI passed" reports. Each job installs only what it needs.
 #
 # The weekly run catches what changes without a commit: the latest uv and Python 3.14 patch
 # release, the runner image, a browser build, a newly published advisory (see audit.yml).
@@ -141,9 +146,10 @@ jobs:
       - run: uv run pytest scripts/tests/test_architecture_canary.py scripts/tests/test_check_boundaries.py
 
   # Sources that agents build outside git, such as the repository advisor's re3data registry
-  # (dd-sources, sdk/src/dd_sdk/sources.py). This job alone downloads what they are built from,
-  # once per pin (Blueprint P14), and saves it in the cache; the jobs that need the sources wait
-  # for it and build from that cache, so a new pin is not downloaded once per job.
+  # (dd-sources, sdk/src/dd_sdk/sources.py). This job builds them and saves what they are built
+  # from in the cache, keyed on every source's pin (Blueprint P14). The jobs that need the sources
+  # do not wait for it: on the usual cache hit they build from the cache straight away. Only on
+  # the first run after a pin changes do they each download it, at the same time as this job.
   sources:
     name: Built sources
     needs: changes
@@ -162,7 +168,7 @@ jobs:
 
   test:
     name: pytest
-    needs: [changes, sources]
+    needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -181,11 +187,11 @@ jobs:
       # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report
       # goes to the job summary, and one XML goes to Codecov, which splits it into a flag per
       # package (codecov.yml).
-      # pytest-xdist spreads the session over the runner's cores. --dist loadfile keeps each test
-      # module on one worker, so a module's fixtures and teardown run as they do serially; the
-      # JSON report and coverage are merged from the workers into the one session.
+      # pytest-xdist spreads the session over the runner's cores (pyproject addopts); the JSON
+      # report and coverage are merged from the workers into the one session. --durations lists
+      # the slowest tests in the log, to show where the time goes.
       - run: >-
-          uv run pytest -n auto --dist loadfile
+          uv run pytest --durations=20
           --json-report --json-report-file=.report.json --cov --cov-report=
       - name: Hand the test report to the conformance job
         if: always()
@@ -245,7 +251,7 @@ jobs:
 
   packages:
     name: Packages and agents as services
-    needs: [changes, sources]
+    needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -271,7 +277,7 @@ jobs:
 
   viewer:
     name: Workbench viewer in a browser
-    needs: [changes, sources]
+    needs: changes
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -286,8 +292,9 @@ jobs:
       # Sources agents build outside git, from the cache the `sources` job filled.
       - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
       # The browser matches the locked Playwright; the CDN modules come from the recorded HAR.
-      # Headless runs need only chromium-headless-shell, not the full browser.
-      - run: scripts/retry.sh uv run playwright install --with-deps --only-shell chromium
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: uv run playwright
       # The viewer's accessibility checks run in accessibility.yml.
       - run: >-
           uv run pytest workbench/browser_tests --tracing=retain-on-failure --output=test-results
@@ -301,12 +308,17 @@ jobs:
 
   # --- app/web: the browser shell (docs/specs/app.md). --------------------------------------------------
 
-  web:
-    name: App shell (lint, types, unit, build, browser)
+  # Three jobs, side by side, each with its own `npm ci` from the npm cache. ESLint (with jsx-a11y),
+  # tsc, Vitest with axe, and Playwright (axe in light and dark, keyboard-only use, reflow at 320
+  # CSS pixels). The fixtures they read are kept current by app/tests/test_app.py, which the
+  # pytest job runs.
+
+  web-checks:
+    name: App shell (lint, types, build)
     needs: changes
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: app/web
@@ -329,10 +341,29 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      # ESLint (with jsx-a11y), tsc, Vitest with axe, and Playwright (axe in light and dark,
-      # keyboard-only use, reflow at 320 CSS pixels). The fixtures it reads are kept current by
-      # app/tests/test_app.py, which the test job runs. Vitest measures coverage as the pytest job
-      # does: the report goes to the job summary, and lcov to Codecov under the `web` flag.
+      - run: npm run build
+
+  web-unit:
+    name: App shell (Vitest)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/web/package-lock.json
+      - run: npm ci
+      # Vitest measures coverage as the pytest job does: the report goes to the job summary, and
+      # lcov to Codecov under the `web` flag.
       - run: npm test -- --coverage
       - name: Coverage report
         run: |
@@ -350,9 +381,31 @@ jobs:
           files: app/web/coverage/lcov.info
           flags: web
           fail_ci_if_error: false
-      - run: npm run build
-      # Headless runs need only chromium-headless-shell, not the full browser.
-      - run: ../../scripts/retry.sh npx playwright install --with-deps --only-shell chromium
+
+  web-e2e:
+    name: App shell in a browser (Playwright)
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: app/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/web/package-lock.json
+      - run: npm ci
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: npx playwright
+          working-directory: app/web
+      # playwright.config.ts builds the shell before it serves it, so there is no build step here.
       - run: npm run e2e
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -513,7 +566,9 @@ jobs:
       - test
       - packages
       - viewer
-      - web
+      - web-checks
+      - web-unit
+      - web-e2e
       - nginx
       - systemd
       - docs
