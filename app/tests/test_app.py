@@ -820,7 +820,7 @@ def test_what_the_researcher_left_out_of_an_inventory_is_kept_nowhere(
     assert response.status_code == 200, response.json()
     envelope = response.json()["envelope"]
     store = governance.projects
-    assert store is not None
+    assert isinstance(store, ProjectStore)
     added = store.events(envelope["project_id"])[-1]
     assert added["event"] == "inventory_added"
     assert added["file_count"] == 1
