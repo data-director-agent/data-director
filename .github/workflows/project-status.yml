@@ -5,9 +5,11 @@ name: Project status
 #
 # Setup, once, by an organisation owner:
 #   - repository variable PROJECT_NUMBER: the number in the project's URL;
-#   - repository secret PROJECT_TOKEN: a token that can write to the organisation's projects (a
-#     fine-grained personal access token with "Projects" read and write, or a GitHub App's token).
-#     The workflow's own GITHUB_TOKEN cannot write to an organisation project.
+#   - repository variable PROJECT_APP_ID: the App ID of a GitHub App installed on this repository
+#     with the organisation permission "Projects" read and write;
+#   - repository secret PROJECT_APP_PRIVATE_KEY: a private key generated for that app.
+#     The workflow's own GITHUB_TOKEN cannot write to an organisation project, so each run mints a
+#     short-lived installation token from the app.
 # Until PROJECT_NUMBER is set the job is skipped, so this file does nothing in a fork.
 #
 # It runs on pull_request_target so that it also covers pull requests from forks, which a
@@ -36,9 +38,27 @@ jobs:
       && vars.PROJECT_NUMBER != ''
       && (github.event_name == 'issues' || github.event.pull_request.draft == false)
     steps:
+      - name: Check that the project app is configured
+        env:
+          APP_ID: ${{ vars.PROJECT_APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.PROJECT_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::error title=Project app is not configured::Set the repository variable PROJECT_APP_ID and the secret PROJECT_APP_PRIVATE_KEY for a GitHub App with the organisation permission 'Projects' read and write. GITHUB_TOKEN cannot write to an organisation project. See the setup notes at the top of .github/workflows/project-status.yml."
+            exit 1
+          fi
+
+      - name: Create a token for the project app
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.PROJECT_APP_ID }}
+          private-key: ${{ secrets.PROJECT_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Add the item and set its status
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           OWNER: ${{ github.repository_owner }}
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
           CONTENT_ID: ${{ github.event.issue.node_id || github.event.pull_request.node_id }}
