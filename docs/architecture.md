@@ -281,7 +281,7 @@ The harness ships no profile, agent list or source list. Each comes from the dep
 |---|---|
 | `DD_PROFILE` | The institutional profile: which agents may run, and with what approval. |
 | `DD_AGENTS_CONFIG` | The list of agent URLs to read cards from. |
-| `DD_SOURCES_CONFIG` | The pinned source copies the source check uses. |
+| `DD_SOURCES_CONFIG` | The pinned source copies the source check uses, and the re3data export a chosen repository is read from. |
 | `DD_RUNS_DIR` | Where runs are written. |
 | `DD_PROJECTS_DIR` | Where project records and uploaded documentation are kept ([Projects](specs/projects.md), not built yet). |
 | `DD_REPOSITORIES_DIR` | The requirement sets for metadata standards and repository overrides ([Deposit](specs/deposit.md)). Only `dd-harness project choose-repository` reads them so far. |

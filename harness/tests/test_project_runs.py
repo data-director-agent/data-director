@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 from a2a.helpers import get_data_parts
-from requirement_sets import override, standard, write
+from requirement_sets import ORDA, override, pinned, standard, write
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor, ProjectAssignmentError
@@ -101,8 +101,14 @@ def project(projects: ProjectStore, tmp_path: Path) -> str:
     repositories = write(
         tmp_path / "repositories", ("standards", standard()), ("overrides", override())
     )
-    orda = load_requirements(repositories).resolve("r3d100012124", "ORDA", ["Dublin Core"])
-    projects.choose_repository(project_id, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.choose_repository(
+        project_id,
+        ORDA,
+        registry=pinned(tmp_path / "re3data"),
+        requirements=load_requirements(repositories),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
     return project_id
 
 
