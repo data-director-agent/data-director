@@ -26,7 +26,8 @@
  *
  * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
  * or pasted, which shows as a chip and goes to the conversation's project, never into the text
- * (#443, docs/specs/app.md). Make an inventory, beside the button, opens a dialog that says how
+ * (#443, docs/specs/app.md). A file read as an inventory is first opened to be checked, and is
+ * attached, without whatever the researcher left out, only when they confirm (#472). Make an inventory, beside the button, opens a dialog that says how
  * to make one and ends by choosing it (#553).
  */
 
@@ -68,6 +69,7 @@ import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
+import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
 import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
@@ -104,6 +106,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [past, setPast] = useState<ConversationSummary[]>([]);
   const [text, setText] = useState("");
   const [attached, setAttached] = useState<AttachedInventory | null>(null);
+  // An inventory read from a file and being checked, not yet attached (#472).
+  const [pending, setPending] = useState<AttachedInventory | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [dropping, setDropping] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -210,12 +214,14 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     );
   }
 
-  /** Reads `text` as an inventory and attaches it, or says why it cannot. */
+  /**
+   * Reads `text` as an inventory and opens it to be checked before it is attached, or says why
+   * it cannot (#472).
+   */
   function attach(content: string, name: string | null): boolean {
     try {
-      setAttached(readInventory(content, name));
+      setPending(readInventory(content, name));
       setAttachError(null);
-      setAnnouncement("Inventory attached.");
       return true;
     } catch (e) {
       setAttachError(e instanceof NotAnInventory ? e.message : errorMessage(e));
@@ -242,6 +248,20 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     requestAnimationFrame(() => {
       if (!document.activeElement || document.activeElement === document.body) box.current?.focus();
     });
+  }
+
+  /** The checked inventory, without what the researcher left out, becomes the chip. */
+  function confirmInventory(checked: AttachedInventory) {
+    setPending(null);
+    setAttached(checked);
+    setAnnouncement("Inventory attached.");
+    requestAnimationFrame(() => box.current?.focus());
+  }
+
+  function discardInventory() {
+    setPending(null);
+    setAnnouncement("Inventory not attached.");
+    requestAnimationFrame(() => box.current?.focus());
   }
 
   function removeInventory() {
@@ -519,6 +539,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 </>
               )}
             </div>
+            <InventoryReviewDialog
+              pending={pending}
+              onAttach={confirmInventory}
+              onDiscard={discardInventory}
+            />
             {attachError && (
               <p role="alert" className="callout status-danger">
                 {attachError}

@@ -168,6 +168,9 @@ time: each conversation it starts is started in the active project, or in a new 
 active ([The app](app.md)). A turn may attach the file `dd-inventory` writes, which the app's server
 adds to the conversation's project before the turn runs, acting for the person signed in and
 caused by the turn's request; an inventory the store refuses refuses the turn, and nothing runs.
+Before it is attached, the researcher sees all of it and may leave out files, folders and
+columns; what is left out never reaches the store, and the inventory's limitations count it
+without naming it, so the store needs no rule of its own for it.
 Adding documentation from the app
 is TODO(#395); a page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).

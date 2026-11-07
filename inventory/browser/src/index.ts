@@ -20,6 +20,14 @@ export {
   type SystemId,
   type SystemInstructions,
 } from "./making";
+export {
+  countOmitted,
+  describeOmitted,
+  isOmitted,
+  NOTHING_OMITTED,
+  omit,
+  type Omission,
+} from "./omit";
 export { asInventory, looksLikeInventory, NotAnInventory, parseInventory } from "./parse";
 export { searchFiles } from "./search";
 export { files, summarise, type FormatGroup, type InventorySummary, type TableSummary } from "./summary";

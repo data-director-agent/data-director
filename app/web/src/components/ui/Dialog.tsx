@@ -23,16 +23,27 @@ export { DialogTrigger } from "react-aria-components";
 /**
  * `children` may be a function of `close`, for a dialog whose last step closes it, such as one
  * that ends by choosing a file.
+ *
+ * A dialog the page opens itself, not a button, is given `isOpen` and `onOpenChange` instead of
+ * a `DialogTrigger`. A `footer`, such as a dialog's confirm and cancel buttons, stays in view
+ * below the body while the body scrolls.
  */
 export function ModalDialog({
   title,
   children,
+  footer,
+  isOpen,
+  onOpenChange,
 }: {
   title: string;
   children: ReactNode | ((close: () => void) => ReactNode);
+  footer?: ReactNode | ((close: () => void) => ReactNode);
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
 }) {
+  const controlled = isOpen === undefined ? {} : { isOpen, ...(onOpenChange ? { onOpenChange } : {}) };
   return (
-    <ModalOverlay className="dialog-overlay" isDismissable>
+    <ModalOverlay className="dialog-overlay" isDismissable {...controlled}>
       <Modal className="dialog-modal">
         <Dialog className="dialog">
           {({ close }) => (
@@ -46,6 +57,11 @@ export function ModalDialog({
               <div className="dialog-body">
                 {typeof children === "function" ? children(close) : children}
               </div>
+              {footer && (
+                <div className="dialog-footer">
+                  {typeof footer === "function" ? footer(close) : footer}
+                </div>
+              )}
             </>
           )}
         </Dialog>
