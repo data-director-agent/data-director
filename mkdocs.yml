@@ -10,6 +10,8 @@ site_dir: site
 # Mounts the repository's other documents at their own paths; see the docstring.
 hooks:
   - docs/hooks.py
+  # Writes the user guide's steps for making an inventory from the file the app reads.
+  - docs/hooks_inventory.py
 
 validation:
   nav:

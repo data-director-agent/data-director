@@ -13,6 +13,8 @@ export interface FlowStep {
   /** The Blueprint requirements applied at this step; empty when the figure names none. */
   requirements: string[];
   optional: boolean;
+  /** The Blueprint has the step but this project does not yet do it: shown, and said so. */
+  out_of_scope: boolean;
 }
 
 export interface FlowPhase {

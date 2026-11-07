@@ -13,6 +13,8 @@ import soil from "../../config/examples/soil-chemistry.profile.json" with { type
 import reference from "../fixtures/agents.json" with { type: "json" };
 import several from "../fixtures/agents-several.json" with { type: "json" };
 import conversation from "../fixtures/conversation.json" with { type: "json" };
+import answered from "../fixtures/conversation-answered.json" with { type: "json" };
+import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
 import disclosure from "../fixtures/project-disclosure.json" with { type: "json" };
@@ -258,11 +260,11 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await box.focus();
   await page.keyboard.type("hello world");
-  // Attaching an inventory, and how to make one, come between the message and Send.
+  // Attaching an inventory, and making one, come between the message and Send.
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Attach inventory" })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "How do I make an inventory?" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Make an inventory" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Send" })).toBeFocused();
   await page.keyboard.press("Enter");
@@ -270,6 +272,82 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   await expect(box).toBeFocused();
   expect(await overflow(page), "horizontal overflow on the conversation").toBeLessThanOrEqual(0);
 });
+
+test("Make an inventory: tabs and copy by keyboard, fits 320px, no axe violations", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.goto("/");
+  const make = page.getByRole("button", { name: "Make an inventory" });
+  await make.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Make an inventory" });
+  await expect(dialog.getByText(/your data never leave it/)).toBeVisible();
+  // The browser's own system is selected; the arrow keys and End reach the others.
+  await dialog.getByRole("tab", { selected: true }).focus();
+  await page.keyboard.press("End");
+  const linux = dialog.getByRole("tab", { name: /Linux/ });
+  await expect(linux).toBeFocused();
+  await expect(linux).toHaveAttribute("aria-selected", "true");
+  await dialog
+    .getByRole("button", { name: "Copy the command that makes the inventory on Linux" })
+    .press("Enter");
+  await expect(dialog.getByText("Copied.")).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "uvx data-director-inventory path/to/dataset -o inventory.json",
+  );
+  await expect(dialog.getByRole("button", { name: "Choose inventory.json" })).toBeVisible();
+  expect(await overflow(page), "horizontal overflow with Make an inventory open").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(make).toBeFocused();
+});
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`a choice question, ${scheme}: answered by keyboard at 320px, with no axe violations`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await useScheme(page, scheme);
+    await serveConversation(page);
+    // Until an answer is sent the conversation ends with the question; then with the answer.
+    let sentAnswer: unknown = null;
+    await page.route("/api/conversations/*/turns", (route) => {
+      sentAnswer = route.request().postDataJSON().choice_answer ?? null;
+      return route.fulfill({ status: 201, json: turn });
+    });
+    await page.route("/api/conversations/*", (route) =>
+      route.fulfill({ json: sentAnswer ? answered : question }),
+    );
+    await page.goto("/");
+    const box = page.getByRole("textbox", { name: "What would you like to do?" });
+    await box.fill("hi");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    const group = page.getByRole("group", { name: "Where are you with your research data?" });
+    await expect(group).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("It asks you to choose");
+    expect(await overflow(page), "horizontal overflow with a question").toBeLessThanOrEqual(0);
+    expect(await axeViolations(page)).toEqual([]);
+
+    await group.getByRole("radio").first().focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(
+      group.getByRole("radio", { name: "Data already collected, being prepared for sharing" }),
+    ).toBeChecked();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: "Send answer" })).toBeFocused();
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByText("(your choice)")).toBeVisible();
+    expect(sentAnswer).toEqual({ answer_to: question.turns[0]?.invocation_id, answer_values: ["2"] });
+    await expect(box).toBeFocused();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+}
 
 test("an attached inventory shows as a chip, not JSON, at 320px with no axe violations", async ({
   page,
@@ -340,6 +418,44 @@ test("a delegated run opens inside its card at 320px, keeping focus and the conv
   await toggle.click();
   await expect(page).not.toHaveURL(/\?run=/);
   await expect(toggle).toBeFocused();
+});
+
+test("a drafted document is a card on its turn and a row in the side bar, by keyboard at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  // The fixtures agree: the README was drafted on the second turn, the data dictionary by the
+  // first turn's delegated run.
+  await page.route("/api/projects/*/documents", (route) => route.fulfill({ json: project }));
+  await page.route("/api/projects/*/disclosure", (route) => route.fulfill({ json: disclosure }));
+  await page.goto("/");
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("draft a README");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  const cards = page.getByRole("list", { name: "Documents drafted on this turn" });
+  await expect(cards).toHaveCount(2);
+  const readme = cards.nth(1);
+  await expect(readme).toContainText("README, version 1");
+  await expect(readme).toContainText("Proposed, not reviewed");
+  await expect(page.getByRole("status").first()).toContainText("README drafted, version 1");
+
+  const preview = readme.getByRole("button", { name: "Preview of README, version 1" });
+  await preview.focus();
+  await page.keyboard.press("Enter");
+  await expect(preview).toHaveAttribute("aria-expanded", "true");
+  await expect(preview).toBeFocused();
+  await expect(readme.getByRole("heading", { name: "Untitled dataset" })).toBeVisible();
+  expect(await overflow(page), "horizontal overflow with a preview open").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+
+  const panel = page.getByRole("region", { name: "Project" });
+  await expect(panel.getByRole("heading", { name: "Documents · 1 to review" })).toBeVisible();
+
+  // Review leads to the document's place on the project's page, with its heading focused.
+  await readme.getByRole("link", { name: "Review and approve README" }).click();
+  await expect(page).toHaveURL(new RegExp(`/projects/[^#]+#document-${project.documents[0]?.document_id}$`));
+  await expect(page.getByRole("heading", { level: 2, name: "README" })).toBeFocused();
 });
 
 test("the directory is a page: reachable from the navigation, survives a reload, and Back leaves it", async ({
@@ -607,5 +723,4 @@ test("a development server says in the banner that it signs nobody in", async ({
   await serve(page, reference);
   await page.goto("/agents");
   await expect(page.locator("header.app-header").getByText("Not signing anyone in")).toBeVisible();
-  await expect(page.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
 });

@@ -15,12 +15,19 @@
  * Until there is authentication (#17) the conversation acts for the operator (docs/specs/policy-and-identity.md).
  *
  * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
- * orchestrator is working. A new reply is announced in a polite live region, the busy state is
- * announced, and focus returns to the message box.
+ * orchestrator is working. A new reply is announced in a polite live region, with any document
+ * version the turn drafted once the project's documents have been read again, the busy state is
+ * announced, and focus returns to the message box. The project's documents are read once for
+ * both the transcript's cards and the side bar's list.
+ *
+ * A reply may ask a choice question, which the transcript shows as choices; sending the answer
+ * takes the same path as a typed message, with the answer beside the labels chosen. The message
+ * box stays usable, so the researcher may ignore the question and type instead.
  *
  * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
  * or pasted, which shows as a chip and goes to the conversation's project, never into the text
- * (#443, docs/specs/app.md). A link beside the button says how to make one.
+ * (#443, docs/specs/app.md). Make an inventory, beside the button, opens a dialog that says how
+ * to make one and ends by choosing it (#553).
  */
 
 import {
@@ -36,9 +43,9 @@ import {
 import { Paperclip, SendHorizontal, X } from "lucide-react";
 import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
+import { type ChoiceAnswer, replyQuestion } from "../../conversation/question";
 import {
   type AttachedInventory,
-  INVENTORY_GUIDE,
   NotAnInventory,
   looksLikeInventory,
   readInventory,
@@ -47,16 +54,20 @@ import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
+import { useProjectApi } from "../../project/api";
+import { type DocumentsRead, draftedBy } from "../../project/drafted";
 import { Link, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
 import { RunRefused, errorMessage } from "../../run/api";
 import type { Envelope } from "../../run/types";
+import { STATES, documentName } from "../project/DocumentReview";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
+import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
@@ -115,6 +126,45 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     return () => abort.abort();
   }, [reloadPast]);
 
+  // The project's documents, read when the conversation's project is known and again after each
+  // turn, for the cards on the turns that drafted them and the side bar's list. A read is kept
+  // with the project it is of, so that another project's documents are never shown.
+  const projectApi = useProjectApi();
+  const turnCount = conversation?.turns.length ?? 0;
+  const [documentsOf, setDocumentsOf] = useState<{ projectId: string; read: DocumentsRead } | null>(
+    null,
+  );
+  // The newest reply's announcement and the runs it made, until the documents are read and what
+  // they drafted can be said too.
+  const announceDrafts = useRef<{ said: string; invocationIds: string[] } | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    const abort = new AbortController();
+    projectApi.documents(projectId, abort.signal).then(
+      (value) => {
+        setDocumentsOf({ projectId, read: { state: "loaded", documents: value.documents } });
+        const pending = announceDrafts.current;
+        announceDrafts.current = null;
+        const drafted = pending ? draftedBy(pending.invocationIds, value.documents) : [];
+        if (pending && drafted.length > 0) {
+          const what = drafted.map(
+            ({ document, version }) =>
+              `${documentName(document)} drafted, version ${version.version}: ${STATES[version.state].label}.`,
+          );
+          setAnnouncement([pending.said, ...what].join(" "));
+        }
+      },
+      (e: unknown) => {
+        if (abort.signal.aborted) return;
+        announceDrafts.current = null;
+        setDocumentsOf({ projectId, read: { state: "failed", message: errorMessage(e) } });
+      },
+    );
+    return () => abort.abort();
+  }, [projectApi, projectId, turnCount]);
+  const documents: DocumentsRead =
+    projectId && documentsOf?.projectId === projectId ? documentsOf.read : { state: "loading" };
+
   // The phases do not depend on the conversation: if they fail, only the tracker says so.
   useEffect(() => {
     const abort = new AbortController();
@@ -127,14 +177,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   // Switching project closes the conversation open in another; starting a project by sending the
   // first message does not, since the open conversation is the one that started it.
-  useEffect(() => {
-    if (openProject === undefined || openProject === projectId) return;
+  if (openProject !== undefined && openProject !== projectId) {
     setConversationId(null);
     setConversation(null);
     setOpenProject(undefined);
     setError(null);
     setAnnouncement("");
-  }, [projectId, openProject]);
+  }
 
   const frame = {
     project: <ProjectSwitcher />,
@@ -182,6 +231,18 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     }
   }
 
+  /**
+   * A file chosen at the end of the Make an inventory dialog. Once it is attached the dialog's
+   * button gives way to the chip, so focus goes to the message box rather than nowhere; if it is
+   * not an inventory, the dialog's button stays and takes the focus back.
+   */
+  async function attachFromDialog(file: File) {
+    await attachFile(file);
+    requestAnimationFrame(() => {
+      if (!document.activeElement || document.activeElement === document.body) box.current?.focus();
+    });
+  }
+
   function removeInventory() {
     setAttached(null);
     setAnnouncement("Inventory removed.");
@@ -211,9 +272,23 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    const message = text.trim();
-    const inventory = attached;
+    await deliver(text.trim(), attached, null);
+  }
+
+  /** Sends the answer to the latest turn's choice question, said in words as `message`. What is
+   * in the message box stays there. */
+  async function answerQuestion(answer: ChoiceAnswer, message: string) {
+    await deliver(message, null, answer);
+  }
+
+  async function deliver(
+    message: string,
+    inventory: AttachedInventory | null,
+    answer: ChoiceAnswer | null,
+  ) {
     if (!orchestrator || (!message && !inventory) || busy) return;
+    // A typed message comes from the box, and goes back to it if the send fails.
+    const fromBox = answer === null;
     setBusy(true);
     setError(null);
     setAttachError(null);
@@ -221,8 +296,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     // The message and its inventory move into the transcript while the reply is awaited, and
     // come back to the box if the send fails, so nothing typed or attached is lost.
     setSent({ message, inventory });
-    setText("");
-    setAttached(null);
+    if (fromBox) {
+      setText("");
+      setAttached(null);
+    }
     let id = conversationId;
     let stored = false;
     // The latest turn this page shows: the server refuses the turn if the conversation has
@@ -237,7 +314,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         if (started.project_id !== projectId) setProjectId(started.project_id);
       }
       setConversationId(id);
-      await api.sendTurn(id, orchestrator.id, message, follows, inventory?.document ?? null);
+      const document = inventory?.document ?? null;
+      await (answer
+        ? api.sendTurn(id, orchestrator.id, message, follows, document, undefined, answer)
+        : api.sendTurn(id, orchestrator.id, message, follows, document));
       // The turn is stored: from here a failure is in showing the reply, not in sending it, so
       // the message must not come back to the box to be sent twice (#337).
       stored = true;
@@ -247,13 +327,17 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         if (e instanceof Unreachable) return api.get(sentTo);
         throw e;
       });
-      setConversation(updated);
       const last = updated.turns[updated.turns.length - 1];
-      setAnnouncement(
-        last
-          ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.`
-          : "",
-      );
+      const asks = last ? replyQuestion(last.envelope) : null;
+      const said = last
+        ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.` +
+          (asks ? ` It asks you to choose: ${asks.question_prompt}` : "")
+        : "";
+      announceDrafts.current = last
+        ? { said, invocationIds: [last.invocation_id, ...last.children.map((c) => c.invocation_id)] }
+        : null;
+      setConversation(updated);
+      setAnnouncement(said);
       void reloadPast();
       reloadProjects();
     } catch (e) {
@@ -267,8 +351,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         setAnnouncement("");
         return;
       }
-      setText(message);
-      setAttached(inventory);
+      if (fromBox) {
+        setText(message);
+        setAttached(inventory);
+      }
       if (e instanceof Unreachable) {
         // The server may have received the turn and be running it, so show what it stored.
         if (id) api.get(id).then(setConversation, () => undefined);
@@ -354,11 +440,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
+              documents={documents.state === "loaded" ? documents.documents : null}
               pending={
                 sent === null
                   ? null
                   : { agentId: orchestrator.id, message: sent.message, inventory: sent.inventory }
               }
+              onAnswer={(answer, message) => void answerQuestion(answer, message)}
             />
           )}
           {runId && !inTranscript && (
@@ -389,6 +477,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 id="message"
                 ref={box}
                 rows={3}
+                aria-describedby="message-hint"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onPaste={onPaste}
@@ -400,6 +489,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   }
                 }}
               />
+              <p id="message-hint" className="hint">
+                Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac)
+                to send.
+              </p>
             </div>
             <div className="composer-attach">
               {attached ? (
@@ -411,14 +504,19 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   onRemove={removeInventory}
                 />
               ) : (
-                <FileTrigger
-                  acceptedFileTypes={["application/json", ".json"]}
-                  onSelect={(files) => void attachFile(files?.[0])}
-                >
-                  <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
-                </FileTrigger>
+                <>
+                  <FileTrigger
+                    acceptedFileTypes={["application/json", ".json"]}
+                    onSelect={(files) => void attachFile(files?.[0])}
+                  >
+                    <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
+                  </FileTrigger>
+                  <MakeInventoryDialog
+                    isDisabled={busy}
+                    onAttach={(file) => void attachFromDialog(file)}
+                  />
+                </>
               )}
-              <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
             </div>
             {attachError && (
               <p role="alert" className="callout status-danger">
@@ -453,7 +551,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           onNew={reset}
         />
       }
-      context={<ContextPanel projectId={projectId} project={project} conversation={conversation} />}
+      context={<ContextPanel projectId={projectId} project={project} conversation={conversation} documents={documents} />}
     />
   );
 }

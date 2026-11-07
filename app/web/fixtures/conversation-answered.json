@@ -1,0 +1,227 @@
+{
+  "conversation_id": "01900000-0000-7000-8000-000000000001",
+  "history": [
+    {
+      "role": "user",
+      "turn_text": "hi"
+    },
+    {
+      "role": "agent",
+      "turn_agent_id": "orchestrator.stub",
+      "turn_agent_version": "0.1.0",
+      "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
+      "turn_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.\n\nWhere are you with your research data?\n- Starting a new project, before data collection begins\n- Data already collected, being prepared for sharing\n- Ready to deposit data into a repository\n(The researcher was offered these to choose one.)"
+    },
+    {
+      "role": "user",
+      "turn_text": "Data already collected, being prepared for sharing"
+    },
+    {
+      "role": "agent",
+      "turn_agent_id": "orchestrator.stub",
+      "turn_agent_version": "0.1.0",
+      "turn_invocation_id": "01900000-0000-7000-8000-000000000003",
+      "turn_text": "Entry point 2: data already collected, being prepared for sharing. The steps from here:\nPhase 2, Governance and constraints:\n- Check funder, journal and institutional data sharing policies: no agent yet (no Blueprint requirement).\n- Identify sensitive data: no agent yet (no Blueprint requirement).\n- Handle sensitive data: no agent yet (no Blueprint requirement).\n- Confirm whether an embargo is required: no agent yet (no Blueprint requirement).\n- Verify data sharing commitments against the Data Management Plan: no agent yet (R8).\nPhase 3, Repository selection:\n- Check whether the funder, journal or institution mandates a repository: no agent yet (no Blueprint requirement).\n- Recommend a repository where none is mandated: no agent yet (R1).\n- Confirm or arrange persistent identifier (PID) assignment: no agent yet (R7).\n- Check access options and deposit costs: no agent yet (no Blueprint requirement).\n- Verify repository certification (optional): no agent yet (no Blueprint requirement).\nPhase 4, Data preparation and metadata creation:\n- Clean and version the data files: no agent yet (no Blueprint requirement).\n- Recommend open formats: no agent yet (R3).\n- Create or review data documentation: READMEs and data dictionaries: no agent yet (R5).\n- Identify the appropriate metadata standard: no agent yet (no Blueprint requirement).\n- Complete metadata fields with FAIR-aligned, discipline-appropriate vocabularies and ontologies: no agent yet (R2, R6).\nPhase 5, Deposit and submit:\n- Validate metadata quality: no agent yet (R4).\n- Assign a licence: no agent yet (no Blueprint requirement).\n- Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs: no agent yet (R7).\n- Set access restrictions: no agent yet (no Blueprint requirement).\n- Generate a private peer review link (optional): no agent yet (no Blueprint requirement).\n- Upload the files: no agent yet (no Blueprint requirement).\n- Review and finalise the submission: no agent yet (no Blueprint requirement).\nPhase 6, Post-publication:\n- Update the Data Management Plan to reflect the data published: out of scope for now.\n- Record the deposit in institutional systems where required: no agent yet (no Blueprint requirement).\n- Monitor access, downloads and citations: no agent yet (no Blueprint requirement).\n- Check embargo release: no agent yet (no Blueprint requirement).\n- Evaluate the FAIRness of the published objects and discover related datasets: no agent yet (R12).\n- Retrofit FAIR-aligned metadata for existing datasets: no agent yet (R9).\n- Link datasets to related research outputs: no agent yet (R11).\nThe work and every decision are yours; the agents only advise."
+    }
+  ],
+  "inputs": {
+    "01900000-0000-7000-8000-000000000002": {
+      "history": [],
+      "message_text": "hi",
+      "schema_class": "Message"
+    },
+    "01900000-0000-7000-8000-000000000003": {
+      "choice_answer": {
+        "answer_to": "01900000-0000-7000-8000-000000000002",
+        "answer_values": [
+          "2"
+        ]
+      },
+      "history": [
+        {
+          "role": "user",
+          "turn_text": "hi"
+        },
+        {
+          "role": "agent",
+          "turn_agent_id": "orchestrator.stub",
+          "turn_agent_version": "0.1.0",
+          "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
+          "turn_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.\n\nWhere are you with your research data?\n- Starting a new project, before data collection begins\n- Data already collected, being prepared for sharing\n- Ready to deposit data into a repository\n(The researcher was offered these to choose one.)"
+        }
+      ],
+      "message_text": "Data already collected, being prepared for sharing",
+      "schema_class": "Message"
+    }
+  },
+  "inventory": null,
+  "project_id": "01900000-0000-7000-8000-000000000004",
+  "turns": [
+    {
+      "agent_id": "orchestrator.stub",
+      "agent_version": "0.1.0",
+      "children": [],
+      "completed_at": "2026-01-01T00:00:00Z",
+      "envelope": {
+        "acting_for": {
+          "assurance": "asserted",
+          "name": "Josiah Carberry",
+          "principal_id": "https://orcid.org/0000-0002-1825-0097",
+          "principal_kind": "person"
+        },
+        "agent_id": "orchestrator.stub",
+        "agent_version": "0.1.0",
+        "completed_at": "2026-01-01T00:00:00Z",
+        "contract_version": "0.9.9",
+        "conversation_id": "01900000-0000-7000-8000-000000000001",
+        "evidence": [
+          {
+            "canonicalisation": "dd-input-json-v1",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000005",
+            "hash_algorithm": "sha256",
+            "retrieved_at": "2026-01-01T00:00:00Z",
+            "source_id": "input:01900000-0000-7000-8000-000000000002"
+          }
+        ],
+        "grounding_mode": "delegation",
+        "input_schema": "0000000000000000000000000000000000000000000000000000000000000006",
+        "invocation_id": "01900000-0000-7000-8000-000000000002",
+        "outcome": {
+          "statement": "Asked which entry point applies; no agent was asked. Rule-based; human review is required.",
+          "status": "succeeded"
+        },
+        "payload": {
+          "grounded_on": [
+            {
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000005",
+              "source_id": "input:01900000-0000-7000-8000-000000000002"
+            }
+          ],
+          "reply_derivation": "template",
+          "reply_question": {
+            "question_multiple": false,
+            "question_options": [
+              {
+                "option_label": "Starting a new project, before data collection begins",
+                "option_value": "1"
+              },
+              {
+                "option_label": "Data already collected, being prepared for sharing",
+                "option_value": "2"
+              },
+              {
+                "option_label": "Ready to deposit data into a repository",
+                "option_value": "3"
+              }
+            ],
+            "question_other": false,
+            "question_prompt": "Where are you with your research data?"
+          },
+          "reply_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.",
+          "schema_class": "Reply"
+        },
+        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000007",
+        "policy_bundle_ref": "profile:data-director-app@v7",
+        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000008",
+        "project_id": "01900000-0000-7000-8000-000000000004",
+        "requires_human_review": true,
+        "telemetry": {
+          "energy_estimate_j": null,
+          "energy_method": "not_measured",
+          "trace_id": "00000000000000000000000000000000"
+        }
+      },
+      "input": {
+        "history": [],
+        "message_text": "hi",
+        "schema_class": "Message"
+      },
+      "invocation_id": "01900000-0000-7000-8000-000000000002",
+      "status": "succeeded",
+      "turn_index": 0
+    },
+    {
+      "agent_id": "orchestrator.stub",
+      "agent_version": "0.1.0",
+      "children": [],
+      "completed_at": "2026-01-01T00:00:00Z",
+      "envelope": {
+        "acting_for": {
+          "assurance": "asserted",
+          "name": "Josiah Carberry",
+          "principal_id": "https://orcid.org/0000-0002-1825-0097",
+          "principal_kind": "person"
+        },
+        "agent_id": "orchestrator.stub",
+        "agent_version": "0.1.0",
+        "completed_at": "2026-01-01T00:00:00Z",
+        "contract_version": "0.9.9",
+        "conversation_id": "01900000-0000-7000-8000-000000000001",
+        "evidence": [
+          {
+            "canonicalisation": "dd-input-json-v1",
+            "content_hash": "0000000000000000000000000000000000000000000000000000000000000009",
+            "hash_algorithm": "sha256",
+            "retrieved_at": "2026-01-01T00:00:00Z",
+            "source_id": "input:01900000-0000-7000-8000-000000000003"
+          }
+        ],
+        "grounding_mode": "delegation",
+        "input_schema": "0000000000000000000000000000000000000000000000000000000000000006",
+        "invocation_id": "01900000-0000-7000-8000-000000000003",
+        "outcome": {
+          "statement": "Listed the steps from entry point 2, as chosen; no agent was asked. Rule-based; human review is required.",
+          "status": "succeeded"
+        },
+        "payload": {
+          "grounded_on": [
+            {
+              "content_hash": "0000000000000000000000000000000000000000000000000000000000000009",
+              "source_id": "input:01900000-0000-7000-8000-000000000003"
+            }
+          ],
+          "reply_derivation": "template",
+          "reply_text": "Entry point 2: data already collected, being prepared for sharing. The steps from here:\nPhase 2, Governance and constraints:\n- Check funder, journal and institutional data sharing policies: no agent yet (no Blueprint requirement).\n- Identify sensitive data: no agent yet (no Blueprint requirement).\n- Handle sensitive data: no agent yet (no Blueprint requirement).\n- Confirm whether an embargo is required: no agent yet (no Blueprint requirement).\n- Verify data sharing commitments against the Data Management Plan: no agent yet (R8).\nPhase 3, Repository selection:\n- Check whether the funder, journal or institution mandates a repository: no agent yet (no Blueprint requirement).\n- Recommend a repository where none is mandated: no agent yet (R1).\n- Confirm or arrange persistent identifier (PID) assignment: no agent yet (R7).\n- Check access options and deposit costs: no agent yet (no Blueprint requirement).\n- Verify repository certification (optional): no agent yet (no Blueprint requirement).\nPhase 4, Data preparation and metadata creation:\n- Clean and version the data files: no agent yet (no Blueprint requirement).\n- Recommend open formats: no agent yet (R3).\n- Create or review data documentation: READMEs and data dictionaries: no agent yet (R5).\n- Identify the appropriate metadata standard: no agent yet (no Blueprint requirement).\n- Complete metadata fields with FAIR-aligned, discipline-appropriate vocabularies and ontologies: no agent yet (R2, R6).\nPhase 5, Deposit and submit:\n- Validate metadata quality: no agent yet (R4).\n- Assign a licence: no agent yet (no Blueprint requirement).\n- Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs: no agent yet (R7).\n- Set access restrictions: no agent yet (no Blueprint requirement).\n- Generate a private peer review link (optional): no agent yet (no Blueprint requirement).\n- Upload the files: no agent yet (no Blueprint requirement).\n- Review and finalise the submission: no agent yet (no Blueprint requirement).\nPhase 6, Post-publication:\n- Update the Data Management Plan to reflect the data published: out of scope for now.\n- Record the deposit in institutional systems where required: no agent yet (no Blueprint requirement).\n- Monitor access, downloads and citations: no agent yet (no Blueprint requirement).\n- Check embargo release: no agent yet (no Blueprint requirement).\n- Evaluate the FAIRness of the published objects and discover related datasets: no agent yet (R12).\n- Retrofit FAIR-aligned metadata for existing datasets: no agent yet (R9).\n- Link datasets to related research outputs: no agent yet (R11).\nThe work and every decision are yours; the agents only advise.",
+          "schema_class": "Reply"
+        },
+        "payload_schema": "0000000000000000000000000000000000000000000000000000000000000007",
+        "policy_bundle_ref": "profile:data-director-app@v7",
+        "policy_digest": "0000000000000000000000000000000000000000000000000000000000000008",
+        "project_id": "01900000-0000-7000-8000-000000000004",
+        "requires_human_review": true,
+        "telemetry": {
+          "energy_estimate_j": null,
+          "energy_method": "not_measured",
+          "trace_id": "00000000000000000000000000000000"
+        }
+      },
+      "input": {
+        "choice_answer": {
+          "answer_to": "01900000-0000-7000-8000-000000000002",
+          "answer_values": [
+            "2"
+          ]
+        },
+        "history": [
+          {
+            "role": "user",
+            "turn_text": "hi"
+          },
+          {
+            "role": "agent",
+            "turn_agent_id": "orchestrator.stub",
+            "turn_agent_version": "0.1.0",
+            "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
+            "turn_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.\n\nWhere are you with your research data?\n- Starting a new project, before data collection begins\n- Data already collected, being prepared for sharing\n- Ready to deposit data into a repository\n(The researcher was offered these to choose one.)"
+          }
+        ],
+        "message_text": "Data already collected, being prepared for sharing",
+        "schema_class": "Message"
+      },
+      "invocation_id": "01900000-0000-7000-8000-000000000003",
+      "status": "succeeded",
+      "turn_index": 1
+    }
+  ],
+  "version_changes": []
+}

@@ -17,6 +17,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -64,7 +65,7 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
   const api = useProjectApi();
   const [projectId, setActive] = useState<string | null>(remembered);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
-  const [checked, setChecked] = useState(false);
+  const validated = useRef(false);
   const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
@@ -72,24 +73,22 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
     api.projects(controller.signal).then(
       (listed) => {
         setProjects(listed);
-        setChecked(true);
+        // Once, on the first list read: a remembered project the server no longer lists is
+        // forgotten. Later reads keep the active project even if it is not listed yet, as one
+        // just started is not.
+        if (!validated.current) {
+          validated.current = true;
+          const stored = remembered();
+          if (stored !== null && !listed.some((p) => p.project_id === stored)) {
+            setActive((current) => (current === stored ? null : current));
+            remember(null);
+          }
+        }
       },
       () => undefined,
     );
     return () => controller.abort();
   }, [api, generation]);
-
-  // Once, on the first list read: a remembered project the server no longer lists is forgotten.
-  // Later reads keep the active project even if it is not listed yet, as one just started is not.
-  const [validated, setValidated] = useState(false);
-  useEffect(() => {
-    if (!checked || validated) return;
-    setValidated(true);
-    if (projectId !== null && !projects.some((p) => p.project_id === projectId)) {
-      setActive(null);
-      remember(null);
-    }
-  }, [checked, validated, projectId, projects]);
 
   const setProjectId = useCallback((next: string | null) => {
     setActive(next);

@@ -22,7 +22,12 @@ IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
 # One line of 1 to 80 characters (Reply.conversation_title).
 CONVERSATION_TITLE_PATTERN = r"^.{1,80}$"
+# A drafter's question about a gap, derived from the gap (docs/specs/drafting.md).
+QUESTION_ID_PATTERN = r"^q-[0-9a-f]{16}$"
 CONVERSATION_TITLE_MAX = 80
+# A choice question offers between 2 and 12 options (ChoiceQuestion.question_options).
+CHOICE_OPTIONS_MIN = 2
+CHOICE_OPTIONS_MAX = 12
 
 
 class Frozen(BaseModel):
@@ -212,6 +217,15 @@ class InventorySummary(Frozen):
     inventory_limitations: list[str] = Field(default_factory=list)
 
 
+class ChoiceAnswer(Frozen):
+    """The researcher's answer to the choice question the turn before asked, by the values they
+    chose or in their own words (docs/specs/orchestration.md)."""
+
+    answer_to: str = Field(pattern=UUID7_PATTERN)
+    answer_values: list[str] = Field(default_factory=list)
+    answer_other: str | None = None
+
+
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory` from the conversation's project; a caller never does."""
@@ -220,6 +234,7 @@ class Message(Frozen):
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
     project_inventory: InventorySummary | None = None
+    choice_answer: ChoiceAnswer | None = None
 
 
 class TableField(Frozen):
@@ -358,6 +373,35 @@ AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_p
 # (docs/specs/contract.md, docs/specs/projects.md).
 
 
+class ChoiceOption(Frozen):
+    """One option of a choice question. The value is a string: a number would reach the agent as
+    a floating-point value over A2A."""
+
+    option_value: str
+    option_label: str
+    option_help: str | None = None
+
+
+class ChoiceQuestion(Frozen):
+    """A question with fixed options a reply asks; one or several may be chosen, and the
+    researcher may answer in their own words where `question_other` is true."""
+
+    question_prompt: str
+    # The bounds are not in the schema (#333).
+    question_options: list[ChoiceOption] = Field(
+        min_length=CHOICE_OPTIONS_MIN, max_length=CHOICE_OPTIONS_MAX
+    )
+    question_multiple: bool = False
+    question_other: bool = False
+
+    @model_validator(mode="after")
+    def _values_are_unique(self) -> ChoiceQuestion:
+        values = [o.option_value for o in self.question_options]
+        if len(set(values)) != len(values):
+            raise ValueError("each option of a choice question has a value of its own")
+        return self
+
+
 class Reply(Grounded):
     """The payload of a conversational agent (docs/specs/orchestration.md)."""
 
@@ -366,6 +410,8 @@ class Reply(Grounded):
     reply_derivation: Derivation
     # Set by a model on a conversation's first turn only; what lists the conversation shows.
     conversation_title: str | None = Field(default=None, pattern=CONVERSATION_TITLE_PATTERN)
+    # A question with fixed options the reply asks, at most one.
+    reply_question: ChoiceQuestion | None = None
 
 
 class DocumentVersionRef(Frozen):
@@ -373,6 +419,30 @@ class DocumentVersionRef(Frozen):
 
     document_id: str = Field(pattern=UUID7_PATTERN)
     version: int = Field(ge=1)  # not in the schema (#333)
+
+
+class DocumentQuestion(Frozen):
+    """A drafter's question about one gap in its draft: a README section, or a data dictionary
+    cell named by file, field and column (docs/specs/drafting.md)."""
+
+    question_id: str = Field(pattern=QUESTION_ID_PATTERN)
+    question_prompt: str
+    gap_section: str | None = None
+    gap_file: str | None = None
+    gap_field: str | None = None
+    gap_column: str | None = None
+
+    @model_validator(mode="after")
+    def _one_target(self) -> DocumentQuestion:
+        cell = (self.gap_file, self.gap_field, self.gap_column)
+        if self.gap_section is not None:
+            if any(c is not None for c in cell):
+                raise ValueError("a question targets a README section or a cell, not both")
+        elif any(c is None for c in cell):
+            raise ValueError(
+                "a question targets a README section, or a cell by file, field and column"
+            )
+        return self
 
 
 class Document(Grounded):
@@ -386,6 +456,15 @@ class Document(Grounded):
     document_text: str
     document_derivation: Derivation
     revises: DocumentVersionRef | None = None
+    # One question for each gap the version leaves (docs/specs/drafting.md).
+    document_questions: list[DocumentQuestion] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _question_ids_are_unique(self) -> Document:
+        ids = [q.question_id for q in self.document_questions]
+        if len(set(ids)) != len(ids):
+            raise ValueError("each question of a document has an identifier of its own")
+        return self
 
 
 # --- Drafting ---------------------------------------------------------------------------------
@@ -404,6 +483,13 @@ class CurrentVersion(Frozen):
     decision_reason: str | None = None
 
 
+class DraftAnswer(Frozen):
+    """A person's answer to one of the current version's questions, placed as given."""
+
+    answered_question: str = Field(pattern=QUESTION_ID_PATTERN)
+    answer_text: str
+
+
 class DraftRequest(Frozen):
     """A project document of one kind to draft from the project's facts (docs/specs/projects.md)."""
 
@@ -412,6 +498,8 @@ class DraftRequest(Frozen):
     inventory: FileInventory | None = None
     requirements: RepositoryRequirements | None = None
     current_version: CurrentVersion | None = None
+    # Filled by the conductor in a project, from the answers people recorded.
+    draft_answers: list[DraftAnswer] = Field(default_factory=list)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

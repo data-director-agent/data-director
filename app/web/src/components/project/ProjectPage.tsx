@@ -13,7 +13,7 @@
 
 import "./ProjectPage.css";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useActiveProject } from "../../project/active";
 import { type ProjectDocuments, useProjectApi } from "../../project/api";
@@ -60,6 +60,20 @@ export function ProjectPage({ projectId }: { projectId: string }) {
     void read(controller.signal);
     return () => controller.abort();
   }, [read]);
+
+  // A link to one document (`#document-{id}`, as the conversation's cards and side bar give)
+  // takes the person to it once the page has first been read: its heading is scrolled to and
+  // focused, so that a screen reader starts there too.
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (load.state !== "loaded" || arrived.current) return;
+    arrived.current = true;
+    const target = decodeURIComponent(window.location.hash.slice(1));
+    if (!target) return;
+    const heading = window.document.getElementById(target)?.querySelector<HTMLElement>("h2");
+    heading?.scrollIntoView?.({ block: "start" });
+    heading?.focus();
+  }, [load]);
 
   // After a refusal: the documents already shown stay if the project cannot be read again, so
   // that the person still sees why their decision was refused. Answers what went wrong, if

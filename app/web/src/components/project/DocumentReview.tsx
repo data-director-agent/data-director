@@ -26,6 +26,7 @@ import {
   digestOf,
   useProjectApi,
 } from "../../project/api";
+import { documentAnchor } from "../../project/drafted";
 import { Button } from "../ui/Button";
 
 const KINDS: Record<string, string> = {
@@ -35,7 +36,7 @@ const KINDS: Record<string, string> = {
   dmp: "Data management plan",
 };
 
-const STATES = {
+export const STATES = {
   proposed: { label: "Proposed, not reviewed", className: "status-warn" },
   approved: { label: "Approved", className: "status-ok" },
   rejected: { label: "Rejected", className: "status-danger" },
@@ -128,7 +129,11 @@ export function DocumentReview({
   };
 
   return (
-    <article className="document-review" aria-labelledby={headingId}>
+    <article
+      id={documentAnchor(document.document_id)}
+      className="document-review"
+      aria-labelledby={headingId}
+    >
       <h2 id={headingId} ref={heading} tabIndex={-1}>
         {name}
       </h2>

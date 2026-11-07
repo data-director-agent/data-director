@@ -34,6 +34,14 @@ without its caller changing. A request names the `document_kind`:
   The mock infers no units or missing value codes, so those are `unknown` until the researcher
   fills them in.
 
+Every gap is asked ([Drafting documents](../../docs/specs/drafting.md)). The `Document` carries
+one question in `document_questions` for each README section left for the researcher and each
+`unknown` cell. In the README, each placeholder is followed by `<!-- dd:gap <question-id> -->`,
+which the rendered README does not show. A question's identifier is derived from its gap, so the
+same gap has the same identifier in every version. An answer in the request's `draft_answers` is
+placed, as given, in the gap or cell it answers, marked `supplied` in a data dictionary, and that
+gap is not asked again. The mock suggests no answers (#574).
+
 The README's sections are the common core of the research data README templates compared in
 #200: Cornell's Data README, Dryad's and the Borealis working group's minimum README.
 

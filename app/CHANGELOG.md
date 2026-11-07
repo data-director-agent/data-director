@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0-alpha.7](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.6...app-v0.3.0-alpha.7) (2026-11-06)
+
+
+### Features
+
+* **app:** add a make an inventory dialog beside attach inventory ([#593](https://github.com/data-director-agent/data-director/issues/593)) ([9e65d6f](https://github.com/data-director-agent/data-director/commit/9e65d6f02f61403218af81ba44a4c3380547ff32))
+* **app:** add a policy page that shows the rules runs are held to ([2b76eb6](https://github.com/data-director-agent/data-director/commit/2b76eb60e1aebf23211f34f526098068260805c6))
+* **app:** ask categorical questions as clickable choices ([#586](https://github.com/data-director-agent/data-director/issues/586)) ([57b4e9f](https://github.com/data-director-agent/data-director/commit/57b4e9f0d7e5dedea4b9e45201de64365c04b90b))
+* **app:** put a projects page first in the navigation ([13ddf5c](https://github.com/data-director-agent/data-director/commit/13ddf5c3658c9c492f710a8d18ad02836423e944))
+* **app:** put a projects page first in the navigation ([003b270](https://github.com/data-director-agent/data-director/commit/003b270302c5d34efbc94aa8ac8700b51899f518))
+* **app:** say that ctrl+enter sends a chat message ([#595](https://github.com/data-director-agent/data-director/issues/595)) ([c9817d0](https://github.com/data-director-agent/data-director/commit/c9817d0c3cec3af3f03872a8a270ff752783e585))
+* **app:** show the phases as a plain-language data journey ([df64bb0](https://github.com/data-director-agent/data-director/commit/df64bb0e12f13210f7a5c55d24bfd6cff55c4db5))
+* **sdk:** show the data management plan steps as out of scope ([631f442](https://github.com/data-director-agent/data-director/commit/631f442c5ee6bfeb3f73813bda88ac648901df60))
+* **sdk:** show the data management plan steps as out of scope ([7109c17](https://github.com/data-director-agent/data-director/commit/7109c1790d13d84cbdfe54668ad0cfc2803fb2df))
+
+
+### Bug Fixes
+
+* **app:** put the tabindex lint exemption on the reported line ([01d43b8](https://github.com/data-director-agent/data-director/commit/01d43b85c421e1d51b578847cc64bd50d1b6c666))
+* **app:** put the tabindex lint exemption on the reported line ([c5e37de](https://github.com/data-director-agent/data-director/commit/c5e37de9e8708595bc3f4d5585d43c9cf62cba9a))
+
 ## [0.3.0-alpha.6](https://github.com/data-director-agent/data-director/compare/app-v0.3.0-alpha.5...app-v0.3.0-alpha.6) (2026-11-06)
 
 

@@ -1,0 +1,47 @@
+/* A reply's choice question: framed, beneath the reply. The answered state is an icon and a
+   word, never colour alone (docs/specs/app.md). */
+
+@layer components {
+  .choice-question,
+  .choice-asked {
+    margin-block: var(--space-3);
+    padding: var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .choice-question .field-check {
+    align-items: flex-start;
+    margin-block: var(--space-2);
+  }
+
+  .choice-question .field-check input {
+    margin-top: 0.2em;
+  }
+
+  .choice-help {
+    display: block;
+    font-weight: normal;
+  }
+
+  .choice-other {
+    margin-top: var(--space-3);
+  }
+
+  .choice-asked-prompt {
+    margin-bottom: var(--space-1);
+  }
+
+  .choice-picked {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    border-inline-start: var(--focus-width) solid var(--color-accent);
+    padding-inline-start: var(--space-2);
+  }
+
+  .choice-asked li:not(.choice-picked) {
+    padding-inline-start: calc(var(--space-2) + var(--focus-width) + 16px + var(--space-1));
+  }
+}

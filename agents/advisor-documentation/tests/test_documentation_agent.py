@@ -6,6 +6,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,7 @@ from dd_sdk.contract.models import (
     Document,
     DocumentKind,
     DocumentVersionRef,
+    DraftAnswer,
     DraftRequest,
     Envelope,
     GroundingMode,
@@ -213,3 +215,90 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
     assert entry["description"].startswith("Mock.")
     assert entry["serves"] == ["setup.documentation", "preparation.documentation"]
     json.dumps(entry)
+
+
+def asked_with(name: str, *answers: tuple[str, str]) -> DraftRequest:
+    given = [DraftAnswer(answered_question=q, answer_text=a) for q, a in answers]
+    return sample(name).model_copy(update={"draft_answers": given})
+
+
+@pytest.mark.requirement("R5")
+def test_every_readme_gap_is_marked_and_asked_once(runs_dir: Path) -> None:
+    env, _ = draft(runs_dir, sample("soil-survey.readme.draft.json"))
+    document = env.payload_as(Document)
+    markers = re.findall(r"<!-- dd:gap (q-[0-9a-f]{16}) -->", document.document_text)
+    questions = document.document_questions
+    assert markers == [q.question_id for q in questions]
+    assert len(markers) == document.document_text.count("_To be written by the researcher:")
+    headings = [line[3:] for line in document.document_text.splitlines() if line.startswith("## ")]
+    assert [q.gap_section for q in questions] == headings
+    assert f"leaves {len(questions)} gaps" in env.outcome.statement
+
+
+@pytest.mark.requirement("R5")
+def test_every_unknown_dictionary_cell_is_asked_once(runs_dir: Path) -> None:
+    env, _ = draft(runs_dir, sample("soil-survey.data-dictionary.draft.json"))
+    document = env.payload_as(Document)
+    rows = list(csv.DictReader(io.StringIO(document.document_text)))
+    unknown = [
+        (r["file"], r["field"], c)
+        for r in rows
+        for c in VALUE_COLUMNS
+        if r[f"{c}_source"] == Source.UNKNOWN
+    ]
+    asked = [(q.gap_file, q.gap_field, q.gap_column) for q in document.document_questions]
+    assert asked == unknown and unknown
+    assert f"asks {len(unknown)} questions" in env.outcome.statement
+
+
+def test_a_gap_is_asked_under_the_same_identifier_in_every_version(runs_dir: Path) -> None:
+    for name in ("soil-survey.readme.draft.json", "soil-survey.data-dictionary.draft.json"):
+        first, _ = draft(runs_dir, sample(name))
+        again, _ = draft(runs_dir, sample(name))
+        ids = [q.question_id for q in first.payload_as(Document).document_questions]
+        assert ids == [q.question_id for q in again.payload_as(Document).document_questions]
+
+
+@pytest.mark.requirement("R5")
+def test_an_answer_is_placed_as_given_and_marked_supplied(runs_dir: Path) -> None:
+    name = "soil-survey.data-dictionary.draft.json"
+    env, _ = draft(runs_dir, sample(name))
+    question = next(
+        q for q in env.payload_as(Document).document_questions if q.gap_column == "unit"
+    )
+    answer = "  mg/kg, dry weight "
+    env, _ = draft(runs_dir, asked_with(name, (question.question_id, answer)))
+    document = env.payload_as(Document)
+    row = next(
+        r
+        for r in csv.DictReader(io.StringIO(document.document_text))
+        if (r["file"], r["field"]) == (question.gap_file, question.gap_field)
+    )
+    assert (row["unit"], row["unit_source"]) == (answer, Source.SUPPLIED)
+    assert question.question_id not in {q.question_id for q in document.document_questions}
+
+
+def test_an_answered_readme_gap_holds_the_answer_and_no_marker(runs_dir: Path) -> None:
+    name = "soil-survey.readme.draft.json"
+    env, _ = draft(runs_dir, sample(name))
+    methods = next(
+        q for q in env.payload_as(Document).document_questions if q.gap_section == "Methods"
+    )
+    answer = "Cores were taken at 0 to 10 cm and air-dried."
+    env, _ = draft(runs_dir, asked_with(name, (methods.question_id, answer)))
+    document = env.payload_as(Document)
+    section = document.document_text.split("## Methods\n\n", 1)[1].split("\n\n## ", 1)[0]
+    assert section == answer
+    assert methods.question_id not in document.document_text
+    assert "1 written from your answers" in env.outcome.statement
+
+
+def test_a_blank_or_unmatched_answer_changes_nothing(runs_dir: Path) -> None:
+    name = "soil-survey.data-dictionary.draft.json"
+    plain, _ = draft(runs_dir, sample(name))
+    before = plain.payload_as(Document)
+    first = before.document_questions[0].question_id
+    env, _ = draft(runs_dir, asked_with(name, (first, "  "), ("q-" + "f" * 16, "Stray")))
+    after = env.payload_as(Document)
+    assert after.document_text == before.document_text
+    assert after.document_questions == before.document_questions

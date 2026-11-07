@@ -1277,7 +1277,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-orchestrator-model"
-version = "0.1.1a2"
+version = "0.1.1a3"
 source = { editable = "agents/orchestrator-model" }
 dependencies = [
     { name = "anthropic" },
@@ -1306,7 +1306,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-orchestrator-stub"
-version = "0.1.1a1"
+version = "0.1.1a2"
 source = { editable = "agents/orchestrator-stub" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1337,7 +1337,7 @@ dev = [
 
 [[package]]
 name = "data-director-app"
-version = "0.3.0a6"
+version = "0.3.0a7"
 source = { editable = "app" }
 dependencies = [
     { name = "data-director-harness" },
@@ -1376,7 +1376,7 @@ dev = [
 
 [[package]]
 name = "data-director-harness"
-version = "0.2.0a2"
+version = "0.2.0a3"
 source = { editable = "harness" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -1453,7 +1453,7 @@ dev = [{ name = "data-director-sdk", editable = "sdk" }]
 
 [[package]]
 name = "data-director-sdk"
-version = "0.2.0a2"
+version = "0.2.0a3"
 source = { editable = "sdk" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -1482,7 +1482,7 @@ requires-dist = [
 
 [[package]]
 name = "data-director-workbench"
-version = "0.2.0a3"
+version = "0.2.0a4"
 source = { editable = "workbench" }
 dependencies = [
     { name = "ag-ui-protocol" },

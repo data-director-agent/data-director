@@ -43,14 +43,17 @@ it is built.
 5. **Every gap is marked and asked.** A README gap is an italic placeholder saying what is needed,
    followed by the HTML comment `<!-- dd:gap <question-id> -->`, which the rendered README does not
    show. A data dictionary gap is an `unknown` cell. Each gap has exactly one question in the
-   version's questions whose target names it. Questions are not in the contract yet: TODO(#575).
+   version's `document_questions` whose target names it
+   (`agents/advisor-documentation/tests/test_documentation_agent.py`).
 6. **An answer is supplied only when a person recorded it.** A person answers a version's questions
    in the app. Each answer is a project log event that names the person it acted for, as any other
    event does ([Projects](projects.md)). When the document is regenerated, the conductor puts the
-   recorded answers into the `DraftRequest`, as it puts in the inventory. The drafter places each
-   answer, as given, in its gap or cell and marks it `supplied`. A model does not rephrase an answer.
-   An orchestrator may put a question to the researcher, but it cannot answer one. Not built yet:
-   TODO(#575, #529, #394).
+   recorded answers into the `DraftRequest`'s `draft_answers`, as it puts in the inventory. The
+   drafter places each answer, as given, in its gap or cell and marks it `supplied`, and asks that
+   gap no more. A model does not rephrase an answer. An orchestrator may put a question to the
+   researcher, but it cannot answer one. The Documentation Editor places answers today. Recording
+   them and filling them in are not built yet, TODO(#575, #394); until they are, the conductor
+   removes any `draft_answers` a caller sends in a project (`harness/tests/test_project_runs.py`).
 7. **A model's suggestion is only ever offered.** A drafter may suggest an answer, for example that
    `age_yrs` is the participant's age in years. The suggestion appears in the question, never in
    the document's text. It becomes `supplied` only when a person confirms or corrects it, by
@@ -64,15 +67,18 @@ it is built.
 
 ## Boundaries and contracts
 
-**Questions belong to the version.** A `Document` will carry an optional list of questions, kept
-with the version they were asked of. A question has an identifier that is stable within the
-document across regenerations, so it is derived from what the question fills and never from its
-position. It also has the text put to the person and its target: a README gap, or a data
-dictionary cell named by file, field and column. It may carry a suggested answer, with how that
-suggestion was derived, and a set of choices when the answer is categorical. The question class is
-in the core contract because the conductor, the app and an orchestrator all read it without knowing
-the drafter, and because the orchestrator's own categorical questions (#529) take the same shape.
-Adding it is an additive contract change: TODO(#575).
+**Questions belong to the version.** A `Document` carries an optional list of questions
+(`document_questions`), and the project log keeps them with the version they were asked of
+(`harness/docs/projects.md`). A question (`DocumentQuestion`) has an identifier, `q-` and 16
+hexadecimal digits, that is stable within the document across regenerations, so it is derived
+from what the question fills and never from its position; the Documentation Editor takes the
+digits from the SHA-256 of its target. It also has the text put to the person and its target: a
+README section (`gap_section`), or a data dictionary cell named by `gap_file`, `gap_field` and
+`gap_column`. An answer (`DraftAnswer`) names the question it answers and gives the text. The
+classes are in the core contract because the conductor, the app and an orchestrator all read them
+without knowing the drafter. A question may later carry a suggested answer, with how it was
+derived, and a set of choices, as the orchestrator's own `ChoiceQuestion` does (#529). Those
+slots are added with the first drafter that sets them, TODO(#574).
 
 **Who does what.** The drafter writes the gaps and the questions. An orchestrator decides when to
 put questions to the researcher, a few at a time, and says that the draft came from a mock when it

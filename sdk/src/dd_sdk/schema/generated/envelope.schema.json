@@ -22,6 +22,103 @@
          "title": "Assurance",
          "type": "string"
       },
+      "ChoiceAnswer": {
+         "additionalProperties": false,
+         "description": "The researcher's answer to the choice question the turn before asked: the values they chose and any text they gave in place of an option. The app checks it against that question before it sends the turn (docs/specs/orchestration.md).",
+         "properties": {
+            "answer_to": {
+               "description": "The invocation whose reply asked the question.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "answer_values": {
+               "description": "The values of the options chosen; empty when the researcher answered in their own words.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "answer_other": {
+               "description": "The researcher's own answer, given in place of an option where the question allows it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "answer_to"
+         ],
+         "title": "ChoiceAnswer",
+         "type": "object"
+      },
+      "ChoiceOption": {
+         "additionalProperties": false,
+         "description": "One option of a choice question.",
+         "properties": {
+            "option_value": {
+               "description": "What the agent reads back when the option is chosen. A string, never a number: a number reaches the agent as a floating-point value over A2A.",
+               "type": "string"
+            },
+            "option_label": {
+               "description": "What the researcher reads.",
+               "type": "string"
+            },
+            "option_help": {
+               "description": "One sentence that helps the researcher tell this option from the others.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "option_value",
+            "option_label"
+         ],
+         "title": "ChoiceOption",
+         "type": "object"
+      },
+      "ChoiceQuestion": {
+         "additionalProperties": false,
+         "description": "A question with a fixed set of options that a conversational agent asks the researcher in its reply, to be answered by choosing rather than typing. One or several options may be chosen, and where question_other is true the researcher may answer in their own words instead. Option values are unique within the question. Asking never suspends the run: the researcher may ignore the question and type (docs/specs/orchestration.md).",
+         "properties": {
+            "question_prompt": {
+               "description": "The question, as a short line a person reads before the options.",
+               "type": "string"
+            },
+            "question_options": {
+               "description": "The options, in the order they are shown; between 2 and 12, with unique values.",
+               "items": {
+                  "$ref": "#/$defs/ChoiceOption"
+               },
+               "type": "array"
+            },
+            "question_multiple": {
+               "description": "True when several options may be chosen; one only otherwise.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "question_other": {
+               "description": "True when the researcher may answer in their own words instead of an option.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "question_prompt",
+            "question_options"
+         ],
+         "title": "ChoiceQuestion",
+         "type": "object"
+      },
       "ConversationTurn": {
          "additionalProperties": false,
          "description": "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.",
@@ -202,6 +299,16 @@
                ],
                "description": "The version this document replaces, when an agent regenerates it. Absent for a new document, for which the conductor mints a document_id."
             },
+            "document_questions": {
+               "description": "The questions this version asks the researcher, one for each gap it leaves. A README marks each gap with the HTML comment <!-- dd:gap question_id -->; a data dictionary leaves the cell empty and its source unknown.",
+               "items": {
+                  "$ref": "#/$defs/DocumentQuestion"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
             "grounded_on": {
                "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
                "items": {
@@ -233,6 +340,55 @@
          "title": "DocumentKind",
          "type": "string"
       },
+      "DocumentQuestion": {
+         "additionalProperties": false,
+         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md).",
+         "properties": {
+            "question_id": {
+               "description": "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets.",
+               "pattern": "^q-[0-9a-f]{16}$",
+               "type": "string"
+            },
+            "question_prompt": {
+               "description": "The question, as a short line a person reads before the options.",
+               "type": "string"
+            },
+            "gap_section": {
+               "description": "The heading of the README section the question would fill, as the drafter wrote it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_file": {
+               "description": "The path of the file whose data dictionary row the question would fill.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_field": {
+               "description": "The field whose data dictionary row the question would fill.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_column": {
+               "description": "The data dictionary column the question would fill, such as unit.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "question_id",
+            "question_prompt"
+         ],
+         "title": "DocumentQuestion",
+         "type": "object"
+      },
       "DocumentVersionRef": {
          "additionalProperties": false,
          "description": "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1.",
@@ -254,9 +410,30 @@
          "title": "DocumentVersionRef",
          "type": "object"
       },
+      "DraftAnswer": {
+         "additionalProperties": false,
+         "description": "A person's answer to one question a version of the document asked (DocumentQuestion). The drafter places answer_text, as given, in the gap or cell the question names and marks it supplied (docs/specs/drafting.md).",
+         "properties": {
+            "answered_question": {
+               "description": "The question_id of the question answered.",
+               "pattern": "^q-[0-9a-f]{16}$",
+               "type": "string"
+            },
+            "answer_text": {
+               "description": "The answer as the person gave it.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "answered_question",
+            "answer_text"
+         ],
+         "title": "DraftAnswer",
+         "type": "object"
+      },
       "DraftRequest": {
          "additionalProperties": false,
-         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory and the requirements in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394).",
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory and the requirements in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394). The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -301,6 +478,16 @@
                   }
                ],
                "description": "The document's latest version, when the drafter is to regenerate it. Absent for a new document."
+            },
+            "draft_answers": {
+               "description": "The answers a person recorded to the current version's questions. In a project the conductor fills them; a caller leaves them out.",
+               "items": {
+                  "$ref": "#/$defs/DraftAnswer"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -872,6 +1059,17 @@
                   }
                ],
                "description": "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory."
+            },
+            "choice_answer": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ChoiceAnswer"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose."
             }
          },
          "required": [
@@ -1196,6 +1394,17 @@
                   "string",
                   "null"
                ]
+            },
+            "reply_question": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ChoiceQuestion"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "A question with fixed options the reply asks, at most one; absent when the reply asks nothing or asks in prose."
             },
             "grounded_on": {
                "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
@@ -1789,5 +1998,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.7"
+   "version": "0.9.9"
 }

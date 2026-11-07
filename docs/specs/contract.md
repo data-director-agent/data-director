@@ -23,8 +23,9 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    outcome and problem details, grounding and evidence, telemetry, delegation and the principal,
    and the few classes the harness, the project record or the deposit package read without
    knowing the agent (conversation turns, `Message` with the `InventorySummary` the conductor fills
-   in, `Document`, `FileInventory`, `RequirementSet`, the drafters'
-   `DraftRequest` with `CurrentVersion` and `RepositoryRequirements`, and the
+   in and a `ChoiceAnswer`, `Reply` with a `ChoiceQuestion`, `Document` with its
+   `DocumentQuestion`s, `FileInventory`, `RequirementSet`, the drafters' `DraftRequest` with
+   `CurrentVersion`, `DraftAnswer` and `RepositoryRequirements`, and the
    enums they use). No agent's own input or payload class is added to it.
 2. In the core, an input is any object with a `schema_class`, and a payload is any object with a
    `schema_class` that mixes in `Grounded`. The core checks nothing else about either
@@ -100,6 +101,22 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     conversation's first turn only; an agent that sets it declares it model-derived, and a later
     turn, or a rule-based agent, leaves it out. The harness reads it to name the conversation
     ([Orchestration](orchestration.md)) and checks nothing else about it.
+23. A `Reply` may carry one `ChoiceQuestion` (`reply_question`): a prompt and 2 to 12 options,
+    each a string value with a label and optional help, whether several may be chosen, and whether
+    the researcher may answer in their own words. Option values are unique within the question and
+    are strings, because A2A carries numbers as doubles. A `Message` may carry a `ChoiceAnswer`
+    (`choice_answer`) naming the invocation whose reply asked, the values chosen and any answer in
+    the researcher's own words; `message_text` says the same in words. The option bounds are in
+    the Pydantic model, not the schema: a card carries class schemas over A2A, which would turn the
+    bounds into doubles and break the schema digest (#333). The harness checks an answer against
+    its question before the turn runs (`dd_harness.conversations.answer_problem`,
+    `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`).
+24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
+    leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
+    from the gap), the text put to the person, and a target that is either a README section or a
+    data dictionary cell named by file, field and column. A `DraftRequest` may carry
+    `draft_answers`, each a `DraftAnswer` naming the question it answers and the text, which the
+    drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
 
 ## Boundaries and contracts
 

@@ -15,13 +15,18 @@ from dd_sdk.contract import validate
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Assurance,
+    ChoiceAnswer,
+    ChoiceOption,
+    ChoiceQuestion,
     ConversationTurn,
     CurrentVersion,
     Delegation,
     Derivation,
     Document,
     DocumentKind,
+    DocumentQuestion,
     DocumentVersionRef,
+    DraftAnswer,
     DraftRequest,
     Envelope,
     EvidenceItem,
@@ -82,7 +87,8 @@ def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> N
     assert schema["$comment"].endswith("Do not edit.")
     assert schema["$schema"] == gen.DRAFT_7 and "metamodel_version" not in schema
     assert schema["title"] == "Reply" and schema["additionalProperties"] is False
-    assert set(schema["$defs"]) == {"Derivation", "GroundingRef"}  # only what Reply reaches
+    # only what Reply reaches
+    assert set(schema["$defs"]) == {"ChoiceOption", "ChoiceQuestion", "Derivation", "GroundingRef"}
     assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
     assert {"schema_class", "grounded_on"} <= set(schema["required"])
 
@@ -98,6 +104,7 @@ def test_generated_properties_keep_the_linkml_slot_order() -> None:
         "reply_text",
         "reply_derivation",
         "conversation_title",
+        "reply_question",
         "grounded_on",
     ]
 
@@ -566,6 +573,57 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
     assert env["delegations"][0]["delegated_invocation_id"] == child
 
 
+def _question(**kw: object) -> ChoiceQuestion:
+    options = [
+        ChoiceOption(option_value="zenodo", option_label="Zenodo"),
+        ChoiceOption(option_value="figshare", option_label="Figshare", option_help="Hosted"),
+    ]
+    return ChoiceQuestion.model_validate(
+        {"question_prompt": "Which repository?", "question_options": options, **kw}
+    )
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_reply_may_ask_a_choice_question_and_a_message_may_answer_it() -> None:
+    question = _question(question_multiple=True, question_other=True)
+    reply = Reply(
+        reply_text="I need to know where you will deposit.",
+        reply_derivation=Derivation.MODEL,
+        reply_question=question,
+        grounded_on=[_input_ref()],
+    )
+    env = _succeeded(payload=reply, evidence=[_input_evidence()]).to_document()
+    validate.validate_envelope(env)
+    assert Reply.model_validate(env["payload"]).reply_question == question
+
+    answer = ChoiceAnswer(answer_to=new_invocation_id(), answer_values=["zenodo"])
+    doc = to_document(
+        InvocationRequest(
+            agent_id="orchestrator.stub",
+            input=Message(message_text="Zenodo", choice_answer=answer),
+        )
+    )
+    validate.validate_request(doc)
+    assert Message.model_validate(doc["input"]).choice_answer == answer
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_choice_question_has_two_to_twelve_options_with_unique_values() -> None:
+    with pytest.raises(ValueError, match="value of its own"):
+        ChoiceQuestion(
+            question_prompt="Which?",
+            question_options=[
+                ChoiceOption(option_value="a", option_label="A"),
+                ChoiceOption(option_value="a", option_label="Also A"),
+            ],
+        )
+    with pytest.raises(ValueError, match="at least 2"):
+        ChoiceQuestion(
+            question_prompt="Which?",
+            question_options=[ChoiceOption(option_value="a", option_label="A")],
+        )
+
+
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_bad_conversation_id_is_rejected() -> None:
     doc = to_document(InvocationRequest(agent_id="a", input=Message(message_text="x")))
@@ -658,6 +716,57 @@ def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> 
     assert Document.model_validate(revised.model_dump(mode="json")) == revised
     with pytest.raises(ValueError):
         DocumentVersionRef(document_id=new_invocation_id(), version=0)
+
+
+@pytest.mark.requirement("R5")
+def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() -> None:
+    """A version's questions each target one README section or one data dictionary cell, under
+    an identifier of their own; the answers come back in the next DraftRequest
+    (docs/specs/drafting.md)."""
+    section = DocumentQuestion(
+        question_id="q-" + "0" * 16, question_prompt="Methods?", gap_section="Methods"
+    )
+    cell = DocumentQuestion(
+        question_id="q-" + "1" * 16,
+        question_prompt="Unit?",
+        gap_file="soil.csv",
+        gap_field="ph",
+        gap_column="unit",
+    )
+    asking = Document(
+        document_kind=DocumentKind.README,
+        media_type="text/markdown",
+        document_text="_To be written_\n<!-- dd:gap q-0000000000000000 -->\n",
+        document_derivation=Derivation.TEMPLATE,
+        document_questions=[section, cell],
+        grounded_on=[_input_ref()],
+    )
+    env = _succeeded(payload=asking, evidence=[_input_evidence()]).to_document()
+    validate.validate_envelope(env)
+    assert Document.model_validate(env["payload"]).document_questions == [section, cell]
+
+    with pytest.raises(ValueError, match="identifier of its own"):
+        Document.model_validate(
+            {**asking.model_dump(mode="json"), "document_questions": [section.model_dump()] * 2}
+        )
+    with pytest.raises(ValueError, match="not both"):
+        DocumentQuestion(
+            question_id="q-" + "2" * 16, question_prompt="?", gap_section="A", gap_file="a.csv"
+        )
+    with pytest.raises(ValueError, match="file, field and column"):
+        DocumentQuestion(question_id="q-" + "2" * 16, question_prompt="?", gap_file="a.csv")
+    with pytest.raises(ValueError):
+        DocumentQuestion(question_id="q-1", question_prompt="?", gap_section="A")
+
+    answer = DraftAnswer(answered_question=cell.question_id, answer_text="pH units")
+    doc = to_document(
+        InvocationRequest(
+            agent_id="advisor.documentation",
+            input=DraftRequest(document_kind=DocumentKind.README, draft_answers=[answer]),
+        )
+    )
+    validate.validate_request(doc)
+    assert DraftRequest.model_validate(doc["input"]).draft_answers == [answer]
 
 
 def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
