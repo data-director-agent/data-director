@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0-alpha.3](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.2...harness-v0.2.0-alpha.3) (2026-11-06)
+
+
+### Features
+
+* **app:** add a policy page that shows the rules runs are held to ([2b76eb6](https://github.com/data-director-agent/data-director/commit/2b76eb60e1aebf23211f34f526098068260805c6))
+* **app:** add a policy page that shows the rules runs are held to ([40cbdb5](https://github.com/data-director-agent/data-director/commit/40cbdb511a7103f5c8527b04c163cd3176f00f64))
+* **app:** ask categorical questions as clickable choices ([#586](https://github.com/data-director-agent/data-director/issues/586)) ([57b4e9f](https://github.com/data-director-agent/data-director/commit/57b4e9f0d7e5dedea4b9e45201de64365c04b90b))
+
 ## [0.2.0-alpha.2](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.1...harness-v0.2.0-alpha.2) (2026-11-06)
 
 
