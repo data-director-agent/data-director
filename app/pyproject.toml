@@ -29,6 +29,11 @@ dev = [
   "data-director-agent-example-hello",
   "data-director-agent-advisor-quality",
   "data-director-agent-advisor-standards",
+  # The minimum loop's agents and scanner (tests/test_minimum_loop.py).
+  "data-director-agent-advisor-files",
+  "data-director-agent-advisor-metadata",
+  "data-director-agent-advisor-documentation",
+  "data-director-inventory",
 ]
 
 [tool.hatch.build.targets.wheel]
