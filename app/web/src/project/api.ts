@@ -194,6 +194,51 @@ export interface RepositoryChoice {
   } | null;
 }
 
+/** One result of a validation, with the message the harness wrote (docs/specs/deposit.md). */
+export interface ValidationResult {
+  severity: "violation" | "warning";
+  message: string;
+  focus: string;
+  component: string;
+  path: string | null;
+}
+
+/**
+ * A validation of the project against its chosen repository's requirements: whether it conforms,
+ * its violations and warnings, and the SHACL Validation Report the harness kept.
+ */
+export interface Validation {
+  project_id: string;
+  made_at: string;
+  conforms: boolean;
+  requirements_digest: string | null;
+  violations: ValidationResult[];
+  warnings: ValidationResult[];
+  report: Record<string, unknown>;
+  report_digest?: string;
+}
+
+/** A deposit package the harness built and kept, named by the SHA-256 of its bytes. */
+export interface BuiltPackage {
+  digest: string;
+  size: number;
+  media_type: string;
+  validation: Validation;
+}
+
+/** The harness built no package because the project has a violation; `validation` says which. */
+export class PackageRefused extends Error {
+  constructor(readonly validation: Validation) {
+    super(validation.violations.map((v) => v.message).join(" "));
+    this.name = "PackageRefused";
+  }
+}
+
+/** Where a package the project log records as built is downloaded from. */
+export function packageHref(projectId: string, digest: string): string {
+  return `/api/projects/${encodeURIComponent(projectId)}/packages/${encodeURIComponent(digest)}`;
+}
+
 /** A conversation started in a project, as the projects list names it. */
 export interface ProjectConversation {
   conversation_id: string;
@@ -245,6 +290,10 @@ export interface ProjectApi {
    * its name and standards from the run's evidence, so only the run and the candidate are sent.
    */
   chooseRepository(projectId: string, invocationId: string, re3dataId: string): Promise<RepositoryChoice>;
+  /** Validates the project against its chosen repository's requirements; the report is kept. */
+  validate(projectId: string): Promise<Validation>;
+  /** Builds the deposit package, or throws `PackageRefused` with the validation that says why. */
+  buildPackage(projectId: string): Promise<BuiltPackage>;
 }
 
 /**
@@ -314,6 +363,19 @@ export const httpProjectApi: ProjectApi = {
         body: JSON.stringify({ invocation_id: invocationId, re3data_id: re3dataId }),
       }),
     );
+  },
+  async validate(projectId) {
+    return json(await fetch(`${projectPath(projectId)}/validations`, { method: "POST" }));
+  },
+  async buildPackage(projectId) {
+    const response = await fetch(`${projectPath(projectId)}/packages`, { method: "POST" });
+    if (response.status === 409) {
+      const problem = (await response.clone().json().catch(() => null)) as
+        | (Problem & { validation?: Validation })
+        | null;
+      if (problem?.validation) throw new PackageRefused(problem.validation);
+    }
+    return json(response);
   },
   async decide(projectId, documentId, request) {
     return json(

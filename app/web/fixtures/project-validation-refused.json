@@ -1,0 +1,72 @@
+{
+  "conforms": false,
+  "made_at": "2026-01-01T00:00:00+00:00",
+  "project_id": "01900000-0000-7000-8000-000000000001",
+  "report": {
+    "@context": {
+      "dd": "https://w3id.org/data-director/",
+      "schema": "http://schema.org/",
+      "sh": "http://www.w3.org/ns/shacl#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+    },
+    "@type": "sh:ValidationReport",
+    "dd:project": {
+      "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+    },
+    "dd:requirements": {
+      "@id": "ni:///sha-256;Vo00yY_7oV0z1TEHfNPtUCrEqOivq84R1Q-Xj-VkfaU"
+    },
+    "dd:validated_at": {
+      "@type": "xsd:dateTime",
+      "@value": "2026-01-01T00:00:00+00:00"
+    },
+    "sh:conforms": false,
+    "sh:result": [
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "ORDA requires a metadata record, and none has been approved.",
+        "sh:resultSeverity": {
+          "@id": "sh:Violation"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "ORDA recommends a data dictionary, and none has been approved.",
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
+        }
+      }
+    ]
+  },
+  "requirements_digest": "568d34c98ffba15d33d531077cd3ed502ac4a8e8afabce11d50f978fe5647da5",
+  "violations": [
+    {
+      "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "ORDA requires a metadata record, and none has been approved.",
+      "path": null,
+      "severity": "violation"
+    }
+  ],
+  "warnings": [
+    {
+      "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "ORDA recommends a data dictionary, and none has been approved.",
+      "path": null,
+      "severity": "warning"
+    }
+  ]
+}

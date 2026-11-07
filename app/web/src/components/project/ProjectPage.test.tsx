@@ -6,12 +6,14 @@ import disclosureFixture from "../../../fixtures/project-disclosure.json";
 import answersFixture from "../../../fixtures/project-answers.json";
 import fixture from "../../../fixtures/project-documents.json";
 import repositoryFixture from "../../../fixtures/project-repository.json";
+import validationFixture from "../../../fixtures/project-validation.json";
 import {
   DecisionConflict,
   type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
   type RepositoryChoice,
+  type Validation,
   ProjectApiContext,
   digestOf,
 } from "../../project/api";
@@ -25,6 +27,8 @@ const PROJECT = fixture as ProjectDocuments;
 const DISCLOSURE = disclosureFixture as Disclosure;
 // ORDA, chosen from a shortlist (app/tests/test_repository_choice.py).
 const REPOSITORY = repositoryFixture as RepositoryChoice;
+// A project valid for ORDA (app/tests/test_deposit_routes.py).
+const VALID = validationFixture as Validation;
 
 function at<T>(items: T[], index: number): T {
   const item = items[index];
@@ -56,6 +60,8 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     inventory: () => Promise.resolve(null),
     repository: () => Promise.resolve(REPOSITORY),
     chooseRepository: () => Promise.resolve(REPOSITORY),
+    validate: () => Promise.resolve(VALID),
+    buildPackage: () => Promise.resolve({ digest: "0".repeat(64), size: 1, media_type: "application/zip", validation: VALID }),
     ...overrides,
   };
 }
@@ -288,6 +294,12 @@ describe("ProjectPage", () => {
   it("says how to choose a repository when none has been", async () => {
     renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "doc=repository");
     expect(await screen.findByText(/No repository has been chosen yet/)).toBeVisible();
+  });
+
+  it("offers the deposit package as the list's last entry", async () => {
+    renderPage(fakeApi(), "doc=deposit");
+    expect(await screen.findByRole("heading", { name: "Deposit package" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Check the project" })).toBeVisible();
   });
 
   it("reaches the repository even before any document is drafted", async () => {

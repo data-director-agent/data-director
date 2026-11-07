@@ -27,10 +27,13 @@ What is built:
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
   `dd-harness project package`);
 - choosing a repository in the app from `advisor.repository`'s shortlist, the name and standards
-  read from the run's evidence (`POST /api/projects/{id}/repository`, [The app](app.md)).
+  read from the run's evidence (`POST /api/projects/{id}/repository`, [The app](app.md));
+- validating the project, building the package and downloading it in the app, which calls
+  `dd_harness.deposit` in-process (`POST /api/projects/{id}/validations`,
+  `POST /api/projects/{id}/packages`, `GET /api/projects/{id}/packages/{digest}`,
+  `app/tests/test_deposit_routes.py`).
 
-Validating and building the package in the app
-is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
+Giving a drafter the merged set is TODO(#394, #200).
 
 ## Invariants
 

@@ -1,8 +1,8 @@
 /**
  * A project's documents (docs/specs/projects.md), as a list beside a reader: the list groups the
  * documents by state, those waiting for a decision first, and the reader shows the one chosen,
- * with the form to decide on it while it is undecided. The repository chosen and the statement of
- * how generative AI was used are the list's last entries.
+ * with the form to decide on it while it is undecided. The repository chosen, the statement of
+ * how generative AI was used and the deposit package are the list's last entries.
  *
  * What is open is in the address (`?doc=<id>`, and `&v=<n>` for an earlier version), so that it
  * can be linked and left with Back. With nothing chosen, the first document waiting for a decision
@@ -30,7 +30,8 @@ import { documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
-import { DISCLOSURE, DocumentList, PANELS, REPOSITORY, stateOf } from "./DocumentList";
+import { DepositPanel } from "./DepositPanel";
+import { DEPOSIT, DISCLOSURE, DocumentList, PANELS, REPOSITORY, stateOf } from "./DocumentList";
 import { DocumentReader } from "./DocumentReader";
 import { RepositoryPanel } from "./RepositoryPanel";
 
@@ -150,6 +151,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
         return <DisclosurePanel projectId={projectId} revision={revision} />;
       if (chosen === REPOSITORY)
         return <RepositoryPanel projectId={projectId} revision={revision} />;
+      if (chosen === DEPOSIT) return <DepositPanel key={revision} projectId={projectId} />;
       if (chosen === null) {
         return (
           <p>

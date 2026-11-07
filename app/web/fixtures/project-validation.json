@@ -1,0 +1,166 @@
+{
+  "conforms": true,
+  "made_at": "2026-01-01T00:00:00+00:00",
+  "project_id": "01900000-0000-7000-8000-000000000001",
+  "report": {
+    "@context": {
+      "dd": "https://w3id.org/data-director/",
+      "schema": "http://schema.org/",
+      "sh": "http://www.w3.org/ns/shacl#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+    },
+    "@type": "sh:ValidationReport",
+    "dd:project": {
+      "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+    },
+    "dd:requirements": {
+      "@id": "ni:///sha-256;Vo00yY_7oV0z1TEHfNPtUCrEqOivq84R1Q-Xj-VkfaU"
+    },
+    "dd:validated_at": {
+      "@type": "xsd:dateTime",
+      "@value": "2026-01-01T00:00:00+00:00"
+    },
+    "sh:conforms": true,
+    "sh:result": [
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "ORDA recommends a data dictionary, and none has been approved.",
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no contributors, which ORDA recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/contributor"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no dates, dateType Created, which ORDA recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/dateCreated"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no Related materials (relatedIdentifiers), which ORDA recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/citation"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no geoLocations, which ORDA recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/spatialCoverage"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no Funding (fundingReferences), which ORDA recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/funding"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      }
+    ]
+  },
+  "requirements_digest": "568d34c98ffba15d33d531077cd3ed502ac4a8e8afabce11d50f978fe5647da5",
+  "violations": [],
+  "warnings": [
+    {
+      "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "ORDA recommends a data dictionary, and none has been approved.",
+      "path": null,
+      "severity": "warning"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no contributors, which ORDA recommends.",
+      "path": "http://schema.org/contributor",
+      "severity": "warning"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no dates, dateType Created, which ORDA recommends.",
+      "path": "http://schema.org/dateCreated",
+      "severity": "warning"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no Related materials (relatedIdentifiers), which ORDA recommends.",
+      "path": "http://schema.org/citation",
+      "severity": "warning"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no geoLocations, which ORDA recommends.",
+      "path": "http://schema.org/spatialCoverage",
+      "severity": "warning"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no Funding (fundingReferences), which ORDA recommends.",
+      "path": "http://schema.org/funding",
+      "severity": "warning"
+    }
+  ]
+}

@@ -191,6 +191,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/run/RepositoryShortlist.test.tsx`,
     `app/web/src/components/project/ProjectPage.test.tsx`).
 
+25. **A package is built only from a check with no violation, and downloaded by its digest.**
+    The project page's **Deposit package** entry has **Check the project**
+    (`POST /api/projects/{id}/validations`). The harness validates the project and keeps the
+    report, and the panel lists what stops the package, then what the repository recommends,
+    each in the harness's words. Only after a check with no violation does it offer **Build the
+    package** (`POST /api/projects/{id}/packages`). The harness checks again and builds it, or
+    refuses with a `409` carrying the validation, which the panel shows. A built package is a
+    link to `GET /api/projects/{id}/packages/{digest}`, which serves only a package the project
+    log records. What each press did is said in the panel's live region, and a failure is an
+    alert that takes focus (`app/tests/test_deposit_routes.py`,
+    `app/web/src/components/project/DepositPanel.test.tsx`, `e2e/shell.spec.ts`).
+
 ## Boundaries and contracts
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules

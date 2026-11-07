@@ -18,6 +18,8 @@ import question from "../fixtures/conversation-question.json" with { type: "json
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import answeredProject from "../fixtures/project-answers.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import repository from "../fixtures/project-repository.json" with { type: "json" };
+import valid from "../fixtures/project-validation.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
 import succeeded from "../fixtures/run-succeeded.json" with { type: "json" };
@@ -229,6 +231,46 @@ test("a project's document is rejected with the keyboard alone, at 320px, and th
   expect(sent).toEqual([
     { version: 1, digest: draft.digest, decision: "rejected", reason: "No site named." },
   ]);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("a project's repository is shown and its package checked, built and offered by keyboard at 320px", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  const base = `/api/projects/${project.project_id}`;
+  const digest = "a".repeat(64);
+  await page.route(`${base}/documents`, (route) => route.fulfill({ json: project }));
+  await page.route(`${base}/repository`, (route) => route.fulfill({ json: repository }));
+  await page.route(`${base}/validations`, (route) => route.fulfill({ status: 201, json: valid }));
+  await page.route(`${base}/packages`, (route) =>
+    route.fulfill({
+      status: 201,
+      json: { digest, size: 20480, media_type: "application/zip", validation: valid },
+    }),
+  );
+
+  await page.goto(`/projects/${project.project_id}?doc=repository`);
+  const chosen = page.getByRole("region", { name: "Repository" });
+  await expect(chosen.getByRole("link", { name: "ORDA" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+
+  await page.goto(`/projects/${project.project_id}?doc=deposit`);
+  const panel = page.getByRole("region", { name: "Deposit package" });
+  await panel.getByRole("button", { name: "Check the project" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(panel.getByRole("status")).toContainText("The project is ready to deposit");
+  await panel.getByRole("button", { name: "Build the package" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(panel.getByRole("status")).toContainText("The deposit package is built");
+  await expect(panel.getByRole("link", { name: "Download the deposit package" })).toHaveAttribute(
+    "href",
+    `${base}/packages/${digest}`,
+  );
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

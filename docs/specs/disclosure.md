@@ -87,7 +87,7 @@ prompt into a floating-point number and change its digest ([Transport and tracin
 
 **The app.** `GET /api/projects/{id}/disclosure` answers with the statement, each document's
 account and the PROV-O graph. The project page shows the statement and offers the statement and
-the graph for download.
+the graph for download. The deposit package, built from the project page, carries both.
 
 **The deposit package** carries the statement as `use-of-generative-ai.md` and the graph as
 `provenance.jsonld`, written when it is built ([Deposit](deposit.md),

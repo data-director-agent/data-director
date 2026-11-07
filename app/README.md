@@ -94,6 +94,14 @@ It is built from:
     candidates an `advisor.repository` run in the project shortlisted. The server reads the
     repository's name and declared standards from the run's evidence and refuses a run of another
     agent or project, or a repository it did not shortlist ([Deposit](../docs/specs/deposit.md));
+  - `POST /api/projects/{id}/validations`: validates the project against its chosen repository's
+    requirements and keeps the SHACL Validation Report in the project log. It answers whether
+    the project conforms, each violation and warning in the harness's words, and the report;
+  - `POST /api/projects/{id}/packages`: validates again and, with no violation, builds the
+    deposit package and answers with its digest and size, or answers a 409 `package-refused`
+    whose `validation` says why ([Deposit](../docs/specs/deposit.md));
+  - `GET /api/projects/{id}/packages/{digest}`: the zip of a package the project log records as
+    built, as an attachment;
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant ([Orchestration](../docs/specs/orchestration.md)) and refuses every other
     request, so the app is no general A2A way in;

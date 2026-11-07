@@ -30,6 +30,12 @@ sets it resolved to and the warnings from resolving it; `POST /api/projects/{id}
 chooses one of the candidates an `advisor.repository` run in the project shortlisted, named by
 the run and the candidate's re3data identifier, and takes everything else about the repository
 from the run's evidence (docs/specs/deposit.md).
+`POST /api/projects/{id}/validations` validates the project against its chosen repository's
+requirements, keeps the SHACL report in the project log and answers with each violation and
+warning; `POST /api/projects/{id}/packages` validates it again and, if it has no violation,
+builds the deposit package, or answers `409` with the validation that says why not;
+`GET /api/projects/{id}/packages/{digest}` downloads a package the project log records as built
+(docs/specs/deposit.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (docs/specs/orchestration.md, #129).
 `GET /api/about` names the build (version and commit) and says whether reports can be filed;
@@ -77,7 +83,7 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Re
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_app import documents, feedback, repository
+from dd_app import deposit, documents, feedback, repository
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
@@ -88,6 +94,7 @@ from dd_app.governance import (
     principal_summary,
 )
 from dd_harness.conductor import UnknownAgent
+from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
@@ -116,6 +123,7 @@ FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
 CHOICE_REFUSED = "Data Director could not record this choice of repository"
+PACKAGE_REFUSED = "The project is not ready to deposit"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -412,6 +420,84 @@ def build_app(
         found = await run_in_threadpool(repository.view, store, project_id)
         return JSONResponse(found, status_code=201)
 
+    async def validate_project(request: Request, checker: Principal) -> Response:
+        # The harness alone says whether a project is valid; the app passes on what it says
+        # (docs/specs/deposit.md).
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            validation, digest = await run_in_threadpool(
+                lambda: check(
+                    store, project_id, acted_for=checker, caused_by=f"POST {request.url.path}"
+                )
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        return JSONResponse(deposit.validation_view(validation, digest), status_code=201)
+
+    async def build_project_package(request: Request, builder: Principal) -> Response:
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            package = await run_in_threadpool(
+                lambda: build_package(
+                    store,
+                    governance.conductor.store,
+                    project_id,
+                    acted_for=builder,
+                    caused_by=f"POST {request.url.path}",
+                )
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except PackageRefusedError as exc:
+            # The report is kept; the refusal carries it, so the shell can say why.
+            return JSONResponse(
+                {
+                    "type": PROBLEM_BASE + "package-refused",
+                    "title": PACKAGE_REFUSED,
+                    "status": 409,
+                    "detail": str(exc),
+                    "validation": deposit.validation_view(exc.validation),
+                },
+                status_code=409,
+                media_type="application/problem+json",
+            )
+        return JSONResponse(deposit.package_view(package), status_code=201)
+
+    async def get_package(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        digest = request.path_params["digest"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            found = (
+                await run_in_threadpool(store.package, project_id, digest)
+                if deposit.DIGEST.fullmatch(digest)
+                else None
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        if found is None:
+            return _problem(
+                404,
+                "package-not-found",
+                "No such package",
+                f"Project {project_id!r} has built no package {digest!r}.",
+            )
+        name = deposit.package_filename(project_id, digest)
+        return Response(
+            found,
+            media_type=deposit.PACKAGE_MEDIA_TYPE,
+            headers={"content-disposition": f'attachment; filename="{name}"'},
+        )
+
     async def decide(request: Request, decider: Principal) -> Response:
         # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
         project_id = request.path_params["project_id"]
@@ -682,6 +768,21 @@ def build_app(
                 "/api/projects/{project_id}/repository",
                 signed_in(choose_repository),
                 methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/validations",
+                signed_in(validate_project),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/packages",
+                signed_in(build_project_package),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/packages/{digest}",
+                signed_in(get_package),
+                methods=["GET"],
             ),
             Route(
                 "/api/projects/{project_id}/documents/{document_id}/decisions",
