@@ -9,9 +9,21 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
+from typing import Any
 
 import pytest
-from requirement_sets import override, standard, write
+import yaml
+from requirement_sets import (
+    ELSEWHERE,
+    EXPORT,
+    ORDA,
+    RECORDS,
+    override,
+    pinned,
+    registry,
+    standard,
+    write,
+)
 
 from dd_harness import server
 from dd_harness.projects import (
@@ -22,9 +34,10 @@ from dd_harness.projects import (
     ProjectStore,
     UnknownProjectError,
 )
-from dd_harness.requirements import load_requirements
+from dd_harness.requirements import RequirementsError, load_requirements
+from dd_harness.sources import SourceConfigError, Sources
 from dd_harness.testing import TEST_PRINCIPAL, file_inventory
-from dd_sdk.evidence import input_hash
+from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash, input_hash
 
 inventory = file_inventory
 
@@ -136,47 +149,127 @@ def repositories(tmp_path: Path) -> Path:
     return write(tmp_path / "repositories", ("standards", standard()), ("overrides", override()))
 
 
-def test_a_project_records_the_repository_chosen_and_its_requirements(
-    store: ProjectStore, repositories: Path
+def test_a_project_records_the_repository_chosen_and_the_record_it_was_read_from(
+    store: ProjectStore, repositories: Path, tmp_path: Path
 ) -> None:
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     assert store.requirements(project_id) is None
     requirements = load_requirements(repositories)
-    elsewhere = requirements.resolve("r3d100000001", "Elsewhere", ["Dublin Core"])
-    store.choose_repository(project_id, elsewhere, acted_for=TEST_PRINCIPAL, caused_by="test")
-    orda = requirements.resolve("r3d100012124", "ORDA", ["Dublin Core"])
-    digest = store.choose_repository(project_id, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    sources = pinned(tmp_path / "re3data")
 
-    # The last choice counts, and the merged set reads back as it was recorded.
+    def choose(re3data_id: str, project: str = project_id) -> str:
+        return store.choose_repository(
+            project,
+            re3data_id,
+            registry=sources,
+            requirements=requirements,
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
+        )
+
+    choose(ELSEWHERE)
+    digest = choose(ORDA)
+
+    # The name and declared standards are re3data's, the last choice counts, and the merged set
+    # reads back as it was recorded.
+    orda = requirements.resolve(ORDA, "ORDA", ["Dublin Core"])
     assert store.requirements(project_id) == orda.requirements()
     assert digest == input_hash(orda.requirements())
     first, last = store.events(project_id)[1:]
     assert first["event"] == last["event"] == REPOSITORY_CHOSEN
+    assert first["repository_name"] == "Elsewhere"
     assert len(first["warnings"]) == 2
-    assert last["re3data_id"] == "r3d100012124"
+    assert last["re3data_id"] == ORDA
+    assert last["repository_name"] == "ORDA"
     assert last["declared_standards"] == ["Dublin Core"]
+    assert last["snapshot_ref"] == EXPORT
+    assert last["record_hash"] == content_hash(RECORDS[0], DOCUMENT_CANONICALISATION)
+    assert last["record_canonicalisation"] == DOCUMENT_CANONICALISATION
     assert [s["ref"] for s in last["requirement_sets"]] == ["datacite-4@v1", "orda@v2"]
     assert last["digest"] == digest
     assert last["warnings"] == []
     with pytest.raises(ProjectError, match="no project"):
+        choose(ORDA, "0" * 8 + "-0000-7000-8000-" + "0" * 12)
+
+    # An identifier the export does not hold, or one that is not an identifier, changes nothing.
+    with pytest.raises(RequirementsError, match="holds no repository r3d100099999"):
+        choose("r3d100099999")
+    with pytest.raises(RequirementsError, match="not a re3data identifier"):
+        choose("orda")
+    assert len(store.events(project_id)) == 3
+
+
+def test_a_choice_needs_a_built_re3data_export(
+    store: ProjectStore, repositories: Path, tmp_path: Path
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    requirements = load_requirements(repositories)
+
+    def choose(sources: Sources) -> None:
         store.choose_repository(
-            "0" * 8 + "-0000-7000-8000-" + "0" * 12, orda, acted_for=TEST_PRINCIPAL, caused_by="t"
+            project_id,
+            ORDA,
+            registry=sources,
+            requirements=requirements,
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
         )
 
+    with pytest.raises(SourceConfigError, match="pins no re3data export"):
+        choose(Sources.none())
+    config = registry(tmp_path / "re3data")
+    config.write_text(config.read_text().replace("sha256:", "built: true\n  sha256:"), "utf-8")
+    (config.parent / "registry.jsonl").unlink()
+    with pytest.raises(SourceConfigError, match="not built; build it with `uv run dd-sources"):
+        choose(Sources.from_config(config))
+    assert len(store.events(project_id)) == 1
 
-def test_the_command_records_a_choice_and_warns_of_what_is_not_checked(
+
+def test_the_latest_re3data_export_pinned_is_the_one_read(tmp_path: Path) -> None:
+    older = registry(
+        tmp_path / "older", ({**RECORDS[0], "name": "Old ORDA"},), "re3data:export:2026-10"
+    )
+    newer = registry(tmp_path / "newer", RECORDS[:1])
+    config = tmp_path / "sources.yaml"
+    entries = [
+        {**yaml.safe_load(c.read_text())["sources"][0], "path": f"{c.parent.name}/registry.jsonl"}
+        for c in (newer, older)
+    ]
+    config.write_text(yaml.safe_dump({"sources": entries}), "utf-8")
+    entry = Sources.from_config(config).re3data(ORDA)
+    assert entry is not None
+    assert (entry.name, entry.snapshot_ref) == ("ORDA", EXPORT)
+
+
+def test_a_re3data_record_without_a_name_or_with_malformed_standards_is_refused(
+    tmp_path: Path,
+) -> None:
+    broken_records: tuple[dict[str, Any], ...] = (
+        {"name": None},
+        {"metadata_standards": ["Dublin Core", 3]},
+    )
+    for i, broken in enumerate(broken_records):
+        sources = Sources.from_config(registry(tmp_path / str(i), ({**RECORDS[0], **broken},)))
+        with pytest.raises(SourceConfigError, match="has no name or a malformed"):
+            sources.re3data(ORDA)
+
+
+def test_the_command_records_a_choice_from_re3data_and_warns_of_what_is_not_checked(
     operator: Path,
     repositories: Path,
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     server.main(["project", "create"])
     project_id = capsys.readouterr().out.strip()
-    choose = ["project", "choose-repository", project_id, "--re3data", "r3d100000001"]
-    choose += ["--name", "Elsewhere", "--standard", "DataCite Metadata Schema"]
+    choose = ["project", "choose-repository", project_id, "--re3data", ELSEWHERE]
     with pytest.raises(SystemExit, match="DD_REPOSITORIES_DIR unset"):
         server.main(choose)
     monkeypatch.setenv("DD_REPOSITORIES_DIR", str(repositories))
+    with pytest.raises(SystemExit, match="DD_SOURCES_CONFIG unset"):
+        server.main(choose)
+    monkeypatch.setenv("DD_SOURCES_CONFIG", str(registry(tmp_path / "re3data")))
     assert server.main(choose) == 0
     out, err = capsys.readouterr()
     assert "warning: the deployment has no override for Elsewhere" in err
@@ -184,9 +277,17 @@ def test_the_command_records_a_choice_and_warns_of_what_is_not_checked(
         e for e in ProjectStore(operator).events(project_id) if e["event"] == REPOSITORY_CHOSEN
     ]
     assert event["digest"] == out.strip()
+    assert event["repository_name"] == "Elsewhere"
+    assert event["snapshot_ref"] == EXPORT
     assert event["caused_by"] == "dd-harness project choose-repository"
     with pytest.raises(SystemExit, match="not a re3data identifier"):
-        server.main([*choose[:4], "orda", *choose[5:]])
+        server.main([*choose[:4], "orda"])
+    with pytest.raises(SystemExit, match="holds no repository r3d100099999"):
+        server.main([*choose[:4], "r3d100099999"])
+    assert server.main([*choose[:4], ORDA]) == 0
+    out, err = capsys.readouterr()
+    assert err == ""
+    assert ProjectStore(operator).summary(project_id)["repository"]["repository_name"] == "ORDA"
 
 
 def test_a_project_is_named_by_its_title_and_a_blank_title_is_none(store: ProjectStore) -> None:
@@ -209,15 +310,21 @@ def test_a_conversation_in_an_unknown_project_is_refused(store: ProjectStore) ->
 
 
 def test_the_list_summarises_each_project_in_the_order_created(
-    store: ProjectStore, repositories: Path
+    store: ProjectStore, repositories: Path, tmp_path: Path
 ) -> None:
     first = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="First")
     second = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     store.add_inventory(first, inventory("a.csv"), acted_for=TEST_PRINCIPAL, caused_by="test")
     latest = inventory("a.csv", "b.csv")
     digest = store.add_inventory(first, latest, acted_for=TEST_PRINCIPAL, caused_by="test")
-    orda = load_requirements(repositories).resolve("r3d100012124", "ORDA", ["Dublin Core"])
-    store.choose_repository(first, orda, acted_for=TEST_PRINCIPAL, caused_by="test")
+    store.choose_repository(
+        first,
+        ORDA,
+        registry=pinned(tmp_path / "re3data"),
+        requirements=load_requirements(repositories),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
     store.start_conversation(first, acted_for=TEST_PRINCIPAL, caused_by="test")
 
     summaries = store.projects()

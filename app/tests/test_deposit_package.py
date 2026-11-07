@@ -15,12 +15,11 @@ from typing import Any
 
 import pytest
 from starlette.testclient import TestClient
-from support import check_fixture, configure_env, dist_dir, new_governance
+from support import ZENODO, check_fixture, configure_env, dist_dir, new_governance, pin_export
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
 from dd_harness.projects import PACKAGE_BUILT, PROJECT_VALIDATED, text_digest
-from dd_harness.requirements import load_requirements
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
     TEST_PRINCIPAL,
@@ -32,9 +31,6 @@ from dd_harness.testing import (
 )
 from dd_sdk.contract.models import DocumentKind
 
-REPOSITORIES = Path(__file__).resolve().parents[1] / "config/repositories"
-# A repository with no override, so it is checked against DataCite with a warning.
-ZENODO = ("r3d100010468", "Zenodo", ["DataCite Metadata Schema", "Dublin Core"])
 # A DataCite record, in its JSON form, with every field the DataCite set requires or recommends.
 RECORD: dict[str, Any] = {
     "titles": [{"title": "Soil cores from Hope Valley"}],
@@ -62,6 +58,7 @@ TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}
 @pytest.fixture
 def governance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Governance]:
     configure_env(monkeypatch, tmp_path)
+    monkeypatch.setenv("DD_SOURCES_CONFIG", str(pin_export(tmp_path / "re3data")))
     yield from new_governance()
 
 
@@ -77,14 +74,15 @@ def store(governance: Governance) -> ProjectStorage:
 
 
 @pytest.fixture
-def chosen(store: ProjectStorage) -> str:
-    """A project with an inventory and Zenodo chosen, and no document."""
+def chosen(client: TestClient, store: ProjectStorage) -> str:
+    """A project with an inventory and Zenodo chosen through the server, and no document.
+    Zenodo has no override, so it is checked against DataCite with a warning."""
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Soil")
     store.add_inventory(
         project_id, file_inventory("data/cores.csv"), acted_for=TEST_PRINCIPAL, caused_by="test"
     )
-    resolved = load_requirements(REPOSITORIES).resolve(*ZENODO)
-    store.choose_repository(project_id, resolved, acted_for=TEST_PRINCIPAL, caused_by="test")
+    chose = client.put(f"/api/projects/{project_id}/repository", json={"re3data_id": ZENODO})
+    assert chose.status_code == 201
     return project_id
 
 

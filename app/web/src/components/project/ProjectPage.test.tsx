@@ -55,6 +55,7 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     markStep: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
     validate: () => Promise.reject(new Error("not checked in this test")),
     buildPackage: () => Promise.reject(new Error("not built in this test")),
+    chooseRepository: () => Promise.reject(new Error("no repository in these tests")),
     ...overrides,
   };
 }

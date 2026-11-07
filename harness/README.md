@@ -37,7 +37,7 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 |---|---|
 | `DD_PROFILE` | The institutional profile applied to every invocation. |
 | `DD_AGENTS_CONFIG` | The YAML list of agent base URLs. |
-| `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against. |
+| `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against, and the re3data export `dd-harness project choose-repository` reads a repository's name and standards from. |
 | `DD_RUNS_DIR` | Where runs are written: a path or a `file://` URL ([Storage](../docs/specs/storage.md)). |
 | `DD_PROJECTS_DIR` | Where project records are kept: a path or a `file://` URL. Only `dd-harness project` and the app need it. |
 | `DD_REPOSITORIES_DIR` | The requirement sets a chosen repository resolves to: `standards/` and `overrides/` ([Deposit](../docs/specs/deposit.md)). Only `dd-harness project choose-repository` needs it so far. |
