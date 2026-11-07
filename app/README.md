@@ -223,7 +223,7 @@ for ORCID.
 - Sessions are held in memory, so restarting the app signs everyone out.
 - Signing out ends the session here. ORCID offers no sign-out for the app, so the person may still
   be signed in at ORCID, and the signed-out page says so.
-- TODO(#153): every signed-in person still sees every run and conversation.
+- Each person sees only their own runs and conversations; someone else's is answered `404`.
 
 Without `DD_OIDC_ISSUER` the app is a development server. `DD_PRINCIPAL_ID` and
 `DD_PRINCIPAL_NAME` are then required, every run acts for this operator, not for the person

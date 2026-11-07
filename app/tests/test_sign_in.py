@@ -478,3 +478,42 @@ def test_the_client_secret_can_be_read_from_a_file(
     dd_app.main()
     assert started["sign_in"].settings.client_secret == idp.client_secret
     assert idp.client_secret not in repr(started["sign_in"].settings)
+
+
+# Whose work is whose (#153).
+
+
+def test_each_person_sees_only_their_own_runs(deployment: Deployment):
+    josiah, ada = deployment.browser(), deployment.browser()
+    sign_in(deployment, josiah, JOSIAH, name="Josiah Carberry")
+    sign_in(deployment, ada, ADA, name="Ada Example")
+    mine = run(josiah).json()["envelope"]["invocation_id"]
+    theirs = run(ada).json()["envelope"]["invocation_id"]
+
+    assert [r["invocation_id"] for r in josiah.get("/api/runs").json()] == [mine]
+    assert [r["invocation_id"] for r in ada.get("/api/runs").json()] == [theirs]
+    assert josiah.get(f"/api/runs/{mine}").status_code == 200
+    refused = ada.get(f"/api/runs/{mine}")
+    absent = ada.get("/api/runs/01900000-0000-7000-8000-000000000009")
+    assert refused.status_code == absent.status_code == 404
+    assert refused.json()["type"] == absent.json()["type"]
+
+
+def test_nobody_reads_or_continues_another_persons_conversation(deployment: Deployment):
+    josiah, ada = deployment.browser(), deployment.browser()
+    sign_in(deployment, josiah, JOSIAH)
+    sign_in(deployment, ada, ADA)
+    conversation_id = josiah.post("/api/conversations").json()["conversation_id"]
+    assert josiah.get(f"/api/conversations/{conversation_id}").status_code == 200
+
+    absent = "01900000-0000-7000-8000-000000000009"
+    for path in (conversation_id, absent):
+        found = ada.get(f"/api/conversations/{path}")
+        sent = ada.post(
+            f"/api/conversations/{path}/turns",
+            json={"agent_id": "orchestrator.stub", "message_text": "hello", "follows": None},
+        )
+        assert found.status_code == sent.status_code == 404
+        assert found.json()["type"].endswith("/conversation-not-found")
+        assert sent.json()["type"].endswith("/conversation-not-found")
+    assert list(deployment.runs.glob("*/envelope.json")) == []
