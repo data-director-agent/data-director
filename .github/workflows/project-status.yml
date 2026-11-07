@@ -36,6 +36,15 @@ jobs:
       && vars.PROJECT_NUMBER != ''
       && (github.event_name == 'issues' || github.event.pull_request.draft == false)
     steps:
+      - name: Check that the project token is configured
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+        run: |
+          if [ -z "$PROJECT_TOKEN" ]; then
+            echo "::error title=PROJECT_TOKEN is not set::Add a repository (or organisation) secret named PROJECT_TOKEN holding a token that can write to the organisation's projects. GITHUB_TOKEN cannot do this. See the setup notes at the top of .github/workflows/project-status.yml."
+            exit 1
+          fi
+
       - name: Add the item and set its status
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
