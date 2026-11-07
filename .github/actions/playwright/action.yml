@@ -1,0 +1,42 @@
+name: Playwright browser
+description: >-
+  Install the headless Chromium shell that the locked Playwright drives, from a cache keyed on that
+  Playwright version when one is saved.
+inputs:
+  playwright:
+    description: The command that runs the locked Playwright, such as `uv run playwright` or `npx playwright`.
+    required: true
+  working-directory:
+    description: Where to run that command.
+    default: .
+runs:
+  using: composite
+  steps:
+    - name: Read the locked Playwright version
+      id: version
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PLAYWRIGHT: ${{ inputs.playwright }}
+      run: |
+        # shellcheck disable=SC2086
+        echo "version=$($PLAYWRIGHT --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
+    # The Python and Node packages pin the same Playwright, so they share one browser build.
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}-headless-shell
+    # Headless runs need only chromium-headless-shell, not the full browser. The runner image
+    # already carries the libraries it loads; `--with-deps` would spend about ten seconds on apt
+    # adding only CJK and other fonts that no page here uses. With the browser cached, this
+    # step finds it in place and downloads nothing.
+    - name: Install the headless Chromium shell
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        PLAYWRIGHT: ${{ inputs.playwright }}
+        RETRY: ${{ github.workspace }}/scripts/retry.sh
+      run: |
+        # Word splitting is wanted: PLAYWRIGHT is a command and its arguments.
+        # shellcheck disable=SC2086
+        "$RETRY" $PLAYWRIGHT install --only-shell chromium

@@ -977,11 +977,16 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-documentation"
-version = "0.1.0a1"
+version = "0.2.0a1"
 source = { editable = "agents/advisor-documentation" }
 dependencies = [
     { name = "data-director-sdk" },
     { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+anthropic = [
+    { name = "anthropic" },
 ]
 
 [package.dev-dependencies]
@@ -991,9 +996,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.50" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
+provides-extras = ["anthropic"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "data-director-harness", editable = "harness" }]

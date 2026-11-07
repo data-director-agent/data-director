@@ -16,10 +16,10 @@ disclosed ([Disclosure](disclosure.md)).
 
 The Documentation Editor (`advisor.documentation`) is the first drafter. It serves
 `setup.documentation` and `preparation.documentation` and drafts a README or a data dictionary
-from a `DraftRequest`. Today it is a mock that writes no prose and asks nothing
-([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). Making
-it what this spec describes is TODO(#358). A metadata record drafter follows the same rules when
-it is built.
+from a `DraftRequest`. Where a model is configured, a model writes the README's prose
+([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). What
+it does not yet do, suggesting answers and recording them, is TODO(#358). A metadata record
+drafter follows the same rules when it is built.
 
 ## Invariants
 
@@ -39,9 +39,15 @@ it is built.
    (`agents/advisor-documentation/tests/test_documentation_agent.py`). The evaluation checks it
    for a model-backed drafter too (TODO(#576)).
 4. **A model writes README prose only from the drafter's input.** That input is the inventory, the
-   metadata record and the repository's requirements. What they do not support is a gap and is
-   left unwritten: methods, study design, data collection, variable definitions, units, missing
-   value codes, and any claim about the data's contents (TODO(#573)).
+   metadata record and the repository's requirements; the model is never given an answer or an
+   earlier version. What they do not support is a gap and is left unwritten: methods, study
+   design, data collection, variable definitions, units, missing value codes, and any claim about
+   the data's contents. The gaps are decided by rule, not by the model: a model writes prose only
+   around the facts a section is drafted from, never in a section with none, and a draft with
+   prose has the same gaps and questions as the template's. The drafter uses a paragraph only if
+   every number, link, identifier and code-formatted name in it is in its input
+   (`agents/advisor-documentation/tests/test_prose.py`). That check catches an invented value,
+   not a misleading sentence, so the person approving the version still reads the prose.
 5. **Every gap is marked and asked.** A README gap is an italic placeholder saying what is needed,
    followed by the HTML comment `<!-- dd:gap <question-id> -->`, which the rendered README does not
    show. A data dictionary gap is an `unknown` cell. Each gap has exactly one question in the
@@ -61,10 +67,9 @@ it is built.
    the document's text. It becomes `supplied` only when a person confirms or corrects it, by
    recording an answer (TODO(#574)).
 8. **A drafter rests on its input alone.** The Documentation Editor's grounding mode is
-   `input_only` once it calls a model, whichever way a particular version was drafted. The mock's
-   is `none`. The metadata record and the answers reach it in its input, never by retrieval, so it
+   `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
    cites only its input. `document_derivation` records how each version came about: `model`, or
-   `template` when no model is configured or the model's draft was not used. The manifest names it
+   `template` when no model is configured or none of the model's draft was used. The manifest names it
    as the recorder of `document_text` (`recorded_in`, [Agents](agents.md)).
 
 ## Boundaries and contracts
@@ -123,6 +128,13 @@ over-discloses and never under-discloses.
 
 ## Rejected alternatives
 
+- **The model deciding which gaps remain.** A model that judged a section fully written could close
+  a gap with a guess. The gaps are a rule of the template, and the model writes around them.
+- **Abstaining when the metadata record is withheld.** Where the profile does not let the record
+  go to a hosted model, the request reaches the drafter without it, and the drafter drafts from
+  the inventory alone, as it does for a project with no approved record, and says so. The record's
+  sections are then gaps, which is what they would be with no record.
+
 - **A fourth source value, `suggested`.** It would put a model's guess in a data dictionary that is
   published as the researcher's, marked only by a column a reader may never look at.
 - **The orchestrator passing answers to the drafter.** A `DraftRequest` slot filled by the
@@ -147,8 +159,6 @@ over-discloses and never under-discloses.
 
 ## Open questions
 
-- Whether a drafter with a hosted model drafts from the inventory alone, or abstains, when the
-  profile withholds the metadata record: TODO(#573).
 - Whether a data dictionary should follow CDIF's variable descriptions, and be exported as DDI-CDI:
   TODO(#220).
 - Whether the README itself should state how generative AI was used to draft it: TODO(#478).

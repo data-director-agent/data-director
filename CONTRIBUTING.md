@@ -74,13 +74,13 @@ locally from the repository root:
 |---|---|
 | Ruff (lint + format) | `uv run ruff check . && uv run ruff format --check .` |
 | mypy | `uv run mypy` |
-| pytest | `uv run pytest --json-report --json-report-file=.report.json` |
+| pytest | `uv run pytest --json-report --json-report-file=.report.json` (runs on every core; `-n0` for one process, to debug) |
 | CONFORMANCE.md is current | `uv run python scripts/conformance_report.py --check` (after pytest, which writes `.report.json`) |
 | Generated schemas up to date | `uv run dd-gen-schema && git diff --exit-code -- sdk/src/dd_sdk/schema/generated/` |
 | Packages build and install alone | `uv build --all-packages -o dist && uv run python scripts/check_wheels.py dist` |
 | Agents as services (smoke) | `uv run python scripts/smoke_agents.py` |
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
-| App shell | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm test && npm run build && npm run e2e` |
+| App shell (three jobs: checks, Vitest, Playwright) | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm run build && npm test && npm run e2e` |
 | Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
 | Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py` |
 | NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
@@ -97,9 +97,12 @@ request runs each job only when it touches what the job checks, by the rules in
 | Documentation site | `uv run --only-group docs mkdocs build --strict && uv run --only-group docs --only-group accessibility scripts/check_site_accessibility.py site` |
 | Workbench viewer | `uv run pytest workbench/browser_tests/test_viewer_accessibility.py` |
 
-The app shell's accessibility checks run in the App shell job of `ci.yml`.
+The app shell's accessibility checks run in the App shell jobs of `ci.yml`.
 
-The pytest suite blocks the network and needs no credentials. `CONFORMANCE.md` is generated;
+The pytest suite blocks the network and needs no credentials. It also keeps the JSON fixtures in
+`app/web/fixtures`, which the shell's tests read, current: run locally, a test rewrites a fixture
+that no longer matches what the server says, so commit what changed. In CI a stale fixture fails
+the test instead. AGENTS.md, "Writing tests", says what a test should and should not pin down. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
 Python, JavaScript and TypeScript code and the workflows (in a pull request, only the languages it
 changes), and `audit.yml` checks every locked

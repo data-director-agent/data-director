@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+import yaml
 
 from dd_sdk.contract import validate
 from dd_sdk.contract.classes import ClassSchema
@@ -97,17 +98,18 @@ def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> N
 def test_generated_properties_keep_the_linkml_slot_order() -> None:
     """The viewer shows fields in schema order, so the generator's alphabetical order is undone:
     a class's own slots in source order, then its mixins'."""
+    source = yaml.safe_load((SCHEMA / "data_director.yaml").read_text(encoding="utf-8"))
+    classes = source["classes"]
+
+    def slot_order(name: str) -> list[str]:
+        mixins = classes[name].get("mixins") or []
+        return [*classes[name]["slots"], *(s for m in mixins for s in classes[m]["slots"])]
+
     schema = json.loads((SCHEMA / "generated" / "envelope.schema.json").read_text(encoding="utf-8"))
-    assert list(schema["properties"])[:3] == ["invocation_id", "agent_id", "agent_version"]
+    assert list(schema["properties"]) == slot_order("Envelope")
     reply = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
-    assert list(reply["properties"]) == [
-        "schema_class",
-        "reply_text",
-        "reply_derivation",
-        "conversation_title",
-        "reply_question",
-        "grounded_on",
-    ]
+    assert list(reply["properties"]) == slot_order("Reply")
+    assert classes["Reply"]["mixins"] and list(reply["properties"])[-1] == "grounded_on"
 
 
 def test_the_core_input_and_payload_are_open_but_name_their_class() -> None:

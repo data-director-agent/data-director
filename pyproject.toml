@@ -229,7 +229,11 @@ testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tes
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
 # `dd_agent_advisor_standards.testing`, not in a test directory.
-addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network"
+# -n auto spreads the session over every core (pytest-xdist): about 40 s instead of 100 s for the
+# whole suite, for under a second of start-up on a single file. --dist loadfile keeps each test
+# module on one worker, so its module fixtures and teardown run as they do serially. Pass -n0 to
+# run in one process, to use a debugger or read output in order.
+addopts = "--strict-markers --strict-config -ra --record-mode=none --block-network -n auto --dist loadfile"
 filterwarnings = [
   "error",
   # a2a-sdk 1.1 calls protobuf's deprecated FieldDescriptor.label(); with warnings as errors the

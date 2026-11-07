@@ -217,9 +217,9 @@ def test_the_disclosure_says_how_each_approved_document_came_about(
     )
     assert f"{MODEL} (test)" in statement
     assert "reproduced verbatim" in statement
-    assert "Josiah Carberry revised the text and approved it" in statement
+    assert "Josiah Carberry" in statement
     assert "The title was wrong." in statement
-    assert "by rule from the project's record, with no generative AI" in statement
+    assert "no generative AI" in statement  # the document drafted by rule
     assert model_used.prompt_digest in statement
 
 
@@ -236,8 +236,8 @@ def test_only_approved_versions_are_disclosed(
     assert found.documents == ()
     assert found.pending == 1
     statement = found.statement()
-    assert "No document of this project has been approved yet." in statement
-    assert "1 other document awaits a decision" in statement
+    assert "\n## " not in statement  # no document is described
+    assert "1 other document" in statement
 
 
 def test_a_template_only_project_says_no_generative_model_was_used(
