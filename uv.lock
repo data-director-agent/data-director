@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1394,10 +1394,14 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "data-director-agent-advisor-documentation" },
+    { name = "data-director-agent-advisor-files" },
+    { name = "data-director-agent-advisor-metadata" },
     { name = "data-director-agent-advisor-quality" },
     { name = "data-director-agent-advisor-standards" },
     { name = "data-director-agent-example-hello" },
     { name = "data-director-agent-orchestrator-stub" },
+    { name = "data-director-inventory" },
 ]
 
 [package.metadata]
@@ -1412,10 +1416,14 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "data-director-agent-advisor-documentation", editable = "agents/advisor-documentation" },
+    { name = "data-director-agent-advisor-files", editable = "agents/advisor-files" },
+    { name = "data-director-agent-advisor-metadata", editable = "agents/advisor-metadata" },
     { name = "data-director-agent-advisor-quality", editable = "agents/advisor-quality" },
     { name = "data-director-agent-advisor-standards", editable = "agents/advisor-standards" },
     { name = "data-director-agent-example-hello", editable = "agents/example-hello" },
     { name = "data-director-agent-orchestrator-stub", editable = "agents/orchestrator-stub" },
+    { name = "data-director-inventory", editable = "inventory" },
 ]
 
 [[package]]
