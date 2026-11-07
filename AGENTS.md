@@ -78,16 +78,39 @@ issue is a parent with sub-issues. Labels say where and what about:
   `accessibility`, and `needs spec` for a change to a fixed format.
 - `good first issue`, `help wanted` and `blocked` (waiting on something outside the project).
 
-Pull requests carry their kind and scope in the Conventional Commit title, so they take no labels
-by hand. `dependencies`, `python:uv`, `javascript` and `autorelease: …` are applied by Dependabot
-and release-please; leave them alone.
+Pull requests take no labels by hand ([Pull requests](#pull-requests)).
 
-Pull requests are squash-merged and release-please reads the title as the commit subject, so a
-PR title is a Conventional Commit: `type(scope)!: summary`, with a lower-case summary and no
-closing full stop (`feat(app): register every in-tree agent`). A branch name is lower-case words
-joined by hyphens, optionally grouped with slashes (`ci-faster`). `.github/workflows/names.yml`
-checks both; check locally with
-`python3 scripts/check_names.py --title "…" --branch "$(git branch --show-current)"`.
+## Pull requests
+
+Read this before you open a pull request, whether with `create_pull_request`, `gh` or any other
+route. A wrong title fails the **Names** check, and the title is yours to set: it is not derived
+from the commits or the branch.
+
+- **Title.** Pull requests are squash-merged and release-please reads the title as the commit
+  subject, so it is a Conventional Commit: `type(scope)!: summary`. `type` is one of `build`,
+  `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`. The summary
+  starts with a lower-case word, has no closing full stop, and the whole title is at most 90
+  characters. `feat(app): register every in-tree agent` is right; `Add approved metadata record
+  support to draft requests` is not (no type, capitalised) and fails the **Names** check. Pick the
+  type from the change (`feat` for new behaviour, `fix`, `docs`, `ci`, …) and the scope from the
+  part touched (`app`, `harness`, `sdk`, `workbench`, `agents`, `docs`, …); add `!` for a breaking
+  change.
+- **Branch.** Lower-case words joined by hyphens, optionally grouped with slashes (`ci-faster`),
+  at most 60 characters. A branch the environment assigns you (`claude/…`) already passes; keep it.
+- **Check before you open it**, and again if you edit the title afterwards:
+  `python3 scripts/check_names.py --title "…" --branch "$(git branch --show-current)"`. No output
+  and exit 0 means it will pass. `.github/workflows/names.yml` runs the same script, on every
+  push and every title edit, so a wrong title is fixed by editing it (no new commit).
+- **Labels.** None by hand: the Conventional Commit title carries kind and scope.
+  `dependencies`, `python:uv`, `javascript` and `autorelease: …` are applied by Dependabot and
+  release-please; leave them alone.
+- **Project status** (`.github/workflows/project-status.yml`) puts the pull request on the
+  project board when it is opened or marked ready for review. It uses the repository secret
+  `PROJECT_TOKEN`; when that is unset the job fails with "To use GitHub CLI in a GitHub Actions
+  workflow, set the GH_TOKEN environment variable". That failure comes from repository settings
+  and not from your change, so do not edit the workflow or the pull request to chase it. It does not
+  re-run on title edits or pushes. Tell the user that the organisation owner must set
+  `PROJECT_TOKEN` (the setup is in the workflow's header comment) and leave it at that.
 
 ## Keeping the board accurate
 
