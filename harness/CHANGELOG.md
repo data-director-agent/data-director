@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-alpha.4](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.3...harness-v0.2.0-alpha.4) (2026-11-07)
+
+
+### Features
+
+* **agents:** ask the researcher about each gap in a drafted document ([#602](https://github.com/data-director-agent/data-director/issues/602)) ([bf91107](https://github.com/data-director-agent/data-director/commit/bf911077a941a6a4199d1c0b293d2d26533b4cf7))
+
 ## [0.2.0-alpha.3](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.2...harness-v0.2.0-alpha.3) (2026-11-06)
 
 
