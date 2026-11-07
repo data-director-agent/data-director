@@ -29,11 +29,16 @@ What is built:
   ([System](system.md)). An identifier that export does not hold is refused;
 - the DataCite and ORDA sets;
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
-  `dd-harness project package`).
+  `dd-harness project package`);
+- validating and building the package in the app, which calls `dd_harness.deposit` in process
+  and draws its results ([The app](app.md)): `POST /api/projects/{id}/validation` checks the
+  project and keeps the report; `POST /api/projects/{id}/package` builds the package, or answers
+  `409` with the validation that stopped it; `GET /api/projects/{id}/packages/{digest}` downloads
+  a package the project log records as built (`app/tests/test_deposit_package.py`).
 
 A researcher chooses a repository in the app from an advisor's shortlist
-(`PUT /api/projects/{id}/repository`, [App](app.md)). Validating and building the package in the
-app is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
+(`PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
+TODO(#394, #200).
 
 ## Invariants
 

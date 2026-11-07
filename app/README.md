@@ -87,6 +87,15 @@ It is built from:
     refused. A decision on a version that is no longer the latest or undecided, or whose
     `digest` is not that of its text, is a 409 and is recorded as refused
     ([Projects](../docs/specs/projects.md));
+  - `POST /api/projects/{id}/validation`: validates the project against the requirements
+    recorded for the repository chosen last, for the person signed in, and keeps the report;
+    answers with each violation and warning in the harness's words and the SHACL Validation
+    Report ([Deposit](../docs/specs/deposit.md));
+  - `POST /api/projects/{id}/package`: validates the project and, only if it has no violation,
+    builds the deposit package, answering with the validation and the package's digest, size and
+    download path; a project with a violation is a 409 `package-refused` problem whose
+    `validation` says why. `GET /api/projects/{id}/packages/{digest}` is a package the project
+    log records as built, as a zip. Every signed-in person may reach any project (until #389);
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant ([Orchestration](../docs/specs/orchestration.md)) and refuses every other
     request, so the app is no general A2A way in;

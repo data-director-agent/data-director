@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from collections.abc import Iterator
@@ -9,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from dd_agent_advisor_standards import factory as standards
 from dd_app.config import settings_from_env
@@ -22,6 +24,35 @@ APP_URL = "http://app.test"
 # keeps them current: commit what changed. In CI (`CI` set) a stale fixture fails instead, unless
 # DD_WRITE_FIXTURES=1.
 FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
+# A re3data export pinned for a test: two repositories and the standards each declares.
+ORDA = "r3d100012124"
+ZENODO = "r3d100010468"
+EXPORT = "re3data:export:2026-11"
+# The fields a choice reads, as the export's registry.jsonl holds them.
+RECORDS = (
+    {
+        "re3data_id": ORDA,
+        "name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
+        "metadata_standards": ["Dublin Core"],
+    },
+    {"re3data_id": ZENODO, "name": "Zenodo", "metadata_standards": ["DataCite Metadata Schema"]},
+)
+
+
+def pin_export(root: Path) -> Path:
+    """A `sources.yaml` pinning a re3data export of `RECORDS`, as `dd-re3data fetch` builds."""
+    root.mkdir(parents=True, exist_ok=True)
+    data = "".join(json.dumps(r, sort_keys=True) + "\n" for r in RECORDS).encode()
+    (root / "registry.jsonl").write_bytes(data)
+    entry = {
+        "snapshot_refs": [EXPORT],
+        "path": "registry.jsonl",
+        "id_field": "re3data_id",
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+    config = root / "sources.yaml"
+    config.write_text(yaml.safe_dump({"sources": [entry]}), "utf-8")
+    return config
 
 
 def _rewrite_fixtures() -> bool:
