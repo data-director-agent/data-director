@@ -10,6 +10,7 @@ name: Project status
 #   - repository secret PROJECT_APP_PRIVATE_KEY: a private key generated for that app.
 #     The workflow's own GITHUB_TOKEN cannot write to an organisation project, so each run mints a
 #     short-lived installation token from the app.
+#     the workflow's own GITHUB_TOKEN cannot write to an organisation project.
 # Until PROJECT_NUMBER is set the job is skipped, so this file does nothing in a fork.
 #
 # It runs on pull_request_target so that it also covers pull requests from forks, which a
