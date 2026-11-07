@@ -1,7 +1,7 @@
 # The agent registry
 
-The registry is the workbench's list of agents it can call. The conductor, the CLI, the
-transports and the viewer all read the agent list from it. None of them names an agent in code.
+The registry is the harness's list of agents it can call. The conductor, the transports and
+every way in (the app, the workbench's CLI and viewer) read the agent list from it. None of them names an agent in code.
 The decision behind this design is [Agents](../../docs/specs/agents.md). It replaced the
 entry-point discovery of [Agents](../../docs/specs/agents.md).
 
@@ -9,8 +9,10 @@ The code is in `harness/src/dd_harness/registry.py`. The A2A client it uses is i
 
 ## Where the list comes from
 
-Each agent is a separate service. The workbench finds them through one configuration file,
-[`../agents.yaml`](../../workbench/agents.yaml):
+Each agent is a separate service. The harness finds them through one configuration file, named
+by `DD_AGENTS_CONFIG` or supplied by the way in: the app's is
+[`app/config/agents.yaml`](../../app/config/agents.yaml) and the workbench's development list is
+[`workbench/agents.yaml`](../../workbench/agents.yaml):
 
 ```yaml
 agents:
@@ -28,7 +30,7 @@ the models it sends data to (`models`, [Policy and identity](../../docs/specs/po
 
 ## What happens at start-up
 
-The workbench builds the registry once, when it starts. For each entry in `agents.yaml` it:
+The harness builds the registry once, when the process starts. For each entry in `agents.yaml` it:
 
 1. fetches the agent card from `<url>/.well-known/agent-card.json`;
 2. finds the Data Director extension, `https://w3id.org/data-director/a2a/agent-spec/v0`, in the
@@ -41,18 +43,18 @@ The workbench builds the registry once, when it starts. For each entry in `agent
 The `agent_id` comes from the card, not from `name` in `agents.yaml`. Requests, profiles and
 envelopes use the `agent_id`, for example `example.hello`.
 
-The workbench does not read the file again while it runs. If an agent starts after the
-workbench, or its URL changes, restart the workbench to pick it up. Each CLI command is a new
+The harness does not read the file again while it runs. If an agent starts after the app, the
+workbench or `dd-harness serve`, or its URL changes, restart that process to pick it up. Each CLI command is a new
 process, so it always reads the current state.
 
 ## When something is wrong
 
-Some problems stop the workbench from starting. Others affect only one agent.
+Some problems stop the process from starting. Others affect only one agent.
 
 | Problem | What happens |
 |---|---|
-| `agents.yaml` is missing, has no top-level `agents:` list, or an entry has no `url` | `RegistryError`. The workbench does not start. |
-| Two cards declare the same `agent_id` | `RegistryError`. The workbench does not start. |
+| `agents.yaml` is missing, has no top-level `agents:` list, or an entry has no `url` | `RegistryError`. The process does not start. |
+| Two cards declare the same `agent_id` | `RegistryError`. The process does not start. |
 | The card cannot be fetched (the service is down, the URL is wrong, or the request times out) | The agent is recorded as **unavailable**, with the reason. The other agents still load. |
 | The card has no Data Director extension; names a class it carries no schema for; carries a schema that does not match its digest; or declares a payload class that does not mix in `Grounded` | The agent is recorded as unavailable, with the reason. A class the harness has not seen before is not a reason: the card carries its schema ([Contract](../../docs/specs/contract.md)). |
 | The card declares a `contract_version` this harness cannot govern, or none | The agent is recorded as **incompatible**, with both versions. The other agents still load ([Contract](../../docs/specs/contract.md)). |
@@ -83,14 +85,14 @@ therefore always agree with one another.
 |---|---|
 | `uv run workbench agents` | A table of registered agents, then each unavailable or incompatible agent with its reason. Add `--json` for the raw manifest. |
 | `GET /agents` | `{"agents": [...manifest...], "unavailable": {name: reason}, "incompatible": {name: reason}}`. The viewer reads this. |
-| The workbench's own A2A card | One skill per registered agent, tagged with its grounding mode, the classes it accepts and its requirement identifiers. |
+| The harness's own A2A card | One skill per registered agent, tagged with its grounding mode, the classes it accepts and its requirement identifiers. |
 | The viewer | The agent picker, grouped by the prefix of each `agent_id`. Unavailable and incompatible agents appear with their reason and cannot be run. The payload view badges fields from the agent's `derivations` in the manifest. |
 
 ## Adding or removing an agent
 
 To add an agent, serve it and add one entry to `agents.yaml`. Then enable it in the profiles
 that should run it. The full steps are in [`../../agents/README.md`](../../agents/README.md).
-To remove an agent, delete its entry. No other part of the workbench is edited.
+To remove an agent, delete its entry. No part of the harness, the app or the workbench is edited.
 
 For local development, `scripts/run-agents.sh` at the repository root starts every agent on the
 port `agents.yaml` expects.
@@ -106,7 +108,7 @@ agent, without a network.
 
 ## Not yet decided
 
-- Authentication between the workbench and its agents. TODO(#17) ([Agents](../../docs/specs/agents.md)). Until it exists, do not
+- Authentication between the harness and its agents. TODO(#17) ([Agents](../../docs/specs/agents.md)). Until it exists, do not
   expose agent ports beyond the host or a private network.
-- Reloading the registry, or checking agent health, while the workbench runs. TODO(#251).
+- Reloading the registry, or checking agent health, while the harness runs. TODO(#251).
 - Container images and a `compose.yaml` for running the agents. TODO(#223, #224) ([Agents](../../docs/specs/agents.md)).

@@ -1,7 +1,7 @@
 # Grounding
 
 An agent's output is *grounded* when everything it relies on can be traced to something the
-agent actually read during the run. The workbench checks this after every run with the grounding
+agent actually read during the run. The conductor checks this after every run with the grounding
 linter in [`harness/src/dd_harness/grounding.py`](../src/dd_harness/grounding.py)
 ([Evidence and grounding](../../docs/specs/grounding.md)).
 
@@ -10,7 +10,7 @@ linter in [`harness/src/dd_harness/grounding.py`](../src/dd_harness/grounding.py
 Language models can produce confident, plausible text that is not true. If a model is asked to
 recommend a metadata standard, it may name a record that does not exist, or one the agent never
 looked up. Grounding rules this out. An agent may only present something as a result if the run
-shows where it came from. If the agent claims something it cannot back up, the workbench
+shows where it came from. If the agent claims something it cannot back up, the conductor
 withholds the result rather than passing it on.
 
 ## What the check compares
@@ -29,7 +29,7 @@ delegating agent. The agent cannot change these. Other facts are declared by the
 `retrieval` and `chat` spans and their times, its `grounded_on` lists, its evidence and its
 derivation badges. An agent runs as a separate service and sends its spans back with its result
 ([Agents](../../docs/specs/agents.md)), so a `retrieval` span is the agent's statement that it
-read a record, not the workbench's observation of it.
+read a record, not the harness's observation of it.
 
 The linter is therefore a **consistency check**
 ([Evidence and grounding](../../docs/specs/grounding.md)). See [What a pass shows](#what-a-pass-shows-and-what-it-does-not).
@@ -52,7 +52,7 @@ invoke_agent    the whole run: which agent, its grounding mode, a hash of the in
 └── chat        called a language model: which model, how many tokens
 ```
 
-The workbench uses only these three span names. It also uses a small set of its own attributes,
+The harness uses only these three span names. It also uses a small set of its own attributes,
 whose names start with `dd.`, defined in `dd_sdk/tracing.py`. The check reads the tree in two
 ways:
 
@@ -82,7 +82,7 @@ grounding mode, which says what its output may rest on. There is no default.
 | `retrieval` | fetches records from outside sources, then reasons over them. | Yes, but only after it has fetched something. | only records it fetched in this run. | G0, E1, G1–G4 | `advisor.standards` |
 | `input_only` | works only on the input it was given. | Yes. | only the input. | G0, E1, R1–R3 | `advisor.quality` |
 | `none` | works only on its input, by fixed rules, with no model. The same input always gives the same result. | No. | only the input. | G0, E1, R1–R3, N1 | `example.hello` |
-| `delegation` | works on its input and on the envelopes of runs it delegated through the workbench. | Yes. | the input, and runs the conductor recorded as delegated. | G0, E1, R1, D1–D3, G4 | `orchestrator.stub` |
+| `delegation` | works on its input and on the envelopes of runs it delegated through the conductor. | Yes. | the input, and runs the conductor recorded as delegated. | G0, E1, R1, D1–D3, G4 | `orchestrator.stub` |
 
 The modes run from least to most restricted: `input_only` forbids fetching, and `none` also
 forbids model calls. Every mode still requires a successful result to cite something, even if
@@ -163,7 +163,7 @@ how a value was made. Neither check verifies it.
 ## The source check
 
 After the linter, the conductor re-hashes what the evidence cites against a copy of the source
-that the workbench holds ([Evidence and grounding](../../docs/specs/grounding.md)). `sources.yaml` lists each copy
+that the harness holds ([Evidence and grounding](../../docs/specs/grounding.md)). `sources.yaml` lists each copy
 by the evidence `snapshot_ref` it serves, and pins the file by its SHA-256 hash, so the copy
 does not depend on the agent.
 
@@ -179,7 +179,7 @@ folder, separately from `grounding.txt`.
 
 The source check shows that a cited record exists in the source and says what the evidence says.
 It does not show that the agent read the record during the run. Showing that would need
-retrieval to go through the workbench, as delegation does (TODO(#246), [Evidence and grounding](../../docs/specs/grounding.md)).
+retrieval to go through the harness, as delegation does (TODO(#246), [Evidence and grounding](../../docs/specs/grounding.md)).
 
 ## Running the checks offline
 

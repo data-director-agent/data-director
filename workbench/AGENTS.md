@@ -1,144 +1,49 @@
 # workbench
 
-The Data Director Workbench: the development way in to the harness, with the CLI, a read-only
-viewer, evaluation, and a generated `CONFORMANCE.md`. The harness itself (conductor,
-policy gate, input check, OpenTelemetry trace, per-mode grounding linter, source check, JSONL
-store, Process Run Crate, the registry of agents reached over A2A) is the package `../harness/`
-(`dd_harness`, [System and boundaries](../docs/specs/system.md)), with its test kit `dd_harness.testing`. These rules govern both. The workbench contains no agent code and no
-governance code. Agents are separate packages and services under `../agents/`, and what agents
-and the harness share (the contract, evidence, span helpers, the A2A agent server) is `../sdk/`
-([Agents](../docs/specs/agents.md)). `../docs/specs/` says how each part is meant to work and why; `docs/architecture.md` is the overview. The
-harness's own documents are in `../harness/docs/`.
+Rules for working on the workbench itself. The repository-wide rules, including the commands for
+running tests and checks, are in the root [`AGENTS.md`](../AGENTS.md); the harness's are in
+[`../harness/AGENTS.md`](../harness/AGENTS.md) and the agents' in
+[`../agents/AGENTS.md`](../agents/AGENTS.md).
 
-Two rules govern everything here:
+## What belongs here
 
-1. **Formats are decided; components sit behind interfaces.** The core LinkML schema, the owned
-   `dd.*` trace attributes, the registered evidence canonicalisations and the outcome vocabulary
-   are fixed. Changing any of them changes a spec. Agents, retrieval backends, explainers and
-   transports are swappable.
-2. **Adopt the plumbing; own the governance.** Bespoke code is limited to: the outcome vocabulary
-   and reason codes, the policy gate, the input check, the grounding linter, evidence hashing,
-   each agent's own decision logic, and the traceability rule in the conformance report.
-   Everything else is a maintained library behind a thin module ([Dependencies](../docs/specs/dependencies.md)).
+The workbench is a development client of the harness for the people who build and test agents:
+the `workbench` CLI, the AG-UI transport, the admin sign-in gate for a deployed workbench, the
+viewer (`viewer/`) and its browser tests, and the development configuration it supplies to the
+harness (`workbench.config`, `profiles/`, `agents.yaml`, `sources.yaml`).
 
-## Working on the code
+Nothing else belongs here. In particular, do not add:
 
-Python 3.14, `uv`. The repository root is a uv workspace (`sdk/`, `harness/`, `workbench/`, `agents/*`, `app/`).
-Tooling config (pytest, ruff, mypy) is in the root `pyproject.toml`; run these from the root.
+- governance code (the conductor, policy gate, input check, linter, source check, stores),
+  shared test doubles or anything a second way in would need: put it in `../harness/`;
+- anything agents and the harness share (the contract, evidence, span helpers, the agent
+  server): put it in `../sdk/`;
+- an agent's code, cases, data or scripts: put it in `../agents/<name>/`;
+- tests of the repository's scripts or its shipped configuration as a whole: put them in
+  `../scripts/tests/`;
+- anything the app needs: the app must not depend on the workbench.
 
-```bash
-uv sync --all-packages --all-extras             # after adding a workspace member
-uv run pytest                                   # network blocked; no credentials needed
-uv run ruff check . && uv run ruff format .
-uv run mypy
-uv run dd-gen-schema [agents/<x>/.../<x>.yaml]   # after editing a LinkML schema (core by default)
-scripts/run-agents.sh                           # every agent on the port agents.yaml expects
-uv run python scripts/smoke_agents.py           # every agent as a service, end to end (CI: smoke)
-uv run pytest workbench/browser_tests           # the viewer in Chromium; `playwright install chromium` once
-uv run pytest --json-report --json-report-file=.report.json && uv run python scripts/conformance_report.py
-uv run inspect eval agents/advisor-standards/src/dd_agent_advisor_standards/evals/seeded.py --model none   # the standards advisor evaluation ([Evaluation and conformance](../docs/specs/evaluation.md)); needs DD_PRINCIPAL_*
-uv run python workbench/scripts/eval_compare.py OLD.eval NEW.eval             # what changed between runs
-```
+If what you are writing would be useful to the app, an agent or another way in to the harness,
+it does not belong in the workbench.
 
 ## Load-bearing things
 
-- **Every `schema/generated/` is generated.** Edit the LinkML file beside it (the core's
-  `data_director.yaml`, an agent's `<name>.yaml`, the doubles' `../harness/src/dd_harness/schema/doubles.yaml`), run
-  `uv run dd-gen-schema [file]`, and keep the Pydantic models in step; each package's tests call
-  `dd_sdk.schema.gen.stale` and `ClassSchema.of` refuses a model that has drifted.
-- **The core holds no agent's classes ([Contract](../docs/specs/contract.md)).** An agent declares its input and payload
-  classes in its own LinkML file, and its card carries their schemas pinned by digest. The
-  workbench knows a class only from a card. If you find yourself adding an agent's class to
-  `data_director.yaml`, or a list of class names to the SDK or the workbench, stop.
-- **The harness and the workbench import no agent.** Agents are services reached through
-  `RemoteAgent` (`dd_harness.remote`); `agents.yaml` lists their URLs. Tests may import agent
-  packages to serve them in memory (`dd_harness.testing.in_process`), and `src/` must not. If you find
-  yourself importing `dd_agent_*` from `src/workbench/` or `../harness/src/`, stop.
-- **The harness stands on its own ([System and boundaries](../docs/specs/system.md)).** `../harness/src/` imports `dd_sdk` and
-  third-party libraries only, never `workbench`, `dd_app`, an agent or `inspect_ai`;
-  `harness/tests/test_harness_boundary.py` enforces it. The harness has no configuration of its
-  own: each path comes from a `DD_*` variable or the caller's default, and the workbench's
-  defaults are in `workbench.config`. If you find yourself computing a default from a harness
-  module's `__file__`, stop.
-- **Adding an agent touches nothing central.** A package under `../agents/` with `AgentSpec` +
-  `run` + `build` + `main`, one line in `agents.yaml`, a sample, the payload's `derivations`,
-  marked tests, a profile entry. Recipe: `../agents/README.md`; `../agents/example-hello/` is the worked
-  example to copy. If you find yourself editing the conductor, linter, CLI, transport or viewer
-  to add an agent, stop.
-- **An agent's spans come back over the wire.** `RemoteAgent.call` returns them in
-  `Received.spans`, beside the `AgentResult`, never inside it; the conductor imports them into
-  its trace before linting. G0 rejects a span outside the `invoke_agent` tree or one carrying a
-  conductor attribute. Do not filter imported spans by trace id; that would hide such spans from
-  G0.
-- **Only the conductor fills identifiers, timestamps, telemetry, grounding mode and input hash.**
-  An agent returns an `AgentResult` (outcome, payload, evidence). If you find yourself setting
-  `invocation_id` or `grounding_mode` in an agent, stop.
-- **Only the authentication boundary names the human ([Policy and identity](../docs/specs/policy-and-identity.md)).** A transport asks its
-  `Authenticator` and passes `acting_for` to `Conductor.invoke`. The conductor holds no default,
-  and a delegated child acts for the grant's principal. The stub (`OperatorAssertion`) records
-  `assurance: asserted`; do not describe that as authenticated. If you find yourself reading
-  `acting_for` from a request body, sending it to an agent, or giving the conductor a default,
-  stop. Tests act for `dd_harness.testing.TEST_PRINCIPAL`.
-- **Only the conductor sets lineage.** `parent_invocation_id` and `delegations` come from a
-  delegation grant the conductor issued; `invoke` refuses a request that carries
-  `parent_invocation_id`. An orchestrator delegates through `ctx.delegate`, never by calling an
-  agent directly ([Orchestration](../docs/specs/orchestration.md)).
-- **An input or payload class carries `schema_class`; a payload class mixes in `Grounded`.**
-  `grounded_on` is the only place identity is asserted. A payload without it fails the linter
-  (G0) by design, and a card whose payload schema does not require it is refused. Do not add a
-  payload class without the mixin.
-- **The linter applies the agent's declared mode.** `retrieval`: G1–G4. `input_only`: R1–R3.
-  `none`: R1–R3 + N1. `delegation`: R1, D1–D3, G4 ([Orchestration](../docs/specs/orchestration.md)). G0 and E1 apply in every mode.
-  A violation downgrades `succeeded` to `failed`. Do not weaken a rule to make a test pass; do
-  not add a mode without changing the grounding spec.
-- **A content problem is an outcome, not an exception.** Empty search → `abstained`; registry down
-  → `abstained(registry_unavailable)`; policy refusal → `failed` with Problem Details or
-  `referred`; wrong input class → `failed(input-not-accepted)`. Exceptions are for programmer and
-  configuration errors (`ContractViolation`, `PolicyError`, `UnknownAgent`, `RegistryError`).
-- **The linter checks consistency, not retrieval ([Evidence and grounding](../docs/specs/grounding.md)).** An agent's `retrieval` spans are
-  its own declarations. `dd_harness.sources` re-hashes cited records against the pinned copies in
-  `sources.yaml`. An unresolved item is never counted as verified, and a source file is never
-  read without its `sha256` pin. Do not describe `grounding: passed` as proof that an agent
-  retrieved anything.
-- **A canonicalisation is registered, never invented.** `dd_sdk.evidence.CANONICALISATIONS`; a new
-  projection is a new name, and an existing name's bytes never change.
-- **A rule with missing inputs returns `None`, never `0.0`** (`agents/advisor-standards/src/dd_agent_advisor_standards/rank.py`).
-- **Evaluation is not conformance ([Evaluation and conformance](../docs/specs/evaluation.md)).** An evaluation test carries no requirement marker.
-  A defect (`dd_agent_advisor_standards.evals.defects.DEFECTS`) is registered and never edited: a new mutation
-  is a new name. Scores stay separate, never blended, and a scorer that does not apply returns
-  NOANSWER, not 0. `baseline.json` changes only in a commit of its own that says why, written by
-  `workbench/scripts/eval_compare.py --write-baseline`; `test_standards_evals.py` fails on any drift from
-  it, better or worse.
-- **A review is recorded, never invented ([Evaluation and conformance](../docs/specs/evaluation.md)).** `../docs/reviews.yaml` holds human reviews
-  of requirements whose `assessed_by` names `review`. Only the reviewer adds an entry, or someone
-  on their written instruction; an entry is never edited, and a new finding is a new entry. Do not
-  write a review entry yourself. The test and review verdicts stay in separate columns, never
-  combined.
-- **Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`**, and
-  the ID must be in `../docs/requirements.yaml`. Do not mark a test with an ID it does not actually
-  exercise; a demonstration agent does not substantiate a Blueprint `R` it does not meet.
-- **An identity is stated once, in `grounded_on` ([Evidence and grounding](../docs/specs/grounding.md)).** What a reader is shown about a
-  cited record comes from the evidence item's `content`, which E1 re-hashes. Do not add a
-  descriptive copy of a grounded record to a payload class; that copy would be unchecked.
-- **`agents/advisor-standards/data/fairsharing/snapshot.jsonl` is CC BY-SA 4.0** (see its LICENCE.md). Rebuild
-  with `agents/advisor-standards/scripts/build_snapshot.py`; do not hand-edit records.
-- **`viewer/icons.svg` is generated.** It is a sprite of Lucide icons (ISC, `viewer/icons.LICENCE`)
-  built by `scripts/build_icons.py` from a pinned, hash-checked `lucide-static`; add an icon to
-  `ICONS` there and rerun, never by hand. Icons are decorative (`aria-hidden`), sit beside visible
-  text or inside a labelled control, and each outcome status has exactly one (`STATUS_ICONS`).
+- **`src/` imports no agent.** Agents are services reached through `RemoteAgent`
+  (`dd_harness.remote`); `agents.yaml` lists their URLs. Tests may import agent packages to serve
+  them in memory, and `src/workbench/` must not.
+- **The workbench knows a class only from a card.** If you find yourself adding a list of class
+  names, or an agent's name, to the CLI, transport or viewer, stop.
+- **`viewer/icons.svg` is generated.** It is a sprite of Lucide icons (ISC,
+  `viewer/icons.LICENCE`) built by `scripts/build_icons.py` from a pinned, hash-checked
+  `lucide-static`; add an icon to `ICONS` there and rerun, never by hand. Icons are decorative
+  (`aria-hidden`), sit beside visible text or inside a labelled control, and each outcome status
+  has exactly one (`STATUS_ICONS`).
 - **The viewer's CDN modules are pinned and recorded.** Each `esm.sh` import in `viewer/js/`
   names an exact version, and `browser_tests/esm.sh.har.zip` holds their responses so the browser
   tests run without the network. Re-record it with `--update-har`, never by hand;
   `test_viewer.py` fails if an import is missing from it. A browser test fails on any console
   error; a test that expects one removes it from `page_errors`.
-- **The manifest says what an agent does, not how to draw it ([Agents](../docs/specs/agents.md)).** An agent declares how
-  it produces each payload field in `AgentSpec.derivations`; the viewer works out the rest of the
-  payload's presentation from the schema, whose property order `dd-gen-schema` keeps as the
-  LinkML slot order. Do not add an RJSF fragment, widget name or layout hint to `AgentSpec`.
-- **Cassettes must not contain credentials.** The root `conftest.py` filters the auth headers and
-  the sign-in password; check a new cassette before committing it.
-- **Test module basenames are unique across the workspace.** Test directories are not packages;
-  shared doubles live in `dd_harness.testing` and `dd_agent_advisor_standards.testing`.
 
-British English, declarative prose, `TODO(#123)` naming its issue rather than a plausible guess
-(root `AGENTS.md`).
+```bash
+uv run pytest workbench/browser_tests           # the viewer in Chromium; `playwright install chromium` once
+```

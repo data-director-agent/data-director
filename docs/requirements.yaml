@@ -5,7 +5,7 @@
 # CONFORMANCE.md whether or not any test substantiates it. A row with no passing test is
 # rendered "unsubstantiated" — that is the intended default, not a gap to hide. The register
 # therefore lists every functional (R) and non-functional (C) requirement in the Blueprint's §7
-# tables, not only the ones the workbench exercises.
+# tables, not only the ones the project exercises.
 #
 # source: blueprint  — the identifier and title are the Blueprint's own (docs/blueprint/07-functional-specification.md).
 # source: project    — a decomposition or obligation this project introduced; the Blueprint does
@@ -129,7 +129,7 @@ requirements:
   - id: C5.1
     source: project
     parent: C5
-    title: The workbench exposes an open API (A2A agent card and message send, AG-UI run and replay); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
+    title: The harness exposes an open API (A2A agent card and message send; AG-UI run and replay in the workbench); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
   - id: C6
     source: blueprint
     title: Accessibility
@@ -190,7 +190,7 @@ requirements:
     source: blueprint
     title: Affordability
 
-  # --- Blueprint §6 principles the workbench carries a slot for -----------------------------
+  # --- Blueprint §6 principles the project carries a slot for -------------------------------
   - id: P14
     source: blueprint
     title: Low Impact — energy footprint captured in provenance records
@@ -225,7 +225,7 @@ requirements:
     title: A conversation is a sequence of invocations sharing a conversation_id; every turn names the agent and version that produced it
   - id: DD-DELEGATION
     source: project
-    title: An orchestrator delegates only through the workbench; each child is a governed, stored invocation and the parent records it
+    title: An orchestrator delegates only through the conductor; each child is a governed, stored invocation and the parent records it
   - id: DD-ENTRY-POINTS
     source: project
     title: The orchestrator finds which of the Blueprint's three entry points (§8.1) applies, and for each phase step from there names the agent that serves it or the requirement no agent serves yet; the steps are taken from the figure captions, not checked against the figures

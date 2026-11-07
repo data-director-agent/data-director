@@ -116,6 +116,7 @@ nav:
       - Harness:
           - /harness/README.md
           - /harness/docs/*.md
+          - Working on the harness: /harness/AGENTS.md
       - Workbench:
           - /workbench/README.md
           - /workbench/docs/architecture.md
@@ -130,6 +131,7 @@ nav:
           - /inventory/README.md
           - Inventory library (TypeScript): /inventory/browser/README.md
       - Agents:
+          - Working on an agent: /agents/AGENTS.md
           - /agents/README.md
           - Orchestrator: /agents/orchestrator-model/README.md
           - Friendly Greeter (template): /agents/example-hello/README.md

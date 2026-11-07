@@ -1,11 +1,11 @@
 # The conductor
 
-The conductor is the part of the workbench that runs an agent. It takes a request, applies every
+The conductor is the part of the harness that runs an agent. It takes a request, applies every
 check, calls the agent, and returns an envelope. It lives in
 [`harness/src/dd_harness/conductor.py`](../src/dd_harness/conductor.py) as `Conductor.invoke`.
 
-Every front end calls the conductor. The CLI, the A2A endpoint and the web viewer are thin
-wrappers around it ([Transport and tracing](../../docs/specs/transport.md)). This means an agent is held to the same
+Every way in calls the conductor. The A2A endpoint, the app, and the workbench's CLI and viewer
+are thin wrappers around it ([Transport and tracing](../../docs/specs/transport.md)). This means an agent is held to the same
 rules however it is called.
 
 The conductor does not know about any particular payload class. It treats every agent the same
@@ -68,7 +68,7 @@ questions in step 1 ([Policy and identity](../../docs/specs/policy-and-identity.
 
 ## Delegation
 
-An agent in grounding mode `delegation`, such as an orchestrator, may ask the workbench to run
+An agent in grounding mode `delegation`, such as an orchestrator, may ask the conductor to run
 other agents for it ([Orchestration](../../docs/specs/orchestration.md)). It never calls
 them directly.
 

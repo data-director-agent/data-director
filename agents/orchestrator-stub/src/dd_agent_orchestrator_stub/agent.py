@@ -3,13 +3,13 @@
 
 The Blueprint's Data Director is an orchestrator: one agent a person converses with, which hands
 work to specialist agents. This package is the smallest agent that exercises that shape through
-the workbench, so the conversation contract, the delegation grant, the viewer's chat screen and the
+the harness, so the conversation contract, the delegation grant, the viewer's chat screen and the
 linter's `delegation` rules have something real to run against before a model-backed
 orchestrator exists. `orchestrator.model` (`agents/orchestrator-model/`) is that orchestrator;
 this one stays as the model-free reference, and the app's default.
 
 It routes each message by the first matching rule in `routing.yaml`, delegates to that rule's
-agent through `ctx.delegate` (never directly: the workbench runs the child as a governed
+agent through `ctx.delegate` (never directly: the conductor runs the child as a governed
 invocation and records it), and replies with a template sentence naming the agent and version
 that answered.
 
@@ -184,7 +184,7 @@ class DirectorStub:
         version="0.1.0",
         description=(
             "A rule-based stand-in for the Data Director orchestrator. Routes each message to "
-            "one specialist agent through the workbench and relays its answer, or asks where "
+            "one specialist agent through the conductor and relays its answer, or asks where "
             "the researcher is and lists the steps from that Blueprint entry point."
         ),
         action_class="advise",
@@ -210,7 +210,7 @@ class DirectorStub:
         if ctx.delegate is None:
             return _abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
-                "The workbench gave this run no way to delegate (for example, it was started "
+                "The conductor gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
             )
         chosen = entry_chosen(message)
@@ -240,7 +240,7 @@ class DirectorStub:
                 )
             return _abstain(ReasonCode.OUTSIDE_AGENT_SCOPE, f"{found} {self._routable()}")
 
-        # A refused delegation (unknown agent, unreachable workbench) raises DelegationRefused;
+        # A refused delegation (unknown agent, unreachable conductor) raises DelegationRefused;
         # the conductor records it as failed(agent-error), which is what a developer should see.
         delegated = ctx.delegate(
             found.rule.agent_id, OpenInput.model_validate(found.input_document)

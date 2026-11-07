@@ -3,13 +3,15 @@
 [![CI](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml/badge.svg)](https://github.com/data-director-agent/data-director/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/data-director-agent/data-director/graph/badge.svg?flag=agents)](https://codecov.io/gh/data-director-agent/data-director?flags[0]=agents)
 
 Each directory here is one agent: its own package, its own tests, and its own service. The
-workbench does not import any of them. It reaches each agent over A2A at the URL listed in
-`workbench/agents.yaml` ([Agents](../docs/specs/agents.md)).
+harness does not import any of them. Its conductor reaches each agent over A2A at the URL listed
+in a registry file: `app/config/agents.yaml` for the app and `workbench/agents.yaml` for the
+workbench ([Agents](../docs/specs/agents.md)). The rules for working here are in
+[`AGENTS.md`](AGENTS.md).
 
 An agent is an `AgentSpec` plus one method, `run(request, ctx) -> AgentResult`
 (`dd_sdk.agent`). `dd_sdk.serve` puts it behind A2A: it publishes the agent card with the spec,
-runs the agent under a tracer parented to the workbench's span, and returns the result with the
-spans the agent recorded. The workbench's conductor then holds the agent to its spec:
+runs the agent under a tracer parented to the conductor's span, and returns the result with the
+spans the agent recorded. The harness's conductor then holds the agent to its spec:
 
 - it refuses an input of a class the agent did not declare, or one its class schema rejects;
 - it rejects a payload of a class other than the one declared, or one its class schema rejects;
@@ -21,18 +23,18 @@ An agent never sets identifiers, timestamps, telemetry or its grounding mode.
 An agent owns its input and payload classes
 ([Contract](../docs/specs/contract.md)). It declares
 them in a LinkML file of its own, which imports the core contract, and its card carries each
-class's JSON Schema pinned by a digest. The workbench checks inputs and payloads against those
+class's JSON Schema pinned by a digest. The conductor checks inputs and payloads against those
 schemas, so it needs no copy of an agent's classes, and adding one needs no SDK release. What
 every agent shares is the core, `sdk/src/dd_sdk/schema/data_director.yaml`: the request, the
 envelope, outcomes, grounding, evidence, delegation, the principal, and the chat classes
-`Message` and `Reply`. Its `version` is the contract version each card declares; the workbench
-lists an agent built against an incompatible one as **incompatible**.
+`Message` and `Reply`. Its `version` is the contract version each card declares; the harness's
+registry lists an agent built against an incompatible one as **incompatible**.
 
 | Package | Agent id | Accepts | Mode | Payload | Serve | Status |
 |---|---|---|---|---|---|---|
 | `advisor-quality/` | `advisor.quality` | `MetadataRecord` | `input_only` | `QualityReview` | `dd-advisor-quality`, port 8102 | Demonstration: weighted completeness from `checks.yaml`. |
 | `example-hello/` | `example.hello` | `Salutation` | `none` | `Greeting` | `dd-example-hello`, port 8101 | **Template.** The Friendly Greeter: greets whoever the input names; the worked example of every step below (`example-hello/README.md`). |
-| `orchestrator-stub/` | `orchestrator.stub` | `Message` | `delegation` | `Reply` | `dd-orchestrator-stub`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the workbench ([Orchestration](../docs/specs/orchestration.md)), or lists the steps from the researcher's Blueprint entry point ([Orchestration](../docs/specs/orchestration.md)). |
+| `orchestrator-stub/` | `orchestrator.stub` | `Message` | `delegation` | `Reply` | `dd-orchestrator-stub`, port 8106 | Rule-based stand-in for the orchestrator: routes each message by `routing.yaml` and delegates through the conductor ([Orchestration](../docs/specs/orchestration.md)), or lists the steps from the researcher's Blueprint entry point ([Orchestration](../docs/specs/orchestration.md)). |
 | `orchestrator-model/` | `orchestrator.model` | `Message` | `delegation` | `Reply` | `dd-orchestrator-model`, port 8107 | The model-backed orchestrator (#21): Claude decides which agents to ask, from the manifest the harness publishes, and writes the reply. It has no tools except those delegations: no MCP server, web search or Skills ([Orchestration](../docs/specs/orchestration.md)). Needs a model key (`orchestrator-model/README.md`). |
 | `advisor-standards/` | `advisor.standards` | `DatasetProfile` | `retrieval` | `Recommendations` | `dd-advisor-standards`, port 8105 | Recommends vocabularies, ontologies and formats from FAIRsharing (committed snapshot, or live with the snapshot as fallback). Configured by `DD_STANDARDS_*` (`advisor-standards/src/dd_agent_advisor_standards/README.md`). |
 | `advisor-policy/` | `advisor.policy` | `PolicyContext` | `retrieval` | `PolicyChecks` | `dd-advisor-policy`, port 8108 | **Alpha.** Phase 2: checks what funder, journal and institutional data policies ask, from FAIRsharing's policy records, and flags where they differ; also names any repository they require for Phase 3 (`advisor-policy/README.md`). |
@@ -110,7 +112,7 @@ CLI, transports or viewer, this agent will show it.
    - `input_only` if it works over the input and may call a model.
    - `none` if it is deterministic.
    - `delegation` if it answers by handing work to other agents (an orchestrator). Call
-     `ctx.delegate(agent_id, input)`, never another agent directly; the workbench runs the child
+     `ctx.delegate(agent_id, input)`, never another agent directly; the conductor runs the child
      and returns a `Delegated` whose `ref` and `evidence` are what the payload cites for it
      ([Orchestration](../docs/specs/orchestration.md)). `ctx.delegate` is `None` when no grant was issued (for example under
      `workbench invoke`); handle that as an outcome. `orchestrator-stub/` is the worked example.
@@ -156,10 +158,13 @@ CLI, transports or viewer, this agent will show it.
 5. **Add it to the workspace.** Add the distribution to the `dependencies` and
    `[tool.uv.sources]` of the root `pyproject.toml`, then run `uv sync --all-packages`. A package
    that lives outside this repository skips this step; it only has to be served.
-6. **Register it with the workbench.** Add one entry to `workbench/agents.yaml` with a name and
-   the URL it is served at, and its port to `scripts/run-agents.sh`.
-7. **Enable it** in the profiles that should run it (`workbench/profiles/default.yaml`,
-   `workbench/profiles/test-permissive.yaml`). Registration is not permission.
+6. **Register it.** Add one entry with a name and the URL it is served at to each registry file
+   (`app/config/agents.yaml` and `workbench/agents.yaml`), and its port to
+   `scripts/run-agents.sh`.
+7. **Enable it** in the profiles that should run it (`app/config/profile.yaml.example`,
+   `workbench/profiles/default.yaml` and the harness's test profile
+   `harness/src/dd_harness/testing/profiles/test-permissive.yaml`). Registration is not
+   permission.
 8. **Ship a sample input and declare the payload's derivations.**
    - Put a sample input, with `schema_class` set, in `workbench/samples/`. The viewer builds its
      input form from the class schema in the agent's card.
@@ -171,7 +176,7 @@ CLI, transports or viewer, this agent will show it.
      the viewer lays the payload out from its schema, in LinkML slot order ([Agents](../docs/specs/agents.md)).
 9. **Test it** in `<name>/tests/`, with a test module name no other package uses. Test the
    agent through a conductor with `dd_harness.testing.make_conductor(runs_dir, YourAgent())`,
-   which serves it in memory over A2A exactly as the workbench calls it. Mark each test with the
+   which serves it in memory over A2A exactly as a deployed conductor calls it. Mark each test with the
    requirement identifiers it actually exercises (`docs/requirements.yaml`). Do not
    claim a Blueprint `R` a demonstration does not meet.
 10. **Optionally, evaluate it** ([Evaluation and conformance](../docs/specs/evaluation.md)). Put an Inspect AI task in `<package>/evals/`, built

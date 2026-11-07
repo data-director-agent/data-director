@@ -2,7 +2,7 @@
 
 The contract defines what an agent receives and what it returns. It is written in LinkML in
 [`sdk/src/dd_sdk/schema/data_director.yaml`](../sdk/src/dd_sdk/schema/data_director.yaml),
-which the workbench and every agent share through the SDK. The JSON Schema and SHACL shapes in
+which the harness and every agent share through the SDK. The JSON Schema and SHACL shapes in
 `generated/` beside it are produced from that file and are never edited by hand.
 
 ## How the contract is written
@@ -105,7 +105,7 @@ The [conductor](../harness/docs/conductor.md) fills these in, not the agent.
 
 ## Outcomes
 
-The Blueprint does not define a set of outcomes. This vocabulary is the workbench's own
+The Blueprint does not define a set of outcomes. This vocabulary is the project's own
 proposal.
 
 | Status | Meaning | Also carries |
@@ -113,8 +113,8 @@ proposal.
 | `succeeded` | The agent produced a result it stands behind. | A `payload`. |
 | `abstained` | The agent declined to give a result. This is a valid answer, not an error. | A `reason_code`, such as `no_candidates_retrieved`. |
 | `referred` | The agent passed the decision to a named person or role. | A `reason_code` and `referred_to`. |
-| `failed` | The agent or the workbench could not complete the run. | A `problem` in RFC 9457 Problem Details format. |
-| `suspended` | The run is waiting for something outside the workbench. | A `problem` that says what must happen before it can resume. |
+| `failed` | The agent or the harness could not complete the run. | A `problem` in RFC 9457 Problem Details format. |
+| `suspended` | The run is waiting for something outside the harness. | A `problem` that says what must happen before it can resume. |
 
 ## Payloads
 
@@ -147,11 +147,12 @@ with a `ChoiceAnswer` (`choice_answer`): the run it answers, the values chosen a
 their own words, beside the same answer in `message_text`. The researcher may also ignore it and
 type; nothing waits for the answer.
 
-The workbench keeps no separate conversation store. `GET /conversations` lists conversations and
-`GET /conversations/{id}` returns one, read back from the stored runs: each turn with the runs it
+The harness keeps no separate conversation store: `dd_harness.conversations` reads each one back
+from the stored runs. In the workbench, `GET /conversations` lists conversations and
+`GET /conversations/{id}` returns one: each turn with the runs it
 delegated, the stored inputs, where an agent's version changed between turns, and the history to
 send with the next `Message`.
 
-An orchestrator hands work to other agents only through the workbench. Each hand-off is a run of
+An orchestrator hands work to other agents only through the conductor. Each hand-off is a run of
 its own, stored with `parent_invocation_id`, and listed in the parent envelope's `delegations`.
 [`conductor.md`](../harness/docs/conductor.md) describes how.
