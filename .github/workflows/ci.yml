@@ -477,7 +477,7 @@ jobs:
       - run: uvx cffconvert --validate --infile CITATION.cff
       # Everyone who authors or co-authors a commit is cited (CONTRIBUTING.md, Credit).
       - run: uv run --python 3.14 scripts/check_citation.py
-      # Each to-do marker names the issue that will resolve it (AGENTS.md, writing conventions).
+      # Each to-do marker names the issue that will resolve it (AGENTS.md, "Writing").
       - run: uv run --no-project --python 3.14 scripts/check_todos.py
       # Both sources.yaml files pin the re3data registry that the repository advisor's manifest
       # pins (agents/advisor-repository/README.md, "Sources").

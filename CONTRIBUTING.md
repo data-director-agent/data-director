@@ -29,22 +29,32 @@ issue form, chosen when you [open an issue](https://github.com/data-director-age
 
 ## Repository structure
 
-This repository is organised as follow:
+The repository root is a uv workspace. Put each piece of code in the package whose job it is, not
+the one you happen to have open. The workbench was the first package, and that does not make it
+the default home for anything.
 
-* `docs/` contains what governs every package: the Blueprint, the specifications (`docs/specs/`),
-  the contract, the glossary, the requirements register and the review record. A package's own
-  documents are in its own `docs/` (`harness/docs/`, `workbench/docs/`)
-* `app/` contains the Data Director app that people use (alpha); its browser shell in `app/web`
-  needs Node 22 or later and npm (`app/README.md`)
-* `sdk/` contains what agents and the harness share: the contract, evidence and the agent server
-* `harness/` contains the governance every agent invocation goes through ([System and boundaries](docs/specs/system.md))
-* `workbench/` contains the development environment for building and testing sub-agents
-* `agents/` contains one package per agent, including alpha-versioned experimental ones
-  (`agents/README.md`)
+| What you are writing | Where it goes |
+| --- | --- |
+| The contract, evidence, span helpers, the agent server: anything agents and the harness share | `sdk/` (`dd_sdk`) |
+| Governance: the conductor, policy gate, input check, grounding linter, source check, stores, provenance, sign-in, the A2A way in ([System and boundaries](docs/specs/system.md)) | `harness/` (`dd_harness`) |
+| Test doubles and helpers that any way in or any agent can use | `harness/` (`dd_harness.testing`) |
+| One agent's logic, schema, data, scripts, sample inputs, evaluation cases and tests; prototypes too, marked alpha by their version (`agents/README.md`) | `agents/<name>/` (sample inputs are still in `workbench/samples/` until TODO(#275) moves them) |
+| The app people use: its server, configuration (`app/config/`) and browser shell (`app/web`, React and TypeScript, Node 22 or later; [The app](docs/specs/app.md), designed from `docs/ui/best-practices.md`) | `app/` |
+| The development client for agent authors: the `workbench` CLI, AG-UI transport, viewer and its development configuration | `workbench/` |
+| `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
+| Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
+| What governs every package: the Blueprint, system overview, specifications, contract, glossary, requirements register, reviews | `docs/` |
 
-Each package keeps to its own directory, so that it can later move to a repository of its own.
-Agent Skills, MCP servers and other resources that do not use the contract belong in their own
-repositories in the organisation. [System and boundaries](docs/specs/system.md)
+A package's own documents are kept with it (`harness/docs/`, `workbench/docs/`). The workbench and
+the app are both clients of the harness. Neither holds governance, and neither may be a dependency
+of the harness, the SDK or an agent: if a second way in to the harness would need what you are
+writing, it belongs in the harness or the SDK. The app's browser shell is drawn from each agent's
+manifest and names no agent; it renders the harness's decisions and holds no policy.
+
+Each package keeps to its own directory, so that it can later move to a repository of its own: it
+imports only what it declares (tests from its own `dev` group) and reads no path outside itself
+(`scripts/check_boundaries.py`). Agent Skills, MCP servers and other resources that do not use the
+contract belong in their own repositories in the organisation. [System and boundaries](docs/specs/system.md)
 sets out both.
 
 ## Changing the design
@@ -82,7 +92,7 @@ locally from the repository root:
 | Workbench viewer in a browser | `uv run playwright install chromium && uv run pytest workbench/browser_tests` |
 | App shell (three jobs: checks, Vitest, Playwright) | in `app/web`: `npm ci && npm run lint && npm run typecheck && npm run build && npm test && npm run e2e` |
 | Links and citation file | `lychee --offline --include-fragments '**/*.md'`, `uvx cffconvert --validate`, `uv run scripts/check_citation.py`, `scripts/check_todos.py` and `scripts/check_boundaries.py` |
-| Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py` |
+| Workflows | `uvx zizmor .github`, [actionlint](https://github.com/rhysd/actionlint) and `python3 scripts/check_ci_gate.py`; every `uses:` is pinned to a full commit SHA with the version as a trailing comment (`# v1.2.3`) |
 | NGINX site | `sudo bash scripts/check_nginx.sh` (installs nginx; CI runs it on a clean runner) |
 | Developer Certificate of Origin | every commit signed off by its author: `git commit -s` |
 | Dependency review | a new dependency with a known advisory of moderate severity or worse is refused |
@@ -102,11 +112,51 @@ The app shell's accessibility checks run in the App shell jobs of `ci.yml`.
 The pytest suite blocks the network and needs no credentials. It also keeps the JSON fixtures in
 `app/web/fixtures`, which the shell's tests read, current: run locally, a test rewrites a fixture
 that no longer matches what the server says, so commit what changed. In CI a stale fixture fails
-the test instead. AGENTS.md, "Writing tests", says what a test should and should not pin down. `CONFORMANCE.md` is generated;
+the test instead. [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
 Python, JavaScript and TypeScript code and the workflows (in a pull request, only the languages it
 changes), and `audit.yml` checks every locked
 dependency against the advisory databases each day. Dependabot proposes updates weekly.
+
+## Writing tests
+
+The project is in alpha, and its wording, layout and set of agents change from week to week. A test
+should fail when behaviour breaks, not when a sentence is reworded or an agent is added:
+
+* Assert on structure: an outcome's status, a code, an identifier (`advisor.policy`, `R5`), a role
+  and accessible name. Where text is the behaviour, match a short distinctive term or a regular
+  expression, not the whole sentence.
+* Take expected lists and counts from where they are defined (`app/config/agents.yaml`, the
+  registry, the LinkML source, a fixture) rather than copying them into the test. Assert a lower
+  bound or membership where the exact number does not matter.
+* In the browser shell, query by role and accessible name; avoid CSS classes and DOM shape.
+* Test what code does, not what its source says: no searching source files for code strings or
+  pinned versions, and the public interface rather than `_private` attributes.
+* Every test that substantiates a requirement carries `@pytest.mark.requirement("<ID>")`, with an
+  ID from `docs/requirements.yaml` that it actually exercises. These tests feed `CONFORMANCE.md`:
+  loosen what they assert, but keep them. An evaluation test carries no requirement marker
+  ([Evaluation and conformance](docs/specs/evaluation.md)).
+* Test module basenames are unique across the workspace. Test directories are not packages;
+  shared doubles live in `dd_harness.testing` and in an agent's own `testing` module.
+* Cassettes must not contain credentials. The root `conftest.py` filters the auth headers and the
+  sign-in password; check a new cassette before committing it.
+
+## Issues and labels
+
+The kind of an issue is its GitHub issue type (Task, Bug or Feature), not a label; an umbrella
+issue is a parent with sub-issues. Labels say where and what about:
+
+* `area: …`: the part touched, one or more of `sdk`, `harness`, `workbench`, `app`, `agents`,
+  `docs`, `ci`.
+* Themes: `blueprint` (review or conformance against the Blueprint), `security`, `evaluation`,
+  `accessibility`, and `needs spec` for a change to a fixed format.
+* `good first issue`, `help wanted` and `blocked` (waiting on something outside the project).
+
+Pull requests take no labels by hand: the Conventional Commit title carries kind and scope.
+`dependencies`, `python:uv`, `javascript` and `autorelease: …` are applied by Dependabot and
+release-please. How issues move across the organisation's project board, and what coding agents
+keep up to date on it, is in the organisation's
+[planning guide](https://github.com/data-director-agent/.github/blob/main/PLANNING.md).
 
 ## Merging a pull request
 
@@ -157,11 +207,19 @@ and runs again when the title is edited:
 * the branch is lower-case words joined by hyphens, optionally grouped with slashes, in at most
   60 characters: `ci-faster`, `harness/run-store`
 
-Dependabot's and release-please's pull requests are exempt. Check a title and branch locally:
+Dependabot's and release-please's pull requests are exempt. The check runs on every push and
+every title edit, so a wrong title is fixed by editing it, with no new commit. Check a title and
+branch locally:
 
 ```sh
 python3 scripts/check_names.py --title "feat(app): history tab" --branch "$(git branch --show-current)"
 ```
+
+`project-status.yml` puts a pull request on the project board when it is opened or marked ready
+for review, using the repository secret `PROJECT_TOKEN`. When that secret is unset the job fails
+with "To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable". The
+failure comes from repository settings, not from the change: the organisation owner sets
+`PROJECT_TOKEN` as the workflow's header comment describes.
 
 ## Keeping `uv.lock` current
 
