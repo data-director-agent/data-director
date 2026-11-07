@@ -228,7 +228,7 @@ def disclose(projects: ProjectStorage, runs: RunStorage, project_id: str) -> Dis
 def _disclose(
     runs: RunStorage, document: dict[str, Any], version: dict[str, Any]
 ) -> DocumentDisclosure:
-    chain = _chain(document, version)
+    chain = version_chain(document, version)
     drafted = next((v for v in reversed(chain) if v.get("drafted_by")), None)
     draft = _draft(runs, drafted["drafted_by"]) if drafted else None
     after = chain[chain.index(drafted) + 1 :] if drafted else chain
@@ -260,7 +260,7 @@ def _disclose(
     )
 
 
-def _chain(document: dict[str, Any], version: dict[str, Any]) -> list[dict[str, Any]]:
+def version_chain(document: dict[str, Any], version: dict[str, Any]) -> list[dict[str, Any]]:
     """The versions from the first a version revises back to, to the version, oldest first."""
     by_number = {v["version"]: v for v in document["versions"]}
     chain = [version]
@@ -334,7 +334,7 @@ def _sentence_end(text: str) -> str:
 def _version_nodes(put: Any, d: DocumentDisclosure, link: dict[str, Any]) -> None:
     """The PROV nodes for one version of the chain: the version, what generated it, and, for the
     approved version, its approval."""
-    vid = _version_id(link["document_id"], link["version"])
+    vid = version_id(link["document_id"], link["version"])
     node: dict[str, Any] = {
         "@id": vid,
         "@type": ["prov:Entity", "schema:CreativeWork"],
@@ -344,7 +344,7 @@ def _version_nodes(put: Any, d: DocumentDisclosure, link: dict[str, Any]) -> Non
         "schema:version": link["version"],
     }
     if revises := link.get("revises"):
-        node["prov:wasRevisionOf"] = {"@id": _version_id(link["document_id"], revises["version"])}
+        node["prov:wasRevisionOf"] = {"@id": version_id(link["document_id"], revises["version"])}
     draft: Draft | None = link["draft"]
     if draft is not None:
         agent = AGENT_BASE + draft.agent_id
@@ -384,7 +384,7 @@ def _version_nodes(put: Any, d: DocumentDisclosure, link: dict[str, Any]) -> Non
             if m.called_at:
                 call["prov:startedAtTime"] = _datetime(m.called_at)
             if m.prompt_digest:
-                prompt = _ni(m.prompt_digest)
+                prompt = ni(m.prompt_digest)
                 put(
                     {
                         "@id": prompt,
@@ -450,11 +450,11 @@ def _person(put: Any, principal: dict[str, Any]) -> str:
     return str(principal["principal_id"])
 
 
-def _version_id(document_id: str, version: int) -> str:
+def version_id(document_id: str, version: int) -> str:
     return f"urn:uuid:{document_id}#v{version}"
 
 
-def _ni(digest: str) -> str:
+def ni(digest: str) -> str:
     """The RFC 6920 `ni` URI of a SHA-256 hex digest."""
     raw = bytes.fromhex(digest)
     return "ni:///sha-256;" + base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")

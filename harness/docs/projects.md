@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided` or `document_change_refused`. |
+| `event` | What happened: `project_created`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_change_refused`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -58,6 +58,31 @@ TODO(#141).
 | `digest` | The SHA-256 of the merged requirements' canonical bytes, under which the blob is kept. |
 | `canonicalisation` | `dd-input-json-v1`. |
 | `warnings` | What the researcher was told: that the repository does not list DataCite, or that the deployment has no override for it. |
+
+`project_validated` records a validation of the project against the merged requirements of the
+repository chosen last ([Deposit](../../docs/specs/deposit.md)), made by `dd-harness project
+validate` or before a package is built. It also gives:
+
+| Member | What it is |
+|---|---|
+| `digest` | The SHA-256 of the SHACL Validation Report's canonical bytes, under which the blob is kept. |
+| `canonicalisation` | `dd-input-json-v1`. |
+| `conforms` | Whether the report has no violation. |
+| `requirements_digest` | The digest of the merged requirements checked against, or null if no repository was chosen. |
+
+`package_built` records a deposit package, built only after a `project_validated` event that
+conforms. It also gives:
+
+| Member | What it is |
+|---|---|
+| `digest` | The SHA-256 of the package's zip, under which the blob is kept. |
+| `report_digest` | The digest of the validation report the package was built from. |
+| `requirements_digest` | The digest of the merged requirements it was validated against. |
+| `documents` | Each approved version it holds, as `document_id`, `document_kind`, `version` and `digest`. |
+| `runs` | The `invocation_id` of each run behind those versions. |
+| `file_count` | How many data files it describes, none of which it holds. |
+
+`ProjectStore.package(project_id, digest)` reads back a package the log records.
 
 Changes of membership ([Projects](../../docs/specs/projects.md)) will be events of the same
 log, TODO(#389).
@@ -158,5 +183,5 @@ until a person approves one. The conductor gives it to every drafter in the proj
   `metadata_record`, not its `current_version` nor any other class, and does not apply
   `hosted_models` ([Projects](../../docs/specs/projects.md)), TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
-- Nothing checks a project against its merged requirements, TODO(#19, #202).
+- The app cannot validate a project or build its package, TODO(#623).
 - How long a project is kept, and what deleting one removes, TODO(#141).

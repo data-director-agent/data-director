@@ -14,6 +14,7 @@ one by one.
 
 from __future__ import annotations
 
+import hashlib
 import tempfile
 import threading
 from collections.abc import Callable, Iterator
@@ -28,7 +29,9 @@ from dd_harness.projects import (
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_VERSION_DECIDED,
     INVENTORY_ADDED,
+    PACKAGE_BUILT,
     PROJECT_CREATED,
+    PROJECT_VALIDATED,
     REJECTED,
     ChangeRefusedError,
     Decision,
@@ -457,6 +460,43 @@ def check_the_metadata_record_is_the_one_approved_last(make: MakeProjectStorage)
     assert record["version_ref"] == {"document_id": second, "version": 1}
 
 
+def check_a_report_and_a_package_are_kept_by_digest(make: MakeProjectStorage) -> None:
+    """A validation report and a deposit package are kept by digest and named in the log
+    (docs/specs/deposit.md, invariants 8 and 9); a package the log does not name is not found."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    report = {"@type": "sh:ValidationReport", "sh:conforms": True}
+    report_digest = store.record_validation(
+        project_id,
+        report,
+        conforms=True,
+        requirements_digest=None,
+        acted_for=TEST_PRINCIPAL,
+        caused_by="check",
+    )
+    assert report_digest == input_hash(report)
+    package = b"PK\x05\x06" + bytes(18)
+    digest = store.record_package(
+        project_id,
+        package,
+        about={"report_digest": report_digest, "event": "not this"},
+        acted_for=TEST_PRINCIPAL,
+        caused_by="check",
+    )
+    assert digest == hashlib.sha256(package).hexdigest()
+    validated, built = make("projects").events(project_id)[-2:]
+    assert (validated["event"], validated["digest"]) == (PROJECT_VALIDATED, report_digest)
+    assert validated["conforms"] is True
+    assert (built["event"], built["digest"]) == (PACKAGE_BUILT, digest)
+    assert built["report_digest"] == report_digest
+    assert make("projects").package(project_id, digest) == package
+    assert store.package(project_id, "0" * 64) is None
+    with _raises(UnknownProjectError, "a package of an unknown project"):
+        store.record_package(
+            NOWHERE, package, about={}, acted_for=TEST_PRINCIPAL, caused_by="check"
+        )
+
+
 PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "the log is append-only and the latest inventory wins": (
         check_the_log_is_append_only_and_the_latest_inventory_wins
@@ -472,6 +512,7 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "the metadata record is the one approved last": (
         check_the_metadata_record_is_the_one_approved_last
     ),
+    "a report and a package are kept by digest": check_a_report_and_a_package_are_kept_by_digest,
 }
 
 

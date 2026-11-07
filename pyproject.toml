@@ -280,7 +280,7 @@ warn_unreachable = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*", "linkml_runtime.*", "axe_playwright_python.*"]
+module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrate.*", "rocrate_validator.*", "opentelemetry.*", "google.protobuf.*", "anthropic.*", "sse_starlette.*", "linkml_runtime.*", "axe_playwright_python.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

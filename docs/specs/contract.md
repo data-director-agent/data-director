@@ -156,9 +156,11 @@ schema.org, PROV) says so with `slot_uri` or `class_uri`. A slot without an exte
 **Validation reports.** Structured validation output (C15) uses the W3C SHACL Validation Report
 vocabulary (`sh:ValidationReport`, `sh:ValidationResult`), with a Frictionless validation report
 for tabular data. No bespoke report type is defined. SHACL shapes are generated for the core
-only. Running SHACL validation and emitting reports is not built yet: the only validation today
-is JSON Schema validation raising `ContractViolation`, which is a programmer or configuration
-error, never a content outcome. TODO(#19)
+only. The harness writes a report when it validates a project for deposit, from shapes generated
+from the chosen repository's requirements ([Deposit](deposit.md)). Payloads are not checked
+against SHACL shapes: their only validation is JSON Schema validation raising
+`ContractViolation`, which is a programmer or configuration error, never a content outcome.
+TODO(#19)
 
 **RO-Crate.** RO-Crate is a record written after a run, not a message format. Callers, the
 harness and agents exchange `InvocationRequest` and `Envelope` over A2A, validated against the
@@ -242,14 +244,13 @@ touching the contract, the agents or the checks.
 - Problem type URIs and agent identifiers use the w3id namespace, which is not yet registered.
   TODO(#3)
 - Whether an agent's classes get SHACL shapes, and where a validation report would find them;
-  running SHACL validation at all. TODO(#19)
+  running SHACL validation on an agent's payload. TODO(#19)
 - `TableField` slots carry `see_also` until Frictionless publishes term IRIs. TODO(#20)
 - The Process Run Crate names the harness's own files as object and result rather than the
   records the agent read or the metadata it changed; it does not link a delegated run to its
   parent, names an accountable role as a `Person`, records the outcome as an unreferenced
   `PropertyValue`, does not name the schema digests, and is not checked against the profile with
   `rocrate-validator` or aligned with PROV-O (R10). TODO(#26)
-- Checking the deposit package with the RO-Crate validator (R4). TODO(#202)
 - Envelopes stored under an older contract lack the contract version and schema digests and do not
   validate against the current schema; they are shown as raw JSON until migrated. TODO(#247)
 - Why the core models are hand-written mirrors rather than LinkML's `gen-pydantic` output is not

@@ -89,8 +89,10 @@ prompt into a floating-point number and change its digest ([Transport and tracin
 account and the PROV-O graph. The project page shows the statement and offers the statement and
 the graph for download.
 
-**The deposit package** carries the statement and the graph when it is built
-([Deposit](deposit.md)). Until then, a researcher takes them from the project page.
+**The deposit package** carries the statement as `use-of-generative-ai.md` and the graph as
+`provenance.jsonld`, written when it is built ([Deposit](deposit.md),
+`test_a_valid_project_writes_a_package_with_its_audit_trail`). Like the Process Run Crates in
+the package, they name each prompt by its digest only.
 
 ## Rationale
 
@@ -145,7 +147,7 @@ media, so they are carried alongside the PROV account, not instead of it.
 - Whether, and how, the statement is offered for the researcher to add to the README or the
   metadata record's description, which they would then approve: TODO(#478).
 - Whether a researcher may choose to include the prompts themselves in the deposit package:
-  TODO(#202).
+  TODO(#624).
 - A run that raises after calling a model reports none of its calls, and the grounding linter
   does not check that each `chat` span has a call. Both bear on audit-trail completeness:
   TODO(#26).
