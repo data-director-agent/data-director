@@ -706,7 +706,7 @@
       "requires_approval": false,
       "schemas": {
         "Message": {
-          "digest": "0380111a5dc2671faddf4c3c1c6e6e906f49c34a4c28e182457ad81279b12ede",
+          "digest": "07d01e2bf69d8b868897507c8a3d70099e6d26aec8bcb8d6d7b0998228d640db",
           "json_schema": {
             "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
             "$defs": {
@@ -831,6 +831,36 @@
                 "title": "InventorySummary",
                 "type": "object"
               },
+              "StepProgress": {
+                "additionalProperties": false,
+                "description": "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).",
+                "properties": {
+                  "step_id": {
+                    "description": "A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow).",
+                    "pattern": "^[a-z]+\\.[a-z-]+$",
+                    "type": "string"
+                  },
+                  "step_state": {
+                    "$ref": "#/$defs/StepState"
+                  }
+                },
+                "required": [
+                  "step_id",
+                  "step_state"
+                ],
+                "title": "StepProgress",
+                "type": "object"
+              },
+              "StepState": {
+                "description": "How far a process-flow step has gone; a step with none of these states is open.",
+                "enum": [
+                  "started",
+                  "done",
+                  "skipped"
+                ],
+                "title": "StepState",
+                "type": "string"
+              },
               "TurnRole": {
                 "description": "Who spoke in a conversation turn.",
                 "enum": [
@@ -844,7 +874,7 @@
             "$id": "https://w3id.org/data-director/schema/core/Message",
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
-            "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md).",
+            "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen and the progress the project log shows (docs/specs/orchestration.md).",
             "properties": {
               "choice_answer": {
                 "anyOf": [
@@ -871,6 +901,13 @@
                 "description": "What the user said in this turn.",
                 "type": "string"
               },
+              "project_entry": {
+                "description": "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "project_inventory": {
                 "anyOf": [
                   {
@@ -881,6 +918,16 @@
                   }
                 ],
                 "description": "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory."
+              },
+              "project_progress": {
+                "description": "The process-flow steps the conversation's project log shows started, done or skipped, in flow order. Filled by the conductor and never by the caller; absent when the run is in no project. Derived from the log on every turn, never stored.",
+                "items": {
+                  "$ref": "#/$defs/StepProgress"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
               },
               "schema_class": {
                 "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",

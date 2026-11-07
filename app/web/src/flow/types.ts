@@ -39,3 +39,20 @@ export interface ProcessFlow {
   entries: FlowEntry[];
   phases: FlowPhase[];
 }
+
+/** How far a step has gone, as the project log shows it; a step the server leaves out is open. */
+export type StepState = "started" | "done" | "skipped";
+
+/** What a researcher may mark a step; "open" withdraws an earlier mark. */
+export type StepMark = "done" | "skipped" | "open";
+
+/**
+ * Where a project is in the flow, derived by the harness from the project log on every read and
+ * never stored (docs/specs/orchestration.md): the entry point the researcher chose, each step
+ * started, done or skipped, and the step to suggest next. The suggestion is never a gate.
+ */
+export interface ProjectProgress {
+  entry: number | null;
+  steps: Record<string, StepState>;
+  suggested: string | null;
+}

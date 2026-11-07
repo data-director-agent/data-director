@@ -16,7 +16,10 @@ The model is sent the last `history_turns` turns of `Message.history`, oldest fi
 current message. Every turn is still covered by the input hash; what was sent follows from the
 input and the setting. When the conductor says the project holds an inventory
 (`Message.project_inventory`, docs/specs/projects.md), the current message opens with a note of it
-from the harness, so the model neither asks for one nor copies one into an agent's input.
+from the harness, so the model neither asks for one nor copies one into an agent's input. In a
+project, a second note says which entry point the researcher chose, which steps the project log
+shows started, done or skipped, and the step `suggested_next` names (docs/specs/orchestration.md):
+the model keeps no place in the flow of its own, and the prompt stays the same on every run.
 
 The parent succeeds once the model has replied, whatever its children's outcomes were. A failed
 child is on the parent's `delegations` and its own envelope, and the reply reports it
@@ -69,7 +72,8 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
-from dd_sdk.process_flow import requirements_of
+from dd_sdk.process_flow import entry as flow_entry
+from dd_sdk.process_flow import progress, requirements_of, suggested_next
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
 
@@ -226,8 +230,8 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
         }
         for turn in window
     ]
-    note = inventory_note(message)
-    text = f"{note}\n\n{message.message_text}" if note else message.message_text
+    notes = [n for n in (inventory_note(message), progress_note(message)) if n]
+    text = "\n\n".join([*notes, message.message_text])
     messages.append({"role": "user", "content": text})
     return messages
 
@@ -248,6 +252,38 @@ def inventory_note(message: Message) -> str | None:
     return (
         note + " The harness puts it into the input of any agent that takes an inventory: leave "
         "`inventory` out, and send an empty input to an agent that takes only an inventory."
+    )
+
+
+def progress_note(message: Message) -> str | None:
+    """What the harness says of where the project is in the process flow, or None outside a
+    project. Names steps by id, as the prompt's flow does, and the suggested next step."""
+    if message.project_progress is None and message.project_entry is None:
+        return None
+    start = flow_entry(message.project_entry) if message.project_entry is not None else None
+    states = {p.step_id: p.step_state.value for p in message.project_progress or []}
+    where = (
+        f"the researcher chose entry point {start.number} ({start.text})"
+        if start is not None
+        else "no entry point has been chosen"
+    )
+    by_state = {
+        state: [step_id for step_id, s in states.items() if s == state]
+        for state in ("done", "started", "skipped")
+    }
+    shown = (
+        "; ".join(f"{state}: {', '.join(ids)}" for state, ids in by_state.items() if ids)
+        or "no step is started, done or skipped yet"
+    )
+    suggested = suggested_next(progress(start, states, []), start)
+    nxt = (
+        f" Suggested next: [{suggested.step.id}]."
+        if suggested is not None
+        else " Every step from the entry point is done or skipped."
+    )
+    return (
+        f"[From the harness, not the researcher] For this project, {where}. The project record "
+        f"shows {shown}.{nxt}"
     )
 
 

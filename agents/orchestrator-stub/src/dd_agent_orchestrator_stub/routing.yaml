@@ -18,6 +18,16 @@
 # names one is answered with the steps from that entry, each with the agents whose manifest
 # entry serves its requirement (dd_sdk.process_flow). Entry 1 is tried before Entry 2 so that
 # "not yet collected" is not read as "collected".
+#
+# next: how a message asks what to do next, tried with re.search after the entries. The reply
+# lists where the project is and offers the suggested step and a few others as choices; nothing
+# stops the researcher choosing any step, or saying anything else (docs/specs/orchestration.md).
+#
+# steps: the input the stub sends when the researcher chooses a step, by step id: one or more
+# input documents, each sent to the first agent whose manifest entry serves the step and accepts
+# its class. The conductor fills each from the project (docs/specs/projects.md), so none needs
+# the researcher's words. A step with agents but no template here is answered with how to ask
+# them directly; a step with no agent is named as having none.
 rules:
   - name: greet
     agent_id: example.hello
@@ -49,3 +59,14 @@ entries:
     pattern: '^(?:entry\s*)?2[.!]?$|\bcollected\b|prepar\w*\b.*\bfor\s+sharing'
   - entry: 3
     pattern: '^(?:entry\s*)?3[.!]?$|ready\s+to\s+(?:deposit|publish)'
+
+next: '^\s*(?:what(?:[''’]s|\s+is)?\s+next|next(?:\s+step)?|what\s+now|continue|carry\s+on|where\s+(?:am\s+i|are\s+we|is\s+my\s+project))\b'
+
+steps:
+  preparation.files:
+    - { schema_class: FileInventory }
+  preparation.metadata:
+    - { schema_class: DraftRequest, document_kind: metadata_record }
+  preparation.documentation:
+    - { schema_class: DraftRequest, document_kind: readme }
+    - { schema_class: DraftRequest, document_kind: data_dictionary }

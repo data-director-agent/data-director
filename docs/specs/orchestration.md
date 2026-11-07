@@ -23,7 +23,7 @@ conversation ([The app](app.md)); a conversation's project and who may see it
 ([Projects](projects.md)). Governance as an entry point (open, restricted or unshared paths) is
 deferred by the Blueprint to v2.0 (Appendix G, comment 1). Creating, reviewing and updating a Data
 Management Plan are out of scope for the initial phase. The figures' steps for them stay in the
-process flow, marked out of scope, so that the flow is complete (invariant 16).
+process flow, marked out of scope, so that the flow is complete (invariant 17).
 
 ## Invariants
 
@@ -119,7 +119,7 @@ process flow, marked out of scope, so that the flow is complete (invariant 16).
     (`test_a_question_shows_in_history_and_an_answer_is_checked_against_it`,
     `test_offering_choices_ends_the_turn_and_the_reply_carries_the_question`)
 
-16. **A step the Blueprint has and this project does not yet do is in the flow, marked
+17. **A step the Blueprint has and this project does not yet do is in the flow, marked
     `out_of_scope`.** The Data Management Plan steps (`setup.dmp-create`, `setup.dmp-review`,
     `post.dmp-update`) are these. The phase tracker and the stub name them and say "out of scope
     for now"; the model's prompt marks them and tells the model not to offer to do them or look for
@@ -128,6 +128,30 @@ process flow, marked out of scope, so that the flow is complete (invariant 16).
     (`test_the_data_management_plan_steps_are_in_the_flow_and_out_of_scope_for_now`,
     `test_serving_a_step_that_is_out_of_scope_for_now_is_refused`,
     `test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope`)
+18. **Where a project is in the flow is derived from its log on every read, never stored.** No
+    orchestrator, page or store keeps a current step. The harness reads each step's state (open,
+    started, done or skipped) from the project log (`dd_harness.progress`): an inventory shows the
+    files described, a repository chosen shows one recommended, and a document's versions show its
+    step started once drafted and done once approved, a README with any data dictionary drafted
+    alongside it. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
+    event, which they may change at any time; what the log produced outranks a skip. The conductor
+    puts the entry point and the states into a `Message` in a project (`project_entry`,
+    `project_progress`), so the input hash covers them, and the project summary carries the same
+    derivation for the phase tracker. Work done out of order, or before the entry phase, counts.
+    (`harness/tests/test_progress.py`,
+    `test_a_message_in_a_project_is_told_its_entry_point_and_progress`)
+19. **The next step is a suggestion, never a gate.** `suggested_next` names one step: the first
+    from the entry phase that is neither done nor skipped, in scope and not optional, with a step
+    begun before one not begun, whether or not an agent serves it. Both orchestrators and the
+    tracker use that one function; none refuses a step because it is not yet time. The stub offers
+    the suggestion with a few other open steps as a choice question whose values are step ids;
+    choosing one delegates the inputs `routing.yaml` gives for that step to the agent serving it,
+    which the conductor fills from the project, and a step with no agent is named as having none
+    (invariant 14). The model is told the states in a note from the harness, and its prompt tells
+    it to suggest the next step and follow the researcher. No orchestrator records a step as done.
+    (`sdk/tests/test_process_flow.py`;
+    `agents/orchestrator-stub/tests/test_guides_the_loop.py`;
+    `test_the_model_is_told_where_the_project_is_only_in_a_project`)
 
 ## Boundaries and contracts
 
@@ -177,6 +201,14 @@ written for one had nothing true to declare. A figure step that joins two acts d
 may do is split (sensitive data: identify, then handle), so that an agent can flag without
 deciding treatment.
 
+Real work is not linear: a researcher may arrive with a README written, pick a repository before
+tidying their files, or come back weeks later in a new conversation. A cursor that moves one step
+at a time would be wrong as soon as they did any of these, and would be one more record to keep
+in step with the project. Deriving progress from what the project holds keeps one source of truth,
+survives a new conversation and the model's history window, and lets work done in any order count.
+Most steps leave nothing in the log, so the researcher's own word on them is an event too, and
+the suggestion is only a suggestion so that marking, skipping and going back are always open.
+
 An orchestrator succeeds whatever its children's outcomes because mirroring a child's failure on
 the parent would lose the reply's explanation, while the failure stays visible where it occurred.
 
@@ -209,6 +241,11 @@ the parent would lose the reply's explanation, while the failure stays visible w
   as fixed example rules for a model-free reference.)
 - **The manifest in the grant's metadata.** Every delegation-mode request would carry every
   agent's schemas, and the wire keys would change.
+- **A current step kept by the orchestrator, the conversation or the project.** It drifts from
+  what the project holds, is lost with the model's history window or a new conversation, and
+  forces a linear order on work that is not linear.
+- **The orchestrator recording a step as done.** A model's or a template's claim is not evidence;
+  a step is done when the project holds its output, or when the researcher says so.
 - **`serves` naming Blueprint requirements.** It misplaced agents at every step naming a
   requirement, left agents for the many steps that name none with nothing to declare, and merged
   a routing hint with a conformance claim that nothing checked.
@@ -233,8 +270,9 @@ the parent would lose the reply's explanation, while the failure stays visible w
 - Mapping A2A `context_id` to `conversation_id`; delegation more than one level deep; delegation
   from the CLI; whether children inherit `requirement_ids`; checking a caller's history against
   the store on transports other than the app, TODO(#253).
-- Whether an orchestrator keeps the researcher's place in the flow across turns. The stub reads
-  only the current message and lists the steps once, TODO(#203).
+- Which events show `deposit.validate` and `deposit.finalise` done, once the validation report
+  and the package are recorded in the project log, TODO(#19, #202). Whether a run of an agent
+  serving a step should show it started, which would need the delegation to name its step.
 - The steps come from the figure captions in §8.2; the figures may show more, TODO(#245).
 - Step ids as the vocabulary in which a deployment's policy names the steps that need a person's
   sign-off, TODO(#308); proposing the ids to the RDA working group, TODO(#310).
