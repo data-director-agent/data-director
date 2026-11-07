@@ -3,9 +3,11 @@
 # Both run as uid 1000, so files written into the bind mount belong to the usual first host user.
 
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim@sha256:7cf77f594be8042dab6daa9fe326f90962252268b4f120a7f5dccce4d947e6c1 AS python
+# The run and project stores are named volumes, which take their owner from these directories when
+# Compose creates them; without them they would belong to root and the app could not write.
 RUN useradd --create-home --uid 1000 dev \
-    && mkdir /venv /uv-cache /workspace \
-    && chown dev:dev /venv /uv-cache /workspace
+    && mkdir /venv /uv-cache /workspace /runs /projects \
+    && chown dev:dev /venv /uv-cache /workspace /runs /projects
 USER dev
 WORKDIR /workspace
 # The virtual environment lives outside the bind mount, so it never mixes with a host .venv.

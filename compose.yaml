@@ -35,6 +35,38 @@ x-agent: &agent
     retries: 24
   restart: unless-stopped
 
+# Every agent the app and the workbench wait for, since they read the agents' cards once at
+# start-up. orchestrator-model is left out: it runs only with the `llm` profile.
+x-agents-healthy: &agents-healthy
+  example-hello:
+    condition: service_healthy
+  advisor-quality:
+    condition: service_healthy
+  advisor-standards:
+    condition: service_healthy
+  advisor-policy:
+    condition: service_healthy
+  advisor-repository:
+    condition: service_healthy
+  advisor-files:
+    condition: service_healthy
+  advisor-ethics:
+    condition: service_healthy
+  advisor-dmp:
+    condition: service_healthy
+  advisor-metadata:
+    condition: service_healthy
+  advisor-documentation:
+    condition: service_healthy
+  advisor-rights:
+    condition: service_healthy
+  advisor-linking:
+    condition: service_healthy
+  advisor-fairness:
+    condition: service_healthy
+  orchestrator-stub:
+    condition: service_healthy
+
 services:
   # Installs every workspace package into the venv volume, builds the sources that agents build
   # outside git (dd-sources, sdk/src/dd_sdk/sources.py), then exits. Downloads stay in each
@@ -77,6 +109,126 @@ services:
       - path: config/local/agents.env
         required: false
       - path: config/local/agents/advisor-standards.env
+        required: false
+
+  advisor-policy:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-policy serve --host 0.0.0.0 --port 8108 --public-url http://advisor-policy:8108
+    environment:
+      <<: *python-env
+      PORT: "8108"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-policy.env
+        required: false
+
+  advisor-repository:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-repository serve --host 0.0.0.0 --port 8109 --public-url http://advisor-repository:8109
+    environment:
+      <<: *python-env
+      PORT: "8109"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-repository.env
+        required: false
+
+  advisor-files:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-files serve --host 0.0.0.0 --port 8110 --public-url http://advisor-files:8110
+    environment:
+      <<: *python-env
+      PORT: "8110"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-files.env
+        required: false
+
+  advisor-ethics:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-ethics serve --host 0.0.0.0 --port 8111 --public-url http://advisor-ethics:8111
+    environment:
+      <<: *python-env
+      PORT: "8111"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-ethics.env
+        required: false
+
+  advisor-dmp:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-dmp serve --host 0.0.0.0 --port 8112 --public-url http://advisor-dmp:8112
+    environment:
+      <<: *python-env
+      PORT: "8112"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-dmp.env
+        required: false
+
+  advisor-metadata:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-metadata serve --host 0.0.0.0 --port 8113 --public-url http://advisor-metadata:8113
+    environment:
+      <<: *python-env
+      PORT: "8113"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-metadata.env
+        required: false
+
+  advisor-documentation:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-documentation serve --host 0.0.0.0 --port 8114 --public-url http://advisor-documentation:8114
+    environment:
+      <<: *python-env
+      PORT: "8114"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-documentation.env
+        required: false
+
+  advisor-rights:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-rights serve --host 0.0.0.0 --port 8115 --public-url http://advisor-rights:8115
+    environment:
+      <<: *python-env
+      PORT: "8115"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-rights.env
+        required: false
+
+  advisor-linking:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-linking serve --host 0.0.0.0 --port 8116 --public-url http://advisor-linking:8116
+    environment:
+      <<: *python-env
+      PORT: "8116"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-linking.env
+        required: false
+
+  advisor-fairness:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-fairness serve --host 0.0.0.0 --port 8117 --public-url http://advisor-fairness:8117
+    environment:
+      <<: *python-env
+      PORT: "8117"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-fairness.env
         required: false
 
   orchestrator-stub:
@@ -126,14 +278,7 @@ services:
         condition: service_completed_successfully
       web-build:
         condition: service_completed_successfully
-      example-hello:
-        condition: service_healthy
-      advisor-quality:
-        condition: service_healthy
-      advisor-standards:
-        condition: service_healthy
-      orchestrator-stub:
-        condition: service_healthy
+      <<: *agents-healthy
     command: uv run --no-sync data-director
     env_file:
       - path: config/local/app.env
@@ -152,12 +297,17 @@ services:
       DD_APP_HOST: 0.0.0.0
       DD_APP_PORT: "7860"
       DD_HARNESS_URL: http://app:7860
+      # `dd.py setup` names the profile it writes by its path on the host; this is the same
+      # file where the checkout is mounted.
+      DD_PROFILE: /workspace/config/local/profile.yaml
       DD_RUNS_DIR: /runs
+      DD_PROJECTS_DIR: /projects
     volumes:
       - .:/workspace
       - venv:/venv
       - uv-cache:/uv-cache
       - app-runs:/runs
+      - app-projects:/projects
     ports: ["127.0.0.1:${DD_APP_HOST_PORT:-7860}:7860"]
 
   # Vite dev server for the shell, with hot reload. Proxies /api to the app.
@@ -188,19 +338,15 @@ services:
     depends_on:
       deps:
         condition: service_completed_successfully
-      example-hello:
-        condition: service_healthy
-      advisor-quality:
-        condition: service_healthy
-      advisor-standards:
-        condition: service_healthy
-      orchestrator-stub:
-        condition: service_healthy
+      <<: *agents-healthy
     working_dir: /workspace/workbench
     command: uv run --no-sync workbench serve --host 0.0.0.0 --port 8000
     environment:
       <<: *python-env
       DD_HARNESS_URL: http://workbench:8000
+      # `dd.py setup` names the profile it writes by its path on the host; this is the same
+      # file where the checkout is mounted.
+      DD_PROFILE: /workspace/config/local/profile.yaml
       DD_RUNS_DIR: /runs
     env_file:
       - path: config/local/app.env
@@ -217,4 +363,5 @@ volumes:
   uv-cache:
   node-modules:
   app-runs:
+  app-projects:
   workbench-runs:
