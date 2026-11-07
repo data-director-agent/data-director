@@ -25,6 +25,10 @@ dependencies = [
   "pyyaml>=6.0",
   "python-dotenv>=1.1",
   "joserfc>=1.0",
+  # Validation of a project against its repository's requirements, behind dd_harness.deposit
+  # (docs/specs/deposit.md, docs/specs/dependencies.md).
+  "pyshacl>=0.30",
+  "rdflib>=7.1",
 ]
 
 [project.scripts]
@@ -40,8 +44,8 @@ serve = ["uvicorn>=0.30"]
 dev = [
   "data-director-agent-example-hello",
   "data-director-agent-advisor-quality",
-  # Reads the disclosure's PROV-O graph as RDF in tests (docs/specs/dependencies.md).
-  "rdflib>=7.1",
+  # The RO-Crate validator, run on the deposit package in tests (docs/specs/deposit.md).
+  "roc-validator>=0.13",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -12,7 +12,8 @@ No `.env` file is read.
 `dd-harness project` keeps a project's record under `DD_PROJECTS_DIR` for the operator's principal
 (docs/specs/projects.md): `create`, `add-inventory` for a `FileInventory` that `dd-inventory` wrote,
 `choose-repository` with the requirement sets under `DD_REPOSITORIES_DIR` (docs/specs/deposit.md),
-and `events`.
+`validate` against the requirements recorded for the repository chosen, `package` to build the
+deposit package from a valid project and the runs under `DD_RUNS_DIR`, and `events`.
 
 There is no authentication of callers yet (docs/specs/policy-and-identity.md, #17, #43): every
 invocation acts for the operator's principal, whoever sent it. Do not expose this server beyond a
@@ -29,6 +30,7 @@ from pathlib import Path
 from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor
+from dd_harness.deposit import PackageRefusedError, Validation, build_package, check
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.policy import PolicyError
 from dd_harness.projects import ProjectError
@@ -43,6 +45,8 @@ from dd_harness.settings import (
     project_storage,
     projects_dir,
     repositories_dir,
+    run_storage,
+    runs_dir,
 )
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
@@ -148,6 +152,49 @@ def cmd_project_choose_repository(args: argparse.Namespace) -> int:
     return 0
 
 
+def _write_results(validation: Validation) -> None:
+    """Each result of a validation on stderr, violations first."""
+    for result in validation.violations:
+        sys.stderr.write(f"dd-harness: violation: {result.message}\n")
+    for result in validation.warnings:
+        sys.stderr.write(f"dd-harness: warning: {result.message}\n")
+
+
+def cmd_project_validate(args: argparse.Namespace) -> int:
+    validation, digest = check(
+        project_storage(projects_dir()),
+        args.project_id,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="validate"),
+    )
+    _write_results(validation)
+    sys.stdout.write(digest + "\n")
+    return 0 if validation.conforms else 1
+
+
+def cmd_project_package(args: argparse.Namespace) -> int:
+    try:
+        package = build_package(
+            project_storage(projects_dir()),
+            run_storage(runs_dir()),
+            args.project_id,
+            acted_for=principal_from_env(),
+            caused_by=CAUSED_BY_COMMAND.format(command="package"),
+        )
+    except PackageRefusedError as exc:
+        _write_results(exc.validation)
+        sys.stderr.write("dd-harness: no package was built: the project is not valid for deposit\n")
+        return 1
+    _write_results(package.validation)
+    if args.output:
+        try:
+            Path(args.output).write_bytes(package.content)
+        except OSError as exc:
+            raise ProjectError(f"{args.output}: {exc}") from exc
+    sys.stdout.write(package.digest + "\n")
+    return 0
+
+
 def cmd_project_events(args: argparse.Namespace) -> int:
     for event in project_storage(projects_dir()).events(args.project_id):
         sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
@@ -195,6 +242,21 @@ def main(argv: list[str] | None = None) -> int:
         help="a metadata standard its re3data record declares, as re3data names it; repeatable",
     )
     p.set_defaults(func=cmd_project_choose_repository)
+    p = project.add_parser(
+        "validate",
+        help="check the project against its repository's requirements, keep the report, and "
+        "print its digest; exits 1 on a violation",
+    )
+    p.add_argument("project_id")
+    p.set_defaults(func=cmd_project_validate)
+    p = project.add_parser(
+        "package",
+        help="validate the project and, if it is valid, build its deposit package and print its "
+        "digest; exits 1 on a violation",
+    )
+    p.add_argument("project_id")
+    p.add_argument("-o", "--output", help="also write the package's zip to this file")
+    p.set_defaults(func=cmd_project_package)
     p = project.add_parser("events", help="print the project's events, oldest first, as JSONL")
     p.add_argument("project_id")
     p.set_defaults(func=cmd_project_events)

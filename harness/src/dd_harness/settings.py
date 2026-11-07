@@ -119,6 +119,11 @@ def projects_dir(default: Path | None = None) -> Path:
     return _storage("DD_PROJECTS_DIR", default)
 
 
+def runs_dir(default: Path | None = None) -> Path:
+    """Where runs are kept: `DD_RUNS_DIR`, which has no default (docs/specs/storage.md)."""
+    return _storage("DD_RUNS_DIR", default)
+
+
 def repositories_dir(default: Path | None = None) -> Path:
     """The deployment's requirement sets: `DD_REPOSITORIES_DIR`, which has no default
     (docs/specs/deposit.md)."""

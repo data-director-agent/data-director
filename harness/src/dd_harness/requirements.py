@@ -16,7 +16,8 @@ either requires is required. Media types, sizes and licences come from the overr
 
 Every set is checked when it is loaded, so a deployment whose sets are malformed, of neither
 kind, or contradict one another does not start. Recording the choice in a project is
-`ProjectStore.choose_repository`; checking a project against the merged set is TODO(#19, #202).
+`ProjectStore.choose_repository`; checking a project against the merged set is
+`dd_harness.deposit`.
 """
 
 from __future__ import annotations
