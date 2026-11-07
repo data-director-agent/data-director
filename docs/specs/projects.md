@@ -85,7 +85,10 @@ intended design, and each part says where it is not built yet.
    `project_inventory` says what the project's inventory is (its digest, file count, tool and
    date, and its limitations) without its files, so an orchestrator knows the researcher has
    given one; outside a project, or in one with no inventory, it is removed, so a caller can
-   never claim one. Filling `current_version` to regenerate a document, and any other class, are
+   never claim one. Its `project_entry` and `project_progress` say which entry point the
+   researcher chose and which steps of the process flow the log shows started, done or skipped,
+   derived on every turn and removed outside a project ([Orchestration](orchestration.md),
+   invariant 18). Filling `current_version` to regenerate a document, and any other class, are
    not built yet, TODO(#394).
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
@@ -170,8 +173,12 @@ project, using the invocation's `acting_for`, and the app's server makes it for 
 
 **The app** ([The app](app.md)) renders the project and passes a person's request to the harness
 with the principal from its authenticator. It shows the state it reads back from the log, never a
-state it inferred, and holds no policy. The right panel, phase tracker and status bar are drawn
-for a project but have no record behind them yet, TODO(#160). The app works in one project at a
+state it inferred, and holds no policy. The phase tracker shows where the project is in the
+process flow, which the harness derives from the log: the researcher's entry point
+(`entry_chosen`) and their marks on steps (`step_marked`: done, skipped, or open again) are
+events of the log, written through the app's server like a decision ([Orchestration](orchestration.md),
+invariant 18). The right panel and status bar are drawn for a project but have no record behind
+them yet, TODO(#160). The app works in one project at a
 time: each conversation it starts is started in the active project, or in a new one when none is
 active ([The app](app.md)). A turn may attach the file `dd-inventory` writes, which the app's server
 adds to the conversation's project before the turn runs, acting for the person signed in and

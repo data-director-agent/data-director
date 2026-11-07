@@ -152,6 +152,27 @@ def cmd_project_choose_repository(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_project_choose_entry(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).choose_entry(
+        args.project_id,
+        args.entry,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="choose-entry"),
+    )
+    return 0
+
+
+def cmd_project_mark_step(args: argparse.Namespace) -> int:
+    project_storage(projects_dir()).mark_step(
+        args.project_id,
+        args.step_id,
+        args.mark,
+        acted_for=principal_from_env(),
+        caused_by=CAUSED_BY_COMMAND.format(command="mark-step"),
+    )
+    return 0
+
+
 def _write_results(validation: Validation) -> None:
     """Each result of a validation on stderr, violations first."""
     for result in validation.violations:
@@ -242,6 +263,20 @@ def main(argv: list[str] | None = None) -> int:
         help="a metadata standard its re3data record declares, as re3data names it; repeatable",
     )
     p.set_defaults(func=cmd_project_choose_repository)
+    p = project.add_parser(
+        "choose-entry", help="record the Blueprint entry point the researcher is at (1, 2 or 3)"
+    )
+    p.add_argument("project_id")
+    p.add_argument("entry", type=int, choices=(1, 2, 3))
+    p.set_defaults(func=cmd_project_choose_entry)
+    p = project.add_parser(
+        "mark-step",
+        help="mark a process-flow step done, skipped or open again (docs/specs/orchestration.md)",
+    )
+    p.add_argument("project_id")
+    p.add_argument("step_id", help="a step id, such as governance.embargo")
+    p.add_argument("mark", choices=("done", "skipped", "open"))
+    p.set_defaults(func=cmd_project_mark_step)
     p = project.add_parser(
         "validate",
         help="check the project against its repository's requirements, keep the report, and "

@@ -116,6 +116,12 @@ class Assurance(StrEnum):
     AUTHENTICATED = "authenticated"
 
 
+class StepState(StrEnum):
+    STARTED = "started"
+    DONE = "done"
+    SKIPPED = "skipped"
+
+
 class TurnRole(StrEnum):
     USER = "user"
     AGENT = "agent"
@@ -217,6 +223,14 @@ class InventorySummary(Frozen):
     inventory_limitations: list[str] = Field(default_factory=list)
 
 
+class StepProgress(Frozen):
+    """How far one process-flow step has gone, as the project log shows it; a step left out is
+    open (docs/specs/orchestration.md)."""
+
+    step_id: str = Field(pattern=r"^[a-z]+\.[a-z-]+$")
+    step_state: StepState
+
+
 class ChoiceAnswer(Frozen):
     """The researcher's answer to the choice question the turn before asked, by the values they
     chose or in their own words (docs/specs/orchestration.md)."""
@@ -228,13 +242,16 @@ class ChoiceAnswer(Frozen):
 
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
-    conductor fills `project_inventory` from the conversation's project; a caller never does."""
+    conductor fills `project_inventory`, `project_entry` and `project_progress` from the
+    conversation's project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
     project_inventory: InventorySummary | None = None
     choice_answer: ChoiceAnswer | None = None
+    project_entry: int | None = Field(default=None, ge=1, le=3)  # bounds not in the schema (#333)
+    project_progress: list[StepProgress] | None = None
 
 
 class TableField(Frozen):

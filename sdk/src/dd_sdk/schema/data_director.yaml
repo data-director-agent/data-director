@@ -163,13 +163,17 @@ classes:
     description: >-
       One conversational turn addressed to an agent: the text of the turn and the conversation so
       far. The history is part of the input, so the input hash covers everything the agent saw.
-      In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md).
+      In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md);
+      in any project, it adds the entry point chosen and the progress the project log shows
+      (docs/specs/orchestration.md).
     slots:
       - schema_class
       - message_text
       - history
       - project_inventory
       - choice_answer
+      - project_entry
+      - project_progress
 
   ConversationTurn:
     description: >-
@@ -191,6 +195,14 @@ classes:
       - answer_to
       - answer_values
       - answer_other
+
+  StepProgress:
+    description: >-
+      How far one step of the Blueprint's process flow has gone, as the project log shows it:
+      started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).
+    slots:
+      - step_id
+      - step_state
 
   InventorySummary:
     description: >-
@@ -751,6 +763,29 @@ slots:
       caller. Absent when the run is in no project, or its project holds no inventory.
     range: InventorySummary
     inlined: true
+  project_entry:
+    description: >-
+      The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project,
+      the latest chosen. Filled by the conductor and never by the caller; absent when the run is
+      in no project, or none was chosen.
+    # 1 to 3, checked by the SDK's model: a bound is not in the schema, since a card's schemas
+    # cross A2A as protobuf Structs, which turn it into a float (#333).
+    range: integer
+  project_progress:
+    description: >-
+      The process-flow steps the conversation's project log shows started, done or skipped, in flow
+      order. Filled by the conductor and never by the caller; absent when the run is in no
+      project. Derived from the log on every turn, never stored.
+    range: StepProgress
+    multivalued: true
+    inlined_as_list: true
+  step_id:
+    description: A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow).
+    required: true
+    pattern: "^[a-z]+\\.[a-z-]+$"
+  step_state:
+    range: StepState
+    required: true
   inventory_digest:
     description: The inventory's dd-input-json-v1 hash, by which the project keeps it.
     required: true
@@ -1310,6 +1345,18 @@ enums:
         description: >-
           An identity provider vouched for the principal, and the harness verified its signed
           statement. vouched_by names the provider's issuer.
+
+  StepState:
+    description: How far a process-flow step has gone; a step with none of these states is open.
+    permissible_values:
+      started:
+        description: The project holds work towards the step that a person has not yet approved.
+      done:
+        description: >-
+          The project holds what the step produces, approved where a person decides, or the
+          researcher marked the step done.
+      skipped:
+        description: The researcher marked the step as not applying to this project, or not wanted.
 
   TurnRole:
     description: Who spoke in a conversation turn.

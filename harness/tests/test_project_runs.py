@@ -527,3 +527,49 @@ def test_a_draft_that_revises_no_version_of_the_project_fails_the_run(
     assert stored is not None
     assert stored["outcome"]["status"] == "failed"
     assert projects.documents(project) == []
+
+
+def test_a_message_in_a_project_is_told_its_entry_point_and_progress(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """The conductor derives where the project is from its log on every turn; whatever a caller
+    says of it is replaced (docs/specs/orchestration.md)."""
+    projects.choose_entry(project, 2, acted_for=TEST_PRINCIPAL, caused_by="t")
+    projects.mark_step(
+        project, "governance.embargo", "skipped", acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_entry": 3,
+            "project_progress": [{"step_id": "deposit.finalise", "step_state": "done"}],
+        }
+    )
+    env = conductor.invoke(
+        in_conversation(request("stub.abstain", forged), conversation), acting_for=TEST_PRINCIPAL
+    )
+    given = stored_input(tmp_path / "runs", env.invocation_id)
+    assert given["project_entry"] == 2
+    states = {s["step_id"]: s["step_state"] for s in given["project_progress"]}
+    assert states["preparation.files"] == "done"  # the inventory
+    assert states["repository.recommend"] == "done"  # ORDA chosen
+    assert states["governance.embargo"] == "skipped"
+    assert "deposit.finalise" not in states
+
+
+def test_a_message_outside_a_project_is_told_no_progress(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, AbstainingStub())
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_entry": 3,
+            "project_progress": [{"step_id": "deposit.finalise", "step_state": "done"}],
+        }
+    )
+    env = conductor.invoke(request("stub.abstain", forged), acting_for=TEST_PRINCIPAL)
+    given = stored_input(tmp_path / "runs", env.invocation_id)
+    assert "project_entry" not in given and "project_progress" not in given
