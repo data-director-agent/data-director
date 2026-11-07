@@ -213,8 +213,9 @@ formats, sizes and licences it accepts. The harness, not an agent, checks the pr
 them and writes a SHACL Validation Report. Only from a report with no violation does it build the package: an RO-Crate
 of the dataset that holds the approved documents, the inventory, the report and the audit trail,
 and no data files. The researcher adds the files when depositing
-([Deposit](specs/deposit.md)). Recording the choice, validation and the package are built in the
-harness and its command line; doing them in the app is #623.
+([Deposit](specs/deposit.md)). Recording the choice is built in the harness and its command
+line; validation and the package are built there and in the app, which calls the harness in
+process and lets the researcher download the package.
 
 If a step refuses, the agent's result is withheld but the run is still recorded, and the person
 gets an envelope that says why. Only a caller's own mistake (a malformed request, a reused

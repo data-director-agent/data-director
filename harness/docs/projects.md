@@ -199,5 +199,4 @@ until a person approves one. The conductor gives it to every drafter in the proj
   and `draft_answers`, not its `current_version` nor any other class, and does not apply
   `hosted_models` ([Projects](../../docs/specs/projects.md)), TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
-- The app cannot validate a project or build its package, TODO(#623).
 - How long a project is kept, and what deleting one removes, TODO(#141).

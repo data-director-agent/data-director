@@ -50,6 +50,8 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     decide: () => Promise.resolve(decided("approved")),
     answer: () => Promise.resolve(PROJECT),
     inventory: () => Promise.resolve(null),
+    validate: () => Promise.reject(new Error("not checked in this test")),
+    buildPackage: () => Promise.reject(new Error("not built in this test")),
     ...overrides,
   };
 }
@@ -260,6 +262,17 @@ describe("ProjectPage", () => {
     const { container } = renderPage(fakeApi(), "doc=disclosure");
     expect(await screen.findByRole("heading", { name: "Use of generative AI" })).toBeVisible();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("offers the deposit package after the statement", async () => {
+    const { container } = renderPage(fakeApi(), "doc=deposit");
+    expect(await screen.findByRole("heading", { name: "Deposit package" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Deposit package" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("button", { name: "Check the project" })).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 

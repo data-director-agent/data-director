@@ -1,0 +1,77 @@
+{
+  "detail": "the project is not valid for deposit: Zenodo requires a metadata record, and none has been approved.",
+  "status": 409,
+  "title": "No package was built",
+  "type": "https://w3id.org/data-director/problems/package-refused",
+  "validation": {
+    "conforms": false,
+    "project_id": "01900000-0000-7000-8000-000000000001",
+    "report": {
+      "@context": {
+        "dd": "https://w3id.org/data-director/",
+        "schema": "http://schema.org/",
+        "sh": "http://www.w3.org/ns/shacl#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#"
+      },
+      "@type": "sh:ValidationReport",
+      "dd:project": {
+        "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+      },
+      "dd:requirements": {
+        "@id": "ni:///sha-256;0000000000000000000000000000000000000000004"
+      },
+      "dd:validated_at": {
+        "@type": "xsd:dateTime",
+        "@value": "2026-01-01T00:00:00Z"
+      },
+      "sh:conforms": false,
+      "sh:result": [
+        {
+          "@type": "sh:ValidationResult",
+          "sh:focusNode": {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+          },
+          "sh:resultMessage": "the deployment has no override for Zenodo: only DataCite Metadata Schema 4 is checked, not the repository's own form, formats, sizes or licences",
+          "sh:resultSeverity": {
+            "@id": "sh:Warning"
+          },
+          "sh:sourceConstraintComponent": {
+            "@id": "https://w3id.org/data-director/RepositoryChoiceConstraintComponent"
+          }
+        },
+        {
+          "@type": "sh:ValidationResult",
+          "sh:focusNode": {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+          },
+          "sh:resultMessage": "Zenodo requires a metadata record, and none has been approved.",
+          "sh:resultSeverity": {
+            "@id": "sh:Violation"
+          },
+          "sh:sourceConstraintComponent": {
+            "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
+          }
+        }
+      ]
+    },
+    "report_digest": "0000000000000000000000000000000000000000000000000000000000000002",
+    "requirements_digest": "0000000000000000000000000000000000000000000000000000000000000003",
+    "validated_at": "2026-01-01T00:00:00Z",
+    "violations": [
+      {
+        "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+        "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+        "message": "Zenodo requires a metadata record, and none has been approved.",
+        "path": null
+      }
+    ],
+    "warnings": [
+      {
+        "component": "https://w3id.org/data-director/RepositoryChoiceConstraintComponent",
+        "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+        "message": "the deployment has no override for Zenodo: only DataCite Metadata Schema 4 is checked, not the repository's own form, formats, sizes or licences",
+        "path": null
+      }
+    ]
+  }
+}

@@ -273,4 +273,13 @@
   .disclosure h2 {
     margin-top: 0;
   }
+
+  /* The project checked and packaged for deposit (DepositPanel.tsx). */
+  .deposit h2 {
+    margin-top: 0;
+  }
+
+  .deposit-digest {
+    overflow-wrap: anywhere;
+  }
 }

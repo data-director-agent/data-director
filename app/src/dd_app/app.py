@@ -25,6 +25,11 @@ version is no longer the latest or does not ask them (docs/specs/drafting.md).
 researcher to read; it answers `404` when there is none.
 `GET /api/projects/{id}/disclosure` says how each approved document came about and what
 generative AI was used, as a statement and as a PROV-O graph (docs/specs/disclosure.md).
+`POST /api/projects/{id}/validation` validates the project against the requirements recorded
+for the repository chosen last and keeps the report; `POST /api/projects/{id}/package` does the
+same and, only if the project is valid, builds the deposit package, answering `409` with the
+validation when it is not; `GET /api/projects/{id}/packages/{digest}` is a package the project
+log records as built, as a zip (docs/specs/deposit.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (docs/specs/orchestration.md, #129).
 `GET /api/about` names the build (version and commit) and says whether reports can be filed;
@@ -72,7 +77,7 @@ from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Re
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from dd_app import documents, feedback
+from dd_app import deposit, documents, feedback
 from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
@@ -83,6 +88,7 @@ from dd_app.governance import (
     principal_summary,
 )
 from dd_harness.conductor import UnknownAgent
+from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
@@ -351,6 +357,90 @@ def build_app(
             return _no_project(project_id)
         return JSONResponse({**found.to_document(), "prov": found.prov_jsonld()})
 
+    async def validate_project(request: Request, acting_for: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            validation, digest = await run_in_threadpool(
+                lambda: check(
+                    store, project_id, acted_for=acting_for, caused_by=f"POST {request.url.path}"
+                )
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        return JSONResponse(deposit.validation_view(validation, digest), status_code=201)
+
+    async def package_project(request: Request, acting_for: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            built = await run_in_threadpool(
+                lambda: build_package(
+                    store,
+                    governance.conductor.store,
+                    project_id,
+                    acted_for=acting_for,
+                    caused_by=f"POST {request.url.path}",
+                )
+            )
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except PackageRefusedError as exc:
+            digest = await run_in_threadpool(deposit.last_report_digest, store, project_id)
+            return _problem(
+                409,
+                "package-refused",
+                "No package was built",
+                str(exc),
+                validation=deposit.validation_view(exc.validation, digest),
+            )
+        digest = await run_in_threadpool(deposit.last_report_digest, store, project_id)
+        return JSONResponse(
+            {
+                **deposit.validation_view(built.validation, digest),
+                "package": {
+                    "digest": built.digest,
+                    "size": len(built.content),
+                    "href": f"{request.url.path.removesuffix('/package')}/packages/{built.digest}",
+                },
+            },
+            status_code=201,
+        )
+
+    async def get_package(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        digest = request.path_params["digest"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        content = None
+        if deposit.DIGEST.fullmatch(digest):
+            try:
+                content = await run_in_threadpool(store.package, project_id, digest)
+            except UnknownProjectError:
+                return _no_project(project_id)
+        if content is None:
+            return _problem(
+                404,
+                "package-not-found",
+                "No such package",
+                f"Project {project_id!r} has built no package {digest!r}.",
+            )
+        return Response(
+            content,
+            media_type="application/zip",
+            headers={
+                "content-disposition": f'attachment; filename="deposit-package-{digest[:12]}.zip"'
+            },
+        )
+
     async def decide(request: Request, decider: Principal) -> Response:
         # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
         project_id = request.path_params["project_id"]
@@ -613,6 +703,21 @@ def build_app(
                 methods=["GET"],
             ),
             Route(
+                "/api/projects/{project_id}/validation",
+                signed_in(validate_project),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/package",
+                signed_in(package_project),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/packages/{digest}",
+                signed_in(get_package),
+                methods=["GET"],
+            ),
+            Route(
                 "/api/projects/{project_id}/documents/{document_id}/decisions",
                 signed_in(decide),
                 methods=["POST"],
@@ -678,9 +783,10 @@ def examples(directory: Path) -> list[dict[str, Any]]:
     return found
 
 
-def _problem(status: int, slug: str, title: str, detail: str) -> Response:
+def _problem(status: int, slug: str, title: str, detail: str, **extra: Any) -> Response:
+    """An RFC 9457 problem; `extra` are its extension members."""
     return JSONResponse(
-        {"type": PROBLEM_BASE + slug, "title": title, "status": status, "detail": detail},
+        {"type": PROBLEM_BASE + slug, "title": title, "status": status, "detail": detail, **extra},
         status_code=status,
         media_type="application/problem+json",
     )

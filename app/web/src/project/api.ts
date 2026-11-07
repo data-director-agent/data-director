@@ -159,6 +159,48 @@ export interface Disclosure {
   prov: Record<string, unknown>;
 }
 
+/** One result of a validation: what is missing, in the harness's words (docs/specs/deposit.md). */
+export interface ValidationResult {
+  message: string;
+  /** The node the result is about, such as the project or the metadata record. */
+  focus: string;
+  /** The check that made it. */
+  component: string;
+  path: string | null;
+}
+
+/**
+ * A project's validation against its chosen repository's requirements, as the harness made it
+ * and kept it in the project log. A violation stops the package; a warning does not.
+ */
+export interface Validation {
+  project_id: string;
+  conforms: boolean;
+  validated_at: string;
+  report_digest: string | null;
+  requirements_digest: string | null;
+  violations: ValidationResult[];
+  warnings: ValidationResult[];
+  /** The W3C SHACL Validation Report, in JSON-LD. */
+  report: Record<string, unknown>;
+}
+
+/** A deposit package the harness built and keeps by the SHA-256 of its bytes. */
+export interface BuiltPackage extends Validation {
+  package: { digest: string; size: number; href: string };
+}
+
+/** The harness built no package because the project is not valid: `validation` says why. */
+export class PackageRefused extends Error {
+  readonly validation: Validation;
+
+  constructor(problem: Problem & { validation: Validation }) {
+    super(problem.detail ?? problem.title);
+    this.name = "PackageRefused";
+    this.validation = problem.validation;
+  }
+}
+
 /** A conversation started in a project, as the projects list names it. */
 export interface ProjectConversation {
   conversation_id: string;
@@ -198,6 +240,10 @@ export interface ProjectApi {
   ): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
+  /** Validates the project against its chosen repository's requirements; the log keeps it. */
+  validate(projectId: string): Promise<Validation>;
+  /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
+  buildPackage(projectId: string): Promise<BuiltPackage>;
 }
 
 /**
@@ -209,10 +255,17 @@ export function digestOf(text: string): string {
   return bytesToHex(sha256(utf8ToBytes(text)));
 }
 
+const PACKAGE_REFUSED = "/package-refused";
+
 async function json<T>(response: Response): Promise<T> {
   if (response.ok) return (await response.json()) as T;
   checkSignedIn(response);
-  const problem = (await response.json().catch(() => null)) as Problem | null;
+  const problem = (await response.json().catch(() => null)) as
+    | (Problem & { validation?: Validation })
+    | null;
+  if (problem?.validation && problem.type.endsWith(PACKAGE_REFUSED)) {
+    throw new PackageRefused({ ...problem, validation: problem.validation });
+  }
   if (problem && (response.status === 409 || response.status === 404)) {
     throw new DecisionConflict(problem);
   }
@@ -220,8 +273,12 @@ async function json<T>(response: Response): Promise<T> {
   throw new Error(problem?.detail ?? `the server answered ${response.status}`);
 }
 
+function projectPath(projectId: string): string {
+  return `/api/projects/${encodeURIComponent(projectId)}`;
+}
+
 function documentsPath(projectId: string): string {
-  return `/api/projects/${encodeURIComponent(projectId)}/documents`;
+  return `${projectPath(projectId)}/documents`;
 }
 
 export const httpProjectApi: ProjectApi = {
@@ -246,6 +303,12 @@ export const httpProjectApi: ProjectApi = {
         signal ? { signal } : {},
       ),
     );
+  },
+  async validate(projectId) {
+    return json(await fetch(`${projectPath(projectId)}/validation`, { method: "POST" }));
+  },
+  async buildPackage(projectId) {
+    return json(await fetch(`${projectPath(projectId)}/package`, { method: "POST" }));
   },
   async decide(projectId, documentId, request) {
     return json(
