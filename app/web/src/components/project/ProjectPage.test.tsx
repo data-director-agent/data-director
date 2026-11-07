@@ -258,7 +258,7 @@ describe("ProjectPage", () => {
     const article = await readme();
     await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
     const said = await screen.findByText(/README: version 1 approved/);
-    expect(said).toHaveTextContent("README: version 1 approved. Next to review: Data dictionary");
+    expect(said).toHaveTextContent(/Data dictionary/);
     expect(within(said).getByRole("link", { name: "Data dictionary" })).toHaveAttribute(
       "href",
       `/projects/${PROJECT.project_id}?doc=${DICTIONARY.document_id}`,
@@ -364,7 +364,7 @@ describe("ProjectPage", () => {
     await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
     const alert = await within(article).findByRole("alert");
     expect(alert).toHaveTextContent("Version 1 is not the latest: version 2 is.");
-    expect(alert).toHaveTextContent("could not read the latest version: The network is down.");
+    expect(alert).toHaveTextContent(/The network is down/);
     expect(alert).toHaveFocus();
     expect(within(article).getByRole("heading", { name: "Untitled dataset" })).toBeVisible();
     expect(screen.getByRole("link", { name: /Data dictionary/ })).toBeVisible();

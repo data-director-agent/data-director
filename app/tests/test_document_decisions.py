@@ -14,7 +14,7 @@ import pytest
 from starlette.testclient import TestClient
 from support import check_fixture, configure_env, dist_dir, new_governance
 
-from dd_app.app import build_app
+from dd_app.app import DECISION_REFUSED, build_app
 from dd_app.governance import Governance
 from dd_harness.projects import (
     DOCUMENT_CHANGE_REFUSED,
@@ -175,7 +175,7 @@ def test_a_malformed_decision_is_refused_and_records_nothing(
     response = decide(client, project_id, version, **body)
     assert response.status_code == 400
     assert message in response.json()["detail"]
-    assert response.json()["title"] == "Data Director could not record this decision"
+    assert response.json()["title"] == DECISION_REFUSED
     assert store.events(project_id) == before
 
 

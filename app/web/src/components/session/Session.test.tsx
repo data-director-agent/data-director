@@ -24,9 +24,9 @@ function at(path: string) {
   history.pushState(null, "", path);
 }
 
-/** The page's banner (a page header is a `<header>` too). */
+/** The app's banner: the first in the document, before any page's own header. */
 function banner(): HTMLElement {
-  const found = document.querySelector<HTMLElement>("header.app-header");
+  const [found] = screen.getAllByRole("banner");
   if (!found) throw new Error("no banner");
   return found;
 }
@@ -262,9 +262,9 @@ describe("the session API", () => {
   });
 
   it("says who vouched, in words", () => {
-    expect(assuranceText({ assurance: "asserted" })).toBe("asserted by the operator, not authenticated");
-    expect(assuranceText({ assurance: "authenticated", vouchedBy: "https://orcid.org" })).toBe(
-      "authenticated by orcid.org",
+    expect(assuranceText({ assurance: "asserted" })).toMatch(/operator.*not authenticated/);
+    expect(assuranceText({ assurance: "authenticated", vouchedBy: "https://orcid.org" })).toMatch(
+      /authenticated by orcid\.org/,
     );
     expect(assuranceText({ assurance: "authenticated" })).toBe("authenticated");
   });

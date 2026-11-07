@@ -310,8 +310,9 @@ npx playwright install chromium && npm run e2e      # axe light and dark, keyboa
 ```
 
 The shell's tests draw manifests from `app/web/fixtures/`. `app/tests/test_app.py` builds them
-from the real server and fails if they drift; `DD_WRITE_FIXTURES=1 uv run pytest app/tests`
-rewrites them. `agents-several.json` holds five agents of different grounding modes and payload
+from the real server. Run locally, `uv run pytest app/tests` rewrites a fixture that has drifted,
+for the change to be committed; in CI (`CI` set) a drifted fixture fails the test instead, and
+`DD_WRITE_FIXTURES=1` or `=0` forces either behaviour. `agents-several.json` holds five agents of different grounding modes and payload
 shapes, under a profile that does not list the standards advisor, so the shell is tested on more than one agent.
 
 ## What it does not do

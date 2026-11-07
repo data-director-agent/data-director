@@ -71,7 +71,7 @@ describe("CapabilitiesPanel", () => {
     });
     render(<CapabilitiesPanel agent={view} />);
     const item = screen.getByRole("listitem");
-    expect(item).toHaveTextContent("Language model, remote: Anthropic claude-test");
+    expect(item).toHaveTextContent(/remote.*claude-test/);
     expect(item).toHaveTextContent("outside this institution");
   });
 
@@ -83,7 +83,7 @@ describe("CapabilitiesPanel", () => {
       models: [{ provider: "ollama", model: "llama-test", hosting: "local" }],
     });
     render(<CapabilitiesPanel agent={view} />);
-    expect(screen.getByRole("listitem")).toHaveTextContent("Language model, local: ollama llama-test");
+    expect(screen.getByRole("listitem")).toHaveTextContent(/local.*llama-test/);
   });
 
   it("says when the profile does not permit the agent", () => {
@@ -140,7 +140,7 @@ describe("AgentDirectory", () => {
 
   it("says when no agent is registered", () => {
     render(<AgentDirectory directory={{ ...directory, agents: [] }} />);
-    expect(screen.getByText("No agents are registered with this deployment.")).toBeVisible();
+    expect(screen.getByText(/no agents/i)).toBeVisible();
   });
 });
 

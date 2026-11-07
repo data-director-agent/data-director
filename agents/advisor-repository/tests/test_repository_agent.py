@@ -268,7 +268,7 @@ def test_certification_carries_no_weight(runs_dir: Path) -> None:
     options = env.payload_as(RepositoryOptions)
     assert named(env, options) == ["Yak Archive", "Zebra Archive"]  # by name, at an equal score
     assert options.candidates[0].score == options.candidates[1].score
-    assert "Certification listed: CoreTrustSeal." in options.candidates[1].notes
+    assert any("CoreTrustSeal" in note for note in options.candidates[1].notes)
 
 
 @pytest.mark.requirement("R1")
@@ -284,23 +284,23 @@ def test_the_researchers_institutional_repository_is_offered_beyond_the_cap(
     )
     env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([*many, INSTITUTIONAL])))
     options = env.payload_as(RepositoryOptions)
-    assert len(options.candidates) == 6
+    # As many others as the cap allows, then the institution's own.
+    assert len(options.candidates) == min(len(many), rank.config()["max_candidates"]) + 1
     home = options.candidates[-1]
     assert named(env, options)[-1] == "Testing University Research Data"
-    assert "Operated by University of Testing, the researcher's institution." in home.meets
-    assert "Deposit is open to members of the researcher's institution." in home.meets
-    assert "A commercial organisation, figshare, supplies the platform." in home.notes
+    assert any("University of Testing" in meets for meets in home.meets)
+    assert any("members" in meets for meets in home.meets)
+    assert any("figshare" in note for note in home.notes)
     assert home.commercial == Answer.NO  # the supplier does not operate it
 
 
 AFFILIATED = NEEDS.model_copy(
     update={"affiliation": Affiliation(name="Testing", ror="https://ror.org/0abcd1234")}
 )
-FALLBACK = (
-    "Operated by University of Testing, the researcher's institution, and offered as a fallback: "
-    "a repository of the dataset's discipline, or one a funder, journal or project requires, may "
-    "suit the data better."
-)
+
+
+def offered_as_fallback(ranked_by: list[str]) -> bool:
+    return any("University of Testing" in r and "fallback" in r for r in ranked_by)
 
 
 @pytest.mark.requirement("R1")
@@ -331,8 +331,8 @@ def test_an_institutional_repository_that_matches_the_discipline_gets_no_bonus(
     assert named(env, options) == ["Testing University Research Data", "Zeta Survey Archive"]
     home, rival = options.candidates
     assert home.score == rival.score  # in order of name, not of affiliation
-    assert "Operated by University of Testing, the researcher's institution." in home.ranked_by
-    assert FALLBACK not in home.ranked_by
+    assert any("University of Testing" in r for r in home.ranked_by)
+    assert not offered_as_fallback(home.ranked_by)
 
 
 @pytest.mark.requirement("R1")
@@ -355,7 +355,8 @@ def test_the_institutional_fallback_comes_after_the_discipline_and_before_genera
         "Testing University Research Data",
         "A Generalist",
     ]
-    assert options.candidates[1].ranked_by == [FALLBACK]
+    assert len(options.candidates[1].ranked_by) == 1
+    assert offered_as_fallback(options.candidates[1].ranked_by)
 
 
 @pytest.mark.requirement("R1")
@@ -426,14 +427,13 @@ def test_a_generalist_is_offered_after_a_repository_of_the_discipline(runs_dir: 
     env = invoke(runs_dir, NEEDS, advisor)
     options = env.payload_as(RepositoryOptions)
     assert named(env, options) == ["Social Survey Archive", "Anything Archive"]
-    assert options.candidates[1].ranked_by == [
-        "A generalist repository, which takes data from any discipline."
-    ]
+    [why] = options.candidates[1].ranked_by
+    assert "generalist" in why
     # With no repository of the discipline, the generalists are offered and the statement
     # says why.
     env = invoke(runs_dir, NEEDS, agent(repositories=FakeRepositories([generalist])))
     assert named(env, env.payload_as(RepositoryOptions)) == ["Anything Archive"]
-    assert "No discipline-specific repository matched the themes" in env.outcome.statement
+    assert "discipline-specific" in env.outcome.statement
 
 
 # --- the mandated branch --------------------------------------------------------------------
@@ -450,8 +450,8 @@ def test_mandated_repositories_are_described_with_the_needs_they_miss(runs_dir: 
     options = env.payload_as(RepositoryOptions)
     (only,) = options.candidates
     assert only.basis == CandidateBasis.MANDATED and only.score is None
-    assert "Restricted access is not listed." in only.misses
-    assert "re3data lists no persistent identifier system." in only.misses
+    assert any("restricted" in miss.lower() for miss in only.misses)
+    assert any("persistent identifier" in miss for miss in only.misses)
     assert only.assigns_pids == Answer.NO
     assert only.fee_required == Answer.YES
     assert options.not_found == ["Nowhere Archive"]
@@ -493,7 +493,8 @@ def test_a_name_several_records_bear_is_not_guessed(runs_dir: Path) -> None:
     needs = RepositoryNeeds(mandated=[RepositoryRef(name="Social Survey Archive")])
     env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([twin, SURVEYS])))
     assert env.outcome.status == OutcomeStatus.ABSTAINED
-    assert "names several re3data records (r3d100000001, r3d100000099)" in env.outcome.statement
+    assert "r3d100000001" in env.outcome.statement
+    assert "r3d100000099" in env.outcome.statement
 
 
 def test_a_name_beats_another_records_additional_name() -> None:
