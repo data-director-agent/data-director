@@ -1,7 +1,6 @@
 # The agents as the app and the workbench reach them inside the Compose network (compose.yaml).
-# Meant to have the same list, ports and timeouts as app/config/agents.yaml, with service names
-# for hosts. It lists only the agents compose.yaml starts, so the loop stops at its first
-# document step; every agent, and a check that the two lists agree, is TODO(#632).
+# The same list, ports and timeouts as app/config/agents.yaml, with service names for hosts, and
+# compose.yaml starts a service for each. scripts/check_deploy.py fails if they drift apart.
 agents:
   - name: example-hello
     url: http://example-hello:8101
@@ -9,10 +8,32 @@ agents:
     url: http://advisor-quality:8102
   - name: advisor-standards
     url: http://advisor-standards:8105
+  - name: advisor-policy
+    url: http://advisor-policy:8108
+  - name: advisor-repository
+    url: http://advisor-repository:8109
+  - name: advisor-ethics
+    url: http://advisor-ethics:8111
+  - name: advisor-files
+    url: http://advisor-files:8110
+  - name: advisor-dmp
+    url: http://advisor-dmp:8112
+  - name: advisor-metadata
+    url: http://advisor-metadata:8113
+  - name: advisor-documentation
+    url: http://advisor-documentation:8114
+  - name: advisor-rights
+    url: http://advisor-rights:8115
+  - name: advisor-linking
+    url: http://advisor-linking:8116
+  - name: advisor-fairness
+    url: http://advisor-fairness:8117
+  # The orchestrator waits for the agents it delegates to, so it needs a longer timeout than
+  # theirs (docs/specs/orchestration.md). It calls them back through the app's own A2A endpoint under its grant.
   - name: orchestrator-stub
     url: http://orchestrator-stub:8106
     timeout_s: 120
-  # Only started with the `llm` profile, and it needs ANTHROPIC_API_KEY in
+  # Only started with the `llm` profile, and it needs a model key (ANTHROPIC_API_KEY_FILE) in
   # config/local/agents/orchestrator-model.env. Without it the app shows it as unavailable.
   - name: orchestrator-model
     url: http://orchestrator-model:8107

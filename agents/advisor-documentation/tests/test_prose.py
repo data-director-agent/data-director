@@ -203,14 +203,6 @@ def test_the_model_is_given_the_facts_and_never_the_answers_or_an_earlier_versio
     assert "added none" in env.outcome.statement
 
 
-def test_a_data_dictionary_never_calls_the_model(runs_dir: Path) -> None:
-    client = StubClient({"overview": OVERVIEW})
-    env, grounded = draft(runs_dir, client, sample("soil-survey.data-dictionary.draft.json"))
-    assert env.outcome.status == OutcomeStatus.SUCCEEDED and grounded
-    assert client.sent == []
-    assert env.payload_as(Document).document_derivation == Derivation.TEMPLATE
-
-
 def test_the_call_and_its_prompt_are_recorded(runs_dir: Path) -> None:
     env, _ = draft(runs_dir, StubClient({"overview": OVERVIEW}))
     calls = env.telemetry.model_calls

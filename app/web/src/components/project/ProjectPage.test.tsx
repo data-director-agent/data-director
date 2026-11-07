@@ -166,6 +166,36 @@ describe("ProjectPage", () => {
     expect(questions).toHaveTextContent(/Answered: .*Soil cores/);
   });
 
+  it("shows a model's suggestion beside an unanswered question, as a suggestion only", async () => {
+    const answered = answersFixture as ProjectDocuments;
+    const document = at(answered.documents, 0);
+    const version = at(document.versions, 0);
+    const asked = at(version.questions, 0);
+    const suggesting = {
+      ...answered,
+      documents: [
+        {
+          ...document,
+          answers: [],
+          versions: [
+            {
+              ...version,
+              questions: [
+                { ...asked, suggested_answer: "Cores at 0 to 10 cm", suggestion_derivation: "model" },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const { container } = renderPage(fakeApi({ documents: () => Promise.resolve(suggesting) }));
+    const questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    expect(questions).toHaveTextContent(/0 of 1 answered/);
+    expect(questions).toHaveTextContent(/Not answered yet/);
+    expect(questions).toHaveTextContent(/Cores at 0 to 10 cm/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("says so when the address names a document the project does not hold", async () => {
     renderPage(fakeApi(), "doc=nonesuch");
     expect(await screen.findByText(/That document is not in this project/)).toBeVisible();
@@ -191,7 +221,7 @@ describe("ProjectPage", () => {
     const user = userEvent.setup();
     renderPage(fakeApi());
     const article = await readme();
-    await user.click(within(article).getByRole("tab", { name: "Source" }));
+    await user.click(await within(article).findByRole("tab", { name: "Source" }));
     const panel = within(article).getByRole("tabpanel");
     expect(panel.querySelector("pre")?.textContent).toBe(DRAFT.text);
   });
@@ -237,7 +267,7 @@ describe("ProjectPage", () => {
     const user = userEvent.setup();
     renderPage(fakeApi({ documents: () => Promise.resolve(redrafted()) }));
     const article = await readme();
-    await user.click(within(article).getByRole("tab", { name: "Versions (2)" }));
+    await user.click(await within(article).findByRole("tab", { name: "Versions (2)" }));
     const panel = within(article).getByRole("tabpanel");
     expect(within(panel).getByText("Version 2 (shown)")).toBeVisible();
     expect(within(panel).getByRole("link", { name: "Version 1" })).toHaveAttribute(
