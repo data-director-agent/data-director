@@ -18,17 +18,50 @@ from dd_harness.testing import TEST_PRINCIPAL, in_process
 PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
 APP_URL = "http://app.test"
 # The shell's component and browser tests are drawn from these, so each must be what the server
-# says. `DD_WRITE_FIXTURES=1 uv run pytest app/tests` rewrites them.
+# says. Outside CI a test rewrites a fixture that has fallen behind, so running the tests locally
+# keeps them current: commit what changed. In CI (`CI` set) a stale fixture fails instead, unless
+# DD_WRITE_FIXTURES=1.
 FIXTURES = Path(__file__).resolve().parents[1] / "web/fixtures"
 
 
+def _rewrite_fixtures() -> bool:
+    if "DD_WRITE_FIXTURES" in os.environ:
+        return os.environ["DD_WRITE_FIXTURES"] == "1"
+    return not os.environ.get("CI")
+
+
+def _changed_keys(old: Any, new: Any, where: str = "") -> list[str]:
+    """Where `old` and `new` differ, as JSON paths, for the failure message."""
+    if isinstance(old, dict) and isinstance(new, dict):
+        return [
+            change
+            for key in sorted(old.keys() | new.keys())
+            for change in _changed_keys(old.get(key), new.get(key), f"{where}.{key}")
+        ]
+    if isinstance(old, list) and isinstance(new, list) and len(old) == len(new):
+        return [
+            change
+            for i, (a, b) in enumerate(zip(old, new, strict=True))
+            for change in _changed_keys(a, b, f"{where}[{i}]")
+        ]
+    return [] if old == new else [where or "."]
+
+
 def check_fixture(name: str, body: dict[str, Any]) -> None:
+    """`body` is what the fixture `name` holds; compared as JSON, so layout does not matter."""
     path = FIXTURES / name
     text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    if os.environ.get("DD_WRITE_FIXTURES") == "1":
+    fresh = json.loads(text)
+    held = json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    if held == fresh:
+        return
+    if _rewrite_fixtures():
         path.write_text(text, encoding="utf-8")
-    assert path.read_text(encoding="utf-8") == text, (
-        f"{path} is stale; rerun with DD_WRITE_FIXTURES=1"
+        return
+    changed = ", ".join(_changed_keys(held, fresh)[:10])
+    raise AssertionError(
+        f"{path.name} is stale (changed: {changed}). Run `uv run pytest app/tests` locally, "
+        "which rewrites it, and commit the result."
     )
 
 

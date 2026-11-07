@@ -6,6 +6,6 @@ to ROOT, its size, its SHA-256 digest, its format identified against PRONOM, and
 fields. The inventory holds facts about the files and never their content.
 """
 
-from dd_inventory.scan import TOOL, make_inventory, tool_version
+from dd_inventory.scan import TOOL, FileProgress, detect_runtime, make_inventory, tool_version
 
-__all__ = ["TOOL", "make_inventory", "tool_version"]
+__all__ = ["TOOL", "FileProgress", "detect_runtime", "make_inventory", "tool_version"]

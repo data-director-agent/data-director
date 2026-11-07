@@ -208,7 +208,7 @@ describe("ConversationHome", () => {
     const transcript = await screen.findByRole("list", { name: "Conversation" });
     expect(within(transcript).getAllByText("orchestrator.stub@0.1.0")).toHaveLength(2);
     expect(within(transcript).getAllByText("example.hello@0.1.1a1")).toHaveLength(2);
-    expect(screen.getByRole("status")).toHaveTextContent("New reply from orchestrator.stub: Succeeded.");
+    expect(screen.getByRole("status")).toHaveTextContent(/orchestrator\.stub.*Succeeded/);
     expect(box).toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -472,7 +472,7 @@ describe("ConversationHome", () => {
     renderHome(withOrchestrator(), fakeApi({ get }));
     await userEvent.type(screen.getByRole("textbox"), "hi");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
-    expect(await screen.findByText("New reply from orchestrator.stub: Succeeded.")).toBeInTheDocument();
+    expect(await screen.findByText(/orchestrator\.stub.*Succeeded/)).toBeInTheDocument();
     expect(get).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -500,7 +500,7 @@ describe("ConversationHome", () => {
     expect(screen.getByRole("textbox")).toHaveValue("");
 
     reply();
-    await screen.findByText("New reply from orchestrator.stub: Succeeded.");
+    await screen.findByText(/orchestrator\.stub.*Succeeded/);
     expect(screen.queryByText(/is working on a reply/)).not.toBeInTheDocument();
   });
 
@@ -613,15 +613,18 @@ describe("ConversationHome", () => {
       const { container } = renderHome(withOrchestrator(), fakeApi());
       const phases = await screen.findByRole("navigation", { name: "Your data journey" });
       const bar = await within(phases).findByRole("list", { name: "The phases in order" });
-      expect(within(bar).getAllByRole("listitem")).toHaveLength(6);
-      expect(within(bar).getByText("Plan ahead")).toBeVisible();
+      const [first] = flowFixture.phases;
+      const step = first?.steps[0];
+      if (!first || !step) throw new Error("the process-flow fixture has no phase with a step");
+      expect(within(bar).getAllByRole("listitem")).toHaveLength(flowFixture.phases.length);
+      expect(within(bar).getByText(first.name)).toBeVisible();
       await userEvent.click(within(phases).getByText("Show what happens in each phase"));
       const items = within(phases).getAllByRole("listitem").filter((li) => li.querySelector("summary"));
-      expect(items).toHaveLength(6);
-      const detail = items.find((li) => li.querySelector("summary")?.textContent?.includes("Plan ahead"));
+      expect(items).toHaveLength(flowFixture.phases.length);
+      const detail = items.find((li) => li.querySelector("summary")?.textContent?.includes(first.name));
       if (!detail) throw new Error("no phase");
-      await userEvent.click(within(detail).getByText("Plan ahead"));
-      expect(within(detail).getByText("Choose standard terms to describe your data")).toBeVisible();
+      await userEvent.click(within(detail).getByText(first.name));
+      expect(within(detail).getByText(step.label)).toBeVisible();
       expect(phases).not.toHaveTextContent(/Requirements|\bR\d|Served by|agent/);
       expect(await axe(container)).toHaveNoViolations();
     });

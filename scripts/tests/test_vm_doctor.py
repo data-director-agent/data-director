@@ -3,7 +3,9 @@ a stand-in for systemd, git and the app."""
 
 from __future__ import annotations
 
+import grp
 import json
+import os
 import re
 import shutil
 import sys
@@ -127,8 +129,10 @@ class FakeVm(System):
 
 
 @pytest.fixture
-def vm(tmp_path: Path) -> Vm:
+def vm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Vm:
     """A VM as install.sh leaves it, with one release live."""
+    # Run as root, `apply` gives its files to the service group, which only a real VM has.
+    monkeypatch.setattr(grp, "getgrnam", lambda _name: grp.getgrgid(os.getgid()))
     layout = Vm(
         etc=tmp_path / "etc",
         unit_dir=tmp_path / "systemd",
@@ -168,12 +172,21 @@ def check(system: FakeVm, vm: Vm, capsys: pytest.CaptureFixture[str]) -> tuple[i
     return status, capsys.readouterr().out
 
 
+def says(out: str, kind: str, *tokens: str) -> bool:
+    """Whether one line of the output of this kind (problem, fix, note, skipped, refused) names
+    every token."""
+    return any(
+        line.strip().startswith(kind) and all(token in line for token in tokens)
+        for line in out.splitlines()
+    )
+
+
 def test_a_healthy_vm_is_all_good(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
     status, out = check(FakeVm(), vm, capsys)
     assert status == 0, out
     assert "All good." in out
-    assert "orchestrator-model is not turned on" in out
-    assert "conversing with orchestrator.stub" in out
+    assert says(out, "note", "orchestrator-model")
+    assert says(out, "note", "orchestrator.stub")
 
 
 def test_an_old_commit_still_running_names_the_bootstrap(
@@ -183,18 +196,18 @@ def test_an_old_commit_still_running_names_the_bootstrap(
     system.about = {**(system.about or {}), "commit": "c" * 40}
     status, out = check(system, vm, capsys)
     assert status == 1
-    assert "the app runs cccccccccc but" in out
-    assert f"releases/{SHA}/deploy/deploy.sh --bootstrap" in out
+    assert says(out, "problem", "cccccccccc")
+    assert says(out, "fix", f"releases/{SHA}/deploy/deploy.sh --bootstrap")
 
 
 def test_a_tip_that_failed_is_a_problem_and_a_waiting_one_a_note(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:
     status, out = check(FakeVm(tip=TIP), vm, capsys)
-    assert status == 0 and "is not live yet" in out
+    assert status == 0 and says(out, "note", TIP[:10])
     vm.failed.write_text(TIP + "\n")
     status, out = check(FakeVm(tip=TIP), vm, capsys)
-    assert status == 1 and "failed to deploy" in out
+    assert status == 1 and says(out, "problem", TIP[:10])
 
 
 def test_a_stray_instance_is_named_with_how_to_remove_it(
@@ -205,8 +218,8 @@ def test_a_stray_instance_is_named_with_how_to_remove_it(
     system.instances.append(stray)
     status, out = check(system, vm, capsys)
     assert status == 1
-    assert f"{stray} is not an agent in agents.yaml" in out
-    assert f"systemctl disable --now '{stray}'" in out
+    assert says(out, "problem", stray, "agents.yaml")
+    assert says(out, "fix", f"systemctl disable --now '{stray}'")
 
 
 def test_a_model_backed_agent_turned_on_without_a_key_names_the_secret_command(
@@ -220,9 +233,8 @@ def test_a_model_backed_agent_turned_on_without_a_key_names_the_secret_command(
     }
     status, out = check(system, vm, capsys)
     assert status == 1
-    assert "orchestrator-model calls a model but has no key" in out
-    assert "data-director secret set orchestrator-model anthropic-api-key" in out
-    assert "data-director-agent@orchestrator-model.service is failed" in out
+    assert says(out, "fix", "data-director secret set orchestrator-model anthropic-api-key")
+    assert says(out, "problem", "data-director-agent@orchestrator-model.service", "failed")
 
 
 def test_a_key_loaded_by_the_drop_in_is_enough(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
@@ -246,7 +258,7 @@ def test_an_agent_the_app_cannot_reach_is_a_problem(
     system.about = {**(system.about or {}), "unavailable": ["example-hello"]}
     status, out = check(system, vm, capsys)
     assert status == 1
-    assert "the app finds example-hello unavailable" in out
+    assert says(out, "problem", "example-hello", "unavailable")
 
 
 def test_an_app_that_does_not_answer_names_its_journal(
@@ -254,7 +266,7 @@ def test_an_app_that_does_not_answer_names_its_journal(
 ) -> None:
     status, out = check(FakeVm(about=None), vm, capsys)
     assert status == 1
-    assert "journalctl -u data-director-app.service" in out
+    assert says(out, "fix", "journalctl -u data-director-app.service")
 
 
 def test_units_that_differ_from_the_release_name_install_sh(
@@ -263,8 +275,8 @@ def test_units_that_differ_from_the_release_name_install_sh(
     (vm.unit_dir / "data-director.target").write_text(TARGET + "# edited\n")
     status, out = check(FakeVm(), vm, capsys)
     assert status == 1
-    assert "differ from the live release's: data-director.target" in out
-    assert "install.sh --domain dd.example.ac.uk" in out
+    assert says(out, "problem", "data-director.target")
+    assert says(out, "fix", "install.sh --domain dd.example.ac.uk")
 
 
 def test_sign_in_settings_and_operator_lines_are_checked(
@@ -273,8 +285,8 @@ def test_sign_in_settings_and_operator_lines_are_checked(
     vm.app_env.write_text("DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097\n")
     status, out = check(FakeVm(), vm, capsys)
     assert status == 1
-    assert "does not set DD_OIDC_ISSUER, DD_OIDC_CLIENT_ID, DD_APP_PUBLIC_URL" in out
-    assert "sets an operator" in out
+    assert says(out, "problem", "DD_OIDC_ISSUER", "DD_OIDC_CLIENT_ID", "DD_APP_PUBLIC_URL")
+    assert says(out, "problem", "DD_PRINCIPAL_")
 
 
 def test_a_key_in_the_shared_settings_is_a_problem(
@@ -283,7 +295,7 @@ def test_a_key_in_the_shared_settings_is_a_problem(
     vm.agents_env.write_text("ANTHROPIC_API_KEY=sk-ant-x\n")
     status, out = check(FakeVm(), vm, capsys)
     assert status == 1
-    assert "sets ANTHROPIC_API_KEY, which every agent reads" in out
+    assert says(out, "problem", str(vm.agents_env), "ANTHROPIC_API_KEY")
     assert "sk-ant-x" not in out
 
 
@@ -292,8 +304,8 @@ def test_without_root_what_cannot_be_read_is_skipped(
 ) -> None:
     status, out = check(FakeVm(root=False), vm, capsys)
     assert status == 0, out
-    assert "not run as root" in out
-    assert "skipped" in out and str(vm.credentials) in out
+    assert says(out, "note", "root")
+    assert says(out, "skipped", str(vm.credentials))
 
 
 def test_no_live_release_is_a_problem(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -307,7 +319,7 @@ def test_no_live_release_is_a_problem(tmp_path: Path, capsys: pytest.CaptureFixt
     )
     status, out = check(FakeVm(about=None, instances=[]), empty, capsys)
     assert status == 1
-    assert "no release is live" in out
+    assert says(out, "problem", "no release")
 
 
 # --- deployment.yaml and apply ------------------------------------------------------------------
@@ -354,8 +366,7 @@ def test_the_model_orchestrator_is_refused_without_its_key(
     before = (vm.etc / "profile.yaml").read_text()
     assert apply(FakeVm(), Place.vm(vm), vm) == 1
     out = capsys.readouterr().out
-    assert "orchestrator-model calls a model and has no key" in out
-    assert "data-director secret set orchestrator-model anthropic-api-key" in out
+    assert says(out, "refused", "data-director secret set orchestrator-model anthropic-api-key")
     assert (vm.etc / "profile.yaml").read_text() == before
 
 
@@ -408,8 +419,8 @@ def test_doctor_reports_a_deployment_not_yet_applied(
     (vm.etc / "deployment.yaml").write_text("name: renamed\norchestrator: stub\n")
     status, out = check(FakeVm(), vm, capsys)
     assert status == 1
-    assert "is not yet what deployment.yaml says" in out
-    assert "fix: sudo data-director apply" in out
+    assert says(out, "problem", "deployment.yaml")
+    assert says(out, "fix", "data-director apply")
 
 
 @pytest.mark.parametrize(

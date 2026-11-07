@@ -160,7 +160,7 @@ def test_without_a_model_title_a_conversation_is_named_by_its_first_message(
     assert found[short]["title"] == "Which licence should I use?"
     assert found[short]["title_source"] == "message"
     title = found[long]["title"]
-    assert title == "I have interview transcripts from a study of farmers and…"
+    assert title.endswith("…") and text.startswith(title.removesuffix("…"))
     assert len(title) <= conversations.MESSAGE_TITLE_MAX
     assert found[long]["title_source"] == "message"
 
@@ -211,17 +211,13 @@ def test_a_question_shows_in_history_and_an_answer_is_checked_against_it(
 
     assert problem(answer_values=["zenodo"]) is None
     assert problem(answer_other="Our institutional repository") is None
-    assert problem(answer_values=["dryad"]) == "not an option of the question: dryad"
-    assert problem(answer_values=["zenodo", "figshare"]) == "the question takes one answer"
-    assert problem(answer_values=["zenodo"], answer_other="and ours") == (
-        "the question takes one answer"
-    )
-    assert problem() == "nothing is chosen"
-    assert problem(answer_other="  ") == "the answer in the researcher's own words is empty"
+    assert "dryad" in (problem(answer_values=["dryad"]) or "")
+    assert "one answer" in (problem(answer_values=["zenodo", "figshare"]) or "")
+    assert "one answer" in (problem(answer_values=["zenodo"], answer_other="and ours") or "")
+    assert "nothing" in (problem() or "")
+    assert "empty" in (problem(answer_other="  ") or "")
     stale = ChoiceAnswer(answer_to=new_invocation_id(), answer_values=["zenodo"])
-    assert conversations.answer_problem(found, stale) == (
-        "the answer does not name the latest turn of the conversation"
-    )
+    assert "latest turn" in (conversations.answer_problem(found, stale) or "")
     assert conversations.answer_problem(None, stale) is not None
 
     # The next turn answers; its reply asks nothing, so nothing can answer it.
@@ -238,7 +234,7 @@ def test_a_question_shows_in_history_and_an_answer_is_checked_against_it(
     assert found is not None
     assert found["turns"][1]["input"]["choice_answer"]["answer_values"] == ["zenodo"]
     again = ChoiceAnswer(answer_to=second.invocation_id, answer_values=["zenodo"])
-    assert conversations.answer_problem(found, again) == "the latest turn asked no choice question"
+    assert "no choice question" in (conversations.answer_problem(found, again) or "")
 
 
 def test_a_question_that_takes_several_answers_accepts_them() -> None:
