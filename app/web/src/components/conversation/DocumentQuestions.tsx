@@ -33,6 +33,11 @@ import {
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
 
+/** A question's suggested answer, or "" when it has none. */
+function suggestion(q: DocumentQuestion): string {
+  return q.suggested_answer ?? "";
+}
+
 /** How many questions are put at once: enough to make progress, few enough to read. */
 export const QUESTIONS_AT_ONCE = 3;
 
@@ -122,16 +127,14 @@ export function DocumentQuestions({
             <p className="hint" id={`${id}-${q.question_id}-target`}>
               Fills: {questionTarget(q)}
             </p>
-            {q.suggested_answer && (
+            {suggestion(q) && (
               <p className="hint">
                 <span id={`${id}-${q.question_id}-suggestion`}>
-                  Suggested by a model: <q>{q.suggested_answer}</q>. Check it before you use it.
+                  Suggested by a model: <q>{suggestion(q)}</q>. Check it before you use it.
                 </span>{" "}
                 <Button
                   variant="quiet"
-                  onPress={() =>
-                    setWords((was) => ({ ...was, [q.question_id]: q.suggested_answer ?? "" }))
-                  }
+                  onPress={() => setWords((was) => ({ ...was, [q.question_id]: suggestion(q) }))}
                 >
                   Use suggestion <span className="visually-hidden">for: {q.question_prompt}</span>
                 </Button>
@@ -140,7 +143,7 @@ export function DocumentQuestions({
             <textarea
               id={`${id}-${q.question_id}`}
               aria-describedby={
-                q.suggested_answer
+                suggestion(q)
                   ? `${id}-${q.question_id}-target ${id}-${q.question_id}-suggestion`
                   : `${id}-${q.question_id}-target`
               }
