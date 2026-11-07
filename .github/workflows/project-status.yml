@@ -5,7 +5,7 @@ name: Project status
 #
 # Setup, once, by an organisation owner:
 #   - repository variable PROJECT_NUMBER: the number in the project's URL;
-#   - PROJECT_APP_ID (a repository variable or secret) and repository secret PROJECT_APP_PRIVATE_KEY: the ID and
+#   - repository variable PROJECT_APP_ID and repository secret PROJECT_APP_PRIVATE_KEY: the ID and
 #     private key of a GitHub App installed on the organisation with the "Projects" organisation
 #     permission set to read and write. The workflow mints a short-lived token from it, because
 #     the workflow's own GITHUB_TOKEN cannot write to an organisation project.
@@ -41,7 +41,7 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ vars.PROJECT_APP_ID || secrets.PROJECT_APP_ID }}
+          app-id: ${{ vars.PROJECT_APP_ID }}
           private-key: ${{ secrets.PROJECT_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           permission-organization-projects: write
