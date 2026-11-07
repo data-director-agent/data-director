@@ -1337,7 +1337,7 @@ dev = [
 
 [[package]]
 name = "data-director-app"
-version = "0.3.0a7"
+version = "0.3.0a8"
 source = { editable = "app" }
 dependencies = [
     { name = "data-director-harness" },
@@ -1376,7 +1376,7 @@ dev = [
 
 [[package]]
 name = "data-director-harness"
-version = "0.2.0a3"
+version = "0.2.0a4"
 source = { editable = "harness" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -1453,7 +1453,7 @@ dev = [{ name = "data-director-sdk", editable = "sdk" }]
 
 [[package]]
 name = "data-director-sdk"
-version = "0.2.0a3"
+version = "0.2.0a4"
 source = { editable = "sdk" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
