@@ -1347,6 +1347,9 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "data-director-agent-advisor-documentation" },
+    { name = "data-director-agent-advisor-files" },
+    { name = "data-director-agent-advisor-metadata" },
     { name = "data-director-agent-advisor-quality" },
     { name = "data-director-agent-advisor-standards" },
     { name = "data-director-agent-example-hello" },
@@ -1361,6 +1364,9 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "data-director-agent-advisor-documentation", editable = "agents/advisor-documentation" },
+    { name = "data-director-agent-advisor-files", editable = "agents/advisor-files" },
+    { name = "data-director-agent-advisor-metadata", editable = "agents/advisor-metadata" },
     { name = "data-director-agent-advisor-quality", editable = "agents/advisor-quality" },
     { name = "data-director-agent-advisor-standards", editable = "agents/advisor-standards" },
     { name = "data-director-agent-example-hello", editable = "agents/example-hello" },

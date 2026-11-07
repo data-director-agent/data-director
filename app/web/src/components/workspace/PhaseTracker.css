@@ -1,5 +1,5 @@
-/* The journey's phases and their steps: a strip of six equal segments, like a progress
-   bar with no segment reached, that opens to the list of phases and steps. */
+/* The journey's phases and their steps: a strip of six equal segments, each saying how many of
+   its steps are done or skipped, that opens to the list of phases and steps. */
 
 @layer components {
   .phase-strip {
@@ -36,6 +36,7 @@
 
   .phase-bar-segment {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-1);
     min-width: 0;
@@ -106,5 +107,29 @@
 
   .phase-strip-details[open] > summary {
     margin-bottom: var(--space-2);
+  }
+
+  .phase-strip-entry {
+    font-size: var(--font-size-small);
+  }
+
+  .phase-bar-count {
+    flex-basis: 100%;
+    font-size: var(--font-size-small);
+  }
+
+  .step-state {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .step-state-suggested {
+    color: var(--color-link);
+  }
+
+  .step-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
   }
 }

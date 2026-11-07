@@ -109,6 +109,7 @@ PUBLIC_URL_VARIABLE = "DD_APP_PUBLIC_URL"
 FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
+PROGRESS_REFUSED = "Data Director could not record where the project is"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -350,6 +351,54 @@ def build_app(
         except UnknownProjectError:
             return _no_project(project_id)
         return JSONResponse({**found.to_document(), "prov": found.prov_jsonld()})
+
+    async def get_progress(request: Request, _: Principal) -> Response:
+        # TODO(#389): every signed-in person still sees every project; only its members are to.
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            return JSONResponse(await run_in_threadpool(store.progress, project_id))
+        except UnknownProjectError:
+            return _no_project(project_id)
+
+    async def change_progress(request: Request, person: Principal) -> Response:
+        """The researcher's word on where the project is: the entry point they chose, or a step
+        they marked done, skipped or open again (docs/specs/orchestration.md). Whom it acts for is
+        whom the authenticator names, never the body. Answers with the progress derived anew."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", PROGRESS_REFUSED)
+        if not isinstance(body, dict):
+            return _refused("The body is not a JSON object.", PROGRESS_REFUSED)
+        step_id = request.path_params.get("step_id")
+        caused_by = f"{request.method} {request.url.path}"
+
+        def change() -> dict[str, Any]:
+            if step_id is None:
+                entry = body.get("entry")
+                if not isinstance(entry, int) or isinstance(entry, bool):
+                    raise ProjectError("`entry` is the entry point's number, 1, 2 or 3.")
+                store.choose_entry(project_id, entry, acted_for=person, caused_by=caused_by)
+            else:
+                mark = body.get("mark")
+                if not isinstance(mark, str):
+                    raise ProjectError("`mark` is one of done, skipped or open.")
+                store.mark_step(project_id, step_id, mark, acted_for=person, caused_by=caused_by)
+            return store.progress(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(change), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _refused(str(exc), PROGRESS_REFUSED)
 
     async def decide(request: Request, decider: Principal) -> Response:
         # The decider is whom the authenticator names, never the body (docs/specs/projects.md).
@@ -611,6 +660,21 @@ def build_app(
                 "/api/projects/{project_id}/disclosure",
                 signed_in(get_disclosure),
                 methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/progress",
+                signed_in(get_progress),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/progress/entry",
+                signed_in(change_progress),
+                methods=["PUT"],
+            ),
+            Route(
+                "/api/projects/{project_id}/progress/steps/{step_id}",
+                signed_in(change_progress),
+                methods=["PUT"],
             ),
             Route(
                 "/api/projects/{project_id}/documents/{document_id}/decisions",
