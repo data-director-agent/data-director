@@ -1,0 +1,183 @@
+@prefix dd: <https://w3id.org/data-director/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dd:Message a sh:NodeShape ;
+    rdfs:comment "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen and the progress the project log shows (docs/specs/orchestration.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class dd:ConversationTurn ;
+            sh:description "The earlier turns of the conversation, oldest first." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path dd:history ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:project_entry ],
+        [ sh:class dd:ChoiceAnswer ;
+            sh:description "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path dd:choice_answer ],
+        [ sh:class dd:StepProgress ;
+            sh:description "The process-flow steps the conversation's project log shows started, done or skipped, in flow order. Filled by the conductor and never by the caller; absent when the run is in no project. Derived from the log on every turn, never stored." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:project_progress ],
+        [ sh:class dd:InventorySummary ;
+            sh:description "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 3 ;
+            sh:path dd:project_inventory ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the user said in this turn." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:message_text ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ] ;
+    sh:targetClass dd:Message .
+
+dd:ChoiceAnswer a sh:NodeShape ;
+    rdfs:comment "The researcher's answer to the choice question the turn before asked: the values they chose and any text they gave in place of an option. The app checks it against that question before it sends the turn (docs/specs/orchestration.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The invocation whose reply asked the question." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:answer_to ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The values of the options chosen; empty when the researcher answered in their own words." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:answer_values ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's own answer, given in place of an option where the question allows it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:answer_other ] ;
+    sh:targetClass dd:ChoiceAnswer .
+
+dd:ConversationTurn a sh:NodeShape ;
+    rdfs:comment "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "For an agent turn, the version of the agent that produced it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:turn_agent_version ],
+        [ sh:datatype xsd:string ;
+            sh:description "For an agent turn, the invocation it came from." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:turn_invocation_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "What was said in the turn." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:turn_text ],
+        [ sh:in ( "user" "agent" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:role ],
+        [ sh:datatype xsd:string ;
+            sh:description "For an agent turn, the agent that produced it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:turn_agent_id ] ;
+    sh:targetClass dd:ConversationTurn .
+
+dd:InventorySummary a sh:NodeShape ;
+    rdfs:comment "What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How many files the inventory lists." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:inventory_file_count ],
+        [ sh:datatype xsd:string ;
+            sh:description "The command that made the inventory, such as dd-inventory." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "The inventory's dd-input-json-v1 hash, by which the project keeps it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:inventory_digest ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the inventory left out or could not do, such as files it skipped." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:inventory_limitations ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the inventory was made." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path prov:generatedAtTime ],
+        [ sh:datatype xsd:string ;
+            sh:description "The version of the command that made the inventory." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:inventory_tool_version ] ;
+    sh:targetClass dd:InventorySummary .
+
+dd:StepProgress a sh:NodeShape ;
+    rdfs:comment "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:in ( "started" "done" "skipped" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path dd:step_state ],
+        [ sh:datatype xsd:string ;
+            sh:description "A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:step_id ;
+            sh:pattern "^[a-z]+\\.[a-z-]+$" ] ;
+    sh:targetClass dd:StepProgress .
+

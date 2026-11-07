@@ -1,0 +1,40 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/hello/",
+      "Greeting": {
+         "@id": "https://w3id.org/data-director/agents/hello/Greeting"
+      },
+      "GroundingRef": {
+         "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "content_hash": {
+         "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "greeting_derivation": {
+         "@id": "https://w3id.org/data-director/agents/hello/greeting_derivation"
+      },
+      "greeting_text": {
+         "@id": "https://w3id.org/data-director/agents/hello/greeting_text"
+      },
+      "grounded_on": {
+         "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "hello": "https://w3id.org/data-director/agents/hello/",
+      "linkml": "https://w3id.org/linkml/",
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "source_id": {
+         "@id": "https://w3id.org/data-director/source_id"
+      },
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

@@ -1,0 +1,62 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/files/",
+      "FileAssessment": {
+         "@id": "https://w3id.org/data-director/agents/files/FileAssessment"
+      },
+      "FormatAssessment": {
+         "@id": "https://w3id.org/data-director/agents/files/FormatAssessment"
+      },
+      "GroundingRef": {
+         "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "assessments": {
+         "@id": "https://w3id.org/data-director/agents/files/assessments",
+         "@type": "@id"
+      },
+      "content_hash": {
+         "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "extension": {
+         "@id": "https://w3id.org/data-director/agents/files/extension"
+      },
+      "files": "https://w3id.org/data-director/agents/files/",
+      "format_name": {
+         "@id": "https://w3id.org/data-director/agents/files/format_name"
+      },
+      "grounded_on": {
+         "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "judged_by": {
+         "@id": "https://w3id.org/data-director/agents/files/judged_by"
+      },
+      "limitations": {
+         "@id": "https://w3id.org/data-director/agents/files/limitations"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "media_type": {
+         "@id": "https://w3id.org/data-director/agents/files/media_type"
+      },
+      "open_format": {
+         "@id": "https://w3id.org/data-director/agents/files/open_format"
+      },
+      "path": {
+         "@id": "https://w3id.org/data-director/agents/files/path"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "source_id": {
+         "@id": "https://w3id.org/data-director/source_id"
+      },
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

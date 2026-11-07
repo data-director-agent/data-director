@@ -1,0 +1,96 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/",
+      "Document": {
+         "@id": "https://w3id.org/data-director/Document"
+      },
+      "DocumentQuestion": {
+         "@id": "https://w3id.org/data-director/DocumentQuestion"
+      },
+      "DocumentVersionRef": {
+         "@id": "https://w3id.org/data-director/DocumentVersionRef"
+      },
+      "GroundingRef": {
+         "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "conforms_to": {
+         "@id": "http://purl.org/dc/terms/conformsTo",
+         "@type": "@id"
+      },
+      "content_hash": {
+         "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "document_derivation": {
+         "@id": "https://w3id.org/data-director/document_derivation"
+      },
+      "document_id": {
+         "@id": "https://w3id.org/data-director/document_id"
+      },
+      "document_kind": {
+         "@id": "https://w3id.org/data-director/document_kind"
+      },
+      "document_questions": {
+         "@id": "https://w3id.org/data-director/document_questions",
+         "@type": "@id"
+      },
+      "document_text": {
+         "@id": "https://w3id.org/data-director/document_text"
+      },
+      "document_title": {
+         "@id": "http://purl.org/dc/terms/title"
+      },
+      "gap_column": {
+         "@id": "https://w3id.org/data-director/gap_column"
+      },
+      "gap_field": {
+         "@id": "https://w3id.org/data-director/gap_field"
+      },
+      "gap_file": {
+         "@id": "https://w3id.org/data-director/gap_file"
+      },
+      "gap_section": {
+         "@id": "https://w3id.org/data-director/gap_section"
+      },
+      "grounded_on": {
+         "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "media_type": {
+         "@id": "http://purl.org/dc/terms/format"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "question_id": {
+         "@id": "https://w3id.org/data-director/question_id"
+      },
+      "question_prompt": {
+         "@id": "https://w3id.org/data-director/question_prompt"
+      },
+      "revises": {
+         "@id": "http://www.w3.org/ns/prov#wasRevisionOf",
+         "@type": "@id"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "source_id": {
+         "@id": "https://w3id.org/data-director/source_id"
+      },
+      "spdx": "http://spdx.org/rdf/terms#",
+      "suggested_answer": {
+         "@id": "https://w3id.org/data-director/suggested_answer"
+      },
+      "suggestion_derivation": {
+         "@id": "https://w3id.org/data-director/suggestion_derivation"
+      },
+      "version": {
+         "@id": "https://w3id.org/data-director/version"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

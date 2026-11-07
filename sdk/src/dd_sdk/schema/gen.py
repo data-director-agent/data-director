@@ -1,14 +1,17 @@
-"""Generate JSON Schema (and, for the core, SHACL) from a LinkML source (docs/specs/contract.md).
+"""Generate JSON Schema and SHACL from a LinkML source (docs/specs/contract.md).
 
 `dd-gen-schema` with no argument regenerates the core contract, `data_director.yaml`, into
-`generated/` beside it: the envelope and request schemas, the SHACL shapes, and one class schema
-for each core class that carries `schema_class`. `dd-gen-schema PATH` does the same for an
-agent's own LinkML file, which imports the core as `data_director`: one class schema for each of
-its classes that carries `schema_class`, written to `generated/` beside `PATH`.
+`generated/` beside it: the envelope and request schemas, the SHACL shapes of the whole core, and
+the files of each core class that carries `schema_class`. `dd-gen-schema PATH` does the same for
+an agent's own LinkML file, which imports the core as `data_director`: the files of each of its
+classes that carries `schema_class`, written to `generated/` beside `PATH`.
 
-A class schema is self-contained: its `$defs` hold only the definitions the class reaches. Its
-`$comment` names the source and the command, and the tests byte-compare every generated file
-against a fresh generation, so a hand edit fails the suite rather than taking effect.
+Each such class gets three files: its JSON Schema (`<Name>.schema.json`), its SHACL shapes
+(`<Name>.shacl.ttl`) and the JSON-LD context that reads its documents as RDF
+(`<Name>.context.jsonld`). Each is self-contained: the schema's `$defs`, the shapes and the
+context's terms hold only what the class reaches. The JSON Schema's `$comment` names the source
+and the command, and the tests compare every generated file against a fresh generation (the
+shapes as graphs), so a hand edit fails the suite rather than taking effect.
 
 LinkML is a development dependency (docs/specs/contract.md): it is needed to regenerate a schema,
 never to load one.
@@ -49,6 +52,14 @@ def class_schema_name(class_name: str) -> str:
     return f"{class_name}.schema.json"
 
 
+def class_shapes_name(class_name: str) -> str:
+    return f"{class_name}.shacl.ttl"
+
+
+def class_context_name(class_name: str) -> str:
+    return f"{class_name}.context.jsonld"
+
+
 def generate(source: Path = CORE) -> dict[Path, str]:
     """Every file generated from `source`, keyed by where it is written. Writes nothing."""
     source = source.resolve()
@@ -64,7 +75,9 @@ def generate(source: Path = CORE) -> dict[Path, str]:
         # so they run side by side; the outputs are assembled in a fixed order below.
         documents = list(CORE_DOCUMENTS) if core else []
         with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as pool:
-            shacl = pool.submit(_run, "linkml.generators.shaclgen", str(source)) if core else None
+            shacl = pool.submit(
+                _run, "linkml.generators.shaclgen", *_imports(importmap), str(source)
+            )
             generated = iter(
                 pool.map(lambda top: _json_schema(source, top, importmap), documents + classes)
             )
@@ -72,9 +85,11 @@ def generate(source: Path = CORE) -> dict[Path, str]:
                 schema = next(generated)
                 filename = CORE_DOCUMENTS[top_class]
                 outputs[out / filename] = _dump(_repair(schema, top_class, view), source)
-            if shacl is not None:
-                outputs[out / SHACL] = shacl.result()
+            shapes_text = shacl.result()
+            if core:
+                outputs[out / SHACL] = shapes_text
             class_schemas = list(generated)
+        shapes = _graph(shapes_text) if classes else None
         for class_name, schema in zip(classes, class_schemas, strict=True):
             schema = _prune(_repair(schema, class_name, view))
             schema["$id"] = f"{view.schema.id}/{class_name}"
@@ -88,7 +103,90 @@ def generate(source: Path = CORE) -> dict[Path, str]:
             # `$defs` are, as the Pydantic models are (extra="forbid").
             schema["additionalProperties"] = False
             outputs[out / class_schema_name(class_name)] = _dump(schema, source)
+            assert shapes is not None
+            iri = view.get_uri(class_name, expand=True)
+            outputs[out / class_shapes_name(class_name)] = _class_shapes(shapes, iri)
+            outputs[out / class_context_name(class_name)] = _class_context(view, class_name, schema)
     return outputs
+
+
+def _imports(importmap: Path) -> tuple[str, str]:
+    return ("--importmap", str(importmap))
+
+
+def _graph(turtle: str) -> Any:
+    from rdflib import Graph
+
+    return Graph().parse(data=turtle, format="turtle")
+
+
+def _class_shapes(shapes: Any, class_iri: str) -> str:
+    """The node shape of `class_iri` and every node shape it reaches through `sh:class` or
+    `sh:node`, with every triple below them, as Turtle: what a payload of the class is checked
+    against, and nothing else."""
+    from rdflib import BNode, Graph, URIRef
+    from rdflib.namespace import RDF, SH
+
+    kept = Graph(namespace_manager=shapes.namespace_manager)
+    pending, seen = [URIRef(class_iri)], set()
+    while pending:
+        node = pending.pop()
+        if node in seen:
+            continue
+        seen.add(node)
+        for s, p, o in shapes.triples((node, None, None)):
+            kept.add((s, p, o))
+            if isinstance(o, BNode) or (
+                p in (SH["class"], SH.node) and (o, RDF.type, SH.NodeShape) in shapes
+            ):
+                pending.append(o)
+    if (URIRef(class_iri), RDF.type, SH.NodeShape) not in kept:
+        raise ValueError(f"no SHACL node shape for {class_iri}")
+    text: str = kept.serialize(format="turtle")
+    return text
+
+
+def _class_context(view: Any, class_name: str, schema: dict[str, Any]) -> str:
+    """The JSON-LD context that reads a document of the class as RDF: every prefix, the class and
+    each class in its `$defs` by its URI, and each of their slots by its slot URI. A URI is read
+    as an IRI, and a literal of a type other than string, integer or boolean is typed as the shapes
+    expect. A key no slot names falls to the source's default prefix, where a closed shape reports
+    it. The harness names each
+    object's class with `@type` (dd_sdk.contract.rdf), so the shapes find their targets.
+
+    Built from the schema view rather than by gen-jsonld-context, which refuses a source that
+    redefines a core slot, as several agents do (`title`)."""
+    namespaces = {str(k): str(v) for k, v in view.namespaces().items()}
+    context: dict[str, Any] = dict(namespaces)
+    context["@vocab"] = namespaces[view.schema.default_prefix]
+    classes = view.all_classes()
+    reached = [class_name, *(c for c in schema.get("$defs", {}) if c in classes)]
+    for name in reached:
+        context[name] = {"@id": view.get_uri(name, expand=True)}
+    for name in reached:
+        for slot in view.class_induced_slots(name):
+            term: dict[str, str] = {"@id": view.get_uri(slot, expand=True)}
+            if slot.range in classes:
+                term["@type"] = "@id"  # an inlined object is a node; a reference names one
+            elif slot.range in view.all_types():
+                uri = view.get_uri(view.get_type(slot.range), expand=True)
+                if uri == _ANY_URI:
+                    term["@type"] = "@id"  # the shapes take a URI slot's value as an IRI node
+                elif uri not in _NATIVE:
+                    term["@type"] = uri
+            if context.get(slot.name, term) != term:
+                raise ValueError(
+                    f"{class_name}: slot {slot.name!r} has two meanings in the classes it reaches"
+                )
+            context[slot.name] = term
+    return json.dumps({"@context": context}, indent=3, sort_keys=True) + "\n"
+
+
+_ANY_URI = "http://www.w3.org/2001/XMLSchema#anyURI"
+# Literal types a JSON value already carries: JSON-LD reads strings, integers and booleans as these.
+_NATIVE = frozenset(
+    "http://www.w3.org/2001/XMLSchema#" + t for t in ("string", "integer", "boolean")
+)
 
 
 def designated_classes(source: Path, view: Any) -> list[str]:
@@ -217,7 +315,7 @@ def _dump(schema: dict[str, Any], source: Path) -> str:
 
 def stale(source: Path = CORE) -> list[str]:
     """What in `generated/` beside `source` is out of date: missing, different, or no longer
-    generated. Empty when current. The core's SHACL file is compared as a graph, since rdflib
+    generated. Empty when current. A SHACL file is compared as a graph, since rdflib
     does not serialise blank nodes in a stable order. An agent's tests call this for its own
     LinkML file, as `sdk/tests/test_contract.py` does for the core."""
     outputs = generate(source)

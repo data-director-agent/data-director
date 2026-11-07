@@ -1,0 +1,123 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix standards: <https://w3id.org/data-director/agents/standards/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+standards:Recommendations a sh:NodeShape ;
+    rdfs:comment "The standards advisor payload. Recommended vocabularies, ontologies and formats." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:class standards:SearchedSummary ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path standards:searched ],
+        [ sh:class standards:Recommendation ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path standards:items ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ] ;
+    sh:targetClass standards:Recommendations .
+
+standards:Recommendation a sh:NodeShape ;
+    rdfs:comment "One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (docs/specs/grounding.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path standards:rationale ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "dataset, or field:<name> for a field-level recommendation." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path standards:target ],
+        [ sh:datatype xsd:float ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path standards:score ],
+        [ sh:in ( "controlled_vocabulary" "ontology" "terminology_unclassified" "data_format" "field_format" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path standards:kind ],
+        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path standards:rationale_derivation ],
+        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 5 ;
+            sh:path standards:classification_derivation ] ;
+    sh:targetClass standards:Recommendation .
+
+standards:SearchedSummary a sh:NodeShape ;
+    rdfs:comment "What was looked for, so a reader can judge an abstention as well as a recommendation." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path standards:candidates_qualifying ],
+        [ sh:datatype xsd:string ;
+            sh:description "Which copy of the registry answered, e.g. snapshot:2026-09-04 or live." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path standards:snapshot_ref ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path standards:candidates_retrieved ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path standards:queries ] ;
+    sh:targetClass standards:SearchedSummary .
+
+<https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
+    rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/content_hash> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/source_id> ] ;
+    sh:targetClass <https://w3id.org/data-director/GroundingRef> .
+

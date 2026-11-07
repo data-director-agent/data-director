@@ -1,5 +1,5 @@
 """The conductor: policy gate → input check → agent → grounding linter → source check →
-validation → store → provenance.
+validation → shape check → store → provenance.
 
 `invoke` is a plain function. Every transport (CLI, A2A, AG-UI) is a wrapper around it
 (docs/specs/transport.md). It fills in everything an agent must not decide about itself:
@@ -11,6 +11,11 @@ The grounding linter checks the agent's account of its run for consistency; the 
 re-hashes what the evidence cites against a copy of the source the harness holds
 (docs/specs/grounding.md). A violation of either withholds a succeeded result. Their verdicts are
 stored separately, in `grounding.txt` and `sources.txt`.
+
+The shape check runs a payload the envelope still carries against the SHACL shapes its class
+brings on the card, where it brings any (docs/specs/contract.md). It only reports: the SHACL
+Validation Report is kept as `validation-report.jsonld` beside the run and in its crate, and the
+outcome is the same whatever it says.
 
 Delegation (docs/specs/orchestration.md). When the conductor runs a remote agent in grounding mode
 `delegation`, and it knows its own A2A address (`harness_url`), it issues that invocation a grant: a
@@ -55,13 +60,21 @@ from typing import Any
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_harness import grounding, policy, project_facts
+from dd_harness import grounding, policy, project_facts, shacl
 from dd_harness import sources as source_check
 from dd_harness.projects import ProjectError
 from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registry
 from dd_harness.remote import Received, RemoteAgent
-from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, ProjectStorage, RunStorage
+from dd_harness.storage import (
+    CRATE,
+    GROUNDING,
+    SOURCES,
+    SPANS,
+    VALIDATION,
+    ProjectStorage,
+    RunStorage,
+)
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
@@ -626,6 +639,19 @@ class Conductor:
             checked = [accepted] if accepted else []
             if envelope.payload is not None and spec.payload is not None:
                 checked.append(spec.payload)
+            # 7b. The payload against its class's SHACL shapes. Reported, never withheld.
+            shapes_report: bytes | None = None
+            if (
+                envelope.payload is not None
+                and spec.payload is not None
+                and spec.payload.shapes is not None
+            ):
+                shapes_report = shacl.validate_payload(
+                    envelope.invocation_id,
+                    doc["payload"],
+                    spec.payload,
+                    envelope.completed_at,
+                ).report_bytes()
             # Everything else a run keeps is a named artifact beside it (docs/specs/storage.md).
             self.store.append(doc, request_doc, checked, prompts)
             run_id = envelope.invocation_id
@@ -633,8 +659,10 @@ class Conductor:
             self.store.put_artifact(run_id, SPANS, spans)
             self.store.put_artifact(run_id, GROUNDING, (report.summary() + "\n").encode())
             self.store.put_artifact(run_id, SOURCES, (source_report.summary() + "\n").encode())
+            if shapes_report is not None:
+                self.store.put_artifact(run_id, VALIDATION, shapes_report)
             if self.write_crate:
-                crate = process_run_crate(doc, request_doc, spans, started)
+                crate = process_run_crate(doc, request_doc, spans, started, shapes_report)
                 for name, data in crate.items():
                     self.store.put_artifact(run_id, f"{CRATE}/{name}", data)
         finally:

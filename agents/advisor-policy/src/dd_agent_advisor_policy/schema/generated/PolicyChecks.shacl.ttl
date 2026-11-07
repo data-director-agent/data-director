@@ -1,0 +1,197 @@
+@prefix policy: <https://w3id.org/data-director/agents/policy/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+policy:PolicyChecks a sh:NodeShape ;
+    rdfs:comment "The policy advisor payload. The policies matched to each actor, what each asks, where they differ, and the actors with no policy record. Conflicts are flagged for human review; the agent does not resolve them." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Actors for which no FAIRsharing policy record was found." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path policy:no_record ],
+        [ sh:class policy:MatchedPolicy ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path policy:policies ],
+        [ sh:class policy:PolicyConflict ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path policy:conflicts ],
+        [ sh:class policy:RepositoryRef ;
+            sh:description "Repositories a matched policy requires, as FAIRsharing relates them. Empty when no policy record names one, which is not evidence that none is mandated." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 3 ;
+            sh:path policy:mandated_repositories ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:class policy:SearchedSummary ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path policy:searched ] ;
+    sh:targetClass policy:PolicyChecks .
+
+policy:MatchedPolicy a sh:NodeShape ;
+    rdfs:comment "One policy record matched to an actor. It is named only in grounded_on; the record's name, clauses and relations are in the cited evidence item's content (docs/specs/grounding.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The name of the actor, as given in the input, that this policy was matched to." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path policy:actor ],
+        [ sh:class policy:Obligation ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path policy:obligations ],
+        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path policy:rationale_derivation ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path policy:rationale ],
+        [ sh:in ( "funder" "journal" "institution" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path policy:role ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Facts to weigh beside the obligations, such as a policy subject outside the discipline or a policy dated after the publication." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path policy:notes ] ;
+    sh:targetClass policy:MatchedPolicy .
+
+policy:Obligation a sh:NodeShape ;
+    rdfs:comment "What a policy record says about one kind of obligation, read from a curated field by a fixed rule." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:in ( "required" "recommended" "unstated" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path policy:strength ],
+        [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path policy:kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The value FAIRsharing's curators recorded, such as \"suggested\" or \"no\", kept so that an unstated strength does not hide what the record says." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path policy:recorded_as ] ;
+    sh:targetClass policy:Obligation .
+
+policy:PolicyConflict a sh:NodeShape ;
+    rdfs:comment "Matched policies that state one kind of obligation differently. Grounded on every policy involved, and flagged for human review." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:in ( "deposit" "data_availability_statement" "repository" "standard" "embargo" "licence" "timing" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path policy:kind ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path policy:description ] ;
+    sh:targetClass policy:PolicyConflict .
+
+policy:RepositoryRef a sh:NodeShape ;
+    rdfs:comment "A repository a policy requires, in the form advisor.repository takes as RepositoryNeeds.mandated." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The re3data identifier, e.g. r3d100010230." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path policy:re3data_id ;
+            sh:pattern "^r3d\\d+$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path schema1:name ] ;
+    sh:targetClass policy:RepositoryRef .
+
+policy:SearchedSummary a sh:NodeShape ;
+    rdfs:comment "What was looked for, so a reader can judge an abstention as well as a match." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "Which copy of the registry answered, e.g. fairsharing-policy:snapshot:2026-10-29." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path policy:snapshot_ref ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path policy:policies_retrieved ],
+        [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path policy:queries ] ;
+    sh:targetClass policy:SearchedSummary .
+
+<https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
+    rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/content_hash> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/source_id> ] ;
+    sh:targetClass <https://w3id.org/data-director/GroundingRef> .
+

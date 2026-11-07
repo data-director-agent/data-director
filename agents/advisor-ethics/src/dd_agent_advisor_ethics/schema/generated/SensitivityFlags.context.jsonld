@@ -1,0 +1,56 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/ethics/",
+      "GroundingRef": {
+         "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "SensitivityFlag": {
+         "@id": "https://w3id.org/data-director/agents/ethics/SensitivityFlag"
+      },
+      "SensitivityFlags": {
+         "@id": "https://w3id.org/data-director/agents/ethics/SensitivityFlags"
+      },
+      "category": {
+         "@id": "https://w3id.org/data-director/agents/ethics/category"
+      },
+      "content_hash": {
+         "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "ethics": "https://w3id.org/data-director/agents/ethics/",
+      "field": {
+         "@id": "https://w3id.org/data-director/agents/ethics/field"
+      },
+      "flags": {
+         "@id": "https://w3id.org/data-director/agents/ethics/flags",
+         "@type": "@id"
+      },
+      "grounded_on": {
+         "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "limitations": {
+         "@id": "https://w3id.org/data-director/agents/ethics/limitations"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "matched": {
+         "@id": "https://w3id.org/data-director/agents/ethics/matched"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "questions": {
+         "@id": "https://w3id.org/data-director/agents/ethics/questions"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "source_id": {
+         "@id": "https://w3id.org/data-director/source_id"
+      },
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

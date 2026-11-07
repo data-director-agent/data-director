@@ -1,0 +1,53 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/repository/",
+      "Affiliation": {
+         "@id": "http://schema.org/Organization"
+      },
+      "RepositoryNeeds": {
+         "@id": "https://w3id.org/data-director/agents/repository/RepositoryNeeds"
+      },
+      "RepositoryRef": {
+         "@id": "https://w3id.org/data-director/agents/repository/RepositoryRef"
+      },
+      "access": {
+         "@id": "https://w3id.org/data-director/agents/repository/access"
+      },
+      "affiliation": {
+         "@id": "https://w3id.org/data-director/agents/repository/affiliation",
+         "@type": "@id"
+      },
+      "data_kinds": {
+         "@id": "https://w3id.org/data-director/agents/repository/data_kinds"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "linkml": "https://w3id.org/linkml/",
+      "mandated": {
+         "@id": "https://w3id.org/data-director/agents/repository/mandated",
+         "@type": "@id"
+      },
+      "name": {
+         "@id": "http://schema.org/name"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "re3data_id": {
+         "@id": "https://w3id.org/data-director/agents/repository/re3data_id"
+      },
+      "repository": "https://w3id.org/data-director/agents/repository/",
+      "ror": {
+         "@id": "https://w3id.org/data-director/agents/repository/ror"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "themes": {
+         "@id": "http://www.w3.org/ns/dcat#theme"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

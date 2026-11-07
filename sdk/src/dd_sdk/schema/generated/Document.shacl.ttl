@@ -1,0 +1,170 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dd: <https://w3id.org/data-director/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dd:Document a sh:NodeShape ;
+    rdfs:comment "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class dd:DocumentQuestion ;
+            sh:description "The questions this version asks the researcher, one for each gap it leaves. A README marks each gap with the HTML comment <!-- dd:gap question_id -->; a data dictionary leaves the cell empty and its source unknown." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:document_questions ],
+        [ sh:class dd:GroundingRef ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path dd:grounded_on ],
+        [ sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path dd:document_kind ],
+        [ sh:description "The schema or profile document_text follows, such as a repository's metadata schema." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path dcterms:conformsTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ],
+        [ sh:datatype xsd:string ;
+            sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcterms:title ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of document_text, such as text/markdown or application/json." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcterms:format ],
+        [ sh:description "How document_text came about." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 6 ;
+            sh:path dd:document_derivation ],
+        [ sh:class dd:DocumentVersionRef ;
+            sh:description "The version this document replaces, when an agent regenerates it. Absent for a new document, for which the conductor mints a document_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path prov:wasRevisionOf ],
+        [ sh:datatype xsd:string ;
+            sh:description "The content of the document, as text; a structured record is serialised." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:document_text ] ;
+    sh:targetClass dd:Document .
+
+dd:DocumentQuestion a sh:NodeShape ;
+    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The field whose data dictionary row the question would fill." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:gap_field ],
+        [ sh:datatype xsd:string ;
+            sh:description "The question, as a short line a person reads before the options." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:question_prompt ],
+        [ sh:datatype xsd:string ;
+            sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:suggested_answer ],
+        [ sh:datatype xsd:string ;
+            sh:description "The data dictionary column the question would fill, such as unit." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:gap_column ],
+        [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 7 ;
+            sh:path dd:suggestion_derivation ],
+        [ sh:datatype xsd:string ;
+            sh:description "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:question_id ;
+            sh:pattern "^q-[0-9a-f]{16}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file whose data dictionary row the question would fill." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:gap_file ],
+        [ sh:datatype xsd:string ;
+            sh:description "The heading of the README section the question would fill, as the drafter wrote it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:gap_section ] ;
+    sh:targetClass dd:DocumentQuestion .
+
+dd:DocumentVersionRef a sh:NodeShape ;
+    rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:document_id ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:version ] ;
+    sh:targetClass dd:DocumentVersionRef .
+
+dd:GroundingRef a sh:NodeShape ;
+    rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:content_hash ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:source_id ] ;
+    sh:targetClass dd:GroundingRef .
+

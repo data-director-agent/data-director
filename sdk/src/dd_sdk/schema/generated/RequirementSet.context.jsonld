@@ -1,0 +1,91 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/",
+      "Any": {
+         "@id": "https://w3id.org/linkml/Any"
+      },
+      "RequirementField": {
+         "@id": "https://w3id.org/data-director/RequirementField"
+      },
+      "RequirementSet": {
+         "@id": "https://w3id.org/data-director/RequirementSet"
+      },
+      "conforms_to": {
+         "@id": "http://purl.org/dc/terms/conformsTo",
+         "@type": "@id"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "fields": {
+         "@id": "https://w3id.org/data-director/fields",
+         "@type": "@id"
+      },
+      "form_label": {
+         "@id": "https://w3id.org/data-director/form_label"
+      },
+      "guidance": {
+         "@id": "https://w3id.org/data-director/guidance",
+         "@type": "@id"
+      },
+      "licences": {
+         "@id": "https://w3id.org/data-director/licences"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "max_file_size": {
+         "@id": "https://w3id.org/data-director/max_file_size"
+      },
+      "max_item_size": {
+         "@id": "https://w3id.org/data-director/max_item_size"
+      },
+      "media_types": {
+         "@id": "https://w3id.org/data-director/media_types"
+      },
+      "obligation": {
+         "@id": "https://w3id.org/data-director/obligation"
+      },
+      "property": {
+         "@id": "https://w3id.org/data-director/property"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "qualifier": {
+         "@id": "https://w3id.org/data-director/qualifier",
+         "@type": "@id"
+      },
+      "re3data_id": {
+         "@id": "https://w3id.org/data-director/re3data_id"
+      },
+      "re3data_names": {
+         "@id": "https://w3id.org/data-director/re3data_names"
+      },
+      "recommended_documents": {
+         "@id": "https://w3id.org/data-director/recommended_documents"
+      },
+      "required_documents": {
+         "@id": "https://w3id.org/data-director/required_documents"
+      },
+      "requirement_set_id": {
+         "@id": "https://w3id.org/data-director/requirement_set_id"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "schema_org": {
+         "@id": "https://w3id.org/data-director/schema_org"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "title": {
+         "@id": "http://purl.org/dc/terms/title"
+      },
+      "url": {
+         "@id": "http://schema.org/url",
+         "@type": "@id"
+      },
+      "version": {
+         "@id": "https://w3id.org/data-director/version"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

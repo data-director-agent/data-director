@@ -25,8 +25,8 @@ dependencies = [
   "pyyaml>=6.0",
   "python-dotenv>=1.1",
   "joserfc>=1.0",
-  # Validation of a project against its repository's requirements, behind dd_harness.deposit
-  # (docs/specs/deposit.md, docs/specs/dependencies.md).
+  # SHACL validation, behind dd_harness.shacl: a project against its repository's requirements
+  # and a payload against its class's shapes (docs/specs/contract.md, docs/specs/dependencies.md).
   "pyshacl>=0.30",
   "rdflib>=7.1",
 ]

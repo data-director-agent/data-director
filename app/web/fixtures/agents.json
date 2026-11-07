@@ -134,6 +134,65 @@
             ],
             "title": "DatasetProfile",
             "type": "object"
+          },
+          "shapes": {
+            "context": {
+              "@context": {
+                "@vocab": "https://w3id.org/data-director/agents/standards/",
+                "DatasetProfile": {
+                  "@id": "http://www.w3.org/ns/dcat#Dataset"
+                },
+                "TableField": {
+                  "@id": "https://w3id.org/data-director/TableField"
+                },
+                "dcat": "http://www.w3.org/ns/dcat#",
+                "dcterms": "http://purl.org/dc/terms/",
+                "dd": "https://w3id.org/data-director/",
+                "description": {
+                  "@id": "http://purl.org/dc/terms/description"
+                },
+                "field_description": {
+                  "@id": "http://purl.org/dc/terms/description"
+                },
+                "field_format": {
+                  "@id": "https://w3id.org/data-director/field_format"
+                },
+                "field_type": {
+                  "@id": "https://w3id.org/data-director/field_type"
+                },
+                "fields": {
+                  "@id": "https://w3id.org/data-director/agents/standards/fields",
+                  "@type": "@id"
+                },
+                "keywords": {
+                  "@id": "http://www.w3.org/ns/dcat#keyword"
+                },
+                "linkml": "https://w3id.org/linkml/",
+                "media_types": {
+                  "@id": "http://www.w3.org/ns/dcat#mediaType"
+                },
+                "name": {
+                  "@id": "https://w3id.org/data-director/name"
+                },
+                "prov": "http://www.w3.org/ns/prov#",
+                "schema": "http://schema.org/",
+                "schema_class": {
+                  "@id": "https://w3id.org/data-director/schema_class"
+                },
+                "shex": "http://www.w3.org/ns/shex#",
+                "spdx": "http://spdx.org/rdf/terms#",
+                "standards": "https://w3id.org/data-director/agents/standards/",
+                "themes": {
+                  "@id": "http://www.w3.org/ns/dcat#theme"
+                },
+                "title": {
+                  "@id": "http://purl.org/dc/terms/title"
+                },
+                "xsd": "http://www.w3.org/2001/XMLSchema#"
+              }
+            },
+            "digest": "4b963940085d6866cc69f7be93154fe697c8c1172184d3fa2b30b537e270c34c",
+            "shacl": "@prefix dcat: <http://www.w3.org/ns/dcat#> .\n@prefix dcterms: <http://purl.org/dc/terms/> .\n@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n@prefix standards: <https://w3id.org/data-director/agents/standards/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\ndcat:Dataset a sh:NodeShape ;\n    rdfs:comment \"A minimal description of a dataset being planned or prepared: what it is about and how it is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path <https://w3id.org/data-director/schema_class> ],\n        [ sh:class <https://w3id.org/data-director/TableField> ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 6 ;\n            sh:path standards:fields ],\n        [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dcterms:description ],\n        [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dcterms:title ],\n        [ sh:datatype xsd:string ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dcat:mediaType ],\n        [ sh:datatype xsd:string ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dcat:keyword ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Discipline or subject, as free text or an IRI.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dcat:theme ] ;\n    sh:targetClass dcat:Dataset .\n\n<https://w3id.org/data-director/TableField> a sh:NodeShape ;\n    rdfs:comment \"One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path <https://w3id.org/data-director/field_format> ],\n        [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path <https://w3id.org/data-director/name> ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...).\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path <https://w3id.org/data-director/field_type> ],\n        [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dcterms:description ] ;\n    sh:targetClass <https://w3id.org/data-director/TableField> .\n\n"
           }
         },
         "Recommendations": {
@@ -316,6 +375,89 @@
             ],
             "title": "Recommendations",
             "type": "object"
+          },
+          "shapes": {
+            "context": {
+              "@context": {
+                "@vocab": "https://w3id.org/data-director/agents/standards/",
+                "GroundingRef": {
+                  "@id": "https://w3id.org/data-director/GroundingRef"
+                },
+                "Recommendation": {
+                  "@id": "https://w3id.org/data-director/agents/standards/Recommendation"
+                },
+                "Recommendations": {
+                  "@id": "https://w3id.org/data-director/agents/standards/Recommendations"
+                },
+                "SearchedSummary": {
+                  "@id": "https://w3id.org/data-director/agents/standards/SearchedSummary"
+                },
+                "candidates_qualifying": {
+                  "@id": "https://w3id.org/data-director/agents/standards/candidates_qualifying"
+                },
+                "candidates_retrieved": {
+                  "@id": "https://w3id.org/data-director/agents/standards/candidates_retrieved"
+                },
+                "classification_derivation": {
+                  "@id": "https://w3id.org/data-director/agents/standards/classification_derivation"
+                },
+                "content_hash": {
+                  "@id": "https://w3id.org/data-director/content_hash"
+                },
+                "dcat": "http://www.w3.org/ns/dcat#",
+                "dcterms": "http://purl.org/dc/terms/",
+                "dd": "https://w3id.org/data-director/",
+                "grounded_on": {
+                  "@id": "https://w3id.org/data-director/grounded_on",
+                  "@type": "@id"
+                },
+                "items": {
+                  "@id": "https://w3id.org/data-director/agents/standards/items",
+                  "@type": "@id"
+                },
+                "kind": {
+                  "@id": "https://w3id.org/data-director/agents/standards/kind"
+                },
+                "linkml": "https://w3id.org/linkml/",
+                "prov": "http://www.w3.org/ns/prov#",
+                "queries": {
+                  "@id": "https://w3id.org/data-director/agents/standards/queries"
+                },
+                "rationale": {
+                  "@id": "https://w3id.org/data-director/agents/standards/rationale"
+                },
+                "rationale_derivation": {
+                  "@id": "https://w3id.org/data-director/agents/standards/rationale_derivation"
+                },
+                "schema": "http://schema.org/",
+                "schema_class": {
+                  "@id": "https://w3id.org/data-director/schema_class"
+                },
+                "score": {
+                  "@id": "https://w3id.org/data-director/agents/standards/score",
+                  "@type": "http://www.w3.org/2001/XMLSchema#float"
+                },
+                "searched": {
+                  "@id": "https://w3id.org/data-director/agents/standards/searched",
+                  "@type": "@id"
+                },
+                "shex": "http://www.w3.org/ns/shex#",
+                "snapshot_ref": {
+                  "@id": "https://w3id.org/data-director/agents/standards/snapshot_ref"
+                },
+                "source_id": {
+                  "@id": "https://w3id.org/data-director/source_id"
+                },
+                "spdx": "http://spdx.org/rdf/terms#",
+                "standards": "https://w3id.org/data-director/agents/standards/",
+                "target": {
+                  "@id": "https://w3id.org/data-director/agents/standards/target"
+                },
+                "xsd": "http://www.w3.org/2001/XMLSchema#"
+              }
+            },
+            "digest": "824de8ae9cf3e103127f79f122e2084b8ca2abbb416f6b13422232370f7c188c",
+            "shacl": "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n@prefix standards: <https://w3id.org/data-director/agents/standards/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\nstandards:Recommendations a sh:NodeShape ;\n    rdfs:comment \"The standards advisor payload. Recommended vocabularies, ontologies and formats.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;\n            sh:description \"The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).\" ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 3 ;\n            sh:path <https://w3id.org/data-director/grounded_on> ],\n        [ sh:class standards:SearchedSummary ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 2 ;\n            sh:path standards:searched ],\n        [ sh:class standards:Recommendation ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 1 ;\n            sh:path standards:items ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path <https://w3id.org/data-director/schema_class> ] ;\n    sh:targetClass standards:Recommendations .\n\nstandards:Recommendation a sh:NodeShape ;\n    rdfs:comment \"One recommended resource for one target. The resource is named only in grounded_on; its name, status and DOI are in the cited evidence item's content (docs/specs/grounding.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path standards:rationale ],\n        [ sh:class <https://w3id.org/data-director/GroundingRef> ;\n            sh:description \"The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).\" ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 6 ;\n            sh:path <https://w3id.org/data-director/grounded_on> ],\n        [ sh:datatype xsd:string ;\n            sh:description \"dataset, or field:<name> for a field-level recommendation.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path standards:target ],\n        [ sh:datatype xsd:float ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path standards:score ],\n        [ sh:in ( \"controlled_vocabulary\" \"ontology\" \"terminology_unclassified\" \"data_format\" \"field_format\" ) ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:order 0 ;\n            sh:path standards:kind ],\n        [ sh:in ( \"template\" \"model\" \"lexical\" \"registry\" ) ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:order 4 ;\n            sh:path standards:rationale_derivation ],\n        [ sh:in ( \"template\" \"model\" \"lexical\" \"registry\" ) ;\n            sh:maxCount 1 ;\n            sh:order 5 ;\n            sh:path standards:classification_derivation ] ;\n    sh:targetClass standards:Recommendation .\n\nstandards:SearchedSummary a sh:NodeShape ;\n    rdfs:comment \"What was looked for, so a reader can judge an abstention as well as a recommendation.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:integer ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path standards:candidates_qualifying ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Which copy of the registry answered, e.g. snapshot:2026-09-04 or live.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path standards:snapshot_ref ],\n        [ sh:datatype xsd:integer ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path standards:candidates_retrieved ],\n        [ sh:datatype xsd:string ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path standards:queries ] ;\n    sh:targetClass standards:SearchedSummary .\n\n<https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;\n    rdfs:comment \"The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path <https://w3id.org/data-director/content_hash> ;\n            sh:pattern \"^[0-9a-f]{64}$\" ],\n        [ sh:datatype xsd:string ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path <https://w3id.org/data-director/source_id> ] ;\n    sh:targetClass <https://w3id.org/data-director/GroundingRef> .\n\n"
           }
         }
       },

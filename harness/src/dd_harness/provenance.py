@@ -27,6 +27,7 @@ from rocrate.rocrate import ROCrate
 
 PROCESS_RUN_CRATE = "https://w3id.org/ro/wfrun/process/0.5"
 AGENT_BASE = "https://w3id.org/data-director/agents/"
+VALIDATION_FILE = "validation-report.jsonld"
 # The contract's `vouched_by` slot (dd:vouched_by), a term of the crate's context
 # (docs/specs/policy-and-identity.md).
 VOUCHED_BY = "vouchedBy"
@@ -38,9 +39,11 @@ def process_run_crate(
     request: dict[str, Any],
     spans: bytes | None,
     started_at: datetime,
+    validation: bytes | None = None,
 ) -> dict[str, bytes]:
     """The Process Run Crate of one invocation, as its files: each path relative to the crate's
-    root, with its bytes. The envelope and request are written as the run store writes them."""
+    root, with its bytes. The envelope and request are written as the run store writes them;
+    `validation`, the payload's SHACL Validation Report, is a result beside them when given."""
     with tempfile.TemporaryDirectory(prefix="dd-crate-") as tmp:
         work = Path(tmp)
         request_path = work / "request.json"
@@ -51,8 +54,14 @@ def process_run_crate(
         if spans is not None:
             spans_path = work / "spans.jsonl"
             spans_path.write_bytes(spans)
+        validation_path = None
+        if validation is not None:
+            validation_path = work / VALIDATION_FILE
+            validation_path.write_bytes(validation)
         out = work / "crate"
-        _write_crate(out, envelope, request_path, envelope_path, spans_path, started_at)
+        _write_crate(
+            out, envelope, request_path, envelope_path, spans_path, started_at, validation_path
+        )
         return {
             path.relative_to(out).as_posix(): path.read_bytes()
             for path in sorted(out.rglob("*"))
@@ -67,6 +76,7 @@ def _write_crate(
     envelope_path: Path,
     spans_path: Path | None,
     started_at: datetime,
+    validation_path: Path | None = None,
 ) -> None:
     crate = ROCrate()
     crate.root_dataset["conformsTo"] = {"@id": PROCESS_RUN_CRATE}
@@ -127,6 +137,18 @@ def _write_crate(
                 spans_path,
                 dest_path="spans.jsonl",
                 properties={"encodingFormat": "application/jsonl"},
+            )
+        )
+    if validation_path is not None:
+        results.append(
+            crate.add_file(
+                validation_path,
+                dest_path=VALIDATION_FILE,
+                properties={
+                    "encodingFormat": "application/ld+json",
+                    "description": "The payload's SHACL Validation Report against the shapes "
+                    "of its class. It reports only; the envelope's outcome does not depend on it.",
+                },
             )
         )
 

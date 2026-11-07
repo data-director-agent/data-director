@@ -1,0 +1,84 @@
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix repository: <https://w3id.org/data-director/agents/repository/> .
+@prefix schema1: <http://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+repository:RepositoryNeeds a sh:NodeShape ;
+    rdfs:comment "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The dataset's discipline, as the broad field of study (e.g. environmental science), and any narrower subjects as further themes. A narrow topic alone (e.g. moorland) may match no repository of the discipline." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcat:theme ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the data is, e.g. interview transcripts or household survey microdata." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path repository:data_kinds ],
+        [ sh:class schema1:Organization ;
+            sh:description "The researcher's institution. Its repositories are offered as a fallback, after those of the dataset's discipline and before generalist ones, and none is removed, so give the themes as if it were not set." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path repository:affiliation ],
+        [ sh:class repository:RepositoryRef ;
+            sh:description "Repositories that a funder, journal or institutional policy requires, as Phase 2 found them. Naming an institution does not make its repository mandated." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path repository:mandated ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:description "How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet decided, and no access need is checked." ;
+            sh:in ( "open" "embargoed" "restricted" ) ;
+            sh:maxCount 1 ;
+            sh:order 3 ;
+            sh:path repository:access ] ;
+    sh:targetClass repository:RepositoryNeeds .
+
+schema1:Organization a sh:NodeShape ;
+    rdfs:comment "The researcher's institution, matched against the institutions a registry lists." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path schema1:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The organisation's ROR identifier." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:ror ] ;
+    sh:targetClass schema1:Organization .
+
+repository:RepositoryRef a sh:NodeShape ;
+    rdfs:comment "A repository named by a funder, journal, institution or the researcher. The re3data identifier is used when given; otherwise the name is looked up." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The re3data identifier, e.g. r3d100010230." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path repository:re3data_id ;
+            sh:pattern "^r3d\\d+$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path schema1:name ] ;
+    sh:targetClass repository:RepositoryRef .
+

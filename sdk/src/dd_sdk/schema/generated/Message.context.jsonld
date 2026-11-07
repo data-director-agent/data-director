@@ -1,0 +1,103 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/",
+      "ChoiceAnswer": {
+         "@id": "https://w3id.org/data-director/ChoiceAnswer"
+      },
+      "ConversationTurn": {
+         "@id": "https://w3id.org/data-director/ConversationTurn"
+      },
+      "InventorySummary": {
+         "@id": "https://w3id.org/data-director/InventorySummary"
+      },
+      "Message": {
+         "@id": "https://w3id.org/data-director/Message"
+      },
+      "StepProgress": {
+         "@id": "https://w3id.org/data-director/StepProgress"
+      },
+      "answer_other": {
+         "@id": "https://w3id.org/data-director/answer_other"
+      },
+      "answer_to": {
+         "@id": "https://w3id.org/data-director/answer_to"
+      },
+      "answer_values": {
+         "@id": "https://w3id.org/data-director/answer_values"
+      },
+      "choice_answer": {
+         "@id": "https://w3id.org/data-director/choice_answer",
+         "@type": "@id"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "history": {
+         "@id": "https://w3id.org/data-director/history",
+         "@type": "@id"
+      },
+      "inventory_digest": {
+         "@id": "https://w3id.org/data-director/inventory_digest"
+      },
+      "inventory_file_count": {
+         "@id": "https://w3id.org/data-director/inventory_file_count"
+      },
+      "inventory_limitations": {
+         "@id": "https://w3id.org/data-director/inventory_limitations"
+      },
+      "inventory_made_at": {
+         "@id": "http://www.w3.org/ns/prov#generatedAtTime",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "inventory_tool": {
+         "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
+      },
+      "inventory_tool_version": {
+         "@id": "https://w3id.org/data-director/inventory_tool_version"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "message_text": {
+         "@id": "https://w3id.org/data-director/message_text"
+      },
+      "project_entry": {
+         "@id": "https://w3id.org/data-director/project_entry"
+      },
+      "project_inventory": {
+         "@id": "https://w3id.org/data-director/project_inventory",
+         "@type": "@id"
+      },
+      "project_progress": {
+         "@id": "https://w3id.org/data-director/project_progress",
+         "@type": "@id"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "role": {
+         "@id": "https://w3id.org/data-director/role"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "step_id": {
+         "@id": "https://w3id.org/data-director/step_id"
+      },
+      "step_state": {
+         "@id": "https://w3id.org/data-director/step_state"
+      },
+      "turn_agent_id": {
+         "@id": "https://w3id.org/data-director/turn_agent_id"
+      },
+      "turn_agent_version": {
+         "@id": "https://w3id.org/data-director/turn_agent_version"
+      },
+      "turn_invocation_id": {
+         "@id": "https://w3id.org/data-director/turn_invocation_id"
+      },
+      "turn_text": {
+         "@id": "https://w3id.org/data-director/turn_text"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

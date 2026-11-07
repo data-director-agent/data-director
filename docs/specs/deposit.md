@@ -126,7 +126,7 @@ warnings. The harness keeps the report by its digest in the project log, with a
 `project_validated` event saying whether it conforms. Validity covers the data files only as far as the
 inventory describes them: checking a table's contents against its Frictionless schema needs the
 data, so it runs where the data live, in the inventory command, and its report travels with the
-inventory, TODO(#19).
+inventory, TODO(#651).
 
 **The package** is one zip file whose root `ro-crate-metadata.json` describes the dataset. It
 holds the approved metadata record, the other approved documents (each document's latest approved

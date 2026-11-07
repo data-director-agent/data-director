@@ -41,7 +41,12 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 5. A card carries the contract version its agent was built against and, for each class it accepts
    or returns, the class's JSON Schema with its digest (sha256 in the `dd-json-document-v1`
    canonicalisation). A card whose digest does not match its schema, or that names a class it
-   carries no schema for, is refused (`harness/tests/test_registry.py`).
+   carries no schema for, is refused (`harness/tests/test_registry.py`). Beside the schema, a
+   class may carry `shapes`: its SHACL shapes as Turtle text, the JSON-LD context that reads its
+   documents as RDF, and their digest (of `{"shacl", "context"}` in the same canonicalisation;
+   neither holds a number, so the digest survives A2A). Shapes that do not match their digest are
+   refused like a schema; a class without them is governed all the same
+   (`harness/tests/test_payload_shapes.py`).
 6. An agent is governed only when its contract version has the harness's major version and, while
    the major version is 0, its minor version too (the caret rule). Any other agent is recorded as
    **incompatible**, naming both versions, and never as unavailable (`dd_sdk/contract/version.py`,
@@ -50,6 +55,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    accept or which fails that class's schema: the outcome is `failed` with problem type
    `input-not-accepted` (HTTP 422). A payload of another class than the declared one, or one its
    class schema rejects, becomes `failed` with `agent-error` (`harness/tests/test_harness.py`).
+   A payload the envelope still carries once every check has run is then checked against its
+   class's shapes, when the class has any, and the SHACL Validation Report is kept beside the run
+   as `validation-report.jsonld` and in its Process Run Crate. The shape check reports only: the
+   outcome, payload and problem are the same whatever the report says
+   (`harness/tests/test_payload_shapes.py`).
 8. A stored envelope names the contract version it was governed under, the digest of the input
    class schema it was checked against (when the class was accepted) and the digest of the
    payload class schema exactly when there is a payload. The run store keeps each schema once,
@@ -156,12 +166,21 @@ schema.org, PROV) says so with `slot_uri` or `class_uri`. A slot without an exte
 
 **Validation reports.** Structured validation output (C15) uses the W3C SHACL Validation Report
 vocabulary (`sh:ValidationReport`, `sh:ValidationResult`), with a Frictionless validation report
-for tabular data. No bespoke report type is defined. SHACL shapes are generated for the core
-only. The harness writes a report when it validates a project for deposit, from shapes generated
-from the chosen repository's requirements ([Deposit](deposit.md)). Payloads are not checked
-against SHACL shapes: their only validation is JSON Schema validation raising
-`ContractViolation`, which is a programmer or configuration error, never a content outcome.
-TODO(#19)
+for tabular data. No bespoke report type is defined. The harness writes a report in two places.
+When it validates a project for deposit, the shapes are generated from the chosen repository's
+requirements ([Deposit](deposit.md)). When an agent returns a payload, the shapes are its class's
+own: `dd-gen-schema` writes, beside each class's JSON Schema, the class's SHACL shapes
+(`<Class>.shacl.ttl`, the class's node shape and every shape it reaches) and a JSON-LD context
+(`<Class>.context.jsonld`), and the card carries both. The harness reads the payload as RDF
+through the context, naming each object's class with `@type` from the class schema
+(`dd_sdk.contract.rdf`), and runs pySHACL (`dd_harness.shacl`). The report names the
+invocation, the payload class and the digests of its schema and shapes.
+
+The shape check does not change the outcome. The class's JSON Schema, which a payload must
+pass, already decides what is structurally valid, and the shapes are generated from the same
+LinkML source; what the shapes add is a reading of the payload in its vocabularies, which a
+reviewer reads beside the run. A violation is a finding for the agent's author, not a content
+problem for the researcher.
 
 **RO-Crate.** RO-Crate is a record written after a run, not a message format. Callers, the
 harness and agents exchange `InvocationRequest` and `Envelope` over A2A, validated against the
@@ -226,6 +245,15 @@ touching the contract, the agents or the checks.
   agents to read the input directly; the second adds a mapping problem for every repository that
   already speaks DCAT.
 - **A bespoke `ValidationReport` type.** A second thing to maintain where a W3C vocabulary exists.
+- **A SHACL violation in a payload downgrades the outcome, as a linter violation does.** The
+  shapes come from the same source as the JSON Schema that already gates the payload, so a
+  violation is a disagreement between two readings of one class, which the agent's author
+  resolves; withholding a researcher's result for it would be out of proportion.
+- **The payload's report in the envelope.** The envelope is closed, and a report is a record of a
+  check, like the linter's summary, not part of the agent's answer; it is kept beside the run.
+- **Shapes for the whole core and every agent in one file, as `gen-shacl` writes them.** A card
+  would carry shapes for classes the agent never returns; per-class shapes are as self-contained
+  as the class schemas.
 - **Treating `abstained` or `referred` as problems.** Declining or handing to a person is a valid
   answer, not an error.
 - **RO-Crate as the message between agents.** The checks run on the request, envelope and trace;
@@ -234,7 +262,9 @@ touching the contract, the agents or the checks.
 ## Non-functional requirements
 
 - **Portability.** Validation needs only a Draft 7 JSON Schema validator; the generated schemas
-  declare Draft 7, and the workbench viewer validates against the same files.
+  declare Draft 7, and the workbench viewer validates against the same files. The shape check
+  needs a SHACL processor, and only reports, so a consumer without one loses no check that
+  decides an outcome.
 - **Auditability.** A stored run can be rechecked and rendered from its own record: contract
   version, schema digests and the schemas themselves are kept with it.
 - **Privacy.** An identifier carries nothing about the dataset, and a problem report never
@@ -244,8 +274,6 @@ touching the contract, the agents or the checks.
 
 - Problem type URIs and agent identifiers use the w3id namespace, which is not yet registered.
   TODO(#3)
-- Whether an agent's classes get SHACL shapes, and where a validation report would find them;
-  running SHACL validation on an agent's payload. TODO(#19)
 - `TableField` slots carry `see_also` until Frictionless publishes term IRIs. TODO(#20)
 - The Process Run Crate names the harness's own files as object and result rather than the
   records the agent read or the metadata it changed; it does not link a delegated run to its

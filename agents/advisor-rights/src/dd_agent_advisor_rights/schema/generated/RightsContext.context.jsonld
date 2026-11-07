@@ -1,0 +1,33 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/rights/",
+      "RightsContext": {
+         "@id": "https://w3id.org/data-director/agents/rights/RightsContext"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "linkml": "https://w3id.org/linkml/",
+      "mandated_licence": {
+         "@id": "https://w3id.org/data-director/agents/rights/mandated_licence"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "reuse_wanted": {
+         "@id": "https://w3id.org/data-director/agents/rights/reuse_wanted"
+      },
+      "rights": "https://w3id.org/data-director/agents/rights/",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "sensitive": {
+         "@id": "https://w3id.org/data-director/agents/rights/sensitive"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "third_party_content": {
+         "@id": "https://w3id.org/data-director/agents/rights/third_party_content"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

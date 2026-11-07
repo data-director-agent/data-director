@@ -1,0 +1,46 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/policy/",
+      "Actor": {
+         "@id": "https://w3id.org/data-director/agents/policy/Actor"
+      },
+      "PolicyContext": {
+         "@id": "https://w3id.org/data-director/agents/policy/PolicyContext"
+      },
+      "actors": {
+         "@id": "https://w3id.org/data-director/agents/policy/actors",
+         "@type": "@id"
+      },
+      "data_kinds": {
+         "@id": "https://w3id.org/data-director/agents/policy/data_kinds"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "disciplines": {
+         "@id": "http://www.w3.org/ns/dcat#theme"
+      },
+      "fairsharing_id": {
+         "@id": "https://w3id.org/data-director/agents/policy/fairsharing_id"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "name": {
+         "@id": "http://schema.org/name"
+      },
+      "policy": "https://w3id.org/data-director/agents/policy/",
+      "prov": "http://www.w3.org/ns/prov#",
+      "publication_date": {
+         "@id": "https://w3id.org/data-director/agents/policy/publication_date"
+      },
+      "role": {
+         "@id": "https://w3id.org/data-director/agents/policy/role"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

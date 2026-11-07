@@ -24,7 +24,7 @@ set, the validation report, the project log, the disclosure of generative AI and
 Crate of each run behind an approved version. It holds no data file: each is described, with its
 path, size and SHA-256, and marked as not included.
 
-This module is the only importer of `pyshacl` and `rdflib` at run time
+pySHACL runs, and every result is written, through `dd_harness.shacl`
 (docs/specs/dependencies.md).
 """
 
@@ -38,29 +38,26 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Final, Literal
+from typing import Any, Final
 from urllib.parse import quote
 
-from pyshacl import validate as shacl_validate
 from rdflib import BNode, Graph, Namespace, URIRef
 from rdflib import Literal as RdfLiteral
-from rdflib.namespace import RDF, XSD
+from rdflib.namespace import RDF
 from rocrate.model import ContextEntity, DataEntity, Person
 from rocrate.rocrate import ROCrate
 
 from dd_harness.disclosure import disclose, ni, version_chain, version_id
 from dd_harness.projects import APPROVED, ProjectError
-from dd_harness.provenance import AGENT_BASE
+from dd_harness.provenance import AGENT_BASE, VALIDATION_FILE
+from dd_harness.shacl import DD, SH, VIOLATION, WARNING, Result, Severity
+from dd_harness.shacl import report_jsonld as shacl_report
+from dd_harness.shacl import run as run_shacl
 from dd_harness.storage import ProjectStorage, RunStorage
 from dd_sdk.contract.models import DocumentKind, Principal, now
 
-SH = Namespace("http://www.w3.org/ns/shacl#")
 SCHEMA = Namespace("http://schema.org/")
-DD = "https://w3id.org/data-director/"
-
-type Severity = Literal["violation", "warning"]
-VIOLATION: Final = "violation"
-WARNING: Final = "warning"
+__all__ = ["VIOLATION", "WARNING", "Result", "Severity"]  # kept here for deposit's callers
 
 # The constraint component a result that pySHACL did not make names: the check that made it.
 DOCUMENT_CHECK = DD + "RequiredDocumentConstraintComponent"
@@ -96,7 +93,13 @@ LOG_NAME = "project-log.jsonl"
 STATEMENT_NAME = "use-of-generative-ai.md"
 PROVENANCE_NAME = "provenance.jsonld"
 # The files of a Process Run Crate, as the conductor keeps them (dd_harness.provenance).
-CRATE_FILES = ("ro-crate-metadata.json", "request.json", "envelope.json", "spans.jsonl")
+CRATE_FILES = (
+    "ro-crate-metadata.json",
+    "request.json",
+    "envelope.json",
+    "spans.jsonl",
+    VALIDATION_FILE,
+)
 RO_CRATE = "https://w3id.org/ro/crate"
 INCLUDED = "includedInPackage"
 INCLUDED_IRI = DD + "included_in_package"
@@ -119,29 +122,6 @@ class PackageRefusedError(ProjectError):
         reasons = "; ".join(r.message for r in validation.violations)
         super().__init__(f"the project is not valid for deposit: {reasons}")
         self.validation = validation
-
-
-@dataclass(frozen=True)
-class Result:
-    """One result of a validation, as an `sh:ValidationResult` says it."""
-
-    severity: Severity
-    message: str
-    focus: str
-    component: str
-    path: str | None = None
-
-    def to_jsonld(self) -> dict[str, Any]:
-        node: dict[str, Any] = {
-            "@type": "sh:ValidationResult",
-            "sh:resultSeverity": {"@id": f"sh:{self.severity.capitalize()}"},
-            "sh:focusNode": {"@id": self.focus},
-            "sh:resultMessage": self.message,
-            "sh:sourceConstraintComponent": {"@id": self.component},
-        }
-        if self.path is not None:
-            node["sh:resultPath"] = {"@id": self.path}
-        return node
 
 
 @dataclass(frozen=True)
@@ -168,22 +148,13 @@ class Validation:
 
     def report_jsonld(self) -> dict[str, Any]:
         """The SHACL Validation Report, in JSON-LD."""
-        report: dict[str, Any] = {
-            "@context": {
-                "sh": str(SH),
-                "schema": str(SCHEMA),
-                "dd": DD,
-                "xsd": str(XSD),
-            },
-            "@type": "sh:ValidationReport",
-            "sh:conforms": self.conforms,
-            "sh:result": [r.to_jsonld() for r in self.results],
+        about: dict[str, Any] = {
             "dd:project": {"@id": _project_iri(self.project_id)},
             "dd:validated_at": {"@value": self.made_at.isoformat(), "@type": "xsd:dateTime"},
         }
         if self.requirements_digest is not None:
-            report["dd:requirements"] = {"@id": ni(self.requirements_digest)}
-        return report
+            about["dd:requirements"] = {"@id": ni(self.requirements_digest)}
+        return shacl_report(self.results, **about)
 
 
 @dataclass(frozen=True)
@@ -408,21 +379,7 @@ def _check_fields(
                 ),
             )
         )
-    _, report, _ = shacl_validate(data, shacl_graph=shapes, inference="none", allow_warnings=True)
-    assert isinstance(report, Graph)
-    found = []
-    for node in report.subjects(RDF.type, SH.ValidationResult):
-        severity = report.value(node, SH.resultSeverity)
-        path = report.value(node, SH.resultPath)
-        found.append(
-            Result(
-                VIOLATION if severity == SH.Violation else WARNING,
-                str(report.value(node, SH.resultMessage)),
-                str(report.value(node, SH.focusNode)),
-                str(report.value(node, SH.sourceConstraintComponent)),
-                str(path) if path is not None else None,
-            )
-        )
+    found = run_shacl(data, shapes)
     order = [SCHEMA[f["schema_org"]] for f in requirements.get("fields", [])]
     yield from sorted(
         found, key=lambda r: (r.severity != VIOLATION, order.index(URIRef(r.path or "")))

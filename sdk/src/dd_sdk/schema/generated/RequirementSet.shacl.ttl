@@ -1,0 +1,140 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dd: <https://w3id.org/data-director/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dd:RequirementSet a sh:NodeShape ;
+    rdfs:comment "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The pages the set's values were taken from, so that a steward can check them." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 15 ;
+            sh:path dd:guidance ],
+        [ sh:datatype xsd:integer ;
+            sh:description "An override only: the largest file the repository accepts, in bytes." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:max_file_size ],
+        [ sh:class dd:RequirementField ;
+            sh:description "The metadata properties the set requires or recommends." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:fields ],
+        [ sh:datatype xsd:string ;
+            sh:description "An override only: the repository's re3data identifier, such as r3d100012124." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:re3data_id ;
+            sh:pattern "^r3d[0-9]{9}$" ],
+        [ sh:description "The document kinds that must have an approved version before a package is built." ;
+            sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
+            sh:order 9 ;
+            sh:path dd:required_documents ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:schema_class ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The version of the set, raised on every change." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:version ],
+        [ sh:description "The document kinds whose absence is a warning." ;
+            sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
+            sh:order 10 ;
+            sh:path dd:recommended_documents ],
+        [ sh:datatype xsd:integer ;
+            sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 13 ;
+            sh:path dd:max_item_size ],
+        [ sh:datatype xsd:string ;
+            sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:licences ],
+        [ sh:datatype xsd:string ;
+            sh:description "Identifies the requirement set, such as datacite-4 or orda." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:requirement_set_id ;
+            sh:pattern "^[a-z0-9][a-z0-9-]*$" ],
+        [ sh:description "The URI of the metadata schema. An override names the standard's set it builds on." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 5 ;
+            sh:path dcterms:conformsTo ],
+        [ sh:datatype xsd:string ;
+            sh:description "An override only: the media types the repository accepts. Empty means any." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path dd:media_types ],
+        [ sh:datatype xsd:string ;
+            sh:description "What a person calls the standard or the repository." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcterms:title ],
+        [ sh:datatype xsd:string ;
+            sh:description "A standard's set only: the metadataStandardName values in re3data that select it." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:re3data_names ],
+        [ sh:description "Where the standard or the repository is described." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path schema1:url ] ;
+    sh:targetClass dd:RequirementSet .
+
+dd:RequirementField a sh:NodeShape ;
+    rdfs:comment "One metadata property a requirement set requires or recommends." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path dd:qualifier ],
+        [ sh:datatype xsd:string ;
+            sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:schema_org ],
+        [ sh:in ( "required" "recommended" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path dd:obligation ],
+        [ sh:datatype xsd:string ;
+            sh:description "An override only: the label of the repository's deposit form field the value goes in." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:form_label ],
+        [ sh:datatype xsd:string ;
+            sh:description "The schema's property, such as DataCite's titles or types.resourceTypeGeneral." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:property ] ;
+    sh:targetClass dd:RequirementField .
+

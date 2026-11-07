@@ -1,0 +1,48 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/fairness/",
+      "PublishedRecord": {
+         "@id": "https://w3id.org/data-director/agents/fairness/PublishedRecord"
+      },
+      "access_protocol": {
+         "@id": "https://w3id.org/data-director/agents/fairness/access_protocol"
+      },
+      "creator_identifiers": {
+         "@id": "https://w3id.org/data-director/agents/fairness/creator_identifiers"
+      },
+      "creators": {
+         "@id": "https://w3id.org/data-director/agents/fairness/creators"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "fairness": "https://w3id.org/data-director/agents/fairness/",
+      "formats": {
+         "@id": "https://w3id.org/data-director/agents/fairness/formats"
+      },
+      "identifier": {
+         "@id": "https://w3id.org/data-director/agents/fairness/identifier"
+      },
+      "keywords": {
+         "@id": "https://w3id.org/data-director/agents/fairness/keywords"
+      },
+      "licence": {
+         "@id": "https://w3id.org/data-director/agents/fairness/licence"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "prov": "http://www.w3.org/ns/prov#",
+      "related_identifiers": {
+         "@id": "https://w3id.org/data-director/agents/fairness/related_identifiers"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "title": {
+         "@id": "https://w3id.org/data-director/agents/fairness/title"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}
