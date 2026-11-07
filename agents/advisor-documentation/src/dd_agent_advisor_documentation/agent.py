@@ -1,5 +1,5 @@
-"""advisor.documentation: the Documentation Editor persona (docs/specs/agents.md). A mock,
-and the stub drafter of the project's README and data dictionary (#200).
+"""advisor.documentation: the Documentation Editor persona (docs/specs/agents.md), the drafter
+of the project's README and data dictionary (docs/specs/drafting.md).
 
 Serves `setup.documentation` and `preparation.documentation` (R5). Given a `DraftRequest` for a
 `readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
@@ -13,11 +13,18 @@ project's approved metadata record, when the request carries one in DataCite's J
 cites the dataset by its creators and title. These are supplied content: a person approved them
 (docs/specs/drafting.md, invariant 2).
 
-The README's sections are those of `readme.yaml`. The mock writes no prose of its own, reads no
-file, consults no source and calls no model, so its grounding mode is `none` and it cites only its
-input. Regenerating a document drafts it afresh from the project's facts, and names the version it
+The README's sections are those of `readme.yaml`. When a model is configured (`factory.py`), a
+writer (`prose.py`) adds a short paragraph of prose to the sections that have facts to draft from,
+and an overview under the title, written only from those facts; what it writes is checked, and a
+paragraph that names what the facts do not give is not used. The gaps, the tables and the values
+from the metadata record are drafted by rule either way, so a model never closes a gap, fills a
+data dictionary cell or rephrases an answer. The editor reads no file and consults no source, so
+its grounding mode is `input_only` and it cites only its input. `document_derivation` records
+`model` when the version has prose a model wrote, and `template` otherwise.
+
+Regenerating a document drafts it afresh from the project's facts, and names the version it
 replaces in `revises`; a regenerated data dictionary keeps the values the researcher gave in that
-version. The real editor is TODO(#358).
+version.
 
 Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
 README section left for the researcher and each `unknown` data dictionary cell. A README gap is an
@@ -40,7 +47,7 @@ from typing import Any, NamedTuple
 
 import yaml
 
-from dd_sdk import serve
+from dd_agent_advisor_documentation.prose import Prose, TemplateWriter, Writer
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -65,6 +72,8 @@ from dd_sdk.contract.models import (
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 README = Path(__file__).with_name("readme.yaml")
+# The key under which a writer is given the approved metadata record's values.
+RECORD_FACTS = "approved_metadata_record"
 # The project facts a README section may be drafted from (readme.yaml explains each).
 SOURCES = frozenset(
     {
@@ -77,7 +86,7 @@ SOURCES = frozenset(
         "record_citation",
     }
 )
-# The metadata record's schema the mock reads: DataCite's, in the JSON form of its REST API's
+# The metadata record's schema the editor reads: DataCite's, in the JSON form of its REST API's
 # attributes, as advisor.metadata drafts it.
 DATACITE = "http://datacite.org/schema/kernel-4"
 # How the draft marks what the researcher writes. A person's edit replaces it.
@@ -124,13 +133,13 @@ CELL_ASKS = {
 TITLES = {DocumentKind.README: "README", DocumentKind.DATA_DICTIONARY: "Data dictionary"}
 MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONARY: "text/csv"}
 
-# What the mock does not do, said in every outcome: its payload is the core Document, which has
-# no room for a list of limitations (docs/specs/agents.md).
+# What the editor does not do, said in every outcome: its payload is the core Document, which has
+# no room for a list of limitations (docs/specs/drafting.md).
 LIMITATIONS = (
-    "This is a mock: it copies the inventory's file and field names and the approved metadata "
-    "record's values, and writes no prose of its own. It does not open the files, infers no "
-    "definitions, units or missing value codes, suggests no answers to its questions, and does "
-    "not read the reason given for a decision on an earlier version."
+    "It does not open the files, so it says nothing about their contents beyond what the "
+    "inventory records. It infers no definitions, units or missing value codes, suggests no "
+    "answers to its questions, and does not read an earlier README or the reason given for a "
+    "decision on an earlier version."
 )
 
 
@@ -177,28 +186,30 @@ def load_sections(path: Path = README) -> list[Section]:
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.1.0a1",
+        version="0.2.0a1",
         title="Documentation Editor",
         description=(
-            "Mock. Drafts a project's README or data dictionary from its file inventory and its "
+            "Drafts a project's README or data dictionary from its file inventory and its "
             "approved metadata record: the files, the tables' fields and the record's title, "
-            "creators, abstract and licence are drafted, and the methods, definitions, units and "
-            "missing value codes are marked for the researcher to write."
+            "creators, abstract and licence are drafted, with prose written by a model where one "
+            "is configured, and the methods, definitions, units and missing value codes are "
+            "marked and asked of the researcher."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
-        grounding_mode=GroundingMode.NONE,
+        grounding_mode=GroundingMode.INPUT_ONLY,
         payload=ClassSchema.of(Document),
         derivations={
             "document_title": Derived(Derivation.TEMPLATE),
-            "document_text": Derived(Derivation.TEMPLATE),
+            "document_text": Derived(Derivation.MODEL, recorded_in="document_derivation"),
             "document_questions": Derived(Derivation.TEMPLATE),
         },
         serves=("setup.documentation", "preparation.documentation"),
     )
 
-    def __init__(self, sections: list[Section] | None = None) -> None:
+    def __init__(self, sections: list[Section] | None = None, writer: Writer | None = None) -> None:
         self.sections = sections if sections is not None else load_sections()
+        self.writer: Writer = writer if writer is not None else TemplateWriter()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         asked = request.input
@@ -218,12 +229,18 @@ class DocumentationEditor:
             )
 
         answers = _answers(asked.draft_answers)
+        prose = Prose()
         if kind == DocumentKind.README:
             record, unread = _record(asked.metadata_record)
-            text, questions, statement = self._readme(
-                inventory, asked.requirements, record, answers
+            text, questions, statement, prose = self._readme(
+                inventory, asked.requirements, record, answers, ctx
             )
-            if asked.metadata_record is not None:
+            if asked.metadata_record is None:
+                statement += (
+                    " It was given no approved metadata record, so it drafts from the inventory "
+                    "alone."
+                )
+            else:
                 version = asked.metadata_record.version_ref.version
                 statement += (
                     f" {unread}"
@@ -241,16 +258,18 @@ class DocumentationEditor:
                 )
             text, questions, counts = _dictionary(inventory, asked.current_version, answers)
             statement = (
-                f"Mock: a data dictionary of {fields} fields, each value marked with where it came "
-                f"from: {counts[Source.INFERRED]} inferred from the inventory, "
-                f"{counts[Source.SUPPLIED]} supplied by you and {counts[Source.UNKNOWN]} unknown. "
-                f"It asks {_count(len(questions), 'question')}, one for each unknown value."
+                f"A data dictionary of {fields} fields, drafted by rule (a model fills no cell), "
+                f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
+                f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
+                f"{counts[Source.UNKNOWN]} unknown. It asks "
+                f"{_count(len(questions), 'question')}, one for each unknown value."
             )
 
         current = asked.current_version
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
         ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
+        calls = prose.calls
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
             payload=Document(
@@ -258,7 +277,7 @@ class DocumentationEditor:
                 document_title=(current.document_title if current else None) or TITLES[kind],
                 media_type=MEDIA_TYPES[kind],
                 document_text=text,
-                document_derivation=Derivation.TEMPLATE,
+                document_derivation=Derivation.MODEL if prose.written else Derivation.TEMPLATE,
                 revises=current.version_ref if current else None,
                 document_questions=questions,
                 grounded_on=[ref],
@@ -272,6 +291,11 @@ class DocumentationEditor:
                     content_hash=ctx.input_hash,
                 )
             ],
+            model_id=prose.model_id,
+            input_tokens=prose.usage.input_tokens,
+            output_tokens=prose.usage.output_tokens,
+            model_calls=calls.calls if calls else (),
+            prompts=calls.prompts if calls else {},
         )
 
     def _readme(
@@ -280,19 +304,34 @@ class DocumentationEditor:
         requirements: RepositoryRequirements | None,
         record: Mapping[str, Any] | None,
         answers: Mapping[str, str],
-    ) -> tuple[str, list[DocumentQuestion], str]:
-        title = _title(record) if record is not None else None
-        parts = [f"# {title or 'README'}"]
-        questions: list[DocumentQuestion] = []
-        drafted = answered = complete = 0
-        for section in self.sections:
-            bodies = {
+        ctx: RunContext,
+    ) -> tuple[str, list[DocumentQuestion], str, Prose]:
+        drafted_from = [
+            {
                 source: body
                 for source in section.sources
                 if (body := _drafted(source, inventory, requirements, record)) is not None
             }
+            for section in self.sections
+        ]
+        # The writer may write about a section only if it has facts to draft from, and is given
+        # only those facts: never the answers, nor an earlier version (docs/specs/drafting.md).
+        prose = self.writer.write(
+            _facts(inventory, requirements, record),
+            [s.heading for s, bodies in zip(self.sections, drafted_from, strict=True) if bodies],
+            ctx,
+        )
+        title = _title(record) if record is not None else None
+        parts = [f"# {title or 'README'}"]
+        if prose.overview:
+            parts.append(prose.overview)
+        questions: list[DocumentQuestion] = []
+        drafted = answered = complete = 0
+        for section, bodies in zip(self.sections, drafted_from, strict=True):
             drafted += bool(bodies)
             parts.append(f"## {section.heading}")
+            if bodies and (paragraph := prose.sections.get(section.heading)):
+                parts.append(paragraph)
             parts.extend(bodies.values())
             question_id = _question_id({"section": section.heading})
             answer = answers.get(question_id)
@@ -313,12 +352,95 @@ class DocumentationEditor:
                 )
             )
         statement = (
-            f"Mock: a README of {len(self.sections)} sections, {drafted} of them drafted from the "
-            f"project's facts ({complete} in full), and {answered} written from your answers. It "
-            f"leaves {_count(len(questions), 'gap')} for you to write, each marked and asked as a "
-            "question."
+            f"A README of {len(self.sections)} sections, {drafted} of them drafted from the "
+            f"project's facts ({complete} in full), and {answered} written from your answers. "
+            f"{_how_written(prose)} It leaves {_count(len(questions), 'gap')} for you to write, "
+            "each marked and asked as a question."
         )
-        return "\n\n".join(parts) + "\n", questions, statement
+        return "\n\n".join(parts) + "\n", questions, statement, prose
+
+
+def _how_written(prose: Prose) -> str:
+    """What the statement says about the README's prose: who wrote it, and what was not used."""
+    if prose.model_id is None:
+        return "It was drafted on the template path: no model is configured, so it has no prose."
+    if prose.unused:
+        return (
+            f"It was drafted on the template path, with no prose, because {prose.unused} "
+            f"({prose.model_id})."
+        )
+    said = (
+        f"A model ({prose.model_id}) wrote {_count(prose.written, 'paragraph')} of prose from "
+        "those facts alone"
+        if prose.written
+        else f"A model ({prose.model_id}) was asked for prose but its draft added none"
+    )
+    if prose.dropped:
+        said += (
+            f"; {_count(len(prose.dropped), 'paragraph')} it wrote "
+            f"{'was' if len(prose.dropped) == 1 else 'were'} not used ("
+            + "; ".join(prose.dropped)
+            + ")"
+        )
+    return said + ". Check the prose before you approve it."
+
+
+def _facts(
+    inventory: FileInventory,
+    requirements: RepositoryRequirements | None,
+    record: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """What a writer is told: the facts the README is drafted from, and nothing else. A field's
+    description is left out: a definition is the researcher's to give (docs/specs/drafting.md)."""
+    files = [
+        {
+            "path": f.file_path,
+            "format": _format(f.file_media_type, f.file_pronom_ids),
+            "size_bytes": f.file_size,
+            **(
+                {
+                    "fields": [
+                        {
+                            k: v
+                            for k, v in (
+                                ("name", c.name),
+                                ("type", c.field_type),
+                                ("format", c.field_format),
+                            )
+                            if v
+                        }
+                        for c in f.file_fields
+                    ]
+                }
+                if f.file_fields
+                else {}
+            ),
+        }
+        for f in inventory.inventory_files
+    ]
+    facts: dict[str, Any] = {
+        "file_count": len(files),
+        "total_size_bytes": sum(f.file_size for f in inventory.inventory_files),
+        "table_count": sum(1 for f in inventory.inventory_files if f.file_fields),
+        "files": files,
+    }
+    if record is not None:
+        year = record.get("publicationYear")
+        given = {
+            "title": _title(record),
+            "creators": _creators(record),
+            "funders": _values(record, "fundingReferences", "funderName"),
+            "abstract": _from_record("record_abstract", record),
+            "licence": _from_record("record_rights", record),
+            "publication_year": str(year) if isinstance(year, int | str) and str(year) else None,
+        }
+        facts[RECORD_FACTS] = {k: v for k, v in given.items() if v}
+    if requirements is not None and requirements.licences:
+        facts["repository"] = {
+            "name": requirements.repository_name,
+            "licences_offered": list(requirements.licences),
+        }
+    return facts
 
 
 def _drafted(
@@ -362,7 +484,7 @@ def _record(given: ApprovedMetadataRecord | None) -> tuple[dict[str, Any] | None
         return None, None
     unread = "The approved metadata record was not used: "
     if given.conforms_to != DATACITE:
-        return None, unread + f"the mock reads only DataCite records ({DATACITE})."
+        return None, unread + f"the editor reads only DataCite records ({DATACITE})."
     try:
         properties = json.loads(given.document_text)
     except json.JSONDecodeError:
@@ -577,9 +699,5 @@ def _abstain(reason: ReasonCode, statement: str) -> AgentResult:
 
 
 def build() -> DocumentationEditor:
+    """The editor on the template path. `factory.build` assembles it from its configuration."""
     return DocumentationEditor()
-
-
-def main() -> int:
-    """The `dd-advisor-documentation` console script: serve over A2A with `dd_sdk.serve`."""
-    return serve.main(build)
