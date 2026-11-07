@@ -9,8 +9,11 @@ Three core classes are filled. Within a project:
   record is the version a person approved last, since a drafter treats it as supplied. The
   answers are the latest a person recorded to each question of the project's documents of the
   kind asked for (docs/specs/drafting.md, invariant 6): a drafter marks an answer
-  `supplied`, so no caller may send one. `current_version` is removed until regeneration is
-  filled from the project, TODO(#631);
+  `supplied`, so no caller may send one. The `current_version` is the latest version of the
+  project's document of that kind drafted or revised last, or of the one `redraft_document`
+  names, so a drafter that revises it makes that document's next version. A `redraft_document`
+  that is not the project's, or is of another kind, is refused (`refusal`); outside a project it
+  is removed, since it names a project document;
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
@@ -63,6 +66,8 @@ def give(
         if schema_class == MESSAGE:
             for slot in MESSAGE_PROJECT_SLOTS:
                 filled.pop(slot, None)
+        elif schema_class == DRAFT_REQUEST:
+            filled.pop("redraft_document", None)
         return filled
     if schema_class == MESSAGE:
         where = store.progress(project_id)
@@ -86,7 +91,7 @@ def give(
                 "inventory": store.inventory(project_id),
                 "requirements": store.requirements(project_id),
                 "metadata_record": store.metadata_record(project_id),
-                "current_version": None,
+                "current_version": _current(store, project_id, filled),
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
             },
@@ -96,6 +101,22 @@ def give(
         if held is not None:
             return dict(held)
     return filled
+
+
+def refusal(
+    store: ProjectStorage | None, project_id: str | None, filled: Mapping[str, Any]
+) -> str | None:
+    """Why the conductor refuses to run `filled`, an input `give` returned for `project_id`: a
+    `DraftRequest` naming a `redraft_document` that is not the project's, or is of another kind.
+    None if nothing is refused."""
+    named = filled.get("redraft_document")
+    if store is None or project_id is None or named is None:
+        return None
+    try:
+        store.current_version(project_id, DocumentKind(str(filled.get("document_kind"))), named)
+    except ValueError as exc:  # ProjectError, or a kind that is not one
+        return f"redraft_document {named!r}: {exc}"
+    return None
 
 
 def given(
@@ -134,6 +155,21 @@ def summarise(store: ProjectStorage, project_id: str) -> dict[str, Any] | None:
     if held.get("inventory_limitations"):
         summary["inventory_limitations"] = list(held["inventory_limitations"])
     return summary
+
+
+def _current(
+    store: ProjectStorage, project_id: str, filled: Mapping[str, Any]
+) -> dict[str, Any] | None:
+    """The version a drafter regenerates. None for a kind that is not one, which the request's
+    validation then refuses, and for a `redraft_document` that `refusal` refuses."""
+    try:
+        return store.current_version(
+            project_id,
+            DocumentKind(str(filled.get("document_kind"))),
+            filled.get("redraft_document"),
+        )
+    except ValueError:  # ProjectError, or a kind that is not one
+        return None
 
 
 def _answers(store: ProjectStorage, project_id: str, kind: Any) -> list[dict[str, Any]] | None:

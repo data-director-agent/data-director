@@ -188,9 +188,15 @@ version oldest first, its text and its `state` (`proposed`, `approved` or `rejec
 
 `answers(project_id, document_kind)` is the latest answer to each question of any document of that
 kind, as `DraftAnswer`s, in the order last answered, or None. A question's identifier is derived
-from the gap it fills, so it is the same in every draft of that kind; and until the conductor
-gives a drafter the version it regenerates, each redraft is a new document. The conductor gives
-these answers to every drafter of that kind in the project.
+from the gap it fills, so it is the same in every draft of that kind, and a project drafted before
+redrafts kept their document may hold two of one kind. The conductor gives these answers to every
+drafter of that kind in the project.
+
+`current_version(project_id, document_kind, document_id=None)` is the version a drafter
+regenerates, as a `CurrentVersion`: the latest version of `document_id`, or of the document of
+that kind drafted or revised last, with its text, its state and the reason for any decision on
+it. It is None if the project holds no document of the kind, and raises `ProjectError` for a
+`document_id` that is not the project's or is of another kind.
 
 `metadata_record(project_id)` is the version of a `metadata_record` document named by the last
 approval in the log, as an `ApprovedMetadataRecord`: its `version_ref`, `media_type`,
@@ -200,9 +206,6 @@ until a person approves one. The conductor gives it to every drafter in the proj
 ## Not yet built
 
 - Only owners are to decide, and membership is not built, TODO(#389).
-- The conductor fills only a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`
-  and `draft_answers`, not its `current_version` ([Projects](../../docs/specs/projects.md)),
-  TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395).
 - The app cannot validate a project or build its package, TODO(#623).
 - How long a project is kept, and what deleting one removes, TODO(#141).
