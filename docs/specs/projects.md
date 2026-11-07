@@ -245,7 +245,7 @@ A member is added by the principal identifier they sign in with (an ORCID iD for
 they need not have signed in before. Whether an added person must accept first, and how they are
 told, are TODO(#388, #378). Each turn of a shared conversation acts for the member who sent it,
 and a delegated child for that turn's principal. A run outside any project belongs to the
-principal it acted for alone, TODO(#153).
+principal it acted for alone ([App](app.md), rule 24).
 
 **Audit.** The project log is the audit trail of the project: versions name the run that drafted
 them (whose grounding, evidence and trace are in the run store) or the person who edited them;

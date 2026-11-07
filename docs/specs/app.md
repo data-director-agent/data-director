@@ -177,6 +177,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     ([Drafting documents](drafting.md),
     `app/tests/test_document_answers.py`,
     `app/web/src/components/conversation/DocumentQuestions.test.tsx`, `e2e/shell.spec.ts`).
+24. **Each person sees only their own runs and conversations.** A run or conversation in a project
+    is readable by whoever may read the project ([Projects](projects.md), rule 17); one in no
+    project by the principal it acted for, or for a conversation with no turn yet, the person who
+    started it. A delegated child belongs where its parent does, since it acts for the same
+    principal in the same project. `GET /api/runs` and `GET /api/conversations` list only those,
+    and a run or conversation the person may not read is answered `404` by
+    `GET /api/runs/{id}`, `GET /api/conversations/{id}` and `POST /api/conversations/{id}/turns`,
+    as one that does not exist, with nothing run. A problem report attaches only what the reporter
+    may read. Ownership is read from the `acting_for` and `project_id` the run store records and
+    from the project log, never from a second record. A deployment that turns sign-in on starts
+    from an empty run store ([Policy and identity](policy-and-identity.md)), so no run is left
+    without an owner (`app/tests/test_sign_in.py`, `app/tests/test_app.py`).
 
 ## Boundaries and contracts
 
@@ -413,7 +425,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.
 - TODO(#67): no agent declares limits, reliability or data handling yet.
-- TODO(#153): every signed-in person still sees every run and conversation.
+- TODO(#141): listing runs and conversations reads the whole run store; an index by principal
+  comes with the run record (#653).
 - TODO(#188): the report limits are provisional and counted for the whole process, not per
   person.
 - TODO(#254): integers in a payload arrive as floats over A2A.
