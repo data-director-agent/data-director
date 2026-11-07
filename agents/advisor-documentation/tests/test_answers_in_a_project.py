@@ -85,3 +85,13 @@ def test_a_researcher_completes_a_data_dictionary_by_answering_its_questions(
         still = {q.question_id for q in again.document_questions}
         assert still.isdisjoint(a.answered_question for a in answers)
         assert len(again.document_questions) == len(first.document_questions) - len(answers)
+
+    # Each redraft is the next version of the one data dictionary, revising the one before (#631).
+    (document,) = projects.documents(project)
+    versions = document["versions"]
+    assert [v["version"] for v in versions] == [1, 2, 3]
+    assert [v["revises"] for v in versions] == [
+        None,
+        {"document_id": document["document_id"], "version": 1},
+        {"document_id": document["document_id"], "version": 2},
+    ]

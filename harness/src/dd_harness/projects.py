@@ -660,8 +660,8 @@ class ProjectStore:
         if there are none.
 
         A question's identifier is derived from the gap it fills, so it is the same in every
-        draft of that kind. Until the conductor gives a drafter the version it regenerates,
-        TODO(#631), each redraft is a new document, and an answer must outlive the document it
+        draft of that kind. A redraft is its document's next version, but a project drafted
+        before that may hold two documents of one kind, so an answer outlives the document it
         was given to."""
         kinds: dict[str, str] = {}
         latest: dict[str, str] = {}
@@ -702,6 +702,53 @@ class ProjectStore:
     def requirements(self, project_id: str) -> dict[str, Any] | None:
         """The merged requirements of the repository chosen last, or None if none has been."""
         return self._latest(project_id, REPOSITORY_CHOSEN)
+
+    def current_version(
+        self, project_id: str, document_kind: DocumentKind, document_id: str | None = None
+    ) -> dict[str, Any] | None:
+        """The version a drafter of `document_kind` regenerates, as a `CurrentVersion`: the latest
+        version of `document_id`, or, without one, of the project's document of that kind drafted
+        or revised last. Its text, its state, and the reason a person gave for any decision on it.
+        None if the project holds no document of the kind.
+
+        Raises `ProjectError` if `document_id` names no document of this project, or one of
+        another kind, and `UnknownProjectError` for an unknown project."""
+        documents = self._documents(project_id)
+        if document_id is not None:
+            named = documents.get(document_id)
+            if named is None:
+                raise ProjectError(f"this project has no document {document_id!r}")
+            if named["document_kind"] != document_kind.value:
+                raise ProjectError(
+                    f"document {document_id!r} is a {named['document_kind']}, "
+                    f"not a {document_kind.value}"
+                )
+            chosen: dict[str, Any] | None = named
+        else:
+            # The last version added of the kind names the document drafted or revised last.
+            chosen = None
+            for event in self.events(project_id):
+                if (
+                    event["event"] == DOCUMENT_VERSION_ADDED
+                    and event["document_kind"] == document_kind.value
+                ):
+                    chosen = documents[event["document_id"]]
+        if chosen is None:
+            return None
+        latest: dict[str, Any] = chosen["versions"][-1]
+        given: dict[str, Any] = {
+            "version_ref": {"document_id": chosen["document_id"], "version": latest["version"]},
+            "media_type": latest["media_type"],
+            "document_text": self._blob_path(project_id, latest["digest"])
+            .read_bytes()
+            .decode("utf-8"),
+            "version_state": latest["state"],
+        }
+        if latest["document_title"] is not None:
+            given["document_title"] = latest["document_title"]
+        if latest["decision"] is not None and latest["decision"]["reason"] is not None:
+            given["decision_reason"] = latest["decision"]["reason"]
+        return given
 
     def metadata_record(self, project_id: str) -> dict[str, Any] | None:
         """The metadata record a person approved last, as an `ApprovedMetadataRecord`: the

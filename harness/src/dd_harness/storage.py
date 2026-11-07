@@ -231,6 +231,14 @@ class ProjectStorage(Protocol):
         `DraftAnswer`s, or None."""
         ...
 
+    def current_version(
+        self, project_id: str, document_kind: DocumentKind, document_id: str | None = None
+    ) -> dict[str, Any] | None:
+        """The latest version of `document_id`, or of the document of `document_kind` drafted or
+        revised last, as a `CurrentVersion`, or None. Raises `ProjectError` for a `document_id`
+        that is not the project's or is of another kind."""
+        ...
+
     def documents(self, project_id: str) -> list[dict[str, Any]]:
         """Each document of the project, with every version and its text, and the answers
         given to its questions."""

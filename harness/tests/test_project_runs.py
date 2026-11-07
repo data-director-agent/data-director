@@ -8,7 +8,7 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 from a2a.helpers import get_data_parts
@@ -18,7 +18,14 @@ from starlette.applications import Starlette
 from dd_harness.conductor import Conductor, ProjectAssignmentError
 from dd_harness.conversations import get_conversation, list_conversations
 from dd_harness.identity import OperatorAssertion
-from dd_harness.projects import APPROVED, DOCUMENT_VERSION_ADDED, PROPOSED, Decision, ProjectStore
+from dd_harness.projects import (
+    APPROVED,
+    DOCUMENT_VERSION_ADDED,
+    PROPOSED,
+    REJECTED,
+    Decision,
+    ProjectStore,
+)
 from dd_harness.requirements import load_requirements
 from dd_harness.testing import (
     HARNESS_URL,
@@ -40,6 +47,7 @@ from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ApprovedMetadataRecord,
+    CurrentVersion,
     Derivation,
     Document,
     DocumentKind,
@@ -56,6 +64,7 @@ from dd_sdk.contract.models import (
     OpenInput,
     Outcome,
     OutcomeStatus,
+    VersionState,
     new_invocation_id,
 )
 from dd_sdk.contract.problem import PROBLEM_BASE
@@ -703,3 +712,139 @@ def test_a_message_outside_a_project_is_told_no_progress(
     env = conductor.invoke(request("stub.abstain", forged), acting_for=TEST_PRINCIPAL)
     given = stored_input(tmp_path / "runs", env.invocation_id)
     assert "project_entry" not in given and "project_progress" not in given
+
+
+def drafted(
+    conductor: Conductor, conversation: str, kind: DocumentKind = DocumentKind.README, **sent: Any
+) -> Envelope:
+    asked = DraftRequest(document_kind=kind, **sent)
+    env = conductor.invoke(
+        in_conversation(request("stub.document", asked), conversation), acting_for=TEST_PRINCIPAL
+    )
+    return env
+
+
+def decide_latest(
+    projects: ProjectStore,
+    project: str,
+    verdict: Literal["approved", "rejected"],
+    reason: str | None,
+) -> None:
+    (document,) = projects.documents(project)
+    latest = document["versions"][-1]
+    projects.decide(
+        project,
+        Decision(document["document_id"], latest["version"], latest["digest"], verdict, reason),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_redraft_is_the_next_version_of_the_document_and_is_given_the_decision(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A drafter is given the latest version of the project's document of the kind, with the
+    reason a person rejected it, so its redraft is version 2 of that document
+    (docs/specs/projects.md, invariant 6; #631)."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    first = drafted(conductor, conversation)
+    assert "current_version" not in stored_input(tmp_path / "runs", first.invocation_id)
+    decide_latest(projects, project, REJECTED, "Too short.")
+
+    second = drafted(conductor, conversation)
+
+    assert second.outcome.status == OutcomeStatus.SUCCEEDED, second.outcome.statement
+    given = stored_input(tmp_path / "runs", second.invocation_id)["current_version"]
+    (document,) = projects.documents(project)
+    assert given == {
+        "version_ref": {"document_id": document["document_id"], "version": 1},
+        "media_type": document["versions"][0]["media_type"],
+        "document_text": document["versions"][0]["text"],
+        "version_state": "rejected",
+        "decision_reason": "Too short.",
+    }
+    assert [v["version"] for v in document["versions"]] == [1, 2]
+    assert document["versions"][1]["revises"] == given["version_ref"]
+    assert document["versions"][1]["state"] == PROPOSED
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_caller_may_not_send_the_version_to_regenerate(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    made_up = CurrentVersion(
+        version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=7),
+        media_type="text/markdown",
+        document_text="# Made up\n",
+        version_state=VersionState.APPROVED,
+    )
+
+    first = drafted(conductor, conversation, current_version=made_up)
+    assert "current_version" not in stored_input(tmp_path / "runs", first.invocation_id)
+    second = drafted(conductor, conversation, current_version=made_up)
+    given = stored_input(tmp_path / "runs", second.invocation_id)["current_version"]
+    assert given["version_ref"]["version"] == 1
+    assert given["version_ref"]["document_id"] != made_up.version_ref.document_id
+
+
+@pytest.mark.requirement("C13.3")
+def test_a_redraft_may_name_which_document_of_the_kind_it_continues(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A project drafted before redrafts kept their document may hold two of one kind; without
+    a name the drafter is given the one drafted or revised last."""
+    first = record_in(projects, project, approve=False)
+    second = record_in(projects, project, approve=False)
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    kind = DocumentKind.METADATA_RECORD
+
+    latest = drafted(conductor, conversation, kind)
+    named = drafted(conductor, conversation, kind, redraft_document=first.document_id)
+
+    runs = tmp_path / "runs"
+    assert stored_input(runs, latest.invocation_id)["current_version"]["version_ref"] == {
+        "document_id": second.document_id,
+        "version": 1,
+    }
+    assert stored_input(runs, named.invocation_id)["current_version"]["version_ref"] == {
+        "document_id": first.document_id,
+        "version": 1,
+    }
+    versions = {d["document_id"]: len(d["versions"]) for d in projects.documents(project)}
+    assert versions == {first.document_id: 2, second.document_id: 2}
+
+
+@pytest.mark.requirement("C13.3")
+@pytest.mark.parametrize("which", ["unknown", "another kind"])
+def test_a_redraft_of_a_document_the_project_does_not_hold_is_refused(
+    tmp_path: Path, projects: ProjectStore, project: str, which: str
+) -> None:
+    record = record_in(projects, project, approve=False)  # a metadata record, not a README
+    named = new_invocation_id() if which == "unknown" else record.document_id
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.documents(project)
+
+    env = drafted(conductor, conversation, DocumentKind.README, redraft_document=named)
+
+    assert env.outcome.status == OutcomeStatus.FAILED
+    assert "not run" in (env.outcome.statement or "")
+    assert env.problem is not None
+    assert env.problem.type == PROBLEM_BASE + "revision-refused"
+    assert named in (env.problem.detail or "")
+    assert projects.documents(project) == before
+
+
+def test_outside_a_project_a_redraft_names_no_document(tmp_path: Path) -> None:
+    conductor = make_conductor(tmp_path / "runs", DocumentStub())
+    asked = DraftRequest(document_kind=DocumentKind.README, redraft_document=new_invocation_id())
+
+    env = conductor.invoke(request("stub.document", asked), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "redraft_document" not in stored_input(tmp_path / "runs", env.invocation_id)
