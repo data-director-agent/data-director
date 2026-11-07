@@ -37,7 +37,7 @@ Every event has these members:
 the project. `ProjectStore.project_of(conversation_id)` says which project, if any, a conversation
 was started in. It reads every log once, when first asked, and is kept up to date after that,
 so it holds after a restart. Reading every log does not scale past one deployment's projects,
-TODO(#141).
+and the cache is per process, TODO(#521).
 
 `inventory_added` also gives:
 
@@ -207,4 +207,4 @@ until a person approves one. The conductor gives it to every drafter in the proj
 
 - Only owners are to decide, and membership is not built, TODO(#389).
 - The app cannot add an inventory to a project, TODO(#395).
-- How long a project is kept, and what deleting one removes, TODO(#141).
+- How long a project is kept, and what deleting one removes, TODO(#156).

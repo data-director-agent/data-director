@@ -98,7 +98,7 @@ class RunStore:
 
     def iter_envelopes(self, *, conversation_id: str | None = None) -> Iterator[dict[str, Any]]:
         """Every envelope in the order stored; with `conversation_id`, only that conversation's.
-        The filter reads the whole index, TODO(#141)."""
+        The filter reads the whole index, TODO(#524)."""
         if not self.index.exists():
             return
         with self.index.open(encoding="utf-8") as fh:

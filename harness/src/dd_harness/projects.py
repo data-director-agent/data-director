@@ -243,7 +243,7 @@ class ProjectStore:
         self._locks_guard = threading.Lock()
         self._inventory_schema = ClassSchema.of(FileInventory)
         # Which project each conversation was started in: built from every log when first asked,
-        # then kept up to date by `start_conversation`. TODO(#141): a scan of every log does not
+        # then kept up to date by `start_conversation`. TODO(#521): a scan of every log does not
         # scale past a deployment's worth of projects.
         self._conversations: dict[str, str] | None = None
         self._conversations_guard = threading.Lock()

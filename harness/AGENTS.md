@@ -7,7 +7,8 @@ rules in the root [`AGENTS.md`](../AGENTS.md) apply as well.
 
 Governance code belongs here, and it is used by every way in (the app, the workbench, an A2A
 client). If you are writing governance, a test double or a storage backend in another package,
-stop and put it here.
+stop and put it here. A database backend is a harness module whose driver is an optional extra,
+and it implements the project log, never the project rules ([Storage](../docs/specs/storage.md)).
 
 ## Load-bearing things
 
