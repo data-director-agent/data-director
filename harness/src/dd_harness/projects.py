@@ -637,7 +637,7 @@ class ProjectStore:
 
         A question's identifier is derived from the gap it fills, so it is the same in every
         draft of that kind. Until the conductor gives a drafter the version it regenerates,
-        TODO(#394), each redraft is a new document, and an answer must outlive the document it
+        TODO(#631), each redraft is a new document, and an answer must outlive the document it
         was given to."""
         kinds: dict[str, str] = {}
         latest: dict[str, str] = {}

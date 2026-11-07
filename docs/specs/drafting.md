@@ -103,7 +103,7 @@ signed in and never takes a name from the body. The harness records each answer 
 answers into the next `DraftRequest`. No agent writes an answer.
 
 **An answer outlives its document.** Until the conductor gives a drafter the version it
-regenerates (TODO(#394)), each redraft is a new document. So the conductor gives a drafter the
+regenerates (TODO(#631)), each redraft is a new document. So the conductor gives a drafter the
 answers recorded for every document of the kind it drafts, not only the latest, and a question's
 identifier, derived from its target, finds its answer in whichever draft asked it.
 
