@@ -131,6 +131,14 @@
   }
 
   /* The reader: the document's facts, then its tabs, then the decision. */
+  .question-list {
+    margin-block: var(--space-4);
+  }
+
+  .question-list li + li {
+    margin-top: var(--space-2);
+  }
+
   .document-reader-head h2 {
     margin-top: 0;
   }

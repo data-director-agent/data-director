@@ -16,6 +16,7 @@ import conversation from "../fixtures/conversation.json" with { type: "json" };
 import answered from "../fixtures/conversation-answered.json" with { type: "json" };
 import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
+import answeredProject from "../fixtures/project-answers.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
 import turn from "../fixtures/conversation-turn.json" with { type: "json" };
 import abstained from "../fixtures/run-abstained.json" with { type: "json" };
@@ -347,6 +348,81 @@ for (const scheme of ["light", "dark"] as const) {
     await expect(page.getByText("(your choice)")).toBeVisible();
     expect(sentAnswer).toEqual({ answer_to: question.turns[0]?.invocation_id, answer_values: ["2"] });
     await expect(box).toBeFocused();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+}
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`a draft's questions, ${scheme}: answered by keyboard on its card at 320px, with no axe violations`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await useScheme(page, scheme);
+    await serveConversation(page);
+    // The conversation's first turn drafted a README that asks four questions, none answered.
+    const [readme] = answeredProject.documents;
+    const [version] = readme?.versions ?? [];
+    if (!readme || !version) throw new Error("the answers fixture has no README");
+    const questions = [1, 2, 3, 4].map((n) => ({
+      question_id: `q-${String(n).padStart(16, "0")}`,
+      question_prompt: `What unit is field_${n} in?`,
+      gap_file: "data/soil.csv",
+      gap_field: `field_${n}`,
+      gap_column: "unit",
+    }));
+    const drafted = {
+      ...version,
+      questions,
+      drafted_by: { ...version.drafted_by, invocation_id: conversation.turns[0]?.invocation_id },
+    };
+    const asking = {
+      ...answeredProject,
+      project_id: conversation.project_id,
+      documents: [{ ...readme, versions: [drafted], answers: [] }],
+    };
+    // The conversation is started in its project.
+    await page.route("/api/conversations", (route) =>
+      route.fulfill(
+        route.request().method() === "POST"
+          ? {
+              status: 201,
+              json: { conversation_id: conversation.conversation_id, project_id: conversation.project_id },
+            }
+          : { json: [] },
+      ),
+    );
+    let sent: unknown = null;
+    await page.route(`/api/projects/${conversation.project_id}/documents`, (route) =>
+      route.fulfill({ json: asking }),
+    );
+    await page.route(`/api/projects/${conversation.project_id}/documents/*/answers`, (route) => {
+      sent = route.request().postDataJSON();
+      const answers = [{ ...readme.answers[0], question_id: questions[0]?.question_id, answer_text: "mg/kg" }];
+      return route.fulfill({
+        status: 201,
+        json: { ...asking, documents: [{ ...asking.documents[0], answers }] },
+      });
+    });
+    await page.goto("/");
+    await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hi");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    const group = page.getByRole("group", { name: /has 4 questions for you/ });
+    await expect(group).toBeVisible();
+    expect(await overflow(page), "horizontal overflow with a draft's questions").toBeLessThanOrEqual(0);
+    expect(await axeViolations(page)).toEqual([]);
+
+    await group.getByRole("textbox", { name: "What unit is field_1 in?" }).focus();
+    await page.keyboard.type("mg/kg");
+    await page.getByRole("button", { name: "Save answers" }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page.getByRole("group", { name: /has 3 questions for you/ })).toBeVisible();
+    await expect(page.getByText(/Recorded 1 answer/)).toBeVisible();
+    expect(sent).toEqual({
+      version: version.version,
+      answers: [{ answered_question: questions[0]?.question_id, answer_text: "mg/kg" }],
+    });
     expect(await axeViolations(page)).toEqual([]);
   });
 }

@@ -1,10 +1,11 @@
 /**
- * A project's documents and a person's decision on each, behind one interface so tests can stand
- * in for the server (docs/specs/projects.md).
+ * A project's documents, a person's decision on each and their answers to a draft's questions,
+ * behind one interface so tests can stand in for the server (docs/specs/projects.md,
+ * docs/specs/drafting.md).
  *
  * The harness decides and records; the shell sends what the person chose and the SHA-256 of the
- * text it showed them, and draws the state the server reads back from the project log. It never
- * names who decided: the server knows who is signed in.
+ * text it showed them, or the answers they gave, and draws the state the server reads back from
+ * the project log. It never names who decided or answered: the server knows who is signed in.
  */
 
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -51,8 +52,7 @@ export interface DocumentVersion {
     invocation_id: string;
     document_derivation: string;
   } | null;
-  /** What the version asks the researcher, one question per gap (docs/specs/drafting.md). Shown
-   * and answered in the app later, TODO(#575). */
+  /** What the version asks the researcher, one question per gap (docs/specs/drafting.md). */
   questions: DocumentQuestion[];
   added_by: RecordedPrincipal;
   added_at: string;
@@ -61,11 +61,29 @@ export interface DocumentVersion {
   text: string;
 }
 
+/** A person's answer to one question, as the project log records it: the latest stands. */
+export interface RecordedAnswer {
+  question_id: string;
+  answer_text: string;
+  /** The version whose question it answered. */
+  version: number;
+  answered_by: RecordedPrincipal;
+  answered_at: string;
+}
+
 export interface ProjectDocument {
   document_id: string;
   document_kind: string;
   document_title: string | null;
   versions: DocumentVersion[];
+  /** The answers given to its questions, which the next draft places as supplied. */
+  answers?: RecordedAnswer[];
+}
+
+/** One answer as the shell sends it, to a question the latest version asks. */
+export interface GivenAnswer {
+  answered_question: string;
+  answer_text: string;
 }
 
 /** The harness's rule for when a decision needs a reason, which the form states. */
@@ -78,8 +96,12 @@ export interface ProjectDocuments {
   project_id: string;
   documents: ProjectDocument[];
   review: ReviewRules;
+  /** The longest answer the harness keeps, in characters. */
+  answer_max_length?: number;
   /** After a decision: the version it decided. */
   decided?: { document_id: string; version: number };
+  /** After answers: the version whose questions they answered. */
+  answered?: { document_id: string; version: number };
 }
 
 export interface DecisionRequest {
@@ -167,6 +189,13 @@ export interface ProjectApi {
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
   disclosure(projectId: string, signal?: AbortSignal): Promise<Disclosure>;
   decide(projectId: string, documentId: string, request: DecisionRequest): Promise<ProjectDocuments>;
+  /** Records the person's answers to questions the latest version asks. */
+  answer(
+    projectId: string,
+    documentId: string,
+    version: number,
+    answers: GivenAnswer[],
+  ): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
 }
@@ -227,7 +256,28 @@ export const httpProjectApi: ProjectApi = {
       }),
     );
   },
+  async answer(projectId, documentId, version, answers) {
+    return json(
+      await fetch(`${documentsPath(projectId)}/${encodeURIComponent(documentId)}/answers`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ version, answers }),
+      }),
+    );
+  },
 };
+
+/** The questions of `version` that no answer recorded for `document` has answered yet. */
+export function openQuestions(document: ProjectDocument, version: DocumentVersion): DocumentQuestion[] {
+  const answered = new Set((document.answers ?? []).map((a) => a.question_id));
+  return version.questions.filter((q) => !answered.has(q.question_id));
+}
+
+/** What a question fills, in words: a README section, or a data dictionary cell. */
+export function questionTarget(question: DocumentQuestion): string {
+  if (question.gap_section) return `Section “${question.gap_section}”`;
+  return `${question.gap_file ?? ""} › ${question.gap_field ?? ""} › ${question.gap_column ?? ""}`;
+}
 
 export const ProjectApiContext = createContext<ProjectApi>(httpProjectApi);
 

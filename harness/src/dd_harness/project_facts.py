@@ -3,13 +3,14 @@
 
 Three core classes are filled. Within a project:
 
-- a `DraftRequest`'s `inventory`, `requirements` and `metadata_record` are the project's own:
-  whatever the caller sent is replaced, and a slot the project has no value for is removed, so
-  that an agent is never given facts a caller, or a model, made up. The metadata record is the
-  version a person approved last, since a drafter treats it as supplied. `current_version` is
-  removed until regeneration is filled from the project, TODO(#394), and so are `draft_answers`
-  until the answers people record are filled from the project log, TODO(#575): a drafter marks
-  an answer `supplied`, so no caller may send one;
+- a `DraftRequest`'s `inventory`, `requirements`, `metadata_record` and `draft_answers` are the
+  project's own: whatever the caller sent is replaced, and a slot the project has no value for
+  is removed, so that an agent is never given facts a caller, or a model, made up. The metadata
+  record is the version a person approved last, since a drafter treats it as supplied. The
+  answers are the latest a person recorded to each question of the project's documents of the
+  kind asked for (docs/specs/drafting.md, invariant 6): a drafter marks an answer
+  `supplied`, so no caller may send one. `current_version` is removed until regeneration is
+  filled from the project, TODO(#394);
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files.
@@ -25,6 +26,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from dd_harness.storage import ProjectStorage
+from dd_sdk.contract.models import DocumentKind
 from dd_sdk.evidence import input_hash
 
 # The core input classes whose slots the conductor fills from a project.
@@ -54,8 +56,8 @@ def give(
                 "requirements": store.requirements(project_id),
                 "metadata_record": store.metadata_record(project_id),
                 "current_version": None,
-                # Only answers a person recorded may be placed as supplied: TODO(#394, #575).
-                "draft_answers": None,
+                # Only answers a person recorded may be placed as supplied.
+                "draft_answers": _answers(store, project_id, filled.get("document_kind")),
             },
         )
     elif schema_class == FILE_INVENTORY:
@@ -80,6 +82,16 @@ def summarise(store: ProjectStorage, project_id: str) -> dict[str, Any] | None:
     if held.get("inventory_limitations"):
         summary["inventory_limitations"] = list(held["inventory_limitations"])
     return summary
+
+
+def _answers(store: ProjectStorage, project_id: str, kind: Any) -> list[dict[str, Any]] | None:
+    """The recorded answers for a drafter of `kind`. None for a kind that is not one, which
+    the request's validation then refuses."""
+    try:
+        document_kind = DocumentKind(kind)
+    except ValueError:
+        return None
+    return store.answers(project_id, document_kind)
 
 
 def _put(filled: dict[str, Any], facts: Mapping[str, Any]) -> None:

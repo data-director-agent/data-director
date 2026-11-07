@@ -161,6 +161,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the profile enables that the deployment does not reach is named by its identifier
     (`app/tests/test_app.py`, `app/web/src/components/policy/PolicyPage.test.tsx`).
 
+23. **A draft's questions are answered on its card, in the researcher's own words.** While a
+    drafted version is its document's latest, its card in the conversation puts the questions no
+    recorded answer has answered, three at a time, in a fieldset whose legend says how many
+    remain; each is a text box labelled by the question and described by what it fills, and blank
+    boxes are left as they are. Saving sends the answers to
+    `POST /api/projects/{id}/documents/{document_id}/answers`, whose body never names who answered:
+    the server records them for the person signed in, refuses a malformed body with nothing
+    recorded, and answers `409` for a version no longer the latest or a question it does not ask.
+    The card then draws the documents the server read back and says in a status how many answers
+    were recorded. The project's documents page lists each version's questions with the answer
+    recorded, or says in words that none is ([Drafting documents](drafting.md),
+    `app/tests/test_document_answers.py`,
+    `app/web/src/components/conversation/DocumentQuestions.test.tsx`, `e2e/shell.spec.ts`).
+
 ## Boundaries and contracts
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules

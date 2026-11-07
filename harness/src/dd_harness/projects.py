@@ -27,13 +27,19 @@ document's latest text, or a version already decided, is refused, and the refusa
 `document_change_refused` event. `documents` folds the log into each document and the state of
 each of its versions, which is what the app shows.
 
+A version may ask the researcher questions (`DocumentQuestion`, docs/specs/drafting.md). A
+person's answer is a `document_question_answered` event (`answer`), given to a question of the
+document's latest version. Question identifiers are derived from the gap a question fills, so
+an answer stands until the person answers the same question again. `answers` gives the latest
+answer to each question of the documents of a kind, which the conductor puts into the next
+`DraftRequest`.
+
 A project may have a title, given when it is created, so that a person can tell projects apart.
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from an index of those events built when first asked.
 
-Only owners will decide once membership is built, TODO(#389). The conductor recording each draft,
-giving an agent the project's facts, and naming the run that caused an event, is TODO(#394);
-adding an inventory from the app is TODO(#395).
+Only owners will decide once membership is built, TODO(#389). Giving a drafter the version it
+regenerates is TODO(#394); adding an inventory from the app is TODO(#395).
 """
 
 from __future__ import annotations
@@ -48,15 +54,17 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, NoReturn
 
 from dd_harness.requirements import Resolved
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    QUESTION_ID_PATTERN,
     UUID7_PATTERN,
     Document,
     DocumentKind,
     DocumentVersionRef,
+    DraftAnswer,
     Envelope,
     FileInventory,
     OutcomeStatus,
@@ -75,9 +83,11 @@ REPOSITORY_CHOSEN = "repository_chosen"
 DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"
 DOCUMENT_CHANGE_REFUSED = "document_change_refused"
+DOCUMENT_QUESTION_ANSWERED = "document_question_answered"
 PROJECT_VALIDATED = "project_validated"
 PACKAGE_BUILT = "package_built"
 PROJECT_ID = re.compile(UUID7_PATTERN)
+QUESTION_ID = re.compile(QUESTION_ID_PATTERN)
 # Members every event has, which what an event carries never replaces.
 _ENVELOPE_KEYS = frozenset({"event", "event_id", "project_id", "at", "acted_for", "caused_by"})
 DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -89,6 +99,8 @@ REJECTED: Final = "rejected"
 type Verdict = Literal["approved", "rejected"]
 # The longest reason the harness keeps, in characters: room for a paragraph, not a document.
 REASON_MAX_LENGTH = 2000
+# The longest answer the harness keeps, in characters: a definition or a paragraph of methods.
+ANSWER_MAX_LENGTH = 2000
 # The longest project title the harness keeps, in characters: a name, not a description.
 TITLE_MAX_LENGTH = 200
 
@@ -102,18 +114,20 @@ class UnknownProjectError(ProjectError):
 
 
 class Refusal(StrEnum):
-    """Why a decision or an edit was refused as not naming the text it must
+    """Why a decision, an edit or an answer was refused as not naming what it must
     (docs/specs/projects.md, invariant 12). Each value is a Problem Details slug."""
 
     NO_DOCUMENT = "document-not-found"
     NOT_LATEST = "version-not-latest"
     DECIDED = "version-decided"
     DIGEST = "digest-mismatch"
+    NOT_ASKED = "question-not-asked"
 
 
 class ChangeRefusedError(ProjectError):
-    """A decision or edit that does not name the document's latest text, or a decision on a
-    version already decided. The refusal is recorded, and nothing else is."""
+    """A decision or edit that does not name the document's latest text, a decision on a
+    version already decided, or an answer to a question the latest version does not ask. The
+    refusal is recorded, and nothing else is."""
 
     def __init__(self, refusal: Refusal, detail: str) -> None:
         super().__init__(detail)
@@ -173,6 +187,28 @@ class Decision:
             raise ProjectError(f"{'approving an edit' if edited else 'rejecting'} needs a reason")
         if reason is not None and len(reason) > REASON_MAX_LENGTH:
             raise ProjectError(f"a reason is at most {REASON_MAX_LENGTH} characters")
+
+
+def check_answers(answers: list[DraftAnswer]) -> list[DraftAnswer]:
+    """The answers with their text stripped. Raises `ProjectError` for a set malformed in
+    itself, which records nothing: none at all, a question named twice, or a blank or overlong
+    answer."""
+    if not answers:
+        raise ProjectError("give at least one answer")
+    named = [a.answered_question for a in answers]
+    if len(set(named)) != len(named):
+        raise ProjectError("each question is answered once")
+    stripped = []
+    for answer in answers:
+        if not QUESTION_ID.fullmatch(answer.answered_question):
+            raise ProjectError("a question is named by its identifier")
+        text = answer.answer_text.strip()
+        if not text:
+            raise ProjectError(f"the answer to {answer.answered_question} is blank")
+        if len(text) > ANSWER_MAX_LENGTH:
+            raise ProjectError(f"an answer is at most {ANSWER_MAX_LENGTH} characters")
+        stripped.append(DraftAnswer(answered_question=answer.answered_question, answer_text=text))
+    return stripped
 
 
 def _check_names(document_id: str, digest: str) -> None:
@@ -497,6 +533,85 @@ class ProjectStore:
             self._write(project_id, events)
         return DocumentVersionRef(document_id=decided["document_id"], version=decided["version"])
 
+    def answer(
+        self,
+        project_id: str,
+        document_id: str,
+        version: int,
+        answers: list[DraftAnswer],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> DocumentVersionRef:
+        """Record `acted_for`'s answers to questions the latest version asks
+        (docs/specs/drafting.md, invariant 6), one `document_question_answered` event each,
+        written together. A decided version's questions may still be answered: the answers go
+        into the next draft. Returns the version answered.
+
+        Raises `ProjectError` for answers malformed in themselves, which records nothing, and
+        `ChangeRefusedError` for answers to any version but the latest or to a question it does
+        not ask, which records the refusal."""
+        answers = check_answers(answers)
+        if not PROJECT_ID.fullmatch(document_id):
+            raise ProjectError("a document is named by its UUIDv7")
+        with self._lock(project_id):
+            latest = self._check_latest(
+                project_id, document_id, version, None, acted_for, caused_by, deciding=False
+            )
+            asked = {q["question_id"] for q in latest["questions"]}
+            unasked = [a.answered_question for a in answers if a.answered_question not in asked]
+            if unasked:
+                self._refuse(
+                    project_id,
+                    acted_for,
+                    caused_by,
+                    {"document_id": document_id, "version": version, "questions": unasked},
+                    Refusal.NOT_ASKED,
+                    f"Version {version} does not ask {', '.join(unasked)}.",
+                )
+            self._write(
+                project_id,
+                [
+                    self._event(
+                        project_id,
+                        DOCUMENT_QUESTION_ANSWERED,
+                        acted_for,
+                        caused_by,
+                        {
+                            "document_id": document_id,
+                            "version": version,
+                            "question_id": a.answered_question,
+                            "answer_text": a.answer_text,
+                        },
+                    )
+                    for a in answers
+                ],
+            )
+        return DocumentVersionRef(document_id=document_id, version=version)
+
+    def answers(self, project_id: str, document_kind: DocumentKind) -> list[dict[str, Any]] | None:
+        """The answers a drafter of `document_kind` is given, as `DraftAnswer`s: the latest answer
+        recorded to each question of any document of that kind, in the order last answered. None
+        if there are none.
+
+        A question's identifier is derived from the gap it fills, so it is the same in every
+        draft of that kind. Until the conductor gives a drafter the version it regenerates,
+        TODO(#394), each redraft is a new document, and an answer must outlive the document it
+        was given to."""
+        kinds: dict[str, str] = {}
+        latest: dict[str, str] = {}
+        for event in self.events(project_id):
+            if event["event"] == DOCUMENT_VERSION_ADDED:
+                kinds[event["document_id"]] = event["document_kind"]
+            elif (
+                event["event"] == DOCUMENT_QUESTION_ANSWERED
+                and kinds.get(event["document_id"]) == document_kind.value
+            ):
+                latest.pop(event["question_id"], None)
+                latest[event["question_id"]] = event["answer_text"]
+        given = [{"answered_question": q, "answer_text": text} for q, text in latest.items()]
+        return given or None
+
     def documents(self, project_id: str) -> list[dict[str, Any]]:
         """Each document of the project, in the order first drafted, with every version oldest
         first: its text, who or what produced it, and its state as the log records it. Raises
@@ -633,6 +748,7 @@ class ProjectStore:
                         "document_id": event["document_id"],
                         "document_kind": event["document_kind"],
                         "versions": [],
+                        "answers": [],
                     },
                 )
                 document["document_title"] = event.get("document_title")
@@ -662,6 +778,20 @@ class ProjectStore:
                     "decided_by": event["acted_for"],
                     "decided_at": event["at"],
                 }
+            elif event["event"] == DOCUMENT_QUESTION_ANSWERED:
+                document = documents[event["document_id"]]
+                # The latest answer to a question stands; the order is the order last answered.
+                kept = [a for a in document["answers"] if a["question_id"] != event["question_id"]]
+                document["answers"] = [
+                    *kept,
+                    {
+                        "question_id": event["question_id"],
+                        "answer_text": event["answer_text"],
+                        "version": event["version"],
+                        "answered_by": event["acted_for"],
+                        "answered_at": event["at"],
+                    },
+                ]
         return documents
 
     def _check_latest(
@@ -669,15 +799,16 @@ class ProjectStore:
         project_id: str,
         document_id: str,
         version: int,
-        digest: str,
+        digest: str | None,
         acted_for: Principal,
         caused_by: str,
         *,
         deciding: bool,
     ) -> dict[str, Any]:
-        """The version a change names, if it is its document's latest, has this digest and, for a
-        decision, is undecided. Otherwise records the refusal and raises `ChangeRefusedError`.
-        Called with the lock held."""
+        """The version a change names, if it is its document's latest, has this digest (unless
+        `digest` is None, for an answer, which names no text) and, for a decision, is undecided.
+        Otherwise records the refusal and raises `ChangeRefusedError`. Called with the lock
+        held."""
         document = self._documents(project_id).get(document_id)
         latest: dict[str, Any] | None = document["versions"][-1] if document else None
         if latest is None:
@@ -688,23 +819,34 @@ class ProjectStore:
         elif deciding and latest["state"] != PROPOSED:
             refusal = Refusal.DECIDED
             detail = f"Version {version} has already been {latest['state']}."
-        elif digest != latest["digest"]:
+        elif digest is not None and digest != latest["digest"]:
             refusal = Refusal.DIGEST
             detail = f"The text sent as shown is not the text of version {version}."
         else:
             return latest
+        named = {"document_id": document_id, "version": version}
+        if digest is not None:
+            named["digest"] = digest
+        if latest:
+            named["latest_version"] = latest["version"]
+        self._refuse(project_id, acted_for, caused_by, named, refusal, detail)
+
+    def _refuse(
+        self,
+        project_id: str,
+        acted_for: Principal,
+        caused_by: str,
+        named: dict[str, Any],
+        refusal: Refusal,
+        detail: str,
+    ) -> NoReturn:
+        """Record a `document_change_refused` event and raise `ChangeRefusedError`."""
         self._append(
             project_id,
             DOCUMENT_CHANGE_REFUSED,
             acted_for,
             caused_by,
-            {
-                "document_id": document_id,
-                "version": version,
-                "digest": digest,
-                "refusal": refusal.value,
-                **({"latest_version": latest["version"]} if latest else {}),
-            },
+            {**named, "refusal": refusal.value},
         )
         raise ChangeRefusedError(refusal, detail)
 

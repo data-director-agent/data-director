@@ -1,10 +1,12 @@
 {
+  "answer_max_length": 2000,
   "decided": {
     "document_id": "01900000-0000-7000-8000-000000000001",
     "version": 1
   },
   "documents": [
     {
+      "answers": [],
       "document_id": "01900000-0000-7000-8000-000000000002",
       "document_kind": "readme",
       "document_title": null,
@@ -39,6 +41,7 @@
       ]
     },
     {
+      "answers": [],
       "document_id": "01900000-0000-7000-8000-000000000001",
       "document_kind": "data_dictionary",
       "document_title": null,

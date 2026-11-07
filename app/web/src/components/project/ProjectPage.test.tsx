@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
 import disclosureFixture from "../../../fixtures/project-disclosure.json";
+import answersFixture from "../../../fixtures/project-answers.json";
 import fixture from "../../../fixtures/project-documents.json";
 import {
   DecisionConflict,
@@ -47,6 +48,7 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     documents: () => Promise.resolve(PROJECT),
     disclosure: () => Promise.resolve(DISCLOSURE),
     decide: () => Promise.resolve(decided("approved")),
+    answer: () => Promise.resolve(PROJECT),
     inventory: () => Promise.resolve(null),
     ...overrides,
   };
@@ -133,6 +135,24 @@ describe("ProjectPage", () => {
     const dictionary = await screen.findByRole("article", { name: "Data dictionary" });
     expect(within(dictionary).getByText("Approved")).toBeVisible();
     expect(within(dictionary).queryByRole("group")).not.toBeInTheDocument();
+  });
+
+  it("lists the questions a version asks, saying in words which are answered", async () => {
+    // app/tests/test_document_answers.py: a README whose one question has been answered.
+    const answered = answersFixture as ProjectDocuments;
+    const document = at(answered.documents, 0);
+    const asked = at(at(document.versions, 0).questions, 0);
+    const unanswered = { ...answered, documents: [{ ...document, answers: [] }] };
+    const { unmount } = renderPage(fakeApi({ documents: () => Promise.resolve(unanswered) }));
+    let questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    expect(questions).toHaveTextContent(asked.question_prompt);
+    expect(questions).toHaveTextContent(/Not answered yet/);
+    unmount();
+
+    renderPage(fakeApi({ documents: () => Promise.resolve(answered) }));
+    questions = await screen.findByRole("region", { name: "Questions for the researcher" });
+    expect(questions).toHaveTextContent(/1 of 1 answered/);
+    expect(questions).toHaveTextContent(/Answered: .*Soil cores/);
   });
 
   it("says so when the address names a document the project does not hold", async () => {

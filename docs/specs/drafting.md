@@ -17,8 +17,9 @@ disclosed ([Disclosure](disclosure.md)).
 The Documentation Editor (`advisor.documentation`) is the first drafter. It serves
 `setup.documentation` and `preparation.documentation` and drafts a README or a data dictionary
 from a `DraftRequest`. Where a model is configured, a model writes the README's prose
-([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). What
-it does not yet do, suggesting answers and recording them, is TODO(#358). A metadata record
+([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
+researcher answers its questions in the conversation, and the next draft places their answers.
+What it does not yet do, suggesting answers, is TODO(#358, #574). A metadata record
 drafter follows the same rules when it is built.
 
 ## Invariants
@@ -53,15 +54,19 @@ drafter follows the same rules when it is built.
    show. A data dictionary gap is an `unknown` cell. Each gap has exactly one question in the
    version's `document_questions` whose target names it
    (`agents/advisor-documentation/tests/test_documentation_agent.py`).
-6. **An answer is supplied only when a person recorded it.** A person answers a version's questions
-   in the app. Each answer is a project log event that names the person it acted for, as any other
-   event does ([Projects](projects.md)). When the document is regenerated, the conductor puts the
-   recorded answers into the `DraftRequest`'s `draft_answers`, as it puts in the inventory. The
-   drafter places each answer, as given, in its gap or cell and marks it `supplied`, and asks that
-   gap no more. A model does not rephrase an answer. An orchestrator may put a question to the
-   researcher, but it cannot answer one. The Documentation Editor places answers today. Recording
-   them and filling them in are not built yet, TODO(#575, #394); until they are, the conductor
-   removes any `draft_answers` a caller sends in a project (`harness/tests/test_project_runs.py`).
+6. **An answer is supplied only when a person recorded it.** A person answers the latest version's
+   questions in the app, on the draft's card in the conversation. Each answer is a
+   `document_question_answered` event that names the person it acted for, as any other event does
+   ([Projects](projects.md), `harness/docs/projects.md`); an answer to another version, or to a
+   question that version does not ask, is refused. When a document of that kind is drafted
+   again, the conductor puts into the `DraftRequest`'s `draft_answers` the latest answer recorded
+   to each question of the project's documents of that kind, replacing any a caller sent, as it
+   puts in the inventory (`harness/tests/test_project_runs.py`). The answers stand until the
+   person answers again, because a question's identifier is the same in every draft. The drafter
+   places each answer, as given, in its gap or cell and marks it `supplied`, and asks that gap no
+   more (`agents/advisor-documentation/tests/test_answers_in_a_project.py`). A model does not
+   rephrase an answer. An orchestrator may put a question to the researcher, but it cannot answer
+   one.
 7. **A model's suggestion is only ever offered.** A drafter may suggest an answer, for example that
    `age_yrs` is the participant's age in years. The suggestion appears in the question, never in
    the document's text. It becomes `supplied` only when a person confirms or corrects it, by
@@ -87,10 +92,20 @@ without knowing the drafter. A question may later carry a suggested answer, with
 derived, and a set of choices, as the orchestrator's own `ChoiceQuestion` does (#529). Those
 slots are added with the first drafter that sets them, TODO(#574).
 
-**Who does what.** The drafter writes the gaps and the questions. An orchestrator decides when to
-put questions to the researcher, a few at a time, and says that the draft came from a mock when it
-did. The app renders a question as form controls (#529). The harness records each answer and fills
-the answers into the next `DraftRequest`. No agent writes an answer.
+**Who does what.** The drafter writes the gaps and the questions. An orchestrator tells the
+researcher that a draft has questions and where to answer them, offers to redraft once they have,
+and says that the draft came from a mock when it did. The app shows the latest version's open
+questions on the draft's card in the conversation, three at a time, each as a text box labelled
+by the question and described by what it fills, and lists every question with its answer on the
+project's documents page ([The app](app.md)). It sends the answers to
+`POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
+signed in and never takes a name from the body. The harness records each answer and fills the
+answers into the next `DraftRequest`. No agent writes an answer.
+
+**An answer outlives its document.** Until the conductor gives a drafter the version it
+regenerates (TODO(#394)), each redraft is a new document. So the conductor gives a drafter the
+answers recorded for every document of the kind it drafts, not only the latest, and a question's
+identifier, derived from its target, finds its answer in whichever draft asked it.
 
 **Model access.** A metadata record and a person's answers are `documentation`-class project
 content, so they go to a drafter with a hosted model only where the institutional profile allows

@@ -44,6 +44,10 @@ path = "agents/advisor-dmp/tests/test_dmp_agent.py"
 problem = "reads outside"
 
 [[exception]]
+path = "agents/advisor-documentation/tests/test_answers_in_a_project.py"
+problem = "reads outside"
+
+[[exception]]
 path = "agents/advisor-ethics/tests/test_ethics_agent.py"
 problem = "reads outside"
 

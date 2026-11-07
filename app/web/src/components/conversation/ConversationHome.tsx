@@ -55,7 +55,7 @@ import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
-import { useProjectApi } from "../../project/api";
+import { type ProjectDocuments, useProjectApi } from "../../project/api";
 import { type DocumentsRead, draftedBy } from "../../project/drafted";
 import { Link, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
@@ -468,6 +468,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   : { agentId: orchestrator.id, message: sent.message, inventory: sent.inventory }
               }
               onAnswer={(answer, message) => void answerQuestion(answer, message)}
+              {...(projectId
+                ? {
+                    onDocumentAnswered: (value: ProjectDocuments) =>
+                      setDocumentsOf({
+                        projectId,
+                        read: { state: "loaded", documents: value.documents },
+                      }),
+                  }
+                : {})}
             />
           )}
           {runId && !inTranscript && (

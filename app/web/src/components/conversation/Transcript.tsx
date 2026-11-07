@@ -24,7 +24,7 @@ import type {
 } from "../../conversation/inventory";
 import { type ChoiceAnswer, replyOwnText, replyQuestion } from "../../conversation/question";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
-import { type ProjectDocument, useProjectApi } from "../../project/api";
+import { type ProjectDocument, type ProjectDocuments, useProjectApi } from "../../project/api";
 import { draftedBy } from "../../project/drafted";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
@@ -144,6 +144,7 @@ export function Transcript({
   pending = null,
   documents = null,
   onAnswer,
+  onDocumentAnswered,
 }: {
   conversation: Conversation | null;
   agents: AgentView[];
@@ -155,6 +156,9 @@ export function Transcript({
   pending?: { agentId: string; message: string; inventory?: AttachedInventory | null } | null;
   /** Sends the answer to the latest turn's choice question; without it, none can be answered. */
   onAnswer?: (answer: ChoiceAnswer, text: string) => void;
+  /** Takes the project's documents after the researcher answers a draft's questions; without
+   * it, no draft's questions can be answered. */
+  onDocumentAnswered?: (value: ProjectDocuments) => void;
 }) {
   // Only the inventory the project holds now is served, so only its chip opens it.
   const projectId = conversation?.project_id;
@@ -235,6 +239,7 @@ export function Transcript({
                   projectId={projectId}
                   drafted={d}
                   idPrefix={`drafted-${turn.invocation_id}-${d.document.document_id}-${d.version.version}`}
+                  {...(onDocumentAnswered ? { onAnswered: onDocumentAnswered } : {})}
                 />
               ))}
             </ul>

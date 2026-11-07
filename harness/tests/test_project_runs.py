@@ -45,6 +45,7 @@ from dd_sdk.contract.models import (
     DocumentVersionRef,
     DraftAnswer,
     DraftRequest,
+    Envelope,
     FileInventory,
     GroundingMode,
     GroundingRef,
@@ -170,28 +171,71 @@ def test_a_fact_the_project_does_not_have_is_removed_and_the_drafter_is_told_non
 
 
 @pytest.mark.requirement("R5")
-def test_a_drafts_questions_are_kept_and_a_callers_answers_are_not_given(
+def test_a_drafts_questions_are_kept_and_only_answers_a_person_recorded_are_given(
     tmp_path: Path, projects: ProjectStore, project: str
 ) -> None:
     """Only an answer a person recorded may be placed as supplied (docs/specs/drafting.md,
-    invariant 6), so in a project the conductor removes answers a caller sent."""
+    invariant 6), so in a project the conductor replaces the answers a caller sent with those
+    the project log holds."""
     conductor = conductor_over(tmp_path / "runs", projects, DocumentStub(asks=True))
     conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
     made_up = DraftAnswer(answered_question=STUB_QUESTION.question_id, answer_text="Made up")
-    env = conductor.invoke(
-        in_conversation(
-            request("stub.document", draft_request(draft_answers=[made_up])), conversation
-        ),
-        acting_for=TEST_PRINCIPAL,
-    )
-    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert "Answers:" not in env.payload_as(Document).document_text
-    stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
-    assert "draft_answers" not in stored["input"]
 
+    def draft() -> tuple[Envelope, dict[str, Any]]:
+        env = conductor.invoke(
+            in_conversation(
+                request("stub.document", draft_request(draft_answers=[made_up])), conversation
+            ),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+        stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
+        input_doc: dict[str, Any] = stored["input"]
+        return env, input_doc
+
+    env, given = draft()
+    assert "Answers:" not in env.payload_as(Document).document_text
+    assert "draft_answers" not in given
     (document,) = projects.documents(project)
     (version,) = document["versions"]
     assert version["questions"] == [STUB_QUESTION.model_dump(mode="json", exclude_none=True)]
+
+    recorded = DraftAnswer(answered_question=STUB_QUESTION.question_id, answer_text="Soil cores")
+    projects.answer(
+        project,
+        document["document_id"],
+        1,
+        [recorded],
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+    env, given = draft()
+    assert "Answers: 1" in env.payload_as(Document).document_text
+    assert given["draft_answers"] == [recorded.model_dump(mode="json")]
+    # The input hash covers the answers the drafter was given.
+    assert env.payload_as(Document).grounded_on[0].content_hash == input_hash(given)
+
+
+def test_answers_go_only_to_a_drafter_of_the_same_kind(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub(asks=True))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    readme = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert readme.project_id == project
+    (document,) = projects.documents(project)
+    answer = DraftAnswer(answered_question=STUB_QUESTION.question_id, answer_text="Soil cores")
+    projects.answer(
+        project, document["document_id"], 1, [answer], acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    other = DraftRequest(document_kind=DocumentKind.DATA_DICTIONARY)
+    env = conductor.invoke(
+        in_conversation(request("stub.document", other), conversation), acting_for=TEST_PRINCIPAL
+    )
+    assert "Answers:" not in env.payload_as(Document).document_text
 
 
 def record_in(projects: ProjectStore, project: str, *, approve: bool) -> DocumentVersionRef:
