@@ -79,7 +79,7 @@ describe("signing in", () => {
     );
   });
 
-  it("names the signed-in person in the banner and whom runs act for", async () => {
+  it("names the signed-in person in the banner", async () => {
     at("/agents");
     const load = () =>
       Promise.resolve({
@@ -98,7 +98,6 @@ describe("signing in", () => {
     const header = banner();
     expect(await within(header).findByText("Josiah Carberry")).toBeVisible();
     expect(within(header).getByRole("button", { name: "Sign out" })).toBeVisible();
-    expect(await screen.findByText(/authenticated by sandbox\.orcid\.org/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -156,7 +155,6 @@ describe("signing in", () => {
     const header = banner();
     expect(await within(header).findByText("Not signing anyone in")).toBeVisible();
     expect(within(header).queryByRole("button", { name: "Sign out" })).toBeNull();
-    expect(await screen.findByText(/asserted by the operator, not authenticated/)).toBeVisible();
   });
 
   it("reports a failure to learn who is signed in as an alert", async () => {

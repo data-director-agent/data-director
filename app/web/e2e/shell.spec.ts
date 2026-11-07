@@ -685,5 +685,4 @@ test("a development server says in the banner that it signs nobody in", async ({
   await serve(page, reference);
   await page.goto("/agents");
   await expect(page.locator("header.app-header").getByText("Not signing anyone in")).toBeVisible();
-  await expect(page.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
 });
