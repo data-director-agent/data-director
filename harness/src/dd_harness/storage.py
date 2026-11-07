@@ -197,3 +197,8 @@ class ProjectStorage(Protocol):
     def requirements(self, project_id: str) -> dict[str, Any] | None:
         """The merged requirements of the repository chosen last, or None."""
         ...
+
+    def metadata_record(self, project_id: str) -> dict[str, Any] | None:
+        """The `metadata_record` version a person approved last, as an `ApprovedMetadataRecord`, or
+        None."""
+        ...

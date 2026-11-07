@@ -302,3 +302,125 @@ def test_a_blank_or_unmatched_answer_changes_nothing(runs_dir: Path) -> None:
     after = env.payload_as(Document)
     assert after.document_text == before.document_text
     assert after.document_questions == before.document_questions
+
+
+WITH_RECORD = "soil-survey.readme-with-record.draft.json"
+
+
+def section_of(text: str, heading: str) -> str:
+    return text.split(f"## {heading}\n\n", 1)[1].split("\n\n## ", 1)[0]
+
+
+def with_record(asked: DraftRequest, **properties: object) -> DraftRequest:
+    """`asked` with its metadata record's properties replaced by `properties`."""
+    assert asked.metadata_record is not None
+    record = asked.metadata_record.model_copy(update={"document_text": json.dumps(properties)})
+    return asked.model_copy(update={"metadata_record": record})
+
+
+@pytest.mark.requirement("R5")
+def test_a_readme_takes_what_the_approved_metadata_record_gives(runs_dir: Path) -> None:
+    """The record's values are supplied (docs/specs/drafting.md, invariant 2): placed as given."""
+    asked = sample(WITH_RECORD)
+    env, grounded = draft(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert grounded
+    document = env.payload_as(Document)
+    text = document.document_text
+    assert text.startswith("# Soil chemistry of upland survey sites, 2025\n")
+
+    general = section_of(text, "General information")
+    assert "- **Title:** Soil chemistry of upland survey sites, 2025" in general
+    assert "- **Creators:** Example, Alex; Sample, Sam" in general
+    # The record's funder is a placeholder the metadata mock left: not a value.
+    assert "Funding" not in general
+    assert "_To be written by the researcher:" in general
+
+    # The abstract says all the Description asks, so no gap is left there.
+    assert section_of(text, "Description").startswith("Soil pH, moisture and organic carbon")
+    assert "_To be written" not in section_of(text, "Description")
+    asked_sections = {q.gap_section for q in document.document_questions}
+    assert "Description" not in asked_sections
+    assert {"General information", "Access and licence", "How to cite"} <= asked_sections
+
+    access = section_of(text, "Access and licence")
+    assert access.startswith(
+        "Licence: Creative Commons Attribution 4.0 International "
+        "(<https://creativecommons.org/licenses/by/4.0/>)."
+    )
+    assert "ORDA offers these licences:" in access
+    assert section_of(text, "How to cite").startswith(
+        "Example, Alex; Sample, Sam. Soil chemistry of upland survey sites, 2025."
+    )
+    assert "version 2 of the approved metadata record" in env.outcome.statement
+    assert "(1 in full)" in env.outcome.statement
+
+
+def test_a_record_of_placeholders_drafts_as_no_record_does(runs_dir: Path) -> None:
+    """An approved record the metadata mock left empty gives nothing: every gap stays asked."""
+    plain, _ = draft(runs_dir, sample("soil-survey.readme.draft.json"))
+    empty = with_record(
+        sample(WITH_RECORD),
+        titles=[{"title": None}],
+        creators=[{"name": " "}],
+        descriptions=[{"description": None, "descriptionType": "Abstract"}],
+        rightsList=[{"rights": None}],
+    )
+    env, _ = draft(runs_dir, empty)
+    document = env.payload_as(Document)
+    assert document.document_text == plain.payload_as(Document).document_text
+    assert document.document_questions == plain.payload_as(Document).document_questions
+
+
+@pytest.mark.parametrize(
+    ("conforms_to", "text", "why"),
+    [
+        ("http://example.org/other-schema", "{}", "reads only DataCite records"),
+        ("http://datacite.org/schema/kernel-4", "not json", "not JSON"),
+        ("http://datacite.org/schema/kernel-4", "[]", "not a JSON object"),
+    ],
+)
+def test_a_record_the_mock_cannot_read_is_not_used_and_it_says_so(
+    runs_dir: Path, conforms_to: str, text: str, why: str
+) -> None:
+    asked = sample(WITH_RECORD)
+    assert asked.metadata_record is not None
+    record = asked.metadata_record.model_copy(
+        update={"conforms_to": conforms_to, "document_text": text}
+    )
+    env, _ = draft(runs_dir, asked.model_copy(update={"metadata_record": record}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "The approved metadata record was not used" in env.outcome.statement
+    assert why in env.outcome.statement
+    assert env.payload_as(Document).document_text.startswith("# README\n")
+
+
+def test_an_answer_is_kept_beside_what_the_record_gives(runs_dir: Path) -> None:
+    asked = sample(WITH_RECORD)
+    env, _ = draft(runs_dir, asked)
+    cite = next(
+        q for q in env.payload_as(Document).document_questions if q.gap_section == "How to cite"
+    )
+    answer = "Cite the DOI the repository gives on deposit."
+    answered = asked.model_copy(
+        update={
+            "draft_answers": [DraftAnswer(answered_question=cite.question_id, answer_text=answer)]
+        }
+    )
+    env, _ = draft(runs_dir, answered)
+    section = section_of(env.payload_as(Document).document_text, "How to cite")
+    assert section.endswith(answer)
+    assert section.startswith("Example, Alex; Sample, Sam.")
+
+
+def test_a_citation_has_the_year_when_the_record_gives_one(runs_dir: Path) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        titles=[{"title": "Subtitle", "titleType": "Subtitle"}, {"title": "Soil survey."}],
+        creators=[{"familyName": "Example", "givenName": "Alex"}],
+        publicationYear="2026",
+    )
+    env, _ = draft(runs_dir, asked)
+    text = env.payload_as(Document).document_text
+    assert text.startswith("# Soil survey.\n")
+    assert section_of(text, "How to cite").startswith("Example, Alex (2026). Soil survey.\n")

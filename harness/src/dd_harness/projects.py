@@ -55,6 +55,7 @@ from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
     Document,
+    DocumentKind,
     DocumentVersionRef,
     Envelope,
     FileInventory,
@@ -517,6 +518,31 @@ class ProjectStore:
     def requirements(self, project_id: str) -> dict[str, Any] | None:
         """The merged requirements of the repository chosen last, or None if none has been."""
         return self._latest(project_id, REPOSITORY_CHOSEN)
+
+    def metadata_record(self, project_id: str) -> dict[str, Any] | None:
+        """The metadata record a person approved last, as an `ApprovedMetadataRecord`: the
+        version named by the last approval in the log of any `metadata_record` document. None if
+        no version of one has been approved. A later version proposed or rejected does not
+        displace it."""
+        events = self.events(project_id)
+        documents = self._fold(events)
+        for event in reversed(events):
+            if event["event"] != DOCUMENT_VERSION_DECIDED or event["decision"] != APPROVED:
+                continue
+            document = documents[event["document_id"]]
+            if document["document_kind"] != DocumentKind.METADATA_RECORD.value:
+                continue
+            version = document["versions"][event["version"] - 1]
+            blob = self._blob_path(project_id, version["digest"])
+            record: dict[str, Any] = {
+                "version_ref": {"document_id": event["document_id"], "version": event["version"]},
+                "media_type": version["media_type"],
+                "document_text": blob.read_bytes().decode("utf-8"),
+            }
+            if version["conforms_to"] is not None:
+                record["conforms_to"] = version["conforms_to"]
+            return record
+        return None
 
     def _latest(self, project_id: str, kind: str) -> dict[str, Any] | None:
         """The blob the last event of `kind` kept, or None if there is no such event."""

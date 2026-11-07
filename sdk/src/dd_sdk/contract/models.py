@@ -483,6 +483,16 @@ class CurrentVersion(Frozen):
     decision_reason: str | None = None
 
 
+class ApprovedMetadataRecord(Frozen):
+    """The version of the project's metadata record a person approved last
+    (docs/specs/projects.md)."""
+
+    version_ref: DocumentVersionRef
+    media_type: str
+    conforms_to: str | None = None
+    document_text: str
+
+
 class DraftAnswer(Frozen):
     """A person's answer to one of the current version's questions, placed as given."""
 
@@ -497,6 +507,7 @@ class DraftRequest(Frozen):
     document_kind: DocumentKind
     inventory: FileInventory | None = None
     requirements: RepositoryRequirements | None = None
+    metadata_record: ApprovedMetadataRecord | None = None
     current_version: CurrentVersion | None = None
     # Filled by the conductor in a project, from the answers people recorded.
     draft_answers: list[DraftAnswer] = Field(default_factory=list)

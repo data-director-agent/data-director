@@ -258,7 +258,8 @@ class DocumentStub:
         if isinstance(asked, DraftRequest):
             files = len(asked.inventory.inventory_files) if asked.inventory else None
             repository = asked.requirements.repository_name if asked.requirements else None
-            text += f"\nGiven: files={files}, repository={repository}\n"
+            record = asked.metadata_record.version_ref.version if asked.metadata_record else None
+            text += f"\nGiven: files={files}, repository={repository}, record={record}\n"
             if asked.draft_answers:
                 text += f"Answers: {len(asked.draft_answers)}\n"
             revises = asked.current_version.version_ref if asked.current_version else None

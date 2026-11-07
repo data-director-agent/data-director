@@ -29,8 +29,10 @@ it is built.
    such as ranges, counts or categories, are not inferred, because the inventory does not carry
    them until there is statistical disclosure control (#571).
 2. **Supplied means given by a person.** A value is supplied when it comes from a field
-   description in the inventory, from the project's approved metadata record (TODO(#572)), from a
-   person's edit of an earlier version, or from an answer a person recorded (invariant 6).
+   description in the inventory, from the project's approved metadata record (the version a
+   person approved last, [Projects](projects.md), invariant 6), from a person's edit of an earlier
+   version, or from an answer a person recorded (invariant 6). A drafter places a value from the
+   record as the record gives it, and leaves a gap where the record holds only a placeholder.
 3. **A data dictionary marks every value's source, and a model fills no cell.** Each value is
    followed by its source: `inferred`, `supplied` or `unknown`, and there is no other value. An
    `unknown` cell is empty. A model never writes a cell's value
@@ -146,7 +148,7 @@ over-discloses and never under-discloses.
 ## Open questions
 
 - Whether a drafter with a hosted model drafts from the inventory alone, or abstains, when the
-  profile withholds the metadata record: TODO(#572).
+  profile withholds the metadata record: TODO(#573).
 - Whether a data dictionary should follow CDIF's variable descriptions, and be exported as DDI-CDI:
   TODO(#220).
 - Whether the README itself should state how generative AI was used to draft it: TODO(#478).
