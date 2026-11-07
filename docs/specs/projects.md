@@ -88,8 +88,14 @@ intended design, and each part says where it is not built yet.
    never claim one. Its `project_entry` and `project_progress` say which entry point the
    researcher chose and which steps of the process flow the log shows started, done or skipped,
    derived on every turn and removed outside a project ([Orchestration](orchestration.md),
-   invariant 18). Filling `current_version` to regenerate a document, and any other class, are
-   not built yet, TODO(#394).
+   invariant 18). A `DraftRequest`'s `current_version` is the latest version of the project's
+   document of that kind drafted or revised last, with its state and the reason for any
+   decision on it, so a drafter that names it in `revises` makes that document's next version
+   rather than a new document. A caller may name the document with `redraft_document` where the
+   project holds more than one of the kind; one that is not the project's, or is of another kind,
+   fails the run with problem `revision-refused` before the agent is called, and outside a
+   project it is removed (`ProjectStore.current_version`). Filling any other class is not built
+   yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
