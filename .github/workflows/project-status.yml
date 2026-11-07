@@ -5,9 +5,11 @@ name: Project status
 #
 # Setup, once, by an organisation owner:
 #   - repository variable PROJECT_NUMBER: the number in the project's URL;
-#   - repository variable PROJECT_APP_ID and repository secret PROJECT_APP_PRIVATE_KEY: the ID and
-#     private key of a GitHub App installed on the organisation with the "Projects" organisation
-#     permission set to read and write. The workflow mints a short-lived token from it, because
+#   - repository variable PROJECT_APP_ID: the App ID of a GitHub App installed on this repository
+#     with the organisation permission "Projects" read and write;
+#   - repository secret PROJECT_APP_PRIVATE_KEY: a private key generated for that app.
+#     The workflow's own GITHUB_TOKEN cannot write to an organisation project, so each run mints a
+#     short-lived installation token from the app.
 #     the workflow's own GITHUB_TOKEN cannot write to an organisation project.
 # Until PROJECT_NUMBER is set the job is skipped, so this file does nothing in a fork.
 #
@@ -37,14 +39,28 @@ jobs:
       && vars.PROJECT_NUMBER != ''
       && (github.event_name == 'issues' || github.event.pull_request.draft == false)
     steps:
-      - name: Create a token from the project app
+      - name: Check that the project app is configured
+        env:
+          APP_ID: ${{ vars.PROJECT_APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.PROJECT_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::error title=Project app is not configured::Set the repository variable PROJECT_APP_ID and the secret PROJECT_APP_PRIVATE_KEY for a GitHub App with the organisation permission 'Projects' read and write. GITHUB_TOKEN cannot write to an organisation project. See the setup notes at the top of .github/workflows/project-status.yml."
+            exit 1
+          fi
+
+      - name: Create a token for the project app
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.PROJECT_APP_ID }}
           private-key: ${{ secrets.PROJECT_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          # Limit the token to this repository and to what the job needs.
+          repositories: ${{ github.event.repository.name }}
           permission-organization-projects: write
+          permission-issues: read
+          permission-pull-requests: read
 
       - name: Add the item and set its status
         env:
