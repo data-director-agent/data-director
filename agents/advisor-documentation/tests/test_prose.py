@@ -26,7 +26,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.credentials import ConfigError
 
-SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
+SAMPLES = Path(__file__).with_name("data")
 MODEL = "claude-test"
 GAP = re.compile(r"<!-- dd:gap (q-[0-9a-f]{16}) -->")
 

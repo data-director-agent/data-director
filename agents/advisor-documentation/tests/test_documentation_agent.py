@@ -35,7 +35,7 @@ from dd_sdk.contract.models import (
     new_invocation_id,
 )
 
-SAMPLES = Path(__file__).resolve().parents[3] / "workbench" / "samples"
+SAMPLES = Path(__file__).with_name("data")
 
 
 def sample(name: str) -> DraftRequest:
