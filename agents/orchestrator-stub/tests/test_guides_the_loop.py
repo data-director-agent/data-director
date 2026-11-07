@@ -21,6 +21,7 @@ from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, build_package
 from dd_harness.projects import APPROVED, Decision, ProjectStore
 from dd_harness.requirements import DATACITE, load_requirements
+from dd_harness.sources import RecordsFile, Sources
 from dd_harness.store import RunStore
 from dd_harness.testing import TEST_PRINCIPAL, file_inventory, make_conductor, request
 from dd_sdk.contract.models import (
@@ -110,10 +111,24 @@ def choose_a_repository(tmp_path: Path, projects: ProjectStore, project: str) ->
     path = tmp_path / "repositories" / "standards" / "datacite-4.yaml"
     path.parent.mkdir(parents=True)
     path.write_text(yaml.safe_dump(standard), "utf-8")
-    resolved = load_requirements(tmp_path / "repositories").resolve(
-        "r3d100000001", "A repository", ["DataCite Metadata Schema"]
+    record: dict[str, Any] = {
+        "re3data_id": "r3d100000001",
+        "name": "A repository",
+        "metadata_standards": ["DataCite Metadata Schema"],
+    }
+    registry = Sources(
+        by_snapshot_ref={
+            "re3data:export:2026-11": RecordsFile(records={record["re3data_id"]: record})
+        }
     )
-    projects.choose_repository(project, resolved, acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.choose_repository(
+        project,
+        "r3d100000001",
+        registry=registry,
+        requirements=load_requirements(tmp_path / "repositories"),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
 
 
 def approve_every_proposed(projects: ProjectStore, project: str) -> None:

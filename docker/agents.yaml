@@ -1,5 +1,7 @@
 # The agents as the app and the workbench reach them inside the Compose network (compose.yaml).
-# Same list, ports and timeouts as app/config/agents.yaml, with service names for hosts.
+# Meant to have the same list, ports and timeouts as app/config/agents.yaml, with service names
+# for hosts. It lists only the agents compose.yaml starts, so the loop stops at its first
+# document step; every agent, and a check that the two lists agree, is TODO(#632).
 agents:
   - name: example-hello
     url: http://example-hello:8101

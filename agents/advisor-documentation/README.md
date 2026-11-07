@@ -135,8 +135,9 @@ drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7)
 | `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The Anthropic writer's key. |
 
 The Anthropic writer needs the package's `anthropic` extra. With it, the agent's card declares a
-`hosted` model, so the profile's rules on what project content may go to a hosted model apply
-(docs/specs/projects.md, invariant 8, TODO(#394, #40)). The CI evaluation runs the template path
+`hosted` model, so in a project it runs only where the profile's `hosted_models` lists
+`documentation` (docs/specs/projects.md, invariant 8): it is given the approved metadata record
+and people's answers. The shipped profiles list it. The CI evaluation runs the template path
 (TODO(#576)).
 
 ## What it does not do

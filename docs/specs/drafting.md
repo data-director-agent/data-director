@@ -115,13 +115,13 @@ signed in and never takes a name from the body. The harness records each answer 
 answers into the next `DraftRequest`. No agent writes an answer.
 
 **An answer outlives its document.** Until the conductor gives a drafter the version it
-regenerates (TODO(#394)), each redraft is a new document. So the conductor gives a drafter the
+regenerates (TODO(#631)), each redraft is a new document. So the conductor gives a drafter the
 answers recorded for every document of the kind it drafts, not only the latest, and a question's
 identifier, derived from its target, finds its answer in whichever draft asked it.
 
 **Model access.** A metadata record and a person's answers are `documentation`-class project
 content, so they go to a drafter with a hosted model only where the institutional profile allows
-it ([Projects](projects.md), invariant 8, TODO(#394, #40)). A drafter places answers by rule, so it
+it in its `hosted_models` ([Projects](projects.md), invariant 8). A drafter places answers by rule, so it
 can use them without a model.
 
 **Limitations go in the statement.** The core `Document` has no `limitations` slot, so a drafter

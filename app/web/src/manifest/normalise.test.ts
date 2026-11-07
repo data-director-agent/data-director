@@ -17,7 +17,7 @@ describe("normalise", () => {
     const directory = normalise(referenceSet);
     expect(directory.agents.map((a) => a.id)).toEqual(["advisor.standards"]);
     expect(directory.agents[0]?.gate).toEqual({ kind: "permitted", actionClass: "advise" });
-    expect(directory.profileRef).toBe("profile:data-director-app@v7");
+    expect(directory.profileRef).toBe("profile:data-director-app@v8");
     expect(directory.actingFor.assurance).toBe("asserted");
   });
 

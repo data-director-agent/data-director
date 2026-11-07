@@ -1,0 +1,19 @@
+/* A shortlist of repositories on a turn: each candidate with its choice, and what it resolved to. */
+
+@layer components {
+  .repository-candidates > li + li {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .repository-resolved {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .repository-warnings > li + li {
+    margin-top: var(--space-2);
+  }
+}

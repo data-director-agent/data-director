@@ -108,12 +108,13 @@ propose the change in its payload and the conductor is to perform it after appro
 (TODO(#72)).
 
 **The profile vocabulary** is the identifier, version, description, the agent-to-class mapping,
-the classes requiring approval and the optional orchestrator. A change to which orchestrator is
+the classes requiring approval, the optional orchestrator and `hosted_models`. A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
-The rule for which classes of project content may go to an agent declaring a `hosted` model
-belongs to the profile ([Projects](projects.md)); it is not built yet, and the profile does not
-accept the key (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
+`hosted_models` lists the classes of project content (`inventory`, `documentation`) that may go
+to an agent whose card declares a `hosted` model; without it only `inventory` may
+([Projects](projects.md), invariant 8). It covers project content the conductor gives, not what a
+caller or a person sends, such as a conversation's text (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
 when repository selection or deposit needs it.
 
 **The authentication boundary** is one interface: from the headers of a caller's HTTP request
@@ -266,7 +267,7 @@ file and restarting that agent's service; nothing else changes.
   document, rather than answering the HTTP request `401` with `WWW-Authenticate: Bearer`.
 - TODO(#26): Process Run Crate has no convention for an accountable role; until one is settled a
   role is recorded as a `Person` whose description states its kind.
-- TODO(#40): enforcing a manifest's model declarations, starting with which project content may go
-  to a hosted model.
+- TODO(#40): enforcing a manifest's model declarations beyond project content
+  ([Projects](projects.md), invariant 8), such as which models may receive a conversation's text.
 - TODO(#43, #37): the security baseline for roles, secrets, storage and audit (C1), and the threat
   model this spec's controls answer to.

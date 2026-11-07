@@ -183,16 +183,15 @@ conductor puts them into the input, so the agent never reads the project store i
 added, a document uploaded, a repository chosen) and any uploaded documentation, kept by digest.
 It holds an inventory of the research data files, made where the data live, never the files
 themselves. Which project content may go to an agent that calls a hosted model is the profile's
-decision ([Projects](specs/projects.md)). The inventory is made by
+decision, its `hosted_models` ([Projects](specs/projects.md)). The inventory is made by
 [`dd-inventory`](../inventory/README.md) and kept in the project store
-([projects](../harness/docs/projects.md)); giving agents the project's facts is not built yet
-(#394).
+([projects](../harness/docs/projects.md)); giving a drafter the version it regenerates is not
+built yet (#394).
 
 A **project document** (a metadata record, a README, a data dictionary) is a `Document` payload.
 When a run in a project returns one, the conductor adds it to the log as a new version. A
 person's edit is a version too. Each version is proposed, approved or rejected on its own, and
-none is removed ([Projects](specs/projects.md); the conductor recording a run's draft is not
-built yet, #394). A person approves or rejects the latest version, with a reason to reject or
+none is removed ([Projects](specs/projects.md)). A person approves or rejects the latest version, with a reason to reject or
 edit, and the harness records the decision in the log under the principal who made it. The app
 only shows it, at `/projects/{project_id}`, and nothing resumes a run
 ([Projects](specs/projects.md)).
@@ -281,7 +280,7 @@ The harness ships no profile, agent list or source list. Each comes from the dep
 |---|---|
 | `DD_PROFILE` | The institutional profile: which agents may run, and with what approval. |
 | `DD_AGENTS_CONFIG` | The list of agent URLs to read cards from. |
-| `DD_SOURCES_CONFIG` | The pinned source copies the source check uses. |
+| `DD_SOURCES_CONFIG` | The pinned source copies the source check uses, and the re3data export a chosen repository is read from. |
 | `DD_RUNS_DIR` | Where runs are written. |
 | `DD_PROJECTS_DIR` | Where project records and uploaded documentation are kept ([Projects](specs/projects.md), not built yet). |
 | `DD_REPOSITORIES_DIR` | The requirement sets for metadata standards and repository overrides ([Deposit](specs/deposit.md)). Only `dd-harness project choose-repository` reads them so far. |

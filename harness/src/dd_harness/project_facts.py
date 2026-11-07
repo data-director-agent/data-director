@@ -10,7 +10,7 @@ Three core classes are filled. Within a project:
   answers are the latest a person recorded to each question of the project's documents of the
   kind asked for (docs/specs/drafting.md, invariant 6): a drafter marks an answer
   `supplied`, so no caller may send one. `current_version` is removed until regeneration is
-  filled from the project, TODO(#394);
+  filled from the project, TODO(#631);
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
@@ -20,6 +20,13 @@ Three core classes are filled. Within a project:
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
 hash covers what the agent was shown.
+
+`given` says which classes of project content (invariant 8) a filled input holds, so that the
+conductor can refuse to send `documentation` to an agent that calls a hosted model unless the
+profile's `hosted_models` allows it. An inventory, and what it is, are `inventory`. A metadata
+record, a version to regenerate and a person's answers are `documentation`. A repository's
+requirements are the repository's, not the project's, and a `Message`'s entry point and progress
+say only which steps of the process flow have gone how far; they are neither.
 """
 
 from __future__ import annotations
@@ -37,6 +44,12 @@ FILE_INVENTORY = "FileInventory"
 MESSAGE = "Message"
 # A `Message`'s slots that only the conductor fills.
 MESSAGE_PROJECT_SLOTS = ("project_inventory", "project_entry", "project_progress")
+
+# The classes of project content (docs/specs/projects.md, invariant 8).
+INVENTORY = "inventory"
+DOCUMENTATION = "documentation"
+# A `DraftRequest`'s slots that hold documentation.
+DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers")
 
 
 def give(
@@ -83,6 +96,27 @@ def give(
         if held is not None:
             return dict(held)
     return filled
+
+
+def given(
+    store: ProjectStorage | None, project_id: str | None, filled: Mapping[str, Any]
+) -> frozenset[str]:
+    """The classes of project content in `filled`, an input `give` returned for `project_id`.
+    Empty outside a project."""
+    if store is None or project_id is None:
+        return frozenset()
+    schema_class = filled.get("schema_class")
+    found: set[str] = set()
+    if schema_class == MESSAGE and filled.get("project_inventory"):
+        found.add(INVENTORY)
+    elif schema_class == DRAFT_REQUEST:
+        if filled.get("inventory"):
+            found.add(INVENTORY)
+        if any(filled.get(slot) for slot in DOCUMENTATION_SLOTS):
+            found.add(DOCUMENTATION)
+    elif schema_class == FILE_INVENTORY and store.inventory(project_id) is not None:
+        found.add(INVENTORY)
+    return frozenset(found)
 
 
 def summarise(store: ProjectStorage, project_id: str) -> dict[str, Any] | None:

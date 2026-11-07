@@ -294,6 +294,7 @@ class Conductor:
         in_project = project_id if self.projects is not None else None
         sent = to_document(request.input)
         filled = project_facts.give(self.projects, in_project, sent)
+        given = project_facts.given(self.projects, in_project, filled)
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
                 {**to_document(request), "input": filled, "project_id": in_project}
@@ -309,7 +310,7 @@ class Conductor:
                 )
             self._running.add(invocation_id)
         try:
-            return self._run(request, request_doc, acting_for, link)
+            return self._run(request, request_doc, acting_for, link, given)
         finally:
             with self._running_lock:
                 self._running.discard(invocation_id)
@@ -320,7 +321,9 @@ class Conductor:
         request_doc: dict[str, Any],
         acting_for: Principal,
         link: SpanContext | None,
+        given: frozenset[str] = frozenset(),
     ) -> Envelope:
+        """`given` is the classes of project content the conductor put into the input."""
         agent = self.registry.get(request.agent_id)
         if agent is None:
             self.registry.refresh()  # it may have started since the registry was built
@@ -403,8 +406,27 @@ class Conductor:
                 prob = problems.input_not_accepted(
                     spec.agent_id, got, spec.accepts_names(), tuple(errors)
                 )
+            elif kept_back := policy.withheld(
+                profile, (model.hosting for model in spec.models), given
+            ):
+                # 3. Project content, against the profile's `hosted_models`
+                # (docs/specs/projects.md, invariant 8): nothing is sent that the profile does not
+                # let an agent calling a hosted model see.
+                result = AgentResult(
+                    outcome=Outcome(
+                        status=OutcomeStatus.FAILED,
+                        statement=(
+                            f"{spec.agent_id} calls a hosted model, and profile "
+                            f"{profile.profile_id!r} does not let one be given the project's "
+                            f"{' or '.join(kept_back)}. The agent was not run."
+                        ),
+                    )
+                )
+                prob = problems.project_content_withheld(
+                    spec.agent_id, tuple(kept_back), profile.profile_id
+                )
             else:
-                # 3. Run the agent. An exception becomes a failed outcome; never a crash.
+                # 4. Run the agent. An exception becomes a failed outcome; never a crash.
                 prob = None
                 # A grant travels on the A2A wire, so only a remote agent can be sent one.
                 sent_grant: DelegationGrant | None = None
@@ -501,14 +523,14 @@ class Conductor:
             root.set_attribute(ATTR_OUTCOME, envelope.outcome.status.value)
 
         try:
-            # 4. Grounding linter, over the finished tree of this trace.
+            # 5. Grounding linter, over the finished tree of this trace.
             records = self.tracing.finished_records(trace_id)
             report = grounding.lint(records, envelope.to_document())
             with self._reports_lock:  # invocations finish side by side
                 self.grounding_reports[request.invocation_id] = report
                 while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
                     del self.grounding_reports[next(iter(self.grounding_reports))]
-            # 4a. Source check, over the evidence the linter has just read
+            # 5a. Source check, over the evidence the linter has just read
             # (docs/specs/grounding.md).
             source_report = source_check.check(envelope.to_document(), self.sources)
             withheld = [
@@ -537,7 +559,7 @@ class Conductor:
                     }
                 )
 
-            # 5. Validate, store, trace file, provenance. A result the agent returned that still
+            # 6. Validate, store, trace file, provenance. A result the agent returned that still
             # breaks the contract is the agent's error, as a payload of the wrong class is: it is
             # stored as failed(agent-error), not raised past the store. An envelope the conductor
             # built itself that breaks the contract is a conductor bug, and raises.

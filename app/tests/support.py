@@ -15,7 +15,7 @@ from dd_app.config import settings_from_env
 from dd_app.governance import Governance
 from dd_harness.testing import TEST_PRINCIPAL, in_process
 
-PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
+PATH_VARIABLES = ("DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG", "DD_REPOSITORIES_DIR")
 APP_URL = "http://app.test"
 # The shell's component and browser tests are drawn from these, so each must be what the server
 # says. Outside CI a test rewrites a fixture that has fallen behind, so running the tests locally

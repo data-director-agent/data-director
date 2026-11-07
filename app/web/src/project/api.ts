@@ -173,6 +173,45 @@ export interface ProjectConversation {
   turns: number;
 }
 
+/** The repository a project chose last, as its summary names it. */
+export interface ChosenRepository {
+  re3data_id: string;
+  repository_name: string;
+  /** What the choice does not check, for example that re3data does not list DataCite for it. */
+  warnings: string[];
+  chosen_at: string;
+}
+
+/** One field a repository's requirements name, and how much the deposit needs it. */
+export interface RequiredField {
+  property: string;
+  schema_org: string;
+  obligation: "required" | "recommended";
+  /** What the repository's own deposit form calls it, where an override says. */
+  form_label?: string;
+  qualifier?: Record<string, string>;
+}
+
+/**
+ * The requirements a chosen repository resolved to (docs/specs/deposit.md): the repository's
+ * override, if the deployment has one, merged on its standard's set. Its name and declared
+ * standards came from the pinned re3data export, not from anyone typing them.
+ */
+export interface RepositoryRequirements {
+  re3data_id: string;
+  repository_name: string;
+  conforms_to: string;
+  requirement_sets: { ref: string; sha256: string }[];
+  fields: RequiredField[];
+  required_documents: string[];
+  recommended_documents: string[];
+  media_types?: string[];
+  licences?: string[];
+  max_file_size?: number;
+  max_item_size?: number;
+  warnings: string[];
+}
+
 /**
  * One project the person may read, as `GET /api/projects` lists it: what it holds, how many of
  * its documents are in each state, and the conversations started in it, most recent first.
@@ -184,7 +223,7 @@ export interface ProjectSummary {
   created_at: string;
   created_by: RecordedPrincipal;
   inventory: { digest: string; file_count: number; inventory_made_at: string; added_at: string } | null;
-  repository: { re3data_id: string; repository_name: string; chosen_at: string } | null;
+  repository: ChosenRepository | null;
   documents: Record<VersionState, number>;
   conversations: ProjectConversation[];
 }
@@ -209,6 +248,9 @@ export interface ProjectApi {
   chooseEntry(projectId: string, entry: number): Promise<ProjectProgress>;
   /** Record a step marked done, skipped or open again; answers with the progress anew. */
   markStep(projectId: string, stepId: string, mark: StepMark): Promise<ProjectProgress>;
+  /** Choose a repository by its re3data identifier; answers with the requirements it resolved
+   * to. A change is a new choice, and the last one counts. */
+  chooseRepository(projectId: string, re3dataId: string): Promise<RepositoryRequirements>;
 }
 
 /**
@@ -279,6 +321,14 @@ export const httpProjectApi: ProjectApi = {
   async markStep(projectId, stepId, mark) {
     return json(
       await fetch(`${progressPath(projectId)}/steps/${encodeURIComponent(stepId)}`, put({ mark })),
+    );
+  },
+  async chooseRepository(projectId, re3dataId) {
+    return json(
+      await fetch(
+        `/api/projects/${encodeURIComponent(projectId)}/repository`,
+        put({ re3data_id: re3dataId }),
+      ),
     );
   },
   async decide(projectId, documentId, request) {
