@@ -1,5 +1,5 @@
-"""advisor.documentation through the conductor: the Documentation Editor mock
-(docs/specs/agents.md) as the stub drafter of the README and the data dictionary (#200)."""
+"""advisor.documentation through the conductor, on the template path: the Documentation Editor
+(docs/specs/drafting.md) drafting the README and the data dictionary with no model configured."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
     CurrentVersion,
+    Derivation,
     Document,
     DocumentKind,
     DocumentVersionRef,
@@ -52,9 +53,10 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
     asked = sample("soil-survey.readme.draft.json")
     env, grounded = draft(runs_dir, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.NONE and grounded
+    assert env.grounding_mode == GroundingMode.INPUT_ONLY and grounded
     document = env.payload_as(Document)
     assert document.document_kind == DocumentKind.README
+    assert document.document_derivation == Derivation.TEMPLATE
     assert document.media_type == "text/markdown"
     assert document.revises is None
     text = document.document_text
@@ -77,7 +79,7 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
             assert f"`{field.name}`" in text
     assert asked.requirements is not None and asked.requirements.licences
     assert f"`{asked.requirements.licences[0]}`" in text
-    assert env.outcome.statement.startswith("Mock:")
+    assert "template path" in env.outcome.statement
 
 
 def test_drafts_a_data_dictionary_with_a_row_per_field(runs_dir: Path) -> None:
@@ -212,7 +214,12 @@ def test_no_table_no_data_dictionary(runs_dir: Path) -> None:
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(DocumentationEditor.spec)
     assert entry["title"] == "Documentation Editor"
-    assert entry["description"].startswith("Mock.")
+    assert not entry["description"].startswith("Mock.")
+    assert entry["grounding_mode"] == GroundingMode.INPUT_ONLY.value
+    assert entry["derivations"]["document_text"] == {
+        "how": "model",
+        "recorded_in": "document_derivation",
+    }
     assert entry["serves"] == ["setup.documentation", "preparation.documentation"]
     json.dumps(entry)
 
