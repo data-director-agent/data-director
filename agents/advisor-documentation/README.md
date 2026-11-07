@@ -9,7 +9,7 @@ serves two steps of the process flow:
 
 | Step | What the mock does |
 |---|---|
-| `setup.documentation` | Drafts a README or a data dictionary from the project's file inventory. |
+| `setup.documentation` | Drafts a README or a data dictionary from the project's file inventory and approved metadata record. |
 | `preparation.documentation` | The same, for documentation drafted or reviewed while preparing the deposit. |
 
 ## Input and output
@@ -22,6 +22,18 @@ without its caller changing. A request names the `document_kind`:
   what the researcher should write in it. The **Files** section lists the inventory's files with
   their formats and sizes. **Variables** lists each table's fields with their types. **Access and
   licence** lists the licences the chosen repository offers, if its requirements name any.
+
+  When the request carries the project's approved metadata record (`metadata_record`, which the
+  conductor fills in a project), the README takes from it, as given: the title, as the README's
+  heading and in **General information** with the creators and funders; the abstract, as the
+  **Description**; the licence, in **Access and licence**; and a citation by the creators, the
+  publication year if there is one, and the title, in **How to cite**. These are `supplied`
+  ([Drafting documents](../../docs/specs/drafting.md), invariant 2). The abstract says all the
+  Description asks, so that section then has no gap; the others keep theirs for what the record
+  does not say, such as a contact, the dates of collection or the DOI. The mock reads a record in
+  DataCite's JSON form (`conforms_to` `http://datacite.org/schema/kernel-4`), as
+  `advisor.metadata` drafts it, and skips any value left `null` or blank. It does not use a record
+  in any other form, and says so in its statement.
 - `data_dictionary`: a CSV with one row per field of each table in the inventory, keyed by `file`
   and `field`. Each of the values `type`, `format`, `description`, `unit` and `missing_values` is
   followed by a column saying where it came from (`type_source`, …), so that a person can check
@@ -58,8 +70,8 @@ slot, so the outcome's statement says what the mock does not do (docs/specs/agen
 
 ## What it does not do
 
-- It writes no prose of its own and invents nothing. The title, description, methods, licence and
-  citation are left to the researcher.
+- It writes no prose of its own and invents nothing. What the approved metadata record does not
+  give, and the methods, are left to the researcher.
 - It does not open the files, so it says nothing about their contents beyond what the inventory
   records.
 - It infers no variable definitions, units or missing value codes.

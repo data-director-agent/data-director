@@ -14,6 +14,7 @@ import pytest
 from dd_sdk.contract import validate
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    ApprovedMetadataRecord,
     Assurance,
     ChoiceAnswer,
     ChoiceOption,
@@ -808,13 +809,17 @@ def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
 
 def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
     """A drafter is asked for one kind of document and given the project's facts: the inventory,
-    the merged requirements and, to regenerate, the current version with its decision (#200)."""
+    the merged requirements, the approved metadata record (#572) and, to regenerate, the current
+    version with its decision (#200)."""
     schema = json.loads((SCHEMA / "generated" / "DraftRequest.schema.json").read_text("utf-8"))
     assert schema["properties"]["schema_class"]["enum"] == ["DraftRequest"]
     assert set(schema["required"]) == {"schema_class", "document_kind"}
     assert set(schema["$defs"]["VersionState"]["enum"]) == {s.value for s in VersionState}
     assert {"version_ref", "media_type", "document_text", "version_state"} == set(
         schema["$defs"]["CurrentVersion"]["required"]
+    )
+    assert {"version_ref", "media_type", "document_text"} == set(
+        schema["$defs"]["ApprovedMetadataRecord"]["required"]
     )
 
     asked = DraftRequest(
@@ -830,6 +835,12 @@ def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
                 )
             ],
             required_documents=[DocumentKind.METADATA_RECORD],
+        ),
+        metadata_record=ApprovedMetadataRecord(
+            version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=2),
+            media_type="application/json",
+            conforms_to="http://datacite.org/schema/kernel-4",
+            document_text='{"titles": [{"title": "Soil survey"}]}',
         ),
         current_version=CurrentVersion(
             version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=1),

@@ -27,9 +27,9 @@ these itself:
   names one is refused, and the agent is never sent it.
 
 In a project, the conductor also puts the project's facts into a `DraftRequest` before the input
-is hashed (`dd_harness.project_facts`): the latest inventory and the requirements of the
-repository chosen replace whatever the caller sent, and a slot the project has no value for is
-removed.
+is hashed (`dd_harness.project_facts`): the latest inventory, the requirements of the
+repository chosen and the metadata record a person approved last replace whatever the caller
+sent, and a slot the project has no value for is removed.
 
 `acting_for` comes from the caller's transport, not the request. The transport asks its
 authenticator who the caller acts for and passes the answer to `invoke`. Until there is sign-in,

@@ -13,6 +13,39 @@
             "string"
          ]
       },
+      "ApprovedMetadataRecord": {
+         "additionalProperties": false,
+         "description": "The project's metadata record as a person approved it: the version named by the last approval of a metadata_record document in the project (docs/specs/projects.md). A drafter treats what it holds as supplied, given by a person (docs/specs/drafting.md).",
+         "properties": {
+            "version_ref": {
+               "$ref": "#/$defs/DocumentVersionRef",
+               "description": "The version, by its document and number."
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "conforms_to": {
+               "description": "The schema or profile document_text follows, such as a repository's metadata schema.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "version_ref",
+            "media_type",
+            "document_text"
+         ],
+         "title": "ApprovedMetadataRecord",
+         "type": "object"
+      },
       "CurrentVersion": {
          "additionalProperties": false,
          "description": "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises.",
@@ -471,7 +504,7 @@
    "$id": "https://w3id.org/data-director/schema/core/DraftRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory and the requirements in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394). The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md).",
+   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. Filling current_version is TODO(#394). The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md).",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -505,6 +538,17 @@
             }
          ],
          "description": "The requirements of the repository chosen last. In a project the conductor fills it; a caller leaves it out."
+      },
+      "metadata_record": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/ApprovedMetadataRecord"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The project's metadata record, the version a person approved last, if any has been. In a project the conductor fills it; a caller leaves it out."
       },
       "current_version": {
          "anyOf": [

@@ -17,7 +17,7 @@ from starlette.applications import Starlette
 from dd_harness.conductor import Conductor, ProjectAssignmentError
 from dd_harness.conversations import get_conversation, list_conversations
 from dd_harness.identity import OperatorAssertion
-from dd_harness.projects import DOCUMENT_VERSION_ADDED, PROPOSED, ProjectStore
+from dd_harness.projects import APPROVED, DOCUMENT_VERSION_ADDED, PROPOSED, Decision, ProjectStore
 from dd_harness.requirements import load_requirements
 from dd_harness.testing import (
     HARNESS_URL,
@@ -38,6 +38,7 @@ from dd_harness.transport.a2a import a2a_routes
 from dd_sdk.agent import AgentResult, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    ApprovedMetadataRecord,
     Derivation,
     Document,
     DocumentKind,
@@ -191,6 +192,65 @@ def test_a_drafts_questions_are_kept_and_a_callers_answers_are_not_given(
     (document,) = projects.documents(project)
     (version,) = document["versions"]
     assert version["questions"] == [STUB_QUESTION.model_dump(mode="json", exclude_none=True)]
+
+
+def record_in(projects: ProjectStore, project: str, *, approve: bool) -> DocumentVersionRef:
+    """A metadata record drafted into the project by the document stub, approved if asked."""
+    with_stub = make_conductor(Path(projects.root).parent / "record-runs", DocumentStub())
+    env = with_stub.invoke(
+        request("stub.document", document_request(DocumentKind.METADATA_RECORD)),
+        acting_for=TEST_PRINCIPAL,
+    )
+    ref = projects.record_draft(project, env)
+    if approve:
+        (digest,) = [
+            d["versions"][-1]["digest"]
+            for d in projects.documents(project)
+            if d["document_id"] == ref.document_id
+        ]
+        projects.decide(
+            project,
+            Decision(ref.document_id, ref.version, digest, APPROVED),
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
+        )
+    return ref
+
+
+@pytest.mark.requirement("R5")
+def test_a_draft_is_given_the_metadata_record_a_person_approved_and_no_other(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """The metadata record is supplied content (docs/specs/drafting.md, invariant 2), so a
+    drafter is given only a version a person approved, never one a caller sent."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    made_up = ApprovedMetadataRecord(
+        version_ref=DocumentVersionRef(document_id=new_invocation_id(), version=9),
+        media_type="application/json",
+        document_text='{"titles": [{"title": "Made up"}]}',
+    )
+
+    def draft() -> dict[str, Any]:
+        sent = draft_request(metadata_record=made_up)
+        env = conductor.invoke(
+            in_conversation(request("stub.document", sent), conversation),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+        stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
+        assert "record=9" not in env.payload_as(Document).document_text
+        input_doc: dict[str, Any] = stored["input"]
+        return input_doc
+
+    record_in(projects, project, approve=False)
+    assert "metadata_record" not in draft()
+
+    approved = record_in(projects, project, approve=True)
+    record_in(projects, project, approve=False)
+    given = draft()["metadata_record"]
+    assert given == projects.metadata_record(project)
+    assert given["version_ref"] == approved.model_dump(mode="json")
 
 
 def test_outside_a_project_nothing_is_filled_or_recorded(

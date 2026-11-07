@@ -29,10 +29,12 @@ from dd_harness.projects import (
     DOCUMENT_VERSION_DECIDED,
     INVENTORY_ADDED,
     PROJECT_CREATED,
+    REJECTED,
     ChangeRefusedError,
     Decision,
     ProjectError,
     UnknownProjectError,
+    Verdict,
     text_digest,
 )
 from dd_harness.storage import ProjectStorage, RunStorage
@@ -43,6 +45,7 @@ from dd_harness.testing.serving import make_conductor
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     DocumentKind,
+    DraftRequest,
     Envelope,
     FileInventory,
     IdentificationMethod,
@@ -252,11 +255,16 @@ def file_inventory(*paths: str) -> dict[str, Any]:
 def drafted_readme() -> Envelope:
     """A succeeded run whose payload is a first draft of a README, from the document stub run
     through a conductor of its own."""
+    return drafted(DocumentKind.README)
+
+
+def drafted(kind: DocumentKind) -> Envelope:
+    """A succeeded run whose payload is a first draft of a document of `kind`, from the document
+    stub run through a conductor of its own."""
     with tempfile.TemporaryDirectory(prefix="dd-storage-check-") as runs:
         conductor = make_conductor(Path(runs), DocumentStub())
         return conductor.invoke(
-            request("stub.document", document_request(DocumentKind.README)),
-            acting_for=TEST_PRINCIPAL,
+            request("stub.document", document_request(kind)), acting_for=TEST_PRINCIPAL
         )
 
 
@@ -408,6 +416,47 @@ def check_concurrent_decisions_on_one_version_admit_one(make: MakeProjectStorage
     assert document["versions"][-1]["state"] == APPROVED
 
 
+def check_the_metadata_record_is_the_one_approved_last(make: MakeProjectStorage) -> None:
+    """A drafter is given the metadata record a person approved last, and nothing a person has
+    not approved: not a version proposed or rejected since, nor another kind of document."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+
+    def decide(ref_kind: DocumentKind, verdict: Verdict, reason: str | None = None) -> str:
+        ref = store.record_draft(project_id, drafted(ref_kind))
+        latest = next(d for d in store.documents(project_id) if d["document_id"] == ref.document_id)
+        digest = latest["versions"][-1]["digest"]
+        decision = Decision(ref.document_id, ref.version, digest, verdict, reason)
+        store.decide(project_id, decision, acted_for=TEST_PRINCIPAL, caused_by="check")
+        return ref.document_id
+
+    store.record_draft(project_id, drafted(DocumentKind.METADATA_RECORD))
+    decide(DocumentKind.README, APPROVED)
+    assert store.metadata_record(project_id) is None
+
+    first = decide(DocumentKind.METADATA_RECORD, APPROVED)
+    decide(DocumentKind.METADATA_RECORD, REJECTED, "Not this one.")
+    store.record_draft(project_id, drafted(DocumentKind.METADATA_RECORD))
+    decide(DocumentKind.README, APPROVED)
+    record = make("projects").metadata_record(project_id)
+    assert record is not None
+    assert record["version_ref"] == {"document_id": first, "version": 1}
+    (approved,) = [d for d in store.documents(project_id) if d["document_id"] == first]
+    assert record["document_text"] == approved["versions"][0]["text"]
+    assert record["media_type"] == approved["versions"][0]["media_type"]
+    assert (
+        ClassSchema.of(DraftRequest).errors(
+            {"schema_class": "DraftRequest", "document_kind": "readme", "metadata_record": record}
+        )
+        == []
+    )
+
+    second = decide(DocumentKind.METADATA_RECORD, APPROVED)
+    record = store.metadata_record(project_id)
+    assert record is not None
+    assert record["version_ref"] == {"document_id": second, "version": 1}
+
+
 PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "the log is append-only and the latest inventory wins": (
         check_the_log_is_append_only_and_the_latest_inventory_wins
@@ -419,6 +468,9 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a stale change is refused and recorded": check_a_stale_change_is_refused_and_recorded,
     "concurrent decisions on one version admit one": (
         check_concurrent_decisions_on_one_version_admit_one
+    ),
+    "the metadata record is the one approved last": (
+        check_the_metadata_record_is_the_one_approved_last
     ),
 }
 

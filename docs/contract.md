@@ -67,13 +67,15 @@ data live ([`inventory/`](../inventory/README.md)), and it never holds a file's 
 `DraftRequest` is what every drafter accepts: an agent that returns a `Document` is asked for one
 `document_kind` and given the project's facts. These are the `inventory`, the `requirements` of
 the repository chosen (`RepositoryRequirements`, the merged set of
-[Deposit](specs/deposit.md)) and, to
-regenerate a document, its `current_version`. A `CurrentVersion` gives the version as a
+[Deposit](specs/deposit.md)), the `metadata_record` a person approved last and, to
+regenerate a document, its `current_version`. An `ApprovedMetadataRecord` gives the record's
+version as a `DocumentVersionRef`, its media type, the schema it `conforms_to` and its text. A `CurrentVersion` gives the version as a
 `DocumentVersionRef`, its text and media type, its `version_state` (`proposed`, `approved` or
 `rejected`) and the `decision_reason` a person gave, and the drafter names that version in its
 payload's `revises`. Because the class is the core's, a drafter can be replaced without its
-caller changing. The conductor is to fill the facts from the project, TODO(#394). Until it does,
-the caller sends them.
+caller changing. In a project, the conductor fills the inventory, the requirements and the
+metadata record from the project, and a caller leaves them out; outside a project, the caller
+sends them. Filling `current_version` from the project is TODO(#394).
 
 A `Document` may ask the researcher about what its drafter could not know: `document_questions`
 holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it

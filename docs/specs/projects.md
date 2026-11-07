@@ -63,7 +63,9 @@ intended design, and each part says where it is not built yet.
    names the run's `invocation_id`, as a draft's `document_version_added` does
    (`harness/tests/test_project_runs.py`); others name the command a person ran or the request.
 5. **The latest counts.** The project's inventory is the one added last; its repository is the one
-   chosen last. Earlier ones stay in the log (`harness/tests/test_projects.py`).
+   chosen last; its metadata record is the version of a `metadata_record` document a person
+   approved last, and a version proposed or rejected since does not displace it. Earlier ones stay
+   in the log (`harness/tests/test_projects.py`, `dd_harness.testing.storage`).
 6. **An agent is given project facts and never fetches them.** The conductor puts into an agent's
    input the parts of the project the agent's input class asks for: inventory entries, the text of
    documentation or of a document version with its digest, and the merged requirements. The input
@@ -71,8 +73,10 @@ intended design, and each part says where it is not built yet.
    project store, and refers to a data file by path and digest. An inventory's stored digest is
    already its `dd-input-json-v1` input hash. Today the conductor fills three core classes
    (`dd_harness.project_facts`, `harness/tests/test_project_runs.py`). In a project, a
-   `DraftRequest`'s `inventory` and `requirements` are the project's, replacing what the caller
-   sent, and a slot the project has no value for is removed. A plain `FileInventory` input is the
+   `DraftRequest`'s `inventory`, `requirements` and `metadata_record` are the project's,
+   replacing what the caller sent, and a slot the project has no value for is removed. The
+   metadata record is given with the version it is, its media type, its schema and its text, so a
+   drafter can treat it as supplied ([Drafting documents](drafting.md), invariant 2). A plain `FileInventory` input is the
    project's inventory when it holds one, so an orchestrator sends an empty one. A `Message`'s
    `project_inventory` says what the project's inventory is (its digest, file count, tool and
    date, and its limitations) without its files, so an orchestrator knows the researcher has

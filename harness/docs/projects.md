@@ -146,12 +146,17 @@ with `ProjectError` and records nothing.
 version oldest first, its text and its `state` (`proposed`, `approved` or `rejected`) with the
 `decision` on it. It is what the app serves at `GET /api/projects/{id}/documents`.
 
+`metadata_record(project_id)` is the version of a `metadata_record` document named by the last
+approval in the log, as an `ApprovedMetadataRecord`: its `version_ref`, `media_type`,
+`conforms_to` and text. A version proposed or rejected since does not displace it, and it is None
+until a person approves one. The conductor gives it to every drafter in the project.
+
 ## Not yet built
 
 - Only owners are to decide, and membership is not built, TODO(#389).
-- The conductor fills only a `DraftRequest`'s `inventory` and `requirements`, not its
-  `current_version` nor any other class, and does not apply `hosted_models`
-  ([Projects](../../docs/specs/projects.md)), TODO(#394).
+- The conductor fills only a `DraftRequest`'s `inventory`, `requirements` and
+  `metadata_record`, not its `current_version` nor any other class, and does not apply
+  `hosted_models` ([Projects](../../docs/specs/projects.md)), TODO(#394).
 - The app cannot add an inventory to a project, TODO(#395), or choose a repository, TODO(#400).
 - Nothing checks a project against its merged requirements, TODO(#19, #202).
 - How long a project is kept, and what deleting one removes, TODO(#141).

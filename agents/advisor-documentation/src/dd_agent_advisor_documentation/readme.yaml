@@ -4,18 +4,26 @@
 # The sections are the common core of the research data README templates compared in #200:
 # Cornell's Data README, Dryad's and the Borealis working group's minimum README. `ask` says what
 # the researcher writes in the section, and the draft shows it as a placeholder. `from` names the
-# project fact a section is drafted from:
+# project fact, or the list of facts in order, a section is drafted from:
 #
-#   files     the inventory's files, as a table of path, format and size
-#   tables    the inventory's tables, as a table of field, type and format per file
-#   licences  the licences the chosen repository offers, for the researcher to choose from
+#   files            the inventory's files, as a table of path, format and size
+#   tables           the inventory's tables, as a table of field, type and format per file
+#   licences         the licences the chosen repository offers, for the researcher to choose from
+#   record_general   the approved metadata record's title, creators and funders
+#   record_abstract  the approved metadata record's abstract
+#   record_rights    the licence the approved metadata record names
+#   record_citation  a citation by the approved metadata record's creators, year and title
 #
-# A section drafted from a fact still shows its `ask`, for what the fact cannot say.
+# A section drafted from a fact still shows its `ask`, for what the fact cannot say, unless the
+# fact named by `complete_from` gives it: that fact says all the section asks.
 - heading: General information
+  from: record_general
   ask: >-
     the dataset's title; the principal investigator and a contact, with institution, email and
     ORCID iD; the dates of data collection (YYYY-MM-DD); the geographic location; the funding.
 - heading: Description
+  from: record_abstract
+  complete_from: record_abstract
   ask: what the dataset is, and what it is for.
 - heading: Files
   from: files
@@ -30,9 +38,10 @@
     each field's definition, unit and missing value codes, in the data dictionary; any
     abbreviations used.
 - heading: Access and licence
-  from: licences
+  from: [record_rights, licences]
   ask: the licence, any restrictions, related publications and other places the data are held.
 - heading: How to cite
+  from: record_citation
   ask: the recommended citation. The repository gives the DOI when the dataset is deposited.
 - heading: Software requirements
   ask: anything needed to open or reuse the data.

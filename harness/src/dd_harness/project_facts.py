@@ -3,12 +3,13 @@
 
 Three core classes are filled. Within a project:
 
-- a `DraftRequest`'s `inventory` and `requirements` are the project's own: whatever the caller
-  sent is replaced, and a slot the project has no value for is removed, so that an agent is never
-  given facts a caller, or a model, made up. `current_version` is removed until regeneration is
-  filled from the project, TODO(#394), and so are `draft_answers` until the answers people record
-  are filled from the project log, TODO(#575): a drafter marks an answer `supplied`, so no caller
-  may send one;
+- a `DraftRequest`'s `inventory`, `requirements` and `metadata_record` are the project's own:
+  whatever the caller sent is replaced, and a slot the project has no value for is removed, so
+  that an agent is never given facts a caller, or a model, made up. The metadata record is the
+  version a person approved last, since a drafter treats it as supplied. `current_version` is
+  removed until regeneration is filled from the project, TODO(#394), and so are `draft_answers`
+  until the answers people record are filled from the project log, TODO(#575): a drafter marks
+  an answer `supplied`, so no caller may send one;
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files.
@@ -51,6 +52,7 @@ def give(
             {
                 "inventory": store.inventory(project_id),
                 "requirements": store.requirements(project_id),
+                "metadata_record": store.metadata_record(project_id),
                 "current_version": None,
                 # Only answers a person recorded may be placed as supplied: TODO(#394, #575).
                 "draft_answers": None,

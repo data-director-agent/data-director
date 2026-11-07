@@ -4,9 +4,14 @@ and the stub drafter of the project's README and data dictionary (#200).
 Serves `setup.documentation` and `preparation.documentation` (R5). Given a `DraftRequest` for a
 `readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
 project's inventory: the files and the tables' fields are drafted, and what only the researcher
-knows, such as the methods, each field's definition, unit and missing value codes, the licence and
-the citation, is marked for them. Each value in the data dictionary is marked with where it came
-from: inferred from the inventory, supplied by the researcher, or unknown.
+knows, such as the methods and each field's definition, unit and missing value codes, is marked
+for them. Each value in the data dictionary is marked with where it came from: inferred from the
+inventory, supplied by the researcher, or unknown.
+
+A README also takes, as given, the title, creators, funding, abstract and licence of the
+project's approved metadata record, when the request carries one in DataCite's JSON form, and
+cites the dataset by its creators and title. These are supplied content: a person approved them
+(docs/specs/drafting.md, invariant 2).
 
 The README's sections are those of `readme.yaml`. The mock writes no prose of its own, reads no
 file, consults no source and calls no model, so its grounding mode is `none` and it cites only its
@@ -31,7 +36,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import yaml
 
@@ -39,6 +44,7 @@ from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    ApprovedMetadataRecord,
     CurrentVersion,
     Derivation,
     Document,
@@ -60,7 +66,20 @@ from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
 README = Path(__file__).with_name("readme.yaml")
 # The project facts a README section may be drafted from (readme.yaml explains each).
-SOURCES = frozenset({"files", "tables", "licences"})
+SOURCES = frozenset(
+    {
+        "files",
+        "tables",
+        "licences",
+        "record_general",
+        "record_abstract",
+        "record_rights",
+        "record_citation",
+    }
+)
+# The metadata record's schema the mock reads: DataCite's, in the JSON form of its REST API's
+# attributes, as advisor.metadata drafts it.
+DATACITE = "http://datacite.org/schema/kernel-4"
 # How the draft marks what the researcher writes. A person's edit replaces it.
 PLACEHOLDER = "_To be written by the researcher: {ask}_"
 # What follows a placeholder: the question that asks for it. Not shown in the rendered README.
@@ -108,17 +127,20 @@ MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONAR
 # What the mock does not do, said in every outcome: its payload is the core Document, which has
 # no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
-    "This is a mock: it copies the inventory's file and field names and writes no prose of its "
-    "own. It does not open the files, infers no definitions, units or missing value codes, "
-    "suggests no answers to its questions, and does not read the reason given for a decision on "
-    "an earlier version."
+    "This is a mock: it copies the inventory's file and field names and the approved metadata "
+    "record's values, and writes no prose of its own. It does not open the files, infers no "
+    "definitions, units or missing value codes, suggests no answers to its questions, and does "
+    "not read the reason given for a decision on an earlier version."
 )
 
 
 class Section(NamedTuple):
     heading: str
     ask: str
-    source: str | None  # the project fact it is drafted from, or None: the researcher writes it
+    # The project facts it is drafted from, in order; empty: the researcher writes it all.
+    sources: tuple[str, ...] = ()
+    # The fact that, when it gives anything, says all the section asks, so no gap is left.
+    complete_from: str | None = None
 
 
 def load_sections(path: Path = README) -> list[Section]:
@@ -126,10 +148,27 @@ def load_sections(path: Path = README) -> list[Section]:
         table = yaml.safe_load(fh)
     sections = []
     for entry in table:
-        source = entry.get("from")
-        if source is not None and source not in SOURCES:
-            raise ValueError(f"{path}: section {entry['heading']!r} drafts from unknown {source!r}")
-        sections.append(Section(str(entry["heading"]), " ".join(str(entry["ask"]).split()), source))
+        given = entry.get("from")
+        sources = (given,) if isinstance(given, str) else tuple(given or ())
+        complete_from = entry.get("complete_from")
+        for source in sources:
+            if source not in SOURCES:
+                raise ValueError(
+                    f"{path}: section {entry['heading']!r} drafts from unknown {source!r}"
+                )
+        if complete_from is not None and complete_from not in sources:
+            raise ValueError(
+                f"{path}: section {entry['heading']!r} is completed from {complete_from!r}, "
+                "which it is not drafted from"
+            )
+        sections.append(
+            Section(
+                str(entry["heading"]),
+                " ".join(str(entry["ask"]).split()),
+                sources,
+                complete_from,
+            )
+        )
     if not sections:
         raise ValueError(f"{path}: no sections")
     return sections
@@ -141,9 +180,10 @@ class DocumentationEditor:
         version="0.1.0a1",
         title="Documentation Editor",
         description=(
-            "Mock. Drafts a project's README or data dictionary from its file inventory: the files "
-            "and the tables' fields are drafted, and the description, methods, definitions, units, "
-            "missing value codes, licence and citation are marked for the researcher to write."
+            "Mock. Drafts a project's README or data dictionary from its file inventory and its "
+            "approved metadata record: the files, the tables' fields and the record's title, "
+            "creators, abstract and licence are drafted, and the methods, definitions, units and "
+            "missing value codes are marked for the researcher to write."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
@@ -179,7 +219,18 @@ class DocumentationEditor:
 
         answers = _answers(asked.draft_answers)
         if kind == DocumentKind.README:
-            text, questions, statement = self._readme(inventory, asked.requirements, answers)
+            record, unread = _record(asked.metadata_record)
+            text, questions, statement = self._readme(
+                inventory, asked.requirements, record, answers
+            )
+            if asked.metadata_record is not None:
+                version = asked.metadata_record.version_ref.version
+                statement += (
+                    f" {unread}"
+                    if unread
+                    else f" It takes what it can from version {version} of the approved metadata "
+                    "record."
+                )
         else:
             fields = sum(len(f.file_fields) for f in inventory.inventory_files)
             if not fields:
@@ -227,22 +278,30 @@ class DocumentationEditor:
         self,
         inventory: FileInventory,
         requirements: RepositoryRequirements | None,
+        record: Mapping[str, Any] | None,
         answers: Mapping[str, str],
     ) -> tuple[str, list[DocumentQuestion], str]:
-        parts = ["# README"]
+        title = _title(record) if record is not None else None
+        parts = [f"# {title or 'README'}"]
         questions: list[DocumentQuestion] = []
-        drafted = answered = 0
+        drafted = answered = complete = 0
         for section in self.sections:
-            body = _drafted(section.source, inventory, requirements)
-            drafted += body is not None
+            bodies = {
+                source: body
+                for source in section.sources
+                if (body := _drafted(source, inventory, requirements, record)) is not None
+            }
+            drafted += bool(bodies)
             parts.append(f"## {section.heading}")
-            if body is not None:
-                parts.append(body)
+            parts.extend(bodies.values())
             question_id = _question_id({"section": section.heading})
             answer = answers.get(question_id)
             if answer is not None:
                 parts.append(answer)
                 answered += 1
+                continue
+            if section.complete_from in bodies:
+                complete += 1
                 continue
             placeholder = PLACEHOLDER.format(ask=section.ask)
             parts.append(f"{placeholder}\n{GAP_MARKER.format(question_id=question_id)}")
@@ -255,17 +314,22 @@ class DocumentationEditor:
             )
         statement = (
             f"Mock: a README of {len(self.sections)} sections, {drafted} of them drafted from the "
-            f"project's inventory and the repository chosen, and {answered} written from your "
-            f"answers. It leaves {_count(len(questions), 'gap')} for you to write, each marked and "
-            "asked as a question."
+            f"project's facts ({complete} in full), and {answered} written from your answers. It "
+            f"leaves {_count(len(questions), 'gap')} for you to write, each marked and asked as a "
+            "question."
         )
         return "\n\n".join(parts) + "\n", questions, statement
 
 
 def _drafted(
-    source: str | None, inventory: FileInventory, requirements: RepositoryRequirements | None
+    source: str,
+    inventory: FileInventory,
+    requirements: RepositoryRequirements | None,
+    record: Mapping[str, Any] | None,
 ) -> str | None:
     """A section's text drafted from one project fact, or None if there is nothing to draft."""
+    if source.startswith("record_"):
+        return _from_record(source, record) if record is not None else None
     if source == "files":
         rows = [
             (f"`{f.file_path}`", _format(f.file_media_type, f.file_pronom_ids), str(f.file_size))
@@ -289,6 +353,116 @@ def _drafted(
         offered = ", ".join(f"`{licence}`" for licence in requirements.licences)
         return f"{requirements.repository_name} offers these licences: {offered}."
     return None
+
+
+def _record(given: ApprovedMetadataRecord | None) -> tuple[dict[str, Any] | None, str | None]:
+    """The approved metadata record's properties, or None and, if there was a record, why it was
+    not read."""
+    if given is None:
+        return None, None
+    unread = "The approved metadata record was not used: "
+    if given.conforms_to != DATACITE:
+        return None, unread + f"the mock reads only DataCite records ({DATACITE})."
+    try:
+        properties = json.loads(given.document_text)
+    except json.JSONDecodeError:
+        return None, unread + "its text is not JSON."
+    if not isinstance(properties, dict):
+        return None, unread + "its text is not a JSON object of DataCite properties."
+    return properties, None
+
+
+def _values(record: Mapping[str, Any], prop: str, key: str) -> list[str]:
+    """Each non-empty `key` of the entries of a DataCite property whose value is a list of
+    objects. A placeholder the metadata mock left (null, or blank) is not a value."""
+    entries = record.get(prop)
+    if not isinstance(entries, list):
+        return []
+    return [
+        value.strip()
+        for entry in entries
+        if isinstance(entry, dict) and isinstance(value := entry.get(key), str) and value.strip()
+    ]
+
+
+def _title(record: Mapping[str, Any]) -> str | None:
+    """The record's main title: its first title with no `titleType`, else its first title."""
+    entries = record.get("titles")
+    if not isinstance(entries, list):
+        return None
+    main = [e for e in entries if isinstance(e, dict) and not e.get("titleType")]
+    titles = _values({"titles": main}, "titles", "title") or _values(record, "titles", "title")
+    return titles[0] if titles else None
+
+
+def _creators(record: Mapping[str, Any]) -> list[str]:
+    """Each creator's name, or else their family and given names, as the record writes them."""
+    entries = record.get("creators")
+    if not isinstance(entries, list):
+        return []
+    names = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        if isinstance(name, str) and name.strip():
+            names.append(name.strip())
+            continue
+        parts = [entry.get("familyName"), entry.get("givenName")]
+        given = [p.strip() for p in parts if isinstance(p, str) and p.strip()]
+        if given:
+            names.append(", ".join(given))
+    return names
+
+
+def _from_record(source: str, record: Mapping[str, Any]) -> str | None:
+    """A section's text from the approved metadata record, its values placed as given."""
+    title = _title(record)
+    creators = _creators(record)
+    if source == "record_general":
+        lines = [
+            (label, value)
+            for label, value in (
+                ("Title", title),
+                ("Creators", "; ".join(creators)),
+                ("Funding", "; ".join(_values(record, "fundingReferences", "funderName"))),
+            )
+            if value
+        ]
+        return "\n".join(f"- **{label}:** {value}" for label, value in lines) or None
+    if source == "record_abstract":
+        entries = record.get("descriptions")
+        abstracts = [
+            e
+            for e in entries or []
+            if isinstance(e, dict) and e.get("descriptionType") == "Abstract"
+        ]
+        found = _values({"descriptions": abstracts}, "descriptions", "description")
+        return found[0] if found else None
+    if source == "record_rights":
+        entries = record.get("rightsList")
+        rights = []
+        for entry in entries if isinstance(entries, list) else []:
+            if not isinstance(entry, dict):
+                continue
+            name, uri = entry.get("rights"), entry.get("rightsUri") or entry.get("rightsURI")
+            name = name.strip() if isinstance(name, str) else ""
+            uri = uri.strip() if isinstance(uri, str) else ""
+            if name or uri:
+                rights.append(f"{name} (<{uri}>)" if name and uri else name or f"<{uri}>")
+        return ("Licence: " + "; ".join(rights) + ".") if rights else None
+    if source == "record_citation":
+        if not (creators and title):
+            return None
+        year = record.get("publicationYear")
+        when = f" ({year})" if isinstance(year, int | str) and str(year).strip() else ""
+        return f"{_closed('; '.join(creators) + when)} {_closed(title)}"
+    return None
+
+
+def _closed(text: str) -> str:
+    """`text` ending with a full stop, unless it already ends a sentence."""
+    return text if text.endswith((".", "?", "!")) else text + "."
 
 
 def _format(media_type: str | None, pronom_ids: list[str]) -> str:

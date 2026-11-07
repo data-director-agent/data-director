@@ -1,0 +1,230 @@
+{
+  "schema_class": "DraftRequest",
+  "document_kind": "readme",
+  "inventory": {
+    "schema_class": "FileInventory",
+    "inventory_files": [
+      {
+        "file_path": "README.md",
+        "file_size": 105,
+        "file_sha256": "cd00446e75af92920a6572c8515c17c147550fbaf2bc1edd31b7f01020613179",
+        "file_media_type": "text/markdown",
+        "file_pronom_ids": [
+          "fmt/1149"
+        ],
+        "file_identified_by": "extension"
+      },
+      {
+        "file_path": "data/readings.csv",
+        "file_size": 99,
+        "file_sha256": "06261577b06e8c7ebf94a02697c06d21219e700439c025516fc584bdb003b1c0",
+        "file_media_type": "text/csv",
+        "file_pronom_ids": [
+          "x-fmt/18"
+        ],
+        "file_identified_by": "extension",
+        "file_fields": [
+          {
+            "name": "site",
+            "field_type": "string"
+          },
+          {
+            "name": "sampled_on",
+            "field_type": "date"
+          },
+          {
+            "name": "ph",
+            "field_type": "number"
+          },
+          {
+            "name": "nitrate_mg_kg",
+            "field_type": "number"
+          }
+        ]
+      },
+      {
+        "file_path": "data/sites.tsv",
+        "file_size": 97,
+        "file_sha256": "98ca687ba76459b4ee0ce97a668f64f24caa680a41ee207901c68a5a9eb97644",
+        "file_media_type": "text/tab-separated-values",
+        "file_pronom_ids": [
+          "x-fmt/13"
+        ],
+        "file_identified_by": "extension",
+        "file_fields": [
+          {
+            "name": "site",
+            "field_type": "string"
+          },
+          {
+            "name": "latitude",
+            "field_type": "number"
+          },
+          {
+            "name": "longitude",
+            "field_type": "number"
+          },
+          {
+            "name": "name",
+            "field_type": "string"
+          }
+        ]
+      },
+      {
+        "file_path": "docs/protocol.pdf",
+        "file_size": 327,
+        "file_sha256": "4028af3714fa07d2f20e758649532faef11b4818c99a2b8dc0c88170a0dc8784",
+        "file_media_type": "application/pdf",
+        "file_pronom_ids": [
+          "fmt/18"
+        ],
+        "file_identified_by": "signature"
+      },
+      {
+        "file_path": "docs/site-map.png",
+        "file_size": 67,
+        "file_sha256": "a1abfd410973b0111c215baa879b9edcd739e601659ba44168269767cc2e9108",
+        "file_media_type": "image/png",
+        "file_pronom_ids": [
+          "fmt/11"
+        ],
+        "file_identified_by": "signature"
+      }
+    ],
+    "inventory_tool": "dd-inventory",
+    "inventory_tool_version": "0.1.0-alpha",
+    "inventory_identified_with": "fido 1.6.1 with PRONOM signatures v109",
+    "inventory_made_at": "2026-10-30T15:06:19+00:00",
+    "inventory_limitations": [
+      "Table fields are inferred from a sample of rows; a later row may not fit the type given."
+    ]
+  },
+  "requirements": {
+    "re3data_id": "r3d100012124",
+    "repository_name": "ORDA",
+    "conforms_to": "http://datacite.org/schema/kernel-4",
+    "requirement_sets": [
+      {
+        "ref": "datacite-4@v1",
+        "sha256": "e01c4ac3818d7e718ada0930d8bcec78756ec9d1c7f7049dd967895196e898e8"
+      },
+      {
+        "ref": "orda@v2",
+        "sha256": "aefc6e9d7ad7b59bb32708e5c4387c6e7947ba6a36f86f2dc02dd1108bc1afc7"
+      }
+    ],
+    "media_types": [],
+    "licences": [
+      "CC-BY-4.0",
+      "CC0-1.0",
+      "CC-BY-SA-4.0",
+      "CC-BY-NC-4.0",
+      "CC-BY-NC-SA-4.0",
+      "CC-BY-ND-4.0",
+      "CC-BY-NC-ND-4.0",
+      "MIT",
+      "Apache-2.0",
+      "GPL-2.0-or-later",
+      "GPL-3.0-or-later",
+      "https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_closed_data_sensitive_data_not_openly_available_/24878301",
+      "https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_content_with_a_custom_licence/26030305"
+    ],
+    "fields": [
+      {
+        "property": "titles",
+        "schema_org": "name",
+        "obligation": "required",
+        "form_label": "Title"
+      },
+      {
+        "property": "creators",
+        "schema_org": "creator",
+        "obligation": "required",
+        "form_label": "Authors"
+      },
+      {
+        "property": "types.resourceTypeGeneral",
+        "schema_org": "additionalType",
+        "obligation": "required",
+        "form_label": "Item type"
+      },
+      {
+        "property": "subjects",
+        "schema_org": "keywords",
+        "obligation": "required",
+        "form_label": "Keywords"
+      },
+      {
+        "property": "contributors",
+        "schema_org": "contributor",
+        "obligation": "recommended"
+      },
+      {
+        "property": "dates",
+        "qualifier": {
+          "dateType": "Created"
+        },
+        "schema_org": "dateCreated",
+        "obligation": "recommended"
+      },
+      {
+        "property": "relatedIdentifiers",
+        "schema_org": "citation",
+        "obligation": "recommended",
+        "form_label": "Related materials"
+      },
+      {
+        "property": "descriptions",
+        "qualifier": {
+          "descriptionType": "Abstract"
+        },
+        "schema_org": "description",
+        "obligation": "required",
+        "form_label": "Description"
+      },
+      {
+        "property": "geoLocations",
+        "schema_org": "spatialCoverage",
+        "obligation": "recommended"
+      },
+      {
+        "property": "subjects",
+        "qualifier": {
+          "subjectScheme": "ANZSRC Fields of Research"
+        },
+        "schema_org": "about",
+        "obligation": "required",
+        "form_label": "Categories"
+      },
+      {
+        "property": "rightsList",
+        "schema_org": "license",
+        "obligation": "required",
+        "form_label": "License"
+      },
+      {
+        "property": "fundingReferences",
+        "schema_org": "funding",
+        "obligation": "recommended",
+        "form_label": "Funding"
+      }
+    ],
+    "required_documents": [
+      "metadata_record"
+    ],
+    "recommended_documents": [
+      "readme",
+      "data_dictionary"
+    ],
+    "warnings": []
+  },
+  "metadata_record": {
+    "version_ref": {
+      "document_id": "01930000-0000-7000-8000-000000000001",
+      "version": 2
+    },
+    "media_type": "application/json",
+    "conforms_to": "http://datacite.org/schema/kernel-4",
+    "document_text": "{\n  \"titles\": [\n    {\n      \"title\": \"Soil chemistry of upland survey sites, 2025\"\n    }\n  ],\n  \"creators\": [\n    {\n      \"name\": \"Example, Alex\",\n      \"nameType\": \"Personal\"\n    },\n    {\n      \"name\": \"Sample, Sam\",\n      \"nameType\": \"Personal\"\n    }\n  ],\n  \"descriptions\": [\n    {\n      \"description\": \"Soil pH, moisture and organic carbon measured at twelve upland survey sites in 2025, with the sites' locations and the sampling protocol.\",\n      \"descriptionType\": \"Abstract\"\n    }\n  ],\n  \"rightsList\": [\n    {\n      \"rights\": \"Creative Commons Attribution 4.0 International\",\n      \"rightsUri\": \"https://creativecommons.org/licenses/by/4.0/\",\n      \"rightsIdentifier\": \"CC-BY-4.0\"\n    }\n  ],\n  \"fundingReferences\": [\n    {\n      \"funderName\": null\n    }\n  ],\n  \"subjects\": [\n    {\n      \"subject\": null\n    }\n  ],\n  \"types\": {\n    \"resourceTypeGeneral\": \"Dataset\"\n  }\n}"
+  }
+}
