@@ -1,10 +1,10 @@
 # Glossary
 
-Terms used in the workbench, in alphabetical order.
+Terms used in Data Director, in alphabetical order.
 
 | Term | Meaning |
 |---|---|
-| A2A | Agent2Agent, an open protocol for one agent service to call another over HTTP. Each service publishes an agent card describing itself, and callers send it messages using JSON-RPC. The workbench uses A2A in both directions: callers reach the workbench over it, and the workbench reaches each agent over it. See [Transport and tracing](specs/transport.md) and [Agents](specs/agents.md). |
+| A2A | Agent2Agent, an open protocol for one agent service to call another over HTTP. Each service publishes an agent card describing itself, and callers send it messages using JSON-RPC. The harness uses A2A in both directions: callers reach the harness over it, and the harness reaches each agent over it. See [Transport and tracing](specs/transport.md) and [Agents](specs/agents.md). |
 | Agent | A program that takes one input and returns one result. In the Blueprint these are the Data Director's sub-agents. Each declares what it reads, what it returns and its grounding mode in an `AgentSpec`. Each runs as its own service and is reached over A2A. See [`../../agents/README.md`](../agents/README.md). |
 | Agent card | The JSON document an A2A service publishes at `/.well-known/agent-card.json`. A Data Director agent's card carries its `AgentSpec` in an extension. See [`registry.md`](../harness/docs/registry.md). |
 | Canonicalisation | A fixed, named way of turning a record into bytes before hashing it, so the same record always gives the same hash. See [`grounding.md`](../harness/docs/grounding.md). |
@@ -18,7 +18,7 @@ Terms used in the workbench, in alphabetical order.
 | Grounding | Tying an agent's output to the sources it actually read during the run, so that it cannot present something it made up. See [`grounding.md`](../harness/docs/grounding.md). |
 | Grounding linter | The check applied after every run. It compares the sources a result names with what the trace shows the agent did, and withholds the result if they disagree. Also called the grounding check. See [`grounding.md`](../harness/docs/grounding.md). |
 | Grounding mode | What an agent's output may rest on, declared by each agent: `retrieval` (records it fetched), `input_only` (only its input, possibly with a model) or `none` (only its input, with no model). See [`grounding.md#grounding-modes`](../harness/docs/grounding.md#grounding-modes). |
-| OpenTelemetry | A widely used open standard for recording what software does while it runs. The workbench uses it for traces. |
+| OpenTelemetry | A widely used open standard for recording what software does while it runs. The harness uses it for traces. |
 | Outcome | What happened in a run: `succeeded`, `abstained`, `referred`, `failed` or `suspended`. See [`contract.md`](contract.md). |
 | Payload | The agent's result, present only when the outcome is `succeeded`. |
 | Policy profile | A YAML file in `profiles/` that says which agents an institution enables, which action class each is assigned, and which classes need approval. The deployment chooses it; a request cannot. |
@@ -27,9 +27,9 @@ Terms used in the workbench, in alphabetical order.
 | Project member, project owner | A person who shares a project: they can read everything in it, run agents in it and add to any of its conversations. An owner can also add and remove members and approve or reject document versions. A project always has at least one owner. Membership is recorded in the project's log, and is separate from deployment roles such as data steward. See [Projects](specs/projects.md). |
 | Project document | A metadata record, README, data dictionary or other document of a project, returned by an agent as a `Document` payload. Each draft, regeneration and edit by a person is a version, and each version is proposed, approved or rejected on its own. See [Projects](specs/projects.md); how a person decides is [Projects](specs/projects.md). |
 | Question | Something a drafter asks the researcher because it cannot be inferred, such as a field's definition or unit, carried with the draft version and tied to the gap it fills. A person's recorded answer is marked `supplied` when the document is regenerated. See [Drafting documents](specs/drafting.md). |
-| Registry | The workbench's list of agents it can call, built at start-up from `agents.yaml` and each agent's card. See [`registry.md`](../harness/docs/registry.md). |
+| Registry | The harness's list of agents it can call, built at start-up from `agents.yaml` and each agent's card. See [`registry.md`](../harness/docs/registry.md). |
 | Requirement set | A YAML file of the deployment's that says what a deposit must or should have. A standard's set covers any record in one metadata standard, such as DataCite; a repository override adds what one repository asks, such as its form's fields and the licences it offers. The harness validates a project against the merged requirements of the repository the researcher chose. See [Deposit](specs/deposit.md). |
 | Review record | `reviews.yaml`: the human reviews of requirements that a test cannot settle, one entry per review, each naming the reviewer and the commit reviewed. See [`conformance.md`](conformance.md#recording-a-review). |
-| Span, trace | A trace is a timed record of one run, in the OpenTelemetry format, written by the workbench rather than the agent. It is made of spans, one per step, such as fetching a record or calling a model. Spans nest inside one span for the whole run, forming a span tree. See [`grounding.md#traces-and-spans`](../harness/docs/grounding.md#traces-and-spans). |
+| Span, trace | A trace is a timed record of one run, in the OpenTelemetry format, written by the harness rather than the agent. It is made of spans, one per step, such as fetching a record or calling a model. Spans nest inside one span for the whole run, forming a span tree. See [`grounding.md#traces-and-spans`](../harness/docs/grounding.md#traces-and-spans). |
 | Unavailable agent | An agent listed in `agents.yaml` whose card could not be read or was rejected. It is shown with the reason and cannot be run. See [`registry.md`](../harness/docs/registry.md#when-something-is-wrong). |
 | Viewer | The read-only browser pages in `viewer/` (Chat, Inspect and Agents) for trying agents and inspecting envelopes. Formerly called the shell. |

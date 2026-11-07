@@ -119,5 +119,4 @@ workbench.
 - The harness imports `dd_sdk` and third-party libraries only. It never imports the workbench,
   the app, an agent package or the evaluation framework. `tests/test_harness_boundary.py`
   enforces this.
-- The rules in [`../workbench/AGENTS.md`](../workbench/AGENTS.md) ("Load-bearing things") apply
-  here unchanged.
+- The rules in [`AGENTS.md`](AGENTS.md) and the root [`../AGENTS.md`](../AGENTS.md) apply here.

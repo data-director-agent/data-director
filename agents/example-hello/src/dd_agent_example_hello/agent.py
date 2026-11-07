@@ -3,12 +3,12 @@
 This package exists to be copied. It is the smallest agent that walks the whole recipe in
 `agents/README.md` — a new input class, a new payload class, a grounding mode, the payload's
 derivations, a console script, a profile entry, a sample and marked tests — with no domain logic
-in the way. It runs as its own service (`dd-example-hello serve`); the workbench reaches it over
-A2A.
+in the way. It runs as its own service (`dd-example-hello serve`); the harness's conductor
+reaches it over A2A.
 `advisor.quality` and `advisor.standards` show what a real agent does; this one shows only what the
 harness requires. Read it top to bottom, then delete the greeting.
 
-It also keeps the workbench's modularity claim honest: if adding an agent ever starts to require
+It also keeps the harness's modularity claim honest: if adding an agent ever starts to require
 an edit to the conductor, linter, CLI, transport or viewer, this agent will be the one that shows
 it, because it has no other reason to fail.
 
@@ -132,7 +132,7 @@ class HelloWorld:
 
 def build() -> HelloWorld:
     """The factory `main` serves (step 4). An agent that needed configuration would read its own
-    `DD_HELLO_*` environment variables here: the workbench's settings are not the agent's."""
+    `DD_HELLO_*` environment variables here: the harness's settings are not the agent's."""
     return HelloWorld()
 
 
