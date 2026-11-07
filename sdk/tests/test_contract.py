@@ -761,6 +761,23 @@ def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() ->
     with pytest.raises(ValueError):
         DocumentQuestion(question_id="q-1", question_prompt="?", gap_section="A")
 
+    # A suggestion is offered with how it was derived, and the one never comes without the other.
+    offered = cell.model_copy(
+        update={"suggested_answer": "pH units", "suggestion_derivation": Derivation.MODEL}
+    )
+    suggesting = asking.model_copy(update={"document_questions": [section, offered]})
+    env = _succeeded(payload=suggesting, evidence=[_input_evidence()]).to_document()
+    validate.validate_envelope(env)
+    assert Document.model_validate(env["payload"]).document_questions[1] == offered
+    with pytest.raises(ValueError, match="how it was derived"):
+        DocumentQuestion.model_validate(
+            {**cell.model_dump(exclude_none=True), "suggested_answer": "pH units"}
+        )
+    with pytest.raises(ValueError, match="how it was derived"):
+        DocumentQuestion.model_validate(
+            {**cell.model_dump(exclude_none=True), "suggestion_derivation": "model"}
+        )
+
     answer = DraftAnswer(answered_question=cell.question_id, answer_text="pH units")
     doc = to_document(
         InvocationRequest(

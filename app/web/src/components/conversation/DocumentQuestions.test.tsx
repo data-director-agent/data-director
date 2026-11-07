@@ -90,6 +90,34 @@ describe("DocumentQuestions", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/Recorded 1 answer/);
   });
 
+  it("offers a model's suggestion without filling the box, and saves it only when asked", async () => {
+    const suggested: DocumentQuestion = {
+      ...cell(1),
+      suggested_answer: "mg/kg",
+      suggestion_derivation: "model",
+    };
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [{ ...VERSION, questions: [suggested, cell(2)] }],
+    };
+    const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
+    const { container } = renderQuestions(document, answer);
+    const box = screen.getByRole("textbox", { name: suggested.question_prompt });
+    expect(box).toHaveValue("");
+    expect(box).toHaveAccessibleDescription(/mg\/kg/);
+    expect(screen.getByRole("button", { name: "Save answers" })).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: /Use suggestion/ })).toHaveLength(1);
+    expect(await axe(container)).toHaveNoViolations();
+
+    await userEvent.click(screen.getByRole("button", { name: /Use suggestion/ }));
+    expect(box).toHaveValue("mg/kg");
+    await userEvent.type(box, " dry weight");
+    await userEvent.click(screen.getByRole("button", { name: "Save answers" }));
+    expect(answer).toHaveBeenCalledWith(ANSWERED.project_id, README.document_id, VERSION.version, [
+      { answered_question: suggested.question_id, answer_text: "mg/kg dry weight" },
+    ]);
+  });
+
   it("asks nothing once every question is answered", () => {
     renderQuestions(README, vi.fn());
     expect(screen.queryByRole("group")).toBeNull();

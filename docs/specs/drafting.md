@@ -19,8 +19,8 @@ The Documentation Editor (`advisor.documentation`) is the first drafter. It serv
 from a `DraftRequest`. Where a model is configured, a model writes the README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
-What it does not yet do, suggesting answers, is TODO(#358, #574). A metadata record
-drafter follows the same rules when it is built.
+Where a model is configured, it also suggests a data dictionary's definitions and units, offered
+with the questions. A metadata record drafter follows the same rules when it is built.
 
 ## Invariants
 
@@ -36,9 +36,11 @@ drafter follows the same rules when it is built.
    record as the record gives it, and leaves a gap where the record holds only a placeholder.
 3. **A data dictionary marks every value's source, and a model fills no cell.** Each value is
    followed by its source: `inferred`, `supplied` or `unknown`, and there is no other value. An
-   `unknown` cell is empty. A model never writes a cell's value
-   (`agents/advisor-documentation/tests/test_documentation_agent.py`). The evaluation checks it
-   for a model-backed drafter too (TODO(#576)).
+   `unknown` cell is empty. A model never writes a cell's value: the dictionary is drafted by rule
+   before a model is asked anything, and a model-backed draft's text is the template's, byte for
+   byte (`agents/advisor-documentation/tests/test_documentation_agent.py`,
+   `agents/advisor-documentation/tests/test_suggestions.py`). The evaluation checks it for a
+   model-backed drafter too (TODO(#576)).
 4. **A model writes README prose only from the drafter's input.** That input is the inventory, the
    metadata record and the repository's requirements; the model is never given an answer or an
    earlier version. What they do not support is a gap and is left unwritten: methods, study
@@ -68,9 +70,16 @@ drafter follows the same rules when it is built.
    rephrase an answer. An orchestrator may put a question to the researcher, but it cannot answer
    one.
 7. **A model's suggestion is only ever offered.** A drafter may suggest an answer, for example that
-   `age_yrs` is the participant's age in years. The suggestion appears in the question, never in
-   the document's text. It becomes `supplied` only when a person confirms or corrects it, by
-   recording an answer (TODO(#574)).
+   `age_yrs` is the participant's age in years. The suggestion appears in the question
+   (`suggested_answer`, with `suggestion_derivation`), never in the document's text, and a version
+   with suggestions keeps the derivation of its text. It becomes `supplied` only when a person
+   confirms or corrects it, by recording an answer
+   (`agents/advisor-documentation/tests/test_suggestions.py`). The Documentation Editor suggests
+   only a data dictionary field's definition and unit, never its type, format or missing-value
+   codes, nor a README section. Its model is given the same input as the README's prose
+   (invariant 4), never an answer, a field's description or an earlier version, and a suggestion
+   is offered only if it is one short line of plain text that names no link, email address or
+   identifier its input does not give.
 8. **A drafter rests on its input alone.** The Documentation Editor's grounding mode is
    `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
    cites only its input. `document_derivation` records how each version came about: `model`, or
@@ -88,16 +97,19 @@ digits from the SHA-256 of its target. It also has the text put to the person an
 README section (`gap_section`), or a data dictionary cell named by `gap_file`, `gap_field` and
 `gap_column`. An answer (`DraftAnswer`) names the question it answers and gives the text. The
 classes are in the core contract because the conductor, the app and an orchestrator all read them
-without knowing the drafter. A question may later carry a suggested answer, with how it was
-derived, and a set of choices, as the orchestrator's own `ChoiceQuestion` does (#529). Those
-slots are added with the first drafter that sets them, TODO(#574).
+without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
+how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A set
+of choices, as the orchestrator's own `ChoiceQuestion` has, is added with the first drafter that
+sets one, TODO(#529).
 
 **Who does what.** The drafter writes the gaps and the questions. An orchestrator tells the
 researcher that a draft has questions and where to answer them, offers to redraft once they have,
-and says that the draft came from a mock when it did. The app shows the latest version's open
-questions on the draft's card in the conversation, three at a time, each as a text box labelled
-by the question and described by what it fills, and lists every question with its answer on the
-project's documents page ([The app](app.md)). It sends the answers to
+and says that the draft came from a mock when it did; it never accepts a suggestion for the
+researcher. The app shows the latest version's open questions on the draft's card in the
+conversation, three at a time, each as a text box labelled by the question and described by what
+it fills and by any suggestion, which the researcher may copy into the box but which never fills
+it by itself, and lists every question with its answer, or its suggestion while unanswered, on
+the project's documents page ([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.
@@ -123,7 +135,10 @@ records `template`.
 
 **Disclosure is per version.** A version drafted with a model is disclosed as `model`, even where
 some of its text was placed from a person's answers ([Disclosure](disclosure.md)). That
-over-discloses and never under-discloses.
+over-discloses and never under-discloses. A data dictionary whose questions carry a model's
+suggestions is `template`, because no model wrote its text; the run that suggested them records
+its model calls as any other does. A value a person took from a suggestion is theirs, `supplied`,
+as any other answer is.
 
 ## Rationale
 

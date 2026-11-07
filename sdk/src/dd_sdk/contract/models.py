@@ -448,9 +448,14 @@ class DocumentQuestion(Frozen):
     gap_file: str | None = None
     gap_field: str | None = None
     gap_column: str | None = None
+    # Offered with the question, never placed in the document (docs/specs/drafting.md).
+    suggested_answer: str | None = None
+    suggestion_derivation: Derivation | None = None
 
     @model_validator(mode="after")
     def _one_target(self) -> DocumentQuestion:
+        if (self.suggested_answer is None) != (self.suggestion_derivation is None):
+            raise ValueError("a suggested answer says how it was derived, and only then")
         cell = (self.gap_file, self.gap_field, self.gap_column)
         if self.gap_section is not None:
             if any(c is not None for c in cell):

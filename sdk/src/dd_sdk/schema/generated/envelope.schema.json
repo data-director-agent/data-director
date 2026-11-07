@@ -375,7 +375,7 @@
       },
       "DocumentQuestion": {
          "additionalProperties": false,
-         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md).",
+         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer.",
          "properties": {
             "question_id": {
                "description": "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets.",
@@ -413,6 +413,24 @@
                   "string",
                   "null"
                ]
+            },
+            "suggested_answer": {
+               "description": "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "suggestion_derivation": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/Derivation"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "How suggested_answer came about. Present exactly when suggested_answer is."
             }
          },
          "required": [
@@ -2089,5 +2107,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.10"
+   "version": "0.9.11"
 }

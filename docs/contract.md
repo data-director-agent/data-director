@@ -79,9 +79,10 @@ sends them. Filling `current_version` from the project is TODO(#394).
 
 A `Document` may ask the researcher about what its drafter could not know: `document_questions`
 holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it
-would fill under an identifier derived from that gap. The answers a person gives come back in the
-next `DraftRequest` as `draft_answers` (`DraftAnswer`: the question answered and the text), and
-the drafter places each one as given ([Drafting documents](specs/drafting.md)).
+would fill under an identifier derived from that gap, and, where the drafter suggests one, a
+`suggested_answer` with how it was derived (`suggestion_derivation`), which is never placed in the
+document. The answers a person gives come back in the next `DraftRequest` as `draft_answers`
+(`DraftAnswer`: the question answered and the text), and the drafter places each one as given ([Drafting documents](specs/drafting.md)).
 
 ## The envelope
 

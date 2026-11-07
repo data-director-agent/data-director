@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.10
+version: 0.9.11
 license: MIT
 
 prefixes:
@@ -492,7 +492,9 @@ classes:
       section it could not write, or a data dictionary cell it could not fill. The target is
       either gap_section, or gap_file, gap_field and gap_column together. question_id is derived
       from the target, so it is the same in every version that leaves the same gap
-      (docs/specs/drafting.md).
+      (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived
+      (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied
+      only when a person records it as their answer.
     slots:
       - question_id
       - question_prompt
@@ -500,6 +502,8 @@ classes:
       - gap_file
       - gap_field
       - gap_column
+      - suggested_answer
+      - suggestion_derivation
 
   DocumentVersionRef:
     description: >-
@@ -921,6 +925,14 @@ slots:
     description: The field whose data dictionary row the question would fill.
   gap_column:
     description: The data dictionary column the question would fill, such as unit.
+  suggested_answer:
+    description: >-
+      An answer the drafter suggests, offered to the person with the question and never placed in
+      the document. It becomes supplied only when a person records it, or a correction of it, as
+      their answer.
+  suggestion_derivation:
+    description: How suggested_answer came about. Present exactly when suggested_answer is.
+    range: Derivation
   draft_answers:
     description: >-
       The answers a person recorded to the current version's questions. In a project the

@@ -35,6 +35,10 @@ export interface DocumentQuestion {
   gap_file?: string;
   gap_field?: string;
   gap_column?: string;
+  /** A drafter's suggested answer, offered beside the question and never put into the draft. */
+  suggested_answer?: string;
+  /** How the suggestion came about, such as `model`. */
+  suggestion_derivation?: string;
 }
 
 export interface DocumentVersion {

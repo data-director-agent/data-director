@@ -47,7 +47,9 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   - `unknown`: no one has said yet, and the cell is empty.
 
   The editor infers no units or missing value codes, so those are `unknown` until the researcher
-  fills them in. A data dictionary is always drafted by rule: a model fills no cell.
+  fills them in. A data dictionary is always drafted by rule: a model fills no cell. Where a
+  model is configured, it may suggest a field's definition or unit, offered with that cell's
+  question and never written into it ([Suggested answers](#suggested-answers)).
 
 Every gap is asked ([Drafting documents](../../docs/specs/drafting.md)). The `Document` carries
 one question in `document_questions` for each README section left for the researcher and each
@@ -58,7 +60,7 @@ placed, as given, in the gap or cell it answers, marked `supplied` in a data dic
 gap is not asked again. In a project, the researcher answers the questions on the draft's card in
 the conversation; the harness records each answer and the conductor fills the recorded answers
 into the next request, replacing any a caller sent, so only a person's answer is ever placed as
-`supplied` (`tests/test_answers_in_a_project.py`). The editor suggests no answers (#574).
+`supplied` (`tests/test_answers_in_a_project.py`).
 
 The README's sections are the common core of the research data README templates compared in
 #200: Cornell's Data README, Dryad's and the Borealis working group's minimum README.
@@ -102,13 +104,33 @@ draft.
   The call is recorded with the run: the model, the tokens and the prompt by digest
   (docs/specs/disclosure.md).
 
+## Suggested answers
+
+When a model is configured, it suggests answers to a data dictionary's questions about a field's
+definition (`description`) or `unit`, such as that `age_yrs` is the participant's age in years
+(`prose.py`, `suggest`, prompted by `suggest_prompt.md`). A suggestion is a question's
+`suggested_answer`, with `suggestion_derivation` `model`, and is never placed in the CSV: the
+dictionary is drafted by rule before the model is asked, and its text is the template's, byte for
+byte. In the app the researcher sees it beside the question, can copy it into the answer box and
+change it, and it becomes `supplied` only when they save it as their answer and the dictionary is
+drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7).
+
+- **What it is given.** The same facts as the prose (above), and for each question its file, field
+  and column. Never a field's description, the researcher's answers or an earlier version.
+- **What is offered.** Only a definition or unit, never a type, format or missing-value code. A
+  suggestion is dropped if it is longer than 200 characters, is not one line of plain text, or
+  names a link, DOI, email address or ORCID iD the facts do not give; the statement says how many
+  were offered and which were dropped.
+- **How a version is marked.** `document_derivation` stays `template`, because no model wrote the
+  dictionary's text. The call is recorded with the run, as for the prose.
+
 ## Configuration
 
 `dd-advisor-documentation` reads its own variables (`factory.py`, `config/examples/agents.env`):
 
 | Variable | Meaning |
 |---|---|
-| `DD_DOCUMENTATION_WRITER` | `template` (default): no prose and no key; `anthropic`: Claude writes the prose. |
+| `DD_DOCUMENTATION_WRITER` | `template` (default): no prose, no suggestions and no key; `anthropic`: Claude writes the prose and suggests definitions and units. |
 | `DD_MODEL_ID` | The model the Anthropic writer calls. |
 | `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The Anthropic writer's key. |
 
@@ -123,7 +145,7 @@ The Anthropic writer needs the package's `anthropic` extra. With it, the agent's
   methods among it, is left to the researcher as a marked gap.
 - It does not open the files, so it says nothing about their contents beyond what the inventory
   records.
-- It infers no variable definitions, units or missing value codes, and suggests no answers to its
-  questions (#574).
+- It infers no variable definitions, units or missing value codes. A model's suggested definition
+  or unit is only offered, and it suggests no missing value codes or README sections.
 - It does not read an earlier README, or the reason a person gave for a decision on a version.
 - It follows no data dictionary standard, such as CDIF's variable descriptions (#220).
