@@ -1,0 +1,66 @@
+@prefix dmp: <https://w3id.org/data-director/agents/dmp/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+dmp:DmpCommitments a sh:NodeShape ;
+    rdfs:comment "The outputs a data management plan committed to share, and the outputs the researcher plans to share at publication." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class dmp:SharingCommitment ;
+            sh:description "What the data management plan committed to share." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path dmp:committed_outputs ],
+        [ sh:class dmp:SharingCommitment ;
+            sh:description "What the researcher now plans to share at publication." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 3 ;
+            sh:path dmp:planned_outputs ],
+        [ sh:datatype xsd:string ;
+            sh:description "The data management plan's identifier, such as a DOI, if it has one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dmp:dmp_identifier ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ] ;
+    sh:targetClass dmp:DmpCommitments .
+
+dmp:SharingCommitment a sh:NodeShape ;
+    rdfs:comment "One output to be shared, with where, how openly and under what licence." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The licence the output is shared under." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dmp:licence ],
+        [ sh:datatype xsd:string ;
+            sh:description "How openly the output is shared, e.g. open, restricted or closed." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dmp:access ],
+        [ sh:datatype xsd:string ;
+            sh:description "The output, by name, such as a dataset or software." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dmp:output ],
+        [ sh:datatype xsd:string ;
+            sh:description "The repository the output is or will be deposited in." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dmp:repository ] ;
+    sh:targetClass dmp:SharingCommitment .
+

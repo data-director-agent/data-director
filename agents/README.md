@@ -87,8 +87,10 @@ CLI, transports or viewer, this agent will show it.
      `linkml:types` and `data_director` (the core), and has its own `id` and prefix. An input
      class carries the slot `schema_class`; a payload class carries `schema_class` and
      `mixins: [Grounded]`.
-   - `uv run dd-gen-schema agents/<name>/src/dd_agent_<name>/schema/<name>.yaml` writes one JSON
-     Schema per class to `generated/` beside it. Commit them; never edit them by hand.
+   - `uv run dd-gen-schema agents/<name>/src/dd_agent_<name>/schema/<name>.yaml` writes, for
+     each class, its JSON Schema, its SHACL shapes and its JSON-LD context to `generated/` beside
+     it. Commit them; never edit them by hand. The card carries all three, and the harness keeps
+     a SHACL Validation Report of each payload beside the run.
    - `src/dd_agent_<name>/classes.py` holds a Pydantic model per class, subclassing
      `dd_sdk.contract.models.Frozen` (input) or `Grounded` (payload), with
      `schema_class: Literal["<Class>"]`.

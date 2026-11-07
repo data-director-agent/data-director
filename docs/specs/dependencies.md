@@ -56,7 +56,7 @@ modules are not dependencies here.
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
 | `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export) | `urllib.request`. |
 | `rocrate` | Harness | `dd_harness.provenance`; the deposit package in `dd_harness.deposit` | Write `ro-crate-metadata.json` directly. |
-| `pyshacl` (with `rdflib`) | Harness | `dd_harness.deposit`, which checks a metadata record against shapes generated from its repository's requirements | Checks written in Python that emit the same `sh:` vocabulary. |
+| `pyshacl` (with `rdflib`) | Harness | `dd_harness.shacl`, which runs the shapes `dd_harness.deposit` generates from a repository's requirements and the shapes an agent's payload class carries on its card | Checks written in Python that emit the same `sh:` vocabulary. |
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
 | `python-dotenv` | Harness | `dd_harness.settings` | `uv run --env-file`, or variables exported in the shell. |
 | `joserfc` | Harness, app | ID-token verification in `dd_harness.identity`; the RS256 JWT a GitHub App presents in `dd_app.github_auth` | Another JOSE library, or RS256 with `cryptography`. |
@@ -72,8 +72,10 @@ modules are not dependencies here.
 | `@fontsource-variable/inter` | App shell | The stylesheet's font stack | The system font stack. |
 
 Validation against SHACL shapes uses `pyshacl` in the harness only, behind its one validation
-module, `dd_harness.deposit` ([Deposit](deposit.md)). Validating an agent's payload against the
-contract's generated shapes is not built: TODO(#19).
+module, `dd_harness.shacl`, which deposit validation ([Deposit](deposit.md)) and the conductor's
+shape check ([Contract](contract.md)) both call. The SDK generates the shapes with LinkML's
+`gen-shacl` at development time, and reads a payload as JSON-LD without an RDF library, so it adds
+no runtime dependency.
 
 ### Evaluation and CI
 

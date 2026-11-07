@@ -1,0 +1,80 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/",
+      "FileInventory": {
+         "@id": "https://w3id.org/data-director/FileInventory"
+      },
+      "InventoryFile": {
+         "@id": "https://w3id.org/data-director/InventoryFile"
+      },
+      "TableField": {
+         "@id": "https://w3id.org/data-director/TableField"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "field_description": {
+         "@id": "http://purl.org/dc/terms/description"
+      },
+      "field_format": {
+         "@id": "https://w3id.org/data-director/field_format"
+      },
+      "field_type": {
+         "@id": "https://w3id.org/data-director/field_type"
+      },
+      "file_fields": {
+         "@id": "https://w3id.org/data-director/file_fields",
+         "@type": "@id"
+      },
+      "file_identified_by": {
+         "@id": "https://w3id.org/data-director/file_identified_by"
+      },
+      "file_media_type": {
+         "@id": "http://www.w3.org/ns/dcat#mediaType"
+      },
+      "file_path": {
+         "@id": "https://w3id.org/data-director/file_path"
+      },
+      "file_pronom_ids": {
+         "@id": "https://w3id.org/data-director/file_pronom_ids"
+      },
+      "file_sha256": {
+         "@id": "http://spdx.org/rdf/terms#checksumValue"
+      },
+      "file_size": {
+         "@id": "http://www.w3.org/ns/dcat#byteSize"
+      },
+      "inventory_files": {
+         "@id": "https://w3id.org/data-director/inventory_files",
+         "@type": "@id"
+      },
+      "inventory_identified_with": {
+         "@id": "https://w3id.org/data-director/inventory_identified_with"
+      },
+      "inventory_limitations": {
+         "@id": "https://w3id.org/data-director/inventory_limitations"
+      },
+      "inventory_made_at": {
+         "@id": "http://www.w3.org/ns/prov#generatedAtTime",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "inventory_tool": {
+         "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
+      },
+      "inventory_tool_version": {
+         "@id": "https://w3id.org/data-director/inventory_tool_version"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "name": {
+         "@id": "https://w3id.org/data-director/name"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

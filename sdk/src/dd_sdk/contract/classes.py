@@ -8,7 +8,13 @@ properties, so the two cannot drift silently.
 
 The agent's card carries every class schema with its digest. The harness rebuilds each one with
 `ClassSchema.from_description`, which refuses a schema that does not match its digest, and
-validates inputs and payloads against it. The harness holds no model: what it reads it holds
+validates inputs and payloads against it.
+
+`dd-gen-schema` also writes the class's SHACL shapes and the JSON-LD context that reads its
+documents as RDF. Where they are present, the card carries them too, as `shapes`, with a digest
+of their own; the harness checks a payload against them and keeps the SHACL Validation Report
+with the run. They are optional: a class without them is still governed, and its payloads get
+no report. The harness holds no model: what it reads it holds
 as an `OpenInput` or an `OpenPayload`, and the class schema, not a Python type, decides what is
 valid.
 """
@@ -34,6 +40,23 @@ DESIGNATOR = "schema_class"
 GROUNDED_SLOT = "grounded_on"
 
 
+@dataclass(frozen=True)
+class Shapes:
+    """A class's SHACL shapes (Turtle) and the JSON-LD context that reads its documents as RDF,
+    with the digest of both."""
+
+    shacl: str = field(compare=False)  # the digest stands for them
+    context: Mapping[str, Any] = field(compare=False)
+    digest: str
+
+    @classmethod
+    def of(cls, shacl: str, context: Mapping[str, Any]) -> Shapes:
+        return cls(shacl, context, shapes_digest(shacl, context))
+
+    def describe(self) -> dict[str, Any]:
+        return {"digest": self.digest, "shacl": self.shacl, "context": dict(self.context)}
+
+
 class ClassSchemaError(Exception):
     """A class schema is missing, malformed, or disagrees with its model or its digest."""
 
@@ -41,6 +64,11 @@ class ClassSchemaError(Exception):
 def schema_digest(json_schema: Mapping[str, Any]) -> str:
     """The sha256 of a class schema, canonicalised as `dd-json-document-v1`."""
     return content_hash(dict(json_schema), DOCUMENT_CANONICALISATION)
+
+
+def shapes_digest(shacl: str, context: Mapping[str, Any]) -> str:
+    """The sha256 of a class's shapes and context, canonicalised as `dd-json-document-v1`."""
+    return content_hash({"shacl": shacl, "context": dict(context)}, DOCUMENT_CANONICALISATION)
 
 
 @dataclass(frozen=True)
@@ -55,6 +83,7 @@ class ClassSchema:
     json_schema: Mapping[str, Any] = field(compare=False)  # the digest stands for it
     digest: str
     model: type[Frozen] | None = field(default=None, compare=False)
+    shapes: Shapes | None = field(default=None, compare=False)
 
     @classmethod
     def of(cls, model: type[Frozen]) -> ClassSchema:
@@ -76,7 +105,7 @@ class ClassSchema:
                 f"model {sorted(fields - properties)}, only in the schema "
                 f"{sorted(properties - fields)}"
             )
-        found = cls(name, json_schema, schema_digest(json_schema), model)
+        found = cls(name, json_schema, schema_digest(json_schema), model, _shapes(package, name))
         found.check()
         return found
 
@@ -90,7 +119,9 @@ class ClassSchema:
             raise ClassSchemaError(f"class {name!r}: a schema entry needs json_schema and digest")
         if schema_digest(json_schema) != digest:
             raise ClassSchemaError(f"class {name!r}: the schema does not match its digest")
-        found = cls(name=name, json_schema=json_schema, digest=digest)
+        found = cls(
+            name=name, json_schema=json_schema, digest=digest, shapes=_described_shapes(name, entry)
+        )
         found.check()
         return found
 
@@ -118,7 +149,10 @@ class ClassSchema:
 
     def describe(self) -> dict[str, Any]:
         """The class's entry in a card's `schemas`."""
-        return {"digest": self.digest, "json_schema": dict(self.json_schema)}
+        entry = {"digest": self.digest, "json_schema": dict(self.json_schema)}
+        if self.shapes is not None:
+            entry["shapes"] = self.shapes.describe()
+        return entry
 
     @cached_property
     def _validator(self) -> Draft7Validator:
@@ -152,3 +186,39 @@ def _designated_name(model: type[Frozen]) -> str:
             f"{model.__name__} has no {DESIGNATOR}: Literal[...] designator with one value"
         )
     return values[0]
+
+
+def _shapes(package: str, name: str) -> Shapes | None:
+    """The class's generated shapes and context, or None where the package has none."""
+    generated = files(package).joinpath(*GENERATED)
+    shacl, context = (
+        generated.joinpath(f"{name}.shacl.ttl"),
+        generated.joinpath(f"{name}.context.jsonld"),
+    )
+    if not shacl.is_file() and not context.is_file():
+        return None
+    try:
+        return Shapes.of(
+            shacl.read_text(encoding="utf-8"),
+            json.loads(context.read_text(encoding="utf-8")),
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        raise ClassSchemaError(
+            f"{package}: the shapes of {name} are incomplete ({exc}); run `uv run dd-gen-schema` "
+            "on the package's LinkML file"
+        ) from exc
+
+
+def _described_shapes(name: str, entry: Mapping[str, Any]) -> Shapes | None:
+    """A card entry's `shapes`, checked against its digest; None where the entry has none."""
+    described = entry.get("shapes")
+    if described is None:
+        return None
+    if not isinstance(described, Mapping):
+        raise ClassSchemaError(f"class {name!r}: shapes must be an object")
+    shacl, context, digest = (described.get(k) for k in ("shacl", "context", "digest"))
+    if not (isinstance(shacl, str) and isinstance(context, Mapping) and isinstance(digest, str)):
+        raise ClassSchemaError(f"class {name!r}: shapes need shacl, context and digest")
+    if shapes_digest(shacl, context) != digest:
+        raise ClassSchemaError(f"class {name!r}: the shapes do not match their digest")
+    return Shapes(shacl, context, digest)

@@ -1,0 +1,115 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rights: <https://w3id.org/data-director/agents/rights/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+rights:RightsOptions a sh:NodeShape ;
+    rdfs:comment "The payload of advisor.rights: licences and access levels for the researcher to choose from, and the questions to answer first. It lists options and never chooses one." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "What this mock does not yet do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path rights:limitations ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the researcher must answer or confirm, with the people who can help." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path rights:questions ],
+        [ sh:class rights:LicenceOption ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path rights:licences ],
+        [ sh:class rights:AccessOption ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path rights:access_levels ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ] ;
+    sh:targetClass rights:RightsOptions .
+
+<https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
+    rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/content_hash> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/source_id> ] ;
+    sh:targetClass <https://w3id.org/data-director/GroundingRef> .
+
+rights:AccessOption a sh:NodeShape ;
+    rdfs:comment "One access level the researcher could set, and when it applies." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "When this access level applies, as a fixed sentence." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path rights:when ],
+        [ sh:datatype xsd:string ;
+            sh:description "The access level, one of open, embargoed, restricted or closed." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path rights:level ] ;
+    sh:targetClass rights:AccessOption .
+
+rights:LicenceOption a sh:NodeShape ;
+    rdfs:comment "One licence the researcher could choose." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The licence's full name." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path rights:name ],
+        [ sh:datatype xsd:string ;
+            sh:description "The licence's SPDX identifier." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path rights:spdx_id ],
+        [ sh:datatype xsd:string ;
+            sh:description "Where the licence text is published." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path rights:url ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the researcher should know about this licence, if anything." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path rights:note ] ;
+    sh:targetClass rights:LicenceOption .
+

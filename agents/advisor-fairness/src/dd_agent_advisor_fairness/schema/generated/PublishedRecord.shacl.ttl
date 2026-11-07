@@ -1,0 +1,68 @@
+@prefix fairness: <https://w3id.org/data-director/agents/fairness/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+fairness:PublishedRecord a sh:NodeShape ;
+    rdfs:comment "The metadata of a dataset that is already published, as the researcher gives it: its identifier, title, licence, keywords, creators, formats, related outputs and how it is accessed." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The dataset's licence, e.g. an SPDX identifier such as CC-BY-4.0." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path fairness:licence ],
+        [ sh:datatype xsd:string ;
+            sh:description "The names of the dataset's creators." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path fairness:creators ],
+        [ sh:datatype xsd:string ;
+            sh:description "The protocol by which the data are retrieved, e.g. https." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path fairness:access_protocol ],
+        [ sh:datatype xsd:string ;
+            sh:description "The dataset's title." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path fairness:title ],
+        [ sh:datatype xsd:string ;
+            sh:description "Identifiers of the creators, e.g. ORCID iDs." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path fairness:creator_identifiers ],
+        [ sh:datatype xsd:string ;
+            sh:description "Identifiers of related outputs, e.g. the DOI of an article that uses the data." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path fairness:related_identifiers ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The dataset's keywords or subjects." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path fairness:keywords ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media types of the dataset's files, e.g. text/csv." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path fairness:formats ],
+        [ sh:datatype xsd:string ;
+            sh:description "The dataset's persistent identifier or landing page, e.g. a DOI or URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path fairness:identifier ] ;
+    sh:targetClass fairness:PublishedRecord .
+

@@ -1,0 +1,55 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/standards/",
+      "DatasetProfile": {
+         "@id": "http://www.w3.org/ns/dcat#Dataset"
+      },
+      "TableField": {
+         "@id": "https://w3id.org/data-director/TableField"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "description": {
+         "@id": "http://purl.org/dc/terms/description"
+      },
+      "field_description": {
+         "@id": "http://purl.org/dc/terms/description"
+      },
+      "field_format": {
+         "@id": "https://w3id.org/data-director/field_format"
+      },
+      "field_type": {
+         "@id": "https://w3id.org/data-director/field_type"
+      },
+      "fields": {
+         "@id": "https://w3id.org/data-director/agents/standards/fields",
+         "@type": "@id"
+      },
+      "keywords": {
+         "@id": "http://www.w3.org/ns/dcat#keyword"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "media_types": {
+         "@id": "http://www.w3.org/ns/dcat#mediaType"
+      },
+      "name": {
+         "@id": "https://w3id.org/data-director/name"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "standards": "https://w3id.org/data-director/agents/standards/",
+      "themes": {
+         "@id": "http://www.w3.org/ns/dcat#theme"
+      },
+      "title": {
+         "@id": "http://purl.org/dc/terms/title"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

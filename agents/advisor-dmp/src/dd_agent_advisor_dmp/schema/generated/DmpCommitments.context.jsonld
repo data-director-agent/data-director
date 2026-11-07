@@ -1,0 +1,47 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/dmp/",
+      "DmpCommitments": {
+         "@id": "https://w3id.org/data-director/agents/dmp/DmpCommitments"
+      },
+      "SharingCommitment": {
+         "@id": "https://w3id.org/data-director/agents/dmp/SharingCommitment"
+      },
+      "access": {
+         "@id": "https://w3id.org/data-director/agents/dmp/access"
+      },
+      "committed_outputs": {
+         "@id": "https://w3id.org/data-director/agents/dmp/committed_outputs",
+         "@type": "@id"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "dmp": "https://w3id.org/data-director/agents/dmp/",
+      "dmp_identifier": {
+         "@id": "https://w3id.org/data-director/agents/dmp/dmp_identifier"
+      },
+      "licence": {
+         "@id": "https://w3id.org/data-director/agents/dmp/licence"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "output": {
+         "@id": "https://w3id.org/data-director/agents/dmp/output"
+      },
+      "planned_outputs": {
+         "@id": "https://w3id.org/data-director/agents/dmp/planned_outputs",
+         "@type": "@id"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "repository": {
+         "@id": "https://w3id.org/data-director/agents/dmp/repository"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

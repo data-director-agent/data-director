@@ -30,6 +30,7 @@ from dd_sdk.contract.models import (
 SPANS = "spans.jsonl"  # the OpenTelemetry trace the grounding linter checked
 GROUNDING = "grounding.txt"  # the grounding linter's summary
 SOURCES = "sources.txt"  # the source check's summary
+VALIDATION = "validation-report.jsonld"  # the payload's SHACL Validation Report, if it has shapes
 CRATE = "crate"  # the Process Run Crate, one artifact per file under this prefix
 
 

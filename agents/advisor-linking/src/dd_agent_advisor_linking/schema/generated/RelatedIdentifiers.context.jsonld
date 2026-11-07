@@ -1,0 +1,62 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/linking/",
+      "GroundingRef": {
+         "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "RelatedIdentifiers": {
+         "@id": "https://w3id.org/data-director/agents/linking/RelatedIdentifiers"
+      },
+      "RelatedLink": {
+         "@id": "https://w3id.org/data-director/agents/linking/RelatedLink"
+      },
+      "content_hash": {
+         "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "given": {
+         "@id": "https://w3id.org/data-director/agents/linking/given"
+      },
+      "grounded_on": {
+         "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "limitations": {
+         "@id": "https://w3id.org/data-director/agents/linking/limitations"
+      },
+      "linking": "https://w3id.org/data-director/agents/linking/",
+      "linkml": "https://w3id.org/linkml/",
+      "links": {
+         "@id": "https://w3id.org/data-director/agents/linking/links",
+         "@type": "@id"
+      },
+      "message": {
+         "@id": "https://w3id.org/data-director/agents/linking/message"
+      },
+      "normalised": {
+         "@id": "https://w3id.org/data-director/agents/linking/normalised"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "relation": {
+         "@id": "https://w3id.org/data-director/agents/linking/relation"
+      },
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "scheme": {
+         "@id": "https://w3id.org/data-director/agents/linking/scheme"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "source_id": {
+         "@id": "https://w3id.org/data-director/source_id"
+      },
+      "spdx": "http://spdx.org/rdf/terms#",
+      "valid": {
+         "@id": "https://w3id.org/data-director/agents/linking/valid"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

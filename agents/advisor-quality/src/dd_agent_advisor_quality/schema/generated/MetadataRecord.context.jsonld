@@ -1,0 +1,39 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/quality/",
+      "MetadataRecord": {
+         "@id": "http://www.w3.org/ns/dcat#Dataset"
+      },
+      "creators": {
+         "@id": "http://purl.org/dc/terms/creator"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "description": {
+         "@id": "http://purl.org/dc/terms/description"
+      },
+      "identifier": {
+         "@id": "http://purl.org/dc/terms/identifier"
+      },
+      "keywords": {
+         "@id": "http://www.w3.org/ns/dcat#keyword"
+      },
+      "licence": {
+         "@id": "http://purl.org/dc/terms/license"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "prov": "http://www.w3.org/ns/prov#",
+      "quality": "https://w3id.org/data-director/agents/quality/",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "title": {
+         "@id": "http://purl.org/dc/terms/title"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

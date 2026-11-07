@@ -30,7 +30,8 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
    alone; it returns them in the same order.
 4. **Everything else a run keeps is a named artifact.** Beside the envelope, the request, the
    prompts and the class schemas, the conductor keeps `spans.jsonl`, `grounding.txt`,
-   `sources.txt` and, unless `DD_WRITE_CRATE=0`, the Process Run Crate as one artifact per file
+   `sources.txt`, `validation-report.jsonld` when the payload's class carries shapes
+   ([Contract](contract.md)) and, unless `DD_WRITE_CRATE=0`, the Process Run Crate as one artifact per file
    under `crate/`. An artifact belongs to a stored run, is written once, and is read back byte for
    byte. Its name is a relative path of plain segments and cannot name the run's own files.
 5. **A class schema is kept once under its digest**, and its bytes never change
