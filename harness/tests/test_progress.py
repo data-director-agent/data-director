@@ -13,6 +13,8 @@ from dd_harness.projects import (
     DOCUMENT_VERSION_ADDED,
     DOCUMENT_VERSION_DECIDED,
     INVENTORY_ADDED,
+    PACKAGE_BUILT,
+    PROJECT_VALIDATED,
     REPOSITORY_CHOSEN,
     ProjectError,
     ProjectStore,
@@ -38,6 +40,8 @@ def test_the_event_names_are_the_project_logs() -> None:
     assert progress.REPOSITORY_CHOSEN == REPOSITORY_CHOSEN
     assert progress.DOCUMENT_VERSION_ADDED == DOCUMENT_VERSION_ADDED
     assert progress.DOCUMENT_VERSION_DECIDED == DOCUMENT_VERSION_DECIDED
+    assert progress.PROJECT_VALIDATED == PROJECT_VALIDATED
+    assert progress.PACKAGE_BUILT == PACKAGE_BUILT
 
 
 def test_an_empty_log_shows_every_step_open() -> None:
@@ -57,6 +61,24 @@ def test_what_the_log_produces_shows_its_step_whatever_the_order() -> None:
     }
     # In flow order, not log order.
     assert list(states) == ["repository.recommend", "preparation.files", "preparation.metadata"]
+
+
+def validated(conforms: bool) -> dict[str, Any]:
+    return {"event": PROJECT_VALIDATED, "conforms": conforms}
+
+
+def test_the_last_validation_decides_the_validate_step_and_a_package_finalises() -> None:
+    assert progress.step_states([validated(False)]) == {"deposit.validate": "started"}
+    assert progress.step_states([validated(False), validated(True)]) == {"deposit.validate": "done"}
+    # A validation that fails after a pass shows the step begun again: the files or documents
+    # changed since.
+    assert progress.step_states([validated(True), validated(False)]) == {
+        "deposit.validate": "started"
+    }
+    assert progress.step_states([validated(True), {"event": PACKAGE_BUILT}]) == {
+        "deposit.validate": "done",
+        "deposit.finalise": "done",
+    }
 
 
 def test_a_document_step_is_done_once_what_it_needs_and_all_else_drafted_is_approved() -> None:

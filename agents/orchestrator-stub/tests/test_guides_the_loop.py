@@ -1,11 +1,12 @@
-"""orchestrator.stub leads a researcher through the loop in a project, from their files to
-approved documents, on the in-tree agents (#203, docs/specs/orchestration.md).
+"""orchestrator.stub leads a researcher through the loop in a project, from their files to a
+deposit package, on the in-tree agents (#203, docs/specs/orchestration.md).
 
 Where the project is comes from its log on every turn; the stub keeps no place of its own. Its
 suggestion is never a gate: a step chosen out of order is done, and the suggestion follows."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +18,10 @@ from dd_agent_advisor_files.agent import FileArchivist
 from dd_agent_advisor_metadata.agent import MetadataLibrarian
 from dd_agent_orchestrator_stub.agent import DirectorStub
 from dd_harness.conductor import Conductor
+from dd_harness.deposit import PackageRefusedError, build_package
 from dd_harness.projects import APPROVED, Decision, ProjectStore
 from dd_harness.requirements import DATACITE, load_requirements
+from dd_harness.store import RunStore
 from dd_harness.testing import TEST_PRINCIPAL, file_inventory, make_conductor, request
 from dd_sdk.contract.models import (
     ChoiceAnswer,
@@ -125,13 +128,38 @@ def approve_every_proposed(projects: ProjectStore, project: str) -> None:
             )
 
 
+def approve_the_record_with_a_title(projects: ProjectStore, project: str, title: str) -> None:
+    """The researcher edits the latest metadata record to give it a title, and approves it."""
+    (document,) = [
+        d
+        for d in projects.documents(project)
+        if d["document_kind"] == "metadata_record" and d["versions"][-1]["state"] == "proposed"
+    ]
+    latest: dict[str, Any] = document["versions"][-1]
+    record = json.loads(latest["text"])
+    record["titles"] = [{"title": title}]
+    projects.decide(
+        project,
+        Decision(
+            document["document_id"],
+            latest["version"],
+            latest["digest"],
+            APPROVED,
+            reason="Gave the dataset its title.",
+            edited_text=json.dumps(record, indent=2) + "\n",
+        ),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
+
+
 def delegated_agents(env: Envelope, status: OutcomeStatus = OutcomeStatus.SUCCEEDED) -> set[str]:
     assert all(d.delegated_status == status for d in env.delegations)
     return {d.delegated_agent_id for d in env.delegations}
 
 
 @pytest.mark.parametrize("entry_point", [2, 3])
-def test_the_stub_leads_from_the_files_to_approved_documents(
+def test_the_stub_leads_from_the_files_to_a_package(
     tmp_path: Path, projects: ProjectStore, entry_point: int
 ) -> None:
     project = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
@@ -176,6 +204,32 @@ def test_the_stub_leads_from_the_files_to_approved_documents(
     assert researcher.offered()[0] != first
     for done in ("preparation.files", "preparation.metadata", "preparation.documentation"):
         assert done not in researcher.offered()
+
+    # Finalising the deposit has no agent: the stub names it as having none and does not do it
+    # (invariant 14). The harness validates the project and builds the package, as
+    # `dd-harness project package` does, and the log shows both steps done.
+    env = researcher.say("Finalise the deposit", choose="deposit.finalise")
+    assert env.delegations == []
+    assert "no agent yet" in Researcher.reply(env).reply_text
+    assert "deposit.finalise" not in projects.progress(project)["steps"]
+    runs = RunStore(tmp_path / "runs")
+    # The record was approved as the mock drafted it, with its title left for the researcher to
+    # write, so the package is refused and says why; the validation shows its step begun.
+    with pytest.raises(PackageRefusedError, match="no titles"):
+        build_package(projects, runs, project, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert projects.progress(project)["steps"]["deposit.validate"] == "started"
+
+    # Going back is always open: the researcher has the record drafted again, writes its title,
+    # and the package is built.
+    env = researcher.say("Fill in the description of your dataset", choose="preparation.metadata")
+    assert delegated_agents(env) == {"advisor.metadata"}
+    approve_the_record_with_a_title(projects, project, "Soil cores 2024")
+    build_package(projects, runs, project, acted_for=TEST_PRINCIPAL, caused_by="test")
+    steps = projects.progress(project)["steps"]
+    assert steps["deposit.validate"] == "done"
+    assert steps["deposit.finalise"] == "done"
+    researcher.say("what next?")
+    assert {"deposit.validate", "deposit.finalise"}.isdisjoint(researcher.offered())
 
 
 def test_a_step_with_no_agent_is_named_and_not_done_by_the_stub(

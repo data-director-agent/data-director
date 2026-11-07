@@ -133,7 +133,8 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     started, done or skipped) from the project log (`dd_harness.progress`): an inventory shows the
     files described, a repository chosen shows one recommended, and a document's versions show its
     step started once drafted and done once approved, a README with any data dictionary drafted
-    alongside it. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
+    alongside it. The last validation shows `deposit.validate` done if it conforms and started if
+    not, and a package built shows `deposit.finalise` done. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
     event, which they may change at any time; what the log produced outranks a skip. The conductor
     puts the entry point and the states into a `Message` in a project (`project_entry`,
     `project_progress`), so the input hash covers them, and the project summary carries the same
@@ -151,6 +152,7 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     it to suggest the next step and follow the researcher. No orchestrator records a step as done.
     (`sdk/tests/test_process_flow.py`;
     `agents/orchestrator-stub/tests/test_guides_the_loop.py`;
+    `agents/orchestrator-model/tests/test_orchestrator_guides_the_loop.py`;
     `test_the_model_is_told_where_the_project_is_only_in_a_project`)
 
 ## Boundaries and contracts

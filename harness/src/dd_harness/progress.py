@@ -3,11 +3,12 @@ stored (docs/specs/orchestration.md, docs/specs/projects.md).
 
 Two kinds of event bear on it. Some record what a step produces, and so show the step started or
 done: an inventory shows the files described, a repository chosen shows one recommended and
-picked, and a document's versions show the documentation or the metadata drafted (started) and
-approved (done). The others are the researcher's own word: `entry_chosen` names the entry point,
-and `step_marked` marks a step done, skipped, or open again, for the many steps nothing else in
-the log records. What the log produces outranks a mark: a step whose output is approved is done
-whatever it was marked.
+picked, a document's versions show the documentation or the metadata drafted (started) and
+approved (done), a validation shows the project validated (done if the last one conforms, started
+if not), and a package built shows the deposit finalised. The others are the researcher's own
+word: `entry_chosen` names the entry point, and `step_marked` marks a step done, skipped, or open
+again, for the many steps nothing else in the log records. What the log produces outranks a mark:
+a step whose output is approved is done whatever it was marked.
 
 Nothing here orders the steps or keeps a current one. The order, and the step to suggest next, are
 `dd_sdk.process_flow`'s; any step may be done, marked or reopened at any time.
@@ -34,6 +35,9 @@ INVENTORY_ADDED: Final = "inventory_added"
 REPOSITORY_CHOSEN: Final = "repository_chosen"
 DOCUMENT_VERSION_ADDED: Final = "document_version_added"
 DOCUMENT_VERSION_DECIDED: Final = "document_version_decided"
+PROJECT_VALIDATED: Final = "project_validated"
+PACKAGE_BUILT: Final = "package_built"
+VALIDATE_STEP: Final = "deposit.validate"
 
 # What a researcher may mark a step: "open" withdraws an earlier mark.
 MARKS: Final = ("done", "skipped", "open")
@@ -42,12 +46,12 @@ MARKS: Final = ("done", "skipped", "open")
 DONE_BY_EVENT: Final[Mapping[str, str]] = {
     INVENTORY_ADDED: "preparation.files",
     REPOSITORY_CHOSEN: "repository.recommend",
+    PACKAGE_BUILT: "deposit.finalise",
 }
 # The step each document kind's versions show, by the kind the step needs and the kinds it may
 # also hold: started once any is proposed, done once the needed kind has an approved version and
 # so has every other kind drafted. A dataset with no table needs no data dictionary, so its README
-# alone finishes the documentation. TODO(#19, #202): `deposit.validate` and `deposit.finalise`
-# from the validation report and the package, once the log records them.
+# alone finishes the documentation.
 DOCUMENT_STEPS: Final[Mapping[str, tuple[str, tuple[str, ...]]]] = {
     "preparation.metadata": ("metadata_record", ()),
     "preparation.documentation": ("readme", ("data_dictionary",)),
@@ -86,6 +90,9 @@ def step_states(events: Iterable[Mapping[str, Any]]) -> dict[str, StepState]:
             kind = kind_of.get(event["document_id"])
             if kind is not None:
                 kinds_approved.add(kind)
+        elif name == PROJECT_VALIDATED:
+            # The last validation decides: one that fails after a pass shows the step begun again.
+            produced[VALIDATE_STEP] = "done" if event["conforms"] else "started"
         elif name == STEP_MARKED:
             if event["mark"] == "open":
                 marked.pop(event["step_id"], None)
