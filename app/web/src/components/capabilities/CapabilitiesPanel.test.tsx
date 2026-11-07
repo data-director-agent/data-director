@@ -145,7 +145,7 @@ describe("AgentDirectory", () => {
 });
 
 describe("App", () => {
-  it("loads the directory and names whom runs act for", async () => {
+  it("loads the directory", async () => {
     history.pushState(null, "", "/");
     const { container } = render(
       <WithSession api={fakeSessionApi(DEVELOPMENT)}>
@@ -155,7 +155,6 @@ describe("App", () => {
     // The reference set has no orchestrator, so the home page points to the directory.
     await userEvent.click(await screen.findByRole("link", { name: "Open the agent directory" }));
     expect(await screen.findByRole("heading", { name: "Standards Librarian" })).toBeVisible();
-    expect(screen.getByText(/asserted by the operator, not authenticated/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 

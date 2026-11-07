@@ -30,6 +30,7 @@
             "invocation_id": "01900000-0000-7000-8000-000000000003"
           },
           "media_type": "text/markdown",
+          "questions": [],
           "revises": null,
           "state": "proposed",
           "text": "# Untitled dataset\n\nDrafted by a stub.\n",
@@ -72,6 +73,7 @@
             "invocation_id": "01900000-0000-7000-8000-000000000004"
           },
           "media_type": "text/csv",
+          "questions": [],
           "revises": null,
           "state": "approved",
           "text": "field,description\nid,Drafted by a stub.\n",

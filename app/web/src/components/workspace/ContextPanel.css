@@ -18,4 +18,13 @@
   .project-state dd {
     margin: 0;
   }
+
+  .documents-waiting {
+    font-weight: var(--font-weight-normal);
+  }
+
+  .project-documents > li {
+    padding: var(--space-1) 0;
+    border-bottom: var(--border-width) solid var(--color-border-subtle);
+  }
 }

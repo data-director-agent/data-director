@@ -12,8 +12,10 @@
  * Until there is authentication (#17) the conversation acts for the operator (docs/specs/policy-and-identity.md).
  *
  * While a reply is awaited the message sits in the transcript beside a pulsing sign that the
- * orchestrator is working. A new reply is announced in a polite live region, the busy state is
- * announced, and focus returns to the message box.
+ * orchestrator is working. A new reply is announced in a polite live region, with any document
+ * version the turn drafted once the project's documents have been read again, the busy state is
+ * announced, and focus returns to the message box. The project's documents are read once for
+ * both the transcript's cards and the side bar's list.
  *
  * A reply may ask a choice question, which the transcript shows as choices; sending the answer
  * takes the same path as a typed message, with the answer beside the labels chosen. The message
@@ -21,7 +23,8 @@
  *
  * A message may attach a `dd-inventory` file, chosen with the Attach button, dropped on the form
  * or pasted, which shows as a chip and goes to the conversation's project, never into the text
- * (#443, docs/specs/app.md). A link beside the button says how to make one.
+ * (#443, docs/specs/app.md). Make an inventory, beside the button, opens a dialog that says how
+ * to make one and ends by choosing it (#553).
  */
 
 import {
@@ -40,7 +43,6 @@ import { TurnConflict, Unreachable, useConversationApi } from "../../conversatio
 import { type ChoiceAnswer, replyQuestion } from "../../conversation/question";
 import {
   type AttachedInventory,
-  INVENTORY_GUIDE,
   NotAnInventory,
   looksLikeInventory,
   readInventory,
@@ -48,15 +50,20 @@ import {
 import { useFlowApi } from "../../flow/api";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
+import { useProjectApi } from "../../project/api";
+import { type DocumentsRead, draftedBy } from "../../project/drafted";
 import { Link, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
 import { RunRefused, errorMessage } from "../../run/api";
 import type { Envelope } from "../../run/types";
+import { documentName } from "../../project/name";
+import { STATES } from "../project/DocumentFacts";
 import { ContextPanel } from "../workspace/ContextPanel";
 import { type FlowLoad, PhaseTracker } from "../workspace/PhaseTracker";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
+import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
@@ -112,6 +119,46 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     return () => abort.abort();
   }, [reloadPast]);
 
+  // The project's documents, read when the conversation's project is known and again after each
+  // turn, for the cards on the turns that drafted them and the side bar's list. A read is kept
+  // with the project it is of, so that another project's documents are never shown.
+  const projectApi = useProjectApi();
+  const projectId = conversation?.project_id ?? null;
+  const turnCount = conversation?.turns.length ?? 0;
+  const [documentsOf, setDocumentsOf] = useState<{ projectId: string; read: DocumentsRead } | null>(
+    null,
+  );
+  // The newest reply's announcement and the runs it made, until the documents are read and what
+  // they drafted can be said too.
+  const announceDrafts = useRef<{ said: string; invocationIds: string[] } | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    const abort = new AbortController();
+    projectApi.documents(projectId, abort.signal).then(
+      (value) => {
+        setDocumentsOf({ projectId, read: { state: "loaded", documents: value.documents } });
+        const pending = announceDrafts.current;
+        announceDrafts.current = null;
+        const drafted = pending ? draftedBy(pending.invocationIds, value.documents) : [];
+        if (pending && drafted.length > 0) {
+          const what = drafted.map(
+            ({ document, version }) =>
+              `${documentName(document)} drafted, version ${version.version}: ${STATES[version.state].label}.`,
+          );
+          setAnnouncement([pending.said, ...what].join(" "));
+        }
+      },
+      (e: unknown) => {
+        if (abort.signal.aborted) return;
+        announceDrafts.current = null;
+        setDocumentsOf({ projectId, read: { state: "failed", message: errorMessage(e) } });
+      },
+    );
+    return () => abort.abort();
+  }, [projectApi, projectId, turnCount]);
+  const documents: DocumentsRead =
+    projectId && documentsOf?.projectId === projectId ? documentsOf.read : { state: "loading" };
+
   // The phases do not depend on the conversation: if they fail, only the tracker says so.
   useEffect(() => {
     const abort = new AbortController();
@@ -164,6 +211,18 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     } catch (e) {
       setAttachError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
     }
+  }
+
+  /**
+   * A file chosen at the end of the Make an inventory dialog. Once it is attached the dialog's
+   * button gives way to the chip, so focus goes to the message box rather than nowhere; if it is
+   * not an inventory, the dialog's button stays and takes the focus back.
+   */
+  async function attachFromDialog(file: File) {
+    await attachFile(file);
+    requestAnimationFrame(() => {
+      if (!document.activeElement || document.activeElement === document.body) box.current?.focus();
+    });
   }
 
   function removeInventory() {
@@ -244,15 +303,17 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         if (e instanceof Unreachable) return api.get(sentTo);
         throw e;
       });
-      setConversation(updated);
       const last = updated.turns[updated.turns.length - 1];
       const asks = last ? replyQuestion(last.envelope) : null;
-      setAnnouncement(
-        last
-          ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.` +
-              (asks ? ` It asks you to choose: ${asks.question_prompt}` : "")
-          : "",
-      );
+      const said = last
+        ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.` +
+          (asks ? ` It asks you to choose: ${asks.question_prompt}` : "")
+        : "";
+      announceDrafts.current = last
+        ? { said, invocationIds: [last.invocation_id, ...last.children.map((c) => c.invocation_id)] }
+        : null;
+      setConversation(updated);
+      setAnnouncement(said);
       void reloadPast();
     } catch (e) {
       if (stored) {
@@ -347,6 +408,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               agents={directory.agents}
               onToggleRun={toggleRun}
               selectedRun={runId}
+              documents={documents.state === "loaded" ? documents.documents : null}
               pending={
                 sent === null
                   ? null
@@ -410,14 +472,19 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   onRemove={removeInventory}
                 />
               ) : (
-                <FileTrigger
-                  acceptedFileTypes={["application/json", ".json"]}
-                  onSelect={(files) => void attachFile(files?.[0])}
-                >
-                  <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
-                </FileTrigger>
+                <>
+                  <FileTrigger
+                    acceptedFileTypes={["application/json", ".json"]}
+                    onSelect={(files) => void attachFile(files?.[0])}
+                  >
+                    <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
+                  </FileTrigger>
+                  <MakeInventoryDialog
+                    isDisabled={busy}
+                    onAttach={(file) => void attachFromDialog(file)}
+                  />
+                </>
               )}
-              <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
             </div>
             {attachError && (
               <p role="alert" className="callout status-danger">
@@ -452,7 +519,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           onNew={reset}
         />
       }
-      context={<ContextPanel conversation={conversation} />}
+      context={<ContextPanel conversation={conversation} documents={documents} />}
     />
   );
 }

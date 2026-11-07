@@ -3,7 +3,9 @@
  * a change of version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
  * replies use the run view's outcome wording, not a generic error. A turn on which the project's
- * inventory changed, as when the researcher attached one, shows it as a chip (#443).
+ * inventory changed, as when the researcher attached one, shows it as a chip (#443). A document
+ * version the turn or one of its children drafted, as the project log records it, is a card on
+ * the turn, before the runs that are its evidence.
  *
  * A reply that asks a choice question shows it beneath the reply: as choices on the latest turn,
  * disabled while a message is being sent, and read-only with the answer marked on every earlier
@@ -22,7 +24,8 @@ import type {
 } from "../../conversation/inventory";
 import { type ChoiceAnswer, replyOwnText, replyQuestion } from "../../conversation/question";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
-import { useProjectApi } from "../../project/api";
+import { type ProjectDocument, useProjectApi } from "../../project/api";
+import { draftedBy } from "../../project/drafted";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
@@ -30,6 +33,7 @@ import type { Envelope } from "../../run/types";
 import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
+import { DocumentCard } from "./DocumentCard";
 import { AskedQuestion, ChoiceQuestion } from "./ChoiceQuestion";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
@@ -138,12 +142,15 @@ export function Transcript({
   onToggleRun,
   selectedRun = null,
   pending = null,
+  documents = null,
   onAnswer,
 }: {
   conversation: Conversation | null;
   agents: AgentView[];
   onToggleRun: (child: Envelope) => void;
   selectedRun?: string | null;
+  /** The project's documents, as last read; null until they have been. */
+  documents?: ProjectDocument[] | null;
   /** A message sent and not yet answered, shown after the turns with a sign that a reply is coming. */
   pending?: { agentId: string; message: string; inventory?: AttachedInventory | null } | null;
   /** Sends the answer to the latest turn's choice question; without it, none can be answered. */
@@ -161,6 +168,13 @@ export function Transcript({
     <ol className="transcript" aria-label="Conversation">
       {conversation?.turns.map((turn, index) => {
         const given = inventoryGiven(conversation, index);
+        const drafted =
+          projectId && documents
+            ? draftedBy(
+                [turn.invocation_id, ...turn.children.map((child) => child.invocation_id)],
+                documents,
+              )
+            : [];
         const question = replyQuestion(turn.envelope);
         const latest = index === conversation.turns.length - 1;
         const next = conversation.turns[index + 1];
@@ -213,6 +227,18 @@ export function Transcript({
               <AskedQuestion question={question} answer={answer?.answer_to === turn.invocation_id ? answer : null} />
             ))}
           <OutcomeNote envelope={turn.envelope} />
+          {projectId && drafted.length > 0 && (
+            <ul aria-label="Documents drafted on this turn" className="plain-list">
+              {drafted.map((d) => (
+                <DocumentCard
+                  key={`${d.document.document_id}-${d.version.version}`}
+                  projectId={projectId}
+                  drafted={d}
+                  idPrefix={`drafted-${turn.invocation_id}-${d.document.document_id}-${d.version.version}`}
+                />
+              ))}
+            </ul>
+          )}
           {turn.children.length > 0 && (
             <ul aria-label={`Agents ${turn.agent_id} delegated to`} className="plain-list">
               {turn.children.map((child) => (

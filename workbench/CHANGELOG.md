@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0-alpha.4](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.3...workbench-v0.2.0-alpha.4) (2026-11-06)
+
+
+### Features
+
+* **app:** ask categorical questions as clickable choices ([#586](https://github.com/data-director-agent/data-director/issues/586)) ([57b4e9f](https://github.com/data-director-agent/data-director/commit/57b4e9f0d7e5dedea4b9e45201de64365c04b90b))
+
 ## [0.2.0-alpha.3](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.2...workbench-v0.2.0-alpha.3) (2026-11-06)
 
 

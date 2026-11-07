@@ -130,6 +130,7 @@ in one write.
 | `document_title`, `conforms_to` | As the `Document` gave them, if it did. |
 | `revises` | `{document_id, version}` of the version it replaces or was edited from, if any. |
 | `drafted_by` | For an agent's version only: `agent_id`, `agent_version`, `invocation_id` and `document_derivation`. |
+| `questions` | For an agent's version that asks any: its `document_questions` as the `Document` gave them ([Drafting documents](../../docs/specs/drafting.md)). A person's version asks none. |
 
 `document_version_decided` also gives `document_id`, `version`, `digest`, `decision`
 (`approved` or `rejected`) and, if one was given, `reason`. Its `acted_for` is the decider.

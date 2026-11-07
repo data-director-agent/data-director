@@ -116,6 +116,29 @@ would put the branch's own commits on `main` beside GitHub's merge commit, whose
 pull request title, so release-please would list the change twice in the changelog and count every
 `feat:` or `fix:` commit on the branch as a change of its own.
 
+### The merge queue
+
+`main` takes its pull requests through GitHub's merge queue. Once a pull request is approved and
+its checks have passed, add it to the queue instead of merging it directly. The queue builds the
+pull request on top of those queued ahead of it and runs the checks on that combined result, so
+what lands on `main` is what was tested. The queue squashes in the same way as a direct merge, so
+the rules above on titles and the squashed commit still apply.
+
+The checks run differently in the queue:
+
+* Every job in `ci.yml` and `accessibility.yml` runs, whether or not the change touches its files,
+  as it does for a push to `main`. **CI passed** and **Accessibility passed** therefore test the
+  combined result in full.
+* **PR title and branch name** does not run. The queue has no title or branch of its own, and the
+  check was made when the pull request was opened or its title edited. Its job is skipped, which
+  counts as passed.
+* A run in the queue is not cancelled by a later one: `ci.yml` cancels an earlier run only for a
+  pull request.
+
+If a check fails, the pull request leaves the queue. Fix it on its branch, push, wait for its
+checks to pass on the pull request, and then add it to the queue again. The `merge_group` trigger
+in each workflow is what starts these runs; a change to a workflow's triggers should keep it.
+
 ## Pull request titles and branch names
 
 A pull request is squash-merged, so its title becomes the commit subject on `main`, and

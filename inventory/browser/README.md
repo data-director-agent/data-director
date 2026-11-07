@@ -17,6 +17,12 @@ the contract's class schema before a project keeps it ([Projects](../../docs/spe
 | `tree` | `folderTree(files)`: the files as folders, each with its file count and size |
 | `search` | `searchFiles(files, query)`: by path, media type, PRONOM identifier or column name |
 | `format` | `formatBytes`, `formatFileCount`, `formatDate`, `describeInventory`, `identificationLabel`, `pronomUrl` |
+| `making` | `MAKING_AN_INVENTORY`, how to make an inventory on each operating system, and `systemFromPlatform(platform)` |
+
+`making` reads its text from `src/making.json`. The user guide's
+[Making an inventory](../../docs/guide/user-guide/making-an-inventory.md) page renders the same file
+(`docs/hooks_inventory.py`), so the app's **Make an inventory** dialog and the guide cannot say
+different things. Change the wording there, not in either reader.
 
 ```ts
 import { parseInventory, summarise, formatBytes } from "@data-director/inventory";

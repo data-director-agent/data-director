@@ -75,6 +75,12 @@ payload's `revises`. Because the class is the core's, a drafter can be replaced 
 caller changing. The conductor is to fill the facts from the project, TODO(#394). Until it does,
 the caller sends them.
 
+A `Document` may ask the researcher about what its drafter could not know: `document_questions`
+holds one `DocumentQuestion` per gap, naming the README section or the data dictionary cell it
+would fill under an identifier derived from that gap. The answers a person gives come back in the
+next `DraftRequest` as `draft_answers` (`DraftAnswer`: the question answered and the text), and
+the drafter places each one as given ([Drafting documents](specs/drafting.md)).
+
 ## The envelope
 
 An agent's response is wrapped in an `Envelope`. Every envelope contains:

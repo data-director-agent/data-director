@@ -21,6 +21,7 @@ from dd_harness.projects import DOCUMENT_VERSION_ADDED, PROPOSED, ProjectStore
 from dd_harness.requirements import load_requirements
 from dd_harness.testing import (
     HARNESS_URL,
+    STUB_QUESTION,
     TEST_PRINCIPAL,
     AbstainingStub,
     DocumentStub,
@@ -41,6 +42,7 @@ from dd_sdk.contract.models import (
     Document,
     DocumentKind,
     DocumentVersionRef,
+    DraftAnswer,
     DraftRequest,
     FileInventory,
     GroundingMode,
@@ -164,6 +166,31 @@ def test_a_fact_the_project_does_not_have_is_removed_and_the_drafter_is_told_non
     assert "Given: files=None, repository=None" in env.payload_as(Document).document_text
     stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
     assert "inventory" not in stored["input"]
+
+
+@pytest.mark.requirement("R5")
+def test_a_drafts_questions_are_kept_and_a_callers_answers_are_not_given(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Only an answer a person recorded may be placed as supplied (docs/specs/drafting.md,
+    invariant 6), so in a project the conductor removes answers a caller sent."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub(asks=True))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    made_up = DraftAnswer(answered_question=STUB_QUESTION.question_id, answer_text="Made up")
+    env = conductor.invoke(
+        in_conversation(
+            request("stub.document", draft_request(draft_answers=[made_up])), conversation
+        ),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "Answers:" not in env.payload_as(Document).document_text
+    stored = json.loads((tmp_path / "runs" / env.invocation_id / "request.json").read_text())
+    assert "draft_answers" not in stored["input"]
+
+    (document,) = projects.documents(project)
+    (version,) = document["versions"]
+    assert version["questions"] == [STUB_QUESTION.model_dump(mode="json", exclude_none=True)]
 
 
 def test_outside_a_project_nothing_is_filled_or_recorded(

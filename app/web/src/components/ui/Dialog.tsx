@@ -20,18 +20,34 @@ import "./Dialog.css";
 
 export { DialogTrigger } from "react-aria-components";
 
-export function ModalDialog({ title, children }: { title: string; children: ReactNode }) {
+/**
+ * `children` may be a function of `close`, for a dialog whose last step closes it, such as one
+ * that ends by choosing a file.
+ */
+export function ModalDialog({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode | ((close: () => void) => ReactNode);
+}) {
   return (
     <ModalOverlay className="dialog-overlay" isDismissable>
       <Modal className="dialog-modal">
         <Dialog className="dialog">
-          <div className="dialog-header">
-            <Heading slot="title" level={2}>
-              {title}
-            </Heading>
-            <Button slot="close" variant="quiet" icon={X} aria-label="Close" />
-          </div>
-          <div className="dialog-body">{children}</div>
+          {({ close }) => (
+            <>
+              <div className="dialog-header">
+                <Heading slot="title" level={2}>
+                  {title}
+                </Heading>
+                <Button slot="close" variant="quiet" icon={X} aria-label="Close" />
+              </div>
+              <div className="dialog-body">
+                {typeof children === "function" ? children(close) : children}
+              </div>
+            </>
+          )}
         </Dialog>
       </Modal>
     </ModalOverlay>

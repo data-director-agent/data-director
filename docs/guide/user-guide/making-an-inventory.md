@@ -20,13 +20,13 @@ it. Hidden files and folders (names beginning with `.`) are left out, and the in
 
 ## Making one
 
-You need [uv](https://docs.astral.sh/uv/getting-started/installation/), a tool that installs and
-runs Python programs. Once it is installed, open a terminal and run this command, replacing
-`path/to/dataset` with the folder that holds your data:
+<!-- making-an-inventory:summary -->
 
-```console
-uvx data-director-inventory path/to/dataset -o inventory.json
-```
+In the app, select **Make an inventory** under the message box on the conversation page. It shows
+these steps for the computer you are using, with a button to copy each command, and ends with a
+button to attach the file you made. The steps are the same here:
+
+<!-- making-an-inventory:steps -->
 
 If you prefer pip, install the command once with `pip install data-director-inventory`, then run
 `data-director-inventory path/to/dataset -o inventory.json`. The package is published on
@@ -41,7 +41,8 @@ running a workshop you are in, to make the inventory for you.
 ## Attaching it in the app
 
 On the conversation page, select **Attach inventory** under the message box and choose
-`inventory.json`. You can also drop the file onto the message box. The inventory shows as a chip
+`inventory.json`, or select **Choose inventory.json** at the end of **Make an inventory**. You can
+also drop the file onto the message box. The inventory shows as a chip
 naming how many files it lists and when it was made. Select **View inventory** on the chip to
 read everything it holds before you send it: the folders and files, their sizes and formats, and
 the column names of each table. That is all Data Director keeps of your data. Write your

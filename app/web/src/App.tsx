@@ -14,13 +14,12 @@ import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
-import { Link, useLocation } from "./route";
+import { useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
 import {
   SIGNED_OUT,
   type Session,
-  assuranceText,
   checkSignedIn,
   useSessionApi,
 } from "./session/api";
@@ -148,9 +147,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     if (!onAgents) return <ConversationHome directory={state.value} />;
     return (
       <>
-        <PageHeader title="Agents: what Data Director can do here" titleHidden>
-          <ActingFor directory={state.value} />
-        </PageHeader>
+        <PageHeader title="Agents: what Data Director can do here" titleHidden />
         <AgentDirectory
           directory={state.value}
           initial={new URLSearchParams(query).get("agent") ?? undefined}
@@ -170,21 +167,5 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       )}
       {content()}
     </Frame>
-  );
-}
-
-/**
- * Whom runs act for and whose rules apply: the signed-in person and who vouched for them, or on a
- * development server the operator's assertion, and the line says which. The conversation
- * workspace does not show it.
- */
-function ActingFor({ directory: { actingFor, profileRef } }: { directory: Directory }) {
-  return (
-    <p className="hint">
-      Acting as {actingFor.name} ({assuranceText(actingFor)}) · Policy{" "}
-      <Link to="/policy">
-        <code>{profileRef}</code>
-      </Link>
-    </p>
   );
 }
