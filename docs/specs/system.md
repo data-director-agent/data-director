@@ -93,7 +93,8 @@ The contract, transport, grounding and the app's own process boundary are specif
 the harness's A2A endpoint) builds a conductor and calls it; the conductor alone fills
 identifiers, timestamps and lineage ([Orchestration](orchestration.md)). `dd-harness serve`
 serves the A2A routes and agent card and nothing else, for a deployment that needs no viewer;
-`uvicorn` is an optional extra so that a way in which embeds the conductor does not install it.
+`uvicorn` is an optional extra so that a way in which embeds the conductor does not install it;
+a storage backend's driver is an extra for the same reason ([Storage](storage.md)).
 `workbench serve` builds the same conductor and adds AG-UI and the viewer. The CLI stays with the
 workbench.
 

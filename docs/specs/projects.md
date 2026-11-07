@@ -53,11 +53,12 @@ intended design, and each part says where it is not built yet.
    `inventory/tests/test_inventory.py` (no content, no absolute path).
 2. **The log is append-only, and the harness is its only writer.** No event is changed or
    removed, including versions and decisions. The app reads the log and never writes it.
-   Appends to one project's log are serialised and each event goes in whole and is flushed before
-   the call returns; a read of the log never sees part of an append. Each project has its own
-   lock, so a change in one project never waits on another. Enforced in part by
-   `harness/tests/test_projects.py` and the storage conformance kit ([Storage](storage.md)); in the
-   file backend the serialisation holds within one harness process only (`ProjectStore._lock`).
+   Appends to one project's log are serialised and each event goes in whole and is durable before
+   the call returns; a read of the log never sees part of an append. A checked change runs in an
+   exclusive section for its project, so a change in one project never waits on another
+   ([Storage](storage.md), invariants 10 and 11). Enforced in part by
+   `harness/tests/test_projects.py` and the storage conformance kit; in the file backend the
+   section holds within one harness process only (`ProjectStore._lock`).
 3. **What the store refuses leaves no trace.** An inventory that fails the `FileInventory` class
    schema, or a call on an unknown project, records nothing and keeps no blob
    (`harness/tests/test_projects.py`).
@@ -325,7 +326,7 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 ## Open questions
 
 - How long a project and its conversations are kept, and what deleting a project or a version
-  removes, TODO(#141).
-- What a former member may have erased from a project, TODO(#156, #141).
+  removes, TODO(#156).
+- What a former member may have erased from a project, TODO(#156).
 - What a data steward may do in a researcher's project, and whether a deployment role may decide
   on a version, TODO(#372, #154).

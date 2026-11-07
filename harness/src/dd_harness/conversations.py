@@ -20,8 +20,8 @@ A reply may ask a choice question (`Reply.reply_question`). `history` writes the
 reply's text, so a conversational agent sees on a later turn what it asked; `answer_problem` is how
 the caller checks a researcher's `ChoiceAnswer` against that question before sending the turn.
 
-TODO(#141): the file backend scans every envelope on each call. Add an index if the store grows
-large.
+TODO(#524): the file backend scans every envelope on each call; the database backend is to answer
+with an indexed query (docs/specs/storage.md).
 """
 
 from __future__ import annotations
