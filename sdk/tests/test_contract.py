@@ -24,7 +24,9 @@ from dd_sdk.contract.models import (
     Derivation,
     Document,
     DocumentKind,
+    DocumentQuestion,
     DocumentVersionRef,
+    DraftAnswer,
     DraftRequest,
     Envelope,
     EvidenceItem,
@@ -714,6 +716,57 @@ def test_a_document_is_a_core_payload_that_may_name_the_version_it_revises() -> 
     assert Document.model_validate(revised.model_dump(mode="json")) == revised
     with pytest.raises(ValueError):
         DocumentVersionRef(document_id=new_invocation_id(), version=0)
+
+
+@pytest.mark.requirement("R5")
+def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() -> None:
+    """A version's questions each target one README section or one data dictionary cell, under
+    an identifier of their own; the answers come back in the next DraftRequest
+    (docs/specs/drafting.md)."""
+    section = DocumentQuestion(
+        question_id="q-" + "0" * 16, question_prompt="Methods?", gap_section="Methods"
+    )
+    cell = DocumentQuestion(
+        question_id="q-" + "1" * 16,
+        question_prompt="Unit?",
+        gap_file="soil.csv",
+        gap_field="ph",
+        gap_column="unit",
+    )
+    asking = Document(
+        document_kind=DocumentKind.README,
+        media_type="text/markdown",
+        document_text="_To be written_\n<!-- dd:gap q-0000000000000000 -->\n",
+        document_derivation=Derivation.TEMPLATE,
+        document_questions=[section, cell],
+        grounded_on=[_input_ref()],
+    )
+    env = _succeeded(payload=asking, evidence=[_input_evidence()]).to_document()
+    validate.validate_envelope(env)
+    assert Document.model_validate(env["payload"]).document_questions == [section, cell]
+
+    with pytest.raises(ValueError, match="identifier of its own"):
+        Document.model_validate(
+            {**asking.model_dump(mode="json"), "document_questions": [section.model_dump()] * 2}
+        )
+    with pytest.raises(ValueError, match="not both"):
+        DocumentQuestion(
+            question_id="q-" + "2" * 16, question_prompt="?", gap_section="A", gap_file="a.csv"
+        )
+    with pytest.raises(ValueError, match="file, field and column"):
+        DocumentQuestion(question_id="q-" + "2" * 16, question_prompt="?", gap_file="a.csv")
+    with pytest.raises(ValueError):
+        DocumentQuestion(question_id="q-1", question_prompt="?", gap_section="A")
+
+    answer = DraftAnswer(answered_question=cell.question_id, answer_text="pH units")
+    doc = to_document(
+        InvocationRequest(
+            agent_id="advisor.documentation",
+            input=DraftRequest(document_kind=DocumentKind.README, draft_answers=[answer]),
+        )
+    )
+    validate.validate_request(doc)
+    assert DraftRequest.model_validate(doc["input"]).draft_answers == [answer]
 
 
 def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:

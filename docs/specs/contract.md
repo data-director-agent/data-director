@@ -23,8 +23,9 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    outcome and problem details, grounding and evidence, telemetry, delegation and the principal,
    and the few classes the harness, the project record or the deposit package read without
    knowing the agent (conversation turns, `Message` with the `InventorySummary` the conductor fills
-   in and a `ChoiceAnswer`, `Reply` with a `ChoiceQuestion`, `Document`, `FileInventory`, `RequirementSet`, the drafters'
-   `DraftRequest` with `CurrentVersion` and `RepositoryRequirements`, and the
+   in and a `ChoiceAnswer`, `Reply` with a `ChoiceQuestion`, `Document` with its
+   `DocumentQuestion`s, `FileInventory`, `RequirementSet`, the drafters' `DraftRequest` with
+   `CurrentVersion`, `DraftAnswer` and `RepositoryRequirements`, and the
    enums they use). No agent's own input or payload class is added to it.
 2. In the core, an input is any object with a `schema_class`, and a payload is any object with a
    `schema_class` that mixes in `Grounded`. The core checks nothing else about either
@@ -110,6 +111,12 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     bounds into doubles and break the schema digest (#333). The harness checks an answer against
     its question before the turn runs (`dd_harness.conversations.answer_problem`,
     `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`).
+24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
+    leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
+    from the gap), the text put to the person, and a target that is either a README section or a
+    data dictionary cell named by file, field and column. A `DraftRequest` may carry
+    `draft_answers`, each a `DraftAnswer` naming the question it answers and the text, which the
+    drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
 
 ## Boundaries and contracts
 

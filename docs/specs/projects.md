@@ -185,9 +185,9 @@ form and the user guide state the rule. Adding documentation is not built yet, T
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
 a `Document` payload. No agent writes anywhere or holds credentials to. A general proposed action
 for a change outside the project waits for the first agent that needs one, TODO(#72). A drafted
-version may also carry questions to the researcher, and a person's answers are project log events
-that the conductor puts into the next `DraftRequest` ([Drafting documents](drafting.md),
-TODO(#575)).
+version may also carry questions to the researcher, which the log keeps with the version. A
+person's answers are to be project log events that the conductor puts into the next
+`DraftRequest` ([Drafting documents](drafting.md), TODO(#575)).
 
 **Runs and decisions are separate.** A drafting run ends `succeeded` with a proposed version, so no
 run waits for a person. A decision acts on the project, is not an invocation of an agent and

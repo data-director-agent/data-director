@@ -25,6 +25,16 @@ export interface RecordedPrincipal {
   vouched_by?: string;
 }
 
+/** A drafter's question about one gap: a README section, or a data dictionary cell. */
+export interface DocumentQuestion {
+  question_id: string;
+  question_prompt: string;
+  gap_section?: string;
+  gap_file?: string;
+  gap_field?: string;
+  gap_column?: string;
+}
+
 export interface DocumentVersion {
   document_id: string;
   document_kind: string;
@@ -41,6 +51,9 @@ export interface DocumentVersion {
     invocation_id: string;
     document_derivation: string;
   } | null;
+  /** What the version asks the researcher, one question per gap (docs/specs/drafting.md). Shown
+   * and answered in the app later, TODO(#575). */
+  questions: DocumentQuestion[];
   added_by: RecordedPrincipal;
   added_at: string;
   state: VersionState;

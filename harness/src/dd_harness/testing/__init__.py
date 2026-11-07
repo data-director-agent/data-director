@@ -29,6 +29,7 @@ from dd_harness.testing.classes import (
 )
 from dd_harness.testing.doubles import (
     SPECS,
+    STUB_QUESTION,
     AbstainingStub,
     Behaviour,
     Chat,
@@ -84,6 +85,7 @@ __all__ = [
     "SOURCE_A",
     "SOURCE_B",
     "SPECS",
+    "STUB_QUESTION",
     "TEST_PRINCIPAL",
     "AbstainingStub",
     "Behaviour",

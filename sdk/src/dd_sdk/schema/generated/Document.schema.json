@@ -24,6 +24,55 @@
          "title": "DocumentKind",
          "type": "string"
       },
+      "DocumentQuestion": {
+         "additionalProperties": false,
+         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md).",
+         "properties": {
+            "question_id": {
+               "description": "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets.",
+               "pattern": "^q-[0-9a-f]{16}$",
+               "type": "string"
+            },
+            "question_prompt": {
+               "description": "The question, as a short line a person reads before the options.",
+               "type": "string"
+            },
+            "gap_section": {
+               "description": "The heading of the README section the question would fill, as the drafter wrote it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_file": {
+               "description": "The path of the file whose data dictionary row the question would fill.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_field": {
+               "description": "The field whose data dictionary row the question would fill.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_column": {
+               "description": "The data dictionary column the question would fill, such as unit.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "question_id",
+            "question_prompt"
+         ],
+         "title": "DocumentQuestion",
+         "type": "object"
+      },
       "DocumentVersionRef": {
          "additionalProperties": false,
          "description": "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1.",
@@ -117,6 +166,16 @@
             }
          ],
          "description": "The version this document replaces, when an agent regenerates it. Absent for a new document, for which the conductor mints a document_id."
+      },
+      "document_questions": {
+         "description": "The questions this version asks the researcher, one for each gap it leaves. A README marks each gap with the HTML comment <!-- dd:gap question_id -->; a data dictionary leaves the cell empty and its source unknown.",
+         "items": {
+            "$ref": "#/$defs/DocumentQuestion"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
       },
       "grounded_on": {
          "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
