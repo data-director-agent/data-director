@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -57,13 +59,23 @@ def generate(source: Path = CORE) -> dict[Path, str]:
         importmap = Path(tmp) / "importmap.json"
         importmap.write_text(json.dumps({CORE_IMPORT: str(CORE.with_suffix(""))}), "utf-8")
         view = _view(source, importmap)
-        if core:
-            for top_class, filename in CORE_DOCUMENTS.items():
-                schema = _json_schema(source, top_class, importmap)
+        classes = designated_classes(source, view)
+        # Each generator run is its own Python process, most of whose time is importing LinkML,
+        # so they run side by side; the outputs are assembled in a fixed order below.
+        documents = list(CORE_DOCUMENTS) if core else []
+        with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 1)) as pool:
+            shacl = pool.submit(_run, "linkml.generators.shaclgen", str(source)) if core else None
+            generated = iter(
+                pool.map(lambda top: _json_schema(source, top, importmap), documents + classes)
+            )
+            for top_class in documents:
+                schema = next(generated)
+                filename = CORE_DOCUMENTS[top_class]
                 outputs[out / filename] = _dump(_repair(schema, top_class, view), source)
-            outputs[out / SHACL] = _run("linkml.generators.shaclgen", str(source))
-        for class_name in designated_classes(source, view):
-            schema = _json_schema(source, class_name, importmap)
+            if shacl is not None:
+                outputs[out / SHACL] = shacl.result()
+            class_schemas = list(generated)
+        for class_name, schema in zip(classes, class_schemas, strict=True):
             schema = _prune(_repair(schema, class_name, view))
             schema["$id"] = f"{view.schema.id}/{class_name}"
             # Validated as Draft 7 on both sides (dd_sdk.contract.classes, the viewer's ajv), so

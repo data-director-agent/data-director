@@ -79,8 +79,9 @@ jobs:
           cache-dependency-glob: uv.lock
       # The site as docs.yml builds and publishes it.
       - run: uv run --only-group docs mkdocs build --strict
-      # Headless runs need only chromium-headless-shell, not the full browser.
-      - run: scripts/retry.sh uv run --only-group accessibility playwright install --with-deps --only-shell chromium
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: uv run --only-group accessibility playwright
       - run: >-
           uv run --only-group docs --only-group accessibility
           scripts/check_site_accessibility.py site --summary "$GITHUB_STEP_SUMMARY"
@@ -99,7 +100,9 @@ jobs:
         with:
           cache-dependency-glob: uv.lock
       - run: uv sync --all-packages --all-extras
-      - run: scripts/retry.sh uv run playwright install --with-deps --only-shell chromium
+      - uses: ./.github/actions/playwright # zizmor: ignore[self-repository]
+        with:
+          playwright: uv run playwright
       - run: >-
           uv run pytest workbench/browser_tests/test_viewer_accessibility.py
           --tracing=retain-on-failure --output=test-results

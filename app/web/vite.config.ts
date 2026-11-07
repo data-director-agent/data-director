@@ -47,6 +47,10 @@ export default defineConfig({
     // A test that drives a whole run and then checks it with axe takes about three seconds, and
     // coverage instrumentation adds two thirds again, which is past Vitest's default of five.
     testTimeout: 15_000,
+    // Test files share a worker's module cache rather than each loading jsdom, React and the
+    // components afresh: about half the run time. Testing Library's cleanup after each test
+    // (src/test/setup.ts) clears the DOM; a test that changes module state must restore it.
+    isolate: false,
     // Measured only with --coverage, as CI runs it, so that `npm test` stays quick. The text
     // file is the job summary (fully covered files left out, as the Python report does); lcov
     // goes to Codecov under the `web` flag (codecov.yml), its paths from the repository root.
