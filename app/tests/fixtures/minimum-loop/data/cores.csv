@@ -1,0 +1,5 @@
+core_id,site_id,depth_cm,organic_carbon_pct,ph
+C001,S01,10,3.2,6.1
+C002,S01,30,2.1,6.4
+C003,S02,10,4.8,5.7
+C004,S02,30,3.5,5.9

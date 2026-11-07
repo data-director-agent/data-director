@@ -9,7 +9,9 @@ picture and adds detail one level at a time, so a reader can stop at the level t
    runs.
 4. [Conversations and delegation](#4-conversations-and-delegation): how the orchestrator uses
    other agents.
-5. [Configuration and deployment](#5-configuration-and-deployment): where it runs and who
+5. [The loop, from files to package](#5-the-loop-from-files-to-package): the whole of the
+   minimum loop, followed through the app.
+6. [Configuration and deployment](#6-configuration-and-deployment): where it runs and who
    decides what it may do.
 
 The reasons behind each choice are in the [specifications](specs/README.md). Terms are defined in the
@@ -270,7 +272,59 @@ sequenceDiagram
 The rules are in [Orchestration](specs/orchestration.md) and
 [`conductor.md`](../harness/docs/conductor.md#delegation).
 
-## 5. Configuration and deployment
+## 5. The loop, from files to package
+
+The minimum loop takes a researcher from their files to a package they can deposit. It is the
+worked example of everything above: each step is a route of the app, which either runs an agent
+through the conductor or calls the harness in process, and each leaves an event in the project's
+log. [`app/tests/test_minimum_loop.py`](../app/tests/test_minimum_loop.py) runs the whole loop
+in CI on the in-tree agents' deterministic paths, and checks the package's audit trail.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor R as Researcher
+    participant App as App server
+    participant C as Conductor
+    participant D as Orchestrator
+    participant X as Drafter
+    participant L as Project log
+
+    R->>R: dd-inventory on their folder
+    R->>App: turn with the inventory
+    App->>L: inventory_added
+    R->>App: choose ORDA
+    App->>L: repository_chosen
+    R->>App: turn choosing a drafting step
+    App->>C: Message for the orchestrator
+    C->>D: run
+    D->>C: delegate a DraftRequest
+    C->>X: run, with the project's inventory and requirements
+    X-->>C: Document
+    C->>L: document_version_added (proposed)
+    R->>App: approve, or edit and approve
+    App->>L: document_version_added (the edit), document_version_decided
+    R->>App: validate, then package
+    App->>L: project_validated, package_built
+    App-->>R: the package, by its digest
+```
+
+| Step | The researcher | Route | Done by | In the log |
+|---|---|---|---|---|
+| Inventory | Scans their folder with `dd-inventory` and attaches the result to a turn. No data file leaves their computer. | `POST /api/conversations/{id}/turns` | The harness's project store | `inventory_added` |
+| Choose a repository | Chooses by re3data identifier; the requirements are the deployment's DataCite set merged with ORDA's override. | `PUT /api/projects/{id}/repository` | The harness | `repository_chosen` |
+| Draft | Chooses a drafting step the orchestrator offers. The orchestrator delegates a `DraftRequest`, and the conductor fills it with the project's inventory, requirements and latest approved record. | `POST /api/conversations/{id}/turns` | `advisor.metadata` (metadata record), `advisor.documentation` (README, data dictionary) | `document_version_added`, naming the run that drafted it |
+| Check and approve | Approves each version, or edits it and approves the edit, with a reason. | `POST /api/projects/{id}/documents/{document_id}/decisions` | The harness | `document_version_added` for an edit, `document_version_decided` |
+| Validate | Checks the project against the repository's requirements. | `POST /api/projects/{id}/validation` | The harness (SHACL) | `project_validated` |
+| Package | Builds the package and downloads it. | `POST /api/projects/{id}/package` | The harness | `package_built` |
+
+The package's audit trail is the project log itself (`project-log.jsonl`), and, in its root
+`ro-crate-metadata.json`, a `CreateAction` for each run behind an approved version, with that
+run's crate under `runs/`, and an `AssessAction` for each decision, made by the researcher
+([Deposit](specs/deposit.md)). Nothing in the loop deposits: the researcher uploads the package
+and their files to the repository themselves.
+
+## 6. Configuration and deployment
 
 ### The deployment decides
 
