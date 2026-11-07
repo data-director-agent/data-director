@@ -8,6 +8,12 @@ knows, such as the methods and each field's definition, unit and missing value c
 for them. Each value in the data dictionary is marked with where it came from: inferred from the
 inventory, supplied by the researcher, or unknown.
 
+When a model is configured, it may suggest an answer to a data dictionary's questions about a
+field's definition or unit (`prose.py`, `suggest`). The suggestion is offered with the question
+(`suggested_answer`) and never placed in a cell: the dictionary is drafted by rule before the model
+is asked, and a suggestion becomes `supplied` only when the researcher records it, or a correction
+of it, as their answer (docs/specs/drafting.md, invariant 7).
+
 A README also takes, as given, the title, creators, funding, abstract and licence of the
 project's approved metadata record, when the request carries one in DataCite's JSON form, and
 cites the dataset by its creators and title. These are supplied content: a person approved them
@@ -47,7 +53,13 @@ from typing import Any, NamedTuple
 
 import yaml
 
-from dd_agent_advisor_documentation.prose import Prose, TemplateWriter, Writer
+from dd_agent_advisor_documentation.prose import (
+    Ask,
+    Prose,
+    Suggestions,
+    TemplateWriter,
+    Writer,
+)
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -137,9 +149,8 @@ MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONAR
 # no room for a list of limitations (docs/specs/drafting.md).
 LIMITATIONS = (
     "It does not open the files, so it says nothing about their contents beyond what the "
-    "inventory records. It infers no definitions, units or missing value codes, suggests no "
-    "answers to its questions, and does not read an earlier README or the reason given for a "
-    "decision on an earlier version."
+    "inventory records. It infers no definitions, units or missing value codes, and does not "
+    "read an earlier README or the reason given for a decision on an earlier version."
 )
 
 
@@ -186,14 +197,15 @@ def load_sections(path: Path = README) -> list[Section]:
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.2.0a1",
+        version="0.3.0a1",
         title="Documentation Editor",
         description=(
             "Drafts a project's README or data dictionary from its file inventory and its "
             "approved metadata record: the files, the tables' fields and the record's title, "
             "creators, abstract and licence are drafted, with prose written by a model where one "
             "is configured, and the methods, definitions, units and missing value codes are "
-            "marked and asked of the researcher."
+            "marked and asked of the researcher, with a model's suggested definition or unit "
+            "offered beside a question, never written into the document."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
@@ -203,6 +215,9 @@ class DocumentationEditor:
             "document_title": Derived(Derivation.TEMPLATE),
             "document_text": Derived(Derivation.MODEL, recorded_in="document_derivation"),
             "document_questions": Derived(Derivation.TEMPLATE),
+            "document_questions.suggested_answer": Derived(
+                Derivation.MODEL, recorded_in="suggestion_derivation"
+            ),
         },
         serves=("setup.documentation", "preparation.documentation"),
     )
@@ -230,6 +245,7 @@ class DocumentationEditor:
 
         answers = _answers(asked.draft_answers)
         prose = Prose()
+        suggested = Suggestions()
         if kind == DocumentKind.README:
             record, unread = _record(asked.metadata_record)
             text, questions, statement, prose = self._readme(
@@ -256,20 +272,26 @@ class DocumentationEditor:
                     "The inventory lists no table with fields, so there is no data dictionary to "
                     "draft.",
                 )
+            # The dictionary is drafted by rule first, so nothing the model says can reach a cell.
             text, questions, counts = _dictionary(inventory, asked.current_version, answers)
+            record, _ = _record(asked.metadata_record)
+            questions, suggested = self._suggest(inventory, record, questions, ctx)
             statement = (
                 f"A data dictionary of {fields} fields, drafted by rule (a model fills no cell), "
                 f"each value marked with where it came from: {counts[Source.INFERRED]} inferred "
                 f"from the inventory, {counts[Source.SUPPLIED]} supplied by you and "
                 f"{counts[Source.UNKNOWN]} unknown. It asks "
-                f"{_count(len(questions), 'question')}, one for each unknown value."
+                f"{_count(len(questions), 'question')}, one for each unknown value. "
+                f"{_how_suggested(suggested)}"
             )
 
         current = asked.current_version
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
         ref = GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)
-        calls = prose.calls
+        # A README's model writes prose and a data dictionary's suggests answers: one, not both.
+        calls = prose.calls or suggested.calls
+        usage = prose.usage if prose.calls else suggested.usage
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
             payload=Document(
@@ -291,12 +313,40 @@ class DocumentationEditor:
                     content_hash=ctx.input_hash,
                 )
             ],
-            model_id=prose.model_id,
-            input_tokens=prose.usage.input_tokens,
-            output_tokens=prose.usage.output_tokens,
+            model_id=prose.model_id or suggested.model_id,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
             model_calls=calls.calls if calls else (),
             prompts=calls.prompts if calls else {},
         )
+
+    def _suggest(
+        self,
+        inventory: FileInventory,
+        record: Mapping[str, Any] | None,
+        questions: list[DocumentQuestion],
+        ctx: RunContext,
+    ) -> tuple[list[DocumentQuestion], Suggestions]:
+        """The questions, each with the writer's suggested answer where it made one. The writer is
+        given the facts a README is drafted from, never the answers, a field's description or an
+        earlier version (docs/specs/drafting.md)."""
+        asks = [
+            Ask(q.question_id, q.gap_file, q.gap_field, q.gap_column)
+            for q in questions
+            if q.gap_file is not None and q.gap_field is not None and q.gap_column is not None
+        ]
+        suggested = self.writer.suggest(_facts(inventory, None, record), asks, ctx)
+        return [
+            q.model_copy(
+                update={
+                    "suggested_answer": suggestion,
+                    "suggestion_derivation": Derivation.MODEL,
+                }
+            )
+            if (suggestion := suggested.answers.get(q.question_id))
+            else q
+            for q in questions
+        ], suggested
 
     def _readme(
         self,
@@ -383,6 +433,31 @@ def _how_written(prose: Prose) -> str:
             + ")"
         )
     return said + ". Check the prose before you approve it."
+
+
+def _how_suggested(suggested: Suggestions) -> str:
+    """What the statement says about the suggested answers."""
+    if suggested.model_id is None:
+        return "No model is configured, so it suggests no answers."
+    if suggested.unused:
+        return f"It suggests no answers, because {suggested.unused} ({suggested.model_id})."
+    n = len(suggested.answers)
+    said = (
+        f"A model ({suggested.model_id}) suggested an answer to "
+        f"{_count(n, 'question')}, offered beside the question and not written into the "
+        "dictionary: a suggestion becomes yours only when you save it, or a correction of it, as "
+        "your answer"
+        if n
+        else f"A model ({suggested.model_id}) was asked to suggest answers but offered none"
+    )
+    if suggested.dropped:
+        said += (
+            f"; {_count(len(suggested.dropped), 'suggestion')} it made "
+            f"{'was' if len(suggested.dropped) == 1 else 'were'} not offered ("
+            + "; ".join(suggested.dropped)
+            + ")"
+        )
+    return said + "."
 
 
 def _facts(

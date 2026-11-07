@@ -114,9 +114,10 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
     leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
     from the gap), the text put to the person, and a target that is either a README section or a
-    data dictionary cell named by file, field and column. A `DraftRequest` may carry
-    `draft_answers`, each a `DraftAnswer` naming the question it answers and the text, which the
-    drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
+    data dictionary cell named by file, field and column, and optionally a suggested answer with
+    how it was derived (`suggested_answer` and `suggestion_derivation`, both or neither). A
+    `DraftRequest` may carry `draft_answers`, each a `DraftAnswer` naming the question it answers
+    and the text, which the drafter places as given ([Drafting documents](drafting.md), `sdk/tests/test_contract.py`).
 
 ## Boundaries and contracts
 

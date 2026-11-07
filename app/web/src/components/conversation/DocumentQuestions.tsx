@@ -6,6 +6,10 @@
  * saves; blank boxes are left as they are. The harness records each answer for the person signed
  * in, and the next draft places it as supplied. No agent writes an answer.
  *
+ * A question may carry a model's suggested answer, such as a field's likely definition or unit.
+ * It is shown beside the box, which it never fills by itself: the researcher copies it in with
+ * "Use suggestion", may change it, and it is recorded only when they save.
+ *
  * Only the latest version's questions can be answered. Once saved, the answered questions leave
  * the list, a status says so, and the next ones are shown.
  */
@@ -28,6 +32,11 @@ import {
 } from "../../project/api";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
+
+/** A question's suggested answer, or "" when it has none. */
+function suggestion(q: DocumentQuestion): string {
+  return q.suggested_answer ?? "";
+}
 
 /** How many questions are put at once: enough to make progress, few enough to read. */
 export const QUESTIONS_AT_ONCE = 3;
@@ -118,9 +127,26 @@ export function DocumentQuestions({
             <p className="hint" id={`${id}-${q.question_id}-target`}>
               Fills: {questionTarget(q)}
             </p>
+            {suggestion(q) && (
+              <p className="hint">
+                <span id={`${id}-${q.question_id}-suggestion`}>
+                  Suggested by a model: <q>{suggestion(q)}</q>. Check it before you use it.
+                </span>{" "}
+                <Button
+                  variant="quiet"
+                  onPress={() => setWords((was) => ({ ...was, [q.question_id]: suggestion(q) }))}
+                >
+                  Use suggestion <span className="visually-hidden">for: {q.question_prompt}</span>
+                </Button>
+              </p>
+            )}
             <textarea
               id={`${id}-${q.question_id}`}
-              aria-describedby={`${id}-${q.question_id}-target`}
+              aria-describedby={
+                suggestion(q)
+                  ? `${id}-${q.question_id}-target ${id}-${q.question_id}-suggestion`
+                  : `${id}-${q.question_id}-target`
+              }
               rows={2}
               value={words[q.question_id] ?? ""}
               onChange={(e) => setWords((was) => ({ ...was, [q.question_id]: e.target.value }))}

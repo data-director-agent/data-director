@@ -3,6 +3,7 @@
  * (docs/specs/drafting.md): each question, what it fills, and the answer recorded for it, if any.
  * Questions are answered on the draft's card in the conversation; an answer is put into the next
  * draft, not into this version. Whether a question is answered is said in words, never by colour.
+ * A model's suggested answer is shown as a suggestion until a person records an answer.
  */
 
 import type { DocumentVersion, ProjectDocument } from "../../project/api";
@@ -40,7 +41,15 @@ export function QuestionList({
                   Answered: <q>{answer.answer_text}</q>
                 </>
               ) : (
-                "Not answered yet."
+                <>
+                  Not answered yet.
+                  {q.suggested_answer && (
+                    <>
+                      {" "}
+                      Suggested by a model, not yet confirmed: <q>{q.suggested_answer}</q>
+                    </>
+                  )}
+                </>
               )}
             </li>
           );

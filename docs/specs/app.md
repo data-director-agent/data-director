@@ -165,13 +165,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     drafted version is its document's latest, its card in the conversation puts the questions no
     recorded answer has answered, three at a time, in a fieldset whose legend says how many
     remain; each is a text box labelled by the question and described by what it fills, and blank
-    boxes are left as they are. Saving sends the answers to
+    boxes are left as they are. A question's suggested answer is shown beside its box, says it came
+    from a model, and describes the box; it never fills the box by itself, and a "Use suggestion"
+    button copies it in for the researcher to keep or change before saving. Saving sends the answers to
     `POST /api/projects/{id}/documents/{document_id}/answers`, whose body never names who answered:
     the server records them for the person signed in, refuses a malformed body with nothing
     recorded, and answers `409` for a version no longer the latest or a question it does not ask.
     The card then draws the documents the server read back and says in a status how many answers
     were recorded. The project's documents page lists each version's questions with the answer
-    recorded, or says in words that none is ([Drafting documents](drafting.md),
+    recorded, or says in words that none is, with the suggestion while it is unanswered
+    ([Drafting documents](drafting.md),
     `app/tests/test_document_answers.py`,
     `app/web/src/components/conversation/DocumentQuestions.test.tsx`, `e2e/shell.spec.ts`).
 
