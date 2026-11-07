@@ -23,6 +23,8 @@ DEFAULT_SOURCES_CONFIG = CONFIG_DIR / "sources.yaml"
 DEFAULT_RUNS_DIR = APP_ROOT / "runs"
 # Each project's log and the content its events added (`dd_harness.projects`).
 DEFAULT_PROJECTS_DIR = APP_ROOT / "projects"
+# The deployment's repository requirement sets (docs/specs/deposit.md, `dd_harness.requirements`).
+DEFAULT_REPOSITORIES_DIR = CONFIG_DIR / "repositories"
 # Example inputs the Run tab offers, each naming its class (`examples/README.md`).
 EXAMPLES_DIR = CONFIG_DIR / "examples"
 # Where `npm run build` in app/web writes the shell (docs/specs/app.md).

@@ -1,0 +1,145 @@
+{
+  "chosen_at": "2026-01-01T00:00:00Z",
+  "chosen_by": {
+    "assurance": "asserted",
+    "name": "Josiah Carberry",
+    "principal_id": "https://orcid.org/0000-0002-1825-0097",
+    "principal_kind": "person"
+  },
+  "declared_standards": [
+    "Dublin Core"
+  ],
+  "digest": "568d34c98ffba15d33d531077cd3ed502ac4a8e8afabce11d50f978fe5647da5",
+  "re3data_id": "r3d100012124",
+  "repository_name": "ORDA",
+  "requirement_sets": [
+    {
+      "ref": "datacite-4@v1",
+      "sha256": "5805dbd29a54d7fae26cdcfd16db9fd7517edd31eab637de9d81193b1bc72083"
+    },
+    {
+      "ref": "orda@v2",
+      "sha256": "0899c16a10fbe06289b72712f072146b30353c56fc62809c662ef97dece438f3"
+    }
+  ],
+  "requirements": {
+    "conforms_to": "http://datacite.org/schema/kernel-4",
+    "fields": [
+      {
+        "form_label": "Title",
+        "obligation": "required",
+        "property": "titles",
+        "schema_org": "name"
+      },
+      {
+        "form_label": "Authors",
+        "obligation": "required",
+        "property": "creators",
+        "schema_org": "creator"
+      },
+      {
+        "form_label": "Item type",
+        "obligation": "required",
+        "property": "types.resourceTypeGeneral",
+        "schema_org": "additionalType"
+      },
+      {
+        "form_label": "Keywords",
+        "obligation": "required",
+        "property": "subjects",
+        "schema_org": "keywords"
+      },
+      {
+        "obligation": "recommended",
+        "property": "contributors",
+        "schema_org": "contributor"
+      },
+      {
+        "obligation": "recommended",
+        "property": "dates",
+        "qualifier": {
+          "dateType": "Created"
+        },
+        "schema_org": "dateCreated"
+      },
+      {
+        "form_label": "Related materials",
+        "obligation": "recommended",
+        "property": "relatedIdentifiers",
+        "schema_org": "citation"
+      },
+      {
+        "form_label": "Description",
+        "obligation": "required",
+        "property": "descriptions",
+        "qualifier": {
+          "descriptionType": "Abstract"
+        },
+        "schema_org": "description"
+      },
+      {
+        "obligation": "recommended",
+        "property": "geoLocations",
+        "schema_org": "spatialCoverage"
+      },
+      {
+        "form_label": "Categories",
+        "obligation": "required",
+        "property": "subjects",
+        "qualifier": {
+          "subjectScheme": "ANZSRC Fields of Research"
+        },
+        "schema_org": "about"
+      },
+      {
+        "form_label": "License",
+        "obligation": "required",
+        "property": "rightsList",
+        "schema_org": "license"
+      },
+      {
+        "form_label": "Funding",
+        "obligation": "recommended",
+        "property": "fundingReferences",
+        "schema_org": "funding"
+      }
+    ],
+    "licences": [
+      "CC-BY-4.0",
+      "CC0-1.0",
+      "CC-BY-SA-4.0",
+      "CC-BY-NC-4.0",
+      "CC-BY-NC-SA-4.0",
+      "CC-BY-ND-4.0",
+      "CC-BY-NC-ND-4.0",
+      "MIT",
+      "Apache-2.0",
+      "GPL-2.0-or-later",
+      "GPL-3.0-or-later",
+      "https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_closed_data_sensitive_data_not_openly_available_/24878301",
+      "https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_content_with_a_custom_licence/26030305"
+    ],
+    "media_types": [],
+    "re3data_id": "r3d100012124",
+    "recommended_documents": [
+      "readme",
+      "data_dictionary"
+    ],
+    "repository_name": "ORDA",
+    "required_documents": [
+      "metadata_record"
+    ],
+    "requirement_sets": [
+      {
+        "ref": "datacite-4@v1",
+        "sha256": "5805dbd29a54d7fae26cdcfd16db9fd7517edd31eab637de9d81193b1bc72083"
+      },
+      {
+        "ref": "orda@v2",
+        "sha256": "0899c16a10fbe06289b72712f072146b30353c56fc62809c662ef97dece438f3"
+      }
+    ],
+    "warnings": []
+  },
+  "warnings": []
+}

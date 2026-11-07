@@ -1,8 +1,8 @@
 /**
  * A project's documents (docs/specs/projects.md), as a list beside a reader: the list groups the
  * documents by state, those waiting for a decision first, and the reader shows the one chosen,
- * with the form to decide on it while it is undecided. The statement of how generative AI was
- * used is the list's last entry.
+ * with the form to decide on it while it is undecided. The repository chosen and the statement of
+ * how generative AI was used are the list's last entries.
  *
  * What is open is in the address (`?doc=<id>`, and `&v=<n>` for an earlier version), so that it
  * can be linked and left with Back. With nothing chosen, the first document waiting for a decision
@@ -30,8 +30,9 @@ import { documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
-import { DISCLOSURE, DocumentList, stateOf } from "./DocumentList";
+import { DISCLOSURE, DocumentList, PANELS, REPOSITORY, stateOf } from "./DocumentList";
 import { DocumentReader } from "./DocumentReader";
+import { RepositoryPanel } from "./RepositoryPanel";
 
 type Load =
   | { state: "loading" }
@@ -139,22 +140,24 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
       );
     }
     const { documents, review } = load.value;
-    if (documents.length === 0) {
-      return (
-        <p>
-          No document has been drafted for this project yet. Each draft an agent makes is listed
-          here for you to check.
-        </p>
-      );
-    }
     const fallback = documents.find((document) => stateOf(document) === "proposed") ?? documents[0];
-    const chosen = asked ?? fallback?.document_id ?? DISCLOSURE;
+    const chosen = asked ?? fallback?.document_id ?? null;
     const document = documents.find((d) => d.document_id === chosen);
-    const unknown = chosen !== DISCLOSURE && !document;
+    const unknown = chosen !== null && !PANELS.includes(chosen) && !document;
 
     const reader = () => {
       if (chosen === DISCLOSURE)
         return <DisclosurePanel projectId={projectId} revision={revision} />;
+      if (chosen === REPOSITORY)
+        return <RepositoryPanel projectId={projectId} revision={revision} />;
+      if (chosen === null) {
+        return (
+          <p>
+            No document has been drafted for this project yet. Each draft an agent makes is listed
+            here for you to check.
+          </p>
+        );
+      }
       if (!document) {
         return (
           <div className="callout status-warn">

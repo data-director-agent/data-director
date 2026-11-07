@@ -159,6 +159,41 @@ export interface Disclosure {
   prov: Record<string, unknown>;
 }
 
+/** One field of a repository's requirements: a property of the standard and its obligation. */
+export interface RequirementField {
+  property: string;
+  schema_org: string;
+  obligation: "required" | "recommended";
+  form_label?: string;
+  qualifier?: Record<string, string>;
+}
+
+/**
+ * The repository chosen last for a project, as the harness resolved it (docs/specs/deposit.md):
+ * the requirement sets it resolved to, by version and digest, the warnings from resolving it, and
+ * the merged requirements validation reads.
+ */
+export interface RepositoryChoice {
+  re3data_id: string;
+  repository_name: string;
+  declared_standards: string[];
+  requirement_sets: { ref: string; sha256: string }[];
+  digest: string;
+  warnings: string[];
+  chosen_at: string;
+  chosen_by: RecordedPrincipal;
+  requirements: {
+    conforms_to: string;
+    fields: RequirementField[];
+    required_documents: string[];
+    recommended_documents: string[];
+    media_types?: string[];
+    max_file_size?: number;
+    max_item_size?: number;
+    licences?: string[];
+  } | null;
+}
+
 /** A conversation started in a project, as the projects list names it. */
 export interface ProjectConversation {
   conversation_id: string;
@@ -179,7 +214,12 @@ export interface ProjectSummary {
   created_at: string;
   created_by: RecordedPrincipal;
   inventory: { digest: string; file_count: number; inventory_made_at: string; added_at: string } | null;
-  repository: { re3data_id: string; repository_name: string; chosen_at: string } | null;
+  repository: {
+    re3data_id: string;
+    repository_name: string;
+    warnings?: string[];
+    chosen_at: string;
+  } | null;
   documents: Record<VersionState, number>;
   conversations: ProjectConversation[];
 }
@@ -198,6 +238,13 @@ export interface ProjectApi {
   ): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
+  /** The repository chosen for the project, or null if none has been. */
+  repository(projectId: string, signal?: AbortSignal): Promise<RepositoryChoice | null>;
+  /**
+   * Chooses a repository an `advisor.repository` run in the project shortlisted. The server takes
+   * its name and standards from the run's evidence, so only the run and the candidate are sent.
+   */
+  chooseRepository(projectId: string, invocationId: string, re3dataId: string): Promise<RepositoryChoice>;
 }
 
 /**
@@ -218,6 +265,10 @@ async function json<T>(response: Response): Promise<T> {
   }
   if (response.status === 400 && problem) throw new RunRefused(problem);
   throw new Error(problem?.detail ?? `the server answered ${response.status}`);
+}
+
+function projectPath(projectId: string): string {
+  return `/api/projects/${encodeURIComponent(projectId)}`;
 }
 
 function documentsPath(projectId: string): string {
@@ -245,6 +296,23 @@ export const httpProjectApi: ProjectApi = {
         `/api/projects/${encodeURIComponent(projectId)}/inventory`,
         signal ? { signal } : {},
       ),
+    );
+  },
+  async repository(projectId, signal) {
+    const response = await fetch(`${projectPath(projectId)}/repository`, signal ? { signal } : {});
+    if (response.status === 404) {
+      const problem = (await response.clone().json().catch(() => null)) as Problem | null;
+      if (problem?.type?.endsWith("/repository-not-chosen")) return null;
+    }
+    return json(response);
+  },
+  async chooseRepository(projectId, invocationId, re3dataId) {
+    return json(
+      await fetch(`${projectPath(projectId)}/repository`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ invocation_id: invocationId, re3data_id: re3dataId }),
+      }),
     );
   },
   async decide(projectId, documentId, request) {

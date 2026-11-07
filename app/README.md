@@ -87,6 +87,13 @@ It is built from:
     refused. A decision on a version that is no longer the latest or undecided, or whose
     `digest` is not that of its text, is a 409 and is recorded as refused
     ([Projects](../docs/specs/projects.md));
+  - `GET /api/projects/{id}/repository`: the repository chosen for a project, the requirement
+    sets it resolved to by version and digest, the warnings from resolving it and the merged
+    requirements; a 404 `repository-not-chosen` when none has been;
+  - `POST /api/projects/{id}/repository` (`{invocation_id, re3data_id}`): chooses one of the
+    candidates an `advisor.repository` run in the project shortlisted. The server reads the
+    repository's name and declared standards from the run's evidence and refuses a run of another
+    agent or project, or a repository it did not shortlist ([Deposit](../docs/specs/deposit.md));
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant ([Orchestration](../docs/specs/orchestration.md)) and refuses every other
     request, so the app is no general A2A way in;

@@ -175,6 +175,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/tests/test_document_answers.py`,
     `app/web/src/components/conversation/DocumentQuestions.test.tsx`, `e2e/shell.spec.ts`).
 
+24. **A repository is chosen from a shortlist, never typed.** On a succeeded `advisor.repository`
+    run in a project, each candidate the run shortlisted has a **Choose** button named after the
+    repository. It sends `POST /api/projects/{id}/repository` with only the run's `invocation_id` and
+    the candidate's re3data identifier. The server refuses a run of another agent or another
+    project, or a repository the run did not shortlist, and nothing is recorded. It reads the
+    repository's name and declared metadata standards from the re3data record the run kept as
+    evidence. The harness resolves them against the deployment's requirement sets
+    (`DD_REPOSITORIES_DIR`, by default `app/config/repositories`, loaded at start-up) and records
+    the choice for the person signed in. The live region says what was chosen and each warning
+    from resolving it. The project page's **Repository** entry
+    (`GET /api/projects/{id}/repository`) shows the repository chosen last, the requirement sets
+    by version, the warnings, and the documents and fields they ask for. Choosing again changes it
+    (`app/tests/test_repository_choice.py`,
+    `app/web/src/components/run/RepositoryShortlist.test.tsx`,
+    `app/web/src/components/project/ProjectPage.test.tsx`).
+
 ## Boundaries and contracts
 
 - **Depends on** the harness (`dd_harness`) and the SDK only. Workspace-level dependency rules

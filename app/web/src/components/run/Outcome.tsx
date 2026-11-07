@@ -19,6 +19,7 @@ import type { RunResult } from "../../run/types";
 import { NotBuilt } from "../NotBuilt";
 import { Button } from "../ui/Button";
 import { EvidencePanel } from "./EvidencePanel";
+import { REPOSITORY_ADVISOR, RepositoryShortlist } from "./RepositoryShortlist";
 import { ResultView } from "./ResultView";
 
 function RunId({ id }: { id: string }) {
@@ -148,6 +149,9 @@ export function Outcome({
             />
           ) : (
             <p>The agent reported its outcome without a result.</p>
+          )}
+          {envelope.agent_id === REPOSITORY_ADVISOR && (
+            <RepositoryShortlist envelope={envelope} idPrefix={idPrefix} />
           )}
           <NotBuilt title="Human review" issues={[72, 73, 394]}>
             <p>

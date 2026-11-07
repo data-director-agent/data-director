@@ -1,6 +1,6 @@
 /**
  * The project's documents, grouped by the state of each one's latest version, those waiting for
- * a decision first, then the statement of how generative AI was used. Each entry is a link, so it
+ * a decision first, then the repository chosen and the statement of how generative AI was used. Each entry is a link, so it
  * can be opened in a new tab and left with Back; the open one is marked as the current page.
  */
 
@@ -9,6 +9,7 @@ import {
   Braces,
   ClipboardList,
   FileText,
+  Landmark,
   type LucideIcon,
   Sparkles,
   Table,
@@ -32,6 +33,9 @@ const GROUPS: { state: VersionState; heading: string }[] = [
 ];
 
 export const DISCLOSURE = "disclosure";
+export const REPOSITORY = "repository";
+/** The entries that are not documents, each opening a panel of its own. */
+export const PANELS: readonly string[] = [REPOSITORY, DISCLOSURE];
 
 /** The state of a document's latest version. */
 export function stateOf(document: ProjectDocument): VersionState | undefined {
@@ -72,7 +76,7 @@ export function DocumentList({
   hrefFor,
 }: {
   documents: ProjectDocument[];
-  /** The open document's id, or `DISCLOSURE`. */
+  /** The open document's id, or one of `PANELS`. */
   selected: string | null;
   hrefFor: (id: string) => string;
 }) {
@@ -104,6 +108,12 @@ export function DocumentList({
       <section className="document-group">
         <h2 className="document-group-heading">About the documents</h2>
         <ul className="plain-list">
+          <Entry
+            to={hrefFor(REPOSITORY)}
+            icon={Landmark}
+            label="Repository"
+            current={selected === REPOSITORY}
+          />
           <Entry
             to={hrefFor(DISCLOSURE)}
             icon={Sparkles}

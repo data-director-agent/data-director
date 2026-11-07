@@ -51,6 +51,8 @@ export interface Envelope {
   evidence?: EvidenceItem[] | null;
   problem?: Problem | null;
   requires_human_review?: boolean;
+  /** The project the run was in, if any. */
+  project_id?: string | null;
 }
 
 /** A check's stored summary; null if the run's directory holds none. */

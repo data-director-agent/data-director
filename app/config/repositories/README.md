@@ -34,7 +34,9 @@ The harness merges the two. A field is identified by its `property`, `qualifier`
 its `form_label`; it may not lower one. Documents are the union of both. Media types, sizes and
 licences come from the override alone.
 
-The harness loads the directory that `DD_REPOSITORIES_DIR` names. When a researcher chooses a
+The harness loads the directory that `DD_REPOSITORIES_DIR` names. The app defaults to this
+directory and loads it at start-up, so a malformed set stops the app. In the app, a researcher
+chooses a repository from `advisor.repository`'s shortlist (`POST /api/projects/{id}/repository`). When a researcher chooses a
 repository, the project records each set it used as `<requirement_set_id>@v<version>`, with the
 SHA-256 of the file, so a later reader can tell which requirements a package was checked against.
 

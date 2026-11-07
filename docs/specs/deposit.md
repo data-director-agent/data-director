@@ -25,9 +25,11 @@ What is built:
   in the project (`dd_harness.requirements`, `dd-harness project choose-repository`);
 - the DataCite and ORDA sets;
 - validation and the package (`dd_harness.deposit`, `dd-harness project validate` and
-  `dd-harness project package`).
+  `dd-harness project package`);
+- choosing a repository in the app from `advisor.repository`'s shortlist, the name and standards
+  read from the run's evidence (`POST /api/projects/{id}/repository`, [The app](app.md)).
 
-Choosing a repository in the app is TODO(#400). Validating and building the package in the app
+Validating and building the package in the app
 is TODO(#623). Giving a drafter the merged set is TODO(#394, #200).
 
 ## Invariants
