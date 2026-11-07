@@ -44,6 +44,8 @@ jobs:
           CONTENT_ID: ${{ github.event.issue.node_id || github.event.pull_request.node_id }}
           STATUS: ${{ github.event_name == 'issues' && 'Inbox' || 'In review' }}
         run: |
+          # The single-quoted GraphQL documents hold GraphQL variables, not shell expansions.
+          # shellcheck disable=SC2016
           set -euo pipefail
 
           # The project and its Status options are found by name, so no identifier is configured.
