@@ -177,6 +177,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   otherwise with its line breaks kept, with actions to copy the text and download it as a file.
   The project's documents page shows the stored text unrendered, since that is what a decision
   names.
+- **A drafted document is shown on the turn that drafted it.** The workspace reads the project's
+  documents (`GET /api/projects/{id}/documents`) when the conversation's project is known and
+  again after each turn. A version whose `drafted_by.invocation_id` is the turn's invocation or
+  one of its delegated children's is a card on that turn, after the reply and before the
+  delegated runs. The card names the document, its version and the state the project log records
+  (and says when a later version has replaced it). It has a preview, closed at first, drawn as a
+  run's result is, and a link to the document on the documents page (`#document-{id}`), which
+  focuses its heading. The new reply's announcement says what the turn drafted. The side bar
+  lists every document of the project with its latest version's state and says how many await a
+  decision. A decision is made only on the documents page.
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
   flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
@@ -232,6 +242,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   beside every conversation. Evidence belongs beside the claim it supports
   (`docs/ui/best-practices.md` §4), so a delegated run opens in its card. When proposals and a
   review gate exist they take the centre and the conversation docks beside them.
+- **What a turn produced, on the turn.** Researchers asked for a README and could not tell that
+  one had been drafted: it was inside a closed run card, and the side bar had only a link to the
+  documents page. A turn's documents are its result, so they come first; the runs are their
+  evidence. The match is by invocation, as the project log records it, so the shell names no
+  agent and shows only what became a project document, never a payload that failed its checks.
+  Deciding stays on the documents page, with its reason rules and its refusal of a stale
+  decision, so that approving is deliberate (`docs/ui/best-practices.md` §2, §8) and done in one
+  place.
 - **Policy in the profile.** Which agent a person talks to first is a policy choice. The profile
   is what a steward reviews and every run cites; a change to the orchestrator raises its version,
   so stored runs say which orchestrator the rules named.
@@ -254,6 +272,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   its tools; the app now has no model of its own and converses with the orchestrator.
 - **A UI schema or presentation hints from agents.** It would couple every agent to one shell's
   layout; the manifest declares derivations and the shell works out presentation.
+- **A drafted document found in a child run's payload, or announced in the orchestrator's
+  reply.** A payload is what the agent returned, not what the project recorded: it may never have
+  become a version, and it carries no state. A model's reply may leave the document out, and a
+  sentence cannot carry its state or a link to it.
+- **Approving a draft from its card in the conversation.** It is fewer steps, but it puts a
+  second decision form in the transcript and invites approval without reading.
 - **Running an agent in the app's process.** See "One path to every agent". It also needed a
   special rule for model keys in the app's process and a second agent list for deployment.
 - **The directory as the home page, with the conversation as one more page.** It makes a person
@@ -312,8 +336,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   cancellation.
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
-- TODO(#160): the project's documents and current phase in the workspace, and starting a
-  conversation in an existing project.
+- TODO(#160): the project's current phase in the workspace, and starting a conversation in an
+  existing project.
 - TODO(#67): no agent declares limits, reliability or data handling yet.
 - TODO(#153): every signed-in person still sees every run and conversation.
 - TODO(#188): the report limits are provisional and counted for the whole process, not per
