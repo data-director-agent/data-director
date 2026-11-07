@@ -507,6 +507,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   : { agentId: orchestrator.id, message: sent.message, inventory: sent.inventory }
               }
               onAnswer={(answer, message) => void answerQuestion(answer, message)}
+              chosenRepository={project?.repository?.re3data_id ?? null}
               {...(projectId
                 ? {
                     onDocumentAnswered: (value: ProjectDocuments) =>
@@ -514,6 +515,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                         projectId,
                         read: { state: "loaded", documents: value.documents },
                       }),
+                    // The panel reads the choice from the projects list, so it is read again.
+                    onRepositoryChosen: () => reloadProjects(),
                   }
                 : {})}
             />

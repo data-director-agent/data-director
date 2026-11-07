@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 import rdflib
 from rdflib.namespace import RDF, SH
-from requirement_sets import ORDA, override, standard, write
+from requirement_sets import ELSEWHERE, ORDA, override, pinned, standard, write
 
 from dd_harness import server
 from dd_harness.deposit import (
@@ -111,8 +111,14 @@ def choose(projects: ProjectStore, project_id: str, tmp_path: Path, **changes: A
     """Record ORDA as chosen, with its override changed as given."""
     folder = tmp_path / f"repositories-{len(list(tmp_path.glob('repositories-*')))}"
     repositories = write(folder, ("standards", standard()), ("overrides", override(**changes)))
-    resolved = load_requirements(repositories).resolve(ORDA, "ORDA", ["Dublin Core"])
-    projects.choose_repository(project_id, resolved, acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.choose_repository(
+        project_id,
+        ORDA,
+        registry=pinned(folder / "re3data"),
+        requirements=load_requirements(repositories),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
+    )
 
 
 def approve(
@@ -206,9 +212,13 @@ def test_a_missing_required_field_is_a_violation_and_a_recommended_one_a_warning
     standard_only = ProjectStore(projects.root.parent / "elsewhere")
     project_id = standard_only.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     folder = write(projects.root.parent / "standard-only", ("standards", standard()))
-    resolved = load_requirements(folder).resolve("r3d100000001", "Elsewhere")
     standard_only.choose_repository(
-        project_id, resolved, acted_for=TEST_PRINCIPAL, caused_by="test"
+        project_id,
+        ELSEWHERE,
+        registry=pinned(folder / "re3data"),
+        requirements=load_requirements(folder),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="test",
     )
     approve(standard_only, runs, project_id, DocumentKind.METADATA_RECORD, json.dumps(record))
     found = validate(standard_only, project_id)

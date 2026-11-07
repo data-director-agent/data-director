@@ -2,9 +2,11 @@
  * Beside the conversation, an overview of the project the workspace is in (docs/specs/app.md):
  * where the project stands, the files attached to it (the inventory it holds) and the documents
  * agents have drafted in it, each with its latest version's state and a link to review it. Where it
- * stands, its dataset, phase, repository and open governance flags, needs a record of the project (#160), so each is drawn as not built, linked
- * to its issues, with no value standing in for it. A delegated run and its evidence open in the
- * transcript, beside the turn they support.
+ * stands names the repository chosen last, with any warning of what the choice does not check
+ * (docs/specs/deposit.md); it is changed by choosing another from a shortlist in the transcript.
+ * Its dataset, phase and open governance flags need a record of the project (#160), so each is
+ * drawn as not built, linked to its issues, with no value standing in for it. A delegated run and
+ * its evidence open in the transcript, beside the turn they support.
  */
 
 import "./ContextPanel.css";
@@ -24,7 +26,6 @@ import { IssueLinks } from "../NotBuilt";
 const NOT_BUILT: { label: string; issues: number[] }[] = [
   { label: "Dataset", issues: [160] },
   { label: "Phase", issues: [160] },
-  { label: "Repository", issues: [160] },
   // TODO(#72, #39): governance flags have no single issue; the review gate and the
   // personal-data pause are the nearest.
   { label: "Governance", issues: [72, 39] },
@@ -118,6 +119,35 @@ export function ContextPanel({
       <section aria-labelledby="state-heading">
         <h3 id="state-heading">Current state</h3>
         <dl className="project-state">
+          <div>
+            <dt>Repository</dt>
+            <dd>
+              {project?.repository ? (
+                <>
+                  {project.repository.repository_name}{" "}
+                  <span className="hint">
+                    (re3data <code>{project.repository.re3data_id}</code>)
+                  </span>
+                  {project.repository.warnings.length > 0 && (
+                    <ul className="plain-list" aria-label="What this choice does not check">
+                      {project.repository.warnings.map((w) => (
+                        <li key={w}>
+                          <span className="status status-warn">Warning</span> {w}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <br />
+                  <span className="hint">To change it, choose another from a shortlist.</span>
+                </>
+              ) : (
+                <span className="hint">
+                  None chosen yet. Ask Data Director which repositories suit the dataset, then
+                  choose one from the shortlist.
+                </span>
+              )}
+            </dd>
+          </div>
           {NOT_BUILT.map(({ label, issues }) => (
             <div key={label}>
               <dt>{label}</dt>

@@ -19,17 +19,19 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from dd_app.config import DEFAULT_PROJECTS_DIR
+from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_harness import conversations
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.projects import UnknownProjectError
+from dd_harness.requirements import Requirements, load_requirements
 from dd_harness.settings import (
     Settings,
     SettingsError,
     build_conductor,
     project_storage,
     projects_dir,
+    repositories_dir,
 )
 from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
 from dd_sdk.contract.models import (
@@ -98,6 +100,9 @@ class Governance:
     # The projects' logs, which the harness alone writes (docs/specs/projects.md). None where the
     # app keeps no projects, as in a test that needs none.
     projects: ProjectStorage | None = None
+    # The requirement sets a chosen repository resolves to (docs/specs/deposit.md), from
+    # `DD_REPOSITORIES_DIR`. None where the app lets nobody choose, as in a test that needs none.
+    requirements: Requirements | None = None
     # Conversations started in this process that have no turn yet. There is no conversation store
     # (docs/specs/orchestration.md): once a turn is stored the store holds the conversation, and an
     # id never used is forgotten when the app stops.
@@ -131,7 +136,8 @@ class Governance:
             raise SettingsError(
                 f"DD_PROJECTS_DIR {root} cannot be used: {exc.strerror or exc}"
             ) from exc
-        return cls(conductor, authenticator, projects)
+        requirements = load_requirements(repositories_dir(DEFAULT_REPOSITORIES_DIR))
+        return cls(conductor, authenticator, projects, requirements)
 
     def __post_init__(self) -> None:
         # The conductor takes each run's project from the same logs the app reads.

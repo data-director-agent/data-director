@@ -24,8 +24,14 @@ import type {
 } from "../../conversation/inventory";
 import { type ChoiceAnswer, replyOwnText, replyQuestion } from "../../conversation/question";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
-import { type ProjectDocument, type ProjectDocuments, useProjectApi } from "../../project/api";
+import {
+  type ProjectDocument,
+  type ProjectDocuments,
+  type RepositoryRequirements,
+  useProjectApi,
+} from "../../project/api";
 import { draftedBy } from "../../project/drafted";
+import { shortlistOf } from "../../project/shortlist";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
 import { OUTCOME, REASON } from "../../manifest/wording";
@@ -37,6 +43,7 @@ import { DocumentCard } from "./DocumentCard";
 import { AskedQuestion, ChoiceQuestion } from "./ChoiceQuestion";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
+import { RepositoryShortlist } from "./RepositoryShortlist";
 import { RunDetail } from "./RunDetail";
 
 function replyText(conversation: Conversation, turn: ConversationTurn): string {
@@ -145,6 +152,8 @@ export function Transcript({
   documents = null,
   onAnswer,
   onDocumentAnswered,
+  chosenRepository = null,
+  onRepositoryChosen,
 }: {
   conversation: Conversation | null;
   agents: AgentView[];
@@ -159,6 +168,11 @@ export function Transcript({
   /** Takes the project's documents after the researcher answers a draft's questions; without
    * it, no draft's questions can be answered. */
   onDocumentAnswered?: (value: ProjectDocuments) => void;
+  /** The re3data identifier of the repository the project chose last, if any. */
+  chosenRepository?: string | null;
+  /** Takes the requirements a repository the researcher chose from a shortlist resolved to;
+   * without it, no shortlist can be chosen from. */
+  onRepositoryChosen?: (requirements: RepositoryRequirements) => void;
 }) {
   // Only the inventory the project holds now is served, so only its chip opens it.
   const projectId = conversation?.project_id;
@@ -183,6 +197,9 @@ export function Transcript({
         const latest = index === conversation.turns.length - 1;
         const next = conversation.turns[index + 1];
         const answer = next ? (conversation.inputs[next.invocation_id]?.choice_answer ?? null) : null;
+        const shortlists = [turn.envelope, ...turn.children]
+          .map((envelope) => ({ envelope, shortlist: shortlistOf(envelope) }))
+          .filter(({ shortlist }) => shortlist.length > 0);
         return (
         <li key={turn.invocation_id}>
           {conversation.version_changes
@@ -244,6 +261,18 @@ export function Transcript({
               ))}
             </ul>
           )}
+          {projectId &&
+            onRepositoryChosen &&
+            shortlists.map(({ envelope, shortlist }) => (
+              <RepositoryShortlist
+                key={`shortlist-${envelope.invocation_id}`}
+                projectId={projectId}
+                shortlist={shortlist}
+                chosenId={chosenRepository}
+                idPrefix={`shortlist-${envelope.invocation_id}`}
+                onChosen={onRepositoryChosen}
+              />
+            ))}
           {turn.children.length > 0 && (
             <ul aria-label={`Agents ${turn.agent_id} delegated to`} className="plain-list">
               {turn.children.map((child) => (
