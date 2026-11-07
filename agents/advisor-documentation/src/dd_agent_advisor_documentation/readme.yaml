@@ -1,5 +1,6 @@
-# advisor.documentation's README template: the draft's sections, in order. A mock's table
-# (docs/specs/agents.md): it writes no prose of its own, and the real editor replaces it, TODO(#358).
+# advisor.documentation's README template: the draft's sections, in order
+# (docs/specs/drafting.md). A model, where one is configured, writes prose only for a section with
+# a fact to draft from, and never in place of its `ask`.
 #
 # The sections are the common core of the research data README templates compared in #200:
 # Cornell's Data README, Dryad's and the Borealis working group's minimum README. `ask` says what

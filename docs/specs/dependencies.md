@@ -61,7 +61,7 @@ modules are not dependencies here.
 | `joserfc` | Harness, app | ID-token verification in `dd_harness.identity`; the RS256 JWT a GitHub App presents in `dd_app.github_auth` | Another JOSE library, or RS256 with `cryptography`. |
 | `ag-ui-protocol` | Workbench | `workbench.transport.agui` | Two pydantic event models and an SSE encoder. |
 | `rank-bm25` (with numpy) | Retrieving agents | Each agent's `snapshot` module | About forty lines of BM25. |
-| `anthropic` | Orchestrator (required); retrieving advisers (optional extra) | `dd_agent_orchestrator_model.model`; each adviser's `explain` module | The rule-based orchestrator stub, or an adviser's template explainer; any HTTP client against the Messages API. |
+| `anthropic` | Orchestrator (required); retrieving advisers and the Documentation Editor (optional extra) | `dd_agent_orchestrator_model.model`; each adviser's `explain` module; the Documentation Editor's `prose` module | The rule-based orchestrator stub, an adviser's template explainer or the editor's template writer; any HTTP client against the Messages API. |
 | `opf-fido` | `dd-inventory` | `dd_inventory.identify` | Media types from file extensions, with no PRONOM identifier. |
 | `frictionless` | `dd-inventory` | `dd_inventory.tables` | The researcher gives a table's fields by hand. |
 | `react`, `react-dom` | App shell | The shell's components | Preact with `preact/compat`. |
