@@ -277,3 +277,28 @@ def make_conductor_template(runs_dir: Path, projects: ProjectStore) -> Conductor
     conductor = make_conductor(runs_dir, DocumentationEditor())
     conductor.projects = projects
     return conductor
+
+
+def test_no_model_call_when_no_definition_or_unit_is_asked() -> None:
+    client = StubClient({})
+    writer = AnthropicWriter(client=client, model_id=MODEL)  # type: ignore[arg-type]
+    asks = [Ask("q-" + "0" * 16, "a.csv", "age_yrs", "missing_values")]
+    got = writer.suggest({}, asks, None)  # type: ignore[arg-type]
+    assert got.answers == {} and got.model_id is None and client.sent == []
+
+
+def test_a_null_or_blank_suggestion_is_no_suggestion_and_not_dropped() -> None:
+    asks = [Ask(f"q-{n:016x}", "a.csv", "age_yrs", "unit") for n in range(2)]
+    got = check_suggestions(
+        json.dumps({asks[0].question_id: None, asks[1].question_id: " "}), {}, asks
+    )
+    assert got.answers == {} and got.dropped == ()
+
+
+def test_a_link_the_facts_give_may_be_named() -> None:
+    link = "https://example.org/codebook"
+    ask = Ask("q-" + "0" * 16, "a.csv", "age_yrs", "description")
+    got = check_suggestions(
+        json.dumps({ask.question_id: f"Age, as {link} defines it"}), {"see": link}, [ask]
+    )
+    assert ask.question_id in got.answers
