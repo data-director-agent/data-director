@@ -48,6 +48,7 @@ from dd_app.governance import (
 from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
+from dd_harness.project_access import Role
 from dd_harness.projects import ProjectStore
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
@@ -909,6 +910,69 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
         "My logger data",
     )
     check_fixture("projects.json", normalised_conversation(response.json()))
+
+
+def test_every_project_route_answers_someone_elses_project_as_one_that_does_not_exist(
+    in_projects: tuple[Governance, Any],
+):
+    """Docs/specs/projects.md, invariant 17: a person with no role in a project can neither read
+    nor change it by any route, even knowing its identifier, and is told no more than for a
+    project that does not exist. The routes are read from the server, so a new one is covered."""
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
+    theirs = store.create(acted_for=someone, caused_by="test")
+    store.add_inventory(theirs, a_file_inventory("b.csv"), acted_for=someone, caused_by="test")
+    before = store.events(theirs)
+    params = {
+        "project_id": theirs,
+        "document_id": str(uuid.UUID(int=0x0190_0000_0000_7000_8000_0000_0000_0000)),
+        "digest": "a" * 64,
+        "step_id": "anything",
+    }
+
+    checked = []
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/api/projects/{project_id}"):
+            continue
+        for method in sorted(set(route.methods) - {"HEAD"}):
+            url = path.format(**params)
+            body: dict[str, Any] | None = None if method == "GET" else {}
+            response = client.request(method, url, json=body)
+            missing = client.request(
+                method, path.format(**{**params, "project_id": str(uuid.uuid4())}), json=body
+            )
+            assert (response.status_code, method, path) == (404, method, path)
+            assert response.json()["type"] == missing.json()["type"]
+            assert response.json()["type"].endswith("project-not-found")
+            checked.append((method, path))
+    assert checked
+    assert store.events(theirs) == before
+
+
+def test_a_member_asking_for_an_owners_action_is_forbidden_and_may_still_read(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    """Docs/specs/projects.md, invariant 17: a member is told an owner's action is not theirs
+    (403), not that the project is missing. No one is a plain member until membership events are
+    built (#389), so the role the check reads is stood in for here."""
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    before = store.events(project_id)
+    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: Role.MEMBER)
+    document_id = str(uuid.UUID(int=0x0190_0000_0000_7000_8000_0000_0000_0000))
+
+    decided = client.post(f"/api/projects/{project_id}/documents/{document_id}/decisions", json={})
+    assert decided.status_code == 403
+    assert decided.json()["type"].endswith("project-action-forbidden")
+    assert client.get(f"/api/projects/{project_id}/documents").status_code == 200
+    assert store.events(project_id) == before
 
 
 def test_the_projects_page_is_served_and_lists_nothing_without_projects(

@@ -37,8 +37,11 @@ an agent the project's facts and recording its draft; document versions and a pe
 which the app shows and takes at `/projects/{project_id}`; a person's answers to a draft's
 questions, taken on the draft's card in the conversation and given to the next draft
 ([Drafting documents](drafting.md)); the app's list of a person's projects
-at `/projects` (`GET /api/projects`), which shows only the projects they created until membership
-and the access check exist, TODO(#389), and leaves out a project with nothing in it yet; the app
+at `/projects` (`GET /api/projects`), which leaves out a project with nothing in it yet; the
+access check `dd_harness.project_access`, which reads each principal's role from the log, and its
+use by the conductor before a run in a project and by every route of the app's server under
+`/api/projects/{project_id}`, with the creator as the only owner until membership is built,
+TODO(#389); the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
 the inventory command; and the core
 classes `FileInventory`, `InventorySummary` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
@@ -159,7 +162,10 @@ intended design, and each part says where it is not built yet.
     inventories, documents, decisions) is visible to the project's members and to no one else
     except through a deployment role, TODO(#154, #372). A non-member is refused with status 404,
     so that a refusal does not reveal whether the project exists; a member attempting an owner's
-    action with 403. Not built yet, TODO(#389).
+    action with 403. Enforced by `dd_harness.project_access` (`harness/tests/test_project_access.py`,
+    `harness/tests/test_project_runs.py`) and the app's `in_project` route guard
+    (`app/tests/test_app.py`); until membership is built the creator is the only one with a role,
+    TODO(#389).
 18. **No principal's identifier or name enters an agent's input.** A conversation's history marks
     each turn's speaker with a label pseudonymous within the project, such as "Member 1", stable
     across its conversations. Not built yet, TODO(#390).

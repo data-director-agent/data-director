@@ -33,7 +33,9 @@ is recorded in the envelope and the crate and is never sent to the agent.
 
 Projects (docs/specs/projects.md). A run belongs to a project when its conversation was started
 in one, or, for a delegated child, when its parent did. The conductor sets `project_id` on the
-request and the envelope; a caller may not, and the agent is never sent it. Before the input is
+request and the envelope; a caller may not, and the agent is never sent it. A run in a project
+whose principal may not read it (`project_access`) is refused with `UnknownProjectError` before
+anything is stored. Before the input is
 hashed, the conductor puts the project's facts into an input class that asks for them
 (`project_facts`). A run in a project that succeeds with a `Document` is recorded in the project
 as a proposed version, caused by the run; a draft the project refuses fails the run instead.
@@ -60,9 +62,9 @@ from typing import Any
 from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
-from dd_harness import grounding, policy, project_facts, shacl
+from dd_harness import grounding, policy, project_access, project_facts, shacl
 from dd_harness import sources as source_check
-from dd_harness.projects import ProjectError
+from dd_harness.projects import ProjectError, UnknownProjectError
 from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registry
 from dd_harness.remote import Received, RemoteAgent
@@ -221,6 +223,17 @@ class Conductor:
             if self.projects is not None and request.conversation_id is not None
             else None
         )
+        # Only someone who may read the project runs anything in it; anyone else is answered as
+        # for a project that does not exist (docs/specs/projects.md, invariant 17). A delegated
+        # child is not checked again: its grant carries its parent's project.
+        if (
+            project_id is not None
+            and self.projects is not None
+            and not project_access.may(
+                self.projects, project_id, acting_for, project_access.Action.READ
+            )
+        ):
+            raise UnknownProjectError(f"no project {project_id!r}")
         return self._invoke(request, acting_for, project_id=project_id)
 
     def invoke_delegated(
