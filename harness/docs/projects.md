@@ -207,5 +207,4 @@ until a person approves one. The conductor gives it to every drafter in the proj
 
 - Only owners are to decide, and membership is not built, TODO(#389).
 - The app cannot add an inventory to a project, TODO(#395).
-- The app cannot validate a project or build its package, TODO(#623).
 - How long a project is kept, and what deleting one removes, TODO(#141).

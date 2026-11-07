@@ -215,7 +215,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   indented), and its Source tab shows the stored text exactly, since that is what a decision names
   by its digest and what the deposit package holds. Its Versions tab shows each version's
   decision and the lines it changed from the one before. While a person edits, the preview shows
-  their version.
+  their version. The list ends with the statement of how generative AI was used and the
+  deposit package. The deposit package entry checks the project against its chosen repository's
+  requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
+  what is worth fixing, each in the harness's words. It offers to build the package only after
+  a check the project passed, and then a link to download the zip by its digest. A decision made
+  since the check withdraws that offer until the project is checked again. What a check or a
+  build did is said once in a live region that is in the panel from the start; focus stays on
+  the button pressed.
 - **A drafted document is shown on the turn that drafted it.** The workspace reads the project's
   documents (`GET /api/projects/{id}/documents`) when the conversation's project is known and
   again after each turn. A version whose `drafted_by.invocation_id` is the turn's invocation or

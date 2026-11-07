@@ -1,6 +1,6 @@
 /**
  * The project's documents, grouped by the state of each one's latest version, those waiting for
- * a decision first, then the statement of how generative AI was used. Each entry is a link, so it
+ * a decision first, then the statement of how generative AI was used and the deposit package. Each entry is a link, so it
  * can be opened in a new tab and left with Back; the open one is marked as the current page.
  */
 
@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileText,
   type LucideIcon,
+  Package,
   Sparkles,
   Table,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const GROUPS: { state: VersionState; heading: string }[] = [
 ];
 
 export const DISCLOSURE = "disclosure";
+export const DEPOSIT = "deposit";
 
 /** The state of a document's latest version. */
 export function stateOf(document: ProjectDocument): VersionState | undefined {
@@ -72,7 +74,7 @@ export function DocumentList({
   hrefFor,
 }: {
   documents: ProjectDocument[];
-  /** The open document's id, or `DISCLOSURE`. */
+  /** The open document's id, or `DISCLOSURE` or `DEPOSIT`. */
   selected: string | null;
   hrefFor: (id: string) => string;
 }) {
@@ -109,6 +111,12 @@ export function DocumentList({
             icon={Sparkles}
             label="Use of generative AI"
             current={selected === DISCLOSURE}
+          />
+          <Entry
+            to={hrefFor(DEPOSIT)}
+            icon={Package}
+            label="Deposit package"
+            current={selected === DEPOSIT}
           />
         </ul>
       </section>

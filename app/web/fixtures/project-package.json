@@ -1,0 +1,144 @@
+{
+  "conforms": true,
+  "package": {
+    "digest": "0000000000000000000000000000000000000000000000000000000000000003",
+    "href": "/api/projects/01900000-0000-7000-8000-000000000001/packages/0000000000000000000000000000000000000000000000000000000000000003",
+    "size": 1
+  },
+  "project_id": "01900000-0000-7000-8000-000000000001",
+  "report": {
+    "@context": {
+      "dd": "https://w3id.org/data-director/",
+      "schema": "http://schema.org/",
+      "sh": "http://www.w3.org/ns/shacl#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+    },
+    "@type": "sh:ValidationReport",
+    "dd:project": {
+      "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+    },
+    "dd:requirements": {
+      "@id": "ni:///sha-256;0000000000000000000000000000000000000000006"
+    },
+    "dd:validated_at": {
+      "@type": "xsd:dateTime",
+      "@value": "2026-01-01T00:00:00Z"
+    },
+    "sh:conforms": true,
+    "sh:result": [
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "the deployment has no override for Zenodo: only DataCite Metadata Schema 4 is checked, not the repository's own form, formats, sizes or licences",
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/RepositoryChoiceConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no contributors, which Zenodo recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/contributor"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no dates, dateType Created, which Zenodo recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/dateCreated"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no relatedIdentifiers, which Zenodo recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/citation"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
+        },
+        "sh:resultMessage": "The metadata record has no geoLocations, which Zenodo recommends.",
+        "sh:resultPath": {
+          "@id": "http://schema.org/spatialCoverage"
+        },
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      }
+    ]
+  },
+  "report_digest": "0000000000000000000000000000000000000000000000000000000000000004",
+  "requirements_digest": "0000000000000000000000000000000000000000000000000000000000000005",
+  "validated_at": "2026-01-01T00:00:00Z",
+  "violations": [],
+  "warnings": [
+    {
+      "component": "https://w3id.org/data-director/RepositoryChoiceConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "the deployment has no override for Zenodo: only DataCite Metadata Schema 4 is checked, not the repository's own form, formats, sizes or licences",
+      "path": null
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no contributors, which Zenodo recommends.",
+      "path": "http://schema.org/contributor"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no dates, dateType Created, which Zenodo recommends.",
+      "path": "http://schema.org/dateCreated"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no relatedIdentifiers, which Zenodo recommends.",
+      "path": "http://schema.org/citation"
+    },
+    {
+      "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
+      "message": "The metadata record has no geoLocations, which Zenodo recommends.",
+      "path": "http://schema.org/spatialCoverage"
+    }
+  ]
+}

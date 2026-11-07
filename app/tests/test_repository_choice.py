@@ -4,50 +4,27 @@ export, and the server answers with the requirements it resolved to and their wa
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-import yaml
 from starlette.testclient import TestClient
-from support import check_fixture, configure_env, dist_dir, new_governance
+from support import (
+    EXPORT,
+    ORDA,
+    ZENODO,
+    check_fixture,
+    configure_env,
+    dist_dir,
+    new_governance,
+    pin_export,
+)
 
 from dd_app.app import build_app
 from dd_app.governance import Governance
 from dd_harness.projects import REPOSITORY_CHOSEN
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import TEST_PRINCIPAL
-
-ORDA = "r3d100012124"
-ZENODO = "r3d100010468"
-EXPORT = "re3data:export:2026-11"
-# The fields a choice reads, as the export's registry.jsonl holds them.
-RECORDS = (
-    {
-        "re3data_id": ORDA,
-        "name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
-        "metadata_standards": ["Dublin Core"],
-    },
-    {"re3data_id": ZENODO, "name": "Zenodo", "metadata_standards": ["DataCite Metadata Schema"]},
-)
-
-
-def pin_export(root: Path) -> Path:
-    """A `sources.yaml` pinning a re3data export of `RECORDS`, as `dd-re3data fetch` builds."""
-    root.mkdir(parents=True, exist_ok=True)
-    data = "".join(json.dumps(r, sort_keys=True) + "\n" for r in RECORDS).encode()
-    (root / "registry.jsonl").write_bytes(data)
-    entry = {
-        "snapshot_refs": [EXPORT],
-        "path": "registry.jsonl",
-        "id_field": "re3data_id",
-        "sha256": hashlib.sha256(data).hexdigest(),
-    }
-    config = root / "sources.yaml"
-    config.write_text(yaml.safe_dump({"sources": [entry]}), "utf-8")
-    return config
 
 
 @pytest.fixture
