@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from dd_harness.testing.classes import (
     ProbeCheck,
@@ -212,7 +212,8 @@ class DocumentStub:
 
     Given a `model_id`, it stands for a drafter that writes with a language model: it records one
     model call, as a real agent would through `dd_sdk.prompts`, without calling any model, and
-    says its draft was derived by `model` (docs/specs/disclosure.md). With `asks`, its draft asks
+    says its draft was derived by `model` (docs/specs/disclosure.md); its card says the model is
+    `hosting` (docs/specs/projects.md, invariant 8). With `asks`, its draft asks
     `STUB_QUESTION` (docs/specs/drafting.md). Given any `draft_answers`, it says how many."""
 
     spec = AgentSpec(
@@ -225,7 +226,13 @@ class DocumentStub:
         payload=ClassSchema.of(Document),
     )
 
-    def __init__(self, model_id: str | None = None, *, asks: bool = False) -> None:
+    def __init__(
+        self,
+        model_id: str | None = None,
+        *,
+        asks: bool = False,
+        hosting: Literal["hosted", "local"] = "local",
+    ) -> None:
         self.model_id = model_id
         self.asks = asks
         if model_id is not None:
@@ -233,7 +240,7 @@ class DocumentStub:
             self.spec = replace(
                 self.spec,
                 grounding_mode=GroundingMode.INPUT_ONLY,
-                models=(ModelUse(MODEL_PROVIDER, model_id, "local"),),
+                models=(ModelUse(MODEL_PROVIDER, model_id, hosting),),
             )
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
