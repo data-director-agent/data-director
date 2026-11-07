@@ -27,6 +27,7 @@ with an indexed query (docs/specs/storage.md).
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 from dd_harness.storage import RunStorage
@@ -43,8 +44,11 @@ MESSAGE_TITLE_MAX = 60
 ELLIPSIS = "…"
 
 
-def list_conversations(store: RunStorage) -> list[dict[str, Any]]:
-    """One summary per conversation, most recently active first."""
+def list_conversations(
+    store: RunStorage, *, include: Callable[[dict[str, Any]], bool] | None = None
+) -> list[dict[str, Any]]:
+    """One summary per conversation, most recently active first; with `include`, only the
+    conversations whose first turn's envelope it accepts."""
     summaries: dict[str, dict[str, Any]] = {}
     first_turns: dict[str, dict[str, Any]] = {}
     for envelope in store.iter_envelopes():
@@ -66,6 +70,9 @@ def list_conversations(store: RunStorage) -> list[dict[str, Any]]:
         summary["last_completed_at"] = envelope["completed_at"]
         summary["last_status"] = envelope["outcome"]["status"]
     for conversation_id, envelope in first_turns.items():
+        if include is not None and not include(envelope):
+            del summaries[conversation_id]
+            continue
         summaries[conversation_id].update(title_of(store, envelope))
     return sorted(summaries.values(), key=lambda s: str(s["last_completed_at"]), reverse=True)
 

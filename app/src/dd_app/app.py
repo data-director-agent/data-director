@@ -198,14 +198,14 @@ def build_app(
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             return _refused(str(exc))
 
-    # TODO(#153): every signed-in person still sees every run and conversation; each is to see
-    # only their own.
-    async def list_runs(request: Request, _: Principal) -> Response:
-        return JSONResponse(governance.runs())
+    # Each person sees only their own runs and conversations (#153); someone else's is answered
+    # with 404, as one that does not exist.
+    async def list_runs(request: Request, reader: Principal) -> Response:
+        return JSONResponse(await run_in_threadpool(governance.runs, reader))
 
-    async def get_run(request: Request, _: Principal) -> Response:
+    async def get_run(request: Request, reader: Principal) -> Response:
         invocation_id = request.path_params["invocation_id"]
-        run = governance.stored_run(invocation_id)
+        run = await run_in_threadpool(governance.stored_run, invocation_id, reader)
         if run is None:
             return _problem(404, "run-not-found", "No such run", f"No run {invocation_id!r}.")
         return JSONResponse(run)
@@ -231,7 +231,7 @@ def build_app(
             )
         except UnknownProjectError:
             return _no_project(str(project_id))
-        found = governance.conversation(conversation_id) or {}
+        found = governance.conversation(conversation_id, acting_for) or {}
         return JSONResponse(
             {"conversation_id": conversation_id, "project_id": found.get("project_id")},
             status_code=201,
@@ -281,7 +281,7 @@ def build_app(
                     "`choice_answer` must name the turn it answers (`answer_to`) and give "
                     "`answer_values`, a list of strings, and optionally `answer_other`."
                 )
-        if governance.conversation(conversation_id) is None:
+        if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
             return _no_conversation(conversation_id)
         started = time.monotonic()
         outcome = "answered"
@@ -312,12 +312,12 @@ def build_app(
                 time.monotonic() - started,
             )
 
-    async def list_conversations(request: Request, _: Principal) -> Response:
-        return JSONResponse(governance.conversations())
+    async def list_conversations(request: Request, reader: Principal) -> Response:
+        return JSONResponse(await run_in_threadpool(governance.conversations, reader))
 
-    async def get_conversation(request: Request, _: Principal) -> Response:
+    async def get_conversation(request: Request, reader: Principal) -> Response:
         conversation_id = request.path_params["conversation_id"]
-        found = governance.conversation(conversation_id)
+        found = await run_in_threadpool(governance.conversation, conversation_id, reader)
         if found is None:
             return _no_conversation(conversation_id)
         return JSONResponse(found)
@@ -660,7 +660,7 @@ def build_app(
             {**identity, **deployment, "feedback_enabled": feedback_source is not None}
         )
 
-    async def send_feedback(request: Request, _: Principal) -> Response:
+    async def send_feedback(request: Request, reporter: Principal) -> Response:
         if feedback_source is None:
             return _problem(
                 503,
@@ -682,10 +682,11 @@ def build_app(
             return _problem(429, "rate-limited", "Too many reports", str(exc))
         context: list[str] = []
         if report.include_context:
-            if report.run and (stored := governance.stored_run(report.run)) is not None:
+            # Only what the reporter may read themselves goes into a report (#153).
+            if report.run and (stored := governance.stored_run(report.run, reporter)) is not None:
                 context += feedback.run_context(stored)
             if report.conversation:
-                found = governance.conversation(report.conversation)
+                found = governance.conversation(report.conversation, reporter)
                 if found is not None:
                     context += feedback.conversation_context(found)
         text = feedback.issue_body(report, identity, context)

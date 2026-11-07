@@ -39,7 +39,12 @@ from dd_agent_orchestrator_stub.agent import build as build_director
 from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
-from dd_app.governance import INVENTORY_ONLY_TEXT, Governance, TurnConflictError
+from dd_app.governance import (
+    INVENTORY_ONLY_TEXT,
+    Governance,
+    TurnConflictError,
+    UnknownConversationError,
+)
 from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
@@ -1067,3 +1072,59 @@ def test_a_turn_to_an_unknown_agent_is_refused_before_it_runs(governance: Govern
     assert response.status_code == 400
     assert response.json()["type"].endswith("request-refused")
     assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+# Whose work is whose (#153): each person sees and continues only their own runs and
+# conversations, and someone else's is answered as one that does not exist.
+
+OTHER = TEST_PRINCIPAL.model_copy(
+    update={"principal_id": "https://orcid.org/0000-0001-5000-0007", "name": "Ada Example"}
+)
+
+
+@pytest.mark.parametrize("fixture", ["delegating", "in_projects"])
+def test_a_conversation_and_its_delegations_are_its_starters_alone(
+    fixture: str, request: pytest.FixtureRequest
+):
+    governance, _app = request.getfixturevalue(fixture)
+    conversation_id = governance.start_conversation(OTHER)
+    # Not yet given a turn: its starter may read it, nobody else.
+    assert governance.conversation(conversation_id, OTHER) is not None
+    assert governance.conversation(conversation_id, TEST_PRINCIPAL) is None
+    with pytest.raises(UnknownConversationError):
+        asyncio.run(
+            governance.turn(
+                conversation_id, "orchestrator.stub", "hello world", None, TEST_PRINCIPAL
+            )
+        )
+    assert list(governance.conductor.store.iter_envelopes()) == []
+
+    answered = asyncio.run(
+        governance.turn(conversation_id, "orchestrator.stub", "hello world", None, OTHER)
+    )
+    envelope = answered["envelope"]
+    (child,) = envelope["delegations"]
+
+    # The delegated child is the starter's, as its parent is.
+    assert {r["invocation_id"] for r in governance.runs(OTHER)} == {
+        envelope["invocation_id"],
+        child["delegated_invocation_id"],
+    }
+    assert governance.runs(TEST_PRINCIPAL) == []
+    for invocation_id in (envelope["invocation_id"], child["delegated_invocation_id"]):
+        assert governance.stored_run(invocation_id, OTHER) is not None
+        assert governance.stored_run(invocation_id, TEST_PRINCIPAL) is None
+    assert [c["conversation_id"] for c in governance.conversations(OTHER)] == [conversation_id]
+    assert governance.conversations(TEST_PRINCIPAL) == []
+    assert governance.conversation(conversation_id, TEST_PRINCIPAL) is None
+    with pytest.raises(UnknownConversationError):
+        asyncio.run(
+            governance.turn(
+                conversation_id,
+                "orchestrator.stub",
+                "hello again",
+                envelope["invocation_id"],
+                TEST_PRINCIPAL,
+            )
+        )
+    assert len(governance.runs(OTHER)) == 2

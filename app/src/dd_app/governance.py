@@ -103,10 +103,11 @@ class Governance:
     # The requirement sets a chosen repository resolves to (docs/specs/deposit.md), from
     # `DD_REPOSITORIES_DIR`. None where the app lets nobody choose, as in a test that needs none.
     requirements: Requirements | None = None
-    # Conversations started in this process that have no turn yet. There is no conversation store
+    # Conversations started in this process that have no turn yet, in no project, each with the
+    # `principal_id` of whoever started it. There is no conversation store
     # (docs/specs/orchestration.md): once a turn is stored the store holds the conversation, and an
     # id never used is forgotten when the app stops.
-    _started: set[str] = field(default_factory=set, repr=False)
+    _started: dict[str, str] = field(default_factory=dict, repr=False)
     # One lock per conversation, held from reading its history until its turn is stored, with
     # the number of turns holding or waiting for it; the entry goes when that reaches nought.
     _turn_locks: dict[str, tuple[asyncio.Lock, int]] = field(default_factory=dict, repr=False)
@@ -175,16 +176,12 @@ class Governance:
             if project_id is not None:
                 raise UnknownProjectError(f"no project {project_id!r}")
             conversation_id = new_invocation_id()
-            self._started.add(conversation_id)
+            self._started[conversation_id] = acting_for.principal_id
             return conversation_id
         caused_by = "POST /api/conversations"
         if project_id is None:
             project_id = self.projects.create(acted_for=acting_for, caused_by=caused_by)
-        elif (
-            not self.projects.exists(project_id)
-            or self.projects.summary(project_id)["created_by"].get("principal_id")
-            != acting_for.principal_id
-        ):
+        elif not self.may_read_project(project_id, acting_for):
             raise UnknownProjectError(f"no project {project_id!r}")
         return self.projects.start_conversation(
             project_id, acted_for=acting_for, caused_by=caused_by
@@ -253,7 +250,10 @@ class Governance:
             )
         async with self._turn_lock(conversation_id):
             found = await asyncio.to_thread(self._conversation, conversation_id)
-            if found is None:
+            # Someone else's conversation is answered as one that does not exist (#153).
+            if found is None or not await asyncio.to_thread(
+                self.may_read_conversation, conversation_id, acting_for
+            ):
                 raise UnknownConversationError(conversation_id)
             latest = found["turns"][-1]["invocation_id"] if found["turns"] else None
             if follows != latest:
@@ -289,7 +289,7 @@ class Governance:
                 # lock is kept until it is stored: the next turn must be shown this one.
                 await asyncio.wait({run})
                 raise
-        self._started.discard(conversation_id)
+        self._started.pop(conversation_id, None)
         return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
 
     def _add_inventory(
@@ -321,10 +321,55 @@ class Governance:
             else:
                 self._turn_locks[conversation_id] = (lock, count - 1)
 
-    def conversations(self) -> list[dict[str, Any]]:
-        """Every stored conversation, most recently active first (`GET /api/conversations`). One
-        started but given no turn yet is not listed."""
-        return conversations.list_conversations(self.conductor.store)
+    # Who may read what (#153, docs/specs/app.md). Each person sees their own work: a run or
+    # conversation in a project is readable by whoever may read the project, and one in no project
+    # by the principal it acted for. Ownership is read from what the run store and the project logs
+    # already record, never from a second record that could disagree with them. A delegated child
+    # carries its parent's `acting_for` and `project_id`, so it belongs where its parent does.
+    # TODO(#141): listing scans the run store; an index by principal comes with its record (#653).
+
+    def may_read_project(self, project_id: str, reader: Principal) -> bool:
+        """Whether `reader` may read the project `project_id`: here, whether they created it.
+
+        TODO(#389): membership replaces this, and every check of a project goes through here."""
+        if self.projects is None or not self.projects.exists(project_id):
+            return False
+        created_by = self.projects.summary(project_id)["created_by"]
+        return bool(created_by.get("principal_id") == reader.principal_id)
+
+    def may_read_run(self, envelope: Mapping[str, Any], reader: Principal) -> bool:
+        """Whether `reader` may read the stored run whose envelope is `envelope`."""
+        project_id = envelope.get("project_id")
+        if project_id and self.projects is not None:
+            return self.may_read_project(project_id, reader)
+        acting_for = envelope.get("acting_for") or {}
+        return bool(acting_for.get("principal_id") == reader.principal_id)
+
+    def may_read_conversation(self, conversation_id: str, reader: Principal) -> bool:
+        """Whether `reader` may read, and add a turn to, the conversation `conversation_id`: one
+        in a project follows the project; one in no project belongs to whoever started it, which
+        is whom its first turn acted for once it has one."""
+        project_id = self.projects.project_of(conversation_id) if self.projects else None
+        if project_id is not None:
+            return self.may_read_project(project_id, reader)
+        if conversation_id in self._started:
+            return self._started[conversation_id] == reader.principal_id
+        first = next(
+            (
+                e
+                for e in self.conductor.store.iter_envelopes(conversation_id=conversation_id)
+                if not e.get("parent_invocation_id")
+            ),
+            None,
+        )
+        return first is not None and self.may_read_run(first, reader)
+
+    def conversations(self, reader: Principal) -> list[dict[str, Any]]:
+        """The stored conversations `reader` may read, most recently active first
+        (`GET /api/conversations`). One started but given no turn yet is not listed."""
+        return conversations.list_conversations(
+            self.conductor.store, include=lambda first: self.may_read_run(first, reader)
+        )
 
     def projects_for(self, principal: Principal) -> list[dict[str, Any]]:
         """The projects `principal` may read, most recently active first (`GET /api/projects`):
@@ -337,14 +382,14 @@ class Governance:
         if self.projects is None:
             return []
         by_project: dict[str, list[dict[str, Any]]] = {}
-        for c in self.conversations():
+        for c in self.conversations(principal):
             if c.get("project_id"):
                 by_project.setdefault(c["project_id"], []).append(
                     {key: c.get(key) for key in LISTED_CONVERSATION}
                 )
         found = []
         for summary in self.projects.projects():
-            if summary["created_by"].get("principal_id") != principal.principal_id:
+            if not self.may_read_project(summary["project_id"], principal):
                 continue
             listed = by_project.get(summary["project_id"], [])
             if (
@@ -357,12 +402,16 @@ class Governance:
         found.sort(key=_last_active, reverse=True)
         return found
 
-    def conversation(self, conversation_id: str) -> dict[str, Any] | None:
+    def conversation(self, conversation_id: str, reader: Principal) -> dict[str, Any] | None:
         """A conversation as `dd_harness.conversations` derives it (`GET /api/conversations/{id}`),
-        or None. One started but given no turn yet has no turns."""
+        or None, also when `reader` may not read it, so that a refusal does not reveal whether it
+        exists. One started but given no turn yet has no turns."""
         if not CONVERSATION_ID.fullmatch(conversation_id):
             return None
-        return self._conversation(conversation_id)
+        found = self._conversation(conversation_id)
+        if found is None or not self.may_read_conversation(conversation_id, reader):
+            return None
+        return found
 
     def _conversation(self, conversation_id: str) -> dict[str, Any] | None:
         found = conversations.get_conversation(self.conductor.store, conversation_id)
@@ -385,8 +434,8 @@ class Governance:
             found["progress"] = summary["progress"]
         return found
 
-    def runs(self) -> list[dict[str, Any]]:
-        """Every stored run, newest first (`GET /api/runs`)."""
+    def runs(self, reader: Principal) -> list[dict[str, Any]]:
+        """The stored runs `reader` may read, newest first (`GET /api/runs`)."""
         rows = [
             {
                 "invocation_id": e["invocation_id"],
@@ -396,11 +445,13 @@ class Governance:
                 "acting_for": (e.get("acting_for") or {}).get("name"),
             }
             for e in self.conductor.store.iter_envelopes()
+            if self.may_read_run(e, reader)
         ]
         return list(reversed(rows))
 
-    def stored_run(self, invocation_id: str) -> dict[str, Any] | None:
-        """A stored run as `run` returned it, with its request (`GET /api/runs/{id}`), or None.
+    def stored_run(self, invocation_id: str, reader: Principal) -> dict[str, Any] | None:
+        """A stored run as `run` returned it, with its request (`GET /api/runs/{id}`), or None,
+        also when `reader` may not read it, so that a refusal does not reveal whether it exists.
 
         Only an identifier made of letters, digits and hyphens names a run, so no path outside
         the store can be read.
@@ -409,7 +460,7 @@ class Governance:
             return None
         store = self.conductor.store
         envelope = store.get(invocation_id)
-        if envelope is None:
+        if envelope is None or not self.may_read_run(envelope, reader):
             return None
         return {
             "envelope": envelope,
