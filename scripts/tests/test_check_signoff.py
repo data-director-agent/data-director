@@ -36,6 +36,8 @@ def commit(author: str = JOE, *signoffs: str, subject: str = "fix(app): thing") 
         "devin-ai-integration[bot] <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
         "Joe Heffer (aider) <joe@example.org>",
         "cursoragent <cursoragent@cursor.com>",
+        "google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>",
+        "copilot-swe-agent[bot]",
     ],
 )
 def test_agents_are_recognised(identity: str) -> None:
@@ -48,6 +50,10 @@ def test_agents_are_recognised(identity: str) -> None:
         JOE,
         "Devin Smith <devin@example.org>",
         "Cursor Jones <cj@example.org>",
+        "Claude Dupont <claude.dupont@example.fr>",
+        "Jules Verne <jules@example.org>",
+        "Ana Gemini <ana@example.org>",
+        "dependabot[bot]",
         "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
     ],
 )
@@ -55,13 +61,14 @@ def test_people_and_dependabot_are_not_agents(identity: str) -> None:
     assert not cs.is_agent(identity)
 
 
-def test_a_human_signing_their_own_commit_passes() -> None:
+def test_a_commit_without_a_signoff_passes() -> None:
+    # The human sign-off is checked in the pull request description, not on each commit.
+    assert cs.commit_problems(commit(JOE)) == []
     assert cs.commit_problems(commit(JOE, JOE)) == []
 
 
-def test_an_agent_may_co_author_a_commit_a_human_signs() -> None:
-    # Co-authored-by is not read at all: only the Signed-off-by trailers are.
-    assert cs.commit_problems(commit(JOE, JOE)) == []
+def test_an_agent_may_author_a_commit() -> None:
+    assert cs.commit_problems(commit(CLAUDE)) == []
 
 
 def test_a_signoff_by_the_agent_is_rejected_even_beside_the_humans() -> None:
@@ -70,50 +77,96 @@ def test_a_signoff_by_the_agent_is_rejected_even_beside_the_humans() -> None:
     assert "coding agent" in problems[0]
 
 
-def test_a_signoff_by_the_agent_alone_is_rejected() -> None:
-    problems = cs.commit_problems(commit(JOE, CLAUDE))
-    assert any("signed off by a coding agent" in p for p in problems)
-    assert any(f"no 'Signed-off-by: {JOE}'" in p for p in problems)
+def test_an_agent_signing_its_own_commit_is_rejected() -> None:
+    assert len(cs.commit_problems(commit(CLAUDE, CLAUDE))) == 1
 
 
-def test_a_commit_authored_and_signed_by_the_agent_is_rejected() -> None:
-    problems = cs.commit_problems(commit(CLAUDE, CLAUDE))
-    assert any("signed off by a coding agent" in p for p in problems)
-    assert any("authored by a coding agent" in p for p in problems)
-
-
-def test_a_commit_authored_by_the_agent_and_not_signed_is_rejected() -> None:
-    problems = cs.commit_problems(commit(CLAUDE))
-    assert len(problems) == 1
-    assert "authored by a coding agent" in problems[0]
-
-
-def test_an_unsigned_human_commit_is_rejected() -> None:
-    assert len(cs.commit_problems(commit(JOE))) == 1
-
-
-def test_someone_elses_signoff_does_not_stand_in_for_the_authors() -> None:
-    assert len(cs.commit_problems(commit(JOE, "Sam Other <sam@example.org>"))) == 1
-
-
-def test_dependabot_is_exempt_from_signing_off() -> None:
-    dependabot = "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>"
-    assert cs.commit_problems(commit(dependabot)) == []
-
-
-def test_an_agent_bot_is_not_exempt_as_a_bot() -> None:
-    bot = "copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>"
-    assert len(cs.commit_problems(commit(bot))) == 1
-
-
-def test_an_agent_signoff_on_an_exempt_bot_commit_is_still_rejected() -> None:
+def test_an_agent_signoff_on_a_bot_commit_is_rejected() -> None:
     dependabot = "dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>"
     assert len(cs.commit_problems(commit(dependabot, CLAUDE))) == 1
 
 
-def test_release_please_release_commits_are_exempt() -> None:
-    release = commit("release-bot <r@example.org>", subject="chore(main): release 1.2.3")
-    assert cs.commit_problems(release) == []
+BODY = "## Summary\n\nShow the history tab.\n\n---\n\nCo-authored-by: {CLAUDE}\n"
+
+
+def body(*signoffs: str) -> str:
+    lines = "".join(f"Signed-off-by: {s}\n" for s in signoffs)
+    return BODY.format(CLAUDE=CLAUDE) + lines
+
+
+def test_a_description_signed_off_by_a_human_passes() -> None:
+    assert cs.description_problems(body(JOE)) == []
+
+
+def test_a_description_from_the_browser_with_crlf_line_endings_passes() -> None:
+    assert cs.description_problems(body(JOE).replace("\n", "\r\n")) == []
+
+
+def test_a_description_without_a_signoff_is_rejected() -> None:
+    problems = cs.description_problems(body())
+    assert len(problems) == 1
+    assert "no human" in problems[0]
+
+
+def test_a_description_signed_off_only_by_the_agent_is_rejected() -> None:
+    problems = cs.description_problems(body(CLAUDE))
+    assert any("signed off by a coding agent" in p for p in problems)
+    assert any("no human" in p for p in problems)
+
+
+def test_an_agent_signoff_beside_the_humans_in_a_description_is_rejected() -> None:
+    assert len(cs.description_problems(body(JOE, CLAUDE))) == 1
+
+
+def test_a_signoff_without_an_address_does_not_count() -> None:
+    assert len(cs.description_problems(body("Joe Heffer"))) == 1
+
+
+def test_a_signoff_before_the_end_of_the_description_does_not_count() -> None:
+    # git reads trailers only from the last paragraph, so this would not reach the merged commit.
+    text = f"Signed-off-by: {JOE}\n\nMore text after it.\n"
+    assert len(cs.description_problems(text)) == 1
+
+
+def test_dependabot_pull_requests_need_no_signoff() -> None:
+    assert cs.description_problems("Bumps a thing.", "build(deps): bump x", "dependabot[bot]") == []
+
+
+def test_release_pull_requests_need_no_signoff() -> None:
+    assert cs.description_problems("Release notes.", "chore(main): release 1.2.3", "joe") == []
+
+
+def test_an_agent_bot_pull_request_is_not_exempt() -> None:
+    assert len(cs.description_problems("Done.", "fix: x", "copilot-swe-agent[bot]")) == 1
+
+
+def test_a_pull_request_opened_by_a_person_is_signed_off_implicitly() -> None:
+    # Claude Code on the web opens the pull request from the person's account, with no sign-off.
+    assert cs.description_problems(body(), "fix: x", "Joe-Heffer-Shef") == []
+    notice = cs.implicit_signoff(body(), "fix: x", "Joe-Heffer-Shef")
+    assert notice is not None
+    assert notice.startswith(cs.NOTICE)
+    assert "@Joe-Heffer-Shef" in notice
+
+
+def test_an_explicit_signoff_needs_no_implicit_one() -> None:
+    assert cs.implicit_signoff(body(JOE), "fix: x", "Joe-Heffer-Shef") is None
+
+
+def test_an_agent_signoff_is_rejected_even_from_a_person_s_pull_request() -> None:
+    problems = cs.description_problems(body(CLAUDE), "fix: x", "Joe-Heffer-Shef")
+    assert len(problems) == 1
+    assert "signed off by a coding agent" in problems[0]
+
+
+@pytest.mark.parametrize("author", ["", "copilot-swe-agent[bot]"])
+def test_no_implicit_signoff_without_a_person_s_account(author: str) -> None:
+    assert cs.implicit_signoff(body(), "fix: x", author) is None
+    assert len(cs.description_problems(body(), "fix: x", author)) == 1
+
+
+def test_exempt_pull_requests_have_no_implicit_signoff_notice() -> None:
+    assert cs.implicit_signoff("Release notes.", "chore(main): release 1.2.3", "joe") is None
 
 
 def test_parse_reads_trailers_from_git_log_output() -> None:
@@ -140,7 +193,9 @@ def test_main_against_a_real_repository(tmp_path: Path, capsys: pytest.CaptureFi
     _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "chore: base")
     base = _git(tmp_path, "rev-parse", "HEAD")
 
-    message = f"fix(app): good\n\nSigned-off-by: {JOE}\nCo-authored-by: {CLAUDE}\n"
+    _git(tmp_path, "config", "user.name", "Claude")
+    _git(tmp_path, "config", "user.email", "noreply@anthropic.com")
+    message = f"fix(app): good\n\nCo-authored-by: {CLAUDE}\n"
     _git(tmp_path, "commit", "-q", "--allow-empty", "-m", message)
     good = _git(tmp_path, "rev-parse", "HEAD")
 
@@ -150,11 +205,22 @@ def test_main_against_a_real_repository(tmp_path: Path, capsys: pytest.CaptureFi
 
     import os
 
+    signed = tmp_path / "signed.md"
+    signed.write_text(body(JOE), encoding="utf-8")
+    unsigned = tmp_path / "unsigned.md"
+    unsigned.write_text(body(), encoding="utf-8")
+
     here = Path.cwd()
     os.chdir(tmp_path)
     try:
         assert cs.main([base, good]) == 0
+        assert cs.main([base, good, "--body-file", str(signed)]) == 0
+        assert cs.main([base, good, "--body-file", str(unsigned)]) == 1
+        opened = ["--body-file", str(unsigned), "--author", "Joe-Heffer-Shef"]
+        assert cs.main([base, good, *opened]) == 0
         assert cs.main([base, bad]) == 1
     finally:
         os.chdir(here)
-    assert "signed off by a coding agent" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "signed off by a coding agent" in out
+    assert any(line.startswith(cs.NOTICE) for line in out.splitlines())

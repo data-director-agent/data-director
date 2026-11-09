@@ -70,10 +70,15 @@ fixtures in `app/web/fixtures`; commit them.
 
 ## Commits and pull requests
 
-- Never sign off a commit: no `git commit -s`, no `Signed-off-by` trailer, whatever your git identity.
-  Only a human can approve a commit ([DCO](https://github.com/data-director-agent/.github/blob/main/DCO.md)).
-  Co-author it instead (`Co-authored-by`). CI rejects a commit that an agent signed off, and one that
-  no human did, so the person who takes the work on signs off before merge (`git rebase --signoff`).
+- Never sign off: no `git commit -s`, and no `Signed-off-by` line in a commit or a pull request
+  description, whatever your git identity. Only a person can certify the work
+  ([DCO](https://github.com/data-director-agent/.github/blob/main/DCO.md)).
+- `main` is squash-merged with the pull request's title and description as the message, so commit
+  trailers do not reach it. End the description with `Co-authored-by: <model> <noreply@anthropic.com>`
+  as its last line, after any footer, and leave the line below it for the person you work for,
+  who may sign off there before merge. A pull request opened from their account is signed off
+  implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
+  fails on any sign-off by an agent.
 - The pull request title is a Conventional Commit, `type(scope)!: summary`, lower case, no full
   stop, at most 90 characters, such as `feat(app): register every in-tree agent`. Check it before
   opening and after editing:
