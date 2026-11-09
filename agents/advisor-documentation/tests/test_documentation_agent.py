@@ -483,3 +483,48 @@ def test_a_citation_has_the_year_when_the_record_gives_one(runs_dir: Path) -> No
     text = env.payload_as(Document).document_text
     assert text.startswith("# Soil survey.\n")
     assert section_of(text, "How to cite").startswith("Example, Alex (2026). Soil survey.\n")
+
+
+def test_a_part_the_record_gives_is_not_asked(runs_dir: Path) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        titles=[{"title": "Soil survey"}],
+        fundingReferences=[{"funderName": "Natural Environment Research Council"}],
+    )
+    env, _ = draft(runs_dir, asked)
+    document = env.payload_as(Document)
+    general = section_of(document.document_text, "General information")
+    assert "- **Funding:** Natural Environment Research Council" in general
+    parts = {q.gap_part for q in document.document_questions if q.gap_part}
+    assert parts and not parts & {"Title", "Funding"}
+
+
+@pytest.mark.parametrize(
+    ("section", "why"),
+    [
+        ({"heading": "A", "from": "nowhere", "ask": "x."}, "unknown"),
+        ({"heading": "A", "from": "files", "complete_from": "tables", "ask": "x."}, "completed"),
+        ({"heading": "A"}, "either ask or parts"),
+        ({"heading": "A", "ask": "x.", "parts": [{"label": "B", "ask": "y."}]}, "either ask"),
+        (
+            {
+                "heading": "A",
+                "from": "record_general",
+                "complete_from": "record_general",
+                "parts": [{"label": "B", "ask": "y."}],
+            },
+            "has parts",
+        ),
+        (
+            {"heading": "A", "parts": [{"label": "B", "ask": "y.", "given_by": "colour"}]},
+            "given by unknown",
+        ),
+    ],
+)
+def test_a_malformed_readme_template_is_refused(
+    tmp_path: Path, section: dict[str, object], why: str
+) -> None:
+    path = tmp_path / "readme.yaml"
+    path.write_text(json.dumps([section]), encoding="utf-8")
+    with pytest.raises(ValueError, match=why):
+        load_sections(path)
