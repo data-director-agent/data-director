@@ -397,6 +397,54 @@ def check_a_conversation_is_found_after_a_restart(make: MakeProjectStorage) -> N
     assert make("projects").project_of(later) == other
 
 
+def check_a_conversation_started_elsewhere_is_found(make: MakeProjectStorage) -> None:
+    """Two stores over one record agree on a conversation's project, whichever started it and
+    whatever either was asked before (docs/specs/storage.md, invariant 12)."""
+    first = make("projects")
+    project_id = first.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert first.project_of(NOWHERE) is None
+    second = make("projects")
+    assert second.project_of(NOWHERE) is None
+    conversation_id = second.start_conversation(
+        project_id, acted_for=TEST_PRINCIPAL, caused_by="check"
+    )
+    assert first.project_of(conversation_id) == project_id
+    assert [s["project_id"] for s in first.projects()] == [project_id]
+    assert first.summary(project_id)["conversation_count"] == 1
+    assert first.project_of(NOWHERE) is None
+
+
+def check_a_refusal_is_kept(make: MakeProjectStorage) -> None:
+    """A refused change keeps its refusal and nothing else, and the refusal is read back by a
+    store opened afterwards (docs/specs/storage.md, invariant 11)."""
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    ref = store.record_draft(project_id, drafted(DocumentKind.README, asks=True))
+    (document,) = store.documents(project_id)
+    digest = document["versions"][-1]["digest"]
+    store.decide(
+        project_id,
+        Decision(ref.document_id, ref.version, digest, APPROVED),
+        acted_for=TEST_PRINCIPAL,
+        caused_by="check",
+    )
+    before = store.events(project_id)
+    again = Decision(ref.document_id, ref.version, digest, REJECTED, reason="Changed my mind")
+    with _raises(ChangeRefusedError, "a decision on a version already decided"):
+        store.decide(project_id, again, acted_for=TEST_PRINCIPAL, caused_by="decide")
+    unasked = [DraftAnswer(answered_question="q-" + "1" * 16, answer_text="Soil")]
+    with _raises(ChangeRefusedError, "an answer to a question not asked"):
+        store.answer(
+            project_id, ref.document_id, 1, unasked, acted_for=TEST_PRINCIPAL, caused_by="answer"
+        )
+    after = make("projects").events(project_id)
+    assert after[: len(before)] == before
+    added = after[len(before) :]
+    assert [e["event"] for e in added] == [DOCUMENT_CHANGE_REFUSED] * 2
+    assert [e["caused_by"] for e in added] == ["decide", "answer"]
+    assert [e["refusal"] for e in added] == [Refusal.DECIDED.value, Refusal.NOT_ASKED.value]
+
+
 def check_a_stale_change_is_refused_and_recorded(make: MakeProjectStorage) -> None:
     store = make("projects")
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -624,6 +672,8 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
         check_a_persons_title_is_never_replaced_by_a_models
     ),
     "a conversation is found after a restart": check_a_conversation_is_found_after_a_restart,
+    "a conversation started elsewhere is found": check_a_conversation_started_elsewhere_is_found,
+    "a refusal is kept": check_a_refusal_is_kept,
     "a stale change is refused and recorded": check_a_stale_change_is_refused_and_recorded,
     "concurrent decisions on one version admit one": (
         check_concurrent_decisions_on_one_version_admit_one
