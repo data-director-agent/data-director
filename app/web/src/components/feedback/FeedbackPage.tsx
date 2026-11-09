@@ -20,6 +20,7 @@ import {
 } from "../../feedback/api";
 import { Send } from "lucide-react";
 import { Button } from "../ui/Button";
+import { GitHubIcon } from "../ui/BrandIcon";
 import { ISSUES } from "../NotBuilt";
 import { PageHeader } from "../frame/PageHeader";
 
@@ -102,6 +103,7 @@ export function FeedbackPage({ query }: { query: string }) {
           <p>
             Thank you. Your report is{" "}
             <a href={send.issue.url} target="_blank" rel="noreferrer">
+              <GitHubIcon className="brand-icon" />{" "}
               issue #{send.issue.number} on GitHub
             </a>
             , where you can follow it.
@@ -128,6 +130,7 @@ export function FeedbackPage({ query }: { query: string }) {
           <p>
             Reports cannot be filed from this deployment. You can{" "}
             <a href={`${ISSUES}new/choose`} target="_blank" rel="noreferrer">
+              <GitHubIcon className="brand-icon" />{" "}
               open an issue on GitHub
             </a>{" "}
             and mention the version above.
