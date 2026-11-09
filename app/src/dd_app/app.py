@@ -100,7 +100,13 @@ from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
-from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal, UnknownProjectError
+from dd_harness.projects import (
+    TITLE_BY_RESEARCHER,
+    ChangeRefusedError,
+    ProjectError,
+    Refusal,
+    UnknownProjectError,
+)
 from dd_harness.registry import RegistryError
 from dd_harness.requirements import RequirementsError
 from dd_harness.server import LOOPBACK
@@ -125,6 +131,7 @@ FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
+TITLE_REFUSED = "Data Director could not rename this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
@@ -435,6 +442,40 @@ def build_app(
             return _no_project(project_id)
         except ProjectError as exc:
             return _refused(str(exc), PROGRESS_REFUSED)
+
+    async def rename_project(request: Request, person: Principal) -> Response:
+        """A person's name for the project, which a model's never replaces
+        (docs/specs/projects.md). Whom it acts for is whom the authenticator names, never the
+        body. Answers with the project's summary."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", TITLE_REFUSED)
+        title = body.get("title") if isinstance(body, dict) else None
+        if not isinstance(title, str):
+            return _refused("`title` is the project's new name.", TITLE_REFUSED)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def rename() -> dict[str, Any]:
+            store.rename(
+                project_id,
+                title,
+                source=TITLE_BY_RESEARCHER,
+                acted_for=person,
+                caused_by=caused_by,
+            )
+            return store.summary(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(rename))
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _refused(str(exc), TITLE_REFUSED)
 
     async def get_repository(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -828,6 +869,11 @@ def build_app(
                 methods=["POST"],
             ),
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
+            Route(
+                "/api/projects/{project_id}/title",
+                in_project(Action.CONTRIBUTE, rename_project),
+                methods=["PUT"],
+            ),
             Route(
                 "/api/projects/{project_id}/documents",
                 in_project(Action.READ, get_documents),

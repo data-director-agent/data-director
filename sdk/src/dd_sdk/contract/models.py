@@ -25,6 +25,10 @@ CONVERSATION_TITLE_PATTERN = r"^.{1,80}$"
 # A drafter's question about a gap, derived from the gap (docs/specs/drafting.md).
 QUESTION_ID_PATTERN = r"^q-[0-9a-f]{16}$"
 CONVERSATION_TITLE_MAX = 80
+# A project's title (Message.project_title), and a name a model gives one (Reply.new_project_title).
+PROJECT_TITLE_PATTERN = r"^.{1,200}$"
+NEW_PROJECT_TITLE_PATTERN = CONVERSATION_TITLE_PATTERN
+NEW_PROJECT_TITLE_MAX = CONVERSATION_TITLE_MAX
 # A choice question offers between 2 and 12 options (ChoiceQuestion.question_options).
 CHOICE_OPTIONS_MIN = 2
 CHOICE_OPTIONS_MAX = 12
@@ -242,8 +246,8 @@ class ChoiceAnswer(Frozen):
 
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
-    conductor fills `project_inventory`, `project_entry` and `project_progress` from the
-    conversation's project; a caller never does."""
+    conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`
+    and `project_title_by_researcher` from the conversation's project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -252,6 +256,8 @@ class Message(Frozen):
     choice_answer: ChoiceAnswer | None = None
     project_entry: int | None = Field(default=None, ge=1, le=3)  # bounds not in the schema (#333)
     project_progress: list[StepProgress] | None = None
+    project_title: str | None = Field(default=None, pattern=PROJECT_TITLE_PATTERN)
+    project_title_by_researcher: bool | None = None
 
 
 class TableField(Frozen):
@@ -429,6 +435,8 @@ class Reply(Grounded):
     conversation_title: str | None = Field(default=None, pattern=CONVERSATION_TITLE_PATTERN)
     # A question with fixed options the reply asks, at most one.
     reply_question: ChoiceQuestion | None = None
+    # A name for the conversation's project, which the conductor records unless a person named it.
+    new_project_title: str | None = Field(default=None, pattern=NEW_PROJECT_TITLE_PATTERN)
 
 
 class DocumentVersionRef(Frozen):

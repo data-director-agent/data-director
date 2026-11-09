@@ -1,5 +1,5 @@
-"""The orchestrator's model has no tools except its delegations and `offer_choices`, which runs
-nothing (docs/specs/orchestration.md).
+"""The orchestrator's model has no tools except its delegations, and `offer_choices` and
+`name_project`, which run nothing (docs/specs/orchestration.md).
 
 These tests fail if the model is offered a way to the outside world that is not a delegation
 through the harness: an MCP server, a server tool such as web search or code execution, Agent
@@ -20,9 +20,12 @@ from dd_agent_example_hello.agent import HelloWorld
 from dd_agent_orchestrator_model.agent import (
     CHOICE_TOOL,
     CHOICE_TOOL_DEFINITION,
+    NAME_TOOL,
+    NAME_TOOL_DEFINITION,
     ModelOrchestrator,
 )
 from dd_agent_orchestrator_model.model import FALLBACK_BETA, AnthropicModel
+from dd_harness.projects import ProjectStore
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import Message, OutcomeStatus
 
@@ -89,10 +92,16 @@ def test_the_model_is_offered_only_delegations(runs_dir: Path) -> None:
     client = _RecordingClient()
     orchestrator = ModelOrchestrator(AnthropicModel(client))  # type: ignore[arg-type]
     conductor = make_conductor(runs_dir, orchestrator, HelloWorld())
+    # In a project no person has named, so that every tool the model can be offered is.
+    conductor.projects = ProjectStore(runs_dir.parent / "projects")
+    project = conductor.projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    started = conductor.projects.start_conversation(
+        project, acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
 
+    req = request("orchestrator.model", Message(message_text="Please greet Ada"))
     env = conductor.invoke(
-        request("orchestrator.model", Message(message_text="Please greet Ada")),
-        acting_for=TEST_PRINCIPAL,
+        req.model_copy(update={"conversation_id": started}), acting_for=TEST_PRINCIPAL
     )
 
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
@@ -103,11 +112,16 @@ def test_the_model_is_offered_only_delegations(runs_dir: Path) -> None:
     for tool in sent["tools"]:
         assert set(tool) == TOOL_KEYS, f"{tool.get('name')} is not a client tool"
         if tool["name"] == CHOICE_TOOL:
-            # The one tool that is not a delegation: the loop ends on it and calls nothing.
+            # A tool that is not a delegation: the loop ends on it and calls nothing.
             assert tool == CHOICE_TOOL_DEFINITION
             continue
+        if tool["name"] == NAME_TOOL:
+            # Nor is this: it puts a name on the reply and calls nothing.
+            assert tool == NAME_TOOL_DEFINITION
+            continue
         assert tool["description"].startswith("Ask the agent ")
-    assert [t["name"] for t in sent["tools"]].count(CHOICE_TOOL) == 1
+    names = [t["name"] for t in sent["tools"]]
+    assert names.count(CHOICE_TOOL) == 1 and names.count(NAME_TOOL) == 1
 
 
 @pytest.mark.requirement("DD-DELEGATION")
