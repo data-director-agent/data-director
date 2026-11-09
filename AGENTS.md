@@ -20,6 +20,9 @@ Put code in the package whose job it is, not the one you have open; the full tab
   clients of the harness, hold no governance, and nothing else depends on them; the app never
   depends on the workbench.
 - `inventory/`: `dd-inventory`, depends on no other member. `scripts/`: repository tooling.
+- `sdk/browser/`: `@data-director/agent-view`, the TypeScript and React library every front end
+  uses to show an agent card, its extensions and its payloads. Put card and payload rendering
+  there, not in one app.
 - `docs/`: what governs every package (specs, contract, glossary, `requirements.yaml`,
   `reviews.yaml`). `docs/blueprint/` is the published Blueprint, generated and read-only:
   requirements are in `07-functional-specification.md` and cited by ID (`R3`, `R3.1`).
@@ -41,7 +44,7 @@ uv run python scripts/check_boundaries.py
 
 Every other CI job, with its local command, is in
 [CONTRIBUTING.md](CONTRIBUTING.md#code-style-and-testing). `uv run pytest` rewrites stale
-fixtures in `app/web/fixtures`; commit them.
+fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`; commit them.
 
 ## Rules
 

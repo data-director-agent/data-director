@@ -6,9 +6,17 @@
  *
  * When the deployment has an orchestrator, a line under the description says where the agent
  * sits: the one a person talks to, or one it calls on behind the scenes.
+ *
+ * Under it, folded away, is what the agent's card declares, field by field
+ * (`@data-director/agent-view`'s `AgentSpecView`), for a data steward or developer who needs to
+ * inspect it: the schemas, derivations and contract version that the rest of the page puts into
+ * words.
  */
 
 import "./AgentDetail.css";
+import "@data-director/agent-view/styles.css";
+
+import { AgentSpecView } from "@data-director/agent-view/react";
 
 import { type AgentView, agentName } from "../../manifest/normalise";
 import { CapabilitiesPanel } from "../capabilities/CapabilitiesPanel";
@@ -49,6 +57,10 @@ export function AgentDetail({
         </p>
       )}
       <CapabilitiesPanel agent={agent} />
+      <details className="agent-technical">
+        <summary>Technical details: what its agent card declares</summary>
+        <AgentSpecView spec={agent} withIdentity />
+      </details>
     </section>
   );
 }

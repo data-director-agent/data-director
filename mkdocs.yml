@@ -112,7 +112,9 @@ nav:
           - /docs/specs/README.md
           - /docs/specs/*.md
   - Packages:
-      - SDK: /sdk/README.md
+      - SDK:
+          - /sdk/README.md
+          - Agent card and payload library (TypeScript): /sdk/browser/README.md
       - Harness:
           - /harness/README.md
           - /harness/docs/*.md

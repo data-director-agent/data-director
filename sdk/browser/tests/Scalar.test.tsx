@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 
-import type { Shape } from "../../../run/schema";
-import { Scalar } from "./Scalar";
+import type { Shape } from "../src/schema/shape";
+import { Scalar } from "../src/react/payload/Scalar";
 
 const TEXT: Shape = { kind: "scalar", type: "string" };
 const CHOICE: Shape = { kind: "scalar", type: "string", options: ["not_applicable"] };

@@ -142,6 +142,7 @@ export function Outcome({
             <ResultView
               payload={envelope.payload}
               schema={agent.payload ? agent.schemas[agent.payload] : undefined}
+              className={agent.payload}
               derivations={agent.derivations}
               evidence={evidence}
               idPrefix={idPrefix}

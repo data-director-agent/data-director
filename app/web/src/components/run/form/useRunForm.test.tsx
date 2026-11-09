@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { FormEvent } from "react";
 
-import type { JsonSchema } from "../../../run/schema";
+import type { JsonSchema } from "@data-director/agent-view";
 import { useRunForm } from "./useRunForm";
 
 const SCHEMA: JsonSchema = {

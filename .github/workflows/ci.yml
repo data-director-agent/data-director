@@ -312,7 +312,8 @@ jobs:
   # Three jobs, side by side, each with its own `npm ci` from the npm cache. ESLint (with jsx-a11y),
   # tsc, Vitest with axe, and Playwright (axe in light and dark, keyboard-only use, reflow at 320
   # CSS pixels). The fixtures they read are kept current by app/tests/test_app.py, which the
-  # pytest job runs.
+  # pytest job runs. The libraries the shell links (inventory/browser, sdk/browser) are checked
+  # in web-checks; the other two jobs compile their source with the shell's own dependencies.
 
   web-checks:
     name: App shell (lint, types, build)
@@ -334,10 +335,17 @@ jobs:
           cache-dependency-path: |
             app/web/package-lock.json
             inventory/browser/package-lock.json
+            sdk/browser/package-lock.json
       # The inventory library the shell links (inventory/browser/README.md): its own lint, types
       # and tests. The shell compiles its source, so the shell's checks cover it as used.
       - name: Inventory library
         working-directory: inventory/browser
+        run: npm ci && npm run lint && npm run typecheck && npm test -- --coverage
+      # The agent card and payload library the shell links (sdk/browser/README.md), likewise. Its
+      # card fixtures are kept current by sdk/tests/test_agent_view_fixtures.py, which the
+      # pytest job runs. Installed before the shell's typecheck, which reads its source.
+      - name: Agent view library
+        working-directory: sdk/browser
         run: npm ci && npm run lint && npm run typecheck && npm test -- --coverage
       - run: npm ci
       - run: npm run lint

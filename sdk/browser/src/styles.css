@@ -1,0 +1,158 @@
+/*
+ * @data-director/agent-view: the styles of its components. Import once, from any page:
+ *
+ *   import "@data-director/agent-view/styles.css";
+ *
+ * Every colour and length is a --dd-* custom property with a plain default, so a host themes the
+ * components by setting them (app/web maps them onto its own tokens). The rules sit in the
+ * `components` cascade layer, so a host's unlayered rules win over them.
+ *
+ * The payload view also uses class names a host is expected to style already, if it has them:
+ * .facts, .data-table, .table-scroll, .json-view, .muted, .status, .plain-list.
+ */
+
+@layer components {
+  :where(.dd-card, .result) {
+    --dd-space-1: var(--space-1, 0.25rem);
+    --dd-space-2: var(--space-2, 0.5rem);
+    --dd-space-3: var(--space-3, 0.75rem);
+    --dd-space-4: var(--space-4, 1rem);
+    --dd-radius: var(--radius, 0.25rem);
+    --dd-border-width: var(--border-width, 1px);
+    --dd-color-border: var(--color-border, #8a8a8a);
+    --dd-color-border-subtle: var(--color-border-subtle, #d0d0d0);
+    --dd-color-text-muted: var(--color-text-muted, #595959);
+    --dd-color-danger: var(--color-danger-fg, #a1121a);
+  }
+
+  /* An agent card. */
+  .dd-card-section {
+    margin-top: var(--dd-space-4);
+  }
+
+  .dd-kvs {
+    display: grid;
+    grid-template-columns: minmax(8rem, max-content) 1fr;
+    gap: var(--dd-space-1) var(--dd-space-3);
+    margin: var(--dd-space-2) 0;
+  }
+
+  .dd-kv {
+    display: contents;
+  }
+
+  .dd-kvs dt {
+    color: var(--dd-color-text-muted);
+  }
+
+  .dd-kvs dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .dd-chips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--dd-space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .dd-chip {
+    display: inline-block;
+    padding: 0 var(--dd-space-1);
+    border: var(--dd-border-width) solid var(--dd-color-border-subtle);
+    border-radius: var(--dd-radius);
+    font-size: 0.85em;
+  }
+
+  .dd-items {
+    margin: var(--dd-space-1) 0;
+    padding-left: var(--dd-space-4);
+  }
+
+  .dd-items > li + li {
+    margin-top: var(--dd-space-2);
+  }
+
+  .dd-item-head {
+    margin: 0;
+  }
+
+  .dd-none,
+  .dd-muted,
+  .dd-digest {
+    color: var(--dd-color-text-muted);
+  }
+
+  .dd-none {
+    font-style: italic;
+  }
+
+  .dd-digest {
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+  }
+
+  .dd-issue {
+    color: var(--dd-color-danger);
+  }
+
+  .dd-raw > summary {
+    cursor: pointer;
+  }
+
+  .dd-raw > pre {
+    max-height: 30rem;
+    overflow: auto;
+  }
+
+  /* A payload, with each value's derivation and the evidence it rests on. Inside a table that
+     scrolls on its own, short values keep their words whole. */
+  .result-table th,
+  .result-table td {
+    overflow-wrap: normal;
+  }
+
+  .result-table td.long {
+    min-width: 22rem;
+    overflow-wrap: anywhere;
+  }
+
+  .derivation {
+    display: inline-block;
+    padding: 0 var(--dd-space-1);
+    border: var(--dd-border-width) dotted var(--dd-color-border);
+    border-radius: var(--dd-radius);
+    color: var(--dd-color-text-muted);
+    font-size: 0.8em;
+    white-space: nowrap;
+  }
+
+  .rests-on {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .rests-on li {
+    white-space: nowrap;
+  }
+
+  /* A drafted document: its actions, then its text, set apart from the facts above it. */
+  .document-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--dd-space-2);
+  }
+
+  .document-body {
+    margin-bottom: var(--dd-space-4);
+    padding: var(--dd-space-3);
+    border: var(--dd-border-width) solid var(--dd-color-border-subtle);
+    border-radius: var(--dd-radius);
+  }
+}

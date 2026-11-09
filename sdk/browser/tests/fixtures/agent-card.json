@@ -1,0 +1,218 @@
+{
+  "capabilities": {
+    "extensions": [
+      {
+        "description": "Data Director agent specification (dd_sdk.agent.describe).",
+        "params": {
+          "accepts": [
+            "Survey"
+          ],
+          "action_class": "advise",
+          "agent_id": "test.spec",
+          "contract_version": "0.9.11",
+          "derivations": {
+            "items.kind": {
+              "how": "lexical",
+              "recorded_in": "classification_derivation"
+            },
+            "items.rationale": {
+              "how": "model",
+              "recorded_in": "rationale_derivation"
+            },
+            "searched.snapshot_ref": {
+              "how": "registry",
+              "recorded_in": null
+            }
+          },
+          "description": "A spec for testing derivations.",
+          "grounding_mode": "retrieval",
+          "models": [],
+          "payload": "Findings",
+          "schemas": {
+            "Findings": {
+              "digest": "a7d5da442bfd094784f8c02c53cb504850438064740d4953d51eabc4fbdf116a",
+              "json_schema": {
+                "$defs": {
+                  "Derivation": {
+                    "enum": [
+                      "template",
+                      "model",
+                      "lexical",
+                      "registry"
+                    ],
+                    "type": "string"
+                  },
+                  "GroundingRef": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "content_hash": {
+                        "type": "string"
+                      },
+                      "source_id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "source_id",
+                      "content_hash"
+                    ],
+                    "type": "object"
+                  },
+                  "Item": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "classification_derivation": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/Derivation"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "rationale": {
+                        "type": "string"
+                      },
+                      "rationale_derivation": {
+                        "$ref": "#/$defs/Derivation"
+                      },
+                      "target": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "rationale",
+                      "rationale_derivation",
+                      "target"
+                    ],
+                    "title": "Item",
+                    "type": "object"
+                  },
+                  "Searched": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "snapshot_ref": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "title": "Searched",
+                    "type": "object"
+                  }
+                },
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "grounded_on": {
+                    "items": {
+                      "$ref": "#/$defs/GroundingRef"
+                    },
+                    "type": "array"
+                  },
+                  "items": {
+                    "items": {
+                      "$ref": "#/$defs/Item"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "schema_class": {
+                    "enum": [
+                      "Findings"
+                    ],
+                    "type": "string"
+                  },
+                  "searched": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/Searched"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "schema_class",
+                  "grounded_on"
+                ],
+                "title": "Findings",
+                "type": "object"
+              }
+            },
+            "Survey": {
+              "digest": "de0bd82eb77ac464b0c4e4b08139194ebbe73084488d9392e1d9d5b033b921af",
+              "json_schema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                  "schema_class": {
+                    "enum": [
+                      "Survey"
+                    ],
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "schema_class"
+                ],
+                "title": "Survey",
+                "type": "object"
+              }
+            }
+          },
+          "serves": [],
+          "title": "",
+          "version": "0.0.0"
+        },
+        "required": true,
+        "uri": "https://w3id.org/data-director/a2a/agent-spec/v0"
+      }
+    ],
+    "streaming": false
+  },
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
+  "description": "A spec for testing derivations.",
+  "name": "test.spec",
+  "skills": [
+    {
+      "description": "A spec for testing derivations.",
+      "id": "test.spec",
+      "name": "test.spec",
+      "tags": [
+        "data-director",
+        "grounding:retrieval",
+        "accepts:Survey"
+      ]
+    }
+  ],
+  "supportedInterfaces": [
+    {
+      "protocolBinding": "JSONRPC",
+      "protocolVersion": "1.0",
+      "url": "http://agent.example/a2a"
+    }
+  ],
+  "version": "0.0.0"
+}
