@@ -35,9 +35,10 @@ Every event has these members:
 
 `conversation_started` also gives the `conversation_id` (a UUIDv7) of a conversation started from
 the project. `ProjectStore.project_of(conversation_id)` says which project, if any, a conversation
-was started in. It reads every log once, when first asked, and is kept up to date after that,
-so it holds after a restart. Reading every log does not scale past one deployment's projects,
-and the cache is per process, TODO(#521).
+was started in, from what the logs hold when asked, so it holds after a restart and agrees with
+any other harness over the same directory. A conversation's project never changes once recorded,
+so the answers found are kept; a conversation not found is looked for again in every log, which
+does not scale past one deployment's projects, TODO(#524).
 
 `inventory_added` also gives:
 
