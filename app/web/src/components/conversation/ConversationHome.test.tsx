@@ -591,6 +591,22 @@ describe("ConversationHome", () => {
       expect(localStorage.getItem("dd-project")).toBe("p-new");
     });
 
+    it("links from the conversation to the active project's details", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      renderHome(withOrchestrator(), fakeApi({ list }), FLOW, withProjects);
+      const link = await screen.findByRole("link", { name: "Project details" });
+      expect(link).toHaveAttribute("href", `/projects/${LOGGERS.project_id}`);
+    });
+
+    it("offers no project details link while no project is active", async () => {
+      renderHome(withOrchestrator(), fakeApi(), FLOW, {
+        ...httpProjectApi,
+        projects: () => Promise.resolve([]),
+      });
+      expect(await screen.findByRole("button", { name: /New project/ })).toBeVisible();
+      expect(screen.queryByRole("link", { name: "Project details" })).toBeNull();
+    });
+
     it("closes the open conversation when another project is chosen", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const get = () => Promise.resolve({ ...CONVERSATION, project_id: LOGGERS.project_id });
