@@ -14,7 +14,7 @@ import { type Ref, useId } from "react";
 
 import { Braces, FileInput, ListChecks, Play } from "lucide-react";
 import { className, fieldName } from "../../manifest/wording";
-import type { JsonSchema } from "../../run/schema";
+import type { JsonSchema } from "@data-director/agent-view";
 import type { Example } from "../../run/types";
 import { Button } from "../ui/Button";
 import { ErrorSummary } from "./form/ErrorSummary";

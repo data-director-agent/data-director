@@ -1,8 +1,8 @@
 /** One top-level field of a result that is more than a value: records, an object or raw JSON. */
 
-import { fieldName } from "../../../manifest/wording";
-import { type JsonSchema, shapeOf } from "../../../run/schema";
-import type { Context } from "./context";
+import { fieldName } from "../../wording";
+import { type JsonSchema, shapeOf } from "../../schema/shape";
+import type { Context } from "../../payload/context";
 import { Facts } from "./Facts";
 import { RecordsTable } from "./RecordsTable";
 

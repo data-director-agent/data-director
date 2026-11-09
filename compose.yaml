@@ -267,6 +267,7 @@ services:
     volumes:
       - ./app/web:/workspace/app/web
       - ./inventory/browser:/workspace/inventory/browser:ro
+      - ./sdk/browser:/workspace/sdk/browser:ro
       - ./app/config:/workspace/app/config:ro
       - node-modules:/workspace/app/web/node_modules
     command: sh -c "npm ci && npm run build"
@@ -324,6 +325,7 @@ services:
     volumes:
       - ./app/web:/workspace/app/web
       - ./inventory/browser:/workspace/inventory/browser:ro
+      - ./sdk/browser:/workspace/sdk/browser:ro
       - ./app/config:/workspace/app/config:ro
       - node-modules:/workspace/app/web/node_modules
     environment:

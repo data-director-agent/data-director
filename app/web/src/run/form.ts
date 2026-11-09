@@ -9,7 +9,7 @@
  */
 
 import { fieldName } from "../manifest/wording";
-import { type JsonSchema, type ScalarType, type Shape, properties, shapeOf } from "./schema";
+import { type JsonSchema, type ScalarType, type Shape, properties, shapeOf } from "@data-director/agent-view";
 
 type ScalarShape = Extract<Shape, { kind: "scalar" }>;
 

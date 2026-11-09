@@ -13,7 +13,8 @@
       "component": "sdk",
       "release-type": "python",
       "exclude-paths": [
-        "sdk/tests"
+        "sdk/tests",
+        "sdk/browser"
       ]
     },
     "harness": {

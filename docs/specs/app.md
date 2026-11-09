@@ -278,8 +278,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   shell computes no state and no suggestion of its own.
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
-  or message an agent from it; they work through the conversation. Running one agent directly,
-  its run history, grounding and derivation detail and oversight declarations belong to the
+  or message an agent from it; they work through the conversation. Below that, folded away, is
+  what the agent's card declares, field by field (`@data-director/agent-view`, `sdk/browser`), for
+  a steward or developer who needs to inspect it. Running one agent directly, its run history and
+  the explanation of its grounding, derivations and oversight declarations belong to the
   workbench.
 - **The policy page** is read-only and for anyone signed in. A person sees the rules their runs
   are held to, the same `policy_bundle_ref` every stored run records; a steward changes them in

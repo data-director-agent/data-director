@@ -1,8 +1,8 @@
 /** A record's citations as numbered links to the evidence; one with no matching item is flagged. */
 
-import type { GroundingRef } from "../../../run/types";
-import { evidenceAnchor, evidenceKey } from "../EvidencePanel";
-import type { Context } from "./context";
+import type { GroundingRef } from "../../payload/types";
+import { evidenceAnchor, evidenceKey } from "../../payload/evidence";
+import type { Context } from "../../payload/context";
 
 export function RestsOn({ refs, ctx }: { refs: GroundingRef[]; ctx: Context }) {
   return (
