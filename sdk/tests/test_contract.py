@@ -758,6 +758,19 @@ def test_a_document_asks_about_its_gaps_and_a_draft_request_carries_answers() ->
         )
     with pytest.raises(ValueError, match="file, field and column"):
         DocumentQuestion(question_id="q-" + "2" * 16, question_prompt="?", gap_file="a.csv")
+    part = DocumentQuestion(
+        question_id="q-" + "3" * 16, question_prompt="?", gap_section="A", gap_part="Funding"
+    )
+    assert part.gap_part == "Funding"
+    with pytest.raises(ValueError, match="within a README section"):
+        DocumentQuestion(
+            question_id="q-" + "3" * 16,
+            question_prompt="?",
+            gap_file="a.csv",
+            gap_field="x",
+            gap_column="unit",
+            gap_part="Funding",
+        )
     with pytest.raises(ValueError):
         DocumentQuestion(question_id="q-1", question_prompt="?", gap_section="A")
 

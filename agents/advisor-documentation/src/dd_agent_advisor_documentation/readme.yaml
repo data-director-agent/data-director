@@ -17,11 +17,33 @@
 #
 # A section drafted from a fact still shows its `ask`, for what the fact cannot say, unless the
 # fact named by `complete_from` gives it: that fact says all the section asks.
+#
+# A section may list `parts` instead of one `ask`: each part is asked as a question of its own,
+# with its own `label` and `ask`, and placed as a `- **label:** answer` line. A part with
+# `given_by` is not asked when the approved metadata record gives it:
+#
+#   title     the record's title
+#   creators  the record's creators
+#   funding   the record's funders
 - heading: General information
   from: record_general
-  ask: >-
-    the dataset's title; the principal investigator and a contact, with institution, email and
-    ORCID iD; the dates of data collection (YYYY-MM-DD); the geographic location; the funding.
+  parts:
+    - label: Title
+      given_by: title
+      ask: the dataset's title.
+    - label: Principal investigator
+      ask: name, institution, email and ORCID iD.
+    - label: Contact
+      ask: >-
+        who answers questions about the data: name, institution, email and ORCID iD, or say it is
+        the principal investigator.
+    - label: Dates of data collection
+      ask: when the data were collected, as YYYY-MM-DD to YYYY-MM-DD.
+    - label: Geographic location
+      ask: where the data were collected, or say it does not apply.
+    - label: Funding
+      given_by: funding
+      ask: the funders and grant numbers.
 - heading: Description
   from: record_abstract
   complete_from: record_abstract

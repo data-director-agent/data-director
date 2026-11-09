@@ -32,6 +32,7 @@ export interface DocumentQuestion {
   question_id: string;
   question_prompt: string;
   gap_section?: string;
+  gap_part?: string;
   gap_file?: string;
   gap_field?: string;
   gap_column?: string;
@@ -430,8 +431,10 @@ export function openQuestions(document: ProjectDocument, version: DocumentVersio
   return version.questions.filter((q) => !answered.has(q.question_id));
 }
 
-/** What a question fills, in words: a README section, or a data dictionary cell. */
+/** What a question fills, in words: a README section or one part of it, or a data dictionary cell. */
 export function questionTarget(question: DocumentQuestion): string {
+  if (question.gap_section && question.gap_part)
+    return `Section “${question.gap_section}” › ${question.gap_part}`;
   if (question.gap_section) return `Section “${question.gap_section}”`;
   return `${question.gap_file ?? ""} › ${question.gap_field ?? ""} › ${question.gap_column ?? ""}`;
 }

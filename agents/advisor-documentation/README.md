@@ -53,7 +53,11 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
 
 Every gap is asked ([Drafting documents](../../docs/specs/drafting.md)). The `Document` carries
 one question in `document_questions` for each README section left for the researcher and each
-`unknown` cell. In the README, each placeholder is followed by `<!-- dd:gap <question-id> -->`,
+`unknown` cell. A section that asks several separate things lists them as `parts` in
+`readme.yaml`, and each part is its own gap and question (`gap_part`), placed as a
+`- **<part>:**` line: **General information** asks the title, principal investigator, contact,
+dates of collection, location and funding separately, and does not ask the title or funding when
+the record gives them. In the README, each placeholder is followed by `<!-- dd:gap <question-id> -->`,
 which the rendered README does not show. A question's identifier is derived from its gap, so the
 same gap has the same identifier in every version. An answer in the request's `draft_answers` is
 placed, as given, in the gap or cell it answers, marked `supplied` in a data dictionary, and that

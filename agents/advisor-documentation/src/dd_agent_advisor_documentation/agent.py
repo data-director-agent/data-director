@@ -33,7 +33,8 @@ replaces in `revises`; a regenerated data dictionary keeps the values the resear
 version.
 
 Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
-README section left for the researcher and each `unknown` data dictionary cell. A README gap is an
+README section left for the researcher, or each part of one asked part by part, and each
+`unknown` data dictionary cell. A README gap is an
 italic placeholder followed by `<!-- dd:gap <question-id> -->`. A question's identifier is derived
 from its gap, so the same gap is asked under the same identifier in every version. An answer in
 the request's `draft_answers` is placed, as given, in the gap it answers and marked `supplied`.
@@ -154,13 +155,30 @@ LIMITATIONS = (
 )
 
 
+# The approved metadata record's general values a README part may be given by (readme.yaml), and
+# the label each is drafted under.
+RECORD_GENERAL = {"title": "Title", "creators": "Creators", "funding": "Funding"}
+
+
+class Part(NamedTuple):
+    """One thing a section asks, asked as a question of its own and placed under its label."""
+
+    label: str
+    ask: str
+    # The record's general value that, when the record gives it, says all the part asks.
+    given_by: str | None = None
+
+
 class Section(NamedTuple):
     heading: str
+    # What the section asks as one question; for a section with parts, all of them in one line.
     ask: str
     # The project facts it is drafted from, in order; empty: the researcher writes it all.
     sources: tuple[str, ...] = ()
     # The fact that, when it gives anything, says all the section asks, so no gap is left.
     complete_from: str | None = None
+    # What it asks, part by part; empty: it asks `ask` as one question.
+    parts: tuple[Part, ...] = ()
 
 
 def load_sections(path: Path = README) -> list[Section]:
@@ -181,23 +199,36 @@ def load_sections(path: Path = README) -> list[Section]:
                 f"{path}: section {entry['heading']!r} is completed from {complete_from!r}, "
                 "which it is not drafted from"
             )
-        sections.append(
-            Section(
-                str(entry["heading"]),
-                " ".join(str(entry["ask"]).split()),
-                sources,
-                complete_from,
+        parts = tuple(_part(path, entry["heading"], p) for p in entry.get("parts") or ())
+        if ("ask" in entry) == bool(parts):
+            raise ValueError(f"{path}: section {entry['heading']!r} needs either ask or parts")
+        if parts and complete_from is not None:
+            raise ValueError(
+                f"{path}: section {entry['heading']!r} has parts, so it cannot be completed "
+                "from one fact"
             )
+        ask = (
+            " ".join(str(entry["ask"]).split())
+            if not parts
+            else "; ".join(f"{p.label.lower()}: {p.ask.rstrip('.')}" for p in parts) + "."
         )
+        sections.append(Section(str(entry["heading"]), ask, sources, complete_from, parts))
     if not sections:
         raise ValueError(f"{path}: no sections")
     return sections
 
 
+def _part(path: Path, heading: str, entry: Mapping[str, Any]) -> Part:
+    given_by = entry.get("given_by")
+    if given_by is not None and given_by not in RECORD_GENERAL:
+        raise ValueError(f"{path}: section {heading!r} has a part given by unknown {given_by!r}")
+    return Part(str(entry["label"]), " ".join(str(entry["ask"]).split()), given_by)
+
+
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.3.0a1",
+        version="0.4.0a1",
         title="Documentation Editor",
         description=(
             "Drafts a project's README or data dictionary from its file inventory and its "
@@ -388,6 +419,33 @@ class DocumentationEditor:
             if answer is not None:
                 parts.append(answer)
                 answered += 1
+                continue
+            if section.parts:
+                # Each part is its own gap and question. An answer to the section as a whole,
+                # recorded before it was asked part by part, is placed above and asks nothing.
+                given = _record_general(record)
+                answered_parts = 0
+                for part in section.parts:
+                    if part.given_by and given[part.given_by]:
+                        continue
+                    part_id = _question_id({"section": section.heading, "part": part.label})
+                    answer = answers.get(part_id)
+                    if answer is not None:
+                        parts.append(f"- **{part.label}:** {answer}")
+                        answered_parts += 1
+                        continue
+                    placeholder = PLACEHOLDER.format(ask=part.ask)
+                    marker = GAP_MARKER.format(question_id=part_id)
+                    parts.append(f"- **{part.label}:** {placeholder}\n{marker}")
+                    questions.append(
+                        DocumentQuestion(
+                            question_id=part_id,
+                            question_prompt=f"{part.label}: {part.ask}",
+                            gap_section=section.heading,
+                            gap_part=part.label,
+                        )
+                    )
+                answered += bool(answered_parts)
                 continue
             if section.complete_from in bodies:
                 complete += 1
@@ -612,20 +670,24 @@ def _creators(record: Mapping[str, Any]) -> list[str]:
     return names
 
 
+def _record_general(record: Mapping[str, Any] | None) -> dict[str, str]:
+    """The record's general values by key (RECORD_GENERAL), each "" when the record lacks it."""
+    if record is None:
+        return dict.fromkeys(RECORD_GENERAL, "")
+    return {
+        "title": _title(record) or "",
+        "creators": "; ".join(_creators(record)),
+        "funding": "; ".join(_values(record, "fundingReferences", "funderName")),
+    }
+
+
 def _from_record(source: str, record: Mapping[str, Any]) -> str | None:
     """A section's text from the approved metadata record, its values placed as given."""
     title = _title(record)
     creators = _creators(record)
     if source == "record_general":
-        lines = [
-            (label, value)
-            for label, value in (
-                ("Title", title),
-                ("Creators", "; ".join(creators)),
-                ("Funding", "; ".join(_values(record, "fundingReferences", "funderName"))),
-            )
-            if value
-        ]
+        given = _record_general(record)
+        lines = [(label, given[key]) for key, label in RECORD_GENERAL.items() if given[key]]
         return "\n".join(f"- **{label}:** {value}" for label, value in lines) or None
     if source == "record_abstract":
         entries = record.get("descriptions")
