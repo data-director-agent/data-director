@@ -90,7 +90,6 @@ RECORD_FACTS = "approved_metadata_record"
 SOURCES = frozenset(
     {
         "files",
-        "tables",
         "licences",
         "record_general",
         "record_abstract",
@@ -533,17 +532,6 @@ def _drafted(
             for f in inventory.inventory_files
         ]
         return _table(("File", "Format", "Size (bytes)"), rows)
-    if source == "tables":
-        tables = [
-            f"`{f.file_path}`:\n\n"
-            + _table(
-                ("Field", "Type", "Format"),
-                [(f"`{c.name}`", c.field_type or "", c.field_format or "") for c in f.file_fields],
-            )
-            for f in inventory.inventory_files
-            if f.file_fields
-        ]
-        return "\n\n".join(tables) or None
     if source == "licences":
         if requirements is None or not requirements.licences:
             return None
