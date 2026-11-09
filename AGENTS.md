@@ -78,7 +78,7 @@ fixtures in `app/web/fixtures`; commit them.
   as its last line, after any footer, and leave the line below it for the person you work for,
   who may sign off there before merge. A pull request opened from their account is signed off
   implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
-  fails on any sign-off by an agent.
+  warns on any sign-off by an agent (a warning, not a failure, but still to be fixed).
 - The pull request title is a Conventional Commit, `type(scope)!: summary`, lower case, no full
   stop, at most 90 characters, such as `feat(app): register every in-tree agent`. Check it before
   opening and after editing:
