@@ -11,6 +11,7 @@ import "./Session.css";
 import { LogIn } from "lucide-react";
 
 import { PageHeader } from "../frame/PageHeader";
+import { OrcidIcon } from "../ui/BrandIcon";
 import { providerName, signInHref } from "../../session/api";
 
 const PROBLEMS: Record<string, string> = {
@@ -49,7 +50,11 @@ export function SignInPage({
         </p>
         <p>
           <a className="button button-primary" href={signInHref(returnTo)}>
-            <LogIn className="button-icon" size="1.125em" aria-hidden="true" />
+            {provider === "ORCID" ? (
+              <OrcidIcon className="button-icon" size="1.25em" />
+            ) : (
+              <LogIn className="button-icon" size="1.125em" aria-hidden="true" />
+            )}
             Sign in with {provider}
           </a>
         </p>
