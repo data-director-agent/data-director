@@ -513,29 +513,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
       # Every commit in the pull request carries a Signed-off-by trailer naming its author
-      # (`git commit -s`; CONTRIBUTING.md). A bot's commits are exempt: Dependabot signs off
-      # with an address other than the one it commits from. So are release-please's release
-      # commits, which it makes with a personal access token and cannot sign off.
-      - name: Every commit is signed off by its author
+      # (`git commit -s`; CONTRIBUTING.md), and none is signed off by a coding agent: only a human
+      # can approve a commit, an agent may co-author it (scripts/check_signoff.py). A bot's
+      # commits are exempt: Dependabot signs off with an address other than the one it commits
+      # from. So are release-please's release commits, which it makes with a personal access
+      # token and cannot sign off. A bot that is itself an agent is not exempt.
+      - name: Every commit is signed off by a human
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          status=0
-          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
-            author=$(git log -1 --format='%an <%ae>' "$sha")
-            case "$author" in *"[bot] <"*) continue ;; esac
-            case "$(git log -1 --format=%s "$sha")" in "chore(main): release "*) continue ;; esac
-            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
-                | grep -qxF "$author"; then
-              echo "::error::$(git log -1 --format='%h %s' "$sha"): no 'Signed-off-by: $author'"
-              status=1
-            fi
-          done
-          if [ "$status" -ne 0 ]; then
-            echo "Sign off with 'git commit -s'; amend earlier commits with 'git rebase --signoff $BASE_SHA'."
-          fi
-          exit "$status"
+          python3 scripts/check_signoff.py "$BASE_SHA" "$HEAD_SHA" \
+            | while IFS= read -r line; do echo "::error::$line"; done
+          exit "${PIPESTATUS[0]}"
 
   dependency-review:
     name: Dependency review
