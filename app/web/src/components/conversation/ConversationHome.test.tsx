@@ -89,7 +89,11 @@ const ANSWERED = answeredFixture as unknown as Conversation;
 const COLLECTED = "Data already collected, being prepared for sharing";
 
 describe("ConversationHome", () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    // A conversation is now named in the address, which would carry into the next test.
+    history.replaceState(null, "", "/");
+  });
   describe("a choice question", () => {
     it("is announced, answered by choosing, and sent beside the labels chosen", async () => {
       const sendTurn = vi.fn().mockResolvedValue(undefined);
@@ -534,6 +538,54 @@ describe("ConversationHome", () => {
     expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
   });
 
+  describe("keeps the open conversation in the address", () => {
+    afterEach(() => history.replaceState(null, "", "/"));
+
+    it("reopens the conversation named in the address, as after a reload, and continues it", async () => {
+      history.replaceState(null, "", "/?conversation=c9");
+      const create = vi.fn(fakeApi().create);
+      const sendTurn = vi.fn(() => Promise.resolve());
+      renderHome(withOrchestrator(), fakeApi({ create, sendTurn }));
+      expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "more");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await waitFor(() => expect(sendTurn).toHaveBeenCalled());
+      expect(create).not.toHaveBeenCalled();
+      expect((sendTurn.mock.calls[0] as unknown[])[0]).toBe("c9");
+    });
+
+    it("names a reopened conversation in the address and clears it for a new one", async () => {
+      const projectId = CONVERSATION.project_id ?? "p1";
+      localStorage.setItem("dd-project", projectId);
+      const list = () =>
+        Promise.resolve([
+          {
+            conversation_id: "c9",
+            agent_id: "orchestrator.stub",
+            title: "Depositing a soil survey",
+            title_source: "model" as const,
+            turns: 2,
+            started_at: "2026-01-01T09:30:00Z",
+            project_id: projectId,
+          },
+        ]);
+      renderHome(withOrchestrator(), fakeApi({ list }));
+      await userEvent.click(await screen.findByRole("button", { name: /^Depositing a soil survey / }));
+      await screen.findByRole("list", { name: "Conversation" });
+      expect(location.search).toBe("?conversation=c9");
+      await userEvent.click(screen.getByRole("button", { name: "New conversation" }));
+      expect(location.search).toBe("");
+    });
+
+    it("says so, and clears the address, when the conversation cannot be opened", async () => {
+      history.replaceState(null, "", "/?conversation=gone");
+      const get = () => Promise.reject(new Error("not found"));
+      renderHome(withOrchestrator(), fakeApi({ get }));
+      expect(await screen.findByText(/could not open that conversation/)).toBeVisible();
+      expect(location.search).toBe("");
+    });
+  });
+
   describe("in one project at a time", () => {
     // The fixture's project is named "My logger data" by its conversation; another is titled.
     const LOGGERS = (projectsFixture as ProjectSummary[])[0] as ProjectSummary;
@@ -836,7 +888,7 @@ describe("ConversationHome", () => {
 
     it("opens the run and its evidence inside the card, keeping the transcript", async () => {
       const { container, show } = await sendAndSelect(CONVERSATION);
-      expect(location.search).toMatch(/^\?run=/);
+      expect(location.search).toMatch(/^\?conversation=c1&run=/);
       expect(show).toHaveFocus();
       expect(show).toHaveAttribute("aria-expanded", "true");
       expect(show).toHaveAccessibleName(/^Hide the run/);
@@ -847,7 +899,7 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("list", { name: "Conversation" })).toBeInTheDocument();
       expect(await axe(container)).toHaveNoViolations();
       await userEvent.click(show);
-      expect(location.search).toBe("");
+      expect(location.search).toBe("?conversation=c1");
       expect(show).toHaveAttribute("aria-expanded", "false");
       expect(within(card).queryByRole("heading", { name: /^Outcome:/ })).toBeNull();
     });

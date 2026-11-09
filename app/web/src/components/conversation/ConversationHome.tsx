@@ -3,8 +3,9 @@
  * workspace (§18), in the project the shell is working in. The project's conversations are on the
  * left, an overview of it on the right, and the Blueprint's phases in a strip above. New
  * conversation starts another thread in the same project; with no project active, the first
- * message starts one, which becomes the active project. Switching project closes the open
- * conversation. A delegated run opens inside its card in the
+ * message starts one, which becomes the active project. The open conversation is named in the
+ * address (`?conversation=`), so a reload or a link reopens it and a message sent after it
+ * continues it. Switching project closes the open conversation. A delegated run opens inside its card in the
  * transcript (§14).
  *
  * The orchestrator is the agent the profile names (docs/specs/app.md), never one the shell picks.
@@ -58,7 +59,7 @@ import type { AgentView, Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
 import { type ProjectDocuments, useProjectApi } from "../../project/api";
 import { type DocumentsRead, draftedBy } from "../../project/drafted";
-import { Link, navigate, useLocation } from "../../route";
+import { Link, homePath, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
 import { RunRefused, errorMessage } from "../../run/api";
 import type { Envelope } from "../../run/types";
@@ -118,7 +119,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
-  const runId = new URLSearchParams(useLocation().split("?")[1]).get("run");
+  const params = new URLSearchParams(useLocation().split("?")[1]);
+  const runId = params.get("run");
+  // The open conversation is kept in the address, so a reload or a link reopens it.
+  const urlConversation = params.get("conversation");
+  // The conversation the page already holds, or has deliberately closed, so that the address
+  // changing to it is not read as a request to load it.
+  const handled = useRef<string | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
 
   const reloadPast = useCallback(
@@ -219,9 +226,52 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     return () => abort.abort();
   }, [flowApi]);
 
+  // A conversation closed by switching project is taken out of the address, and not read again
+  // from it. This runs before the effect below, which would otherwise reopen it.
+  const [closed, setClosed] = useState<{ id: string } | null>(null);
+  useEffect(() => {
+    if (closed === null) return;
+    handled.current = closed.id;
+    navigate(homePath({ run: runId }), true);
+    // Only a closing is acted on; the run is read as it is then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closed]);
+
+  // A conversation named in the address and not yet held, as after a reload or Back, is read and
+  // opened in its own project.
+  useEffect(() => {
+    if (!urlConversation) {
+      handled.current = null;
+      return;
+    }
+    if (urlConversation === handled.current) return;
+    const id = urlConversation;
+    const abort = new AbortController();
+    handled.current = id;
+    api.get(id, abort.signal).then(
+      (found) => {
+        setConversation(found);
+        setConversationId(id);
+        setOpenProject(found.project_id ?? null);
+        if ((found.project_id ?? null) !== projectId) setProjectId(found.project_id ?? null);
+        setError(null);
+      },
+      (e: unknown) => {
+        if (abort.signal.aborted) return;
+        handled.current = null;
+        setError(`Data Director could not open that conversation: ${errorMessage(e)}`);
+        navigate(homePath({ run: runId }), true);
+      },
+    );
+    return () => abort.abort();
+    // Only the address decides what is loaded; the project is read as it is when the read lands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, urlConversation]);
+
   // Switching project closes the conversation open in another; starting a project by sending the
   // first message does not, since the open conversation is the one that started it.
   if (openProject !== undefined && openProject !== projectId) {
+    if (urlConversation) setClosed({ id: urlConversation });
     setConversationId(null);
     setConversation(null);
     setOpenProject(undefined);
@@ -372,6 +422,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         setOpenProject(started.project_id);
         // With no project active, the server started one: the shell is now working in it.
         if (started.project_id !== projectId) setProjectId(started.project_id);
+        handled.current = id;
+        navigate(homePath({ conversation: id, run: runId }), true);
       }
       setConversationId(id);
       const document = inventory?.document ?? null;
@@ -449,7 +501,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setConversationId(null);
     setConversation(null);
     setOpenProject(undefined);
-    if (runId) navigate("/");
+    handled.current = null;
+    if (runId || urlConversation) navigate("/");
     setError(null);
     setText("");
     setAttached(null);
@@ -461,12 +514,14 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   async function reopen(id: string) {
     try {
       const found = await api.get(id);
+      handled.current = id;
       setConversation(found);
       setConversationId(id);
       setOpenProject(found.project_id ?? null);
       // A conversation is opened in its own project, so the workspace follows it there.
       if ((found.project_id ?? null) !== projectId) setProjectId(found.project_id ?? null);
       setError(null);
+      navigate(homePath({ conversation: id }));
       box.current?.focus();
     } catch (e) {
       setError(`Data Director could not open that conversation: ${errorMessage(e)}`);
@@ -475,11 +530,16 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   // Opening a run shows it in its card and closing it hides it; focus stays on the card's button.
   function toggleRun(envelope: Envelope) {
-    navigate(envelope.invocation_id === runId ? "/" : `/?run=${encodeURIComponent(envelope.invocation_id)}`);
+    navigate(
+      homePath({
+        conversation: urlConversation,
+        run: envelope.invocation_id === runId ? null : envelope.invocation_id,
+      }),
+    );
   }
 
-  // A run named in the address but not in the transcript, as after a reload (the conversation is
-  // not in the address), is shown above the message box so the link still opens it.
+  // A run named in the address but not in the transcript, as when its conversation is not the one
+  // open, is shown above the message box so the link still opens it.
   const inTranscript = conversation?.turns
     .flatMap((t) => t.children)
     .some((c) => c.invocation_id === runId);
