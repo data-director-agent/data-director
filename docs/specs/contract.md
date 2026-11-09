@@ -120,7 +120,10 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     the Pydantic model, not the schema: a card carries class schemas over A2A, which would turn the
     bounds into doubles and break the schema digest (#333). The harness checks an answer against
     its question before the turn runs (`dd_harness.conversations.answer_problem`,
-    `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`).
+    `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`). The project intake asks
+    its questions as `ChoiceQuestion`s too, outside any reply; its answers go to the project, not
+    a turn, so they carry no `ChoiceAnswer` and the core schema does not change for them
+    ([Orchestration](orchestration.md), invariant 20).
 24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
     leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived
     from the gap), the text put to the person, and a target that is either a README section or a
