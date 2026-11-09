@@ -189,6 +189,26 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     from the project log, never from a second record. A deployment that turns sign-in on starts
     from an empty run store ([Policy and identity](policy-and-identity.md)), so no run is left
     without an owner (`app/tests/test_sign_in.py`, `app/tests/test_app.py`).
+25. **A new project's conversation opens with the intake, and the researcher may always pass it
+    by.** While a project's intake is pending ([Orchestration](orchestration.md), invariant 20),
+    its conversation opens with Data Director's card before any turn. The card holds a greeting and
+    the next question, drawn as in rule 21. It is announced in the polite live region and has a
+    "Skip these questions" button.
+    - `GET /api/projects/{id}/intake` reads the next question, or says the intake is complete or
+      dismissed.
+    - `POST /api/projects/{id}/intake/{question_id}` records an answer (`{"answer_values": […]}`).
+      It answers with the next question, or, once the intake is complete, with the phase the
+      project starts at and the suggested step, both from the project summary.
+    - `POST /api/projects/{id}/intake/dismiss` records a dismissal.
+
+    Neither body names who answered: the server records the answer for the person signed in. A
+    malformed body is refused with a 400, and an answer the harness rejects with a 409; nothing is
+    recorded in either case. The message box stays usable throughout. A turn sent while the
+    intake is pending leaves it pending, and does not count as an answer. The intake is a card of
+    the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
+    answers reach the orchestrator through the project's entry point and step states. The phase
+    tracker offers "Answer the setup questions again", which shows the card with the current
+    answers chosen. Not built yet, TODO(#668).
 
 ## Boundaries and contracts
 
@@ -424,6 +444,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.
+- TODO(#668): the intake card, its routes and the tracker's way back to it (rule 25).
 - TODO(#67): no agent declares limits, reliability or data handling yet.
 - TODO(#141): listing runs and conversations reads the whole run store; an index by principal
   comes with the run record (#653).
