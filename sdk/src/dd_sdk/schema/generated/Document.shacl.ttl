@@ -10,7 +10,14 @@ dd:Document a sh:NodeShape ;
     rdfs:comment "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:DocumentQuestion ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The content of the document, as text; a structured record is serialised." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:document_text ],
+        [ sh:class dd:DocumentQuestion ;
             sh:description "The questions this version asks the researcher, one for each gap it leaves. A README marks each gap with the HTML comment <!-- dd:gap question_id -->; a data dictionary leaves the cell empty and its source unknown." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 8 ;
@@ -62,26 +69,19 @@ dd:Document a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 7 ;
-            sh:path prov:wasRevisionOf ],
-        [ sh:datatype xsd:string ;
-            sh:description "The content of the document, as text; a structured record is serialised." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:document_text ] ;
+            sh:path prov:wasRevisionOf ] ;
     sh:targetClass dd:Document .
 
 dd:DocumentQuestion a sh:NodeShape ;
-    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer." ;
+    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The field whose data dictionary row the question would fill." ;
+            sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:gap_field ],
+            sh:order 7 ;
+            sh:path dd:suggested_answer ],
         [ sh:datatype xsd:string ;
             sh:description "The question, as a short line a person reads before the options." ;
             sh:maxCount 1 ;
@@ -90,22 +90,11 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:question_prompt ],
         [ sh:datatype xsd:string ;
-            sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
+            sh:description "The part of the README section the question would fill, such as Funding, when the drafter asks the section part by part. Present only with gap_section." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:suggested_answer ],
-        [ sh:datatype xsd:string ;
-            sh:description "The data dictionary column the question would fill, such as unit." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:gap_column ],
-        [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:order 7 ;
-            sh:path dd:suggestion_derivation ],
+            sh:order 3 ;
+            sh:path dd:gap_part ],
         [ sh:datatype xsd:string ;
             sh:description "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets." ;
             sh:maxCount 1 ;
@@ -115,17 +104,34 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:path dd:question_id ;
             sh:pattern "^q-[0-9a-f]{16}$" ],
         [ sh:datatype xsd:string ;
+            sh:description "The field whose data dictionary row the question would fill." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:gap_field ],
+        [ sh:datatype xsd:string ;
             sh:description "The path of the file whose data dictionary row the question would fill." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 3 ;
+            sh:order 4 ;
             sh:path dd:gap_file ],
         [ sh:datatype xsd:string ;
             sh:description "The heading of the README section the question would fill, as the drafter wrote it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path dd:gap_section ] ;
+            sh:path dd:gap_section ],
+        [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 8 ;
+            sh:path dd:suggestion_derivation ],
+        [ sh:datatype xsd:string ;
+            sh:description "The data dictionary column the question would fill, such as unit." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:gap_column ] ;
     sh:targetClass dd:DocumentQuestion .
 
 dd:DocumentVersionRef a sh:NodeShape ;

@@ -37,7 +37,7 @@ Every event has these members:
 refused, and `title_source`: `researcher` for a person (`PUT /api/projects/…/title`) or `model`
 for a name an orchestrator's model wrote, caused by its run. The latest title counts. A title given
 at creation is a person's, and once a person has given one, `ProjectStore.rename` refuses a model's
-and records nothing ([Projects](../../docs/specs/projects.md), invariant 20).
+and records nothing ([Projects](../../docs/specs/projects.md), invariant 21).
 
 `conversation_started` also gives the `conversation_id` (a UUIDv7) of a conversation started from
 the project. `ProjectStore.project_of(conversation_id)` says which project, if any, a conversation

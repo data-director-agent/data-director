@@ -1,10 +1,10 @@
 /** A list of records as a table, one column per field, with what each record rests on. */
 
-import { fieldName } from "../../../manifest/wording";
-import { type JsonSchema, properties, shapeOf } from "../../../run/schema";
-import type { GroundingRef } from "../../../run/types";
+import { fieldName } from "../../wording";
+import { type JsonSchema, properties, shapeOf } from "../../schema/shape";
+import type { GroundingRef } from "../../payload/types";
 import { Badge } from "./Badge";
-import { type Context, isEmpty, recorders } from "./context";
+import { type Context, isEmpty, recorders } from "../../payload/context";
 import { RestsOn } from "./RestsOn";
 import { Scalar } from "./Scalar";
 

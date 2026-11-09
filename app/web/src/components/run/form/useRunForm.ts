@@ -14,7 +14,7 @@ import {
   toDocument,
   toForm,
 } from "../../../run/form";
-import type { JsonSchema } from "../../../run/schema";
+import type { JsonSchema } from "@data-director/agent-view";
 import type { Example } from "../../../run/types";
 
 export function useRunForm(

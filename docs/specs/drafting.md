@@ -53,7 +53,10 @@ with the questions. A metadata record drafter follows the same rules when it is 
    not a misleading sentence, so the person approving the version still reads the prose.
 5. **Every gap is marked and asked.** A README gap is an italic placeholder saying what is needed,
    followed by the HTML comment `<!-- dd:gap <question-id> -->`, which the rendered README does not
-   show. A data dictionary gap is an `unknown` cell. Each gap has exactly one question in the
+   show. A README section that asks several separate things, such as General information's title,
+   principal investigator, dates and funding, is asked part by part: each part the facts do not
+   give is its own gap, on a `- **<part>:**` line, with its own question. A data dictionary gap is
+   an `unknown` cell. Each gap has exactly one question in the
    version's `document_questions` whose target names it
    (`agents/advisor-documentation/tests/test_documentation_agent.py`).
 6. **An answer is supplied only when a person recorded it.** A person answers the latest version's
@@ -94,8 +97,8 @@ with the questions. A metadata record drafter follows the same rules when it is 
 hexadecimal digits, that is stable within the document across regenerations, so it is derived
 from what the question fills and never from its position; the Documentation Editor takes the
 digits from the SHA-256 of its target. It also has the text put to the person and its target: a
-README section (`gap_section`), or a data dictionary cell named by `gap_file`, `gap_field` and
-`gap_column`. An answer (`DraftAnswer`) names the question it answers and gives the text. The
+README section (`gap_section`), with the part of it (`gap_part`) when the section is asked part by
+part, or a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`. An answer (`DraftAnswer`) names the question it answers and gives the text. The
 classes are in the core contract because the conductor, the app and an orchestrator all read them
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A set
@@ -106,8 +109,8 @@ sets one, TODO(#529).
 researcher that a draft has questions and where to answer them, offers to redraft once they have,
 and says that the draft came from a mock when it did; it never accepts a suggestion for the
 researcher. The app shows the latest version's open questions on the draft's card in the
-conversation, three at a time, each as a text box labelled by the question and described by what
-it fills and by any suggestion, which the researcher may copy into the box but which never fills
+conversation, three at a time, or more to keep one section's parts together, each as a text box
+labelled by the question and described by what it fills and by any suggestion, which the researcher may copy into the box but which never fills
 it by itself, and lists every question with its answer, or its suggestion while unanswered, on
 the project's documents page ([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person

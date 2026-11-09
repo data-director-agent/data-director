@@ -172,7 +172,26 @@ intended design, and each part says where it is not built yet.
 19. **Leaving or removal takes effect from that event.** Earlier turns, runs, versions and
     decisions keep their attribution, and a run already going finishes. Not built yet,
     TODO(#389).
-20. **A person's name for a project outranks a model's.** A project's title is the latest given,
+20. **The intake's answers are events of the log, and a skip derived from one is the weakest
+    word.** The harness writes them through two methods ([Orchestration](orchestration.md),
+    invariant 20):
+    - `ProjectStore.answer_intake` checks an answer against its question by the rules `answer_problem` applies
+      to a turn's answer, with no turn involved.
+      An answer to `intake.entry` is an `entry_chosen` event, the same as the phase tracker's. Any
+      other answer is an `intake_answered` event, `{question_id, answer_values}`.
+    - `ProjectStore.dismiss_intake` writes `intake_dismissed`.
+
+    An answer that fails the check records nothing (rule 3). For each question the latest answer
+    counts (rule 5), and an answer recorded after a dismissal opens the intake again. A step's state
+    is derived from the log (`dd_harness.progress`), with the strongest source first:
+    1. work the log shows;
+    2. the researcher's own `step_marked`;
+    3. a skip implied by an intake answer.
+
+    So answering "Yes" after "No" opens the step again. Marking a step open from the tracker
+    overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
+    which question comes next in the same way, and none is stored. Not built yet, TODO(#667).
+21. **A person's name for a project outranks a model's.** A project's title is the latest given,
     at creation or by a `project_renamed` event, which says whether a person (`researcher`) or an
     orchestrator's model (`model`) gave it; a title given at creation is a person's. A member
     renames a project from its page (`PUT /api/projects/{project_id}/title`, `CONTRIBUTE`). While
@@ -208,8 +227,9 @@ project, using the invocation's `acting_for`, and the app's server makes it for 
 with the principal from its authenticator. It shows the state it reads back from the log, never a
 state it inferred, and holds no policy. The phase tracker shows where the project is in the
 process flow, which the harness derives from the log: the researcher's entry point
-(`entry_chosen`) and their marks on steps (`step_marked`: done, skipped, or open again) are
-events of the log, written through the app's server like a decision ([Orchestration](orchestration.md),
+(`entry_chosen`), their marks on steps (`step_marked`: done, skipped, or open again) and their
+intake answers (`intake_answered`, `intake_dismissed`, rule 20) are events of the log, written
+through the app's server like a decision ([Orchestration](orchestration.md),
 invariant 18). The right panel and status bar are drawn for a project but have no record behind
 them yet, TODO(#160). The app works in one project at a
 time: each conversation it starts is started in the active project, or in a new one when none is

@@ -1,9 +1,9 @@
-/** What every part of a result needs: the schema, the manifest's derivations and the evidence. */
+/** What every part of a payload's layout needs: the schema, the derivations and the evidence. */
 
-import type { Derivation } from "../../../manifest/normalise";
-import type { JsonSchema } from "../../../run/schema";
-import type { EvidenceItem } from "../../../run/types";
-import { evidenceKey } from "../EvidencePanel";
+import type { Derivation } from "../spec/read";
+import type { JsonSchema } from "../schema/shape";
+import { evidenceKey } from "./evidence";
+import type { EvidenceItem } from "./types";
 
 export interface Context {
   root: JsonSchema;

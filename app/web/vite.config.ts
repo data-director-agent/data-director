@@ -3,18 +3,22 @@ import { fileURLToPath } from "node:url";
 import { searchForWorkspaceRoot } from "vite";
 import { defineConfig } from "vitest/config";
 
-// @data-director/inventory is linked from inventory/browser and served as source, so the dev
-// server may read it as well as this folder.
+// @data-director/inventory and @data-director/agent-view are linked from inventory/browser and
+// sdk/browser and served as source, so the dev server may read them as well as this folder.
 const INVENTORY = fileURLToPath(new URL("../../inventory/browser", import.meta.url));
+const AGENT_VIEW = fileURLToPath(new URL("../../sdk/browser", import.meta.url));
 
 // The app's Python server (`uv run data-director`) serves /api; `npm run dev` proxies to it.
 const API = process.env.DD_APP_URL ?? "http://127.0.0.1:7860";
 
 export default defineConfig({
   plugins: [react()],
+  // agent-view's components import React from its own folder, where its tests install a copy; one
+  // React for the whole page, the app's.
+  resolve: { dedupe: ["react", "react-dom"] },
   server: {
     proxy: { "/api": API },
-    fs: { allow: [searchForWorkspaceRoot(process.cwd()), INVENTORY] },
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), INVENTORY, AGENT_VIEW] },
   },
   build: {
     outDir: "dist",

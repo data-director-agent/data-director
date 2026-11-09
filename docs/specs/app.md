@@ -145,7 +145,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the provider and the app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
 21. **A choice question is answered by choosing, and may be ignored.** A reply's
     `reply_question` is drawn beneath the reply: on the latest turn as radio buttons, or
-    checkboxes where several may be chosen, in a fieldset whose legend is the question, with
+    checkboxes where several may be chosen, each option a card the whole of which can be clicked
+    (the control stays visible and ticked beside an accent bar), in a fieldset whose legend is the question, with
     "Something else" and a text box where the question allows an answer in words; on earlier turns
     read-only, the option chosen marked with an icon and words, never by colour alone. A new reply
     that asks one is announced in the polite live region. Sending the answer sends the labels
@@ -189,6 +190,26 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     from the project log, never from a second record. A deployment that turns sign-in on starts
     from an empty run store ([Policy and identity](policy-and-identity.md)), so no run is left
     without an owner (`app/tests/test_sign_in.py`, `app/tests/test_app.py`).
+25. **A new project's conversation opens with the intake, and the researcher may always pass it
+    by.** While a project's intake is pending ([Orchestration](orchestration.md), invariant 20),
+    its conversation opens with Data Director's card before any turn. The card holds a greeting and
+    the next question, drawn as in rule 21. It is announced in the polite live region and has a
+    "Skip these questions" button.
+    - `GET /api/projects/{id}/intake` reads the next question, or says the intake is complete or
+      dismissed.
+    - `POST /api/projects/{id}/intake/{question_id}` records an answer (`{"answer_values": […]}`).
+      It answers with the next question, or, once the intake is complete, with the phase the
+      project starts at and the suggested step, both from the project summary.
+    - `POST /api/projects/{id}/intake/dismiss` records a dismissal.
+
+    Neither body names who answered: the server records the answer for the person signed in. A
+    malformed body is refused with a 400, and an answer the harness rejects with a 409; nothing is
+    recorded in either case. The message box stays usable throughout. A turn sent while the
+    intake is pending leaves it pending, and does not count as an answer. The intake is a card of
+    the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
+    answers reach the orchestrator through the project's entry point and step states. The phase
+    tracker offers "Answer the setup questions again", which shows the card with the current
+    answers chosen. Not built yet, TODO(#668).
 
 ## Boundaries and contracts
 
@@ -245,7 +266,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   edit; saving sends it (`PUT /api/projects/{id}/title`), the server records it for the person
   signed in, and the page reads the name back. The dialog says when the name is one the Data
   Director suggested, and that a person's name is never replaced by the Data Director's
-  ([Projects](projects.md), invariant 20).
+  ([Projects](projects.md), invariant 21).
 - **A drafted document is shown on the turn that drafted it.** The workspace reads the project's
   documents (`GET /api/projects/{id}/documents`) when the conversation's project is known and
   again after each turn. A version whose `drafted_by.invocation_id` is the turn's invocation or
@@ -284,8 +305,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   shell computes no state and no suggestion of its own.
 - **The agent directory** is read-only and for end users: each agent's name, description, what it
   takes and returns, what powers it and whether this deployment will run it. A person does not run
-  or message an agent from it; they work through the conversation. Running one agent directly,
-  its run history, grounding and derivation detail and oversight declarations belong to the
+  or message an agent from it; they work through the conversation. Below that, folded away, is
+  what the agent's card declares, field by field (`@data-director/agent-view`, `sdk/browser`), for
+  a steward or developer who needs to inspect it. Running one agent directly, its run history and
+  the explanation of its grounding, derivations and oversight declarations belong to the
   workbench.
 - **The policy page** is read-only and for anyone signed in. A person sees the rules their runs
   are held to, the same `policy_bundle_ref` every stored run records; a steward changes them in
@@ -430,6 +453,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.
+- TODO(#668): the intake card, its routes and the tracker's way back to it (rule 25).
 - TODO(#67): no agent declares limits, reliability or data handling yet.
 - TODO(#141): listing runs and conversations reads the whole run store; an index by principal
   comes with the run record (#653).

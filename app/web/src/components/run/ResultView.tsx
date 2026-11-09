@@ -1,103 +1,63 @@
 /**
- * A result, laid out from its class's JSON Schema and the manifest's derivations: a simplified
- * port of the workbench viewer's `payloadUi` (workbench/viewer/js/payload.js).
- *
- * A list of records is a table with one column per field. A field the manifest says is produced
- * by a template, a model, keyword rules or a registry carries a badge saying so, read from the
- * record's own `recorded_in` field when there is one; that field is not shown as a column. Each
- * record's `grounded_on` becomes numbered links to the evidence it rests on, named from the
- * evidence; a citation with no matching evidence item is flagged. The top-level `grounded_on`
- * is the evidence list itself, so it is not repeated. A drafted document's text (the contract's
- * `Document`: `document_text` with its `media_type`) is shown as a document, rendered when it is
- * Markdown, rather than as one value among the facts. The parts are in `result/`.
- *
- * TODO(#70): the full renderer, with per-class renderers in a registry.
+ * A run's result, laid out by `@data-director/agent-view`'s `PayloadView` from its class's JSON
+ * Schema and the manifest's derivations (see that component for how). The shell lends it its own
+ * Markdown renderer and its document view (`result/DocumentText`: copy and download), so that a
+ * drafted document reads the same here as on the project's documents page.
  */
 
-import "./ResultView.css";
+import "@data-director/agent-view/styles.css";
 
-import type { Derivation } from "../../manifest/normalise";
-import { type JsonSchema, properties, shapeOf } from "../../run/schema";
-import type { EvidenceItem } from "../../run/types";
+import type { Derivation, DocumentPart, EvidenceItem, JsonSchema } from "@data-director/agent-view";
+import { AgentViewProvider, type DocumentProps, PayloadView, type Slots } from "@data-director/agent-view/react";
+
 import { documentName } from "../../project/name";
-import { isEmpty, makeContext, recorders } from "./result/context";
+import { Markdown } from "../ui/Markdown";
 import { DocumentText } from "./result/DocumentText";
-import { Facts } from "./result/Facts";
-import { Section } from "./result/Section";
+
+/** What the shell calls a document: its title, or the name of its kind. */
+function title(document: DocumentPart): string {
+  return documentName({ document_title: document.title, document_kind: document.kind ?? "other" });
+}
+
+function ShellDocument({ document, headingId }: DocumentProps) {
+  return (
+    <DocumentText
+      text={document.text}
+      mediaType={document.mediaType}
+      title={title(document)}
+      headingId={headingId}
+    />
+  );
+}
+
+const SLOTS: Slots = { Markdown, Document: ShellDocument };
 
 export function ResultView({
   payload,
   schema,
+  className,
   derivations,
   evidence,
   idPrefix,
 }: {
   payload: Record<string, unknown>;
   schema: JsonSchema | undefined;
+  /** The payload's class name, for a renderer registered for it. */
+  className?: string | null;
   derivations: Derivation[];
   evidence: EvidenceItem[];
   idPrefix: string;
 }) {
-  if (!schema) {
-    return (
-      <>
-        <p>This deployment has no schema for this result, so it is shown as it arrived.</p>
-        <pre className="json-view">{JSON.stringify(payload, null, 2)}</pre>
-      </>
-    );
-  }
-  const ctx = makeContext(schema, derivations, evidence, idPrefix);
-  const hidden = recorders(ctx, "");
-  const document = documentOf(payload);
-  if (document) hidden.add(TEXT);
-  const sections = properties(schema).filter(
-    ([name]) => name !== "grounded_on" && !hidden.has(name) && !isEmpty(payload[name]),
-  );
-  const scalars = sections.filter(([, s]) => {
-    const kind = shapeOf(schema, s).kind;
-    return kind === "scalar" || kind === "list";
-  });
   return (
-    <div className="result">
-      {scalars.length > 0 && (
-        <Facts
-          schema={{ properties: Object.fromEntries(scalars) }}
-          value={payload}
-          path=""
-          ctx={ctx}
-        />
-      )}
-      {document && (
-        <DocumentText
-          text={document.text}
-          mediaType={document.mediaType}
-          title={document.title}
-          headingId={`${idPrefix}-document-heading`}
-        />
-      )}
-      {sections.map(([name, s]) => (
-        <Section key={name} name={name} schema={s} value={payload[name]} ctx={ctx} />
-      ))}
-    </div>
+    <AgentViewProvider components={SLOTS}>
+      <PayloadView
+        payload={payload}
+        schema={schema}
+        className={className}
+        derivations={derivations}
+        evidence={evidence}
+        idPrefix={idPrefix}
+      />
+    </AgentViewProvider>
   );
-}
-
-const TEXT = "document_text";
-/** The document a payload carries, when it is the contract's `Document`. */
-function documentOf(
-  payload: Record<string, unknown>,
-): { text: string; mediaType: string; title: string } | null {
-  const text = payload[TEXT];
-  const mediaType = payload.media_type;
-  if (typeof text !== "string" || typeof mediaType !== "string") return null;
-  const title = payload.document_title;
-  const kind = payload.document_kind;
-  return {
-    text,
-    mediaType,
-    title: documentName({
-      document_title: typeof title === "string" && title ? title : null,
-      document_kind: typeof kind === "string" ? kind : "other",
-    }),
-  };
 }

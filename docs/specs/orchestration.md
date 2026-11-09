@@ -74,7 +74,7 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    reply carries its question as `Reply.reply_question`. In a project no person has named
    (`Message.project_title_by_researcher` false) it is also offered `name_project`, which reaches
    nothing either: the reply carries the name as `Reply.new_project_title`, which the conductor
-   records as the project's title ([Projects](projects.md), invariant 20), and the turn goes on.
+   records as the project's title ([Projects](projects.md), invariant 21), and the turn goes on.
    Nothing else is offered: no MCP server, no server tool
    (web search, web fetch, code execution), no Agent Skills; its package depends on and imports
    nothing that could provide one.
@@ -107,7 +107,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     or with the note that the Blueprint names none. An orchestrator never skips such a step or
     does it itself. (`test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps`)
 15. **On a first turn that names no task, an orchestrator asks which entry point applies**, then
-    follows the phases from that entry. The stub's question and its list of steps are templates
+    follows the phases from that entry. In a project whose entry point is already known
+    (`project_entry`, from the intake of invariant 20 or the phase tracker), it does not ask
+    again, and suggests the next step from that entry instead (invariant 19), TODO(#669). The stub's question and its list of steps are templates
     that delegate nothing and rest on the input alone; it asks as a choice question whose values
     are the entry numbers, and reads a `choice_answer` naming one before any rule. The model's prompt carries the whole flow
     with step ids, tells the model not to show ids to the researcher, names no agent, and is the
@@ -158,6 +160,32 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     `agents/orchestrator-stub/tests/test_guides_the_loop.py`;
     `agents/orchestrator-model/tests/test_orchestrator_guides_the_loop.py`;
     `test_the_model_is_told_where_the_project_is_only_in_a_project`)
+20. **A new project opens with the harness's intake, which asks the least that places it in the
+    flow.** Before the first turn of a project with no entry point, the app shows the intake. Data
+    Director asks first, so the researcher need not know what to type. The questions are Blueprint
+    data in the SDK (`dd_sdk.intake`, beside `dd_sdk.process_flow`). They name no agent and run no
+    orchestrator, so the stub and the model behave the same. Each question is a core
+    `ChoiceQuestion` and is asked one at a time. Each, apart from the first, is asked only from the
+    entry points that reach its step:
+
+    | Question id | Asks | From entry | An answer of "No" marks skipped |
+    |---|---|---|---|
+    | `intake.entry` | Where are you with your research data? | always, first | (the answer is the entry point: `entry_chosen`) |
+    | `intake.dmp` | Do you have a Data Management Plan for this project? | 1, 2 | `governance.dmp` |
+    | `intake.sensitive` | Does the data include personal or otherwise sensitive information? | 1, 2 | `governance.sensitive-data-identify`, `governance.sensitive-data-handle` |
+    | `intake.repository-mandated` | Has a funder, journal or institution said where the data must go? | 1, 2, 3 | `repository.mandated` |
+
+    So the intake asks at most four questions, and two from entry 3. Every question but the first
+    offers "Not sure", which records the answer and marks nothing. "Yes" also marks nothing: it
+    never shows a step as done. The intake gathers nothing else. Funder, discipline, data types,
+    embargo and licence are asked by the step that needs them, when the researcher reaches it.
+    Answers are the researcher's own word, recorded in the project log and read like
+    `step_marked` ([Projects](projects.md)). They can be changed at any time, from the phase tracker
+    or by answering again. The researcher may skip a question, dismiss the intake, or type instead.
+    None of these holds up the conversation (invariant 16). When the intake ends, the app says which
+    phase the project starts at, by its researcher-facing name, and which step `suggested_next`
+    proposes. The wording and the decision mapping await a Blueprint reading, TODO(#670); the
+    question set, its tests and the app's card are TODO(#665, #667, #668).
 
 ## Boundaries and contracts
 
@@ -218,6 +246,14 @@ the suggestion is only a suggestion so that marking, skipping and going back are
 An orchestrator succeeds whatever its children's outcomes because mirroring a child's failure on
 the parent would lose the reply's explanation, while the failure stays visible where it occurred.
 
+The intake (invariant 20) is the harness's, not an orchestrator's, for three reasons. Its answers
+must reach the project log, and no agent writes there. It must be the same whichever orchestrator
+a deployment runs. And it is Blueprint data, like the flow it places the project in. It asks only
+the §8 decisions that change which steps come first, because every question asked before the
+researcher has said anything is a cost. Everything else is asked by the step that uses it, when
+the researcher can see why it is needed. A "No" may skip a step, but a "Yes" never marks one done,
+because saying a plan exists is not the check of the deposit against it.
+
 ## Rejected alternatives
 
 - **The orchestrator calling agents directly over A2A.** The children would be ungoverned and
@@ -256,6 +292,16 @@ the parent would lose the reply's explanation, while the failure stays visible w
   requirement, left agents for the many steps that name none with nothing to declare, and merged
   a routing hint with a conformance claim that nothing checked.
 
+- **An onboarding agent, or an intake run by each orchestrator.** An agent cannot write the
+  project log, so its answers would stay in the conversation, as the entry question's do now. Two
+  orchestrators would hold two copies of the questions that could drift apart. A new persona
+  would take steps from no one, which the roster forbids ([Agents](agents.md)).
+- **A long intake that also asks funder, discipline, data types, embargo and licence.** Asking
+  these before the researcher has said anything puts people off. The answers would also be
+  guesses that the steps would ask about again.
+- **Intake answers as `step_marked` events.** That would lose what the researcher was asked, and
+  make answering again unable to undo a skip that came from an earlier answer.
+
 ## Non-functional requirements
 
 - Security: the grant token is a bearer capability. Agent and harness ports stay on the host or a
@@ -283,7 +329,9 @@ the parent would lose the reply's explanation, while the failure stays visible w
 - Step ids as the vocabulary in which a deployment's policy names the steps that need a person's
   sign-off, TODO(#308); proposing the ids to the RDA working group, TODO(#310).
 - The orchestrator's context about its deployment and the researcher's project beyond the
-  inventory the project holds, to be supplied by the harness rather than as a tool,
-  TODO(#341, #160).
+  inventory the project holds and the intake's answers (invariant 20), to be supplied by the
+  harness rather than as a tool, TODO(#341, #160).
+- Whether a deployment may change or extend the intake's questions in its profile, and whether
+  "Yes" to sensitive data should say anything before the governance step, TODO(#670).
 - A read-only check of a deposit against an existing Data Management Plan, TODO(#284).
 - Streaming replies, TODO(#159).

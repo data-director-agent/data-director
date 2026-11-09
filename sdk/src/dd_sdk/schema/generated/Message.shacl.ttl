@@ -14,18 +14,18 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
             sh:path dd:history ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:project_entry ],
         [ sh:class dd:ChoiceAnswer ;
             sh:description "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path dd:choice_answer ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:project_entry ],
         [ sh:class dd:StepProgress ;
             sh:description "The process-flow steps the conversation's project log shows started, done or skipped, in flow order. Filled by the conductor and never by the caller; absent when the run is in no project. Derived from the log on every turn, never stored." ;
             sh:nodeKind sh:BlankNodeOrIRI ;

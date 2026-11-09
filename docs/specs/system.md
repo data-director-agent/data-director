@@ -23,6 +23,15 @@ interface and no policy, and imports nothing else in the repository. `app/web` l
 (`file:../../inventory/browser`) and never the reverse; the browser scanner (#554) is to join it.
 Its readme says how it is checked.
 
+Likewise `sdk/browser/` is `@data-director/agent-view`, a TypeScript and React library for
+inspecting what an agent publishes: its A2A agent card, the Data Director extensions on it
+(`agent-spec/v0`, `manifest/v0`) and the payloads it returns, laid out from each class's JSON
+Schema with their derivations and the evidence they rest on. Its headless entry point has no
+runtime dependencies; its components need only React, and a host lends them anything else
+(Markdown, a document view, renderers for particular classes) through a provider. It names no
+agent class. `app/web` links it as source (`file:../../sdk/browser`); the workbench viewer, which
+has no build step, is to move to it too.
+
 The contract, transport, grounding and the app's own process boundary are specified elsewhere:
 [Contract](contract.md), [Transport and tracing](transport.md),
 [Evidence and grounding](grounding.md), [The app](app.md).

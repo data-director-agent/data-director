@@ -375,7 +375,7 @@
       },
       "DocumentQuestion": {
          "additionalProperties": false,
-         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer.",
+         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, or a data dictionary cell it could not fill. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer.",
          "properties": {
             "question_id": {
                "description": "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets.",
@@ -388,6 +388,13 @@
             },
             "gap_section": {
                "description": "The heading of the README section the question would fill, as the drafter wrote it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "gap_part": {
+               "description": "The part of the README section the question would fill, such as Funding, when the drafter asks the section part by part. Present only with gap_section.",
                "type": [
                   "string",
                   "null"

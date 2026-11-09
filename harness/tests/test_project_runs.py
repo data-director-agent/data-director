@@ -886,7 +886,7 @@ def test_a_reply_that_names_an_untitled_project_renames_it(
     tmp_path: Path, projects: ProjectStore
 ) -> None:
     """While no person has named a project, an orchestrator's model may (docs/specs/projects.md,
-    invariant 20); the next turn is told the name, and that a model gave it."""
+    invariant 21); the next turn is told the name, and that a model gave it."""
     untitled = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     seen: list[dict[str, Any]] = []
     conductor = conductor_over(tmp_path / "runs", projects, naming("River sediments", seen))
