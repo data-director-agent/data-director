@@ -41,7 +41,7 @@ skipped, or open again).
 
 A project may have a title, given when it is created, so that a person can tell projects apart.
 A conversation started from a project is a `conversation_started` event; `project_of` says which
-project a conversation was started in, from an index of those events built when first asked.
+project a conversation was started in, from what the logs hold when asked.
 
 Who may do what in a project is read from the log by `dd_harness.project_access`; membership
 events are TODO(#389). Giving a drafter the version it
@@ -56,11 +56,11 @@ import os
 import re
 import tempfile
 import threading
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Final, Literal, NoReturn
+from typing import Any, Final, Literal
 
 from dd_harness import progress as flow
 from dd_harness.requirements import RE3DATA_ID, Requirements, RequirementsError
@@ -141,6 +141,17 @@ class ChangeRefusedError(ProjectError):
         super().__init__(detail)
         self.refusal = refusal
         self.detail = detail
+
+
+@dataclass(frozen=True)
+class Refused:
+    """A change the project rules refuse: why, what a person is told, and what the
+    `document_change_refused` event names. Returned, not raised, so that the refusal is written
+    in the change's exclusive section before `ChangeRefusedError` is raised."""
+
+    refusal: Refusal
+    detail: str
+    named: dict[str, Any]
 
 
 def text_digest(text: str) -> str:
@@ -243,10 +254,11 @@ class ProjectStore:
         self._locks: dict[str, threading.RLock] = {}
         self._locks_guard = threading.Lock()
         self._inventory_schema = ClassSchema.of(FileInventory)
-        # Which project each conversation was started in: built from every log when first asked,
-        # then kept up to date by `start_conversation`. TODO(#521): a scan of every log does not
-        # scale past a deployment's worth of projects.
-        self._conversations: dict[str, str] | None = None
+        # The project of each conversation found so far. A conversation's project never changes
+        # once recorded, so only what was found is kept; one not found is looked for again, in
+        # case another store over the same root has started it since (docs/specs/storage.md,
+        # invariant 12). Each miss reads every log, TODO(#524).
+        self._conversations: dict[str, str] = {}
         self._conversations_guard = threading.Lock()
 
     def _lock(self, project_id: str) -> threading.RLock:
@@ -272,7 +284,6 @@ class ProjectStore:
         `conversation_id` (UUIDv7). Raises `UnknownProjectError` for an unknown project."""
         self._require(project_id)
         conversation_id = new_invocation_id()
-        index = self._conversation_index()
         self._append(
             project_id,
             CONVERSATION_STARTED,
@@ -281,12 +292,29 @@ class ProjectStore:
             {"conversation_id": conversation_id},
         )
         with self._conversations_guard:
-            index[conversation_id] = project_id
+            self._conversations[conversation_id] = project_id
         return conversation_id
 
     def project_of(self, conversation_id: str) -> str | None:
-        """The project the conversation was started in, or None if it was started in none."""
-        return self._conversation_index().get(conversation_id)
+        """The project the conversation was started in, or None if the logs record it in none
+        when asked."""
+        with self._conversations_guard:
+            found = self._conversations.get(conversation_id)
+        if found is not None:
+            return found
+        for path in self.root.glob(f"*/{EVENTS_NAME}"):
+            project_id = path.parent.name
+            if not self.exists(project_id):
+                continue
+            for event in self.events(project_id):
+                if (
+                    event["event"] == CONVERSATION_STARTED
+                    and event["conversation_id"] == conversation_id
+                ):
+                    with self._conversations_guard:
+                        self._conversations[conversation_id] = project_id
+                    return project_id
+        return None
 
     def projects(self) -> list[dict[str, Any]]:
         """A summary of every project, the one created first first (see `summary`)."""
@@ -332,21 +360,6 @@ class ProjectStore:
             "documents": states,
             "progress": flow.describe(events),
         }
-
-    def _conversation_index(self) -> dict[str, str]:
-        """Each conversation started in a project, and that project: read from every log once."""
-        with self._conversations_guard:
-            if self._conversations is None:
-                index: dict[str, str] = {}
-                for path in self.root.glob(f"*/{EVENTS_NAME}"):
-                    project_id = path.parent.name
-                    if not self.exists(project_id):
-                        continue
-                    for event in self.events(project_id):
-                        if event["event"] == CONVERSATION_STARTED:
-                            index[event["conversation_id"]] = project_id
-                self._conversations = index
-            return self._conversations
 
     def exists(self, project_id: str) -> bool:
         return bool(PROJECT_ID.fullmatch(project_id)) and self._events_path(project_id).is_file()
@@ -550,13 +563,16 @@ class ProjectStore:
         the digest is not its; `ProjectError`, which records nothing, if the text is unchanged
         or the document or digest is malformed."""
         _check_names(document_id, digest)
-        with self._lock(project_id):
-            parent = self._check_latest(
-                project_id, document_id, version, digest, acted_for, caused_by, deciding=False
-            )
+
+        def change() -> DocumentVersionRef | Refused:
+            parent = self._check_latest(project_id, document_id, version, digest, deciding=False)
+            if isinstance(parent, Refused):
+                return parent
             detail = self._edited(project_id, parent, text)
             self._append(project_id, DOCUMENT_VERSION_ADDED, acted_for, caused_by, detail)
-        return DocumentVersionRef(document_id=document_id, version=detail["version"])
+            return DocumentVersionRef(document_id=document_id, version=detail["version"])
+
+        return self._checked(project_id, acted_for, caused_by, change)
 
     def decide(
         self, project_id: str, decision: Decision, *, acted_for: Principal, caused_by: str
@@ -569,16 +585,17 @@ class ProjectStore:
         `ChangeRefusedError` for one on any text but the undecided latest, which records the
         refusal."""
         decision.check()
-        with self._lock(project_id):
+
+        def change() -> DocumentVersionRef | Refused:
             decided = self._check_latest(
                 project_id,
                 decision.document_id,
                 decision.version,
                 decision.digest,
-                acted_for,
-                caused_by,
                 deciding=True,
             )
+            if isinstance(decided, Refused):
+                return decided
             events = []
             if decision.edited_text is not None:
                 decided = self._edited(project_id, decided, decision.edited_text)
@@ -597,7 +614,11 @@ class ProjectStore:
                 self._event(project_id, DOCUMENT_VERSION_DECIDED, acted_for, caused_by, outcome)
             )
             self._write(project_id, events)
-        return DocumentVersionRef(document_id=decided["document_id"], version=decided["version"])
+            return DocumentVersionRef(
+                document_id=decided["document_id"], version=decided["version"]
+            )
+
+        return self._checked(project_id, acted_for, caused_by, change)
 
     def answer(
         self,
@@ -620,20 +641,18 @@ class ProjectStore:
         answers = check_answers(answers)
         if not PROJECT_ID.fullmatch(document_id):
             raise ProjectError("a document is named by its UUIDv7")
-        with self._lock(project_id):
-            latest = self._check_latest(
-                project_id, document_id, version, None, acted_for, caused_by, deciding=False
-            )
+
+        def change() -> DocumentVersionRef | Refused:
+            latest = self._check_latest(project_id, document_id, version, None, deciding=False)
+            if isinstance(latest, Refused):
+                return latest
             asked = {q["question_id"] for q in latest["questions"]}
             unasked = [a.answered_question for a in answers if a.answered_question not in asked]
             if unasked:
-                self._refuse(
-                    project_id,
-                    acted_for,
-                    caused_by,
-                    {"document_id": document_id, "version": version, "questions": unasked},
+                return Refused(
                     Refusal.NOT_ASKED,
                     f"Version {version} does not ask {', '.join(unasked)}.",
+                    {"document_id": document_id, "version": version, "questions": unasked},
                 )
             self._write(
                 project_id,
@@ -653,7 +672,9 @@ class ProjectStore:
                     for a in answers
                 ],
             )
-        return DocumentVersionRef(document_id=document_id, version=version)
+            return DocumentVersionRef(document_id=document_id, version=version)
+
+        return self._checked(project_id, acted_for, caused_by, change)
 
     def answers(self, project_id: str, document_kind: DocumentKind) -> list[dict[str, Any]] | None:
         """The answers a drafter of `document_kind` is given, as `DraftAnswer`s: the latest answer
@@ -913,15 +934,12 @@ class ProjectStore:
         document_id: str,
         version: int,
         digest: str | None,
-        acted_for: Principal,
-        caused_by: str,
         *,
         deciding: bool,
-    ) -> dict[str, Any]:
+    ) -> dict[str, Any] | Refused:
         """The version a change names, if it is its document's latest, has this digest (unless
         `digest` is None, for an answer, which names no text) and, for a decision, is undecided.
-        Otherwise records the refusal and raises `ChangeRefusedError`. Called with the lock
-        held."""
+        Otherwise the refusal, which `_checked` records. Called with the lock held."""
         document = self._documents(project_id).get(document_id)
         latest: dict[str, Any] | None = document["versions"][-1] if document else None
         if latest is None:
@@ -942,26 +960,33 @@ class ProjectStore:
             named["digest"] = digest
         if latest:
             named["latest_version"] = latest["version"]
-        self._refuse(project_id, acted_for, caused_by, named, refusal, detail)
+        return Refused(refusal, detail, named)
 
-    def _refuse(
+    def _checked[T](
         self,
         project_id: str,
         acted_for: Principal,
         caused_by: str,
-        named: dict[str, Any],
-        refusal: Refusal,
-        detail: str,
-    ) -> NoReturn:
-        """Record a `document_change_refused` event and raise `ChangeRefusedError`."""
-        self._append(
-            project_id,
-            DOCUMENT_CHANGE_REFUSED,
-            acted_for,
-            caused_by,
-            {**named, "refusal": refusal.value},
-        )
-        raise ChangeRefusedError(refusal, detail)
+        change: Callable[[], T | Refused],
+    ) -> T:
+        """Run `change` in the project's exclusive section (docs/specs/storage.md, invariant
+        10). If it returns a refusal, its `document_change_refused` event is written in the
+        section, and `ChangeRefusedError` is raised once the section has ended, so the refusal
+        is kept whether or not a backend undoes a section that raises (invariant 11). A
+        `ProjectError` that `change` raises records nothing."""
+        with self._lock(project_id):
+            result = change()
+            if isinstance(result, Refused):
+                self._append(
+                    project_id,
+                    DOCUMENT_CHANGE_REFUSED,
+                    acted_for,
+                    caused_by,
+                    {**result.named, "refusal": result.refusal.value},
+                )
+        if isinstance(result, Refused):
+            raise ChangeRefusedError(result.refusal, result.detail)
+        return result
 
     def _edited(self, project_id: str, parent: dict[str, Any], text: str) -> dict[str, Any]:
         """The detail of a person's version after `parent`, its text kept. It names no run."""

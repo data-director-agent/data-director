@@ -218,8 +218,9 @@ files.
   extension.
 - **Durability.** A call that stores something returns after it is durable: flushed to disk in
   the file backends, committed in the database.
-- **Performance.** The file backends scan: conversations read every envelope, and the first call
-  to `project_of` reads every project's log. They are not indexed; a deployment that outgrows a
+- **Performance.** The file backends scan: conversations read every envelope, and `project_of` reads
+  every project's log for a conversation it has not found before (a conversation's project, once
+  found, is kept, as invariant 12 allows). They are not indexed; a deployment that outgrows a
   scan moves to the database. In the database, listing runs, conversations and projects and
   finding a conversation's project are indexed queries, TODO(#524).
 - **Operations.** A documented and tested backup and restore of the database, and a health check,
