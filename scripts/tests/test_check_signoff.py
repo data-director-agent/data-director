@@ -140,6 +140,35 @@ def test_an_agent_bot_pull_request_is_not_exempt() -> None:
     assert len(cs.description_problems("Done.", "fix: x", "copilot-swe-agent[bot]")) == 1
 
 
+def test_a_pull_request_opened_by_a_person_is_signed_off_implicitly() -> None:
+    # Claude Code on the web opens the pull request from the person's account, with no sign-off.
+    assert cs.description_problems(body(), "fix: x", "Joe-Heffer-Shef") == []
+    notice = cs.implicit_signoff(body(), "fix: x", "Joe-Heffer-Shef")
+    assert notice is not None
+    assert notice.startswith(cs.NOTICE)
+    assert "@Joe-Heffer-Shef" in notice
+
+
+def test_an_explicit_signoff_needs_no_implicit_one() -> None:
+    assert cs.implicit_signoff(body(JOE), "fix: x", "Joe-Heffer-Shef") is None
+
+
+def test_an_agent_signoff_is_rejected_even_from_a_person_s_pull_request() -> None:
+    problems = cs.description_problems(body(CLAUDE), "fix: x", "Joe-Heffer-Shef")
+    assert len(problems) == 1
+    assert "signed off by a coding agent" in problems[0]
+
+
+@pytest.mark.parametrize("author", ["", "copilot-swe-agent[bot]"])
+def test_no_implicit_signoff_without_a_person_s_account(author: str) -> None:
+    assert cs.implicit_signoff(body(), "fix: x", author) is None
+    assert len(cs.description_problems(body(), "fix: x", author)) == 1
+
+
+def test_exempt_pull_requests_have_no_implicit_signoff_notice() -> None:
+    assert cs.implicit_signoff("Release notes.", "chore(main): release 1.2.3", "joe") is None
+
+
 def test_parse_reads_trailers_from_git_log_output() -> None:
     log = (
         f"abc{cs.FIELD}{JOE}{cs.FIELD}fix: x{cs.FIELD}{JOE}\n{CLAUDE}\n{cs.RECORD}\n"
@@ -187,7 +216,11 @@ def test_main_against_a_real_repository(tmp_path: Path, capsys: pytest.CaptureFi
         assert cs.main([base, good]) == 0
         assert cs.main([base, good, "--body-file", str(signed)]) == 0
         assert cs.main([base, good, "--body-file", str(unsigned)]) == 1
+        opened = ["--body-file", str(unsigned), "--author", "Joe-Heffer-Shef"]
+        assert cs.main([base, good, *opened]) == 0
         assert cs.main([base, bad]) == 1
     finally:
         os.chdir(here)
-    assert "signed off by a coding agent" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "signed off by a coding agent" in out
+    assert any(line.startswith(cs.NOTICE) for line in out.splitlines())
