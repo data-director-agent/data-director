@@ -33,3 +33,33 @@
     font-weight: var(--font-weight-strong);
   }
 }
+
+/*
+ * When the profile names an orchestrator, the list falls into two sections: the agent a person
+ * talks to, pinned first, and the agents it calls on behind the scenes. A heading word, not colour
+ * alone, says which is which.
+ */
+@layer components {
+  .agent-section-header {
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .agent-section-behind {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  .agent-section-behind .agent-option {
+    padding-inline-start: var(--space-4);
+  }
+
+  .agent-option-orchestrator {
+    border-bottom: 0;
+  }
+
+  .agent-role {
+    color: var(--color-link);
+  }
+}
