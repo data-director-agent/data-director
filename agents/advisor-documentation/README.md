@@ -19,8 +19,10 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
 
 - `readme`: a Markdown README with the sections of `readme.yaml`. Each section shows, in italics,
   what the researcher should write in it. The **Files** section lists the inventory's files with
-  their formats and sizes. **Variables** lists each table's fields with their types. **Access and
-  licence** lists the licences the chosen repository offers, if its requirements name any.
+  their formats and sizes. **Variables** does not repeat the tables' fields: it asks the
+  researcher to point to the data dictionary, which describes them, and to give any abbreviations
+  or conventions shared across the tables. **Access and licence** lists the licences the chosen
+  repository offers, if its requirements name any.
 
   When the request carries the project's approved metadata record (`metadata_record`, which the
   conductor fills in a project), the README takes from it, as given: the title, as the README's

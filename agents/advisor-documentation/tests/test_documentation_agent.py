@@ -81,8 +81,10 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
     assert asked.inventory is not None
     for f in asked.inventory.inventory_files:
         assert f"`{f.file_path}`" in text
-        for field in f.file_fields:
-            assert f"`{field.name}`" in text
+    # The fields are described in the data dictionary, which Variables points to; not repeated.
+    variables = text.split("## Variables", 1)[1].split("\n## ", 1)[0]
+    assert "data dictionary" in variables
+    assert "| Field |" not in text
     assert asked.requirements is not None and asked.requirements.licences
     assert f"`{asked.requirements.licences[0]}`" in text
     assert "template path" in env.outcome.statement

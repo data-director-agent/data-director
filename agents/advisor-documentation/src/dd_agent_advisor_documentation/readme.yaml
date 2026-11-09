@@ -8,7 +8,6 @@
 # project fact, or the list of facts in order, a section is drafted from:
 #
 #   files            the inventory's files, as a table of path, format and size
-#   tables           the inventory's tables, as a table of field, type and format per file
 #   licences         the licences the chosen repository offers, for the researcher to choose from
 #   record_general   the approved metadata record's title, creators and funders
 #   record_abstract  the approved metadata record's abstract
@@ -56,10 +55,9 @@
     how the data were collected and processed; the software and instruments, with their versions;
     the standards, calibration and quality assurance applied.
 - heading: Variables
-  from: tables
   ask: >-
-    each field's definition, unit and missing value codes, in the data dictionary; any
-    abbreviations used.
+    where the data dictionary is, which describes each field's definition, type, unit and missing
+    value codes; any abbreviations or coding conventions shared across the tables.
 - heading: Access and licence
   from: [record_rights, licences]
   ask: the licence, any restrictions, related publications and other places the data are held.
