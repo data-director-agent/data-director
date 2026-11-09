@@ -114,15 +114,18 @@ class ProjectStorage(Protocol):
     1. A project's log is append-only: an event is never changed or removed, and events come
        back in the order they were appended.
     2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`) reads the
-       log and appends its events as one atomic step for that project: no other change to the
-       project comes between. The file backend holds a per-project lock; a database would use a
-       transaction or a conditional insert. Events a change writes together (an edit and its
-       approval) are kept together or not at all.
-    3. Projects do not wait on one another.
-    4. Content an event adds is kept once by digest, and read back byte for byte.
-    5. `project_of` finds a conversation's project from what is stored, so it holds after a
-       restart.
-    6. A malformed `project_id` names no project.
+       log, applies the project rules and appends its events in an exclusive section for that
+       project: no other change to the project enters it. The file backend holds a lock per
+       project; a database holds a lock on the project's row for one transaction. Events a
+       change writes together (an edit and its approval) are kept together or not at all.
+    3. A refusal is recorded, then raised: the `document_change_refused` event is kept with the
+       section, and `ChangeRefusedError` is raised after the section ends.
+    4. Projects do not wait on one another.
+    5. Content an event adds is kept once by digest, and read back byte for byte.
+    6. `project_of`, `projects` and every other read answer from what is stored when asked, so
+       several stores over one record agree, and each holds after a restart. Only what can
+       never change, such as a conversation's project once recorded, may be cached.
+    7. A malformed `project_id` names no project.
     """
 
     def create(self, *, acted_for: Principal, caused_by: str, title: str | None = None) -> str:
