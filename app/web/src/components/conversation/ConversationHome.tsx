@@ -590,6 +590,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 </>
               )}
             </div>
+            <p id="inventory-hint" className="hint">
+              An inventory describes your data files (their names, sizes, formats and table column
+              headings); it does not contain the data themselves. Your data are not uploaded.
+            </p>
             <InventoryReviewDialog
               pending={pending}
               onAttach={confirmInventory}
