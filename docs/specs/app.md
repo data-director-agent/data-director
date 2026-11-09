@@ -341,7 +341,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   they need. The app starts projects untitled, so the list names each by its first
   conversation's title.
 - **One project at a time.** The shell works in one active project: the workspace header names it
-  and switches to another or to **New project**, the left-hand list shows only its
+  switches to another or to **New project**, and links to the project's page (**Project details**), the left-hand list shows only its
   conversations, **New conversation** starts another thread in it, and the right panel describes
   it. With no project active, the first message starts one, which becomes active. Opening a
   project from the projects page, or its documents page, makes it active; switching closes the
