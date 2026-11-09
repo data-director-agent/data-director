@@ -17,6 +17,7 @@ import {
 } from "../../session/api";
 import { DEVELOPMENT, SIGNED_OUT, WithSession, fakeSessionApi, signedIn } from "../../test/session";
 import { SessionTimeout } from "./SessionTimeout";
+import { SignInPage } from "./SignInPage";
 
 const directory = normalise(reference as unknown as RawAgentsResponse);
 
@@ -47,6 +48,17 @@ describe("signing in", () => {
     expect(load).not.toHaveBeenCalled();
     expect(within(banner()).queryByText("Sign out")).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("draws the ORCID iD icon on the button for ORCID, and a generic icon for any other provider", () => {
+    const { rerender } = render(<SignInPage issuer="https://orcid.org" returnTo="/" />);
+    const orcid = screen.getByRole("link", { name: "Sign in with ORCID" });
+    expect(orcid.querySelector('svg[viewBox="0 0 72 72"]')).not.toBeNull();
+
+    rerender(<SignInPage issuer="https://idp.example.org" returnTo="/" />);
+    const other = screen.getByRole("link", { name: "Sign in with idp.example.org" });
+    expect(other.querySelector("svg")).not.toBeNull();
+    expect(other.querySelector('svg[viewBox="0 0 72 72"]')).toBeNull();
   });
 
   it("is reached by keyboard: the sign-in link is in the tab order", async () => {

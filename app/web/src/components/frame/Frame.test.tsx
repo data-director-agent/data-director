@@ -20,9 +20,9 @@ describe("Frame", () => {
       "aria-current",
       "page",
     );
-    expect(within(nav).getByRole("link", { name: "Conversation" })).not.toHaveAttribute(
-      "aria-current",
-    );
+    expect(
+      within(nav).getByRole("link", { name: "Conversation" }),
+    ).not.toHaveAttribute("aria-current");
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -67,7 +67,10 @@ describe("Frame", () => {
       "href",
       "https://data-director-agent.github.io/data-director/user-guide/",
     );
-    expect(screen.getByRole("link", { name: "User guide" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "User guide" })).toHaveAttribute(
+      "target",
+      "_blank",
+    );
   });
 
   it("draws an icon beside each banner link and the dark mode switch, hidden from screen readers", () => {
@@ -77,8 +80,19 @@ describe("Frame", () => {
       </Frame>,
     );
     const banner = screen.getByRole("banner");
-    for (const name of ["Projects", "Conversation", "Activity log", "Agents", "User guide", "Report a problem", "Dark mode"]) {
-      const control = within(banner).getByRole(name === "Dark mode" ? "button" : "link", { name });
+    for (const name of [
+      "Projects",
+      "Conversation",
+      "Activity log",
+      "Agents",
+      "User guide",
+      "Report a problem",
+      "Dark mode",
+    ]) {
+      const control = within(banner).getByRole(
+        name === "Dark mode" ? "button" : "link",
+        { name },
+      );
       const icon = control.querySelector("svg");
       expect(icon).not.toBeNull();
       expect(icon).toHaveAttribute("aria-hidden", "true");
@@ -99,6 +113,27 @@ describe("Frame", () => {
     expect(banners[0]).toBe(banners[1]);
   });
 
+  it("credits the University of Sheffield and the RDA in the footer", async () => {
+    const { container } = render(
+      <Frame current="/">
+        <p>Content</p>
+      </Frame>,
+    );
+    const footer = screen.getByRole("contentinfo");
+    expect(
+      within(footer).getByRole("link", { name: "The University of Sheffield" }),
+    ).toHaveAttribute("href", "https://www.sheffield.ac.uk/");
+    expect(
+      within(footer).getByRole("link", { name: "Research Data Alliance" }),
+    ).toHaveAttribute("href", "https://www.rd-alliance.org/");
+    expect(
+      within(footer).getByRole("link", {
+        name: /Data Director Agentic AI Blueprint/,
+      }),
+    ).toHaveAttribute("href", "https://doi.org/10.15497/RDA00157");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("names the deployed commit in the footer", async () => {
     const api = withAbout(() =>
       Promise.resolve({
@@ -116,7 +151,9 @@ describe("Frame", () => {
       </FeedbackApiContext.Provider>,
     );
     const footer = screen.getByRole("contentinfo");
-    expect(await within(footer).findByText("v0.3.0 (abcdef0)")).toBeInTheDocument();
+    expect(
+      await within(footer).findByText("v0.3.0 (abcdef0)"),
+    ).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 

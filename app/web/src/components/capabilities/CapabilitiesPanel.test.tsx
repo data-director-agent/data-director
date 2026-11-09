@@ -138,6 +138,58 @@ describe("AgentDirectory", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  describe("with an orchestrator", () => {
+    const orchestrator = {
+      ...agent("advisor.quality"),
+      id: "orchestrator.stub",
+      title: "Data Director",
+      groundingMode: "delegation" as const,
+    };
+    const withOrchestrator: Directory = {
+      ...directory,
+      orchestratorId: orchestrator.id,
+      agents: [...directory.agents, orchestrator],
+    };
+
+    it("pins it first, apart from the agents behind the scenes, and selects it", async () => {
+      const { container } = render(<AgentDirectory directory={withOrchestrator} />);
+      const [front, behind] = screen.getAllByRole("group");
+      expect(front).toHaveAccessibleName("You talk to");
+      expect(behind).toHaveAccessibleName("Works behind the scenes");
+      const option = screen.getByRole("option", { name: /^Data Director/ });
+      expect(front).toContainElement(option);
+      expect(option).toHaveTextContent("Orchestrator");
+      expect(option).toHaveAttribute("aria-selected", "true");
+      expect(behind).toContainElement(screen.getByRole("option", { name: /^Metadata Reviewer/ }));
+      expect(screen.getByText(/This is the agent you talk to/)).toBeVisible();
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("says of an agent behind the scenes who calls on it", async () => {
+      const user = userEvent.setup();
+      render(<AgentDirectory directory={withOrchestrator} />);
+      await user.click(screen.getByRole("option", { name: /^Metadata Reviewer/ }));
+      expect(
+        screen.getByText("Data Director calls on this agent; you don’t talk to it directly."),
+      ).toBeVisible();
+      expect(screen.getByRole("option", { name: /^Metadata Reviewer/ })).not.toHaveTextContent(
+        "Orchestrator",
+      );
+    });
+
+    it("still honours an agent asked for by name", () => {
+      render(<AgentDirectory directory={withOrchestrator} initial="advisor.quality" />);
+      expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
+    });
+  });
+
+  it("keeps the list flat without an orchestrator", () => {
+    render(<AgentDirectory directory={{ ...directory, orchestratorId: null }} />);
+    expect(screen.queryByRole("group")).toBeNull();
+    expect(screen.queryByText("Orchestrator")).toBeNull();
+    expect(screen.queryByText(/talk to/)).toBeNull();
+  });
+
   it("says when no agent is registered", () => {
     render(<AgentDirectory directory={{ ...directory, agents: [] }} />);
     expect(screen.getByText(/no agents/i)).toBeVisible();
