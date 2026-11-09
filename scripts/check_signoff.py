@@ -10,15 +10,26 @@ description, so the sign-off that lands on `main` is the one in the description.
 * a `Signed-off-by` trailer in any commit in `BASE..HEAD` (other than merges) that names a coding
   agent (see `AGENT`), whoever added it. Who authored a commit is not checked: an agent may;
 * with `--body-file`, a `Signed-off-by` in the pull request description that names an agent, and
-  a description with no human `Signed-off-by` in its closing block of trailers. Trailers are read
-  by `git interpret-trailers`, as git reads them on the squash commit. Dependabot's pull requests
-  (`--author` a `[bot]` login that is not an agent) and release-please's release pull requests
-  (`--title` starting `chore(main): release `) need no human sign-off.
+  a description with no human sign-off. Trailers are read by `git interpret-trailers`, as git
+  reads them on the squash commit. A human signs off in one of two ways:
+
+  - explicitly, with a `Signed-off-by: Name <email>` in the description's closing block of
+    trailers, which becomes the merged commit's trailer; or
+  - implicitly, by opening the pull request from their own GitHub account (`--author` a login
+    that is neither a `[bot]` nor an agent). Under the organisation's contribution guide, opening
+    a pull request certifies the Developer Certificate of Origin for it, so a pull request that a
+    person opens with a coding agent's help (Claude Code on the web, say) passes without an edit.
+    This is reported as a notice, not a problem.
+
+  Dependabot's pull requests (`--author` a `[bot]` login that is not an agent) and
+  release-please's release pull requests (`--title` starting `chore(main): release `) need no
+  human sign-off. A pull request opened by an agent's own account needs an explicit one.
 
     python3 scripts/check_signoff.py BASE_SHA HEAD_SHA [--body-file F --title T --author LOGIN]
 
 Without `--body-file` it checks the commits only, which is what to run locally before pushing.
-It prints one line per problem and exits 1 if there is any.
+It prints one line per problem, and one line starting `notice: ` per implicit sign-off, and exits
+1 if there is any problem.
 """
 
 from __future__ import annotations
@@ -61,10 +72,12 @@ RECORD = "\x1e"
 # sha, author, subject, then the Signed-off-by trailer values, one per line.
 FORMAT = f"%H{FIELD}%an <%ae>{FIELD}%s{FIELD}%(trailers:key=Signed-off-by,valueonly,unfold){RECORD}"
 
+NOTICE = "notice: "
+
 HOW = (
     "The person who takes responsibility for the pull request adds 'Signed-off-by: Name <email>'"
-    " as the last line of its description, which becomes the merged commit's trailer."
-    " Never let an agent do it."
+    " as the last line of its description, which becomes the merged commit's trailer, or opens"
+    " the pull request from their own GitHub account. Never let an agent sign off."
 )
 
 
@@ -117,21 +130,45 @@ def is_exempt(title: str, author: str) -> bool:
     return BOT.search(author) is not None and not is_agent(author)
 
 
+def is_person(login: str) -> bool:
+    """Whether a GitHub `login` is a person's account: not empty, not a bot, not an agent."""
+    return bool(login) and BOT.search(login) is None and not is_agent(login)
+
+
+def human_signoffs(body: str) -> list[str]:
+    """The human `Signed-off-by` values in the closing trailers of a pull request description."""
+    signoffs = [value for key, value in trailers(body) if key.lower() == SIGNED_OFF_BY]
+    return [s for s in signoffs if not is_agent(s) and IDENTITY.match(s)]
+
+
 def description_problems(body: str, title: str = "", author: str = "") -> list[str]:
-    """What is wrong with the sign-off in a pull request description; empty if nothing."""
+    """What is wrong with the sign-off in a pull request description; empty if nothing.
+
+    A description with no human `Signed-off-by` passes when `author`, who opened the pull
+    request, is a person: opening it is their implicit sign-off (see `implicit_signoff`).
+    """
     signoffs = [value for key, value in trailers(body) if key.lower() == SIGNED_OFF_BY]
     problems = [
         agent_signoff("pull request description", signoff)
         for signoff in signoffs
         if is_agent(signoff)
     ]
-    human = [s for s in signoffs if not is_agent(s) and IDENTITY.match(s)]
-    if not human and not is_exempt(title, author):
+    if not human_signoffs(body) and not is_exempt(title, author) and not is_person(author):
         problems.append(
             "pull request description: no human 'Signed-off-by: Name <email>' in the trailers"
-            " at its end"
+            " at its end, and the pull request was not opened by a person's account"
         )
     return problems
+
+
+def implicit_signoff(body: str, title: str = "", author: str = "") -> str | None:
+    """The notice for a pull request a person signs off by opening it; None if not that case."""
+    if human_signoffs(body) or is_exempt(title, author) or not is_person(author):
+        return None
+    return (
+        f"{NOTICE}pull request description: no explicit 'Signed-off-by'; @{author} certifies the"
+        " Developer Certificate of Origin by opening the pull request"
+    )
 
 
 def parse(log: str) -> list[Commit]:
@@ -165,6 +202,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.body_file is not None:
         body = args.body_file.read_text(encoding="utf-8")
         problems += description_problems(body, args.title, args.author)
+        notice = implicit_signoff(body, args.title, args.author)
+        if notice is not None:
+            print(notice)
     for problem in problems:
         print(problem)
     if problems:

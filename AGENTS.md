@@ -76,7 +76,9 @@ fixtures in `app/web/fixtures`; commit them.
 - `main` is squash-merged with the pull request's title and description as the message, so commit
   trailers do not reach it. End the description with `Co-authored-by: <model> <noreply@anthropic.com>`
   as its last line, after any footer, and leave the line below it for the person you work for,
-  who signs off there before merge. CI ("Developer Certificate of Origin") fails until they do.
+  who may sign off there before merge. A pull request opened from their account is signed off
+  implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
+  fails on any sign-off by an agent.
 - The pull request title is a Conventional Commit, `type(scope)!: summary`, lower case, no full
   stop, at most 90 characters, such as `feat(app): register every in-tree agent`. Check it before
   opening and after editing:
