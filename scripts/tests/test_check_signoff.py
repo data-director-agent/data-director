@@ -88,6 +88,18 @@ def test_a_commit_authored_by_the_agent_and_not_signed_is_rejected() -> None:
     assert "authored by a coding agent" in problems[0]
 
 
+def test_a_human_author_with_an_agent_co_author_still_needs_the_humans_signoff() -> None:
+    # What a session started with DD_AUTHOR_* commits: the person as author, no sign-off yet.
+    person = "Joe Heffer <60133133+Joe-Heffer-Shef@users.noreply.github.com>"
+    assert len(cs.commit_problems(commit(person))) == 1
+    assert cs.commit_problems(commit(person, person)) == []
+
+
+def test_the_signoff_must_match_the_author_byte_for_byte() -> None:
+    person = "Joe Heffer <60133133+Joe-Heffer-Shef@users.noreply.github.com>"
+    assert len(cs.commit_problems(commit(person, "Joe Heffer <j.heffer@sheffield.ac.uk>"))) == 1
+
+
 def test_an_unsigned_human_commit_is_rejected() -> None:
     assert len(cs.commit_problems(commit(JOE))) == 1
 
