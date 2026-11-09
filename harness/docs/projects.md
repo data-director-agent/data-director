@@ -84,8 +84,10 @@ conforms. It also gives:
 
 `ProjectStore.package(project_id, digest)` reads back a package the log records.
 
-Changes of membership ([Projects](../../docs/specs/projects.md)) will be events of the same
-log, TODO(#389).
+Who may do what in a project is read from this log by `dd_harness.project_access`, the one access
+check the conductor and the app use ([Projects](../../docs/specs/projects.md), invariant 17):
+`project_created` makes its creator the owner. Changes of membership will be events of the same
+log that `project_access.roles` folds, TODO(#389).
 
 ## The inventory
 
@@ -205,6 +207,7 @@ until a person approves one. The conductor gives it to every drafter in the proj
 
 ## Not yet built
 
-- Only owners are to decide, and membership is not built, TODO(#389).
+- Membership is not built, so a project's creator is its only owner and no one else has a
+  role in it, TODO(#389).
 - The app cannot add an inventory to a project, TODO(#395).
 - How long a project is kept, and what deleting one removes, TODO(#156).

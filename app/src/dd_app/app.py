@@ -47,7 +47,10 @@ Every other path serves the shell built from `app/web` (`npm run build` writes `
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
 
 Every `/api` route that runs or reads anything acts for the person the request's session names,
-and answers `401` with an `unauthenticated` problem when there is none. `/api/about`,
+and answers `401` with an `unauthenticated` problem when there is none. Every
+`/api/projects/{id}/…` route also needs the person to have a role in that project
+(`dd_harness.project_access`): someone without one is answered `404`, as for a project that does
+not exist, and a member asking for an owner's action `403` (docs/specs/projects.md). `/api/about`,
 `/api/session` and the sign-in routes are open, so the shell can draw its sign-in page. A server
 with no provider configured is a development server: every request acts for the operator.
 
@@ -96,6 +99,7 @@ from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
 from dd_harness.policy import PolicyError
+from dd_harness.project_access import Action, allowed
 from dd_harness.projects import ChangeRefusedError, ProjectError, Refusal, UnknownProjectError
 from dd_harness.registry import RegistryError
 from dd_harness.requirements import RequirementsError
@@ -175,6 +179,30 @@ def build_app(
             return await handler(request, principal)
 
         return endpoint
+
+    def in_project(action: Action, handler: Handler) -> Callable[[Request], Awaitable[Response]]:
+        """`handler`, signed in as `signed_in` makes it, and run only if the person may take
+        `action` in the project the path names (`dd_harness.project_access`,
+        docs/specs/projects.md, invariant 17). Every `/api/projects/{project_id}/…` route goes
+        through here, so no handler can forget the check. Someone with no role in the project is
+        answered `404`, as for a project that does not exist, so that a refusal does not reveal
+        whether it does; a member asking for an owner's action is answered `403`."""
+
+        async def checked(request: Request, principal: Principal) -> Response:
+            project_id = request.path_params["project_id"]
+            role = await run_in_threadpool(governance.role, project_id, principal)
+            if role is None:
+                return _no_project(project_id)
+            if not allowed(role, action):
+                return _problem(
+                    403,
+                    "project-action-forbidden",
+                    "Not yours to do in this project",
+                    f"In project {project_id!r} a {role} may not {action}.",
+                )
+            return await handler(request, principal)
+
+        return signed_in(checked)
 
     async def agents(request: Request, acting_for: Principal) -> Response:
         # Off the event loop: refreshing the registry reads agent cards, which blocks.
@@ -326,7 +354,6 @@ def build_app(
         return JSONResponse(await run_in_threadpool(governance.projects_for, reader))
 
     async def get_documents(request: Request, _: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         if governance.projects is None:
             return _no_project(project_id)
@@ -337,7 +364,6 @@ def build_app(
         return JSONResponse(found)
 
     async def get_inventory(request: Request, _: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         store = governance.projects
         if store is None:
@@ -353,7 +379,6 @@ def build_app(
         return JSONResponse(found)
 
     async def get_disclosure(request: Request, _: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         store = governance.projects
         if store is None:
@@ -365,7 +390,6 @@ def build_app(
         return JSONResponse({**found.to_document(), "prov": found.prov_jsonld()})
 
     async def get_progress(request: Request, _: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         store = governance.projects
         if store is None:
@@ -413,7 +437,6 @@ def build_app(
             return _refused(str(exc), PROGRESS_REFUSED)
 
     async def get_repository(request: Request, _: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         store = governance.projects
         if store is None:
@@ -478,7 +501,6 @@ def build_app(
             return _refused(str(exc), REPOSITORY_REFUSED)
 
     async def validate_project(request: Request, acting_for: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         store = governance.projects
         if store is None:
@@ -494,7 +516,6 @@ def build_app(
         return JSONResponse(deposit.validation_view(validation, digest), status_code=201)
 
     async def package_project(request: Request, acting_for: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         store = governance.projects
         if store is None:
@@ -534,7 +555,6 @@ def build_app(
         )
 
     async def get_package(request: Request, _: Principal) -> Response:
-        # TODO(#389): every signed-in person still sees every project; only its members are to.
         project_id = request.path_params["project_id"]
         digest = request.path_params["digest"]
         store = governance.projects
@@ -810,67 +830,67 @@ def build_app(
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
             Route(
                 "/api/projects/{project_id}/documents",
-                signed_in(get_documents),
+                in_project(Action.READ, get_documents),
                 methods=["GET"],
             ),
             Route(
                 "/api/projects/{project_id}/inventory",
-                signed_in(get_inventory),
+                in_project(Action.READ, get_inventory),
                 methods=["GET"],
             ),
             Route(
                 "/api/projects/{project_id}/disclosure",
-                signed_in(get_disclosure),
+                in_project(Action.READ, get_disclosure),
                 methods=["GET"],
             ),
             Route(
                 "/api/projects/{project_id}/repository",
-                signed_in(get_repository),
+                in_project(Action.READ, get_repository),
                 methods=["GET"],
             ),
             Route(
                 "/api/projects/{project_id}/repository",
-                signed_in(choose_repository),
+                in_project(Action.CONTRIBUTE, choose_repository),
                 methods=["PUT"],
             ),
             Route(
                 "/api/projects/{project_id}/progress",
-                signed_in(get_progress),
+                in_project(Action.READ, get_progress),
                 methods=["GET"],
             ),
             Route(
                 "/api/projects/{project_id}/progress/entry",
-                signed_in(change_progress),
+                in_project(Action.CONTRIBUTE, change_progress),
                 methods=["PUT"],
             ),
             Route(
                 "/api/projects/{project_id}/progress/steps/{step_id}",
-                signed_in(change_progress),
+                in_project(Action.CONTRIBUTE, change_progress),
                 methods=["PUT"],
             ),
             Route(
                 "/api/projects/{project_id}/validation",
-                signed_in(validate_project),
+                in_project(Action.CONTRIBUTE, validate_project),
                 methods=["POST"],
             ),
             Route(
                 "/api/projects/{project_id}/package",
-                signed_in(package_project),
+                in_project(Action.CONTRIBUTE, package_project),
                 methods=["POST"],
             ),
             Route(
                 "/api/projects/{project_id}/packages/{digest}",
-                signed_in(get_package),
+                in_project(Action.READ, get_package),
                 methods=["GET"],
             ),
             Route(
                 "/api/projects/{project_id}/documents/{document_id}/decisions",
-                signed_in(decide),
+                in_project(Action.DECIDE, decide),
                 methods=["POST"],
             ),
             Route(
                 "/api/projects/{project_id}/documents/{document_id}/answers",
-                signed_in(answer),
+                in_project(Action.CONTRIBUTE, answer),
                 methods=["POST"],
             ),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),

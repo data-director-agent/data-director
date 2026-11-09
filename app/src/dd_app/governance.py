@@ -20,9 +20,10 @@ from datetime import datetime
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
-from dd_harness import conversations
+from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.project_access import Action, Role
 from dd_harness.projects import UnknownProjectError
 from dd_harness.requirements import Requirements, load_requirements
 from dd_harness.settings import (
@@ -169,9 +170,7 @@ class Governance:
         attaches and what the agents draft are kept together (docs/specs/app.md). With
         `project_id` the conversation is started in that project, which `acting_for` must be able
         to read; without one, in a new project. Raises `UnknownProjectError` for a project that
-        does not exist or that they may not read, and for any project where the app keeps none.
-
-        TODO(#389): a person may read the projects they created; membership replaces this."""
+        does not exist or that they may not read, and for any project where the app keeps none."""
         if self.projects is None:
             if project_id is not None:
                 raise UnknownProjectError(f"no project {project_id!r}")
@@ -328,14 +327,18 @@ class Governance:
     # carries its parent's `acting_for` and `project_id`, so it belongs where its parent does.
     # TODO(#141): listing scans the run store; an index by principal comes with its record (#653).
 
-    def may_read_project(self, project_id: str, reader: Principal) -> bool:
-        """Whether `reader` may read the project `project_id`: here, whether they created it.
+    def role(self, project_id: str, principal: Principal) -> Role | None:
+        """`principal`'s role in the project `project_id`, as the harness's access check reads it
+        from the project's log (`dd_harness.project_access`), or None if they have none, the
+        project does not exist, or the app keeps no projects. Every check of a project goes
+        through here."""
+        if self.projects is None:
+            return None
+        return project_access.role_of(self.projects, project_id, principal)
 
-        TODO(#389): membership replaces this, and every check of a project goes through here."""
-        if self.projects is None or not self.projects.exists(project_id):
-            return False
-        created_by = self.projects.summary(project_id)["created_by"]
-        return bool(created_by.get("principal_id") == reader.principal_id)
+    def may_read_project(self, project_id: str, reader: Principal) -> bool:
+        """Whether `reader` may read the project `project_id`."""
+        return project_access.allowed(self.role(project_id, reader), Action.READ)
 
     def may_read_run(self, envelope: Mapping[str, Any], reader: Principal) -> bool:
         """Whether `reader` may read the stored run whose envelope is `envelope`."""
@@ -376,9 +379,7 @@ class Governance:
         each project's summary, with the conversations started in it that have a turn, most
         recent first, so that the shell can name a project the app created untitled. A project
         with nothing in it yet (no conversation with a turn, no inventory and no document) is not
-        listed, as a conversation with no turn is not.
-
-        TODO(#389): a person may read the projects they created; membership replaces this."""
+        listed, as a conversation with no turn is not."""
         if self.projects is None:
             return []
         by_project: dict[str, list[dict[str, Any]]] = {}

@@ -75,7 +75,7 @@ It is built from:
   - `GET /api/conversations` and `GET /api/conversations/{id}`: the stored conversations, most
     recently active first, and one conversation's turns, each with its delegated children, the
     stored inputs, version changes per agent and the history;
-  - `GET /api/projects`: the projects the person signed in created (until #389), most recently
+  - `GET /api/projects`: the projects the person signed in has a role in, most recently
     active first, each with its inventory, its documents counted by state and the conversations
     started in it. The shell draws it at `/projects`, the first item in the main navigation;
   - `GET /api/projects/{id}/documents`: a project's documents, each version with its text and
@@ -101,7 +101,10 @@ It is built from:
     builds the deposit package, answering with the validation and the package's digest, size and
     download path; a project with a violation is a 409 `package-refused` problem whose
     `validation` says why. `GET /api/projects/{id}/packages/{digest}` is a package the project
-    log records as built, as a zip. Every signed-in person may reach any project (until #389);
+    log records as built, as a zip. Every `/api/projects/{id}/…` route answers a person with no
+    role in the project with 404 `project-not-found`, as for a project that does not exist, and a
+    member asking for an owner's action with 403 (`dd_harness.project_access`). Until membership
+    is built, a project's only role is its creator's, as owner (#389);
   - `POST /a2a` and `GET /.well-known/agent-card.json`: the conductor's A2A endpoint, which
     takes a delegation agent's call back under its grant ([Orchestration](../docs/specs/orchestration.md)) and refuses every other
     request, so the app is no general A2A way in;
@@ -336,7 +339,7 @@ shapes, under a profile that does not list the standards advisor, so the shell i
   afterwards rather than watched, and a run cannot be cancelled. Streaming runs over AG-UI
   replaces it (#68, #69).
 - A person can approve, edit then approve, or reject a project's documents at `/projects/{id}`,
-  but anyone signed in can decide (#389). Risk tiers and batching for review are #72 and #73.
+  and only the project's owner, its creator until membership is built (#389), can decide. Risk tiers and batching for review are #72 and #73.
 - The form checks only required fields and numbers; the conductor's input check decides.
 - The conversation is with the rule-based `orchestrator.stub` unless the profile names the
   model-backed orchestrator, which needs a key (see "Choosing the orchestrator"). Replies are not

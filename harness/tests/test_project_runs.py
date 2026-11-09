@@ -25,6 +25,7 @@ from dd_harness.projects import (
     REJECTED,
     Decision,
     ProjectStore,
+    UnknownProjectError,
 )
 from dd_harness.requirements import load_requirements
 from dd_harness.testing import (
@@ -64,6 +65,7 @@ from dd_sdk.contract.models import (
     OpenInput,
     Outcome,
     OutcomeStatus,
+    Principal,
     VersionState,
     new_invocation_id,
 )
@@ -169,6 +171,23 @@ def test_a_draft_in_a_project_is_given_its_facts_and_kept_as_a_proposed_version(
     # The conversation says which project it is in.
     assert get_conversation(conductor.store, conversation)["project_id"] == project  # type: ignore[index]
     assert list_conversations(conductor.store)[0]["project_id"] == project
+
+
+def test_a_run_in_a_project_its_principal_may_not_read_is_refused_and_nothing_is_stored(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Docs/specs/projects.md, invariant 17: the conductor checks before an invocation."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.events(project)
+    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
+    with pytest.raises(UnknownProjectError):
+        conductor.invoke(
+            in_conversation(request("stub.document", draft_request()), conversation),
+            acting_for=someone,
+        )
+    assert list(conductor.store.iter_envelopes()) == []
+    assert projects.events(project) == before
 
 
 def test_a_fact_the_project_does_not_have_is_removed_and_the_drafter_is_told_none(

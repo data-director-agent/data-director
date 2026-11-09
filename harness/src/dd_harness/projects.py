@@ -43,7 +43,8 @@ A project may have a title, given when it is created, so that a person can tell 
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from an index of those events built when first asked.
 
-Only owners will decide once membership is built, TODO(#389). Giving a drafter the version it
+Who may do what in a project is read from the log by `dd_harness.project_access`; membership
+events are TODO(#389). Giving a drafter the version it
 regenerates is TODO(#394); adding an inventory from the app is TODO(#395).
 """
 
