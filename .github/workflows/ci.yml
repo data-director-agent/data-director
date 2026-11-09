@@ -501,32 +501,6 @@ jobs:
       # "CI passed" and "Accessibility passed" must wait for every job in their workflow.
       - run: python3 scripts/check_ci_gate.py
 
-  dco:
-    name: Developer Certificate of Origin
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      # Every commit in the pull request carries a Signed-off-by trailer naming its author
-      # (`git commit -s`; CONTRIBUTING.md), and none is signed off by a coding agent: only a human
-      # can approve a commit, an agent may co-author it (scripts/check_signoff.py). A bot's
-      # commits are exempt: Dependabot signs off with an address other than the one it commits
-      # from. So are release-please's release commits, which it makes with a personal access
-      # token and cannot sign off. A bot that is itself an agent is not exempt.
-      - name: Every commit is signed off by a human
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          python3 scripts/check_signoff.py "$BASE_SHA" "$HEAD_SHA" \
-            | while IFS= read -r line; do echo "::error::$line"; done
-          exit "${PIPESTATUS[0]}"
-
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
@@ -564,12 +538,11 @@ jobs:
       - systemd
       - docs
       - workflows
-      - dco
       - dependency-review
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # A job skipped by its own `if` (dco and dependency-review outside pull requests, a side
+      # A job skipped by its own `if` (dependency-review outside pull requests, a side
       # of the repository that a pull request does not touch) passes; a job that failed or was
       # cancelled does not.
       - name: Every job passed or was skipped

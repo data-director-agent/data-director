@@ -1,0 +1,53 @@
+name: DCO
+
+# Checks the Developer Certificate of Origin sign-off of a pull request (scripts/check_signoff.py,
+# CONTRIBUTING.md). main is squash-merged with the pull request's title and description as the
+# commit message, so the person who takes responsibility signs off in the description:
+# 'Signed-off-by: Name <email>' as its last line, which becomes the merged commit's trailer. No
+# commit and no description may be signed off by a coding agent, which may only co-author. This is
+# a workflow of its own, not a job in ci.yml, because it must run again when the description is
+# edited, and editing a description should not re-run the whole of CI. Require its check,
+# "Developer Certificate of Origin", in the ruleset beside "CI passed".
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  # A merge queue has no description to check (the pull request was checked when it joined), but
+  # it waits for every required check to report: the job below is skipped, which counts.
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dco:
+    name: Developer Certificate of Origin
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      # Dependabot's pull requests and release-please's release pull requests need no human
+      # sign-off; a bot that is itself an agent does. The title, description and author are
+      # untrusted input, so they reach the script through the environment, never interpolated
+      # into the shell.
+      - name: A human signs off and no agent does
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          printf '%s\n' "$BODY" > "$RUNNER_TEMP/body.md"
+          python3 scripts/check_signoff.py "$BASE_SHA" "$HEAD_SHA" \
+            --body-file "$RUNNER_TEMP/body.md" --title "$TITLE" --author "$AUTHOR" \
+            | while IFS= read -r line; do echo "::error::$line"; done
+          exit "${PIPESTATUS[0]}"
