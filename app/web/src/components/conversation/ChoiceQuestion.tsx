@@ -82,7 +82,7 @@ export function ChoiceQuestion({
         <legend id={`${id}-legend`}>{question.question_prompt}</legend>
         <p className="hint">{multiple ? "Choose one or more." : "Choose one."} Or type a reply below instead.</p>
         {options.map(({ value, label, help }) => (
-          <div className="field-check" key={value}>
+          <div className="field-check choice-option" key={value}>
             <input
               type={multiple ? "checkbox" : "radio"}
               id={`${id}-${value}`}

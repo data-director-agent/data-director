@@ -145,7 +145,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the provider and the app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
 21. **A choice question is answered by choosing, and may be ignored.** A reply's
     `reply_question` is drawn beneath the reply: on the latest turn as radio buttons, or
-    checkboxes where several may be chosen, in a fieldset whose legend is the question, with
+    checkboxes where several may be chosen, each option a card the whole of which can be clicked
+    (the control stays visible and ticked beside an accent bar), in a fieldset whose legend is the question, with
     "Something else" and a text box where the question allows an answer in words; on earlier turns
     read-only, the option chosen marked with an icon and words, never by colour alone. A new reply
     that asks one is announced in the polite live region. Sending the answer sends the labels
