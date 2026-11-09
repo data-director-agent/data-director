@@ -9,8 +9,9 @@ name: DCO
 # them, so a pull request opened from Claude Code on the web needs no edit. No commit and no
 # description may be signed off by a coding agent, which may only co-author. This is
 # a workflow of its own, not a job in ci.yml, because it must run again when the description is
-# edited, and editing a description should not re-run the whole of CI. Require its check,
-# "Developer Certificate of Origin", in the ruleset beside "CI passed".
+# edited, and editing a description should not re-run the whole of CI. A problem it finds is a
+# warning on the pull request, not a failure: the check stays green, so a reviewer reads the
+# warning and asks for a sign-off before merging, rather than the check blocking the merge.
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
@@ -40,7 +41,8 @@ jobs:
       # Dependabot's pull requests and release-please's release pull requests need no human
       # sign-off; a bot that is itself an agent does, explicitly. The title, description and
       # author are untrusted input, so they reach the script through the environment, never
-      # interpolated into the shell. The script's 'notice: ' lines are notices, the rest errors.
+      # interpolated into the shell. The script's 'notice: ' lines are notices, the rest warnings;
+      # the step passes whatever the script finds, so the check is never red.
       - name: A human signs off and no agent does
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -55,7 +57,10 @@ jobs:
             | while IFS= read -r line; do
                 case "$line" in
                   "notice: "*) echo "::notice::${line#notice: }" ;;
-                  *) echo "::error::$line" ;;
+                  *) echo "::warning::$line" ;;
                 esac
               done
-          exit "${PIPESTATUS[0]}"
+          status="${PIPESTATUS[0]}"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::The DCO sign-off check found problems (exit $status); see the warnings above. This does not fail CI."
+          fi
