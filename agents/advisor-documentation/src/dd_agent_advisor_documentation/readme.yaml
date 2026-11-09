@@ -21,24 +21,28 @@
 # with its own `label` and `ask`, and placed as a `- **label:** answer` line. A part with
 # `given_by` is not asked when the approved metadata record gives it:
 #
-#   title     the record's title
-#   creators  the record's creators
-#   funding   the record's funders
+#   title      the record's title
+#   creators   the record's creators
+#   collected  the record's dates of type Collected
+#   location   the record's geographic locations, by place name
+#   funding    the record's funders
+#
+# The README names people; their identifiers, affiliations and contact details belong to the
+# metadata record, so it does not ask for them.
 - heading: General information
   from: record_general
   parts:
     - label: Title
       given_by: title
       ask: the dataset's title.
-    - label: Principal investigator
-      ask: name, institution, email and ORCID iD.
-    - label: Contact
-      ask: >-
-        who answers questions about the data: name, institution, email and ORCID iD, or say it is
-        the principal investigator.
+    - label: Creators
+      given_by: creators
+      ask: who created the dataset, by name, and which of them answers questions about the data.
     - label: Dates of data collection
+      given_by: collected
       ask: when the data were collected, as YYYY-MM-DD to YYYY-MM-DD.
     - label: Geographic location
+      given_by: location
       ask: where the data were collected, or say it does not apply.
     - label: Funding
       given_by: funding

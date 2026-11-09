@@ -26,13 +26,14 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
 
   When the request carries the project's approved metadata record (`metadata_record`, which the
   conductor fills in a project), the README takes from it, as given: the title, as the README's
-  heading and in **General information** with the creators and funders; the abstract, as the
-  **Description**; the licence, in **Access and licence**; and a citation by the creators, the
-  publication year if there is one, and the title, in **How to cite**. These are `supplied`
+  heading and in **General information** with the creators, the dates of data collection (its
+  `dates` of type `Collected`), the geographic location (`geoLocationPlace`) and the funders; the
+  abstract, as the **Description**; the licence, in **Access and licence**; and a citation by the
+  creators, the publication year if there is one, and the title, in **How to cite**. These are `supplied`
   ([Drafting documents](../../docs/specs/drafting.md), invariant 2). The abstract says all the
   Description asks, so that section then has no gap; the others keep theirs for what the record
-  does not say, such as a contact, the dates of collection or the DOI. The editor reads a record
-  in DataCite's JSON form (`conforms_to` `http://datacite.org/schema/kernel-4`), as
+  does not say, such as a part the record leaves empty or the DOI. The editor reads a record in
+  DataCite's JSON form (`conforms_to` `http://datacite.org/schema/kernel-4`), as
   `advisor.metadata` drafts it, and skips any value left `null` or blank. It does not use a record
   in any other form, and says so in its statement. With no record, it drafts from the inventory
   alone and says so.
@@ -57,10 +58,12 @@ Every gap is asked ([Drafting documents](../../docs/specs/drafting.md)). The `Do
 one question in `document_questions` for each README section left for the researcher and each
 `unknown` cell. A section that asks several separate things lists them as `parts` in
 `readme.yaml`, and each part is its own gap and question (`gap_part`), placed as a
-`- **<part>:**` line: **General information** asks the title, principal investigator, contact,
-dates of collection, location and funding separately, and does not ask the title or funding when
-the record gives them. In the README, each placeholder is followed by `<!-- dd:gap <question-id> -->`,
-which the rendered README does not show. A question's identifier is derived from its gap, so the
+`- **<part>:**` line: **General information** asks the title, creators, dates of
+collection, location and funding separately, and does not ask any of them when the record gives
+it. It asks for the creators by name, and which of them answers questions about the data; their
+ORCID iDs, affiliations and email addresses belong to the metadata record, not the README. In the
+README, each placeholder is followed by `<!-- dd:gap <question-id> -->`, which the rendered
+README does not show. A question's identifier is derived from its gap, so the
 same gap has the same identifier in every version. An answer in the request's `draft_answers` is
 placed, as given, in the gap or cell it answers, marked `supplied` in a data dictionary, and that
 gap is not asked again. In a project, the researcher answers the questions on the draft's card in
