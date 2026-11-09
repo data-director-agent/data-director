@@ -14,10 +14,10 @@ field's definition or unit (`prose.py`, `suggest`). The suggestion is offered wi
 is asked, and a suggestion becomes `supplied` only when the researcher records it, or a correction
 of it, as their answer (docs/specs/drafting.md, invariant 7).
 
-A README also takes, as given, the title, creators, funding, abstract and licence of the
-project's approved metadata record, when the request carries one in DataCite's JSON form, and
-cites the dataset by its creators and title. These are supplied content: a person approved them
-(docs/specs/drafting.md, invariant 2).
+A README also takes, as given, the title, creators, dates of data collection, geographic
+location, funding, abstract and licence of the project's approved metadata record, when the
+request carries one in DataCite's JSON form, and cites the dataset by its creators and title.
+These are supplied content: a person approved them (docs/specs/drafting.md, invariant 2).
 
 The README's sections are those of `readme.yaml`. When a model is configured (`factory.py`), a
 writer (`prose.py`) adds a short paragraph of prose to the sections that have facts to draft from,
@@ -156,7 +156,13 @@ LIMITATIONS = (
 
 # The approved metadata record's general values a README part may be given by (readme.yaml), and
 # the label each is drafted under.
-RECORD_GENERAL = {"title": "Title", "creators": "Creators", "funding": "Funding"}
+RECORD_GENERAL = {
+    "title": "Title",
+    "creators": "Creators",
+    "collected": "Dates of data collection",
+    "location": "Geographic location",
+    "funding": "Funding",
+}
 
 
 class Part(NamedTuple):
@@ -227,15 +233,16 @@ def _part(path: Path, heading: str, entry: Mapping[str, Any]) -> Part:
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.4.0a1",
+        version="0.5.0a1",
         title="Documentation Editor",
         description=(
             "Drafts a project's README or data dictionary from its file inventory and its "
             "approved metadata record: the files, the tables' fields and the record's title, "
-            "creators, abstract and licence are drafted, with prose written by a model where one "
-            "is configured, and the methods, definitions, units and missing value codes are "
-            "marked and asked of the researcher, with a model's suggested definition or unit "
-            "offered beside a question, never written into the document."
+            "creators, dates of collection, location, funding, abstract and licence are drafted, "
+            "with prose written by a model where one is configured, and the methods, "
+            "definitions, units and missing value codes are marked and asked of the researcher, "
+            "with a model's suggested definition or unit offered beside a question, never "
+            "written into the document."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
@@ -562,6 +569,8 @@ def _facts(
             "title": _title(record),
             "creators": _creators(record),
             "funders": _values(record, "fundingReferences", "funderName"),
+            "dates_collected": _collected(record),
+            "geographic_locations": _values(record, "geoLocations", "geoLocationPlace"),
             "abstract": _from_record("record_abstract", record),
             "licence": _from_record("record_rights", record),
             "publication_year": str(year) if isinstance(year, int | str) and str(year) else None,
@@ -665,8 +674,21 @@ def _record_general(record: Mapping[str, Any] | None) -> dict[str, str]:
     return {
         "title": _title(record) or "",
         "creators": "; ".join(_creators(record)),
+        "collected": "; ".join(_collected(record)),
+        "location": "; ".join(_values(record, "geoLocations", "geoLocationPlace")),
         "funding": "; ".join(_values(record, "fundingReferences", "funderName")),
     }
+
+
+def _collected(record: Mapping[str, Any]) -> list[str]:
+    """The record's dates of data collection: its `dates` of type `Collected`, as it writes them."""
+    entries = record.get("dates")
+    collected = [
+        e
+        for e in (entries if isinstance(entries, list) else [])
+        if isinstance(e, dict) and e.get("dateType") == "Collected"
+    ]
+    return _values({"dates": collected}, "dates", "date")
 
 
 def _from_record(source: str, record: Mapping[str, Any]) -> str | None:
