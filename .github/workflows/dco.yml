@@ -2,9 +2,12 @@ name: DCO
 
 # Checks the Developer Certificate of Origin sign-off of a pull request (scripts/check_signoff.py,
 # CONTRIBUTING.md). main is squash-merged with the pull request's title and description as the
-# commit message, so the person who takes responsibility signs off in the description:
-# 'Signed-off-by: Name <email>' as its last line, which becomes the merged commit's trailer. No
-# commit and no description may be signed off by a coding agent, which may only co-author. This is
+# commit message, so the person who takes responsibility may sign off in the description:
+# 'Signed-off-by: Name <email>' as its last line, which becomes the merged commit's trailer.
+# Without that line, a person who opens the pull request from their own account certifies the DCO
+# by opening it (the organisation's CONTRIBUTING.md), and the check passes with a notice naming
+# them, so a pull request opened from Claude Code on the web needs no edit. No commit and no
+# description may be signed off by a coding agent, which may only co-author. This is
 # a workflow of its own, not a job in ci.yml, because it must run again when the description is
 # edited, and editing a description should not re-run the whole of CI. Require its check,
 # "Developer Certificate of Origin", in the ruleset beside "CI passed".
@@ -35,9 +38,9 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
       # Dependabot's pull requests and release-please's release pull requests need no human
-      # sign-off; a bot that is itself an agent does. The title, description and author are
-      # untrusted input, so they reach the script through the environment, never interpolated
-      # into the shell.
+      # sign-off; a bot that is itself an agent does, explicitly. The title, description and
+      # author are untrusted input, so they reach the script through the environment, never
+      # interpolated into the shell. The script's 'notice: ' lines are notices, the rest errors.
       - name: A human signs off and no agent does
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -49,5 +52,10 @@ jobs:
           printf '%s\n' "$BODY" > "$RUNNER_TEMP/body.md"
           python3 scripts/check_signoff.py "$BASE_SHA" "$HEAD_SHA" \
             --body-file "$RUNNER_TEMP/body.md" --title "$TITLE" --author "$AUTHOR" \
-            | while IFS= read -r line; do echo "::error::$line"; done
+            | while IFS= read -r line; do
+                case "$line" in
+                  "notice: "*) echo "::notice::${line#notice: }" ;;
+                  *) echo "::error::$line" ;;
+                esac
+              done
           exit "${PIPESTATUS[0]}"
