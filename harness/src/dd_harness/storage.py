@@ -1,17 +1,22 @@
 """What the harness asks of the stores it keeps runs and projects in (docs/specs/storage.md).
 
-`RunStorage` and `ProjectStorage` are the interfaces; `dd_harness.store.RunStore` and
-`dd_harness.projects.ProjectStore` are the file backends that implement them. Everything else in
-the harness, the app and the workbench reaches a store through these protocols, so another
-backend, such as a database, can replace a file one without changing its callers.
+`RunStorage` and `ProjectStorage` are the interfaces callers use. `dd_harness.store.RunStore`
+implements `RunStorage` over files. `ProjectStorage` is implemented once, by the project rules
+(`dd_harness.projects.Projects`), over a `ProjectLog` that a backend provides;
+`dd_harness.project_files.FileProjectLog` is the file one, and `dd_harness.projects.ProjectStore`
+the rules over it. Everything else in the harness, the app and the workbench reaches a store
+through these protocols, so another backend, such as a database, can replace a file one without
+changing its callers.
 
 Each protocol's docstring states the guarantees a backend must keep. `dd_harness.testing`'s
-`check_run_storage` and `check_project_storage` check them against any backend.
+`check_run_storage`, `check_project_log` and `check_project_rules` check them against any
+backend.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping
+from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
 from dd_harness.projects import Decision, TitleSource
@@ -306,4 +311,77 @@ class ProjectStorage(Protocol):
 
     def package(self, project_id: str, digest: str) -> bytes | None:
         """The bytes of a package the log records as built, or None."""
+        ...
+
+
+class ProjectSection(Protocol):
+    """A project's exclusive section in a `ProjectLog`, in which the project rules read the log
+    and append the events of one change."""
+
+    def events(self) -> list[dict[str, Any]]:
+        """Every event of the project, oldest first, as the section sees them."""
+        ...
+
+    def append(self, events: list[dict[str, Any]]) -> None:
+        """Append `events` to the project's log, together or not at all."""
+        ...
+
+
+class ProjectLog(Protocol):
+    """What a backend provides for projects: it stores and reads, and decides nothing. The
+    project rules (`dd_harness.projects.Projects`) are written once over it, and give callers
+    `ProjectStorage` (docs/specs/storage.md, "Project rules and the project log").
+
+    A backend keeps these guarantees:
+
+    1. A project's log is append-only: an event is never changed or removed, and events come
+       back in the order they were appended. The log stores events as it is given them, and
+       does not check or change them.
+    2. `section` is exclusive for its project: while one is open, no other section of that
+       project is entered, in this store or any other over the same record that the backend
+       says it serves. Sections of different projects do not wait on one another. What a
+       section appends is kept once the section ends without an exception; the project rules
+       append a refusal and end the section before raising it.
+    3. Content is kept once by digest and read back byte for byte. Keeping content is not part
+       of a section: content kept for a change that is refused is harmless, because it is named
+       by its digest alone.
+    4. `project_of`, `project_ids` and every other read answer from what is stored when asked.
+       Only what can never change, such as a conversation's project once recorded, may be
+       cached.
+    5. A malformed `project_id` or digest names nothing: `exists` is False, `blob` None, and
+       `events` and `section` raise `KeyError`, as for a project that does not exist.
+    """
+
+    def create(self, project_id: str, event: dict[str, Any]) -> None:
+        """A new project whose log begins with `event`. Raises `FileExistsError` if the project
+        exists and `ValueError` for a malformed `project_id`."""
+        ...
+
+    def exists(self, project_id: str) -> bool:
+        """Whether the project exists."""
+        ...
+
+    def events(self, project_id: str) -> list[dict[str, Any]]:
+        """Every event of the project, oldest first. Raises `KeyError` for an unknown one."""
+        ...
+
+    def section(self, project_id: str) -> AbstractContextManager[ProjectSection]:
+        """The project's exclusive section. Raises `KeyError` for an unknown project."""
+        ...
+
+    def keep_blob(self, project_id: str, digest: str, content: bytes) -> None:
+        """Keep `content` under `digest`; content already kept is left as it is."""
+        ...
+
+    def blob(self, project_id: str, digest: str) -> bytes | None:
+        """The content kept under `digest`, or None."""
+        ...
+
+    def project_of(self, conversation_id: str) -> str | None:
+        """The project whose log records the conversation's `conversation_started` event, or
+        None."""
+        ...
+
+    def project_ids(self) -> list[str]:
+        """Every project, in the order created."""
         ...
