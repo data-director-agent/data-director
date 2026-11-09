@@ -11,6 +11,7 @@ import { ExternalLink } from "lucide-react";
 import { Link } from "../../route";
 import { type Session, assuranceText, providerName } from "../../session/api";
 import { PageHeader } from "../frame/PageHeader";
+import { OrcidIcon } from "../ui/BrandIcon";
 
 const ORCID_ID = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
 
@@ -45,6 +46,7 @@ export function ProfilePage({ session }: { session: Session }) {
           <dd>
             {profile ? (
               <a href={profile} rel="noreferrer">
+                <OrcidIcon className="brand-icon" />{" "}
                 {profile}
                 <span className="visually-hidden"> (your public ORCID record)</span>{" "}
                 <ExternalLink className="app-icon" size="1em" aria-hidden="true" />
