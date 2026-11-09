@@ -73,7 +73,13 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`; commit them.
 
 ## Commits and pull requests
 
-- Sign off every commit: `git commit -s`. CI rejects any commit without it, including an agent's.
+- Never sign off: no `git commit -s`, and no `Signed-off-by` line in a commit or a pull request
+  description, whatever your git identity. Only a person can certify the work
+  ([DCO](https://github.com/data-director-agent/.github/blob/main/DCO.md)).
+- `main` is squash-merged with the pull request's title and description as the message, so commit
+  trailers do not reach it. End the description with `Co-authored-by: <model> <noreply@anthropic.com>`
+  as its last line, after any footer, and leave the line below it for the person you work for,
+  who signs off there before merge. CI ("Developer Certificate of Origin") fails until they do.
 - The pull request title is a Conventional Commit, `type(scope)!: summary`, lower case, no full
   stop, at most 90 characters, such as `feat(app): register every in-tree agent`. Check it before
   opening and after editing:

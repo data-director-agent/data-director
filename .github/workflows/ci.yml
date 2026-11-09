@@ -509,42 +509,6 @@ jobs:
       # "CI passed" and "Accessibility passed" must wait for every job in their workflow.
       - run: python3 scripts/check_ci_gate.py
 
-  dco:
-    name: Developer Certificate of Origin
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      # Every commit in the pull request carries a Signed-off-by trailer naming its author
-      # (`git commit -s`; CONTRIBUTING.md). A bot's commits are exempt: Dependabot signs off
-      # with an address other than the one it commits from. So are release-please's release
-      # commits, which it makes with a personal access token and cannot sign off.
-      - name: Every commit is signed off by its author
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          status=0
-          for sha in $(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA"); do
-            author=$(git log -1 --format='%an <%ae>' "$sha")
-            case "$author" in *"[bot] <"*) continue ;; esac
-            case "$(git log -1 --format=%s "$sha")" in "chore(main): release "*) continue ;; esac
-            if ! git log -1 --format='%(trailers:key=Signed-off-by,valueonly)' "$sha" \
-                | grep -qxF "$author"; then
-              echo "::error::$(git log -1 --format='%h %s' "$sha"): no 'Signed-off-by: $author'"
-              status=1
-            fi
-          done
-          if [ "$status" -ne 0 ]; then
-            echo "Sign off with 'git commit -s'; amend earlier commits with 'git rebase --signoff $BASE_SHA'."
-          fi
-          exit "$status"
-
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
@@ -582,12 +546,11 @@ jobs:
       - systemd
       - docs
       - workflows
-      - dco
       - dependency-review
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # A job skipped by its own `if` (dco and dependency-review outside pull requests, a side
+      # A job skipped by its own `if` (dependency-review outside pull requests, a side
       # of the repository that a pull request does not touch) passes; a job that failed or was
       # cancelled does not.
       - name: Every job passed or was skipped
