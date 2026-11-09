@@ -54,6 +54,9 @@ Bash shell (on Windows, use WSL). No account or API key is needed.
     git commit -s -m "fix(app): show the history tab without a run"
     ```
 
+    Only a person signs off. If an AI agent helped, it may be named in a `Co-authored-by`
+    trailer, but CI rejects a commit that an agent signed off.
+
 6. **Open a pull request** against `main`. Its title is a
    [Conventional Commit](https://www.conventionalcommits.org/) (`type(scope): summary`, in lower
    case), which the project uses to make releases. Describe what you changed, why, and how you
