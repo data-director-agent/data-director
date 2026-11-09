@@ -112,6 +112,7 @@ async function overflow(page: Page) {
 for (const [name, body] of [
   ["reference set", reference],
   ["several agents", several],
+  ["with an orchestrator", withOrchestrator],
 ] as const) {
   for (const scheme of ["light", "dark"] as const) {
     test(`${name}, ${scheme}: no axe violations against WCAG 2.2 AA`, async ({ page }) => {
@@ -127,6 +128,21 @@ for (const [name, body] of [
     });
   }
 }
+
+test("the orchestrator is pinned first, apart from the agents behind the scenes", async ({
+  page,
+}) => {
+  await serve(page, withOrchestrator);
+  await gotoDirectory(page);
+  const list = page.getByRole("listbox", { name: "Agents" });
+  const front = list.getByRole("group", { name: "You talk to" });
+  const behind = list.getByRole("group", { name: "Works behind the scenes" });
+  await expect(front.getByRole("option")).toHaveCount(1);
+  await expect(front.getByRole("option")).toContainText("Orchestrator");
+  await expect(front.getByRole("option")).toHaveAttribute("aria-selected", "true");
+  await expect(behind.getByRole("option")).toHaveCount(several.agents.length);
+  await expect(page.getByText("This is the agent you talk to.")).toBeVisible();
+});
 
 test("keyboard only: skip link, then the agent list, then the selected agent", async ({ page }) => {
   await serve(page, several);
