@@ -1,5 +1,5 @@
-"""The orchestrator's model has no tools except its delegations, and `offer_choices` and
-`name_project`, which run nothing (docs/specs/orchestration.md).
+"""The orchestrator's model has no tools except its delegations and `offer_choices`,
+`name_project` and `set_entry_point`, which run nothing (docs/specs/orchestration.md).
 
 These tests fail if the model is offered a way to the outside world that is not a delegation
 through the harness: an MCP server, a server tool such as web search or code execution, Agent
@@ -20,6 +20,8 @@ from dd_agent_example_hello.agent import HelloWorld
 from dd_agent_orchestrator_model.agent import (
     CHOICE_TOOL,
     CHOICE_TOOL_DEFINITION,
+    ENTRY_TOOL,
+    ENTRY_TOOL_DEFINITION,
     NAME_TOOL,
     NAME_TOOL_DEFINITION,
     ModelOrchestrator,
@@ -119,9 +121,14 @@ def test_the_model_is_offered_only_delegations(runs_dir: Path) -> None:
             # Nor is this: it puts a name on the reply and calls nothing.
             assert tool == NAME_TOOL_DEFINITION
             continue
+        if tool["name"] == ENTRY_TOOL:
+            # Nor this: it puts an entry point on the reply and calls nothing.
+            assert tool == ENTRY_TOOL_DEFINITION
+            continue
         assert tool["description"].startswith("Ask the agent ")
     names = [t["name"] for t in sent["tools"]]
     assert names.count(CHOICE_TOOL) == 1 and names.count(NAME_TOOL) == 1
+    assert names.count(ENTRY_TOOL) == 1
 
 
 @pytest.mark.requirement("DD-DELEGATION")

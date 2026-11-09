@@ -1179,6 +1179,13 @@
                   "boolean",
                   "null"
                ]
+            },
+            "project_entry_by_researcher": {
+               "description": "Whether the researcher chose the project's entry point, so that a model's would be refused; false when an orchestrator's model recorded it. Filled by the conductor and never by the caller; absent when the run is in no project, or no entry point was recorded.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -1520,6 +1527,13 @@
                "pattern": "^.{1,80}$",
                "type": [
                   "string",
+                  "null"
+               ]
+            },
+            "new_project_entry": {
+               "description": "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it.",
+               "type": [
+                  "integer",
                   "null"
                ]
             },

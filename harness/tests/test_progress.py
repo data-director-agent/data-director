@@ -139,6 +139,18 @@ def test_the_entry_point_chosen_last_counts() -> None:
     assert progress.entry_chosen(events) == 2
 
 
+def test_an_entry_point_with_no_source_is_the_researchers() -> None:
+    old = [{"event": progress.ENTRY_CHOSEN, "entry": 2}]
+    assert progress.entry_and_source(old) == (2, progress.ENTRY_BY_RESEARCHER)
+    assert progress.entry_and_source([]) == (None, None)
+
+
+def test_with_no_entry_point_nothing_open_is_suggested() -> None:
+    """A researcher who has not said where they are is not sent to Phase 1."""
+    assert progress.describe([])["suggested"] is None
+    assert progress.describe([])["entry_source"] is None
+
+
 @pytest.fixture
 def store(tmp_path: Path) -> ProjectStore:
     return ProjectStore(tmp_path / "projects")
@@ -150,6 +162,7 @@ def test_the_store_records_the_researchers_word_and_derives_progress(store: Proj
     store.mark_step(project, "repository.mandated", "done", acted_for=TEST_PRINCIPAL, caused_by="t")
     assert store.progress(project) == {
         "entry": 3,
+        "entry_source": "researcher",
         "steps": {"repository.mandated": "done"},
         "suggested": "repository.recommend",
     }
@@ -169,3 +182,36 @@ def test_the_store_refuses_what_is_no_entry_step_or_mark(store: ProjectStore) ->
         with pytest.raises(ProjectError):
             store.mark_step(project, step_id, mark, acted_for=TEST_PRINCIPAL, caused_by="test")
     assert store.events(project) == before
+
+
+def test_a_models_entry_point_counts_until_the_researcher_chooses_one(
+    store: ProjectStore,
+) -> None:
+    project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    model: progress.EntrySource = progress.ENTRY_BY_MODEL
+    assert store.choose_entry(project, 2, acted_for=TEST_PRINCIPAL, caused_by="r", source=model)
+    where = store.progress(project)
+    assert (where["entry"], where["entry_source"]) == (2, "model")
+    assert where["suggested"] is not None and where["suggested"].startswith("governance.")
+    # A model may correct its own reading.
+    assert store.choose_entry(project, 3, acted_for=TEST_PRINCIPAL, caused_by="r", source=model)
+    # The researcher's choice replaces it, and a model's never replaces theirs.
+    assert store.choose_entry(project, 2, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = store.events(project)
+    assert not store.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="r", source=model)
+    assert store.events(project) == before
+    where = store.progress(project)
+    assert (where["entry"], where["entry_source"]) == (2, "researcher")
+
+
+def test_the_store_refuses_an_entry_point_from_anyone_else(store: ProjectStore) -> None:
+    project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    with pytest.raises(ProjectError):
+        store.choose_entry(
+            project,
+            2,
+            acted_for=TEST_PRINCIPAL,
+            caused_by="test",
+            source="agent",  # type: ignore[arg-type]
+        )
+    assert store.progress(project)["entry"] is None

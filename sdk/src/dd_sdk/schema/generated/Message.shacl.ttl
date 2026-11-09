@@ -59,6 +59,12 @@ dd:Message a sh:NodeShape ;
             sh:order 0 ;
             sh:path dd:schema_class ],
         [ sh:datatype xsd:boolean ;
+            sh:description "Whether the researcher chose the project's entry point, so that a model's would be refused; false when an orchestrator's model recorded it. Filled by the conductor and never by the caller; absent when the run is in no project, or no entry point was recorded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path dd:project_entry_by_researcher ],
+        [ sh:datatype xsd:boolean ;
             sh:description "Whether a person gave the project its title, so that a model's would be refused; false while the project has no title. Filled by the conductor and never by the caller; absent when the run is in no project." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;

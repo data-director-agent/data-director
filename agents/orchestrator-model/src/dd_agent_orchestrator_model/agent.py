@@ -39,6 +39,14 @@ also offered `name_project`, which runs nothing either: it puts a short name for
 title unless a person names it first (docs/specs/projects.md). A note from the harness says what
 the project is called, if anything, and by whom. The tool is answered and the loop goes on.
 
+In a project whose researcher has not chosen an entry point (`Message.project_entry_by_researcher`
+not true), the model is also offered `set_entry_point`, which runs nothing either: it puts the
+entry point the model worked out from what the researcher said, such as data already collected,
+on `Reply.new_project_entry`, declared model-derived. The conductor records it as the model's word,
+which the researcher can change and which never replaces their own choice
+(docs/specs/orchestration.md, invariant 18). With no entry point recorded, the harness's note names
+no suggested step and tells the model to find out where the researcher is.
+
 On a conversation's first turn (an empty `Message.history`), once the model has replied, a
 `Titler` names the conversation from the researcher's message (`title.py`). The title is
 `Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it out.
@@ -79,8 +87,8 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
+from dd_sdk.process_flow import ENTRIES, progress, requirements_of, suggested_next
 from dd_sdk.process_flow import entry as flow_entry
-from dd_sdk.process_flow import progress, requirements_of, suggested_next
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
 
@@ -169,6 +177,34 @@ NAME_TOOL_DEFINITION: dict[str, Any] = {
             },
         },
         "required": ["name"],
+        "additionalProperties": False,
+    },
+}
+
+
+# The tool that records the entry point the model worked out from what the researcher said: it
+# runs nothing, and the turn goes on.
+ENTRY_TOOL = "set_entry_point"
+ENTRY_TOOL_DEFINITION: dict[str, Any] = {
+    "name": ENTRY_TOOL,
+    "description": (
+        "Record where the researcher joins the process flow, so that their journey and the "
+        "suggested next step match what you tell them. Call it as soon as you know, from what "
+        "the researcher has said or from their answer to your question, in the same turn as you "
+        "tell them; not from a guess. The entry points: "
+        + "; ".join(f"{e.number}, {e.text} (starts at Phase {e.starts_at})" for e in ENTRIES)
+        + ". It runs nothing and your turn goes on; the researcher can change it."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "entry": {
+                "type": "integer",
+                "enum": [e.number for e in ENTRIES],
+                "description": "The entry point's number.",
+            },
+        },
+        "required": ["entry"],
         "additionalProperties": False,
     },
 }
@@ -314,11 +350,18 @@ def progress_note(message: Message) -> str | None:
         return None
     start = flow_entry(message.project_entry) if message.project_entry is not None else None
     states = {p.step_id: p.step_state.value for p in message.project_progress or []}
-    where = (
-        f"the researcher chose entry point {start.number} ({start.text})"
-        if start is not None
-        else "no entry point has been chosen"
-    )
+    if start is None:
+        where = (
+            "no entry point has been recorded, so where the researcher is is not known: if they "
+            f"have said, record it with {ENTRY_TOOL}; if not, ask which entry point applies"
+        )
+    elif message.project_entry_by_researcher is False:
+        where = (
+            f"you recorded entry point {start.number} ({start.text}) from what the researcher "
+            "said; they can change it"
+        )
+    else:
+        where = f"the researcher chose entry point {start.number} ({start.text})"
     by_state = {
         state: [step_id for step_id, s in states.items() if s == state]
         for state in ("done", "started", "skipped")
@@ -328,11 +371,12 @@ def progress_note(message: Message) -> str | None:
         or "no step is started, done or skipped yet"
     )
     suggested = suggested_next(progress(start, states, []), start)
-    nxt = (
-        f" Suggested next: [{suggested.step.id}]."
-        if suggested is not None
-        else " Every step from the entry point is done or skipped."
-    )
+    if suggested is not None:
+        nxt = f" Suggested next: [{suggested.step.id}]."
+    elif start is None:
+        nxt = " No step is suggested until the entry point is known."
+    else:
+        nxt = " Every step from the entry point is done or skipped."
     return (
         f"[From the harness, not the researcher] For this project, {where}. The project record "
         f"shows {shown}.{nxt}"
@@ -357,6 +401,7 @@ class ModelOrchestrator:
             "conversation_title": Derived(Derivation.MODEL),
             "reply_question": Derived(Derivation.MODEL),
             "new_project_title": Derived(Derivation.MODEL),
+            "new_project_entry": Derived(Derivation.MODEL),
         },
     )
 
@@ -390,6 +435,13 @@ class ModelOrchestrator:
         may_name = message.project_title_by_researcher is False
         if may_name:
             definitions.append(NAME_TOOL_DEFINITION)
+        # In a project, the model may record the entry point until the researcher chooses one.
+        may_enter = (
+            message.project_title_by_researcher is not None
+            and message.project_entry_by_researcher is not True
+        )
+        if may_enter:
+            definitions.append(ENTRY_TOOL_DEFINITION)
         messages = conversation(message, self.history_turns)
 
         delegated: list[Delegated] = []
@@ -400,6 +452,7 @@ class ModelOrchestrator:
         calls = ModelCallLog(PROVIDER)
         question: ChoiceQuestion | None = None
         name: str | None = None
+        entry_point: int | None = None
         while True:
             use_tools = bool(definitions) and attempts < self.max_delegations
             prompt = json.loads(
@@ -444,7 +497,14 @@ class ModelOrchestrator:
                 given, result = _name_of(call, offered=may_name)
                 name = given or name
                 named[call.id] = result
-            others = [c for c in turn.tool_calls if c.name != NAME_TOOL]
+            # So is an entry point; the last one recorded counts.
+            for call in (c for c in turn.tool_calls if c.name == ENTRY_TOOL):
+                if entry_point is not None or not may_enter:
+                    attempts += 1
+                given_entry, result = _entry_of(call, offered=may_enter)
+                entry_point = given_entry or entry_point
+                named[call.id] = result
+            others = [c for c in turn.tool_calls if c.name not in (NAME_TOOL, ENTRY_TOOL)]
             question, problem = _question_of(others)
             if question is not None:
                 break
@@ -466,6 +526,7 @@ class ModelOrchestrator:
             turn,
             question,
             name,
+            entry_point,
             delegated,
             ctx,
             model_id,
@@ -521,6 +582,7 @@ class ModelOrchestrator:
         turn: ModelTurn,
         question: ChoiceQuestion | None,
         name: str | None,
+        entry_point: int | None,
         delegated: list[Delegated],
         ctx: RunContext,
         model_id: str,
@@ -562,6 +624,7 @@ class ModelOrchestrator:
                 conversation_title=title.text if title is not None else None,
                 reply_question=question,
                 new_project_title=name,
+                new_project_entry=entry_point,
                 grounded_on=[input_ref, *(d.ref for d in delegated)],
             ),
             evidence=[
@@ -613,6 +676,28 @@ def _name_of(call: ToolCall, *, offered: bool) -> tuple[str | None, dict[str, An
     if name is None:
         return None, _tool_result(call, "Not named: give the name as one line of text.", True)
     return name, _tool_result(call, f"Named {json.dumps(name)}. Carry on with your reply.", False)
+
+
+def _entry_of(call: ToolCall, *, offered: bool) -> tuple[int | None, dict[str, Any]]:
+    """The entry point a `set_entry_point` call records and the tool result to send back: None
+    and an error when the tool was not offered or the entry point is not one of the flow's."""
+    if not offered:
+        return None, _tool_result(
+            call, "Not recorded: the researcher chose the entry point themselves.", True
+        )
+    given = call.input.get("entry")
+    numbers = {e.number: e for e in ENTRIES}
+    if isinstance(given, bool) or not isinstance(given, int) or given not in numbers:
+        return None, _tool_result(
+            call, f"Not recorded: give one of the entry points {sorted(numbers)}.", True
+        )
+    found = numbers[given]
+    return given, _tool_result(
+        call,
+        f"Recorded entry point {given} ({found.text}), starting at Phase {found.starts_at}. "
+        "Carry on with your reply; tell the researcher they can change it on their journey.",
+        False,
+    )
 
 
 def _tool_result(call: ToolCall, content: str, is_error: bool) -> dict[str, Any]:

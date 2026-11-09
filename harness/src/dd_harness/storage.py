@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Protocol
 
+from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
 from dd_harness.projects import Decision, TitleSource
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
@@ -192,9 +193,16 @@ class ProjectStorage(Protocol):
         ...
 
     def choose_entry(
-        self, project_id: str, entry: int, *, acted_for: Principal, caused_by: str
-    ) -> None:
-        """Record the entry point chosen."""
+        self,
+        project_id: str,
+        entry: int,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+        source: EntrySource = ENTRY_BY_RESEARCHER,
+    ) -> bool:
+        """Record the entry point chosen; False, recording nothing, for a model's once the
+        researcher has chosen one."""
         ...
 
     def mark_step(

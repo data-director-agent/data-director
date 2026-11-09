@@ -53,6 +53,8 @@ export type StepMark = "done" | "skipped" | "open";
  */
 export interface ProjectProgress {
   entry: number | null;
+  /** Who recorded the entry point: the researcher, or Data Director from what they said. */
+  entry_source?: "researcher" | "model" | null;
   steps: Record<string, StepState>;
   suggested: string | null;
 }

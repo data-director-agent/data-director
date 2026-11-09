@@ -7,14 +7,22 @@
  * Drawn as a strip, like a progress bar, opening to show each phase's steps. Where the project
  * is comes from the harness, which derives it from the project log on every read
  * (docs/specs/orchestration.md): the entry point the researcher chose, each step started, done or
- * skipped, and the step to suggest next. The shell computes none of it. The suggestion is never
+ * skipped, and the step to suggest next. Data Director may record the entry point from what the
+ * researcher said, which the strip says, until they choose one themselves; with none recorded,
+ * nothing is suggested. The shell computes none of it. The suggestion is never
  * a gate: the researcher may mark any step done or skipped, or open it again, for the many steps
  * nothing in the project records, and may do the steps in any order.
  */
 
 import "./PhaseTracker.css";
 
-import type { FlowStep, ProcessFlow, ProjectProgress, StepMark, StepState } from "../../flow/types";
+import type {
+  FlowStep,
+  ProcessFlow,
+  ProjectProgress,
+  StepMark,
+  StepState,
+} from "../../flow/types";
 import { Button } from "../ui/Button";
 
 export type FlowLoad =
@@ -37,16 +45,27 @@ const STATE_LABEL: Record<StepState, string> = {
   skipped: "Skipped",
 };
 
-export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: TrackedProgress | null }) {
+export function PhaseTracker({
+  load,
+  tracked,
+}: {
+  load: FlowLoad;
+  tracked?: TrackedProgress | null;
+}) {
   const flow = load.state === "loaded" ? load.flow : null;
-  const suggested = flow && tracked ? stepById(flow, tracked.progress.suggested) : null;
+  const suggested =
+    flow && tracked ? stepById(flow, tracked.progress.suggested) : null;
   return (
-    <nav aria-labelledby="phases-heading" className="workspace-phases phase-strip">
+    <nav
+      aria-labelledby="phases-heading"
+      className="workspace-phases phase-strip"
+    >
       <div className="phase-strip-head">
         <h2 id="phases-heading">Your data journey</h2>
         {!tracked && (
           <p className="phase-strip-where">
-            Where your project is shows here once your conversation has a project.
+            Where your project is shows here once your conversation has a
+            project.
           </p>
         )}
         {tracked && flow && (
@@ -57,7 +76,9 @@ export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: Trac
                 value={tracked.progress.entry ?? ""}
                 onChange={(e) => tracked.chooseEntry(Number(e.target.value))}
               >
-                {tracked.progress.entry === null && <option value="">Not said yet</option>}
+                {tracked.progress.entry === null && (
+                  <option value="">Not said yet</option>
+                )}
                 {flow.entries.map((entry) => (
                   <option key={entry.number} value={entry.number}>
                     {capitalised(entry.text)}
@@ -65,11 +86,19 @@ export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: Trac
                 ))}
               </select>
             </label>
+            {tracked.progress.entry !== null &&
+              tracked.progress.entry_source === "model" && (
+                <p className="phase-strip-where muted">
+                  Set by Data Director from what you said.
+                </p>
+              )}
             <p className="phase-strip-where" role="status">
               {suggested ? (
                 <>
                   Suggested next: <strong>{suggested.label}</strong>
                 </>
+              ) : tracked.progress.entry === null ? (
+                "Choose where you started, or tell Data Director, to get a suggested next step."
               ) : (
                 "Every step from where you started is done or skipped."
               )}
@@ -122,14 +151,21 @@ export function PhaseTracker({ load, tracked }: { load: FlowLoad; tracked?: Trac
   );
 }
 
-function Phases({ flow, tracked }: { flow: ProcessFlow; tracked: TrackedProgress | null }) {
+function Phases({
+  flow,
+  tracked,
+}: {
+  flow: ProcessFlow;
+  tracked: TrackedProgress | null;
+}) {
   return (
     <ol className="phase-list">
       {flow.phases.map((phase) => (
         <li key={phase.number}>
           <details>
             <summary>
-              <span className="phase-number">Phase {phase.number}</span> {phase.name}
+              <span className="phase-number">Phase {phase.number}</span>{" "}
+              {phase.name}
             </summary>
             <p className="phase-summary">{phase.summary}</p>
             <ol className="step-list">
@@ -146,7 +182,13 @@ function Phases({ flow, tracked }: { flow: ProcessFlow; tracked: TrackedProgress
   );
 }
 
-function Step({ step, tracked }: { step: FlowStep; tracked: TrackedProgress | null }) {
+function Step({
+  step,
+  tracked,
+}: {
+  step: FlowStep;
+  tracked: TrackedProgress | null;
+}) {
   const state = tracked?.progress.steps[step.id];
   const suggested = tracked?.progress.suggested === step.id;
   return (
@@ -154,9 +196,21 @@ function Step({ step, tracked }: { step: FlowStep; tracked: TrackedProgress | nu
       <p className="step-text">
         {step.label}
         {step.optional && <span className="muted"> (optional)</span>}
-        {step.out_of_scope && <span className="muted"> (out of scope for now)</span>}
-        {state && <span className={`step-state step-state-${state}`}> {STATE_LABEL[state]}</span>}
-        {suggested && <span className="step-state step-state-suggested"> Suggested next</span>}
+        {step.out_of_scope && (
+          <span className="muted"> (out of scope for now)</span>
+        )}
+        {state && (
+          <span className={`step-state step-state-${state}`}>
+            {" "}
+            {STATE_LABEL[state]}
+          </span>
+        )}
+        {suggested && (
+          <span className="step-state step-state-suggested">
+            {" "}
+            Suggested next
+          </span>
+        )}
       </p>
       {tracked && !step.out_of_scope && (
         <div className="step-actions">

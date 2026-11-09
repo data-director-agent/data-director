@@ -40,7 +40,8 @@ hashed, the conductor puts the project's facts into an input class that asks for
 (`project_facts`). A run in a project that succeeds with a `Document` is recorded in the project
 as a proposed version, caused by the run; a draft the project refuses fails the run instead. A
 `Reply` that names the project (`new_project_title`) renames it, caused by the run, unless a
-person has given it a title.
+person has given it a title; one that records an entry point (`new_project_entry`) records it as
+the model's word, caused by the run, unless the researcher has chosen one.
 
 Threads (#171). `invoke` may be called from any thread, and several invocations may run at
 once. Async code calls `ainvoke` and `ainvoke_delegated` instead, which keep the one rule that
@@ -66,6 +67,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from dd_harness import grounding, policy, project_access, project_facts, shacl
 from dd_harness import sources as source_check
+from dd_harness.progress import ENTRY_BY_MODEL
 from dd_harness.projects import TITLE_BY_MODEL, ProjectError, UnknownProjectError
 from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registry
@@ -112,7 +114,8 @@ from dd_sdk.tracing import (
 DATA_STEWARD = "data_steward"
 # The core payload class a run in a project records as a document version.
 DOCUMENT = "Document"
-# The core payload class whose `new_project_title` renames the run's project.
+# The core payload class whose `new_project_title` renames the run's project, and whose
+# `new_project_entry` records its entry point.
 REPLY = "Reply"
 
 
@@ -665,6 +668,24 @@ class Conductor:
                     envelope.project_id,
                     str(new_title),
                     source=TITLE_BY_MODEL,
+                    acted_for=acting_for,
+                    caused_by=envelope.invocation_id,
+                )
+            # 7a''. An entry point a model worked out in a succeeded reply is recorded as its
+            # word, caused by this run, unless the researcher has chosen one
+            # (docs/specs/orchestration.md, invariant 18). The value passed the contract already.
+            new_entry = doc.get("payload", {}).get("new_project_entry")
+            if (
+                self.projects is not None
+                and envelope.project_id is not None
+                and envelope.outcome.status == OutcomeStatus.SUCCEEDED
+                and doc.get("payload", {}).get("schema_class") == REPLY
+                and new_entry is not None
+            ):
+                self.projects.choose_entry(
+                    envelope.project_id,
+                    int(new_entry),
+                    source=ENTRY_BY_MODEL,
                     acted_for=acting_for,
                     caused_by=envelope.invocation_id,
                 )

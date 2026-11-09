@@ -446,6 +446,11 @@ class DirectorStub:
                 f"Suggested next: {suggested.step.text}. You may do any step in any order, and "
                 "mark one done or skipped in your project when nothing here records it."
             )
+        elif start is None:
+            lines.append(
+                "Say where you are with your research data, or choose it in your project, and "
+                "I will suggest a next step."
+            )
         elif any(s.state != "open" for s in steps):
             lines.append("Every step from here is done or skipped.")
         lines.append("The work and every decision are yours; the agents only advise.")
