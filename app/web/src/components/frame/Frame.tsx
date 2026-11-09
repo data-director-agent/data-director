@@ -39,7 +39,12 @@ function BannerIcon({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon className="app-icon" size="1.125em" aria-hidden="true" />;
 }
 
-const USER_GUIDE = "https://data-director-agent.github.io/data-director/user-guide/";
+const SHEFFIELD = "https://www.sheffield.ac.uk/";
+const RDA = "https://www.rd-alliance.org/";
+const BLUEPRINT = "https://doi.org/10.15497/RDA00157";
+const SOURCE = "https://github.com/data-director-agent/data-director";
+const USER_GUIDE =
+  "https://data-director-agent.github.io/data-director/user-guide/";
 
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
@@ -75,7 +80,9 @@ export function Frame({
                   <Link
                     to={to}
                     className="app-nav-link"
-                    {...(to === current ? { "aria-current": "page" as const } : {})}
+                    {...(to === current
+                      ? { "aria-current": "page" as const }
+                      : {})}
                   >
                     <BannerIcon icon={icon} />
                     {label}
@@ -86,14 +93,21 @@ export function Frame({
           </nav>
           <div className="app-tools">
             {account}
-            <a className="app-tool-link" href={USER_GUIDE} target="_blank" rel="noreferrer">
+            <a
+              className="app-tool-link"
+              href={USER_GUIDE}
+              target="_blank"
+              rel="noreferrer"
+            >
               <BannerIcon icon={BookOpen} />
               User guide
             </a>
             <Link
               to={report}
               className="app-tool-link"
-              {...(current === "/feedback" ? { "aria-current": "page" as const } : {})}
+              {...(current === "/feedback"
+                ? { "aria-current": "page" as const }
+                : {})}
             >
               <BannerIcon icon={Bug} />
               Report a problem
@@ -107,6 +121,28 @@ export function Frame({
       </main>
       <footer className="app-footer">
         <div className="app-footer-inner">
+          <p className="app-footer-support">
+            Supported by{" "}
+            <a href={SHEFFIELD} target="_blank" rel="noreferrer">
+              The University of Sheffield
+            </a>{" "}
+            and the{" "}
+            <a href={RDA} target="_blank" rel="noreferrer">
+              Research Data Alliance
+            </a>{" "}
+            (RDA).
+          </p>
+          <p className="app-footer-about">
+            A reference implementation of the{" "}
+            <a href={BLUEPRINT} target="_blank" rel="noreferrer">
+              RDA Data Director Agentic AI Blueprint
+            </a>
+            . Open source under the MIT licence:{" "}
+            <a href={SOURCE} target="_blank" rel="noreferrer">
+              view the code
+            </a>
+            .
+          </p>
           <FooterBuild />
         </div>
       </footer>

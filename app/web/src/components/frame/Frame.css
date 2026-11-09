@@ -45,10 +45,28 @@
     max-width: var(--page-width);
     margin-inline: auto;
     padding: var(--space-3) var(--page-gutter);
+    display: grid;
+    gap: var(--space-1);
   }
 
+  .app-footer-support {
+    margin: 0;
+    color: var(--color-text);
+    font-weight: var(--font-weight-heavy);
+  }
+
+  .app-footer-about,
   .app-footer-build {
     margin: 0;
+  }
+
+  .app-footer a {
+    color: inherit;
+    text-underline-offset: 0.2em;
+  }
+
+  .app-footer a:hover {
+    color: var(--color-text);
   }
 
   .app-brand {
