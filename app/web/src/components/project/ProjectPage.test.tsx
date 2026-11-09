@@ -11,6 +11,7 @@ import {
   type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
+  type ProjectSummary,
   type RepositoryRequirements,
   ProjectApiContext,
   digestOf,
@@ -220,10 +221,10 @@ describe("ProjectPage", () => {
 
   it("renames the project and shows the name the server reads back", async () => {
     const user = userEvent.setup();
-    const summary = {
+    const summary: ProjectSummary = {
       project_id: PROJECT.project_id,
       title: "Sediment cores",
-      title_source: "model" as const,
+      title_source: "model",
       created_at: DRAFT.added_at,
       created_by: DRAFT.added_by,
       inventory: null,
@@ -233,7 +234,7 @@ describe("ProjectPage", () => {
     };
     let current = summary;
     const rename = vi.fn((_: string, title: string) => {
-      current = { ...summary, title, title_source: "researcher" as const };
+      current = { ...summary, title, title_source: "researcher" };
       return Promise.resolve(current);
     });
     renderPage(fakeApi({ projects: () => Promise.resolve([current]), rename }));
