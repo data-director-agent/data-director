@@ -47,20 +47,28 @@ Bash shell (on Windows, use WSL). No account or API key is needed.
 
     The [contribution guide](../../../CONTRIBUTING.md#code-style-and-testing) lists how to run
     each of the other checks that CI runs, such as the app shell's.
-5. **Commit with a sign-off**, so that you certify you may submit the work
-   (the [Developer Certificate of Origin](https://github.com/data-director-agent/.github/blob/main/DCO.md)):
+5. **Commit** your change:
 
     ```sh
-    git commit -s -m "fix(app): show the history tab without a run"
+    git commit -m "fix(app): show the history tab without a run"
     ```
-
-    Only a person signs off. If an AI agent helped, it may be named in a `Co-authored-by`
-    trailer, but CI rejects a commit that an agent signed off.
 
 6. **Open a pull request** against `main`. Its title is a
    [Conventional Commit](https://www.conventionalcommits.org/) (`type(scope): summary`, in lower
    case), which the project uses to make releases. Describe what you changed, why, and how you
    tested it, and link the issue if there is one. Say if an AI tool wrote a substantial part.
+
+    **Sign off at the end of the description**, so that you certify you may submit the work
+    (the [Developer Certificate of Origin](https://github.com/data-director-agent/.github/blob/main/DCO.md)).
+    The description becomes the merged commit's message, and its last lines are its trailers:
+
+    ```text
+    Co-authored-by: Name of the AI tool <its-address@example.com>
+    Signed-off-by: Jane Doe <jane@example.com>
+    ```
+
+    Only a person signs off. If an AI agent helped, name it in a `Co-authored-by` line above
+    yours; CI rejects a sign-off by an agent, and a pull request without a person's.
 7. **Add yourself to the [citation file](../../../CITATION.cff)** in your first pull request, so
    that you are credited as an author ([Credit](../../../CONTRIBUTING.md#credit)).
 
