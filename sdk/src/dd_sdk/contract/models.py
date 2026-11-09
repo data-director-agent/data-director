@@ -445,6 +445,8 @@ class DocumentQuestion(Frozen):
     question_id: str = Field(pattern=QUESTION_ID_PATTERN)
     question_prompt: str
     gap_section: str | None = None
+    # The part of the section, when the drafter asks a section part by part.
+    gap_part: str | None = None
     gap_file: str | None = None
     gap_field: str | None = None
     gap_column: str | None = None
@@ -457,6 +459,8 @@ class DocumentQuestion(Frozen):
         if (self.suggested_answer is None) != (self.suggestion_derivation is None):
             raise ValueError("a suggested answer says how it was derived, and only then")
         cell = (self.gap_file, self.gap_field, self.gap_column)
+        if self.gap_part is not None and self.gap_section is None:
+            raise ValueError("a question targets a part only within a README section")
         if self.gap_section is not None:
             if any(c is not None for c in cell):
                 raise ValueError("a question targets a README section or a cell, not both")

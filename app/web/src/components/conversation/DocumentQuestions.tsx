@@ -2,8 +2,8 @@
  * A draft's open questions, on its card in the conversation (docs/specs/drafting.md,
  * docs/specs/app.md): what the drafter could not read from the project's facts, such as a field's
  * definition, its unit or its missing-value codes. A few are shown at a time, each with a text box
- * labelled by the question and described by what it fills. The researcher answers any of them and
- * saves; blank boxes are left as they are. The harness records each answer for the person signed
+ * labelled by the question and described by what it fills; the parts of one README section stay on
+ * one page. The researcher answers any of them and saves; blank boxes are left as they are. The harness records each answer for the person signed
  * in, and the next draft places it as supplied. No agent writes an answer.
  *
  * A question may carry a model's suggested answer, such as a field's likely definition or unit.
@@ -41,6 +41,23 @@ function suggestion(q: DocumentQuestion): string {
 /** How many questions are put at once: enough to make progress, few enough to read. */
 export const QUESTIONS_AT_ONCE = 3;
 
+/**
+ * Where the page of questions starting at `from` ends: after QUESTIONS_AT_ONCE questions, or later
+ * if that would split the parts of one README section, which are read together.
+ */
+function pageEnd(open: DocumentQuestion[], from: number): number {
+  let end = Math.min(from + QUESTIONS_AT_ONCE, open.length);
+  const last = open[end - 1];
+  while (
+    end < open.length &&
+    last?.gap_part !== undefined &&
+    open[end]?.gap_part !== undefined &&
+    open[end]?.gap_section === last.gap_section
+  )
+    end += 1;
+  return end;
+}
+
 export function DocumentQuestions({
   projectId,
   document,
@@ -75,7 +92,7 @@ export function DocumentQuestions({
   }
 
   const from = start < open.length ? start : 0;
-  const shown: DocumentQuestion[] = open.slice(from, from + QUESTIONS_AT_ONCE);
+  const shown: DocumentQuestion[] = open.slice(from, pageEnd(open, from));
   const given: GivenAnswer[] = shown
     .map((q) => ({ answered_question: q.question_id, answer_text: (words[q.question_id] ?? "").trim() }))
     .filter((a) => a.answer_text !== "");
@@ -161,7 +178,7 @@ export function DocumentQuestions({
         {others > 0 && (
           <Button
             variant="quiet"
-            onPress={() => setStart(from + QUESTIONS_AT_ONCE)}
+            onPress={() => setStart(pageEnd(open, from))}
             isDisabled={saving}
           >
             Show other questions <span className="visually-hidden">for the {name}</span>
