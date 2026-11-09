@@ -1,8 +1,8 @@
 /** An object's fields as a description list, leaving out empty ones and derivation recorders. */
 
-import { fieldName } from "../../../manifest/wording";
-import { type JsonSchema, properties, shapeOf } from "../../../run/schema";
-import { type Context, isEmpty, recorders } from "./context";
+import { fieldName } from "../../wording";
+import { type JsonSchema, properties, shapeOf } from "../../schema/shape";
+import { type Context, isEmpty, recorders } from "../../payload/context";
 import { Scalar } from "./Scalar";
 
 export function Facts({

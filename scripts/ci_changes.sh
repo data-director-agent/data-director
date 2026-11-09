@@ -4,7 +4,7 @@
 # stdin and prints the jobs' outputs:
 #
 #   python=true|false   the Python workspace (ci.yml; the viewer in accessibility.yml)
-#   web=true|false      app/web and the inventory library it links, inventory/browser (ci.yml)
+#   web=true|false      app/web and the libraries it links, inventory/browser and sdk/browser (ci.yml)
 #   deploy=true|false   the NGINX site and the systemd units (ci.yml)
 #   docs=true|false     the documentation site (accessibility.yml, which builds it)
 #   codeql=[...]        the languages CodeQL analyses, as a JSON list (codeql.yml)
@@ -49,7 +49,11 @@ while IFS= read -r f; do
     inventory/browser/README.md) web=true docs=true ;;
     # How to make an inventory, which the user guide renders too (docs/hooks_inventory.py).
     inventory/browser/src/making.json) web=true docs=true ;;
-    app/web/* | inventory/browser/*) web=true ;;
+    # The agent view library's readme is also on the documentation site.
+    sdk/browser/README.md) web=true docs=true ;;
+    # Its card fixtures are written by sdk/tests/test_agent_view_fixtures.py.
+    sdk/browser/tests/fixtures/*) python=true web=true ;;
+    app/web/* | inventory/browser/* | sdk/browser/*) web=true ;;
     app/*) python=true web=true ;;
     # CONFORMANCE.md is checked by the test job, and the packages' readmes by twine; all of them
     # are on the site.

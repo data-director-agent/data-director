@@ -38,7 +38,9 @@ whose principal may not read it (`project_access`) is refused with `UnknownProje
 anything is stored. Before the input is
 hashed, the conductor puts the project's facts into an input class that asks for them
 (`project_facts`). A run in a project that succeeds with a `Document` is recorded in the project
-as a proposed version, caused by the run; a draft the project refuses fails the run instead.
+as a proposed version, caused by the run; a draft the project refuses fails the run instead. A
+`Reply` that names the project (`new_project_title`) renames it, caused by the run, unless a
+person has given it a title.
 
 Threads (#171). `invoke` may be called from any thread, and several invocations may run at
 once. Async code calls `ainvoke` and `ainvoke_delegated` instead, which keep the one rule that
@@ -64,7 +66,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 
 from dd_harness import grounding, policy, project_access, project_facts, shacl
 from dd_harness import sources as source_check
-from dd_harness.projects import ProjectError, UnknownProjectError
+from dd_harness.projects import TITLE_BY_MODEL, ProjectError, UnknownProjectError
 from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registry
 from dd_harness.remote import Received, RemoteAgent
@@ -110,6 +112,8 @@ from dd_sdk.tracing import (
 DATA_STEWARD = "data_steward"
 # The core payload class a run in a project records as a document version.
 DOCUMENT = "Document"
+# The core payload class whose `new_project_title` renames the run's project.
+REPLY = "Reply"
 
 
 class UnknownAgent(Exception):
@@ -647,6 +651,23 @@ class Conductor:
                     )
                     doc = envelope.to_document()
                     validate.validate_envelope(doc)
+            # 7a'. A name a model gave the project in a succeeded reply becomes its title, caused
+            # by this run, unless a person has named it. The name passed the contract already.
+            new_title = doc.get("payload", {}).get("new_project_title")
+            if (
+                self.projects is not None
+                and envelope.project_id is not None
+                and envelope.outcome.status == OutcomeStatus.SUCCEEDED
+                and doc.get("payload", {}).get("schema_class") == REPLY
+                and new_title
+            ):
+                self.projects.rename(
+                    envelope.project_id,
+                    str(new_title),
+                    source=TITLE_BY_MODEL,
+                    acted_for=acting_for,
+                    caused_by=envelope.invocation_id,
+                )
             # The schemas the run was checked against, kept by digest for the viewer
             # (docs/specs/contract.md).
             checked = [accepted] if accepted else []

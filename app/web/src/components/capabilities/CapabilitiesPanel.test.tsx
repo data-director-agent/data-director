@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
@@ -38,7 +38,8 @@ describe("CapabilitiesPanel", () => {
     render(<AgentDetail agent={agent("advisor.quality")} />);
     expect(screen.queryByRole("tab")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.queryByText(/contract/i)).toBeNull();
+    // What the card declares is there for whoever needs to inspect it, but folded away.
+    expect(screen.getByText(/contract/i)).not.toBeVisible();
     expect(screen.queryByRole("heading", { name: /grounds its results/ })).toBeNull();
   });
 
@@ -153,7 +154,7 @@ describe("AgentDirectory", () => {
 
     it("pins it first, apart from the agents behind the scenes, and selects it", async () => {
       const { container } = render(<AgentDirectory directory={withOrchestrator} />);
-      const [front, behind] = screen.getAllByRole("group");
+      const [front, behind] = within(screen.getByRole("listbox")).getAllByRole("group");
       expect(front).toHaveAccessibleName("You talk to");
       expect(behind).toHaveAccessibleName("Works behind the scenes");
       const option = screen.getByRole("option", { name: /^Data Director/ });
@@ -185,7 +186,7 @@ describe("AgentDirectory", () => {
 
   it("keeps the list flat without an orchestrator", () => {
     render(<AgentDirectory directory={{ ...directory, orchestratorId: null }} />);
-    expect(screen.queryByRole("group")).toBeNull();
+    expect(within(screen.getByRole("listbox")).queryByRole("group")).toBeNull();
     expect(screen.queryByText("Orchestrator")).toBeNull();
     expect(screen.queryByText(/talk to/)).toBeNull();
   });

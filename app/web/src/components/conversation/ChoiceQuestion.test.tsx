@@ -43,6 +43,13 @@ describe("ChoiceQuestion", () => {
     );
   });
 
+  it("chooses an option when its label text is clicked, not only the control", async () => {
+    renderQuestion(QUESTION);
+    await userEvent.click(screen.getByText("Zenodo"));
+    expect(screen.getByRole("radio", { name: "Zenodo" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Send answer" })).toBeEnabled();
+  });
+
   it("offers several choices as checkboxes", async () => {
     const { onAnswer } = renderQuestion({ ...QUESTION, question_multiple: true });
     expect(screen.getByText(/Choose one or more/)).toBeVisible();

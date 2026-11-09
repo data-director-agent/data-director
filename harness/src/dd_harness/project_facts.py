@@ -18,7 +18,9 @@ Three core classes are filled. Within a project:
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
   `project_progress` say which entry point the researcher chose and how far each step of the
-  process flow has gone, derived from the log on every turn (`dd_harness.progress`).
+  process flow has gone, derived from the log on every turn (`dd_harness.progress`); its
+  `project_title` is the project's latest title, and `project_title_by_researcher` whether a
+  person gave it, so that an orchestrator's model can name a project nobody has named.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -29,7 +31,9 @@ conductor can refuse to send `documentation` to an agent that calls a hosted mod
 profile's `hosted_models` allows it. An inventory, and what it is, are `inventory`. A metadata
 record, a version to regenerate and a person's answers are `documentation`. A repository's
 requirements are the repository's, not the project's, and a `Message`'s entry point and progress
-say only which steps of the process flow have gone how far; they are neither.
+say only which steps of the process flow have gone how far; they are neither. Nor is a project's
+title: a name a researcher typed, or a model wrote from what was said in the conversation, which
+the model is sent anyway.
 """
 
 from __future__ import annotations
@@ -37,6 +41,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from dd_harness.projects import TITLE_BY_RESEARCHER
 from dd_harness.storage import ProjectStorage
 from dd_sdk.contract.models import DocumentKind
 from dd_sdk.evidence import input_hash
@@ -46,7 +51,13 @@ DRAFT_REQUEST = "DraftRequest"
 FILE_INVENTORY = "FileInventory"
 MESSAGE = "Message"
 # A `Message`'s slots that only the conductor fills.
-MESSAGE_PROJECT_SLOTS = ("project_inventory", "project_entry", "project_progress")
+MESSAGE_PROJECT_SLOTS = (
+    "project_inventory",
+    "project_entry",
+    "project_progress",
+    "project_title",
+    "project_title_by_researcher",
+)
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
 INVENTORY = "inventory"
@@ -71,6 +82,7 @@ def give(
         return filled
     if schema_class == MESSAGE:
         where = store.progress(project_id)
+        summary = store.summary(project_id)
         _put(
             filled,
             {
@@ -82,6 +94,9 @@ def give(
                     for step_id, state in where["steps"].items()
                 ]
                 or None,
+                "project_title": summary["title"],
+                # False while the project is untitled too: the model may name it.
+                "project_title_by_researcher": summary["title_source"] == TITLE_BY_RESEARCHER,
             },
         )
     elif schema_class == DRAFT_REQUEST:

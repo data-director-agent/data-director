@@ -16,6 +16,8 @@ from dd_agent_advisor_documentation.agent import (
     VALUE_COLUMNS,
     DocumentationEditor,
     Source,
+    _question_id,
+    load_sections,
 )
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -71,7 +73,11 @@ def test_drafts_a_readme_from_the_inventory_and_marks_the_rest(runs_dir: Path) -
         "How to cite",
         "Software requirements",
     ]
-    assert text.count("_To be written by the researcher:") == len(headings)
+    # One placeholder per section, and one per part in a section asked part by part.
+    sections = load_sections()
+    assert text.count("_To be written by the researcher:") == sum(
+        len(s.parts) or 1 for s in sections
+    )
     assert asked.inventory is not None
     for f in asked.inventory.inventory_files:
         assert f"`{f.file_path}`" in text
@@ -239,9 +245,51 @@ def test_every_readme_gap_is_marked_and_asked_once(runs_dir: Path) -> None:
     questions = document.document_questions
     assert markers == [q.question_id for q in questions]
     assert len(markers) == document.document_text.count("_To be written by the researcher:")
-    headings = [line[3:] for line in document.document_text.splitlines() if line.startswith("## ")]
-    assert [q.gap_section for q in questions] == headings
+    targets = [
+        (s.heading, p.label if p else None) for s in load_sections() for p in s.parts or (None,)
+    ]
+    assert [(q.gap_section, q.gap_part) for q in questions] == targets
     assert f"leaves {len(questions)} gaps" in env.outcome.statement
+
+
+@pytest.mark.requirement("R5")
+def test_a_section_of_parts_asks_each_part_and_places_it_under_its_label(
+    runs_dir: Path,
+) -> None:
+    name = "soil-survey.readme.draft.json"
+    env, _ = draft(runs_dir, sample(name))
+    asked = [
+        q
+        for q in env.payload_as(Document).document_questions
+        if q.gap_section == "General information"
+    ]
+    general = next(s for s in load_sections() if s.heading == "General information")
+    assert [q.gap_part for q in asked] == [p.label for p in general.parts]
+    assert len({q.question_id for q in asked}) == len(asked)
+
+    funding = next(q for q in asked if q.gap_part == "Funding")
+    answer = "Natural Environment Research Council, NE/X000000/1"
+    env, _ = draft(runs_dir, asked_with(name, (funding.question_id, answer)))
+    document = env.payload_as(Document)
+    section = section_of(document.document_text, "General information")
+    assert f"- **Funding:** {answer}" in section
+    assert funding.question_id not in document.document_text
+    left = [
+        q.gap_part for q in document.document_questions if q.gap_section == "General information"
+    ]
+    assert "Funding" not in left and left
+    assert "1 written from your answers" in env.outcome.statement
+
+
+def test_an_answer_to_a_whole_section_of_parts_is_still_placed(runs_dir: Path) -> None:
+    """An answer recorded before the section was asked part by part stands, and asks no part."""
+    name = "soil-survey.readme.draft.json"
+    whole = _question_id({"section": "General information"})
+    answer = "Soil survey, PI Alex Example, 2025, funded by NERC."
+    env, _ = draft(runs_dir, asked_with(name, (whole, answer)))
+    document = env.payload_as(Document)
+    assert section_of(document.document_text, "General information") == answer
+    assert "General information" not in {q.gap_section for q in document.document_questions}
 
 
 @pytest.mark.requirement("R5")
@@ -341,8 +389,12 @@ def test_a_readme_takes_what_the_approved_metadata_record_gives(runs_dir: Path) 
     general = section_of(text, "General information")
     assert "- **Title:** Soil chemistry of upland survey sites, 2025" in general
     assert "- **Creators:** Example, Alex; Sample, Sam" in general
-    # The record's funder is a placeholder the metadata mock left: not a value.
-    assert "Funding" not in general
+    # The record gives the title, so it is not asked; its funder is a placeholder the metadata
+    # mock left, not a value, so the funding is asked.
+    parts = {
+        q.gap_part for q in document.document_questions if q.gap_section == "General information"
+    }
+    assert "Title" not in parts and "Funding" in parts
     assert "_To be written by the researcher:" in general
 
     # The abstract says all the Description asks, so no gap is left there.
@@ -433,3 +485,48 @@ def test_a_citation_has_the_year_when_the_record_gives_one(runs_dir: Path) -> No
     text = env.payload_as(Document).document_text
     assert text.startswith("# Soil survey.\n")
     assert section_of(text, "How to cite").startswith("Example, Alex (2026). Soil survey.\n")
+
+
+def test_a_part_the_record_gives_is_not_asked(runs_dir: Path) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        titles=[{"title": "Soil survey"}],
+        fundingReferences=[{"funderName": "Natural Environment Research Council"}],
+    )
+    env, _ = draft(runs_dir, asked)
+    document = env.payload_as(Document)
+    general = section_of(document.document_text, "General information")
+    assert "- **Funding:** Natural Environment Research Council" in general
+    parts = {q.gap_part for q in document.document_questions if q.gap_part}
+    assert parts and not parts & {"Title", "Funding"}
+
+
+@pytest.mark.parametrize(
+    ("section", "why"),
+    [
+        ({"heading": "A", "from": "nowhere", "ask": "x."}, "unknown"),
+        ({"heading": "A", "from": "files", "complete_from": "tables", "ask": "x."}, "completed"),
+        ({"heading": "A"}, "either ask or parts"),
+        ({"heading": "A", "ask": "x.", "parts": [{"label": "B", "ask": "y."}]}, "either ask"),
+        (
+            {
+                "heading": "A",
+                "from": "record_general",
+                "complete_from": "record_general",
+                "parts": [{"label": "B", "ask": "y."}],
+            },
+            "has parts",
+        ),
+        (
+            {"heading": "A", "parts": [{"label": "B", "ask": "y.", "given_by": "colour"}]},
+            "given by unknown",
+        ),
+    ],
+)
+def test_a_malformed_readme_template_is_refused(
+    tmp_path: Path, section: dict[str, object], why: str
+) -> None:
+    path = tmp_path / "readme.yaml"
+    path.write_text(json.dumps([section]), encoding="utf-8")
+    with pytest.raises(ValueError, match=why):
+        load_sections(path)

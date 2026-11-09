@@ -1,5 +1,5 @@
 /**
- * Reading a class's JSON Schema (as `dd-gen-schema` writes it, docs/specs/contract.md) for its shape: what the
+ * Reading a class's JSON Schema (as `dd-gen-schema` writes it, docs/specs/contract.md) for its shape: what a
  * run form asks for and how a result is laid out. Presentation comes from the schema and the
  * manifest's derivations, never from a per-agent layout (docs/specs/agents.md).
  *

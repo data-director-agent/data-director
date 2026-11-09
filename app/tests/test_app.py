@@ -614,7 +614,14 @@ def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, A
 
     store = governance.conductor.store
     shown = [(store.get_request(e["invocation_id"]) or {})["input"] for e in envelopes]
-    assert shown[0] == {"schema_class": "Message", "message_text": "hello world", "history": []}
+    # The app starts each conversation in an untitled project of its own, so the conductor adds
+    # only that no person has named it.
+    assert shown[0] == {
+        "schema_class": "Message",
+        "message_text": "hello world",
+        "history": [],
+        "project_title_by_researcher": False,
+    }
     assert shown[1]["message_text"] == "hello again"
     user, agent = shown[1]["history"]
     assert (user["role"], user["turn_text"]) == ("user", "hello world")

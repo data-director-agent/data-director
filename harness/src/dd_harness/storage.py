@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Protocol
 
-from dd_harness.projects import Decision
+from dd_harness.projects import Decision, TitleSource
 from dd_harness.requirements import Requirements
 from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema
@@ -113,11 +113,12 @@ class ProjectStorage(Protocol):
 
     1. A project's log is append-only: an event is never changed or removed, and events come
        back in the order they were appended.
-    2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`) reads the
-       log, applies the project rules and appends its events in an exclusive section for that
-       project: no other change to the project enters it. The file backend holds a lock per
-       project; a database holds a lock on the project's row for one transaction. Events a
-       change writes together (an edit and its approval) are kept together or not at all.
+    2. A change checked against the log (`edit`, `decide`, `answer`, `record_draft`, `rename`)
+       reads the log, applies the project rules and appends its events in an exclusive section
+       for that project: no other change to the project enters it. The file backend holds a
+       lock per project; a database holds a lock on the project's row for one transaction.
+       Events a change writes together (an edit and its approval) are kept together or not at
+       all.
     3. A refusal is recorded, then raised: the `document_change_refused` event is kept with the
        section, and `ChangeRefusedError` is raised after the section ends.
     4. Projects do not wait on one another.
@@ -130,6 +131,19 @@ class ProjectStorage(Protocol):
 
     def create(self, *, acted_for: Principal, caused_by: str, title: str | None = None) -> str:
         """A new project and its `project_created` event; returns its `project_id`."""
+        ...
+
+    def rename(
+        self,
+        project_id: str,
+        title: str,
+        *,
+        source: TitleSource,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> bool:
+        """Give the project a new title; False, recording nothing, for a model's title once a
+        person has given one."""
         ...
 
     def start_conversation(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:

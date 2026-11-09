@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 
-import { Badge } from "./Badge";
+import { Badge } from "../src/react/payload/Badge";
 
 describe("Badge", () => {
   it("names how the value was derived", () => {

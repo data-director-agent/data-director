@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -32,6 +32,12 @@ Every event has these members:
 
 `project_created` also gives `title`, if one was given: free text of at most `TITLE_MAX_LENGTH`
 (200) characters that tells the project apart from others. A blank title is none.
+
+`project_renamed` gives the project a new `title`, under the same rules except that a blank one is
+refused, and `title_source`: `researcher` for a person (`PUT /api/projects/…/title`) or `model`
+for a name an orchestrator's model wrote, caused by its run. The latest title counts. A title given
+at creation is a person's, and once a person has given one, `ProjectStore.rename` refuses a model's
+and records nothing ([Projects](../../docs/specs/projects.md), invariant 21).
 
 `conversation_started` also gives the `conversation_id` (a UUIDv7) of a conversation started from
 the project. `ProjectStore.project_of(conversation_id)` says which project, if any, a conversation
@@ -109,7 +115,7 @@ $ uv run dd-harness project list
 ```
 
 `project list`, and `ProjectStore.projects()`, give a summary of each project in the order they were
-created. A summary has the title, who created it and when, the latest inventory (digest, file
+created. A summary has the latest title and who gave it (`title_source`), who created it and when, the latest inventory (digest, file
 count and when it was made), the repository chosen last and its warnings, how many conversations
 were started in it, and how many documents have a latest version in each state.
 

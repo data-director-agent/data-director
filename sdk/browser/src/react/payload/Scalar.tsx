@@ -1,6 +1,6 @@
 /** One value, written for reading: rounded numbers, Yes or No, option names without underscores. */
 
-import type { Shape } from "../../../run/schema";
+import type { Shape } from "../../schema/shape";
 
 export function Scalar({ value, shape }: { value: unknown; shape: Shape }) {
   if (typeof value === "number") {

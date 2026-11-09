@@ -11,6 +11,7 @@ import {
   type Disclosure,
   type ProjectApi,
   type ProjectDocuments,
+  type ProjectSummary,
   type RepositoryRequirements,
   ProjectApiContext,
   digestOf,
@@ -49,6 +50,7 @@ function decided(state: "approved" | "rejected", reason: string | null = null): 
 function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
   return {
     projects: () => Promise.resolve([]),
+    rename: () => Promise.resolve({}),
     documents: () => Promise.resolve(PROJECT),
     disclosure: () => Promise.resolve(DISCLOSURE),
     decide: () => Promise.resolve(decided("approved")),
@@ -215,6 +217,72 @@ describe("ProjectPage", () => {
     };
     renderPage(fakeApi({ projects: () => Promise.resolve([summary]) }));
     expect(await screen.findByRole("heading", { level: 1, name: "River loggers" })).toBeVisible();
+  });
+
+  it("renames the project and shows the name the server reads back", async () => {
+    const user = userEvent.setup();
+    const summary: ProjectSummary = {
+      project_id: PROJECT.project_id,
+      title: "Sediment cores",
+      title_source: "model",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+    };
+    let current = summary;
+    const rename = vi.fn((_: string, title: string) => {
+      current = { ...summary, title, title_source: "researcher" };
+      return Promise.resolve(current);
+    });
+    renderPage(fakeApi({ projects: () => Promise.resolve([current]), rename }));
+    expect(await screen.findByRole("heading", { level: 1, name: "Sediment cores" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Rename project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rename project" });
+    expect(within(dialog).getByText(/suggested this name/)).toBeVisible();
+    const field = within(dialog).getByRole("textbox", { name: "Project name" });
+    expect(field).toHaveValue("Sediment cores");
+    await user.clear(field);
+    await user.type(field, "  Humber estuary cores ");
+    await user.click(within(dialog).getByRole("button", { name: "Save name" }));
+
+    expect(rename).toHaveBeenCalledWith(PROJECT.project_id, "Humber estuary cores");
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Humber estuary cores" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("says why a rename was refused and keeps the dialog open", async () => {
+    const user = userEvent.setup();
+    const summary = {
+      project_id: PROJECT.project_id,
+      title: null,
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+    };
+    renderPage(
+      fakeApi({
+        projects: () => Promise.resolve([summary]),
+        rename: () => Promise.reject(new Error("the server answered 400")),
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Rename project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Rename project" });
+    const field = within(dialog).getByRole("textbox", { name: "Project name" });
+    await user.clear(field);
+    await user.type(field, "Soil");
+    await user.click(within(dialog).getByRole("button", { name: "Save name" }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "could not rename this project: the server answered 400",
+    );
   });
 
   it("shows the stored text exactly in the Source tab", async () => {

@@ -78,6 +78,29 @@ describe("DocumentQuestions", () => {
     expect(screen.getByRole("textbox", { name: `What unit is field_${ASKING} in?` })).toBeVisible();
   });
 
+  it("keeps the parts of one README section on the same page", async () => {
+    const parts = ["Title", "Principal investigator", "Contact", "Funding"].map(
+      (part, n): DocumentQuestion => ({
+        question_id: `q-${(100 + n).toString(16).padStart(16, "0")}`,
+        question_prompt: `For the README's General information section, ${part.toLowerCase()}?`,
+        gap_section: "General information",
+        gap_part: part,
+      }),
+    );
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [{ ...VERSION, questions: [...parts, cell(1)] }],
+    };
+    renderQuestions(document, vi.fn());
+    expect(screen.getAllByRole("textbox")).toHaveLength(parts.length);
+    expect(
+      screen.getByRole("textbox", { name: /General information section, funding/ }),
+    ).toHaveAccessibleDescription(/General information” › Funding/);
+
+    await userEvent.click(screen.getByRole("button", { name: /Show other questions/ }));
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+  });
+
   it("sends only the answers given, for the version asked, and hands back what the server read", async () => {
     const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
     const { onAnswered } = renderQuestions(UNANSWERED, answer);

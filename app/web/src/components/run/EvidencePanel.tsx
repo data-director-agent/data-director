@@ -8,16 +8,10 @@
 
 import "./EvidencePanel.css";
 
+import { evidenceAnchor, evidenceKey } from "@data-director/agent-view";
+
 import { fieldName } from "../../manifest/wording";
 import type { CheckReport, Checks, EvidenceItem } from "../../run/types";
-
-export function evidenceKey(item: { source_id: string; content_hash?: string | null }): string {
-  return `${item.source_id}|${item.content_hash ?? ""}`;
-}
-
-export function evidenceAnchor(idPrefix: string, index: number): string {
-  return `${idPrefix}-evidence-${index + 1}`;
-}
 
 /** Shown in a record's own line, so not repeated among its other facts. */
 const SHOWN = new Set(["name", "description", "title"]);

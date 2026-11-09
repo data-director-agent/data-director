@@ -32,6 +32,7 @@ export interface DocumentQuestion {
   question_id: string;
   question_prompt: string;
   gap_section?: string;
+  gap_part?: string;
   gap_file?: string;
   gap_field?: string;
   gap_column?: string;
@@ -260,8 +261,11 @@ export interface RepositoryRequirements {
  */
 export interface ProjectSummary {
   project_id: string;
-  /** The app starts projects untitled, so this is usually null. */
+  /** The project's latest name; null until a person or the Data Director names it. */
   title: string | null;
+  /** Who gave the name: a person, or the Data Director's model. A person's name is never
+   * replaced by the model's. */
+  title_source?: "researcher" | "model" | null;
   created_at: string;
   created_by: RecordedPrincipal;
   inventory: { digest: string; file_count: number; inventory_made_at: string; added_at: string } | null;
@@ -272,6 +276,8 @@ export interface ProjectSummary {
 
 export interface ProjectApi {
   projects(signal?: AbortSignal): Promise<ProjectSummary[]>;
+  /** Give the project a person's name; a model's name never replaces it. */
+  rename(projectId: string, title: string): Promise<unknown>;
   documents(projectId: string, signal?: AbortSignal): Promise<ProjectDocuments>;
   disclosure(projectId: string, signal?: AbortSignal): Promise<Disclosure>;
   decide(projectId: string, documentId: string, request: DecisionRequest): Promise<ProjectDocuments>;
@@ -352,6 +358,9 @@ export const httpProjectApi: ProjectApi = {
   async projects(signal) {
     return json(await fetch("/api/projects", signal ? { signal } : {}));
   },
+  async rename(projectId, title) {
+    return json(await fetch(`${projectPath(projectId)}/title`, put({ title })));
+  },
   async documents(projectId, signal) {
     return json(await fetch(documentsPath(projectId), signal ? { signal } : {}));
   },
@@ -430,8 +439,10 @@ export function openQuestions(document: ProjectDocument, version: DocumentVersio
   return version.questions.filter((q) => !answered.has(q.question_id));
 }
 
-/** What a question fills, in words: a README section, or a data dictionary cell. */
+/** What a question fills, in words: a README section or one part of it, or a data dictionary cell. */
 export function questionTarget(question: DocumentQuestion): string {
+  if (question.gap_section && question.gap_part)
+    return `Section “${question.gap_section}” › ${question.gap_part}`;
   if (question.gap_section) return `Section “${question.gap_section}”`;
   return `${question.gap_file ?? ""} › ${question.gap_field ?? ""} › ${question.gap_column ?? ""}`;
 }

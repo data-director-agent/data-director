@@ -39,7 +39,10 @@ stored (`dd_harness.progress`, docs/specs/orchestration.md). The researcher's ow
 events: `entry_chosen` (`choose_entry`, the last counts) and `step_marked` (`mark_step`: done,
 skipped, or open again).
 
-A project may have a title, given when it is created, so that a person can tell projects apart.
+A project may have a title, so that a person can tell projects apart. A person gives it when
+creating the project or renames it later; while no person has, an orchestrator's model may name
+it (`rename`, a `project_renamed` event saying which). The latest title counts, and a model's is
+refused once a person has given one.
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from what the logs hold when asked.
 
@@ -85,6 +88,7 @@ from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
 EVENTS_NAME = "events.jsonl"
 BLOBS_DIR = ("blobs", "sha256")
 PROJECT_CREATED = "project_created"
+PROJECT_RENAMED = "project_renamed"
 CONVERSATION_STARTED = "conversation_started"
 INVENTORY_ADDED = "inventory_added"
 REPOSITORY_CHOSEN = "repository_chosen"
@@ -111,6 +115,11 @@ REASON_MAX_LENGTH = 2000
 ANSWER_MAX_LENGTH = 2000
 # The longest project title the harness keeps, in characters: a name, not a description.
 TITLE_MAX_LENGTH = 200
+# Who gave a project its title: a person (when creating or renaming it) or an orchestrator's
+# model. A person's title is never replaced by a model's.
+TITLE_BY_RESEARCHER: Final = "researcher"
+TITLE_BY_MODEL: Final = "model"
+type TitleSource = Literal["researcher", "model"]
 
 
 class ProjectError(ValueError):
@@ -230,6 +239,21 @@ def check_answers(answers: list[DraftAnswer]) -> list[DraftAnswer]:
     return stripped
 
 
+def _check_title(title: str) -> None:
+    if len(title) > TITLE_MAX_LENGTH:
+        raise ProjectError(f"a project title is at most {TITLE_MAX_LENGTH} characters")
+
+
+def _title(events: list[dict[str, Any]]) -> tuple[str | None, TitleSource | None]:
+    """A project's latest title and who gave it: a title given at creation is a person's."""
+    for event in reversed(events):
+        if event["event"] == PROJECT_RENAMED:
+            return event["title"], event["title_source"]
+        if event["event"] == PROJECT_CREATED and event.get("title"):
+            return event["title"], TITLE_BY_RESEARCHER
+    return None, None
+
+
 def _check_names(document_id: str, digest: str) -> None:
     """Raises `ProjectError` for a change that names no well-formed document or digest. Such a
     change is malformed in itself, so it records nothing, not even a refusal."""
@@ -271,13 +295,46 @@ class ProjectStore:
 
         Raises `ProjectError` for a title longer than `TITLE_MAX_LENGTH`; a blank title is none."""
         title = (title or "").strip() or None
-        if title is not None and len(title) > TITLE_MAX_LENGTH:
-            raise ProjectError(f"a project title is at most {TITLE_MAX_LENGTH} characters")
+        if title is not None:
+            _check_title(title)
         project_id = new_invocation_id()
         (self.root / project_id).mkdir()
         detail = {"title": title} if title else {}
         self._append(project_id, PROJECT_CREATED, acted_for, caused_by, detail)
         return project_id
+
+    def rename(
+        self,
+        project_id: str,
+        title: str,
+        *,
+        source: TitleSource,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> bool:
+        """Give the project a new title, a `project_renamed` event saying who gave it. Returns
+        False, and records nothing, for a model's title once a person has given one. Raises
+        `ProjectError` for an unknown project, a blank title, one longer than
+        `TITLE_MAX_LENGTH` or a source that is neither."""
+        if source not in (TITLE_BY_RESEARCHER, TITLE_BY_MODEL):
+            raise ProjectError(f"a title is given by a researcher or a model, not {source!r}")
+        title = title.strip()
+        if not title:
+            raise ProjectError("a project title may not be blank")
+        _check_title(title)
+        with self._lock(project_id):
+            self._require(project_id)
+            _, held = _title(self.events(project_id))
+            if source == TITLE_BY_MODEL and held == TITLE_BY_RESEARCHER:
+                return False
+            self._append(
+                project_id,
+                PROJECT_RENAMED,
+                acted_for,
+                caused_by,
+                {"title": title, "title_source": source},
+            )
+        return True
 
     def start_conversation(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:
         """A new conversation in the project, and its `conversation_started` event. Returns its
@@ -325,11 +382,13 @@ class ProjectStore:
         return [self.summary(project_id) for project_id in found]
 
     def summary(self, project_id: str) -> dict[str, Any]:
-        """What a list of projects shows of one: its title, who created it and when, the latest
+        """What a list of projects shows of one: its latest title and who gave it (`title_source`:
+        `researcher`, `model`, or None while it has none), who created it and when, the latest
         inventory and repository chosen, how many conversations were started in it, and how many
         documents it has whose latest version is in each state. Raises `UnknownProjectError`."""
         events = self.events(project_id)
         created = events[0]
+        title, title_source = _title(events)
         inventory = next((e for e in reversed(events) if e["event"] == INVENTORY_ADDED), None)
         repository = next((e for e in reversed(events) if e["event"] == REPOSITORY_CHOSEN), None)
         states = {PROPOSED: 0, APPROVED: 0, REJECTED: 0}
@@ -337,7 +396,8 @@ class ProjectStore:
             states[document["versions"][-1]["state"]] += 1
         return {
             "project_id": project_id,
-            "title": created.get("title"),
+            "title": title,
+            "title_source": title_source,
             "created_at": created["at"],
             "created_by": created["acted_for"],
             "inventory": {
