@@ -240,6 +240,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   since the check withdraws that offer until the project is checked again. What a check or a
   build did is said once in a live region that is in the panel from the start; focus stays on
   the button pressed.
+- **A project is named on its page.** The page's heading is the project's title, else its first
+  conversation's, else when it was started. **Rename project** opens a dialog with the name to
+  edit; saving sends it (`PUT /api/projects/{id}/title`), the server records it for the person
+  signed in, and the page reads the name back. The dialog says when the name is one the Data
+  Director suggested, and that a person's name is never replaced by the Data Director's
+  ([Projects](projects.md), invariant 20).
 - **A drafted document is shown on the turn that drafted it.** The workspace reads the project's
   documents (`GET /api/projects/{id}/documents`) when the conversation's project is known and
   again after each turn. A version whose `drafted_by.invocation_id` is the turn's invocation or

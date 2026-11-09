@@ -867,3 +867,79 @@ def test_outside_a_project_a_redraft_names_no_document(tmp_path: Path) -> None:
 
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert "redraft_document" not in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+def naming(title: str, seen: list[dict[str, Any]]) -> ScriptedAgent:
+    """An orchestrator that records what it was given and names its project `title`."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(req.input.model_dump(mode="json", exclude_none=True))
+        result = reply_over(ctx)
+        assert result.payload is not None
+        named = result.payload.model_copy(update={"new_project_title": title})
+        return replace(result, payload=named)
+
+    return ScriptedAgent(GroundingMode.DELEGATION, behaviour)
+
+
+def test_a_reply_that_names_an_untitled_project_renames_it(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    """While no person has named a project, an orchestrator's model may (docs/specs/projects.md,
+    invariant 20); the next turn is told the name, and that a model gave it."""
+    untitled = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("River sediments", seen))
+    conversation = projects.start_conversation(untitled, acted_for=TEST_PRINCIPAL, caused_by="t")
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_title": "Forged",
+            "project_title_by_researcher": True,
+        }
+    )
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", forged), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_title" not in seen[0]
+    assert seen[0]["project_title_by_researcher"] is False
+    summary = projects.summary(untitled)
+    assert (summary["title"], summary["title_source"]) == ("River sediments", "model")
+    renamed = projects.events(untitled)[-1]
+    assert renamed["caused_by"] == env.invocation_id
+    assert renamed["acted_for"]["principal_id"] == TEST_PRINCIPAL.principal_id
+
+    conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert seen[1]["project_title"] == "River sediments"
+    assert seen[1]["project_title_by_researcher"] is False
+
+
+def test_a_reply_never_renames_a_project_a_person_named(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Something else", seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.events(project)
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert (seen[0]["project_title"], seen[0]["project_title_by_researcher"]) == ("Soil", True)
+    assert projects.events(project) == before
+    assert projects.summary(project)["title"] == "Soil"
+
+
+def test_outside_a_project_a_reply_names_nothing(tmp_path: Path, projects: ProjectStore) -> None:
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Nowhere", seen))
+    env = conductor.invoke(request("fake.delegation", message()), acting_for=TEST_PRINCIPAL)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_title_by_researcher" not in seen[0]
+    assert projects.projects() == []

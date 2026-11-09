@@ -28,6 +28,7 @@
     "01900000-0000-7000-8000-000000000002": {
       "history": [],
       "message_text": "hello world",
+      "project_title_by_researcher": false,
       "schema_class": "Message"
     },
     "01900000-0000-7000-8000-000000000003": {
@@ -45,6 +46,7 @@
         }
       ],
       "message_text": "hello again",
+      "project_title_by_researcher": false,
       "schema_class": "Message"
     },
     "01900000-0000-7000-8000-000000000004": {
@@ -194,6 +196,7 @@
       "input": {
         "history": [],
         "message_text": "hello world",
+        "project_title_by_researcher": false,
         "schema_class": "Message"
       },
       "invocation_id": "01900000-0000-7000-8000-000000000002",
@@ -342,6 +345,7 @@
           }
         ],
         "message_text": "hello again",
+        "project_title_by_researcher": false,
         "schema_class": "Message"
       },
       "invocation_id": "01900000-0000-7000-8000-000000000003",

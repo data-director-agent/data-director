@@ -78,6 +78,13 @@ dd:InventoryFile a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 5 ;
             sh:path dd:file_identified_by ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The file's size in bytes." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcat:byteSize ],
         [ sh:datatype xsd:string ;
             sh:description "The SHA-256 digest of the file's bytes, in lowercase hex, by which the file deposited can be shown to be the file described." ;
             sh:maxCount 1 ;
@@ -86,13 +93,6 @@ dd:InventoryFile a sh:NodeShape ;
             sh:order 2 ;
             sh:path spdx:checksumValue ;
             sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The file's size in bytes." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dcat:byteSize ],
         [ sh:datatype xsd:string ;
             sh:description "The file's media type (MIME type), when it could be told." ;
             sh:maxCount 1 ;

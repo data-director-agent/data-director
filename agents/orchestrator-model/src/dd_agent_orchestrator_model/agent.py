@@ -33,6 +33,12 @@ nothing: called alone, it ends the turn, and the reply carries the question as
 a delegation, or with options that are not a valid `ChoiceQuestion`, it is answered with an error
 and the loop goes on.
 
+In a project no person has named (`Message.project_title_by_researcher` false), the model is
+also offered `name_project`, which runs nothing either: it puts a short name for the project on
+`Reply.new_project_title`, declared model-derived, which the conductor records as the project's
+title unless a person names it first (docs/specs/projects.md). A note from the harness says what
+the project is called, if anything, and by whom. The tool is answered and the loop goes on.
+
 On a conversation's first turn (an empty `Message.history`), once the model has replied, a
 `Titler` names the conversation from the researcher's message (`title.py`). The title is
 `Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it out.
@@ -49,12 +55,13 @@ from typing import Any
 
 from dd_agent_orchestrator_model.model import Model, ModelError, ModelTurn, ToolCall
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
-from dd_agent_orchestrator_model.title import Titler, titled
+from dd_agent_orchestrator_model.title import Titler, clean, titled
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     CHOICE_OPTIONS_MAX,
     CHOICE_OPTIONS_MIN,
+    NEW_PROJECT_TITLE_MAX,
     ChoiceQuestion,
     Derivation,
     EvidenceItem,
@@ -135,6 +142,33 @@ CHOICE_TOOL_DEFINITION: dict[str, Any] = {
             },
         },
         "required": ["question_prompt", "question_options"],
+        "additionalProperties": False,
+    },
+}
+
+
+# The tool that names a project no person has named: it runs nothing, and the turn goes on.
+NAME_TOOL = "name_project"
+NAME_TOOL_DEFINITION: dict[str, Any] = {
+    "name": NAME_TOOL,
+    "description": (
+        "Name the researcher's project, so they can tell it apart from their others. Call it "
+        "once you know what the research or the dataset is, from what the researcher has said "
+        "or the project holds, not from a greeting or a general question. Give a short noun "
+        "phrase saying what the data are, such as 'River sediment cores, Humber estuary 2025'. "
+        "Rename a project you named only when what you have learned shows the name is wrong. "
+        "It runs nothing and your turn goes on; the researcher can rename the project."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string",
+                "maxLength": NEW_PROJECT_TITLE_MAX,
+                "description": "The project's name, in one line, without quotes.",
+            },
+        },
+        "required": ["name"],
         "additionalProperties": False,
     },
 }
@@ -230,7 +264,7 @@ def conversation(message: Message, history_turns: int) -> list[dict[str, Any]]:
         }
         for turn in window
     ]
-    notes = [n for n in (inventory_note(message), progress_note(message)) if n]
+    notes = [n for n in (inventory_note(message), progress_note(message), name_note(message)) if n]
     text = "\n\n".join([*notes, message.message_text])
     messages.append({"role": "user", "content": text})
     return messages
@@ -252,6 +286,24 @@ def inventory_note(message: Message) -> str | None:
     return (
         note + " The harness puts it into the input of any agent that takes an inventory: leave "
         "`inventory` out, and send an empty input to an agent that takes only an inventory."
+    )
+
+
+def name_note(message: Message) -> str | None:
+    """What the harness says of the project's name, or None outside a project."""
+    if message.project_title_by_researcher is None:
+        return None
+    lead = "[From the harness, not the researcher] "
+    if message.project_title is None:
+        return lead + (
+            "The project has no name yet. Once you know what the research or dataset is, name "
+            f"it with {NAME_TOOL}."
+        )
+    if message.project_title_by_researcher:
+        return lead + f"The researcher named the project {json.dumps(message.project_title)}."
+    return lead + (
+        f"You named the project {json.dumps(message.project_title)}; the researcher has not "
+        f"renamed it. Call {NAME_TOOL} again only if the name is wrong."
     )
 
 
@@ -304,6 +356,7 @@ class ModelOrchestrator:
             "reply_text": Derived(Derivation.MODEL, recorded_in="reply_derivation"),
             "conversation_title": Derived(Derivation.MODEL),
             "reply_question": Derived(Derivation.MODEL),
+            "new_project_title": Derived(Derivation.MODEL),
         },
     )
 
@@ -333,6 +386,10 @@ class ModelOrchestrator:
             )
         tools = {t.name: t for t in tools_from_manifest(ctx.delegate.manifest())}
         definitions = [*(t.definition for t in tools.values()), CHOICE_TOOL_DEFINITION]
+        # Only a project no person has named may be named by the model.
+        may_name = message.project_title_by_researcher is False
+        if may_name:
+            definitions.append(NAME_TOOL_DEFINITION)
         messages = conversation(message, self.history_turns)
 
         delegated: list[Delegated] = []
@@ -342,6 +399,7 @@ class ModelOrchestrator:
         # Each call and what it sent, kept by digest with the run (docs/specs/disclosure.md).
         calls = ModelCallLog(PROVIDER)
         question: ChoiceQuestion | None = None
+        name: str | None = None
         while True:
             use_tools = bool(definitions) and attempts < self.max_delegations
             prompt = json.loads(
@@ -375,11 +433,26 @@ class ModelOrchestrator:
             messages.append({"role": "assistant", "content": turn.content})
             if turn.stop_reason != "tool_use" or not turn.tool_calls:
                 break
-            question, problem = _question_of(turn.tool_calls)
+            # A name is taken whatever else the turn calls; it never ends the turn.
+            naming = [c for c in turn.tool_calls if c.name == NAME_TOOL]
+            named: dict[str, dict[str, Any]] = {}
+            for call in naming:
+                # A second name, or one refused, counts against the turn's limit, so that the
+                # loop ends whatever the model calls.
+                if name is not None or not may_name:
+                    attempts += 1
+                given, result = _name_of(call, offered=may_name)
+                name = given or name
+                named[call.id] = result
+            others = [c for c in turn.tool_calls if c.name != NAME_TOOL]
+            question, problem = _question_of(others)
             if question is not None:
                 break
             results = []
             for call in turn.tool_calls:
+                if call.id in named:
+                    results.append(named[call.id])
+                    continue
                 if call.name == CHOICE_TOOL:
                     results.append(_tool_result(call, problem or "", True))
                     continue
@@ -389,7 +462,16 @@ class ModelOrchestrator:
             messages.append({"role": "user", "content": results})
 
         return self._reply(
-            message, turn, question, delegated, ctx, model_id, input_tokens, output_tokens, calls
+            message,
+            turn,
+            question,
+            name,
+            delegated,
+            ctx,
+            model_id,
+            input_tokens,
+            output_tokens,
+            calls,
         )
 
     def _call(
@@ -438,6 +520,7 @@ class ModelOrchestrator:
         message: Message,
         turn: ModelTurn,
         question: ChoiceQuestion | None,
+        name: str | None,
         delegated: list[Delegated],
         ctx: RunContext,
         model_id: str,
@@ -478,6 +561,7 @@ class ModelOrchestrator:
                 reply_derivation=Derivation.MODEL,
                 conversation_title=title.text if title is not None else None,
                 reply_question=question,
+                new_project_title=name,
                 grounded_on=[input_ref, *(d.ref for d in delegated)],
             ),
             evidence=[
@@ -517,6 +601,18 @@ def _question_of(calls: Sequence[ToolCall]) -> tuple[ChoiceQuestion | None, str 
             None,
             f"Not shown: these are not valid choices ({reasons}). Fix them or ask in prose.",
         )
+
+
+def _name_of(call: ToolCall, *, offered: bool) -> tuple[str | None, dict[str, Any]]:
+    """The name a `name_project` call gives, tidied as a title is, and the tool result to send
+    back: None and an error when the tool was not offered or the name is empty."""
+    if not offered:
+        return None, _tool_result(call, "Not named: a person has named this project.", True)
+    given = call.input.get("name")
+    name = clean(given) if isinstance(given, str) else None
+    if name is None:
+        return None, _tool_result(call, "Not named: give the name as one line of text.", True)
+    return name, _tool_result(call, f"Named {json.dumps(name)}. Carry on with your reply.", False)
 
 
 def _tool_result(call: ToolCall, content: str, is_error: bool) -> dict[str, Any]:

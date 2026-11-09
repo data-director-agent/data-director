@@ -68,10 +68,14 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    `test_a_child_acts_for_its_parents_principal_not_its_callers`,
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
-8. **An orchestrator has no tools except its delegations and `offer_choices`.** A model-backed
-   orchestrator is offered one tool per input class of each agent in the harness's manifest, and
-   `offer_choices`, which reaches nothing: called alone it ends the turn, and the reply carries
-   its question as `Reply.reply_question`. Nothing else is offered: no MCP server, no server tool
+8. **An orchestrator has no tools except its delegations, `offer_choices` and `name_project`.** A
+   model-backed orchestrator is offered one tool per input class of each agent in the harness's
+   manifest, and `offer_choices`, which reaches nothing: called alone it ends the turn, and the
+   reply carries its question as `Reply.reply_question`. In a project no person has named
+   (`Message.project_title_by_researcher` false) it is also offered `name_project`, which reaches
+   nothing either: the reply carries the name as `Reply.new_project_title`, which the conductor
+   records as the project's title ([Projects](projects.md), invariant 20), and the turn goes on.
+   Nothing else is offered: no MCP server, no server tool
    (web search, web fetch, code execution), no Agent Skills; its package depends on and imports
    nothing that could provide one.
    (`agents/orchestrator-model/tests/test_orchestrator_only_delegates.py`)

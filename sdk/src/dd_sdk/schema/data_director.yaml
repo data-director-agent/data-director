@@ -164,8 +164,8 @@ classes:
       One conversational turn addressed to an agent: the text of the turn and the conversation so
       far. The history is part of the input, so the input hash covers everything the agent saw.
       In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md);
-      in any project, it adds the entry point chosen and the progress the project log shows
-      (docs/specs/orchestration.md).
+      in any project, it adds the entry point chosen, the progress the project log shows and the
+      project's title, if it has one (docs/specs/orchestration.md).
     slots:
       - schema_class
       - message_text
@@ -174,6 +174,8 @@ classes:
       - choice_answer
       - project_entry
       - project_progress
+      - project_title
+      - project_title_by_researcher
 
   ConversationTurn:
     description: >-
@@ -451,6 +453,7 @@ classes:
       - reply_derivation
       - conversation_title
       - reply_question
+      - new_project_title
 
   ChoiceQuestion:
     description: >-
@@ -787,6 +790,19 @@ slots:
     range: StepProgress
     multivalued: true
     inlined_as_list: true
+  project_title:
+    description: >-
+      The conversation's project's latest title. Filled by the conductor and never by the caller;
+      absent when the run is in no project, or the project has no title yet.
+    # 1 to 200 characters (dd_harness.projects.TITLE_MAX_LENGTH); this LinkML has no
+    # maximum_length.
+    pattern: "^.{1,200}$"
+  project_title_by_researcher:
+    description: >-
+      Whether a person gave the project its title, so that a model's would be refused; false
+      while the project has no title. Filled by the conductor and never by the caller; absent
+      when the run is in no project.
+    range: boolean
   step_id:
     description: A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow).
     required: true
@@ -827,6 +843,15 @@ slots:
       A short label a person can tell the conversation apart by, written by a model from the
       researcher's first message. Set only on a conversation's first turn, and only by an agent
       that declares it model-derived; absent otherwise.
+    slot_uri: dcterms:title
+    # One line of 1 to 80 characters; this LinkML has no maximum_length.
+    pattern: "^.{1,80}$"
+  new_project_title:
+    description: >-
+      A name for the conversation's project, written by a model once it knows what the research
+      or dataset is. The conductor records it as the project's title when the run succeeds,
+      unless a person has given one; absent when the reply names nothing. Only an agent that
+      declares it model-derived sets it.
     slot_uri: dcterms:title
     # One line of 1 to 80 characters; this LinkML has no maximum_length.
     pattern: "^.{1,80}$"

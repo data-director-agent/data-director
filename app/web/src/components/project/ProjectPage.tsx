@@ -15,6 +15,9 @@
  * the page's live region, which is in the page from the start so that a screen reader announces
  * each change to it; it offers the next document waiting for a decision, without moving to it.
  *
+ * The header offers to rename the project (`ProjectRename`); after a rename the page reads the
+ * project's name again rather than showing the one it sent.
+ *
  * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
  * link to it lands in that project, and its conversations are one press away.
  */
@@ -25,7 +28,12 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { useActiveProject } from "../../project/active";
-import { type DocumentVersion, type ProjectDocuments, useProjectApi } from "../../project/api";
+import {
+  type DocumentVersion,
+  type ProjectDocuments,
+  type ProjectSummary,
+  useProjectApi,
+} from "../../project/api";
 import { documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
@@ -33,6 +41,7 @@ import { DisclosurePanel } from "./DisclosurePanel";
 import { DepositPanel } from "./DepositPanel";
 import { DEPOSIT, DISCLOSURE, DocumentList, PANELS, REPOSITORY, stateOf } from "./DocumentList";
 import { DocumentReader } from "./DocumentReader";
+import { ProjectRename } from "./ProjectRename";
 import { RepositoryPanel } from "./RepositoryPanel";
 
 type Load =
@@ -52,7 +61,9 @@ function versionOf(v: string | null): number | null {
 export function ProjectPage({ projectId, query = "" }: { projectId: string; query?: string }) {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [title, setTitle] = useState<string | null>(null);
+  const [project, setProject] = useState<ProjectSummary | null>(null);
+  // Counts renames, so that the project's name is read again after one.
+  const [renamed, setRenamed] = useState(0);
   // What a decision did, said while the document it was made on is open (`on`, as asked).
   const [decision, setDecision] = useState<{
     said: string;
@@ -97,13 +108,14 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     const controller = new AbortController();
     api.projects(controller.signal).then(
       (projects) => {
-        const project = projects.find((p) => p.project_id === projectId);
-        if (project) setTitle(projectName(project));
+        const found = projects.find((p) => p.project_id === projectId);
+        if (found) setProject(found);
       },
       () => undefined,
     );
     return () => controller.abort();
-  }, [api, projectId]);
+  }, [api, projectId, renamed]);
+  const title = project ? projectName(project) : null;
 
   // After a refusal: the documents already shown stay if the project cannot be read again, so
   // that the person still sees why their decision was refused. Answers what went wrong, if
@@ -208,6 +220,16 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
         <Link to="/projects">All projects</Link> · <Link to="/">This project&apos;s conversations</Link>
       </p>
       <PageHeader title={title ?? "Project documents"}>
+        {project && title && (
+          <p className="project-name-actions">
+            <ProjectRename
+              projectId={projectId}
+              name={project.title ?? title}
+              named={project.title_source ?? null}
+              onRenamed={() => setRenamed((n) => n + 1)}
+            />
+          </p>
+        )}
         <p className="hint">
           Check each draft before it goes into the deposit package. Approve it as it is, edit it and
           approve your version, or reject it. A decision cannot be changed once it is made; a newer

@@ -70,6 +70,12 @@
          "@id": "https://w3id.org/data-director/project_progress",
          "@type": "@id"
       },
+      "project_title": {
+         "@id": "https://w3id.org/data-director/project_title"
+      },
+      "project_title_by_researcher": {
+         "@id": "https://w3id.org/data-director/project_title_by_researcher"
+      },
       "prov": "http://www.w3.org/ns/prov#",
       "role": {
          "@id": "https://w3id.org/data-director/role"

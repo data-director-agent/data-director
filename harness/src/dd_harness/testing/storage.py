@@ -32,6 +32,7 @@ from dd_harness.projects import (
     INVENTORY_ADDED,
     PACKAGE_BUILT,
     PROJECT_CREATED,
+    PROJECT_RENAMED,
     PROJECT_VALIDATED,
     REJECTED,
     ChangeRefusedError,
@@ -337,6 +338,44 @@ def check_projects_are_listed_in_the_order_created(make: MakeProjectStorage) -> 
     assert store.summary(first) == summaries[0]
 
 
+def check_a_persons_title_is_never_replaced_by_a_models(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.summary(project_id)["title_source"] is None
+
+    def rename(title: str, source: Any) -> bool:
+        return store.rename(
+            project_id, title, source=source, acted_for=TEST_PRINCIPAL, caused_by="check"
+        )
+
+    assert rename(" Soil cores ", "model")
+    assert (store.summary(project_id)["title"], store.summary(project_id)["title_source"]) == (
+        "Soil cores",
+        "model",
+    )
+    assert rename("Soil cores, 2025", "model")
+    assert rename("River sediments", "researcher")
+    before = store.events(project_id)
+    assert not rename("Something else", "model")
+    assert store.events(project_id) == before
+    for title, source in (("   ", "researcher"), ("x" * 10_000, "researcher"), ("A", "agent")):
+        with _raises(ProjectError, f"the title {title[:8]!r} from {source!r}"):
+            rename(title, source)
+    with _raises(ProjectError, "a title for an unknown project"):
+        store.rename(NOWHERE, "A", source="researcher", acted_for=TEST_PRINCIPAL, caused_by="x")
+    assert store.events(project_id) == before
+    assert [e["event"] for e in before].count(PROJECT_RENAMED) == 3
+    again = make("projects").summary(project_id)
+    assert (again["title"], again["title_source"]) == ("River sediments", "researcher")
+    assert rename("Estuary sediments", "researcher")
+    assert store.summary(project_id)["title"] == "Estuary sediments"
+    titled = store.create(acted_for=TEST_PRINCIPAL, caused_by="check", title="Named")
+    assert store.summary(titled)["title_source"] == "researcher"
+    assert not store.rename(
+        titled, "Other", source="model", acted_for=TEST_PRINCIPAL, caused_by="check"
+    )
+
+
 def check_a_conversation_is_found_after_a_restart(make: MakeProjectStorage) -> None:
     store = make("projects")
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -581,6 +620,9 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a refused change records nothing": check_a_refused_change_records_nothing,
     "an unknown project is refused": check_an_unknown_project_is_refused,
     "projects are listed in the order created": check_projects_are_listed_in_the_order_created,
+    "a person's title is never replaced by a model's": (
+        check_a_persons_title_is_never_replaced_by_a_models
+    ),
     "a conversation is found after a restart": check_a_conversation_is_found_after_a_restart,
     "a stale change is refused and recorded": check_a_stale_change_is_refused_and_recorded,
     "concurrent decisions on one version admit one": (

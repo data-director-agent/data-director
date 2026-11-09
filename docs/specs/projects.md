@@ -30,8 +30,8 @@ Out of scope: research data files, which are never uploaded or read by the platf
 anything outside the project, which no agent performs; a steward's route into a project, which is
 an escalation and a deployment role, not membership, TODO(#372).
 
-What is built: the project log with its creation (with an optional title), inventory, repository
-choice and conversation-start events, and a summary of each project, reached through the
+What is built: the project log with its creation (with an optional title), renaming (invariant
+20), inventory, repository choice and conversation-start events, and a summary of each project, reached through the
 `dd-harness project` command; the conductor taking a run's project from its conversation, giving
 an agent the project's facts and recording its draft; document versions and a person's decision on each,
 which the app shows and takes at `/projects/{project_id}`; a person's answers to a draft's
@@ -172,6 +172,20 @@ intended design, and each part says where it is not built yet.
 19. **Leaving or removal takes effect from that event.** Earlier turns, runs, versions and
     decisions keep their attribution, and a run already going finishes. Not built yet,
     TODO(#389).
+20. **A person's name for a project outranks a model's.** A project's title is the latest given,
+    at creation or by a `project_renamed` event, which says whether a person (`researcher`) or an
+    orchestrator's model (`model`) gave it; a title given at creation is a person's. A member
+    renames a project from its page (`PUT /api/projects/{project_id}/title`, `CONTRIBUTE`). While
+    no person has named it, an orchestrator's model may: the conductor tells a `Message` the
+    project's title and whether a person gave it (`project_title`,
+    `project_title_by_researcher`), and records a succeeded `Reply`'s `new_project_title` as a
+    rename caused by the run. Once a person has named the project, the store refuses a model's
+    title and records nothing, so the model is no longer offered the tool. A title is one line of
+    at most 200 characters, and a blank one is refused (`ProjectStore.rename`,
+    `dd_harness.testing.storage`, `harness/tests/test_project_runs.py`,
+    `app/tests/test_project_title.py`). The title is neither `inventory` nor `documentation`
+    (invariant 8): it is what the researcher typed, or what a model wrote from the conversation it
+    was already sent.
 
 ## Boundaries and contracts
 
