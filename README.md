@@ -127,6 +127,41 @@ running locally. If a host port is taken, set `DD_APP_HOST_PORT`, `DD_WEB_HOST_P
 `DD_WORKBENCH_HOST_PORT` in the shell. Containers run as uid 1000. This stack is for development only;
 `deploy/` covers deployment.
 
+#### Keeping runs and projects in PostgreSQL
+
+The stack keeps runs and projects in files by default. To keep them in PostgreSQL, as a deployment
+with more than one instance does ([Storage](docs/specs/storage.md)), answer yes to the PostgreSQL
+question in `uv run scripts/dd.py setup`. It generates a password into
+`config/local/credentials/` (the database's, and a libpq password file, both readable only by you)
+and names the database in `config/local/app.env`. The locations carry no password and no host:
+libpq takes them from `PGHOST`, `PGPORT` and `PGPASSFILE`, which Compose sets for its containers.
+Then start the `postgres` profile, which adds the database and applies its schema before the app
+starts:
+
+```sh
+docker compose --profile postgres up --build                  # the stack, on PostgreSQL
+docker compose --profile postgres up -d db db-migrate         # only the database, for `dd.py start`
+```
+
+The database is published on `127.0.0.1:5432`. Set `DD_DB_HOST_PORT` in the shell if that port is
+taken, and `PGPORT` in `config/local/app.env` to match. Run the storage conformance kit against it
+from the host:
+
+```sh
+DD_TEST_POSTGRES=postgresql://dd@localhost:5432/dd PGPASSFILE=config/local/credentials/pgpass uv run pytest -m postgres harness/tests/test_postgres.py
+```
+
+Each test works in schemas of its own and drops them, so the app's data is left alone. To start
+again with an empty database, remove its volume (`docker compose down -v` would remove the file
+stores' volumes too):
+
+```sh
+docker compose --profile postgres down
+docker volume rm data-director_db-data
+```
+
+Answering no in `setup` puts the app back on files and keeps the password, which the volume needs.
+
 ### Settings in `config/local/`
 
 `scripts/dd.py setup` creates `config/local/`, which mirrors `/etc/data-director/` on a server:
