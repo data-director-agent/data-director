@@ -3,7 +3,8 @@
  * a change of version since an earlier turn is marked (docs/specs/orchestration.md), and each delegated child
  * is a card that opens its run, with its evidence, in place. Abstained, referred and failed
  * replies use the run view's outcome wording, not a generic error. A turn on which the project's
- * inventory changed, as when the researcher attached one, shows it as a chip (#443). A document
+ * inventory changed, as when the researcher attached one, shows it as a chip (#443), and so does
+ * each document the project gained on the turn, by name and size, never its text. A document
  * version the turn or one of its children drafted, as the project log records it, is a card on
  * the turn, before the runs that are its evidence.
  *
@@ -17,6 +18,7 @@ import "./Transcript.css";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useMemo } from "react";
 
+import type { AttachedDocument, DocumentationSummary } from "../../conversation/documentation";
 import type {
   AttachedInventory,
   InventorySource,
@@ -41,6 +43,7 @@ import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
 import { DocumentCard } from "./DocumentCard";
 import { AskedQuestion, ChoiceQuestion } from "./ChoiceQuestion";
+import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
 import { RepositoryShortlist } from "./RepositoryShortlist";
@@ -64,6 +67,15 @@ function inventoryGiven(conversation: Conversation, index: number): InventorySum
   const here = of(conversation.turns[index]);
   if (!here) return null;
   return here.inventory_digest === of(conversation.turns[index - 1])?.inventory_digest ? null : here;
+}
+
+/** The documents the turn's agent was told of that the turn before's was not: those given on it. */
+function documentsGiven(conversation: Conversation, index: number): DocumentationSummary[] {
+  const of = (turn: ConversationTurn | undefined) =>
+    (turn ? conversation.inputs[turn.invocation_id]?.project_documentation : undefined) ?? [];
+  const key = (d: DocumentationSummary) => `${d.documentation_name}\u0000${d.documentation_digest}`;
+  const before = new Set(of(conversation.turns[index - 1]).map(key));
+  return of(conversation.turns[index]).filter((d) => !before.has(key(d)));
 }
 
 /** What powers the agent, beside its name; nothing when it is not in the directory. */
@@ -162,7 +174,12 @@ export function Transcript({
   /** The project's documents, as last read; null until they have been. */
   documents?: ProjectDocument[] | null;
   /** A message sent and not yet answered, shown after the turns with a sign that a reply is coming. */
-  pending?: { agentId: string; message: string; inventory?: AttachedInventory | null } | null;
+  pending?: {
+    agentId: string;
+    message: string;
+    inventory?: AttachedInventory | null;
+    document?: AttachedDocument | null;
+  } | null;
   /** Sends the answer to the latest turn's choice question; without it, none can be answered. */
   onAnswer?: (answer: ChoiceAnswer, text: string) => void;
   /** Takes the project's documents after the researcher answers a draft's questions; without
@@ -186,6 +203,7 @@ export function Transcript({
     <ol className="transcript" aria-label="Conversation">
       {conversation?.turns.map((turn, index) => {
         const given = inventoryGiven(conversation, index);
+        const attachedDocuments = documentsGiven(conversation, index);
         const drafted =
           projectId && documents
             ? draftedBy(
@@ -222,6 +240,11 @@ export function Transcript({
               />
             </p>
           )}
+          {attachedDocuments.map((d) => (
+            <p key={`${d.documentation_name}-${d.documentation_digest}`}>
+              <DocumentChip name={d.documentation_name} size={d.documentation_size} />
+            </p>
+          ))}
           <p>
             <strong>
               <code>
@@ -290,7 +313,12 @@ export function Transcript({
         );
       })}
       {pending && (
-        <Pending agentId={pending.agentId} message={pending.message} inventory={pending.inventory ?? null} />
+        <Pending
+          agentId={pending.agentId}
+          message={pending.message}
+          inventory={pending.inventory ?? null}
+          document={pending.document ?? null}
+        />
       )}
     </ol>
   );

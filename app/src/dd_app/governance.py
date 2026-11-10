@@ -24,7 +24,7 @@ from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.project_access import Action, Role
-from dd_harness.projects import UnknownProjectError
+from dd_harness.projects import UnknownProjectError, check_documentation
 from dd_harness.requirements import Requirements, load_requirements
 from dd_harness.settings import (
     Settings,
@@ -48,8 +48,30 @@ CONVERSATION_ID = re.compile(UUID7_PATTERN)
 # What a turn says when the researcher attached an inventory and wrote nothing, so that the
 # history reads as what happened (docs/specs/app.md).
 INVENTORY_ONLY_TEXT = "I have attached an inventory of my dataset's files."
+# What a turn says when the researcher attached a document and wrote nothing.
+DOCUMENTATION_ONLY_TEXT = "I have attached a document about my dataset."
+# What a turn says when the researcher attached both and wrote nothing.
+BOTH_ONLY_TEXT = "I have attached an inventory of my dataset's files and a document about it."
 # What `GET /api/projects` says of each conversation in a project.
 LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
+
+
+@dataclass(frozen=True)
+class AttachedDocument:
+    """A supporting document a turn attaches: its file name, media type and text."""
+
+    name: str
+    media_type: str
+    text: str
+
+
+def _attached_text(
+    inventory: Mapping[str, Any] | None, documentation: AttachedDocument | None
+) -> str:
+    """What a turn says when the researcher attached something and wrote nothing."""
+    if inventory is not None and documentation is not None:
+        return BOTH_ONLY_TEXT
+    return INVENTORY_ONLY_TEXT if inventory is not None else DOCUMENTATION_ONLY_TEXT
 
 
 def _last_active(project: Mapping[str, Any]) -> datetime:
@@ -189,6 +211,7 @@ class Governance:
         acting_for: Principal,
         inventory: Mapping[str, Any] | None = None,
         answer: ChoiceAnswer | None = None,
+        documentation: AttachedDocument | None = None,
     ) -> dict[str, Any]:
         """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
         `Message` to `agent_id`, answered as `run` answers.
@@ -198,6 +221,11 @@ class Governance:
         (docs/specs/projects.md). An inventory the project refuses raises `ProjectError`, and one
         sent to a conversation in no project `ValueError`; either way nothing is run or recorded.
         With an inventory, `message_text` may be blank.
+
+        A turn may also attach `documentation`, a supporting document's text, which is added to
+        the project in the same way and listed to the orchestrator without its text. A document
+        the project would refuse is refused before the inventory is added, so a refused turn adds
+        neither. With either attached, `message_text` may be blank.
 
         A turn may carry the researcher's `answer` to the choice question the latest turn asked,
         beside `message_text`, which says the same in words. The harness checks it against that
@@ -257,9 +285,11 @@ class Governance:
                 )
             if answer is not None and (problem := conversations.answer_problem(found, answer)):
                 raise ValueError(f"The answer was not sent: {problem}. Nothing was run.")
-            if inventory is not None:
-                await asyncio.to_thread(self._add_inventory, conversation_id, inventory, acting_for)
-                message_text = message_text.strip() or INVENTORY_ONLY_TEXT
+            if inventory is not None or documentation is not None:
+                await asyncio.to_thread(
+                    self._attach, conversation_id, inventory, documentation, acting_for
+                )
+                message_text = message_text.strip() or _attached_text(inventory, documentation)
             message = {
                 "schema_class": "Message",
                 "message_text": message_text,
@@ -285,20 +315,37 @@ class Governance:
         self._started.pop(conversation_id, None)
         return {"envelope": envelope.to_document(), "checks": self.checks(envelope.invocation_id)}
 
-    def _add_inventory(
-        self, conversation_id: str, inventory: Mapping[str, Any], acting_for: Principal
+    def _attach(
+        self,
+        conversation_id: str,
+        inventory: Mapping[str, Any] | None,
+        documentation: AttachedDocument | None,
+        acting_for: Principal,
     ) -> None:
+        """Add what a turn attached to the conversation's project: all of it, or, if any is
+        refused, none."""
         project_id = self.projects.project_of(conversation_id) if self.projects else None
         if self.projects is None or project_id is None:
+            what = "an inventory" if inventory is not None else "a document"
             raise ValueError(
-                "This conversation is in no project, so there is nowhere to keep an inventory."
+                f"This conversation is in no project, so there is nowhere to keep {what}."
             )
-        self.projects.add_inventory(
-            project_id,
-            inventory,
-            acted_for=acting_for,
-            caused_by=f"POST /api/conversations/{conversation_id}/turns",
-        )
+        caused_by = f"POST /api/conversations/{conversation_id}/turns"
+        if documentation is not None:
+            check_documentation(documentation.name, documentation.media_type, documentation.text)
+        if inventory is not None:
+            self.projects.add_inventory(
+                project_id, inventory, acted_for=acting_for, caused_by=caused_by
+            )
+        if documentation is not None:
+            self.projects.add_documentation(
+                project_id,
+                documentation.name,
+                documentation.media_type,
+                documentation.text,
+                acted_for=acting_for,
+                caused_by=caused_by,
+            )
 
     @asynccontextmanager
     async def _turn_lock(self, conversation_id: str) -> AsyncIterator[None]:

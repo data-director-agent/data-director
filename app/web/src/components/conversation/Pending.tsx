@@ -7,17 +7,21 @@
 
 import "./Pending.css";
 
+import type { AttachedDocument } from "../../conversation/documentation";
 import type { AttachedInventory } from "../../conversation/inventory";
+import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 
 export function Pending({
   agentId,
   message,
   inventory = null,
+  document = null,
 }: {
   agentId: string;
   message: string;
   inventory?: AttachedInventory | null;
+  document?: AttachedDocument | null;
 }) {
   return (
     <li className="pending">
@@ -32,6 +36,11 @@ export function Pending({
             name={inventory.name}
             source={{ document: inventory.document }}
           />
+        </p>
+      )}
+      {document && (
+        <p>
+          <DocumentChip name={document.name} size={document.size} />
         </p>
       )}
       <p className="muted">

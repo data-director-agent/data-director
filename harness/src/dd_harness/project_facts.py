@@ -21,6 +21,8 @@ Three core classes are filled. Within a project:
   process flow has gone, derived from the log on every turn (`dd_harness.progress`); its
   `project_title` is the project's latest title, and `project_title_by_researcher` whether a
   person gave it, so that an orchestrator's model can name a project nobody has named; its
+  `project_documentation` lists the documents a researcher attached, by name, digest, media type
+  and size, without their text, so that an orchestrator knows they are there.
   `project_entry_by_researcher` whether the researcher chose the entry point, so that the model
   can record one it worked out from what they said until they do.
 
@@ -35,7 +37,8 @@ record, a version to regenerate and a person's answers are `documentation`. A re
 requirements are the repository's, not the project's, and a `Message`'s entry point and progress
 say only which steps of the process flow have gone how far; they are neither. Nor is a project's
 title: a name a researcher typed, or a model wrote from what was said in the conversation, which
-the model is sent anyway.
+the model is sent anyway. Nor is a `Message`'s `project_documentation`: it holds a document's
+file name, as a researcher gave it in the conversation, and never its text.
 """
 
 from __future__ import annotations
@@ -60,6 +63,7 @@ MESSAGE_PROJECT_SLOTS = (
     "project_progress",
     "project_title",
     "project_title_by_researcher",
+    "project_documentation",
     "project_entry_by_researcher",
 )
 
@@ -101,6 +105,8 @@ def give(
                 "project_title": summary["title"],
                 # False while the project is untitled too: the model may name it.
                 "project_title_by_researcher": summary["title_source"] == TITLE_BY_RESEARCHER,
+                # Left out while the project holds none, as `project_inventory` is.
+                "project_documentation": store.documentation(project_id) or None,
                 # Absent until an entry point is recorded, as `project_entry` is.
                 "project_entry_by_researcher": (
                     where["entry_source"] == ENTRY_BY_RESEARCHER
