@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/root/.cache/dd-sources \
 # --- The image ----------------------------------------------------------------------------------
 
 # The Python the uv image is built on, so the virtual environment's interpreter is at the same path.
-FROM python:3.14.2-slim-bookworm@sha256:e87711ef5c86aaeaa7031718a69db79d334d94c545c709583f651b8185870941
+FROM python:3.14.9-slim-bookworm@sha256:945c2676dc2b18e0c1f16879244122c57c0ffede60006bf3df159c507a31bcae
 
 ARG REVISION=""
 ARG VERSION=""
