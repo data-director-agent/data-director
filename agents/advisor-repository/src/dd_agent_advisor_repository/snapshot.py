@@ -19,7 +19,7 @@ from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
-from dd_agent_advisor_repository import registry
+from dd_agent_advisor_repository import dfg, registry
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_agent_advisor_repository.retrieve import (
     Hit,
@@ -175,6 +175,24 @@ class Re3dataRegistry:
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None:
         return self._by_id.get(re3data_id)
+
+    @cached_property
+    def _vocabulary(self) -> dict[str, str]:
+        return dfg.vocabulary(s for r in self.records for s in r.subjects)
+
+    @cached_property
+    def _by_subject(self) -> dict[str, list[Re3dataRecord]]:
+        index: dict[str, list[Re3dataRecord]] = {}
+        for r in sorted(self.records, key=lambda r: r.re3data_id):
+            for code in dfg.codes(r.subjects):
+                index.setdefault(code, []).append(r)
+        return index
+
+    def subjects(self) -> dict[str, str]:
+        return self._vocabulary
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        return list(self._by_subject.get(code, []))
 
     def find(self, name: str) -> list[Re3dataRecord]:
         """As `find_by_name`, from indexes built once."""

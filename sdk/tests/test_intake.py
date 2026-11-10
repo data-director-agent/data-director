@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
-from dd_sdk.contract.models import ChoiceQuestion
+from dd_sdk.contract.models import QUESTION_KEY_PATTERN, Question, QuestionKind
 from dd_sdk.intake import ENTRY, INTAKE, NO, NOT_SURE, YES, IntakeQuestion, question
 from dd_sdk.process_flow import ENTRIES, OUT_OF_SCOPE, STEPS
 
@@ -24,10 +26,13 @@ def test_the_intake_asks_the_entry_question_first_then_the_decision_points() -> 
 
 @pytest.mark.parametrize("q", INTAKE, ids=lambda q: q.id)
 def test_each_question_converts_to_a_core_choice_question(q: IntakeQuestion) -> None:
-    asked = q.choice_question()
-    assert ChoiceQuestion.model_validate(asked.model_dump()) == asked
+    asked = q.as_question()
+    assert Question.model_validate(asked.model_dump()) == asked
+    assert asked.question_kind is QuestionKind.CHOICE
+    assert asked.question_key == q.id.removeprefix("intake.")
+    assert re.fullmatch(QUESTION_KEY_PATTERN, asked.question_key)
     assert asked.question_prompt == q.prompt
-    assert [o.option_value for o in asked.question_options] == [o.value for o in q.options]
+    assert [o.option_value for o in asked.question_options or []] == [o.value for o in q.options]
     assert not asked.question_multiple
     assert not asked.question_other
 

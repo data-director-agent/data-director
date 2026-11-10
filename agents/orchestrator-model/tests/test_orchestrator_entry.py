@@ -65,6 +65,8 @@ def test_an_entry_point_beside_choices_is_kept_and_the_choices_end_the_turn(
     tmp_path: Path,
 ) -> None:
     choices = {
+        "question_key": "q",
+        "question_kind": "choice",
         "question_prompt": "Do you have a Data Management Plan?",
         "question_options": [
             {"option_value": "yes", "option_label": "Yes"},
@@ -72,12 +74,18 @@ def test_an_entry_point_beside_choices_is_kept_and_the_choices_end_the_turn(
         ],
     }
     model = ScriptedModel(
-        [asks("One question first.", (ENTRY_TOOL, {"entry": 2}), ("offer_choices", choices))]
+        [
+            asks(
+                "One question first.",
+                (ENTRY_TOOL, {"entry": 2}),
+                ("ask_questions", {"questions": [choices]}),
+            )
+        ]
     )
     conductor, _, conversation_id = in_project(tmp_path, model)
     reply = turn(conductor, conversation_id, COLLECTED).payload_as(Reply)
     assert len(model.sent) == 1
-    assert reply.new_project_entry == 2 and reply.reply_question is not None
+    assert reply.new_project_entry == 2 and reply.reply_questions is not None
 
 
 def test_once_the_researcher_chose_the_tool_is_not_offered_and_a_call_is_refused(

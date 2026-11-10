@@ -1,0 +1,100 @@
+/* A reply's questions, one at a time: which of how many, the field, then Back, Skip and Next.
+   The framed look and the option cards are in ChoiceQuestion.css. Progress is said in words as
+   well as drawn (docs/specs/app.md). */
+
+@layer components {
+  .question-series-heading {
+    margin-block-end: var(--space-2);
+  }
+
+  .question-progress {
+    margin-block-end: var(--space-3);
+  }
+
+  .question-progress .hint {
+    margin-block-end: var(--space-1);
+  }
+
+  .question-progress progress {
+    display: block;
+    inline-size: 100%;
+    block-size: 0.5rem;
+    accent-color: var(--color-accent);
+  }
+
+  /* The fieldset that disables a step while a message is sent is only a wrapper. */
+  .question-step {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
+  }
+
+  .question-field legend {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .question-review-heading {
+    margin-block: 0 var(--space-2);
+    font-size: 1rem;
+  }
+
+  .question-field legend:focus-visible,
+  .question-review-heading:focus-visible {
+    outline: var(--focus-width) solid var(--color-focus);
+    outline-offset: var(--focus-offset);
+  }
+
+  .question-lead {
+    display: block;
+    font-weight: normal;
+  }
+
+  .question-field input[type="text"],
+  .question-field textarea {
+    inline-size: 100%;
+  }
+
+  .question-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-block-start: var(--space-3);
+  }
+
+  /* Next (or Send) sits at the end of the row, so it is in the same place on every step. */
+  .question-actions > :last-child {
+    margin-inline-start: auto;
+  }
+
+  .question-review {
+    margin: 0;
+  }
+
+  .question-review-row {
+    padding-block: var(--space-2);
+    border-block-end: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .question-review-row dt {
+    font-weight: var(--font-weight-strong);
+  }
+
+  .question-review-row dd {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin: var(--space-1) 0 0;
+  }
+
+  .question-review-answer {
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+  }
+
+  .question-asked + .question-asked {
+    margin-block-start: var(--space-3);
+  }
+}

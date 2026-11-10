@@ -16,13 +16,6 @@ repository:RepositoryNeeds a sh:NodeShape ;
             sh:order 3 ;
             sh:path repository:access ],
         [ sh:datatype xsd:string ;
-            sh:description "The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as re3data writes it. Among repositories that already match, those operated in this country rank first; it adds no repository to the shortlist on its own." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path repository:country ;
-            sh:pattern "^[A-Z]{3}$" ],
-        [ sh:datatype xsd:string ;
             sh:description "The dataset's discipline, as the broad field of study (e.g. environmental science), and any narrower subjects as further themes. A narrow topic alone (e.g. moorland) may match no repository of the discipline." ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
@@ -38,6 +31,13 @@ repository:RepositoryNeeds a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path repository:mandated ],
+        [ sh:datatype xsd:string ;
+            sh:description "The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as re3data writes it. A repository that already matches ranks a little higher when operated in this country; it adds no repository to the shortlist on its own." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path repository:country ;
+            sh:pattern "^[A-Z]{3}$" ],
         [ sh:datatype xsd:string ;
             sh:description "What the data is, each in one to three words, e.g. interview transcripts, survey microdata or time series. A repository matches a kind only if its record has every word, so a long description (e.g. environmental data logger time series) matches none." ;
             sh:nodeKind sh:Literal ;

@@ -65,6 +65,15 @@ class Repositories(Protocol):
 
     def fetch(self, re3data_id: str) -> Re3dataRecord | None: ...
 
+    def subjects(self) -> dict[str, str]:
+        """Each DFG subject code the registry files a repository under, with its name
+        (`dfg.vocabulary`)."""
+        ...
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        """Every repository filed under the DFG subject `code`, by identifier."""
+        ...
+
     def find(self, name: str) -> list[Re3dataRecord]:
         """The repositories named `name`, ignoring case (`find_by_name`): more than one when the
         name is ambiguous, and none rather than a guess."""

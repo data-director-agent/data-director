@@ -164,17 +164,24 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept. It makes no request to
     the provider and the app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
-21. **A choice question is answered by choosing, and may be ignored.** A reply's
-    `reply_question` is drawn beneath the reply: on the latest turn as radio buttons, or
-    checkboxes where several may be chosen, each option a card the whole of which can be clicked
-    (the control stays visible and ticked beside an accent bar), in a fieldset whose legend is the question, with
-    "Something else" and a text box where the question allows an answer in words; on earlier turns
-    read-only, the option chosen marked with an icon and words, never by colour alone. A new reply
-    that asks one is announced in the polite live region. Sending the answer sends the labels
-    chosen as `message_text` beside a `choice_answer`; the server refuses an answer the harness's
-    `answer_problem` rejects, and nothing runs. The message box stays usable, so the researcher may
-    type instead (`app/tests/test_app.py`,
-    `app/web/src/components/conversation/ChoiceQuestion.test.tsx`, `e2e/shell.spec.ts`).
+21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
+    `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
+    whose legend is the question and whose description is its help: a choice question as radio
+    buttons, or checkboxes where several may be chosen, each option a card the whole of which can
+    be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
+    and a text box where the question allows an answer in words; a short text question as a
+    one-line text box; a long text question as a text area that counts the characters left. A lone
+    question is answered and sent in place. A series shows one question at a time, saying in
+    words which of how many it is beside a progress bar, with Back, Skip and Next; Next with
+    nothing entered says to answer or skip. After the last question it lists the answers to check,
+    each with a button to change it, and Send answers, which needs at least one answer. Moving to
+    another question moves the focus to its legend, and to the list's heading at the end. On
+    earlier turns the questions are read-only, each answer marked with an icon and words, never by
+    colour alone, and a skipped question says so. A new reply that asks is announced in the polite
+    live region. Sending sends the answers in words as `message_text` beside `reply_answers`; the
+    server refuses answers the harness's `answer_problem` rejects, and nothing runs. The message
+    box stays usable, so the researcher may type instead (`app/tests/test_app.py`,
+    `app/web/src/components/conversation/QuestionSeries.test.tsx`, `e2e/shell.spec.ts`).
 22. **The policy page shows the profile the gate holds runs to.** `/policy`, in the main navigation
     and linked from each place that names the policy, is drawn from `GET /api/policy`: the
     profile's reference, description, digest and orchestrator, each agent it enables with the

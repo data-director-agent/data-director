@@ -33,6 +33,7 @@ from dd_sdk.contract.models import (
     InventorySummary,
     Message,
     OutcomeStatus,
+    QuestionKind,
     ReasonCode,
     Reply,
     StepProgress,
@@ -164,7 +165,7 @@ def test_the_tools_are_the_agents_the_harness_lists(runs_dir: Path) -> None:
     model = ScriptedModel([say("Which dataset do you mean?")])
     invoke(conductor(runs_dir, model))
     names = {t["name"] for t in model.sent[0]["tools"]}
-    assert names == {"example_hello", "advisor_standards", "offer_choices"}
+    assert names == {"example_hello", "advisor_standards", "ask_questions"}
     hello = next(t for t in model.sent[0]["tools"] if t["name"] == "example_hello")
     assert "schema_class" not in hello["input_schema"]["properties"]
     assert hello["input_schema"]["required"] == ["greeted_name"]
@@ -359,6 +360,8 @@ def test_the_model_is_told_where_the_project_is_only_in_a_project() -> None:
 
 
 CHOICES: dict[str, Any] = {
+    "question_key": "repository",
+    "question_kind": "choice",
     "question_prompt": "Which repository will you deposit in?",
     "question_options": [
         {"option_value": "zenodo", "option_label": "Zenodo"},
@@ -366,6 +369,22 @@ CHOICES: dict[str, Any] = {
     ],
     "question_other": True,
 }
+TITLE: dict[str, Any] = {
+    "question_key": "title",
+    "question_kind": "short_text",
+    "question_prompt": "What is the dataset called?",
+}
+METHOD: dict[str, Any] = {
+    "question_key": "method",
+    "question_kind": "long_text",
+    "question_prompt": "How were the data collected?",
+    "question_help": "A few sentences are enough.",
+}
+
+
+def questions(*asked: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """An `ask_questions` call asking `asked`."""
+    return ("ask_questions", {"questions": list(asked)})
 
 
 def asks(text: str, *calls: tuple[str, dict[str, Any]]) -> ModelTurn:
@@ -377,57 +396,72 @@ def asks(text: str, *calls: tuple[str, dict[str, Any]]) -> ModelTurn:
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
-def test_offering_choices_ends_the_turn_and_the_reply_carries_the_question(
-    runs_dir: Path,
-) -> None:
+def test_asking_questions_ends_the_turn_and_the_reply_carries_them(runs_dir: Path) -> None:
     model = ScriptedModel(
-        [asks("I need to know where you will deposit.", ("offer_choices", CHOICES))]
+        [asks("I need to know a few things first.", questions(CHOICES, TITLE, METHOD))]
     )
     env = invoke(conductor(runs_dir, model), "Help me deposit")
 
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert len(model.sent) == 1  # no second call
     reply = env.payload_as(Reply)
-    assert reply.reply_text == "I need to know where you will deposit."
-    assert reply.reply_question is not None
-    assert [o.option_value for o in reply.reply_question.question_options] == [
-        "zenodo",
-        "figshare",
+    assert reply.reply_text == "I need to know a few things first."
+    asked = reply.reply_questions or []
+    assert [q.question_key for q in asked] == ["repository", "title", "method"]
+    assert [q.question_kind for q in asked] == [
+        QuestionKind.CHOICE,
+        QuestionKind.SHORT_TEXT,
+        QuestionKind.LONG_TEXT,
     ]
-    assert reply.reply_question.question_other and not reply.reply_question.question_multiple
+    choice = asked[0]
+    assert [o.option_value for o in choice.question_options or []] == ["zenodo", "figshare"]
+    assert choice.question_other and not choice.question_multiple
     assert env.delegations == []
-    assert "reply_question" in ModelOrchestrator.spec.derivations
+    assert "reply_questions" in ModelOrchestrator.spec.derivations
 
 
-def test_choices_without_text_reply_with_the_question(runs_dir: Path) -> None:
-    model = ScriptedModel([call(("offer_choices", CHOICES))])
+def test_questions_without_text_reply_with_the_question(runs_dir: Path) -> None:
+    model = ScriptedModel([call(questions(CHOICES))])
     env = invoke(conductor(runs_dir, model), "Help me deposit")
     assert env.payload_as(Reply).reply_text == "Which repository will you deposit in?"
 
 
-def test_invalid_choices_are_refused_and_the_model_asks_in_prose(runs_dir: Path) -> None:
-    one = {**CHOICES, "question_options": CHOICES["question_options"][:1]}
-    model = ScriptedModel([call(("offer_choices", one)), say("Which repository will you use?")])
+@pytest.mark.parametrize(
+    "asked",
+    [
+        [{**CHOICES, "question_options": CHOICES["question_options"][:1]}],  # one option
+        [{**TITLE, "question_options": CHOICES["question_options"]}],  # options on text
+        [TITLE, TITLE],  # the same key twice
+        [{**TITLE, "question_key": f"q{n}"} for n in range(9)],  # too many
+        [],
+    ],
+)
+def test_invalid_questions_are_refused_and_the_model_asks_in_prose(
+    runs_dir: Path, asked: list[dict[str, Any]]
+) -> None:
+    model = ScriptedModel([call(questions(*asked)), say("Which repository will you use?")])
     env = invoke(conductor(runs_dir, model), "Help me deposit")
 
     reply = env.payload_as(Reply)
-    assert reply.reply_question is None and reply.reply_text == "Which repository will you use?"
+    assert reply.reply_questions is None and reply.reply_text == "Which repository will you use?"
     [result] = model.sent[1]["messages"][-1]["content"]
-    assert result["is_error"] is True and "not valid choices" in result["content"]
+    assert result["is_error"] is True and "not valid questions" in result["content"]
 
 
-def test_choices_beside_a_delegation_are_refused_and_the_delegation_runs(runs_dir: Path) -> None:
+def test_questions_beside_a_delegation_are_refused_and_the_delegation_runs(
+    runs_dir: Path,
+) -> None:
     model = ScriptedModel(
         [
-            call(("example_hello", {"greeted_name": "Ada"}), ("offer_choices", CHOICES)),
-            asks("Greeted Ada. Where next?", ("offer_choices", CHOICES)),
+            call(("example_hello", {"greeted_name": "Ada"}), questions(CHOICES)),
+            asks("Greeted Ada. Where next?", questions(CHOICES)),
         ]
     )
     env = invoke(conductor(runs_dir, model))
 
     [delegation] = env.delegations
     assert delegation.delegated_agent_id == "example.hello"
-    hello, choices = model.sent[1]["messages"][-1]["content"]
+    hello, asked = model.sent[1]["messages"][-1]["content"]
     assert hello["is_error"] is False
-    assert choices["is_error"] is True and "alone" in choices["content"]
-    assert env.payload_as(Reply).reply_question is not None
+    assert asked["is_error"] is True and "alone" in asked["content"]
+    assert env.payload_as(Reply).reply_questions is not None

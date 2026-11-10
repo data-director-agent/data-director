@@ -46,7 +46,7 @@ describe("RepositoryShortlist", () => {
     expect(onChosen).toHaveBeenCalledWith(ORDA_CHOSEN);
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent(`${ORDA_CHOSEN.repository_name} is the project's repository.`);
-    expect(status).toHaveTextContent("Checked against datacite-4@v1 and orda@v2.");
+    expect(status).toHaveTextContent("Checked against datacite-4@v1 and orda@v3.");
     expect(status).toHaveTextContent("A deposit needs a metadata record.");
     expect(status).toHaveTextContent("It should also have a README and a data dictionary.");
     expect(status).toHaveTextContent(/Its metadata must give: Title, Authors/);

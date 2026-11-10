@@ -68,7 +68,8 @@ def load(name: str) -> RepositoryNeeds:
 @pytest.mark.parametrize(
     ("case", "include", "exclude"),
     [
-        # A: moorland sensors (NERC). NOMAD's subjects are chemistry and physics.
+        # A: moorland sensors (NERC), from a UK institution: without the country, US environmental
+        # repositories outrank CEDA (#741). NOMAD's subjects are chemistry and physics.
         ("moorland-sensors.json", {EIDC, PANGAEA, CEDA}, {NOMAD}),
         # B: perovskite XRD and SEM (EPSRC). CSD holds small-molecule crystal structures; Leeds
         # takes deposits only from its members, and no institution was named.

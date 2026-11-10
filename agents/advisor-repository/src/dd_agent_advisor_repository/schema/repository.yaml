@@ -134,8 +134,8 @@ slots:
   country:
     description: >-
       The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as
-      re3data writes it. Among repositories that already match, those operated in this country
-      rank first; it adds no repository to the shortlist on its own.
+      re3data writes it. A repository that already matches ranks a little higher when operated
+      in this country; it adds no repository to the shortlist on its own.
     pattern: "^[A-Z]{3}$"
 
   name:

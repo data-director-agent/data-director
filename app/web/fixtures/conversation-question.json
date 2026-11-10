@@ -71,25 +71,29 @@
             }
           ],
           "reply_derivation": "template",
-          "reply_question": {
-            "question_multiple": false,
-            "question_options": [
-              {
-                "option_label": "Starting a new project, before data collection begins",
-                "option_value": "1"
-              },
-              {
-                "option_label": "Data already collected, being prepared for sharing",
-                "option_value": "2"
-              },
-              {
-                "option_label": "Ready to deposit data into a repository",
-                "option_value": "3"
-              }
-            ],
-            "question_other": false,
-            "question_prompt": "Where are you with your research data?"
-          },
+          "reply_questions": [
+            {
+              "question_key": "entry",
+              "question_kind": "choice",
+              "question_multiple": false,
+              "question_options": [
+                {
+                  "option_label": "Starting a new project, before data collection begins",
+                  "option_value": "1"
+                },
+                {
+                  "option_label": "Data already collected, being prepared for sharing",
+                  "option_value": "2"
+                },
+                {
+                  "option_label": "Ready to deposit data into a repository",
+                  "option_value": "3"
+                }
+              ],
+              "question_other": false,
+              "question_prompt": "Where are you with your research data?"
+            }
+          ],
           "reply_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.",
           "schema_class": "Reply"
         },

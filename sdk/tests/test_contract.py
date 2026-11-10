@@ -17,9 +17,7 @@ from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ApprovedMetadataRecord,
     Assurance,
-    ChoiceAnswer,
     ChoiceOption,
-    ChoiceQuestion,
     ConversationTurn,
     CurrentVersion,
     Delegation,
@@ -47,8 +45,12 @@ from dd_sdk.contract.models import (
     Principal,
     PrincipalKind,
     ProblemDetails,
+    Question,
+    QuestionAnswer,
+    QuestionKind,
     ReasonCode,
     Reply,
+    ReplyAnswers,
     RepositoryRequirements,
     RequirementField,
     RequirementSet,
@@ -90,7 +92,13 @@ def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> N
     assert schema["$schema"] == gen.DRAFT_7 and "metamodel_version" not in schema
     assert schema["title"] == "Reply" and schema["additionalProperties"] is False
     # only what Reply reaches
-    assert set(schema["$defs"]) == {"ChoiceOption", "ChoiceQuestion", "Derivation", "GroundingRef"}
+    assert set(schema["$defs"]) == {
+        "ChoiceOption",
+        "Derivation",
+        "GroundingRef",
+        "Question",
+        "QuestionKind",
+    }
     assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
     assert {"schema_class", "grounded_on"} <= set(schema["required"])
 
@@ -576,54 +584,116 @@ def test_message_and_reply_validate_and_are_discriminated() -> None:
     assert env["delegations"][0]["delegated_invocation_id"] == child
 
 
-def _question(**kw: object) -> ChoiceQuestion:
+def _question(**kw: object) -> Question:
     options = [
         ChoiceOption(option_value="zenodo", option_label="Zenodo"),
         ChoiceOption(option_value="figshare", option_label="Figshare", option_help="Hosted"),
     ]
-    return ChoiceQuestion.model_validate(
-        {"question_prompt": "Which repository?", "question_options": options, **kw}
+    return Question.model_validate(
+        {
+            "question_key": "repository",
+            "question_prompt": "Which repository?",
+            "question_kind": "choice",
+            "question_options": options,
+            **kw,
+        }
     )
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
-def test_a_reply_may_ask_a_choice_question_and_a_message_may_answer_it() -> None:
-    question = _question(question_multiple=True, question_other=True)
+def test_a_reply_may_ask_a_series_of_questions_and_a_message_may_answer_them() -> None:
+    questions = [
+        _question(question_multiple=True, question_other=True),
+        Question(
+            question_key="title",
+            question_prompt="What is the dataset called?",
+            question_kind=QuestionKind.SHORT_TEXT,
+        ),
+        Question(
+            question_key="method",
+            question_prompt="How were the data collected?",
+            question_kind=QuestionKind.LONG_TEXT,
+            question_help="A few sentences are enough.",
+        ),
+    ]
     reply = Reply(
-        reply_text="I need to know where you will deposit.",
+        reply_text="I need to know a few things.",
         reply_derivation=Derivation.MODEL,
-        reply_question=question,
+        reply_questions=questions,
         grounded_on=[_input_ref()],
     )
     env = _succeeded(payload=reply, evidence=[_input_evidence()]).to_document()
     validate.validate_envelope(env)
-    assert Reply.model_validate(env["payload"]).reply_question == question
+    assert Reply.model_validate(env["payload"]).reply_questions == questions
 
-    answer = ChoiceAnswer(answer_to=new_invocation_id(), answer_values=["zenodo"])
+    answers = ReplyAnswers(
+        answer_to=new_invocation_id(),
+        given_answers=[
+            QuestionAnswer(answered_key="repository", answer_values=["zenodo"]),
+            QuestionAnswer(answered_key="method", answer_words="By survey."),
+        ],
+    )
     doc = to_document(
         InvocationRequest(
             agent_id="orchestrator.stub",
-            input=Message(message_text="Zenodo", choice_answer=answer),
+            input=Message(message_text="Zenodo", reply_answers=answers),
         )
     )
     validate.validate_request(doc)
-    assert Message.model_validate(doc["input"]).choice_answer == answer
+    assert Message.model_validate(doc["input"]).reply_answers == answers
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
 def test_a_choice_question_has_two_to_twelve_options_with_unique_values() -> None:
     with pytest.raises(ValueError, match="value of its own"):
-        ChoiceQuestion(
-            question_prompt="Which?",
+        _question(
             question_options=[
                 ChoiceOption(option_value="a", option_label="A"),
                 ChoiceOption(option_value="a", option_label="Also A"),
             ],
         )
     with pytest.raises(ValueError, match="at least 2"):
-        ChoiceQuestion(
-            question_prompt="Which?",
-            question_options=[ChoiceOption(option_value="a", option_label="A")],
+        _question(question_options=[ChoiceOption(option_value="a", option_label="A")])
+    with pytest.raises(ValueError, match="has options"):
+        _question(question_options=None)
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"question_options": [{"option_value": "a", "option_label": "A"}] * 2},
+        {"question_multiple": True},
+        {"question_other": True},
+    ],
+)
+def test_only_a_choice_question_has_options(extra: dict[str, object]) -> None:
+    with pytest.raises(ValueError, match="only a choice question"):
+        Question.model_validate(
+            {"question_key": "q", "question_prompt": "Why?", "question_kind": "short_text", **extra}
+        )
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_reply_asks_one_to_eight_questions_with_unique_keys() -> None:
+    def reply(questions: list[Question]) -> Reply:
+        return Reply(
+            reply_text="x",
+            reply_derivation=Derivation.MODEL,
+            reply_questions=questions,
+            grounded_on=[_input_ref()],
+        )
+
+    with pytest.raises(ValueError, match="key of its own"):
+        reply([_question(), _question()])
+    with pytest.raises(ValueError, match="at least 1"):
+        reply([])
+    with pytest.raises(ValueError, match="at most 8"):
+        reply([_question(question_key=f"q{i}") for i in range(9)])
+    with pytest.raises(ValueError, match="answered at most once"):
+        ReplyAnswers(
+            answer_to=new_invocation_id(),
+            given_answers=[QuestionAnswer(answered_key="a", answer_words="x")] * 2,
         )
 
 

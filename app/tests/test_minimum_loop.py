@@ -145,9 +145,12 @@ class Researcher:
         }
         if choose is not None:
             assert self.latest is not None
-            body["choice_answer"] = {
+            (question,) = self.latest["payload"]["reply_questions"]
+            body["reply_answers"] = {
                 "answer_to": self.latest["invocation_id"],
-                "answer_values": [choose],
+                "given_answers": [
+                    {"answered_key": question["question_key"], "answer_values": [choose]}
+                ],
             }
         response = self.client.post(f"/api/conversations/{self.conversation_id}/turns", json=body)
         assert response.status_code == 200, response.json()
@@ -158,8 +161,8 @@ class Researcher:
 
     def offered(self) -> list[str]:
         assert self.latest is not None
-        question = self.latest["payload"].get("reply_question") or {}
-        return [option["option_value"] for option in question.get("question_options", [])]
+        questions = self.latest["payload"].get("reply_questions") or [{}]
+        return [option["option_value"] for option in questions[0].get("question_options", [])]
 
     def take_step(self, step: str) -> dict[str, Any]:
         """Choose `step` from what the orchestrator offers, skipping, as a researcher may, each

@@ -22,8 +22,12 @@ order: [discipline, institutional, generalist]
 # At most this many repositories are recommended, besides those the researcher's own institution
 # operates.
 max_candidates: 5
-# Records retrieved per query from the registry.
+# Records retrieved per query from the registry: per theme, this many found by its text and this
+# many filed under the DFG subjects it names.
 search_limit: 10
+# Text hits graded per theme or kind of data, so that a repository retrieved for its subject is
+# graded on its text too. Only the first `search_limit` are retrieved for their text.
+text_hits: 50
 # The score a repository needs to be recommended.
 confidence_floor: 0.3
 
@@ -38,12 +42,26 @@ generalists:
   - r3d100011137  # Open Science Framework
   - r3d100011868  # Mendeley Data
 
+# How well a repository matches one theme, from 0 to 1.
+theme_match:
+  # A text hit contains every word of the theme. The weakest hit for a theme grades this, the
+  # best 1, and the rest by BM25 score in between.
+  text_base: 0.5
+  # Where the theme names a DFG subject (`dfg.resolve`) and the record lists subjects, this share
+  # of the grade is how near the repository is filed to that subject, the rest its text. A theme
+  # that names no subject, such as "moorland", is graded on its text alone.
+  subject_share: 0.5
+  # The subject grade when the repository is filed under the theme's subject (or one below it),
+  # the subject just above it, or two levels above. The top level, such as Natural Sciences, never
+  # counts: a third of re3data is filed under each.
+  subject_grades: [1.0, 0.5, 0.25]
+
 weights:
-  # The share of the dataset's themes (its disciplines) that the repository matches, a match
-  # being a registry search hit on every word of the theme.
+  # The mean of the theme grades: how well the repository matches the dataset's themes (its
+  # disciplines), by text and by DFG subject.
   theme: 1.0
-  # The share of the kinds of data that the repository matches. Kept below the floor, so a kind
-  # of data alone never recommends a repository from another discipline (#440).
+  # The mean of the text grades for the kinds of data. Kept below the floor, so a kind of data
+  # alone never recommends a repository from another discipline (#440).
   data_kind: 0.2
   # A generalist repository. Above the floor and below a full theme match.
   generalist: 0.4

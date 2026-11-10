@@ -32,12 +32,6 @@
       "schema_class": "Message"
     },
     "01900000-0000-7000-8000-000000000003": {
-      "choice_answer": {
-        "answer_to": "01900000-0000-7000-8000-000000000002",
-        "answer_values": [
-          "2"
-        ]
-      },
       "history": [
         {
           "role": "user",
@@ -53,6 +47,17 @@
       ],
       "message_text": "Data already collected, being prepared for sharing",
       "project_title_by_researcher": false,
+      "reply_answers": {
+        "answer_to": "01900000-0000-7000-8000-000000000002",
+        "given_answers": [
+          {
+            "answer_values": [
+              "2"
+            ],
+            "answered_key": "entry"
+          }
+        ]
+      },
       "schema_class": "Message"
     }
   },
@@ -106,25 +111,29 @@
             }
           ],
           "reply_derivation": "template",
-          "reply_question": {
-            "question_multiple": false,
-            "question_options": [
-              {
-                "option_label": "Starting a new project, before data collection begins",
-                "option_value": "1"
-              },
-              {
-                "option_label": "Data already collected, being prepared for sharing",
-                "option_value": "2"
-              },
-              {
-                "option_label": "Ready to deposit data into a repository",
-                "option_value": "3"
-              }
-            ],
-            "question_other": false,
-            "question_prompt": "Where are you with your research data?"
-          },
+          "reply_questions": [
+            {
+              "question_key": "entry",
+              "question_kind": "choice",
+              "question_multiple": false,
+              "question_options": [
+                {
+                  "option_label": "Starting a new project, before data collection begins",
+                  "option_value": "1"
+                },
+                {
+                  "option_label": "Data already collected, being prepared for sharing",
+                  "option_value": "2"
+                },
+                {
+                  "option_label": "Ready to deposit data into a repository",
+                  "option_value": "3"
+                }
+              ],
+              "question_other": false,
+              "question_prompt": "Where are you with your research data?"
+            }
+          ],
           "reply_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.",
           "schema_class": "Reply"
         },
@@ -190,33 +199,37 @@
             }
           ],
           "reply_derivation": "template",
-          "reply_question": {
-            "question_multiple": false,
-            "question_options": [
-              {
-                "option_help": "Suggested next. Phase 2, Check the rules.",
-                "option_label": "Check what your funder, journal and institution expect",
-                "option_value": "governance.policies"
-              },
-              {
-                "option_help": "Phase 2, Check the rules.",
-                "option_label": "Spot any sensitive information in your data",
-                "option_value": "governance.sensitive-data-identify"
-              },
-              {
-                "option_help": "Phase 2, Check the rules.",
-                "option_label": "Decide how sensitive data will be protected",
-                "option_value": "governance.sensitive-data-handle"
-              },
-              {
-                "option_help": "Phase 2, Check the rules.",
-                "option_label": "Decide whether to delay public release",
-                "option_value": "governance.embargo"
-              }
-            ],
-            "question_other": true,
-            "question_prompt": "What would you like to do next?"
-          },
+          "reply_questions": [
+            {
+              "question_key": "next-step",
+              "question_kind": "choice",
+              "question_multiple": false,
+              "question_options": [
+                {
+                  "option_help": "Suggested next. Phase 2, Check the rules.",
+                  "option_label": "Check what your funder, journal and institution expect",
+                  "option_value": "governance.policies"
+                },
+                {
+                  "option_help": "Phase 2, Check the rules.",
+                  "option_label": "Spot any sensitive information in your data",
+                  "option_value": "governance.sensitive-data-identify"
+                },
+                {
+                  "option_help": "Phase 2, Check the rules.",
+                  "option_label": "Decide how sensitive data will be protected",
+                  "option_value": "governance.sensitive-data-handle"
+                },
+                {
+                  "option_help": "Phase 2, Check the rules.",
+                  "option_label": "Decide whether to delay public release",
+                  "option_value": "governance.embargo"
+                }
+              ],
+              "question_other": true,
+              "question_prompt": "What would you like to do next?"
+            }
+          ],
           "reply_text": "Entry point 2: data already collected, being prepared for sharing. The steps from here:\nPhase 2, Governance and constraints:\n- Check funder, journal and institutional data sharing policies: no agent yet (no Blueprint requirement).\n- Identify sensitive data: no agent yet (no Blueprint requirement).\n- Handle sensitive data: no agent yet (no Blueprint requirement).\n- Confirm whether an embargo is required: no agent yet (no Blueprint requirement).\n- Verify data sharing commitments against the Data Management Plan: no agent yet (R8).\nPhase 3, Repository selection:\n- Check whether the funder, journal or institution mandates a repository: no agent yet (no Blueprint requirement).\n- Recommend a repository where none is mandated: no agent yet (R1).\n- Confirm or arrange persistent identifier (PID) assignment: no agent yet (R7).\n- Check access options and deposit costs: no agent yet (no Blueprint requirement).\n- Verify repository certification (optional): no agent yet (no Blueprint requirement).\nPhase 4, Data preparation and metadata creation:\n- Clean and version the data files: no agent yet (no Blueprint requirement).\n- Recommend open formats: no agent yet (R3).\n- Create or review data documentation: READMEs and data dictionaries: no agent yet (R5).\n- Identify the appropriate metadata standard: no agent yet (no Blueprint requirement).\n- Complete metadata fields with FAIR-aligned, discipline-appropriate vocabularies and ontologies: no agent yet (R2, R6).\nPhase 5, Deposit and submit:\n- Validate metadata quality: no agent yet (R4).\n- Assign a licence: no agent yet (no Blueprint requirement).\n- Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs: no agent yet (R7).\n- Set access restrictions: no agent yet (no Blueprint requirement).\n- Generate a private peer review link (optional): no agent yet (no Blueprint requirement).\n- Upload the files: no agent yet (no Blueprint requirement).\n- Review and finalise the submission: no agent yet (no Blueprint requirement).\nPhase 6, Post-publication:\n- Update the Data Management Plan to reflect the data published: out of scope for now.\n- Record the deposit in institutional systems where required: no agent yet (no Blueprint requirement).\n- Monitor access, downloads and citations: no agent yet (no Blueprint requirement).\n- Check embargo release: no agent yet (no Blueprint requirement).\n- Evaluate the FAIRness of the published objects and discover related datasets: no agent yet (R12).\n- Retrofit FAIR-aligned metadata for existing datasets: no agent yet (R9).\n- Link datasets to related research outputs: no agent yet (R11).\nSuggested next: Check funder, journal and institutional data sharing policies. You may do any step in any order, and mark one done or skipped in your project when nothing here records it.\nThe work and every decision are yours; the agents only advise.",
           "schema_class": "Reply"
         },
@@ -232,12 +245,6 @@
         }
       },
       "input": {
-        "choice_answer": {
-          "answer_to": "01900000-0000-7000-8000-000000000002",
-          "answer_values": [
-            "2"
-          ]
-        },
         "history": [
           {
             "role": "user",
@@ -253,6 +260,17 @@
         ],
         "message_text": "Data already collected, being prepared for sharing",
         "project_title_by_researcher": false,
+        "reply_answers": {
+          "answer_to": "01900000-0000-7000-8000-000000000002",
+          "given_answers": [
+            {
+              "answer_values": [
+                "2"
+              ],
+              "answered_key": "entry"
+            }
+          ]
+        },
         "schema_class": "Message"
       },
       "invocation_id": "01900000-0000-7000-8000-000000000003",
