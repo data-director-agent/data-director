@@ -9,7 +9,7 @@ import pytest
 from re3data_fixture import session_registry
 
 import dd_agent_advisor_repository
-from dd_agent_advisor_repository import rank
+from dd_agent_advisor_repository import dfg, rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     AccessNeed,
@@ -151,6 +151,14 @@ class FakeRepositories:
     def find(self, name: str) -> list[Re3dataRecord]:
         self._check()
         return find_by_name(self.records, name)
+
+    def subjects(self) -> dict[str, str]:
+        self._check()
+        return dfg.vocabulary(s for r in self.records for s in r.subjects)
+
+    def with_subject(self, code: str) -> list[Re3dataRecord]:
+        self._check()
+        return [r for r in self.records if code in dfg.codes(r.subjects)]
 
 
 class FakeDatabases:
@@ -408,8 +416,35 @@ def test_a_kind_of_data_alone_does_not_recommend_a_repository(runs_dir: Path) ->
     assert named(env, options) == ["Social Survey Archive"]
     assert options.candidates[0].ranked_by == [
         'Matches the theme "social survey" (1 of 1 given).',
+        'Ranks 1 of 1 in a text search of re3data for "social survey".',
         'Matches the kind of data "interview transcripts".',
     ]
+
+
+@pytest.mark.requirement("R1")
+def test_a_repository_is_retrieved_and_recommended_for_its_dfg_subject(runs_dir: Path) -> None:
+    """A repository whose record never names the theme is found where re3data files it."""
+    filed = OPEN_ONLY.model_copy(
+        update={
+            "re3data_id": "r3d100000014",
+            "name": "Water Archive",
+            "subjects": [
+                "3 Natural Sciences",
+                "34 Geosciences",
+                "346 Water Research",
+                "34601 Hydrogeology, Hydrology, Limnology",
+            ],
+            "keywords": [],
+            "data_upload_restrictions": [],
+        }
+    )
+    needs = RepositoryNeeds(themes=["hydrology"], access=AccessNeed.OPEN)
+    env = invoke(runs_dir, needs, agent(repositories=FakeRepositories([filed, SURVEYS])))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    options = env.payload_as(RepositoryOptions)
+    assert named(env, options) == ["Water Archive"]
+    assert options.candidates[0].ranked_by[0].startswith("Matches the theme")
+    assert "No discipline-specific repository" not in env.outcome.statement
 
 
 @pytest.mark.requirement("R1")
