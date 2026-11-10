@@ -5,7 +5,7 @@ agent through the conductor and answers when the run has ended, with its envelop
 checks' reports; `GET /api/runs` and `GET /api/runs/{id}` read the run store; `GET /api/examples`
 lists example inputs; `GET /api/process-flow` is the Blueprint's entry points and phases
 (`dd_sdk.process_flow`), which the shell's phase tracker draws. The run endpoint is a stopgap
-until runs stream over AG-UI (#68, #69).
+until runs stream over AG-UI (#69).
 `POST /api/conversations` starts a conversation, in the project it names or else a new one, and
 `POST /api/conversations/{id}/turns` sends it one message, which may attach a `dd-inventory` file
 for the project to keep, answered as a run is, or refused with `409` unless it follows the latest

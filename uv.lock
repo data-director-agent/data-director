@@ -1432,6 +1432,7 @@ version = "0.2.0a4"
 source = { editable = "harness" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
+    { name = "ag-ui-protocol" },
     { name = "data-director-sdk" },
     { name = "httpx" },
     { name = "joserfc" },
@@ -1464,6 +1465,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.2.2,<2" },
+    { name = "ag-ui-protocol", specifier = ">=1.0.0,<1.1" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "joserfc", specifier = ">=1.0" },
@@ -1545,7 +1547,6 @@ name = "data-director-workbench"
 version = "0.2.0a5"
 source = { editable = "workbench" }
 dependencies = [
-    { name = "ag-ui-protocol" },
     { name = "data-director-harness" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
@@ -1571,7 +1572,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ag-ui-protocol", specifier = ">=1.0.0,<1.1" },
     { name = "data-director-harness", editable = "harness" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "inspect-ai", marker = "extra == 'eval'", specifier = ">=0.3.281" },

@@ -29,6 +29,8 @@ dependencies = [
   # and a payload against its class's shapes (docs/specs/contract.md, docs/specs/dependencies.md).
   "pyshacl>=0.30",
   "rdflib>=7.1",
+  # AG-UI events for a browser, behind dd_harness.transport.agui (docs/specs/transport.md).
+  "ag-ui-protocol>=1.0.0,<1.1",
 ]
 
 [project.scripts]

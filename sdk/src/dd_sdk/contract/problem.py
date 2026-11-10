@@ -95,3 +95,10 @@ def revision_refused(detail: str) -> ProblemDetails:
     """A drafted document the project could not record: it revises no version of the project, or
     a version of a document of another kind (docs/specs/projects.md)."""
     return problem("revision-refused", "The draft does not revise this project", detail, 409)
+
+
+def run_cancelled(detail: str) -> ProblemDetails:
+    """A run its caller cancelled before it ended (docs/specs/transport.md). Cancelling is a
+    transport fact, not an outcome: the run is stored `failed` with this problem, and whatever the
+    agent answered is discarded."""
+    return problem("run-cancelled", "The run was cancelled", detail, http_status=499)

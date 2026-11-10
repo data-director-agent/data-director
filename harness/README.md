@@ -26,6 +26,7 @@ one of them, used for developing and testing agents
 | `identity.py` | The authentication boundary that names whom an invocation acts for ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `settings.py` | Settings from the environment, and the factory that builds a conductor. |
 | `transport/a2a.py` | The A2A JSON-RPC endpoint that serves the conductor to other systems. |
+| `transport/agui.py`, `observe.py` | The AG-UI binding a way in mounts to stream a run to a browser: its stages as the conductor reports them, its checks' reports, its envelope, and cancelling ([Transport and tracing](../docs/specs/transport.md)). |
 | `server.py` | `dd-harness serve`: the A2A endpoint and the agent card in one process, for deployments. `dd-harness project`: create a project, add an inventory, list its events. |
 
 ## Configuration belongs to the deployment
@@ -114,7 +115,8 @@ dd-harness serve --host 127.0.0.1 --port 8000
   network.**
   It prints a warning when bound to anything other than a loopback address.
 - `workbench serve` builds its conductor the same way (`dd_harness.server.serving`) and adds
-  AG-UI, the run and conversation index and the viewer to the same A2A routes.
+  the AG-UI binding (`dd_harness.transport.agui`), the run and conversation index and the viewer
+  to the same A2A routes.
 
 Not yet decided:
 

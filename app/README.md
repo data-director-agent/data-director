@@ -35,7 +35,7 @@ The conversation sits in the centre of a workspace ([The app](../docs/specs/app.
   naming the agents here whose manifest `serves` the step ([Orchestration](../docs/specs/orchestration.md));
 - on the right, the project's documents, which are not built yet (#160), and what the
   orchestrator is and what it has not declared;
-- beneath, the activity log, which needs streamed runs (#68, #69).
+- beneath, the activity log, which needs streamed runs (#69).
 
 Each run the orchestrator delegates is a card in the conversation; opening it shows the run's
 stages, outcome and evidence inside the card. On a narrow screen the zones stack in that order.
@@ -340,7 +340,7 @@ shapes, under a profile that does not list the standards advisor, so the shell i
 
 - A run is one request that answers when the run has ended, so the stages are read back
   afterwards rather than watched, and a run cannot be cancelled. Streaming runs over AG-UI
-  replaces it (#68, #69).
+  replaces it (#69).
 - A person can approve, edit then approve, or reject a project's documents at `/projects/{id}`,
   and only the project's owner, its creator until membership is built (#389), can decide. Risk tiers and batching for review are #72 and #73.
 - The form checks only required fields and numbers; the conductor's input check decides.

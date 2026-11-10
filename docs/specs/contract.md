@@ -152,7 +152,8 @@ slot present in the source and missing from a core mirror.
 project's contribution. `abstained` and `referred` are not problems. They are outcomes of equal
 standing with `succeeded`, each with a reason from the `ReasonCode` enumeration. Only `failed`
 and `suspended` are problems. Problem types the harness emits are in
-`dd_sdk/contract/problem.py`.
+`dd_sdk/contract/problem.py`. A run its caller cancels is `failed` with `run-cancelled`: cancelling
+is a fact about the transport, not a sixth status ([Transport and tracing](transport.md)).
 
 **The dataset profile.** `DatasetProfile` is the standards advisor's input class, owned by that
 agent, not a core class. It is deliberately minimal: it describes only what the standards advisor

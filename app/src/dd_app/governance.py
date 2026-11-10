@@ -148,7 +148,7 @@ class Governance:
     ) -> dict[str, Any]:
         """One run, start to finish (`POST /api/runs`): its envelope and the checks' reports.
 
-        A stopgap until the shell streams runs over AG-UI (#68, #69): the page learns nothing
+        A stopgap until the shell streams runs over AG-UI (#69): the page learns nothing
         until the run has ended, and infers the stages from what comes back. Raises what
         `Conductor.invoke` raises for a request it refuses before running.
         """

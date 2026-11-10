@@ -237,9 +237,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
   its process, so there is nothing in it to call a model.
-- **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). Not built yet:
-  a run is one request that answers when it has ended, so stages are read back, not watched, and
-  a run cannot be cancelled. TODO(#68, #69).
+- **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). The harness
+  streams a run's stages, its checks' reports and cancelling; the app does not serve that stream
+  yet. A run is one request that answers when it has ended, so stages are read back, not watched,
+  and a run cannot be cancelled. TODO(#69).
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
@@ -450,7 +451,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#68, #69, #159): streamed runs and replies over AG-UI, the activity log, live regions and
+- TODO(#69, #159): streamed turns and replies over AG-UI, the activity log, live regions and
   cancellation.
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.

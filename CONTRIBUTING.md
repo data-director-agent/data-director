@@ -40,7 +40,7 @@ the default home for anything.
 | Test doubles and helpers that any way in or any agent can use | `harness/` (`dd_harness.testing`) |
 | One agent's logic, schema, data, scripts, sample inputs, evaluation cases and tests; prototypes too, marked alpha by their version (`agents/README.md`) | `agents/<name>/` (sample inputs are still in `workbench/samples/` until TODO(#275) moves them) |
 | The app people use: its server, configuration (`app/config/`) and browser shell (`app/web`, React and TypeScript, Node 22 or later; [The app](docs/specs/app.md), designed from `docs/ui/best-practices.md`) | `app/` |
-| The development client for agent authors: the `workbench` CLI, AG-UI transport, viewer and its development configuration | `workbench/` |
+| The development client for agent authors: the `workbench` CLI, viewer and its development configuration | `workbench/` |
 | `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
 | Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
 | What governs every package: the Blueprint, system overview, specifications, contract, glossary, requirements register, reviews | `docs/` |
@@ -112,7 +112,9 @@ The app shell's accessibility checks run in the App shell jobs of `ci.yml`.
 The pytest suite blocks the network and needs no credentials. It also keeps the JSON fixtures in
 `app/web/fixtures`, which the shell's tests read, current: run locally, a test rewrites a fixture
 that no longer matches what the server says, so commit what changed. In CI a stale fixture fails
-the test instead. [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
+the test instead. The AG-UI cassettes in `app/web/cassettes`, the event streams the harness sends
+for each kind of run, are kept the same way by `app/tests/test_ui_cassettes.py`;
+`uv run python scripts/record_ui_cassettes.py` rewrites them all. [Writing tests](#writing-tests) says what a test should and should not pin down. `CONFORMANCE.md` is generated;
 regenerate it with the same two commands without `--check`. CodeQL (`codeql.yml`) analyses the
 Python, JavaScript and TypeScript code and the workflows (in a pull request, only the languages it
 changes), and `audit.yml` checks every locked

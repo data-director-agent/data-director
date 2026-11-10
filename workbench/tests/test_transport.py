@@ -118,7 +118,7 @@ def _sse_events(text: str) -> list[dict[str, Any]]:
 
 
 @pytest.mark.requirement("C5.1")
-def test_agui_run_and_replay_emit_started_and_finished(runs_dir: Path) -> None:
+def test_agui_run_and_replay_start_and_finish_with_the_envelope(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
 
     async def go() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
@@ -140,13 +140,16 @@ def test_agui_run_and_replay_emit_started_and_finished(runs_dir: Path) -> None:
             return live, _sse_events(r2.text), r3.json()
 
     live, replay, index = asyncio.run(go())
-    assert [e["type"] for e in live] == ["RUN_STARTED", "RUN_FINISHED"]
-    assert live[1]["result"]["outcome"]["status"] == "succeeded"
-    assert live[1]["result"]["payload"]["schema_class"] == "QualityReview"
-    assert replay[1]["result"] == live[1]["result"]
+    # The stages stream between (docs/specs/transport.md); the viewer reads only the ends.
+    assert (live[0]["type"], live[-1]["type"]) == ("RUN_STARTED", "RUN_FINISHED")
+    envelope = live[-1]["result"]
+    assert envelope["outcome"]["status"] == "succeeded"
+    assert envelope["payload"]["schema_class"] == "QualityReview"
+    assert [e["type"] for e in replay] == ["RUN_STARTED", "RUN_FINISHED"]
+    assert replay[-1]["result"] == envelope
     assert index[0]["status"] == "succeeded"
     # The viewer renders the payload with the schema it was checked against, by digest.
-    status, schema = _get(app, f"/schema/sha256/{live[1]['result']['payload_schema']}")
+    status, schema = _get(app, f"/schema/sha256/{envelope['payload_schema']}")
     assert status == 200 and schema == dict(ClassSchema.of(QualityReview).json_schema)
 
 
@@ -181,8 +184,8 @@ def test_agui_runs_an_input_written_in_the_shell_form_not_only_a_sample(runs_dir
             return _sse_events((await hc.post("/agui", json=_agui_body(doc, "t1"))).text)
 
     live = asyncio.run(go())
-    assert [e["type"] for e in live] == ["RUN_STARTED", "RUN_FINISHED"]
-    envelope = live[1]["result"]
+    assert (live[0]["type"], live[-1]["type"]) == ("RUN_STARTED", "RUN_FINISHED")
+    envelope = live[-1]["result"]
     assert envelope["outcome"]["status"] == "succeeded", envelope["outcome"]["statement"]
     assert envelope["payload"]["greeting_text"] == "Hello, Ada!"
 

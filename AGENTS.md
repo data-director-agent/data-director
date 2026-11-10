@@ -44,7 +44,8 @@ uv run python scripts/check_boundaries.py
 
 Every other CI job, with its local command, is in
 [CONTRIBUTING.md](CONTRIBUTING.md#code-style-and-testing). `uv run pytest` rewrites stale
-fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`; commit them.
+fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI cassettes in
+`app/web/cassettes`; commit them.
 
 ## Rules
 

@@ -133,7 +133,7 @@ requirements:
   - id: C5.1
     source: project
     parent: C5
-    title: The harness exposes an open API (A2A agent card and message send; AG-UI run and replay in the workbench); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
+    title: The harness exposes an open API (A2A agent card and message send; AG-UI run, its stages and checks' reports, replay and cancelling); established metadata standards, exchange with repositories and a harmonised API between instances are not exercised (#24)
   - id: C6
     source: blueprint
     title: Accessibility

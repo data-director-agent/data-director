@@ -61,7 +61,7 @@ modules are not dependencies here.
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
 | `python-dotenv` | Harness | `dd_harness.settings` | `uv run --env-file`, or variables exported in the shell. |
 | `joserfc` | Harness, app | ID-token verification in `dd_harness.identity`; the RS256 JWT a GitHub App presents in `dd_app.github_auth` | Another JOSE library, or RS256 with `cryptography`. |
-| `ag-ui-protocol` | Workbench | `workbench.transport.agui` | Two pydantic event models and an SSE encoder. |
+| `ag-ui-protocol` | Harness | `dd_harness.transport.agui` | The seven pydantic event models the AG-UI binding sends, and an SSE encoder. |
 | `rank-bm25` (with numpy) | Retrieving agents | Each agent's `snapshot` module | About forty lines of BM25. |
 | `anthropic` | Orchestrator (required); retrieving advisers and the Documentation Editor (optional extra) | `dd_agent_orchestrator_model.model`; each adviser's `explain` module; the Documentation Editor's `prose` module | The rule-based orchestrator stub, an adviser's template explainer or the editor's template writer; any HTTP client against the Messages API. |
 | `opf-fido` | `dd-inventory` | `dd_inventory.identify` | Media types from file extensions, with no PRONOM identifier. |

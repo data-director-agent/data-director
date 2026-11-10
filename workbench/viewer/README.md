@@ -113,7 +113,7 @@ messages and watch the raw traffic.
 
 ## Not here, on purpose
 
-No editing of a stored run (composing a new input is not editing one), no feedback capture, no streaming, no `suspended` interrupt. Those arrive with the AG-UI events that need them.
+No editing of a stored run (composing a new input is not editing one), no feedback capture, no live stages, no cancelling, no `suspended` interrupt. The AG-UI stream carries the stages and the checks' reports (docs/specs/transport.md); the viewer reads only `RUN_FINISHED` and `RUN_ERROR` from it.
 
 ## Tests
 

@@ -239,8 +239,8 @@ described in [`../agents/README.md`](../agents/README.md).
 
 | Path | Contents |
 |---|---|
-| `src/workbench/` | The `workbench` CLI, the AG-UI transport, evaluation, and the development configuration it supplies to the harness. |
-| `../harness/` | The harness itself: the conductor, policy gate, input check, grounding linter, source check, run store, provenance and the A2A endpoint. |
+| `src/workbench/` | The `workbench` CLI, the routes it serves (the harness's AG-UI binding among them), evaluation, and the development configuration it supplies to the harness. |
+| `../harness/` | The harness itself: the conductor, policy gate, input check, grounding linter, source check, run store, provenance, and the A2A and AG-UI bindings. |
 | `sources.yaml` | The pinned source copies for the source check. |
 | `viewer/` | The browser UI served by `workbench serve`. |
 | `agents.yaml` | The agent registry. |
