@@ -265,6 +265,8 @@ classes:
       - file_pronom_ids
       - file_identified_by
       - file_fields
+      - file_description
+      - file_role
 
   RequirementSet:
     description: >-
@@ -1196,7 +1198,9 @@ slots:
       - https://www.nationalarchives.gov.uk/PRONOM/
     multivalued: true
   file_identified_by:
-    description: How the PRONOM identifiers were arrived at.
+    description: >-
+      How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the
+      researcher where the command found several matches or none.
     range: IdentificationMethod
     required: true
   file_fields:
@@ -1204,6 +1208,16 @@ slots:
     range: TableField
     multivalued: true
     inlined_as_list: true
+  file_description:
+    description: >-
+      What the file is, in the researcher's words. The inventory command never fills it; a
+      researcher states it beside the facts the command found (docs/specs/projects.md).
+    slot_uri: dcterms:description
+  file_role:
+    description: >-
+      What part the file plays in the dataset, as the researcher states it. Unset means not stated,
+      not data.
+    range: FileRole
   requirement_set_id:
     description: Identifies the requirement set, such as datacite-4 or orda.
     required: true
@@ -1388,6 +1402,22 @@ enums:
         description: Only the file name's extension was matched; the content was not recognised.
       none:
         description: Nothing matched.
+      researcher:
+        description: >-
+          The researcher chose the format: one of several PRONOM matches the command found, or a
+          media type where nothing matched.
+
+  FileRole:
+    description: What part a file plays in a dataset, as the researcher states it (docs/specs/projects.md).
+    permissible_values:
+      data:
+        description: The research data itself.
+      documentation:
+        description: Describes the data, such as a README, codebook or protocol.
+      code:
+        description: Software that made, cleaned or analyses the data.
+      other:
+        description: Anything else.
 
   OutcomeStatus:
     description: >-

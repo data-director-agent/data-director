@@ -640,7 +640,7 @@ describe("ConversationHome", () => {
         }),
       );
       await userEvent.click(
-        within(review).getByText("readings.csv", { selector: "summary *" }),
+        within(review).getByText("readings.csv", { selector: ".inventory-table summary *" }),
       );
       await userEvent.click(
         within(review).getByRole("checkbox", {
@@ -648,7 +648,7 @@ describe("ConversationHome", () => {
         }),
       );
       expect(within(review).getByRole("status")).toHaveTextContent(
-        "Left out: 1 file and 1 column.",
+        "1 file and 1 column left out",
       );
       await userEvent.click(
         within(review).getByRole("button", { name: "Attach this inventory" }),

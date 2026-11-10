@@ -1,14 +1,16 @@
 import {
-  NOTHING_OMITTED,
+  applyEdits,
+  NO_EDITS,
   type FileInventory,
+  type InventoryEdits,
   type InventoryFile,
-  type Omission,
 } from "@data-director/inventory";
 import { useState } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 
+import { record, startHistory } from "./history";
 import { InventoryDialog } from "./InventoryDialog";
 import { InventoryView, SHOWN } from "./InventoryView";
 
@@ -126,13 +128,29 @@ describe("InventoryView", () => {
   });
 });
 
-describe("InventoryView, choosing what to leave out", () => {
-  let latest: Omission = NOTHING_OMITTED;
-  function Choosing() {
-    const [omission, setOmission] = useState<Omission>(NOTHING_OMITTED);
-    latest = omission;
-    return <InventoryView inventory={INVENTORY} omission={omission} onOmit={setOmission} />;
+describe("InventoryView, editing", () => {
+  let edits: InventoryEdits = NO_EDITS;
+  function Editing() {
+    const [history, setHistory] = useState(startHistory);
+    edits = history.present;
+    return (
+      <InventoryView
+        inventory={INVENTORY}
+        editing={{
+          edits: history.present,
+          dispatch: (action) => setHistory((h) => record(h, INVENTORY, action)),
+        }}
+      />
+    );
   }
+  const latest = {
+    get paths() {
+      return edits.omitted.paths;
+    },
+    get columns() {
+      return edits.omitted.columns;
+    },
+  };
 
   it("offers no checkboxes when read-only", () => {
     render(<InventoryView inventory={INVENTORY} />);
@@ -140,14 +158,14 @@ describe("InventoryView, choosing what to leave out", () => {
   });
 
   it("leaves out a folder, unopened, with every file beneath it", async () => {
-    const { container } = render(<Choosing />);
-    expect(screen.getByText("Nothing is left out.")).toBeInTheDocument();
+    const { container } = render(<Editing />);
+    expect(screen.getByRole("status")).toHaveTextContent("Nothing is left out or changed.");
     const folder = screen.getByRole("checkbox", { name: "Include the folder docs/" });
     expect(folder).toBeChecked();
     await userEvent.click(folder);
     expect(folder).not.toBeChecked();
     expect(latest.paths).toEqual(new Set(["docs"]));
-    expect(screen.getByText("Left out: 2 files.")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("2 files left out");
     // Its files show as left out, and stay so until the folder is included again.
     await userEvent.click(screen.getByText("docs/"));
     const pdf = screen.getByRole("checkbox", { name: "Include docs/protocol.pdf" });
@@ -157,11 +175,11 @@ describe("InventoryView, choosing what to leave out", () => {
     await userEvent.click(folder);
     expect(pdf).toBeChecked();
     expect(pdf).toBeEnabled();
-    expect(screen.getByText("Nothing is left out.")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Nothing is left out or changed.");
   });
 
   it("leaves out a file found by search, and a column of a table", async () => {
-    render(<Choosing />);
+    render(<Editing />);
     await userEvent.type(screen.getByRole("textbox", { name: "Find files" }), "participant");
     await userEvent.click(screen.getByRole("checkbox", { name: "Include data/readings.csv" }));
     expect(latest.paths).toEqual(new Set(["data/readings.csv"]));
@@ -175,9 +193,89 @@ describe("InventoryView, choosing what to leave out", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "Include data/readings.csv" }));
     await userEvent.click(column);
     expect(latest.columns).toEqual(new Map([["data/readings.csv", new Set(["participant_name"])]]));
-    expect(screen.getByText("Left out: 1 column.")).toBeInTheDocument();
+    expect(screen.getByText(/1 column left out/)).toBeInTheDocument();
     await userEvent.click(column);
     expect(latest.columns.size).toBe(0);
+  });
+});
+
+/** The list item of the file or folder named `name` in the tree or a list of matches. */
+function row(name: string): HTMLElement {
+  const item = screen.getByText(name, { selector: ".inventory-file-name" }).closest("li");
+  if (!item) throw new Error(`no row for ${name}`);
+  return item;
+}
+
+describe("InventoryView, stating what the command cannot know", () => {
+  let edits: InventoryEdits = NO_EDITS;
+  function Editing() {
+    const [history, setHistory] = useState(startHistory);
+    edits = history.present;
+    return (
+      <InventoryView
+        inventory={INVENTORY}
+        editing={{
+          edits: history.present,
+          dispatch: (action) => setHistory((h) => record(h, INVENTORY, action)),
+          newPaths: new Set(["README.md"]),
+        }}
+      />
+    );
+  }
+
+  it("describes a file and gives the part it plays, shown in place", async () => {
+    const { container } = render(<Editing />);
+    await userEvent.click(within(row("README.md")).getByText("Describe"));
+    await userEvent.type(screen.getByRole("textbox", { name: "What this file is" }), "How the survey was run");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Part it plays" }), "documentation");
+    const readme = applyEdits(INVENTORY, edits).inventory_files?.find((f) => f.file_path === "README.md");
+    expect(readme).toMatchObject({ file_description: "How the survey was run", file_role: "documentation" });
+    expect(screen.getByText("How the survey was run", { selector: ".inventory-description" })).toBeInTheDocument();
+    expect(screen.getByText("New in this scan")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("1 description; 1 role");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("chooses one of the formats the command found, and nothing outside them", async () => {
+    render(<Editing />);
+    await userEvent.click(screen.getByText("docs/"));
+    const pdf = row("protocol.pdf");
+    await userEvent.click(within(pdf).getByText("Describe"));
+    expect(within(pdf).getAllByRole("radio")).toHaveLength(3);
+    await userEvent.click(within(pdf).getByRole("radio", { name: "fmt/19" }));
+    const chosen = applyEdits(INVENTORY, edits).inventory_files?.find((f) => f.file_path === "docs/protocol.pdf");
+    expect(chosen).toMatchObject({ file_pronom_ids: ["fmt/19"], file_identified_by: "researcher" });
+    expect(within(pdf).getByText("Format chosen by you")).toBeInTheDocument();
+    // A format guessed from the name alone has one match: a media type may be given, not a choice.
+    const readme = row("README.md");
+    await userEvent.click(within(readme).getByText("Describe"));
+    expect(within(readme).getByRole("group", { name: "Format" })).toBeInTheDocument();
+    expect(within(readme).queryByRole("radio")).toBeNull();
+  });
+
+  it("gives every file in a folder a part with one choice, and describes a column", async () => {
+    render(<Editing />);
+    await userEvent.click(screen.getByText("data/"));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Part every file in data/ plays" }), "data");
+    expect(edits.files.get("data/readings.csv")?.role).toBe("data");
+    expect(edits.files.get("data/raw/2026.csv")?.role).toBe("data");
+    const tables = screen.getByRole("region", { name: "Tables" });
+    await userEvent.click(within(tables).getByText("data/readings.csv"));
+    const site = within(tables).getByRole("textbox", { name: "Describe the column site of data/readings.csv" });
+    await userEvent.type(site, "Site code");
+    await userEvent.tab();
+    expect(edits.fields.get("data/readings.csv")?.get("site")).toBe("Site code");
+  });
+
+  it("shows only the files worth a look when asked", async () => {
+    render(<Editing />);
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Show" }), "attention");
+    const files = screen.getByRole("region", { name: "Files" });
+    const named = () => [...files.querySelectorAll(".inventory-file-name")].map((e) => e.textContent);
+    expect(named()).toEqual(expect.arrayContaining(["docs/protocol.pdf", "data/readings.csv"]));
+    expect(named()).not.toContain("data/raw/2026.csv");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Show" }), "new");
+    expect(named()).toEqual(["README.md"]);
   });
 });
 

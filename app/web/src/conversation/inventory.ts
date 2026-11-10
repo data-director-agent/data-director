@@ -7,11 +7,11 @@
  */
 
 import {
+  applyEdits,
   asInventory,
-  omit,
   parseInventory,
   type FileInventory,
-  type Omission,
+  type InventoryEdits,
 } from "@data-director/inventory";
 
 export { describeInventory, looksLikeInventory, NotAnInventory } from "@data-director/inventory";
@@ -72,11 +72,12 @@ export function readInventory(text: string, name: string | null): AttachedInvent
 }
 
 /**
- * `attached` without what the researcher left out when checking it (#472): the document that is
- * sent, and so all the project keeps, with one limitation counting what was left out.
+ * `attached` as the researcher edited it when checking it (#472): without what they left out,
+ * with one limitation counting it, and with what they stated beside the facts. This is the
+ * document that is sent, and so all the project keeps.
  */
-export function withOmission(attached: AttachedInventory, omission: Omission): AttachedInventory {
-  return attachedFrom(omit(attached.document, omission), attached.name);
+export function withEdits(attached: AttachedInventory, edits: InventoryEdits): AttachedInventory {
+  return attachedFrom(applyEdits(attached.document, edits), attached.name);
 }
 
 /** The inventory a source gives, read as one. */
