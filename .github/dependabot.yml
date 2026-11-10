@@ -48,15 +48,23 @@ updates:
     commit-message:
       prefix: build(deps)
 
-  # The base images in docker/ (development and release), pinned by digest. One group, so that
-  # the uv image and the Python image the release copies its virtual environment into move
-  # together and keep the same interpreter.
+  # The base images in docker/ (development and release), pinned by digest, in one group.
   - package-ecosystem: docker
     directory: /docker
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    # The release copies a virtual environment built in the uv image into the Python image, so
+    # both must have the same Python minor. The uv image names its Python in the tag prefix
+    # (python3.14-…), which Dependabot cannot move, so a new Python minor moves by hand in both
+    # images at once (#716 broke every script's interpreter by moving only one). Node majors
+    # move by hand too: LTS only, with the node-version CI tests on (.github/workflows/ci.yml).
+    ignore:
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: node
+        update-types: [version-update:semver-major]
     groups:
       images:
         patterns: ["*"]
