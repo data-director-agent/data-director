@@ -109,6 +109,7 @@ nav:
       - Glossary: /docs/glossary.md
       - Repository: /README.md
       - UI best practices: /docs/ui/best-practices.md
+      - Steward escalation flows: /docs/ui/steward-escalation-flows.md
       - Specifications:
           - /docs/specs/README.md
           - /docs/specs/*.md
