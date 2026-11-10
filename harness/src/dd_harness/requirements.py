@@ -114,6 +114,12 @@ class Resolved:
             str(k) for k in dict.fromkeys(recommended) if k not in required
         ]
         merged["warnings"] = list(self.warnings)
+        merged["unconfirmed"] = list(
+            dict.fromkeys(item for s in self.sets for item in s.requirement_set.unconfirmed)
+        )
+        # A standard's url describes the standard, not where to deposit.
+        if override is not None and override.requirement_set.url is not None:
+            merged["repository_url"] = override.requirement_set.url
         return merged
 
 

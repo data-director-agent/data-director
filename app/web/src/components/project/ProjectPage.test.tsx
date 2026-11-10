@@ -379,7 +379,7 @@ describe("ProjectPage", () => {
       "href",
       "https://www.re3data.org/repository/r3d100012124",
     );
-    expect(within(panel).getByText("orda@v2")).toBeVisible();
+    expect(within(panel).getByText("orda@v3")).toBeVisible();
     expect(
       within(panel).getByRole("heading", { name: "Metadata the record must have" }),
     ).toBeVisible();

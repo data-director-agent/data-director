@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import AsyncIterator, Mapping
+import threading
+import time
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -55,6 +57,9 @@ DOCUMENTATION_ONLY_TEXT = "I have attached a document about my dataset."
 BOTH_ONLY_TEXT = "I have attached an inventory of my dataset's files and a document about it."
 # What `GET /api/projects` says of each conversation in a project.
 LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
+# How long `GET /api/about`, which is open to anyone, waits between retries of the agents still
+# missing: a caller with no session must not make the server read their cards on every request.
+ABOUT_REFRESH_INTERVAL_S = 30.0
 
 
 @dataclass(frozen=True)
@@ -125,6 +130,13 @@ class Governance:
     # One lock per conversation, held from reading its history until its turn is stored, with
     # the number of turns holding or waiting for it; the entry goes when that reaches nought.
     _turn_locks: dict[str, tuple[asyncio.Lock, int]] = field(default_factory=dict, repr=False)
+    # How often `deployment` may retry the missing agents, and the clock it reads (a test's own).
+    about_refresh_interval_s: float = ABOUT_REFRESH_INTERVAL_S
+    clock: Callable[[], float] = field(default=time.monotonic, repr=False)
+    # When `deployment` last refreshed, held while it does so: a request that finds it held
+    # answers from what the registry last saw instead of waiting.
+    _about_refreshed_at: float | None = field(default=None, repr=False)
+    _about_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @classmethod
     def create(
@@ -571,6 +583,22 @@ class Governance:
             "acting_for": principal_summary(acting_for),
         }
 
+    def _refresh_about(self) -> None:
+        """Retry the agents still missing, unless that was done within the interval or is being
+        done now."""
+        if not self._about_lock.acquire(blocking=False):
+            return
+        try:
+            now = self.clock()
+            last = self._about_refreshed_at
+            if last is not None and now - last < self.about_refresh_interval_s:
+                return
+            # Stamped first, so a refresh that fails is not retried at once either.
+            self._about_refreshed_at = now
+            self.conductor.registry.refresh()
+        finally:
+            self._about_lock.release()
+
     def policy(self) -> dict[str, Any]:
         """The rules the policy gate holds every run to (`GET /api/policy`), for the policy page.
 
@@ -606,10 +634,14 @@ class Governance:
         The profile the conductor holds runs to, and which configured agents it reaches. An agent
         is named by its entry in the agent configuration, never with its address or the reason it
         is missing: the answer is public, and a reason can carry an internal address.
+
+        The answer is open to callers with no session, so it retries the missing agents at most
+        once every `about_refresh_interval_s`, and otherwise answers from what the registry last
+        saw (#726). A request that arrives while another is refreshing does not wait for it.
         """
         profile = self.conductor.profile
         registry = self.conductor.registry
-        registry.refresh()  # retries only the agents still missing, as `agents` does
+        self._refresh_about()
         return {
             "profile": {
                 "id": profile.profile_id,

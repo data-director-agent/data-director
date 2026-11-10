@@ -382,6 +382,24 @@
                   "array",
                   "null"
                ]
+            },
+            "unconfirmed": {
+               "description": "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "repository_url": {
+               "description": "Where the chosen repository is, taken from its override's url; absent when the deployment has no override for it.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [

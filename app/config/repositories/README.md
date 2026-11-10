@@ -45,7 +45,7 @@ SHA-256 of the file, so a later reader can tell which requirements a package was
 |---|---|
 | `schema_class` | Always `RequirementSet`. |
 | `requirement_set_id`, `version` | Identify the set. Raise `version` on every change. |
-| `title`, `url` | What people call the standard or the repository, and where it is described. |
+| `title`, `url` | What people call the standard or the repository, and where it is described. An override's `url` is where the app tells a researcher to deposit. |
 | `conforms_to` | The URI of the metadata schema. An override names the standard it builds on. |
 | `re3data_names` | Standards only: the names re3data uses for the standard. |
 | `re3data_id` | Overrides only: the repository's re3data record. |
@@ -56,6 +56,7 @@ SHA-256 of the file, so a later reader can tell which requirements a package was
 | `max_file_size`, `max_item_size` | Overrides only: size limits in bytes. Leave a key out if the repository does not state it. |
 | `licences` | Overrides only: SPDX identifiers, or the URL of the repository's own terms. |
 | `guidance` | The pages the values were taken from. |
+| `unconfirmed` | What the guidance leaves open, each a short statement that names its issue. The app shows them to a researcher depositing by hand. |
 
 Each entry of `fields` has:
 
@@ -68,7 +69,7 @@ Each entry of `fields` has:
   person depositing by hand puts the value.
 
 A key outside this list is refused. A value the guidance does not state is left out with a marker
-that cites an issue, never guessed.
+that cites an issue, never guessed, and listed under `unconfirmed` so a researcher sees it too.
 
 ## Files
 

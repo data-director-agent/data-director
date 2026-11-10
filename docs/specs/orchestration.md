@@ -197,7 +197,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     | `intake.sensitive` | Does the data include personal or otherwise sensitive information? | 1, 2 | `governance.sensitive-data-identify`, `governance.sensitive-data-handle` |
     | `intake.repository-mandated` | Has a funder, journal or institution said where the data must go? | 1, 2, 3 | `repository.mandated` |
 
-    So the intake asks at most four questions, and two from entry 3. Every question but the first
+    So the intake asks at most four questions, and two from entry 3. The entry question's option
+    values are the entry numbers; the others' are `yes`, `no` and `not-sure`, each a single choice
+    with no "Something else" (`sdk/tests/test_intake.py`). Every question but the first
     offers "Not sure", which records the answer and marks nothing. "Yes" also marks nothing: it
     never shows a step as done. The intake gathers nothing else. Funder, discipline, data types,
     embargo and licence are asked by the step that needs them, when the researcher reaches it.
@@ -209,7 +211,7 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     proposes. A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18). The
     wording and the decision mapping await a Blueprint reading, TODO(#670); the
-    question set, its tests and the app's card are TODO(#665, #667, #668).
+    recording of the answers and the app's card are TODO(#667, #668).
 
 ## Boundaries and contracts
 
