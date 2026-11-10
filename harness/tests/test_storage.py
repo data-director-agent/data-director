@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from dd_harness.projects import ProjectStore
+from dd_harness.project_files import FileProjectLog
+from dd_harness.projects import Projects, ProjectStore
 from dd_harness.settings import (
     Settings,
     SettingsError,
@@ -17,9 +18,14 @@ from dd_harness.settings import (
     run_storage,
     storage_location,
 )
-from dd_harness.storage import ProjectStorage, RunStorage
+from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
 from dd_harness.store import RunStore
-from dd_harness.testing import PROJECT_STORAGE_CHECKS, RUN_STORAGE_CHECKS
+from dd_harness.testing import (
+    PROJECT_LOG_CHECKS,
+    PROJECT_STORAGE_CHECKS,
+    RUN_STORAGE_CHECKS,
+    check_project_rules,
+)
 
 
 @pytest.mark.parametrize("check", RUN_STORAGE_CHECKS.values(), ids=RUN_STORAGE_CHECKS.keys())
@@ -36,6 +42,21 @@ def test_the_file_project_store_keeps_each_guarantee(
     tmp_path: Path, check: Callable[[Callable[[str], ProjectStorage]], None]
 ) -> None:
     check(lambda name: ProjectStore(tmp_path / name))
+
+
+@pytest.mark.parametrize("check", PROJECT_LOG_CHECKS.values(), ids=PROJECT_LOG_CHECKS.keys())
+def test_the_file_project_log_keeps_each_guarantee(
+    tmp_path: Path, check: Callable[[Callable[[str], ProjectLog]], None]
+) -> None:
+    check(lambda name: FileProjectLog(tmp_path / name))
+
+
+def test_the_project_rules_keep_each_guarantee_over_a_log_that_only_stores(
+    tmp_path: Path,
+) -> None:
+    """What a new backend runs: the rules, over its log, pass every `ProjectStorage` check."""
+    check_project_rules(lambda name: FileProjectLog(tmp_path / name))
+    assert isinstance(ProjectStore(tmp_path / "projects"), Projects)
 
 
 def test_a_location_is_a_path_or_a_file_url(tmp_path: Path) -> None:

@@ -501,6 +501,43 @@ def test_a_part_the_record_gives_is_not_asked(runs_dir: Path) -> None:
     assert parts and not parts & {"Title", "Funding"}
 
 
+def test_the_record_gives_the_creators_dates_of_collection_and_location(runs_dir: Path) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        creators=[{"name": "Example, Alex"}],
+        dates=[
+            {"date": "2026-01-05", "dateType": "Created"},
+            {"date": "2025-03-01/2025-09-30", "dateType": "Collected"},
+        ],
+        geoLocations=[{"geoLocationPlace": "Peak District, England"}],
+    )
+    env, _ = draft(runs_dir, asked)
+    document = env.payload_as(Document)
+    general = section_of(document.document_text, "General information")
+    assert "- **Creators:** Example, Alex" in general
+    assert "- **Dates of data collection:** 2025-03-01/2025-09-30" in general
+    assert "2026-01-05" not in general
+    assert "- **Geographic location:** Peak District, England" in general
+    parts = {q.gap_part for q in document.document_questions if q.gap_part}
+    assert parts and not parts & {"Creators", "Dates of data collection", "Geographic location"}
+
+
+def test_a_date_of_another_type_or_a_placeholder_is_not_a_date_of_collection(
+    runs_dir: Path,
+) -> None:
+    asked = with_record(
+        sample(WITH_RECORD),
+        dates=[
+            {"date": "2026-01-05", "dateType": "Created"},
+            {"date": None, "dateType": "Collected"},
+        ],
+        geoLocations=[{"geoLocationPlace": " "}],
+    )
+    env, _ = draft(runs_dir, asked)
+    parts = {q.gap_part for q in env.payload_as(Document).document_questions if q.gap_part}
+    assert {"Dates of data collection", "Geographic location"} <= parts
+
+
 @pytest.mark.parametrize(
     ("section", "why"),
     [

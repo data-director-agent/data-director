@@ -52,7 +52,7 @@ def test_a_read_waits_for_its_project_and_not_for_another(store: ProjectStore) -
     busy = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     idle = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     read: list[str] = []
-    with store._lock(busy):
+    with store.log.section(busy):
         reader = threading.Thread(target=lambda: read.append(store.events(busy)[0]["event"]))
         reader.start()
         assert [e["event"] for e in store.events(idle)] == [PROJECT_CREATED]

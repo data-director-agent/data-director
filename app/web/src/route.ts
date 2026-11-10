@@ -22,9 +22,27 @@ export function useLocation(): string {
   return useSyncExternalStore(subscribe, () => location.pathname + location.search);
 }
 
-export function navigate(to: string): void {
-  history.pushState(null, "", to);
+/** Moves to `to`; with `replace` the current history entry is replaced, so Back skips it. */
+export function navigate(to: string, replace = false): void {
+  if (replace) history.replaceState(null, "", to);
+  else history.pushState(null, "", to);
   window.dispatchEvent(new Event(CHANGED));
+}
+
+/** The conversation page's address: the open conversation (`?conversation=`) and the run shown
+ * (`?run=`), each left out when none. */
+export function homePath({
+  conversation,
+  run,
+}: {
+  conversation?: string | null;
+  run?: string | null;
+}): string {
+  const query = new URLSearchParams();
+  if (conversation) query.set("conversation", conversation);
+  if (run) query.set("run", run);
+  const text = query.toString();
+  return text ? `/?${text}` : "/";
 }
 
 export function Link({

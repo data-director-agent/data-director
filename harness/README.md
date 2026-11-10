@@ -19,9 +19,9 @@ one of them, used for developing and testing agents
 | `policy.py` | The policy gate over an institutional profile ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `grounding.py` | The grounding linter ([Evidence and grounding](../docs/specs/grounding.md), [Orchestration](../docs/specs/orchestration.md)). |
 | `sources.py` | The source check against pinned copies ([Evidence and grounding](../docs/specs/grounding.md)). |
-| `storage.py` | The `RunStorage` and `ProjectStorage` protocols every caller reaches a store through ([Storage](../docs/specs/storage.md)). |
+| `storage.py` | The `RunStorage` and `ProjectStorage` protocols every caller reaches a store through, and the `ProjectLog` a backend provides for projects ([Storage](../docs/specs/storage.md)). |
 | `store.py`, `provenance.py`, `conversations.py` | The file run store, Process Run Crates, and conversations derived from the run storage. |
-| `projects.py` | The project record: an append-only log per project that holds its file inventory ([`docs/projects.md`](docs/projects.md), [Projects](../docs/specs/projects.md)). |
+| `projects.py`, `project_files.py` | The project record: the project rules (`Projects`), written once over any `ProjectLog`, and the file log under them ([`docs/projects.md`](docs/projects.md), [Projects](../docs/specs/projects.md)). |
 | `registry.py`, `remote.py` | The agent registry and the A2A client for agents ([Agents](../docs/specs/agents.md)). |
 | `identity.py` | The authentication boundary that names whom an invocation acts for ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `settings.py` | Settings from the environment, and the factory that builds a conductor. |
@@ -110,8 +110,8 @@ and for any way in to the harness. `in_process(agent)` serves an agent in memory
 delegation callback, also in memory), and `ScriptedAgent` is a double whose behaviour each test
 sets. The doubles' classes are declared in `src/dd_harness/schema/doubles.yaml`, and the test
 profiles `PERMISSIVE` and `RESTRICTIVE` are in `src/dd_harness/testing/profiles/`. Tests act for
-`TEST_PRINCIPAL`. `check_run_storage` and `check_project_storage` hold a storage backend to the
-guarantees of its protocol ([Storage](../docs/specs/storage.md)). Nothing in the kit needs the
+`TEST_PRINCIPAL`. `check_run_storage`, `check_project_log` and `check_project_rules` hold a storage
+backend to the guarantees of its protocols ([Storage](../docs/specs/storage.md)). Nothing in the kit needs the
 workbench.
 
 ## Rules

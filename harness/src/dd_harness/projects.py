@@ -1,10 +1,9 @@
 """The project record: an append-only log of what changed in a project (docs/specs/projects.md).
 
-A project is a record of its own that outlives any conversation. The harness keeps it under
-`DD_PROJECTS_DIR`:
-
-    <project_id>/events.jsonl                one event per line, in the order they happened
-    <project_id>/blobs/sha256/<digest>       content an event added, kept once by digest
+A project is a record of its own that outlives any conversation. These are the project rules,
+written once over a `ProjectLog` (`dd_harness.storage`, docs/specs/storage.md) that a backend
+provides and that only stores: `Projects` is the rules, and `ProjectStore` the rules over the
+file log, `dd_harness.project_files`, under `DD_PROJECTS_DIR`.
 
 An event is never changed or removed. Each names whom it acted for and what caused it: the run
 or request, or the command a person ran. The run store is separate: conversations are still
@@ -56,17 +55,16 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
-import tempfile
-import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Final, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 from dd_harness import progress as flow
+from dd_harness.project_files import FileProjectLog
 from dd_harness.requirements import RE3DATA_ID, Requirements, RequirementsError
 from dd_harness.sources import Sources
 from dd_sdk.contract.classes import ClassSchema
@@ -86,8 +84,9 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
 
-EVENTS_NAME = "events.jsonl"
-BLOBS_DIR = ("blobs", "sha256")
+if TYPE_CHECKING:
+    from dd_harness.storage import ProjectLog, ProjectSection
+
 PROJECT_CREATED = "project_created"
 PROJECT_RENAMED = "project_renamed"
 CONVERSATION_STARTED = "conversation_started"
@@ -264,32 +263,15 @@ def _check_names(document_id: str, digest: str) -> None:
         raise ProjectError("a digest is a SHA-256 in lower-case hex")
 
 
-class ProjectStore:
-    """The file backend of `ProjectStorage` (`dd_harness.storage`, docs/specs/storage.md): each
-    project's log and blobs under `root`. `root` belongs to this backend, for tests of its layout;
-    every other caller reaches a project through `ProjectStorage`."""
+class Projects:
+    """The project rules, written once over a `ProjectLog` (`dd_harness.storage`,
+    docs/specs/storage.md): the `ProjectStorage` every backend gives its callers. The log stores
+    and reads; everything that decides whether a change is allowed, and what the log means, is
+    here."""
 
-    def __init__(self, root: Path) -> None:
-        self.root = root
-        self.root.mkdir(parents=True, exist_ok=True)
-        # Events of one project go in whole and in order, never interleaved, and a reader never
-        # sees half of one. Each project has its own lock, so projects do not wait on each other.
-        # A change checked against the log holds it from reading the log until its events are
-        # written.
-        self._locks: dict[str, threading.RLock] = {}
-        self._locks_guard = threading.Lock()
+    def __init__(self, log: ProjectLog) -> None:
+        self.log = log
         self._inventory_schema = ClassSchema.of(FileInventory)
-        # The project of each conversation found so far. A conversation's project never changes
-        # once recorded, so only what was found is kept; one not found is looked for again, in
-        # case another store over the same root has started it since (docs/specs/storage.md,
-        # invariant 12). Each miss reads every log, TODO(#524).
-        self._conversations: dict[str, str] = {}
-        self._conversations_guard = threading.Lock()
-
-    def _lock(self, project_id: str) -> threading.RLock:
-        """The lock that serialises reads and writes of one project's log."""
-        with self._locks_guard:
-            return self._locks.setdefault(project_id, threading.RLock())
 
     def create(self, *, acted_for: Principal, caused_by: str, title: str | None = None) -> str:
         """A new project, and its `project_created` event. Returns its `project_id` (UUIDv7).
@@ -299,9 +281,10 @@ class ProjectStore:
         if title is not None:
             _check_title(title)
         project_id = new_invocation_id()
-        (self.root / project_id).mkdir()
         detail = {"title": title} if title else {}
-        self._append(project_id, PROJECT_CREATED, acted_for, caused_by, detail)
+        self.log.create(
+            project_id, self._event(project_id, PROJECT_CREATED, acted_for, caused_by, detail)
+        )
         return project_id
 
     def rename(
@@ -323,24 +306,17 @@ class ProjectStore:
         if not title:
             raise ProjectError("a project title may not be blank")
         _check_title(title)
-        with self._lock(project_id):
-            self._require(project_id)
-            _, held = _title(self.events(project_id))
+        with self._section(project_id) as section:
+            _, held = _title(section.events())
             if source == TITLE_BY_MODEL and held == TITLE_BY_RESEARCHER:
                 return False
-            self._append(
-                project_id,
-                PROJECT_RENAMED,
-                acted_for,
-                caused_by,
-                {"title": title, "title_source": source},
-            )
+            detail = {"title": title, "title_source": source}
+            section.append([self._event(project_id, PROJECT_RENAMED, acted_for, caused_by, detail)])
         return True
 
     def start_conversation(self, project_id: str, *, acted_for: Principal, caused_by: str) -> str:
         """A new conversation in the project, and its `conversation_started` event. Returns its
         `conversation_id` (UUIDv7). Raises `UnknownProjectError` for an unknown project."""
-        self._require(project_id)
         conversation_id = new_invocation_id()
         self._append(
             project_id,
@@ -349,38 +325,16 @@ class ProjectStore:
             caused_by,
             {"conversation_id": conversation_id},
         )
-        with self._conversations_guard:
-            self._conversations[conversation_id] = project_id
         return conversation_id
 
     def project_of(self, conversation_id: str) -> str | None:
         """The project the conversation was started in, or None if the logs record it in none
         when asked."""
-        with self._conversations_guard:
-            found = self._conversations.get(conversation_id)
-        if found is not None:
-            return found
-        for path in self.root.glob(f"*/{EVENTS_NAME}"):
-            project_id = path.parent.name
-            if not self.exists(project_id):
-                continue
-            for event in self.events(project_id):
-                if (
-                    event["event"] == CONVERSATION_STARTED
-                    and event["conversation_id"] == conversation_id
-                ):
-                    with self._conversations_guard:
-                        self._conversations[conversation_id] = project_id
-                    return project_id
-        return None
+        return self.log.project_of(conversation_id)
 
     def projects(self) -> list[dict[str, Any]]:
         """A summary of every project, the one created first first (see `summary`)."""
-        found = sorted(
-            path.name for path in self.root.iterdir() if path.is_dir() and self.exists(path.name)
-        )
-        # UUIDv7s sort by the time they were made, so this is the order the projects were created.
-        return [self.summary(project_id) for project_id in found]
+        return [self.summary(project_id) for project_id in self.log.project_ids()]
 
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one: its latest title and who gave it (`title_source`:
@@ -393,7 +347,7 @@ class ProjectStore:
         inventory = next((e for e in reversed(events) if e["event"] == INVENTORY_ADDED), None)
         repository = next((e for e in reversed(events) if e["event"] == REPOSITORY_CHOSEN), None)
         states = {PROPOSED: 0, APPROVED: 0, REJECTED: 0}
-        for document in self._fold(events).values():
+        for document in _fold(events).values():
             states[document["versions"][-1]["state"]] += 1
         return {
             "project_id": project_id,
@@ -423,7 +377,7 @@ class ProjectStore:
         }
 
     def exists(self, project_id: str) -> bool:
-        return bool(PROJECT_ID.fullmatch(project_id)) and self._events_path(project_id).is_file()
+        return bool(PROJECT_ID.fullmatch(project_id)) and self.log.exists(project_id)
 
     def add_inventory(
         self,
@@ -578,8 +532,8 @@ class ProjectStore:
         if payload is None or payload.model_dump().get("schema_class") != "Document":
             raise ProjectError(f"run {envelope.invocation_id} returned no Document")
         document = envelope.payload_as(Document)
-        with self._lock(project_id):
-            documents = self._documents(project_id)
+        with self._section(project_id) as section:
+            documents = _fold(section.events())
             if document.revises is None:
                 document_id, version = new_invocation_id(), 1
             else:
@@ -620,12 +574,16 @@ class ProjectStore:
                     or None,
                 },
             )
-            self._append(
-                project_id,
-                DOCUMENT_VERSION_ADDED,
-                envelope.acting_for,
-                envelope.invocation_id,
-                detail,
+            section.append(
+                [
+                    self._event(
+                        project_id,
+                        DOCUMENT_VERSION_ADDED,
+                        envelope.acting_for,
+                        envelope.invocation_id,
+                        detail,
+                    )
+                ]
             )
         return DocumentVersionRef(document_id=document_id, version=version)
 
@@ -648,12 +606,14 @@ class ProjectStore:
         or the document or digest is malformed."""
         _check_names(document_id, digest)
 
-        def change() -> DocumentVersionRef | Refused:
-            parent = self._check_latest(project_id, document_id, version, digest, deciding=False)
+        def change(section: ProjectSection) -> DocumentVersionRef | Refused:
+            parent = _check_latest(section.events(), document_id, version, digest, deciding=False)
             if isinstance(parent, Refused):
                 return parent
             detail = self._edited(project_id, parent, text)
-            self._append(project_id, DOCUMENT_VERSION_ADDED, acted_for, caused_by, detail)
+            section.append(
+                [self._event(project_id, DOCUMENT_VERSION_ADDED, acted_for, caused_by, detail)]
+            )
             return DocumentVersionRef(document_id=document_id, version=detail["version"])
 
         return self._checked(project_id, acted_for, caused_by, change)
@@ -670,9 +630,9 @@ class ProjectStore:
         refusal."""
         decision.check()
 
-        def change() -> DocumentVersionRef | Refused:
-            decided = self._check_latest(
-                project_id,
+        def change(section: ProjectSection) -> DocumentVersionRef | Refused:
+            decided = _check_latest(
+                section.events(),
                 decision.document_id,
                 decision.version,
                 decision.digest,
@@ -697,7 +657,7 @@ class ProjectStore:
             events.append(
                 self._event(project_id, DOCUMENT_VERSION_DECIDED, acted_for, caused_by, outcome)
             )
-            self._write(project_id, events)
+            section.append(events)
             return DocumentVersionRef(
                 document_id=decided["document_id"], version=decided["version"]
             )
@@ -726,8 +686,8 @@ class ProjectStore:
         if not PROJECT_ID.fullmatch(document_id):
             raise ProjectError("a document is named by its UUIDv7")
 
-        def change() -> DocumentVersionRef | Refused:
-            latest = self._check_latest(project_id, document_id, version, None, deciding=False)
+        def change(section: ProjectSection) -> DocumentVersionRef | Refused:
+            latest = _check_latest(section.events(), document_id, version, None, deciding=False)
             if isinstance(latest, Refused):
                 return latest
             asked = {q["question_id"] for q in latest["questions"]}
@@ -738,8 +698,7 @@ class ProjectStore:
                     f"Version {version} does not ask {', '.join(unasked)}.",
                     {"document_id": document_id, "version": version, "questions": unasked},
                 )
-            self._write(
-                project_id,
+            section.append(
                 [
                     self._event(
                         project_id,
@@ -790,16 +749,8 @@ class ProjectStore:
         found = list(self._documents(project_id).values())
         for document in found:
             for version in document["versions"]:
-                blob = self._blob_path(project_id, version["digest"])
-                version["text"] = blob.read_bytes().decode("utf-8")
+                version["text"] = self._blob(project_id, version["digest"]).decode("utf-8")
         return found
-
-    def events(self, project_id: str) -> list[dict[str, Any]]:
-        """Every event of the project, oldest first. Raises `ProjectError` for an unknown one."""
-        self._require(project_id)
-        # Under the project's lock, so that an append being written is never read in part.
-        with self._lock(project_id), self._events_path(project_id).open(encoding="utf-8") as fh:
-            return [json.loads(line) for line in fh if line.strip()]
 
     def inventory(self, project_id: str) -> dict[str, Any] | None:
         """The inventory added last, or None if none has been."""
@@ -845,9 +796,7 @@ class ProjectStore:
         given: dict[str, Any] = {
             "version_ref": {"document_id": chosen["document_id"], "version": latest["version"]},
             "media_type": latest["media_type"],
-            "document_text": self._blob_path(project_id, latest["digest"])
-            .read_bytes()
-            .decode("utf-8"),
+            "document_text": self._blob(project_id, latest["digest"]).decode("utf-8"),
             "version_state": latest["state"],
         }
         if latest["document_title"] is not None:
@@ -862,7 +811,7 @@ class ProjectStore:
         no version of one has been approved. A later version proposed or rejected does not
         displace it."""
         events = self.events(project_id)
-        documents = self._fold(events)
+        documents = _fold(events)
         for event in reversed(events):
             if event["event"] != DOCUMENT_VERSION_DECIDED or event["decision"] != APPROVED:
                 continue
@@ -870,11 +819,11 @@ class ProjectStore:
             if document["document_kind"] != DocumentKind.METADATA_RECORD.value:
                 continue
             version = document["versions"][event["version"] - 1]
-            blob = self._blob_path(project_id, version["digest"])
+            text = self._blob(project_id, version["digest"]).decode("utf-8")
             record: dict[str, Any] = {
                 "version_ref": {"document_id": event["document_id"], "version": event["version"]},
                 "media_type": version["media_type"],
-                "document_text": blob.read_bytes().decode("utf-8"),
+                "document_text": text,
             }
             if version["conforms_to"] is not None:
                 record["conforms_to"] = version["conforms_to"]
@@ -939,134 +888,60 @@ class ProjectStore:
         )
         if not built:
             return None
-        return self._blob_path(project_id, digest).read_bytes()
+        return self._blob(project_id, digest)
+
+    def events(self, project_id: str) -> list[dict[str, Any]]:
+        """Every event of the project, oldest first. Raises `ProjectError` for an unknown one."""
+        self._require(project_id)
+        try:
+            return self.log.events(project_id)
+        except KeyError:
+            raise UnknownProjectError(f"no project {project_id!r}") from None
 
     def _latest(self, project_id: str, kind: str) -> dict[str, Any] | None:
         """The blob the last event of `kind` kept, or None if there is no such event."""
         found = [e for e in self.events(project_id) if e["event"] == kind]
         if not found:
             return None
-        blob = self._blob_path(project_id, found[-1]["digest"])
-        data: dict[str, Any] = json.loads(blob.read_bytes())
+        data: dict[str, Any] = json.loads(self._blob(project_id, found[-1]["digest"]))
         return data
 
     def _documents(self, project_id: str) -> dict[str, dict[str, Any]]:
         """The log folded into documents and the state of each version, without their text."""
-        return self._fold(self.events(project_id))
+        return _fold(self.events(project_id))
 
-    @staticmethod
-    def _fold(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        """`events` folded into documents and the state of each version, without their text."""
-        documents: dict[str, dict[str, Any]] = {}
-        for event in events:
-            if event["event"] == DOCUMENT_VERSION_ADDED:
-                document = documents.setdefault(
-                    event["document_id"],
-                    {
-                        "document_id": event["document_id"],
-                        "document_kind": event["document_kind"],
-                        "versions": [],
-                        "answers": [],
-                    },
-                )
-                document["document_title"] = event.get("document_title")
-                document["versions"].append(
-                    {
-                        "document_id": event["document_id"],
-                        "document_kind": event["document_kind"],
-                        "version": event["version"],
-                        "digest": event["digest"],
-                        "media_type": event["media_type"],
-                        "document_title": event.get("document_title"),
-                        "conforms_to": event.get("conforms_to"),
-                        "revises": event.get("revises"),
-                        "drafted_by": event.get("drafted_by"),
-                        "questions": event.get("questions", []),
-                        "added_by": event["acted_for"],
-                        "added_at": event["at"],
-                        "state": PROPOSED,
-                        "decision": None,
-                    }
-                )
-            elif event["event"] == DOCUMENT_VERSION_DECIDED:
-                version = documents[event["document_id"]]["versions"][event["version"] - 1]
-                version["state"] = event["decision"]
-                version["decision"] = {
-                    "reason": event.get("reason"),
-                    "decided_by": event["acted_for"],
-                    "decided_at": event["at"],
-                }
-            elif event["event"] == DOCUMENT_QUESTION_ANSWERED:
-                document = documents[event["document_id"]]
-                # The latest answer to a question stands; the order is the order last answered.
-                kept = [a for a in document["answers"] if a["question_id"] != event["question_id"]]
-                document["answers"] = [
-                    *kept,
-                    {
-                        "question_id": event["question_id"],
-                        "answer_text": event["answer_text"],
-                        "version": event["version"],
-                        "answered_by": event["acted_for"],
-                        "answered_at": event["at"],
-                    },
-                ]
-        return documents
-
-    def _check_latest(
-        self,
-        project_id: str,
-        document_id: str,
-        version: int,
-        digest: str | None,
-        *,
-        deciding: bool,
-    ) -> dict[str, Any] | Refused:
-        """The version a change names, if it is its document's latest, has this digest (unless
-        `digest` is None, for an answer, which names no text) and, for a decision, is undecided.
-        Otherwise the refusal, which `_checked` records. Called with the lock held."""
-        document = self._documents(project_id).get(document_id)
-        latest: dict[str, Any] | None = document["versions"][-1] if document else None
-        if latest is None:
-            refusal, detail = Refusal.NO_DOCUMENT, f"This project has no document {document_id!r}."
-        elif version != latest["version"]:
-            refusal = Refusal.NOT_LATEST
-            detail = f"Version {version} is not the latest: version {latest['version']} is."
-        elif deciding and latest["state"] != PROPOSED:
-            refusal = Refusal.DECIDED
-            detail = f"Version {version} has already been {latest['state']}."
-        elif digest is not None and digest != latest["digest"]:
-            refusal = Refusal.DIGEST
-            detail = f"The text sent as shown is not the text of version {version}."
-        else:
-            return latest
-        named = {"document_id": document_id, "version": version}
-        if digest is not None:
-            named["digest"] = digest
-        if latest:
-            named["latest_version"] = latest["version"]
-        return Refused(refusal, detail, named)
+    @contextmanager
+    def _section(self, project_id: str) -> Iterator[ProjectSection]:
+        """The project's exclusive section in the log. Raises `UnknownProjectError`."""
+        self._require(project_id)
+        with self.log.section(project_id) as section:
+            yield section
 
     def _checked[T](
         self,
         project_id: str,
         acted_for: Principal,
         caused_by: str,
-        change: Callable[[], T | Refused],
+        change: Callable[[ProjectSection], T | Refused],
     ) -> T:
         """Run `change` in the project's exclusive section (docs/specs/storage.md, invariant
-        10). If it returns a refusal, its `document_change_refused` event is written in the
+        10). If it returns a refusal, its `document_change_refused` event is appended in the
         section, and `ChangeRefusedError` is raised once the section has ended, so the refusal
         is kept whether or not a backend undoes a section that raises (invariant 11). A
         `ProjectError` that `change` raises records nothing."""
-        with self._lock(project_id):
-            result = change()
+        with self._section(project_id) as section:
+            result = change(section)
             if isinstance(result, Refused):
-                self._append(
-                    project_id,
-                    DOCUMENT_CHANGE_REFUSED,
-                    acted_for,
-                    caused_by,
-                    {**result.named, "refusal": result.refusal.value},
+                section.append(
+                    [
+                        self._event(
+                            project_id,
+                            DOCUMENT_CHANGE_REFUSED,
+                            acted_for,
+                            caused_by,
+                            {**result.named, "refusal": result.refusal.value},
+                        )
+                    ]
                 )
         if isinstance(result, Refused):
             raise ChangeRefusedError(result.refusal, result.detail)
@@ -1111,11 +986,16 @@ class ProjectStore:
         if not self.exists(project_id):
             raise UnknownProjectError(f"no project {project_id!r}")
 
-    def _events_path(self, project_id: str) -> Path:
-        return self.root / project_id / EVENTS_NAME
+    def _keep_blob(self, project_id: str, digest: str, content: bytes) -> None:
+        self.log.keep_blob(project_id, digest, content)
 
-    def _blob_path(self, project_id: str, digest: str) -> Path:
-        return self.root.joinpath(project_id, *BLOBS_DIR, digest)
+    def _blob(self, project_id: str, digest: str) -> bytes:
+        """Content an event of the project names. The log keeps it before the event is appended,
+        so a missing blob is a damaged store, not a refusal."""
+        content = self.log.blob(project_id, digest)
+        if content is None:
+            raise LookupError(f"project {project_id} keeps no content {digest}")
+        return content
 
     def _append(
         self,
@@ -1125,7 +1005,9 @@ class ProjectStore:
         caused_by: str,
         detail: dict[str, Any],
     ) -> None:
-        self._write(project_id, [self._event(project_id, kind, acted_for, caused_by, detail)])
+        """Append one event that no rule checks against the log, in its own section."""
+        with self._section(project_id) as section:
+            section.append([self._event(project_id, kind, acted_for, caused_by, detail)])
 
     @staticmethod
     def _event(
@@ -1141,30 +1023,105 @@ class ProjectStore:
             **detail,
         }
 
-    def _write(self, project_id: str, events: list[dict[str, Any]]) -> None:
-        """Append `events` in one write, flushed to disk before returning, so that events made
-        together, such as an edit and its approval, go in together."""
-        text = "".join(
-            json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n" for event in events
-        )
-        path = self._events_path(project_id)
-        with self._lock(project_id), path.open("a", encoding="utf-8") as fh:
-            fh.write(text)
-            fh.flush()
-            os.fsync(fh.fileno())
 
-    def _keep_blob(self, project_id: str, digest: str, content: bytes) -> None:
-        """Write content once, under its digest; content already kept is left as it is."""
-        path = self._blob_path(project_id, digest)
-        if path.exists():
-            return
-        path.parent.mkdir(parents=True, exist_ok=True)
-        # Written aside and moved into place, so a reader never sees half a blob.
-        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "wb") as fh:
-                fh.write(content)
-            Path(tmp).replace(path)
-        except BaseException:
-            Path(tmp).unlink(missing_ok=True)
-            raise
+class ProjectStore(Projects):
+    """The file backend of `ProjectStorage`: the project rules over a `FileProjectLog` under
+    `root` (`dd_harness.project_files`, docs/specs/storage.md). `root` belongs to this backend,
+    for tests of its layout; every other caller reaches a project through `ProjectStorage`."""
+
+    def __init__(self, root: Path) -> None:
+        super().__init__(FileProjectLog(root))
+        self.root = root
+
+
+def _fold(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """`events` folded into documents and the state of each version, without their text."""
+    documents: dict[str, dict[str, Any]] = {}
+    for event in events:
+        if event["event"] == DOCUMENT_VERSION_ADDED:
+            document = documents.setdefault(
+                event["document_id"],
+                {
+                    "document_id": event["document_id"],
+                    "document_kind": event["document_kind"],
+                    "versions": [],
+                    "answers": [],
+                },
+            )
+            document["document_title"] = event.get("document_title")
+            document["versions"].append(
+                {
+                    "document_id": event["document_id"],
+                    "document_kind": event["document_kind"],
+                    "version": event["version"],
+                    "digest": event["digest"],
+                    "media_type": event["media_type"],
+                    "document_title": event.get("document_title"),
+                    "conforms_to": event.get("conforms_to"),
+                    "revises": event.get("revises"),
+                    "drafted_by": event.get("drafted_by"),
+                    "questions": event.get("questions", []),
+                    "added_by": event["acted_for"],
+                    "added_at": event["at"],
+                    "state": PROPOSED,
+                    "decision": None,
+                }
+            )
+        elif event["event"] == DOCUMENT_VERSION_DECIDED:
+            version = documents[event["document_id"]]["versions"][event["version"] - 1]
+            version["state"] = event["decision"]
+            version["decision"] = {
+                "reason": event.get("reason"),
+                "decided_by": event["acted_for"],
+                "decided_at": event["at"],
+            }
+        elif event["event"] == DOCUMENT_QUESTION_ANSWERED:
+            document = documents[event["document_id"]]
+            # The latest answer to a question stands; the order is the order last answered.
+            kept = [a for a in document["answers"] if a["question_id"] != event["question_id"]]
+            document["answers"] = [
+                *kept,
+                {
+                    "question_id": event["question_id"],
+                    "answer_text": event["answer_text"],
+                    "version": event["version"],
+                    "answered_by": event["acted_for"],
+                    "answered_at": event["at"],
+                },
+            ]
+    return documents
+
+
+def _check_latest(
+    events: list[dict[str, Any]],
+    document_id: str,
+    version: int,
+    digest: str | None,
+    *,
+    deciding: bool,
+) -> dict[str, Any] | Refused:
+    """The version a change names, if it is its document's latest, has this digest (unless
+    `digest` is None, for an answer, which names no text) and, for a decision, is undecided.
+    Otherwise the refusal, which `Projects._checked` records. `events` is the log as the
+    change's exclusive section reads it."""
+    document = _fold(events).get(document_id)
+    latest: dict[str, Any] | None = document["versions"][-1] if document else None
+    if latest is None:
+        refusal, detail = Refusal.NO_DOCUMENT, f"This project has no document {document_id!r}."
+    elif version != latest["version"]:
+        refusal = Refusal.NOT_LATEST
+        detail = f"Version {version} is not the latest: version {latest['version']} is."
+    elif deciding and latest["state"] != PROPOSED:
+        refusal = Refusal.DECIDED
+        detail = f"Version {version} has already been {latest['state']}."
+    elif digest is not None and digest != latest["digest"]:
+        refusal = Refusal.DIGEST
+        detail = f"The text sent as shown is not the text of version {version}."
+    else:
+        return latest
+    named = {"document_id": document_id, "version": version}
+    if digest is not None:
+        named["digest"] = digest
+    if latest:
+        named["latest_version"] = latest["version"]
+    return Refused(refusal, detail, named)

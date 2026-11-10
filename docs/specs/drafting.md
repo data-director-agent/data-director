@@ -54,7 +54,7 @@ with the questions. A metadata record drafter follows the same rules when it is 
 5. **Every gap is marked and asked.** A README gap is an italic placeholder saying what is needed,
    followed by the HTML comment `<!-- dd:gap <question-id> -->`, which the rendered README does not
    show. A README section that asks several separate things, such as General information's title,
-   principal investigator, dates and funding, is asked part by part: each part the facts do not
+   creators, dates and funding, is asked part by part: each part the facts do not
    give is its own gap, on a `- **<part>:**` line, with its own question. A data dictionary gap is
    an `unknown` cell. Each gap has exactly one question in the
    version's `document_questions` whose target names it
