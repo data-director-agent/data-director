@@ -76,6 +76,8 @@ describe("parseInventory", () => {
     [{ ...file("a"), file_media_type: 3 }, /media type/],
     [{ ...file("a"), file_pronom_ids: "fmt/1" }, /PRONOM/],
     [{ ...file("a"), file_fields: [{ field_type: "string" }] }, /without names/],
+    [{ ...file("a"), file_description: 7 }, /description/],
+    [{ ...file("a"), file_role: "secret" }, /role/],
   ])("refuses a file that is %j", (bad, message) => {
     expect(() => asInventory(inventory([bad as InventoryFile]))).toThrow(message);
   });
@@ -117,7 +119,7 @@ describe("summarise", () => {
     ]);
     expect(summary.ambiguous.map((f) => f.file_path)).toEqual(["b.csv"]);
     expect(summary.unknown.map((f) => f.file_path)).toEqual(["c.bin"]);
-    expect(summary.identification).toEqual({ signature: 2, container: 0, extension: 0, none: 1 });
+    expect(summary.identification).toEqual({ signature: 2, container: 0, extension: 0, none: 1, researcher: 0 });
     expect(summary.limitations).toEqual([]);
   });
 });

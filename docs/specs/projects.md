@@ -244,6 +244,24 @@ caused by the turn's request; an inventory the store refuses refuses the turn, a
 Before it is attached, the researcher sees all of it and may leave out files, folders and
 columns; what is left out never reaches the store, and the inventory's limitations count it
 without naming it, so the store needs no rule of its own for it.
+The researcher may also state, beside the facts the command found, what the command cannot know:
+what a file or a column is (`file_description`, `field_description`), what part a file plays
+(`file_role`: data, documentation, code or other), and which format a file is where the command
+matched several formats, guessed from the name, or matched none (`file_identified_by`
+`researcher`). What the command observed (a file's path, size, digest and PRONOM matches, a
+column's name and type) is never edited, so a digest always describes the bytes it was made from.
+What the researcher states is shown to agents and hosted models as the rest of the inventory is.
+Editing is one model in `@data-director/inventory` (`edit`, `applyEdits`), the same before an
+inventory is attached and when a project's inventory is revised.
+
+A revision is a whole new `inventory_added` event: the project's latest inventory is the one it
+holds, and the earlier ones stay in the log. When the project already holds one, the store
+records the digest it replaces as `revises`, which no caller can give. A researcher may revise
+the inventory the project holds, or replace it with a new scan of the same dataset, onto which
+what they stated is carried by path (`carryOver`); a format they chose carries over only to a file
+whose digest is unchanged. What was left out of the earlier inventory cannot carry over, since it
+was never kept: a new scan lists it again, the editor marks every file new in the scan, and the
+researcher leaves it out again.
 A page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).
 

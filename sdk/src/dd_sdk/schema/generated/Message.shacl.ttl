@@ -143,7 +143,14 @@ dd:DocumentationSummary a sh:NodeShape ;
     rdfs:comment "What one document a researcher attached to a project is, without its text: the conductor fills one per document into a Message so that the agent knows the project holds it (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The size of the document's UTF-8 text, in bytes." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:documentation_size ],
+        [ sh:datatype xsd:string ;
             sh:description "The document's media type, text/plain or text/markdown." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -171,14 +178,7 @@ dd:DocumentationSummary a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:documentation_name ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The size of the document's UTF-8 text, in bytes." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:documentation_size ] ;
+            sh:path dd:documentation_name ] ;
     sh:targetClass dd:DocumentationSummary .
 
 dd:InventorySummary a sh:NodeShape ;
@@ -232,18 +232,18 @@ dd:StepProgress a sh:NodeShape ;
     rdfs:comment "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:in ( "started" "done" "skipped" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 1 ;
-            sh:path dd:step_state ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow)." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:step_id ;
-            sh:pattern "^[a-z]+\\.[a-z-]+$" ] ;
+            sh:pattern "^[a-z]+\\.[a-z-]+$" ],
+        [ sh:in ( "started" "done" "skipped" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path dd:step_state ] ;
     sh:targetClass dd:StepProgress .
 

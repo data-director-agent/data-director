@@ -4,16 +4,26 @@
  * is one of these as it stands.
  */
 
-/** How a file's format was identified, from strongest to weakest. */
-export type IdentificationMethod = "signature" | "container" | "extension" | "none";
+/**
+ * How a file's format was identified: by the command, from strongest to weakest, or chosen by the
+ * researcher where the command found several matches or none.
+ */
+export type IdentificationMethod = "signature" | "container" | "extension" | "none" | "researcher";
 
-/** The methods in order of strength, strongest first. */
+/** The methods in the order they are listed: the command's from strongest, then the researcher's. */
 export const IDENTIFICATION_METHODS: readonly IdentificationMethod[] = [
   "signature",
   "container",
   "extension",
   "none",
+  "researcher",
 ];
+
+/** What part a file plays in a dataset, as the researcher states it. */
+export type FileRole = "data" | "documentation" | "code" | "other";
+
+/** The roles in the order a person is offered them. */
+export const FILE_ROLES: readonly FileRole[] = ["data", "documentation", "code", "other"];
 
 /** One field of a table, mirroring a Frictionless Table Schema field descriptor. */
 export interface TableField {
@@ -36,6 +46,10 @@ export interface InventoryFile {
   file_identified_by: IdentificationMethod;
   /** For a table, its fields inferred from a sample of rows. */
   file_fields?: TableField[];
+  /** What the file is, in the researcher's words; the command never fills it. */
+  file_description?: string;
+  /** What part the file plays, as the researcher states it; unset means not stated. */
+  file_role?: FileRole;
 }
 
 /** The facts about a dataset's files that a project holds in place of the files. */

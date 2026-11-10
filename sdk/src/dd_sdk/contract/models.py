@@ -136,6 +136,14 @@ class IdentificationMethod(StrEnum):
     CONTAINER = "container"
     EXTENSION = "extension"
     NONE = "none"
+    RESEARCHER = "researcher"
+
+
+class FileRole(StrEnum):
+    DATA = "data"
+    DOCUMENTATION = "documentation"
+    CODE = "code"
+    OTHER = "other"
 
 
 class Obligation(StrEnum):
@@ -290,6 +298,8 @@ class InventoryFile(Frozen):
     file_pronom_ids: list[str] = Field(default_factory=list)
     file_identified_by: IdentificationMethod
     file_fields: list[TableField] = Field(default_factory=list)
+    file_description: str | None = None
+    file_role: FileRole | None = None
 
 
 class FileInventory(Frozen):
