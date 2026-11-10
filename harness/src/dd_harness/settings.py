@@ -22,7 +22,7 @@ from collections.abc import Callable, Iterable, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from urllib.parse import parse_qsl, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, urlsplit
 from urllib.request import url2pathname
 
 from dotenv import dotenv_values
@@ -127,7 +127,8 @@ def redact_location(location: StorageLocation) -> str:
     except ValueError:
         port = None
     netloc = f"{host}:{port}" if port is not None else host
-    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+    # Written out, not with urlunsplit, which drops the `//` of a URL that names no host.
+    return f"{parsed.scheme}://{netloc}{parsed.path}"
 
 
 def _storage(variable: str, default: Path | None) -> StorageLocation:

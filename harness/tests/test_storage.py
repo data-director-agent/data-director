@@ -110,6 +110,8 @@ def test_a_location_is_shown_without_its_user_or_parameters(tmp_path: Path) -> N
         "postgresql://db.example:5433/dd"
     )
     assert redact_location("postgresql://[::1]/dd") == "postgresql://[::1]/dd"
+    # No host: libpq takes it from PGHOST (the Compose stack's `postgres` profile).
+    assert redact_location("postgresql://dd@/dd") == "postgresql:///dd"
     assert redact_location(tmp_path) == str(tmp_path)
 
 
