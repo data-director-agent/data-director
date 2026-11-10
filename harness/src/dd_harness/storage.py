@@ -206,6 +206,27 @@ class ProjectStorage(Protocol):
         """Add a `FileInventory`; returns its digest."""
         ...
 
+    def add_documentation(
+        self,
+        project_id: str,
+        name: str,
+        media_type: str,
+        text: str,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Add a supporting document's text; returns the SHA-256 of its UTF-8 text."""
+        ...
+
+    def documentation(self, project_id: str) -> list[dict[str, Any]]:
+        """Each document the project holds, without its text, as a `DocumentationSummary`."""
+        ...
+
+    def documentation_text(self, project_id: str, digest: str) -> str | None:
+        """The text of the project's document with this digest, or None."""
+        ...
+
     def choose_repository(
         self,
         project_id: str,

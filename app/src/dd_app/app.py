@@ -8,10 +8,10 @@ lists example inputs; `GET /api/process-flow` is the Blueprint's entry points an
 until runs stream over AG-UI (#69).
 `POST /api/conversations` starts a conversation, in the project it names or else a new one, and
 `POST /api/conversations/{id}/turns` sends it one message, which may attach a `dd-inventory` file
-for the project to keep, answered as a run is, or refused with `409` unless it follows the latest
-turn (docs/specs/orchestration.md, docs/specs/app.md); `GET /api/conversations` and
-`GET /api/conversations/{id}` read them back as the harness derives them from the run store
-(docs/specs/orchestration.md, #130).
+and a supporting document's text for the project to keep, answered as a run is, or refused with
+`409` unless it follows the latest turn (docs/specs/orchestration.md, docs/specs/app.md);
+`GET /api/conversations` and `GET /api/conversations/{id}` read them back as the harness derives
+them from the run store (docs/specs/orchestration.md, #130).
 `GET /api/projects` lists the projects the person signed in may read, each with what it holds and
 the conversations started in it (docs/specs/projects.md, docs/specs/app.md).
 `GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
@@ -23,6 +23,9 @@ the latest version asks, for the next draft to place as supplied, and answers `4
 version is no longer the latest or does not ask them (docs/specs/drafting.md).
 `GET /api/projects/{id}/inventory` is the inventory the project holds, as it was added, for the
 researcher to read; it answers `404` when there is none.
+`GET /api/projects/{id}/documentation` lists the documents attached to the project, without their
+text, and `GET /api/projects/{id}/documentation/{digest}` is one document's text, `404` when the
+project holds none with that digest (docs/specs/projects.md).
 `GET /api/projects/{id}/repository` is the requirements of the repository the project chose last,
 and `404` when none has been; `PUT` on it chooses one by its re3data identifier, which the pinned
 re3data export resolves to the repository's name and declared standards, for the person signed in,
@@ -80,7 +83,13 @@ import uvicorn
 from starlette.applications import Starlette
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
-from starlette.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from starlette.responses import (
+    FileResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+)
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
@@ -89,6 +98,7 @@ from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
 from dd_app.governance import (
+    AttachedDocument,
     Governance,
     TurnConflictError,
     UnknownConversationError,
@@ -293,11 +303,18 @@ def build_app(
             return _refused(
                 "A turn may not give a history: the server builds it from the stored turns."
             )
-        allowed = {"agent_id", "message_text", "follows", "inventory", "choice_answer"}
+        allowed = {
+            "agent_id",
+            "message_text",
+            "follows",
+            "inventory",
+            "documentation",
+            "choice_answer",
+        }
         if extra := sorted(set(body) - allowed):
             return _refused(
-                "A turn takes only `agent_id`, `message_text`, `follows`, `inventory` and "
-                f"`choice_answer`, not {extra}."
+                "A turn takes only `agent_id`, `message_text`, `follows`, `inventory`, "
+                f"`documentation` and `choice_answer`, not {extra}."
             )
         agent_id, message_text = body.get("agent_id"), body.get("message_text")
         if not isinstance(agent_id, str) or not isinstance(message_text, str):
@@ -311,7 +328,21 @@ def build_app(
         inventory = body.get("inventory")
         if not (inventory is None or isinstance(inventory, dict)):
             return _refused("`inventory` must be the object `dd-inventory` wrote.")
-        if not message_text.strip() and inventory is None:
+        documentation = None
+        if body.get("documentation") is not None:
+            attached = body["documentation"]
+            fields = ("name", "media_type", "text")
+            if not (
+                isinstance(attached, dict)
+                and set(attached) == set(fields)
+                and all(isinstance(attached[key], str) for key in fields)
+            ):
+                return _refused(
+                    "`documentation` must be an object giving the document's `name`, "
+                    "`media_type` and `text`, as strings."
+                )
+            documentation = AttachedDocument(**attached)
+        if not message_text.strip() and inventory is None and documentation is None:
             return _refused("The message is empty.")
         answer = None
         if body.get("choice_answer") is not None:
@@ -329,7 +360,14 @@ def build_app(
         try:
             return JSONResponse(
                 await governance.turn(
-                    conversation_id, agent_id, message_text, follows, acting_for, inventory, answer
+                    conversation_id,
+                    agent_id,
+                    message_text,
+                    follows,
+                    acting_for,
+                    inventory,
+                    answer,
+                    documentation,
                 )
             )
         except UnknownConversationError:
@@ -338,7 +376,7 @@ def build_app(
         except TurnConflictError as exc:
             outcome = "conflict"
             return _problem(409, "turn-conflict", "The conversation has moved on", exc.detail)
-        # A `ProjectError` (an inventory the project refuses) is a `ValueError`.
+        # A `ProjectError` (an inventory or document the project refuses) is a `ValueError`.
         except (ContractViolation, ValueError, UnknownAgent, PolicyError, IdentityError) as exc:
             outcome = "refused"
             return _refused(str(exc))
@@ -395,6 +433,35 @@ def build_app(
                 404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
             )
         return JSONResponse(found)
+
+    async def list_documentation(request: Request, _: Principal) -> Response:
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            found = await run_in_threadpool(store.documentation, project_id)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        return JSONResponse(found)
+
+    async def get_documentation(request: Request, _: Principal) -> Response:
+        project_id, digest = request.path_params["project_id"], request.path_params["digest"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            found = await run_in_threadpool(store.documentation_text, project_id, digest)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        if found is None:
+            return _problem(
+                404,
+                "documentation-not-found",
+                "No such document",
+                f"Project {project_id!r} holds no document {digest!r}.",
+            )
+        return PlainTextResponse(found)
 
     async def get_disclosure(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -893,6 +960,16 @@ def build_app(
             Route(
                 "/api/projects/{project_id}/inventory",
                 in_project(Action.READ, get_inventory),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/documentation",
+                in_project(Action.READ, list_documentation),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/documentation/{digest}",
+                in_project(Action.READ, get_documentation),
                 methods=["GET"],
             ),
             Route(

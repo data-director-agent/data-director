@@ -279,9 +279,9 @@ test("conversation: keyboard only, focus returns to the message box, reflows at 
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await box.focus();
   await page.keyboard.type("hello world");
-  // Attaching an inventory, and making one, come between the message and Send.
+  // Attaching a file, and making an inventory, come between the message and Send.
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Attach inventory" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Attach a file" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Make an inventory" })).toBeFocused();
   await page.keyboard.press("Tab");
@@ -508,6 +508,40 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
 
   await page.getByRole("button", { name: "Remove inventory" }).press("Enter");
   await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
+});
+
+test("a document is checked by keyboard and shown as a chip at 320px with no axe violations", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await serveConversation(page);
+  await page.goto("/");
+  const lines = Array.from({ length: 80 }, (_, i) => `Step ${i}: a-very-long-unbroken-instruction-${i}`);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "a-long-sampling-protocol-file-name.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(`# Sampling protocol\n\n${lines.join("\n")}\n`),
+  });
+
+  // It is checked first: nothing is attached until it is confirmed.
+  const review = page.getByRole("dialog", { name: "Check the document before attaching it" });
+  await expect(review.getByText(/never\s+the data themselves/)).toBeVisible();
+  await expect(page.getByText(/Document: a-long-sampling-protocol/)).toHaveCount(0);
+  expect(await overflow(page), "horizontal overflow while checking the document").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+  await review.getByRole("button", { name: "Attach this document" }).press("Enter");
+  await expect(review).toHaveCount(0);
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toBeFocused();
+
+  await expect(page.getByText(/Document: a-long-sampling-protocol-file-name.md/)).toBeVisible();
+  await expect(box).toHaveValue("");
+  expect(await overflow(page), "horizontal overflow with a document attached").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Remove a-long-sampling-protocol-file-name.md" }).press("Enter");
+  await expect(box).toBeFocused();
+  await expect(page.getByText(/Document: a-long-sampling-protocol/)).toHaveCount(0);
 });
 
 test("a delegated run opens inside its card at 320px, keeping focus and the conversation", async ({

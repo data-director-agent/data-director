@@ -4,6 +4,7 @@
  */
 
 import type { Envelope } from "../run/types";
+import type { DocumentationSummary } from "./documentation";
 import type { InventorySummary, ProjectInventory } from "./inventory";
 import type { ChoiceAnswer } from "./question";
 
@@ -56,7 +57,12 @@ export interface Conversation {
   turns: ConversationTurn[];
   inputs: Record<
     string,
-    { message_text?: string; project_inventory?: InventorySummary; choice_answer?: ChoiceAnswer }
+    {
+      message_text?: string;
+      project_inventory?: InventorySummary;
+      project_documentation?: DocumentationSummary[];
+      choice_answer?: ChoiceAnswer;
+    }
   >;
   version_changes: VersionChange[];
   history: HistoryEntry[];

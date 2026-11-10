@@ -47,3 +47,18 @@ updates:
         update-types: [minor, patch]
     commit-message:
       prefix: build(deps)
+
+  # The base images in docker/ (development and release), pinned by digest. One group, so that
+  # the uv image and the Python image the release copies its virtual environment into move
+  # together and keep the same interpreter.
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      images:
+        patterns: ["*"]
+    commit-message:
+      prefix: build(deps)

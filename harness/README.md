@@ -82,6 +82,8 @@ dd-harness storage migrate                       # once, and after each upgrade 
 - The harness's tests run the storage conformance kit against a database when
   `DD_TEST_POSTGRES` names one, such as `postgresql://postgres@localhost/postgres`; each test
   works in schemas of its own and drops them. Without it they are skipped.
+- For development, Docker Compose's `postgres` profile runs a database, and `dd.py setup` points
+  the app and the workbench at it ([README](../README.md), "With Docker Compose").
 
 ## Serving the harness
 

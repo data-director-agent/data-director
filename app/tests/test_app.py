@@ -40,6 +40,8 @@ from dd_app import app as dd_app
 from dd_app.app import ShellNotBuiltError, build_app
 from dd_app.config import DEFAULT_AGENTS_CONFIG, DEFAULT_PROFILE, settings_from_env
 from dd_app.governance import (
+    BOTH_ONLY_TEXT,
+    DOCUMENTATION_ONLY_TEXT,
     INVENTORY_ONLY_TEXT,
     Governance,
     TurnConflictError,
@@ -908,6 +910,128 @@ def test_an_inventory_that_is_refused_leaves_no_trace_and_nothing_runs(
     assert governance.projects.summary(started["project_id"])["inventory"] is None
 
 
+PROTOCOL = "# Sampling protocol\n\nSediment cores were taken monthly from three sites.\n"
+
+
+def a_document(text: str = PROTOCOL, name: str = "protocol.md") -> dict[str, str]:
+    return {"name": name, "media_type": "text/markdown", "text": text}
+
+
+def test_an_attached_document_is_kept_and_the_orchestrator_is_told_of_it_without_its_text(
+    in_projects: tuple[Governance, Any],
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    conversation_id = start(client)
+    # A document may be sent with no words.
+    first = turn(client, conversation_id, " ", documentation=a_document())
+    assert first.status_code == 200, first.json()
+    envelope = first.json()["envelope"]
+    project_id = envelope["project_id"]
+    store = governance.projects
+    assert store is not None
+    added = store.events(project_id)[-1]
+    assert added["event"] == "documentation_added"
+    assert added["caused_by"] == f"POST /api/conversations/{conversation_id}/turns"
+
+    shown = (governance.conductor.store.get_request(envelope["invocation_id"]) or {})["input"]
+    assert shown["message_text"] == DOCUMENTATION_ONLY_TEXT
+    [listed] = shown["project_documentation"]
+    assert listed["documentation_name"] == "protocol.md"
+    assert listed["documentation_digest"] == added["digest"]
+    assert "Sediment cores" not in json.dumps(shown)
+
+    # Later turns are told of it too, without sending it again.
+    second = turn(client, conversation_id, "Draft a README", envelope["invocation_id"])
+    later = governance.conductor.store.get_request(second.json()["envelope"]["invocation_id"])
+    assert later is not None
+    assert later["input"]["project_documentation"] == shown["project_documentation"]
+
+    # The list and the text are served for the researcher to read.
+    assert client.get(f"/api/projects/{project_id}/documentation").json() == [listed]
+    text = client.get(f"/api/projects/{project_id}/documentation/{added['digest']}")
+    assert text.status_code == 200
+    assert text.headers["content-type"].startswith("text/plain")
+    assert text.text == PROTOCOL
+
+
+def test_a_turn_may_attach_an_inventory_and_a_document_together(
+    in_projects: tuple[Governance, Any],
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    response = turn(
+        client,
+        start(client),
+        "",
+        inventory=a_file_inventory("a.csv"),
+        documentation=a_document(),
+    )
+    assert response.status_code == 200, response.json()
+    envelope = response.json()["envelope"]
+    assert governance.projects is not None
+    kinds = [e["event"] for e in governance.projects.events(envelope["project_id"])]
+    assert kinds[-2:] == ["inventory_added", "documentation_added"]
+    shown = (governance.conductor.store.get_request(envelope["invocation_id"]) or {})["input"]
+    assert shown["message_text"] == BOTH_ONLY_TEXT
+    assert shown["project_inventory"] and shown["project_documentation"]
+
+
+@pytest.mark.parametrize(
+    ("documentation", "detail"),
+    [
+        ({"name": "data.csv", "media_type": "text/csv", "text": "a,b"}, "not 'text/csv'"),
+        (a_document(name="../protocol.md"), "without any folder"),
+        (a_document(text="x" * (256 * 1024 + 1)), "at most"),
+        (a_document(text=" "), "blank"),
+        ({"name": "protocol.md", "text": "x"}, "`documentation` must be"),
+        ({**a_document(), "path": "/home"}, "`documentation` must be"),
+        ("protocol.md", "`documentation` must be"),
+    ],
+)
+def test_a_document_that_is_refused_leaves_no_trace_and_nothing_runs(
+    in_projects: tuple[Governance, Any], documentation: Any, detail: str
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    started = client.post("/api/conversations").json()
+    # Sent with an inventory the project would keep: that is refused with it.
+    response = turn(
+        client,
+        started["conversation_id"],
+        "hello",
+        inventory=a_file_inventory("a.csv"),
+        documentation=documentation,
+    )
+    assert response.status_code == 400
+    assert detail in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == []
+    assert governance.projects is not None
+    assert governance.projects.summary(started["project_id"])["inventory"] is None
+    assert governance.projects.documentation(started["project_id"]) == []
+
+
+def test_a_document_needs_a_project_to_keep_it(delegating: tuple[Governance, Any]):
+    governance, app = delegating
+    client = TestClient(app)
+    response = turn(client, start(client), "hello", documentation=a_document())
+    assert response.status_code == 400
+    assert "no project" in response.json()["detail"]
+    assert list(governance.conductor.store.iter_envelopes()) == []
+
+
+def test_a_project_serves_only_the_documents_it_holds(in_projects: tuple[Governance, Any]):
+    _governance, app = in_projects
+    client = TestClient(app)
+    started = client.post("/api/conversations").json()
+    project_id = started["project_id"]
+    assert client.get(f"/api/projects/{project_id}/documentation").json() == []
+    none = client.get(f"/api/projects/{project_id}/documentation/{'0' * 64}")
+    assert (none.status_code, none.json()["title"]) == (404, "No such document")
+    unknown = client.get(f"/api/projects/{uuid.uuid4()}/documentation")
+    assert (unknown.status_code, unknown.json()["title"]) == (404, "No such project")
+
+
 def test_a_person_sees_the_projects_they_started_with_what_each_holds(
     in_projects: tuple[Governance, Any],
 ):
@@ -1100,7 +1224,8 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
         ({"history": []}, "history"),
         (
             {"input": {}},
-            "only `agent_id`, `message_text`, `follows`, `inventory` and `choice_answer`",
+            "only `agent_id`, `message_text`, `follows`, `inventory`, `documentation` and "
+            "`choice_answer`",
         ),
         ({"message_text": 3}, "as strings"),
         ({"follows": 3}, "must give `follows`"),

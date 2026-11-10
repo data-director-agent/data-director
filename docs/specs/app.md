@@ -141,6 +141,25 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while open and a search draws at most 200 matches, so an inventory of thousands of files
     stays usable; checkboxes and folders work by keyboard and are named for screen readers
     (`app/web/src/components/inventory/InventoryView.test.tsx`, `app/web/e2e/shell.spec.ts`).
+    A supporting document is attached in the same way: a turn may carry `documentation`, an
+    object giving its `name`, `media_type` and `text`, which the server adds to the
+    conversation's project before the turn runs ([Projects](projects.md)). With one, the message
+    may be blank and the server supplies a sentence saying a document was attached; a turn may
+    carry an inventory and a document together, and if the project refuses either, the turn is
+    refused, nothing runs and neither is kept. The shell's one **Attach a file** button, and a
+    drop on the message form, take a `.json` file as an inventory and a `.txt` or `.md` file as a
+    document. A document is read in the browser, refused there if it is empty or over 256 KB,
+    and first opened to be checked: a dialog shows its name, size and text, says that it will be
+    stored in the project, that agents are told its name, type and size but not its text, and
+    that it must be about the data, never the data themselves nor anything that identifies a
+    person. Nothing is attached until the researcher presses **Attach this document**; closing
+    the dialog any other way discards it. The checked document shows as a chip with its name and
+    size and a button to remove it, never as its text, and so does each document a turn's
+    `project_documentation` gained on the transcript. `GET /api/projects/{id}/documentation`
+    lists a project's documents and `GET /api/projects/{id}/documentation/{digest}` serves one's
+    text (`app/tests/test_app.py`,
+    `app/web/src/components/conversation/ConversationHome.test.tsx`,
+    `app/web/src/components/conversation/Transcript.test.tsx`, `app/web/e2e/shell.spec.ts`).
 20. **The profile page shows only what the session holds.** `/profile`, reached from the name in
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept. It makes no request to

@@ -1,0 +1,173 @@
+name: Images
+
+# The production image (docker/release.Dockerfile, #223): the app, its shell and every in-tree
+# agent in one image, ghcr.io/data-director-agent/data-director, for linux/amd64 and linux/arm64.
+#
+# - A pull request builds it for both platforms and smoke-tests each (scripts/smoke_image.py),
+#   and publishes nothing.
+# - A push to main publishes it as `edge` and `sha-<short>`.
+# - A release that includes the app (release.yaml) publishes it as the app's version, such as
+#   `0.3.0-alpha.8`, and `sha-<short>`. Every package's version is in the image's
+#   `org.data-director.package-versions` label. No `latest` while every package is alpha.
+#
+# Each published image carries BuildKit's SBOM and provenance, and a GitHub build provenance
+# attestation (`gh attestation verify oci://… --repo data-director-agent/data-director`).
+on:
+  pull_request:
+    paths-ignore: ["docs/**", "*.md"]
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "*.md"]
+  workflow_call:
+    inputs:
+      version:
+        description: The app's released version, which the image is tagged with.
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: images-${{ github.ref }}-${{ inputs.version || 'edge' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/data-director-agent/data-director
+  # Publish from main and from releases, never from a pull request.
+  PUBLISH: ${{ github.event_name != 'pull_request' }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write # to push the image by digest; unused on a pull request
+    strategy:
+      fail-fast: false
+      matrix:
+        # Native runners for each platform, so that npm and uv are not emulated.
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Read the package versions
+        id: versions
+        run: echo "packages=$(jq -c . .release-please-manifest.json)" >> "$GITHUB_OUTPUT"
+      # A pull request reads the layer cache; main and releases only write it, so that nothing a
+      # publishing run builds comes from a cache another run could have written.
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/release.Dockerfile
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: data-director:smoke
+          build-args: |
+            REVISION=${{ github.sha }}
+            VERSION=${{ inputs.version || 'edge' }}
+            PACKAGE_VERSIONS=${{ steps.versions.outputs.packages }}
+          cache-from: ${{ env.PUBLISH != 'true' && format('type=gha,scope=images-{0}', matrix.arch) || '' }}
+          cache-to: ${{ env.PUBLISH == 'true' && format('type=gha,mode=max,scope=images-{0}', matrix.arch) || '' }}
+      - name: Smoke test
+        env:
+          REVISION: ${{ github.sha }}
+        run: python3 scripts/smoke_image.py --image data-director:smoke --revision "$REVISION"
+      - name: Log in to the GitHub Container Registry
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # The same build again, from the builder's own layers, pushed by digest with its SBOM and
+      # provenance; the publish job tags the two platforms' digests together.
+      - name: Push by digest
+        id: push
+        if: env.PUBLISH == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/release.Dockerfile
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            REVISION=${{ github.sha }}
+            VERSION=${{ inputs.version || 'edge' }}
+            PACKAGE_VERSIONS=${{ steps.versions.outputs.packages }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          sbom: true
+          provenance: mode=max
+      - name: Record the digest
+        if: env.PUBLISH == 'true'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - if: env.PUBLISH == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write # to tag the image
+      id-token: write # to sign the build provenance attestation
+      attestations: write # to store it
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Choose the tags
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=edge,enable=${{ inputs.version == '' }}
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=sha,format=short
+      - name: Tag both platforms together
+        id: tag
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          tags=()
+          while read -r tag; do tags+=(--tag "$tag"); done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          sources=()
+          for digest in *; do sources+=("${IMAGE}@sha256:${digest}"); done
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+          first="$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
+          echo "digest=$(docker buildx imagetools inspect "$first" --format '{{json .Manifest}}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.tag.outputs.digest }}
+          push-to-registry: true

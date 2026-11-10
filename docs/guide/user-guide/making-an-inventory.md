@@ -46,7 +46,7 @@ running a workshop you are in, to make the inventory for you.
 
 ## Attaching it in the app
 
-On the conversation page, select **Attach inventory** under the message box and choose
+On the conversation page, select **Attach a file** under the message box and choose
 `inventory.json`, or select **Choose inventory.json** at the end of **Make an inventory**. You can
 also drop the file onto the message box.
 

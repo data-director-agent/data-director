@@ -227,6 +227,16 @@ class InventorySummary(Frozen):
     inventory_limitations: list[str] = Field(default_factory=list)
 
 
+class DocumentationSummary(Frozen):
+    """What one document attached to a project is, without its text (docs/specs/projects.md)."""
+
+    documentation_name: str
+    documentation_digest: str = Field(pattern=SHA256_PATTERN)
+    documentation_media_type: str
+    documentation_size: int
+    documentation_added_at: datetime
+
+
 class StepProgress(Frozen):
     """How far one process-flow step has gone, as the project log shows it; a step left out is
     open (docs/specs/orchestration.md)."""
@@ -247,8 +257,8 @@ class ChoiceAnswer(Frozen):
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
-    `project_title_by_researcher` and `project_entry_by_researcher` from the conversation's
-    project; a caller never does."""
+    `project_title_by_researcher`, `project_entry_by_researcher` and `project_documentation` from
+    the conversation's project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -259,6 +269,7 @@ class Message(Frozen):
     project_progress: list[StepProgress] | None = None
     project_title: str | None = Field(default=None, pattern=PROJECT_TITLE_PATTERN)
     project_title_by_researcher: bool | None = None
+    project_documentation: list[DocumentationSummary] | None = None
     project_entry_by_researcher: bool | None = None
 
 

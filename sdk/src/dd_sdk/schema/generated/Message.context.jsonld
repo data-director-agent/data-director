@@ -7,6 +7,9 @@
       "ConversationTurn": {
          "@id": "https://w3id.org/data-director/ConversationTurn"
       },
+      "DocumentationSummary": {
+         "@id": "https://w3id.org/data-director/DocumentationSummary"
+      },
       "InventorySummary": {
          "@id": "https://w3id.org/data-director/InventorySummary"
       },
@@ -32,6 +35,22 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "documentation_added_at": {
+         "@id": "https://w3id.org/data-director/documentation_added_at",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "documentation_digest": {
+         "@id": "https://w3id.org/data-director/documentation_digest"
+      },
+      "documentation_media_type": {
+         "@id": "https://w3id.org/data-director/documentation_media_type"
+      },
+      "documentation_name": {
+         "@id": "https://w3id.org/data-director/documentation_name"
+      },
+      "documentation_size": {
+         "@id": "https://w3id.org/data-director/documentation_size"
+      },
       "history": {
          "@id": "https://w3id.org/data-director/history",
          "@type": "@id"
@@ -58,6 +77,10 @@
       "linkml": "https://w3id.org/linkml/",
       "message_text": {
          "@id": "https://w3id.org/data-director/message_text"
+      },
+      "project_documentation": {
+         "@id": "https://w3id.org/data-director/project_documentation",
+         "@type": "@id"
       },
       "project_entry": {
          "@id": "https://w3id.org/data-director/project_entry"

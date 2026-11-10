@@ -2,9 +2,10 @@
  * The conversation endpoints, behind one interface so tests can stand in for the server.
  *
  * A turn sends only the agent, the message, the turn it follows, any inventory attached to it and
- * any answer to the latest turn's choice question, which the harness checks:
+ * any answer to the latest turn's choice question, which the harness checks, and any supporting
+ * document attached to it:
  * the server builds the history from what it stored (docs/specs/app.md) and refuses one the page
- * sends. An attached inventory goes to the conversation's project, never into the message. A turn that does not follow
+ * sends. An attached inventory or document goes to the conversation's project, never into the message. A turn that does not follow
  * the latest stored turn, or that arrives while another is running, is refused with a 409 and
  * nothing runs (docs/specs/orchestration.md), so a message sent again after a dropped connection is never
  * run twice (#337). A conversation is started in the project the shell is working in, or in a new
@@ -17,6 +18,7 @@ import { createContext, useContext } from "react";
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
 import { checkSignedIn } from "../session/api";
+import type { AttachedDocument } from "./documentation";
 import type { ChoiceAnswer } from "./question";
 import type { Conversation, ConversationSummary } from "./types";
 
@@ -37,6 +39,7 @@ export interface ConversationApi {
     inventory?: FileInventory | null,
     signal?: AbortSignal,
     answer?: ChoiceAnswer | null,
+    document?: AttachedDocument | null,
   ): Promise<void>;
   list(signal?: AbortSignal): Promise<ConversationSummary[]>;
   get(conversationId: string, signal?: AbortSignal): Promise<Conversation>;
@@ -96,7 +99,7 @@ export const httpConversationApi: ConversationApi = {
     );
     return { conversation_id: created.conversation_id, project_id: created.project_id ?? null };
   },
-  async sendTurn(conversationId, agentId, messageText, follows, inventory, signal, answer) {
+  async sendTurn(conversationId, agentId, messageText, follows, inventory, signal, answer, document) {
     await json(
       await request(`/api/conversations/${encodeURIComponent(conversationId)}/turns`, {
         ...init(signal),
@@ -108,6 +111,15 @@ export const httpConversationApi: ConversationApi = {
           follows,
           ...(inventory ? { inventory } : {}),
           ...(answer ? { choice_answer: answer } : {}),
+          ...(document
+            ? {
+                documentation: {
+                  name: document.name,
+                  media_type: document.media_type,
+                  text: document.text,
+                },
+              }
+            : {}),
         }),
       }),
     );

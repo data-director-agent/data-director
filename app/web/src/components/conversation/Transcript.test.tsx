@@ -72,6 +72,27 @@ describe("Transcript", () => {
     expect(screen.getByRole("button", { name: "View inventory" })).toBeVisible();
   });
 
+  it("shows each attached document as a chip on the turn it was given, never its text", () => {
+    const conversation = structuredClone(conversationFixture) as unknown as Conversation;
+    const protocol = {
+      documentation_name: "protocol.md",
+      documentation_digest: "c".repeat(64),
+      documentation_media_type: "text/markdown",
+      documentation_size: 2048,
+      documentation_added_at: "2026-11-01T09:00:00Z",
+    };
+    const codebook = { ...protocol, documentation_name: "codebook.txt", documentation_digest: "d".repeat(64) };
+    const [first, second] = conversation.turns;
+    if (!first || !second) throw new Error("the fixture has fewer than two turns");
+    const at = (id: string) => conversation.inputs[id] as NonNullable<Conversation["inputs"][string]>;
+    at(first.invocation_id).project_documentation = [protocol];
+    at(second.invocation_id).project_documentation = [protocol, codebook];
+    render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
+    expect(screen.getAllByText(/Document: protocol.md/)).toHaveLength(1);
+    expect(screen.getAllByText(/Document: codebook.txt/)).toHaveLength(1);
+    expect(screen.getAllByText("(2.0 KB)")).toHaveLength(2);
+  });
+
   describe("a document drafted on a turn", () => {
     const conversation = structuredClone(conversationFixture) as unknown as Conversation;
     const first = conversation.turns[0];

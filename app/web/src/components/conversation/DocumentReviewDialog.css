@@ -1,0 +1,18 @@
+/* A document's text, as the researcher checks it before attaching it. */
+
+@layer components {
+  .document-review-heading {
+    margin-block: var(--space-3) var(--space-2);
+  }
+
+  .document-review-text {
+    max-height: 50vh;
+    overflow: auto;
+    padding: var(--space-2);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}

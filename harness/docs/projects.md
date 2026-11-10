@@ -218,5 +218,6 @@ until a person approves one. The conductor gives it to every drafter in the proj
 
 - Membership is not built, so a project's creator is its only owner and no one else has a
   role in it, TODO(#389).
-- The app cannot add an inventory to a project, TODO(#395).
+- A drafter is not yet given the text of a document a researcher attached; only an
+  orchestrator is told, without its text, that the project holds it.
 - How long a project is kept, and what deleting one removes, TODO(#156).

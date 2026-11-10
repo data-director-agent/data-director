@@ -43,12 +43,19 @@ A project may have a title, so that a person can tell projects apart. A person g
 creating the project or renames it later; while no person has, an orchestrator's model may name
 it (`rename`, a `project_renamed` event saying which). The latest title counts, and a model's is
 refused once a person has given one.
+A researcher may attach a supporting document, such as a protocol or a codebook, as text: a
+`documentation_added` event names it, its media type and size, and the SHA-256 of its UTF-8
+text, under which the text is kept as a blob (`add_documentation`). Only plain text and Markdown
+within `DOCUMENTATION_MAX_BYTES` are kept, and a name is a file name, never a path. Attaching the
+same text again under the same name records nothing new in `documentation`, which lists each
+document once, the one added first first.
+
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from what the logs hold when asked.
 
 Who may do what in a project is read from the log by `dd_harness.project_access`; membership
 events are TODO(#389). Giving a drafter the version it
-regenerates is TODO(#394); adding an inventory from the app is TODO(#395).
+regenerates is TODO(#394).
 """
 
 from __future__ import annotations
@@ -91,6 +98,7 @@ PROJECT_CREATED = "project_created"
 PROJECT_RENAMED = "project_renamed"
 CONVERSATION_STARTED = "conversation_started"
 INVENTORY_ADDED = "inventory_added"
+DOCUMENTATION_ADDED = "documentation_added"
 REPOSITORY_CHOSEN = "repository_chosen"
 DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"
@@ -115,6 +123,12 @@ REASON_MAX_LENGTH = 2000
 ANSWER_MAX_LENGTH = 2000
 # The longest project title the harness keeps, in characters: a name, not a description.
 TITLE_MAX_LENGTH = 200
+# What documentation a project keeps (docs/specs/projects.md): text a person can read, within a
+# size a document about the data needs and a dataset rarely fits.
+DOCUMENTATION_MEDIA_TYPES: Final = ("text/plain", "text/markdown")
+DOCUMENTATION_MAX_BYTES: Final = 256 * 1024
+# The longest name a document is kept under, in characters: a file name.
+DOCUMENTATION_NAME_MAX_LENGTH: Final = 255
 # Who gave a project its title: a person (when creating or renaming it) or an orchestrator's
 # model. A person's title is never replaced by a model's.
 TITLE_BY_RESEARCHER: Final = "researcher"
@@ -166,6 +180,33 @@ class Refused:
 def text_digest(text: str) -> str:
     """The SHA-256 of a version's text as UTF-8: what a decision names as the text shown."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def check_documentation(name: str, media_type: str, text: str) -> None:
+    """Raise `ProjectError` for a document the project would not keep (`add_documentation`), so
+    that a caller adding more than one thing can refuse all of it before adding any."""
+    if media_type not in DOCUMENTATION_MEDIA_TYPES:
+        raise ProjectError(
+            f"a document is {' or '.join(DOCUMENTATION_MEDIA_TYPES)}, not {media_type!r}"
+        )
+    _check_documentation_name(name)
+    if not text.strip():
+        raise ProjectError("a document may not be blank")
+    size = len(text.encode("utf-8"))
+    if size > DOCUMENTATION_MAX_BYTES:
+        raise ProjectError(f"a document may be at most {DOCUMENTATION_MAX_BYTES} bytes, not {size}")
+
+
+def _check_documentation_name(name: str) -> None:
+    """Refuse a document name that is blank, too long, or names a folder."""
+    if not name.strip():
+        raise ProjectError("a document needs a name")
+    if len(name) > DOCUMENTATION_NAME_MAX_LENGTH:
+        raise ProjectError(
+            f"a document's name may be at most {DOCUMENTATION_NAME_MAX_LENGTH} characters"
+        )
+    if "/" in name or "\\" in name or name in (".", "..") or any(ord(c) < 32 for c in name):
+        raise ProjectError("a document's name is a file name, without any folder")
 
 
 def reason_required(verdict: Verdict, *, edited: bool) -> bool:
@@ -411,6 +452,63 @@ class Projects:
             },
         )
         return digest
+
+    def add_documentation(
+        self,
+        project_id: str,
+        name: str,
+        media_type: str,
+        text: str,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Add a supporting document's text to the project. Returns the SHA-256 of its UTF-8 text.
+
+        Raises `ProjectError` for an unknown project, a media type outside
+        `DOCUMENTATION_MEDIA_TYPES`, a blank text or one over `DOCUMENTATION_MAX_BYTES`, or a name
+        that is blank, too long, or holds a folder. What is refused leaves no trace."""
+        self._require(project_id)
+        check_documentation(name, media_type, text)
+        content = text.encode("utf-8")
+        digest = text_digest(text)
+        self._keep_blob(project_id, digest, content)
+        self._append(
+            project_id,
+            DOCUMENTATION_ADDED,
+            acted_for,
+            caused_by,
+            {"name": name, "media_type": media_type, "size": len(content), "digest": digest},
+        )
+        return digest
+
+    def documentation(self, project_id: str) -> list[dict[str, Any]]:
+        """Each document the project holds, without its text, as a `DocumentationSummary`: the
+        one added first first, and a name and text added again listed once, when first added.
+        Raises `UnknownProjectError` for an unknown project."""
+        found: dict[tuple[str, str], dict[str, Any]] = {}
+        for event in self.events(project_id):
+            if event["event"] != DOCUMENTATION_ADDED:
+                continue
+            found.setdefault(
+                (event["name"], event["digest"]),
+                {
+                    "documentation_name": event["name"],
+                    "documentation_digest": event["digest"],
+                    "documentation_media_type": event["media_type"],
+                    "documentation_size": event["size"],
+                    "documentation_added_at": event["at"],
+                },
+            )
+        return list(found.values())
+
+    def documentation_text(self, project_id: str, digest: str) -> str | None:
+        """The text of the project's document with this digest, or None if it holds none.
+        Raises `UnknownProjectError` for an unknown project."""
+        held = {e["digest"] for e in self.events(project_id) if e["event"] == DOCUMENTATION_ADDED}
+        if digest not in held:
+            return None
+        return self._blob(project_id, digest).decode("utf-8")
 
     def choose_repository(
         self,
