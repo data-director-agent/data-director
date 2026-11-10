@@ -65,7 +65,11 @@ repository or makes a judgement:
   theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
   found, the statement says that only generalist and institutional repositories are offered and
   suggests the broad field of study, since a narrow topic such as "moorland" may match none.
-  Ranking also uses whether the repository offers the access the data needs.
+  Ranking also uses whether the repository offers the access the data needs, and, when the
+  researcher's country is given, whether an institution in that country operates it: a small
+  weight that puts such a repository first among those that match equally, and never adds one
+  on its own (#741). Search folds plurals to singulars, so the theme "environmental science"
+  finds a record that says only "sciences".
 - **The researcher's institution** is a fallback, in case no more specific destination (a
   repository of the discipline, or one a funder, journal or project requires) suits the data
   (#441). Affiliation adds no score. The shortlist is ordered by kind of fit (`order`): the
@@ -79,7 +83,9 @@ repository or makes a judgement:
   it lacks the access the data needs, and takes no other repository's place, so naming an
   institution adds to the shortlist and removes nothing.
 - **Order at an equal score.** A commercial operator is listed after the others, and then a
-  repository that lists a deposit fee; neither is dropped. Certification carries no weight,
+  repository that lists a deposit fee; neither is dropped. Repositories of the same kind of fit
+  and score each say in `ranked_by` that they are ranked equal, so the order among them is not
+  read as a preference. Certification carries no weight,
   because Figure 3 says paid certification must not outweigh free evaluation.
 - **Credit.** Every statement ends by crediting re3data and naming the export it read.
 - **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=anthropic`, a model

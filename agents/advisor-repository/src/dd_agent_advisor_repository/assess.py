@@ -43,6 +43,17 @@ def fee_required(record: Re3dataRecord) -> Answer:
     return Answer.YES if "feeRequired" in record.data_upload_restrictions else Answer.UNSTATED
 
 
+def in_country(record: Re3dataRecord, country: str | None) -> Institution | None:
+    """The first operating institution in `country` (ISO 3166-1 alpha-3, as re3data writes
+    it), or None."""
+    if country is None:
+        return None
+    for institution in record.institutions:
+        if _operates(institution) and institution.country == country:
+            return institution
+    return None
+
+
 def affiliated(record: Re3dataRecord, affiliation: Affiliation | None) -> Institution | None:
     """The operating institution that is the researcher's, by ROR where both have one, else by
     exact name ignoring case."""

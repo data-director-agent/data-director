@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -96,7 +96,8 @@ def rank(
     never enough on their own, since a kind of data such as "images" is found in repositories of
     every discipline. Affiliation adds no score: an institution's repository that matches the
     discipline is ranked as any other, and one that does not is offered as the fallback, in case
-    no more specific destination suits the data (#441).
+    no more specific destination suits the data (#441). The researcher's country adds a little to
+    a repository that already matches, so that one operated there comes first among equals (#741).
     """
     cfg = config()
     weights = cfg["weights"]
@@ -120,6 +121,11 @@ def rank(
             noun = "theme" if len(matched) == 1 else "themes"
             reasons.append(
                 f"Matches the {noun} {_quoted(matched)} ({len(matched)} of {len(themes)} given)."
+            )
+        if score > 0 and (local := assess.in_country(record, needs.country)) is not None:
+            score += weights["country"]
+            reasons.append(
+                f"Operated in {needs.country}, the researcher's country, by {local.name}."
             )
         if (matched := matches.data_kinds.get(rid, set())) and rid not in general:
             score += weights["data_kind"] * len(matched) / len(kinds)
@@ -150,7 +156,30 @@ def rank(
     cap = int(cfg["max_candidates"])
     ours = [r for r in ranked if assess.affiliated(r.record, needs.affiliation) is not None]
     others = sorted((r for r in ranked if r not in ours), key=_order)[:cap]
-    return sorted(others + ours, key=_order)
+    return _say_ties(sorted(others + ours, key=_order))
+
+
+def _say_ties(ranked: list[Ranked]) -> list[Ranked]:
+    """Add a reason to each repository that shares its kind of fit and score with others on the
+    shortlist, so the order among them is not read as a preference (#741)."""
+    groups: dict[tuple[str, float], int] = {}
+    for r in ranked:
+        groups[(r.fit, r.score)] = groups.get((r.fit, r.score), 0) + 1
+    out: list[Ranked] = []
+    for r in ranked:
+        others = groups[(r.fit, r.score)] - 1
+        if others:
+            noun = "other" if others == 1 else "others"
+            r = replace(
+                r,
+                reasons=(
+                    *r.reasons,
+                    f"Ranked equal with {others} {noun} on this shortlist; their order is not a "
+                    "preference.",
+                ),
+            )
+        out.append(r)
+    return out
 
 
 def _order(r: Ranked) -> tuple[int, float, bool, bool, str]:

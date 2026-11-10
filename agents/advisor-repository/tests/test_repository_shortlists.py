@@ -13,15 +13,17 @@ from pathlib import Path
 import pytest
 from re3data_fixture import session_registry
 
-from dd_agent_advisor_repository import rank
+from dd_agent_advisor_repository import assess, rank
 from dd_agent_advisor_repository.agent import RepositoryAgent
 from dd_agent_advisor_repository.classes import (
     Affiliation,
     CandidateBasis,
     RepositoryNeeds,
     RepositoryOptions,
+    RepositoryRef,
 )
-from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
+from dd_agent_advisor_repository.records import Re3dataRecord
+from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry, tokenise
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import OutcomeStatus
 
@@ -29,7 +31,9 @@ NEEDS = Path(__file__).parent / "data" / "needs"
 
 CEDA = "r3d100000011"
 CSD = "r3d100010197"  # Cambridge Structural Database
+EDI = "r3d100010272"  # Environmental Data Initiative Repository (USA)
 EIDC = "r3d100010199"  # Environmental Information Data Centre
+ESS_DIVE = "r3d100000019"  # USA
 ENA = "r3d100010527"  # European Nucleotide Archive
 GESIS = "r3d100012496"
 LEEDS = "r3d100011945"  # Research Data Leeds Repository
@@ -156,3 +160,58 @@ def test_a_narrow_topic_with_an_institution_is_not_the_institutional_repository_
     assert "broad field of study" in statement
     orda = options.candidates[ids.index(ORDA)]
     assert any("offered as a fallback" in r for r in orda.ranked_by)
+
+
+def test_a_plural_in_a_record_matches_the_singular_in_a_query() -> None:
+    assert tokenise("environmental sciences") == tokenise("environmental science")
+
+
+@pytest.mark.requirement("R1")
+@pytest.mark.parametrize("country", ["GBR", None])
+def test_a_uk_environmental_dataset_is_offered_eidc(
+    runs_dir: Path, country: str | None, re3data: Re3dataRegistry
+) -> None:
+    """#741: EIDC says "sciences", never "science", and once missed the theme "environmental
+    science". Found by the theme alone, with or without the researcher's country."""
+    needs = load("moorland-loggers-uk.json").model_copy(update={"country": country})
+    ids, _, _ = shortlist(runs_dir, re3data, needs)
+    assert EIDC in ids, ids
+
+
+@pytest.mark.requirement("R1")
+def test_repositories_in_the_researchers_country_come_first_among_equals(
+    runs_dir: Path, re3data: Re3dataRegistry
+) -> None:
+    """#741: US repositories matching the theme once ranked level with UK ones for a UK
+    researcher."""
+    ids, options, _ = shortlist(runs_dir, re3data, load("moorland-loggers-uk.json"))
+    assert {EIDC, EDI} <= set(ids) or {EIDC, ESS_DIVE} <= set(ids), ids
+    generalist = set(rank.generalists())
+    records = [re3data.fetch(i) for i in ids if i not in generalist]
+    local = [assess.in_country(r, "GBR") is not None for r in records if r is not None]
+    assert local == sorted(local, reverse=True), list(zip(ids, local, strict=False))
+    scores = {c.grounded_on[0].source_id: c.score or 0.0 for c in options.candidates}
+    assert all(scores[EIDC] > scores[i] for i in (EDI, ESS_DIVE) if i in scores), scores
+
+
+def test_repositories_ranked_equal_each_say_so() -> None:
+    """#741: five repositories of equal score were each called "recommended", with nothing to
+    say their order meant nothing."""
+
+    def ranked(rid: str, score: float) -> rank.Ranked:
+        return rank.Ranked(Re3dataRecord(re3data_id=rid, name=rid), score, ("reason",))
+
+    out = rank._say_ties([ranked("r3d1", 1.1), ranked("r3d2", 1.0), ranked("r3d3", 1.0)])
+    assert [len(r.reasons) for r in out] == [1, 2, 2]
+    assert out[1].reasons[-1] == out[2].reasons[-1]
+
+
+def test_a_fairsharing_record_cited_in_another_case_is_grounded(
+    runs_dir: Path, re3data: Re3dataRegistry
+) -> None:
+    """#741: re3data cites ESS-DIVE's FAIRsharing record as FAIRsharing.d6pe1f, which FAIRsharing
+    writes FAIRsharing.d6Pe1f. The candidate rests on it and passes the grounding check."""
+    needs = RepositoryNeeds(mandated=[RepositoryRef(name="ESS-DIVE", re3data_id=ESS_DIVE)])
+    ids, options, _ = shortlist(runs_dir, re3data, needs)
+    assert ids == [ESS_DIVE]
+    assert len(options.candidates[0].grounded_on) == 2

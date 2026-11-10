@@ -48,6 +48,7 @@ class RepositoryNeeds(Frozen):
     access: AccessNeed | None = None
     mandated: list[RepositoryRef] = Field(default_factory=list)
     affiliation: Affiliation | None = None
+    country: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
 
 
 class RepositoryCandidate(Grounded):

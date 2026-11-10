@@ -10,16 +10,23 @@ repository:RepositoryNeeds a sh:NodeShape ;
     rdfs:comment "What a dataset needs of a repository. With mandated repositories, the agent describes them; with none, it shortlists. The mandate and the access constraint come from Phase 2 (governance), usually by way of the orchestrator." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet decided, and no access need is checked." ;
+            sh:in ( "open" "embargoed" "restricted" ) ;
+            sh:maxCount 1 ;
+            sh:order 3 ;
+            sh:path repository:access ],
+        [ sh:datatype xsd:string ;
+            sh:description "The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as re3data writes it. Among repositories that already match, those operated in this country rank first; it adds no repository to the shortlist on its own." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path repository:country ;
+            sh:pattern "^[A-Z]{3}$" ],
+        [ sh:datatype xsd:string ;
             sh:description "The dataset's discipline, as the broad field of study (e.g. environmental science), and any narrower subjects as further themes. A narrow topic alone (e.g. moorland) may match no repository of the discipline." ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dcat:theme ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the data is, e.g. interview transcripts or household survey microdata." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path repository:data_kinds ],
         [ sh:class schema1:Organization ;
             sh:description "The researcher's institution. Its repositories are offered as a fallback, after those of the dataset's discipline and before generalist ones, and none is removed, so give the themes as if it were not set." ;
             sh:maxCount 1 ;
@@ -32,17 +39,17 @@ repository:RepositoryNeeds a sh:NodeShape ;
             sh:order 4 ;
             sh:path repository:mandated ],
         [ sh:datatype xsd:string ;
+            sh:description "What the data is, each in one to three words, e.g. interview transcripts, survey microdata or time series. A repository matches a kind only if its record has every word, so a long description (e.g. environmental data logger time series) matches none." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path repository:data_kinds ],
+        [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:description "How the data may be accessed once deposited, as decided in Phase 2. Unset means not yet decided, and no access need is checked." ;
-            sh:in ( "open" "embargoed" "restricted" ) ;
-            sh:maxCount 1 ;
-            sh:order 3 ;
-            sh:path repository:access ] ;
+            sh:path <https://w3id.org/data-director/schema_class> ] ;
     sh:targetClass repository:RepositoryNeeds .
 
 schema1:Organization a sh:NodeShape ;
