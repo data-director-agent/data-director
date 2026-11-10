@@ -29,9 +29,17 @@ CONVERSATION_TITLE_MAX = 80
 PROJECT_TITLE_PATTERN = r"^.{1,200}$"
 NEW_PROJECT_TITLE_PATTERN = CONVERSATION_TITLE_PATTERN
 NEW_PROJECT_TITLE_MAX = CONVERSATION_TITLE_MAX
-# A choice question offers between 2 and 12 options (ChoiceQuestion.question_options).
+# A choice question offers between 2 and 12 options (Question.question_options).
 CHOICE_OPTIONS_MIN = 2
 CHOICE_OPTIONS_MAX = 12
+# A reply asks between 1 and 8 questions (Reply.reply_questions).
+QUESTIONS_MAX = 8
+# An answer in the researcher's own words: one line for a short text question, several for a
+# long one; a choice question's own-words answer is held to the short bound (QuestionAnswer).
+SHORT_TEXT_MAX = 200
+LONG_TEXT_MAX = 4000
+# A question's identifier within its reply (Question.question_key, QuestionAnswer.answered_key).
+QUESTION_KEY_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
 
 
 class Frozen(BaseModel):
@@ -124,6 +132,12 @@ class StepState(StrEnum):
     STARTED = "started"
     DONE = "done"
     SKIPPED = "skipped"
+
+
+class QuestionKind(StrEnum):
+    CHOICE = "choice"
+    SHORT_TEXT = "short_text"
+    LONG_TEXT = "long_text"
 
 
 class TurnRole(StrEnum):
@@ -248,13 +262,30 @@ class StepProgress(Frozen):
     step_state: StepState
 
 
-class ChoiceAnswer(Frozen):
-    """The researcher's answer to the choice question the turn before asked, by the values they
-    chose or in their own words (docs/specs/orchestration.md)."""
+class QuestionAnswer(Frozen):
+    """The researcher's answer to one question of a reply: the values of the options chosen, or
+    the answer in their own words. Whether it fits its question is checked against the question
+    (`dd_harness.conversations.answer_problem`)."""
+
+    answered_key: str = Field(pattern=QUESTION_KEY_PATTERN)
+    answer_values: list[str] = Field(default_factory=list)
+    answer_words: str | None = Field(default=None, max_length=LONG_TEXT_MAX)
+
+
+class ReplyAnswers(Frozen):
+    """The researcher's answers to the questions the turn before asked, given together, one for
+    each question answered (docs/specs/orchestration.md)."""
 
     answer_to: str = Field(pattern=UUID7_PATTERN)
-    answer_values: list[str] = Field(default_factory=list)
-    answer_other: str | None = None
+    # The bound is not in the schema (#333).
+    given_answers: list[QuestionAnswer] = Field(min_length=1, max_length=QUESTIONS_MAX)
+
+    @model_validator(mode="after")
+    def _one_answer_a_question(self) -> ReplyAnswers:
+        keys = [a.answered_key for a in self.given_answers]
+        if len(set(keys)) != len(keys):
+            raise ValueError("each question is answered at most once")
+        return self
 
 
 class Message(Frozen):
@@ -267,7 +298,7 @@ class Message(Frozen):
     message_text: str
     history: list[ConversationTurn] = Field(default_factory=list)
     project_inventory: InventorySummary | None = None
-    choice_answer: ChoiceAnswer | None = None
+    reply_answers: ReplyAnswers | None = None
     project_entry: int | None = Field(default=None, ge=1, le=3)  # bounds not in the schema (#333)
     project_progress: list[StepProgress] | None = None
     project_title: str | None = Field(default=None, pattern=PROJECT_TITLE_PATTERN)
@@ -421,23 +452,33 @@ class ChoiceOption(Frozen):
     option_help: str | None = None
 
 
-class ChoiceQuestion(Frozen):
-    """A question with fixed options a reply asks; one or several may be chosen, and the
-    researcher may answer in their own words where `question_other` is true."""
+class Question(Frozen):
+    """One question a reply asks, shown as a form field. A choice question has fixed options, of
+    which one or several may be chosen, and may be answered in the researcher's own words where
+    `question_other` is true; a short or long text question is answered in their own words and
+    has no options."""
 
+    question_key: str = Field(pattern=QUESTION_KEY_PATTERN)
     question_prompt: str
+    question_kind: QuestionKind
+    question_help: str | None = None
     # The bounds are not in the schema (#333).
-    question_options: list[ChoiceOption] = Field(
-        min_length=CHOICE_OPTIONS_MIN, max_length=CHOICE_OPTIONS_MAX
+    question_options: list[ChoiceOption] | None = Field(
+        default=None, min_length=CHOICE_OPTIONS_MIN, max_length=CHOICE_OPTIONS_MAX
     )
     question_multiple: bool = False
     question_other: bool = False
 
     @model_validator(mode="after")
-    def _values_are_unique(self) -> ChoiceQuestion:
-        values = [o.option_value for o in self.question_options]
-        if len(set(values)) != len(values):
-            raise ValueError("each option of a choice question has a value of its own")
+    def _options_fit_the_kind(self) -> Question:
+        if self.question_kind is QuestionKind.CHOICE:
+            if self.question_options is None:
+                raise ValueError("a choice question has options")
+            values = [o.option_value for o in self.question_options]
+            if len(set(values)) != len(values):
+                raise ValueError("each option of a choice question has a value of its own")
+        elif self.question_options is not None or self.question_multiple or self.question_other:
+            raise ValueError("only a choice question has options")
         return self
 
 
@@ -449,13 +490,23 @@ class Reply(Grounded):
     reply_derivation: Derivation
     # Set by a model on a conversation's first turn only; what lists the conversation shows.
     conversation_title: str | None = Field(default=None, pattern=CONVERSATION_TITLE_PATTERN)
-    # A question with fixed options the reply asks, at most one.
-    reply_question: ChoiceQuestion | None = None
+    # The questions the reply asks, put to the researcher one at a time and answered together.
+    # The bounds are not in the schema (#333).
+    reply_questions: list[Question] | None = Field(
+        default=None, min_length=1, max_length=QUESTIONS_MAX
+    )
     # A name for the conversation's project, which the conductor records unless a person named it.
     new_project_title: str | None = Field(default=None, pattern=NEW_PROJECT_TITLE_PATTERN)
     # An entry point a model worked out, which the conductor records unless the researcher chose
     # one. The bounds are not in the schema (#333).
     new_project_entry: int | None = Field(default=None, ge=1, le=3)
+
+    @model_validator(mode="after")
+    def _question_keys_are_unique(self) -> Reply:
+        keys = [q.question_key for q in self.reply_questions or []]
+        if len(set(keys)) != len(keys):
+            raise ValueError("each question of a reply has a key of its own")
+        return self
 
 
 class DocumentVersionRef(Frozen):

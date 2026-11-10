@@ -1,39 +1,6 @@
 {
    "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
-      "ChoiceAnswer": {
-         "additionalProperties": false,
-         "description": "The researcher's answer to the choice question the turn before asked: the values they chose and any text they gave in place of an option. The app checks it against that question before it sends the turn (docs/specs/orchestration.md).",
-         "properties": {
-            "answer_to": {
-               "description": "The invocation whose reply asked the question.",
-               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-               "type": "string"
-            },
-            "answer_values": {
-               "description": "The values of the options chosen; empty when the researcher answered in their own words.",
-               "items": {
-                  "type": "string"
-               },
-               "type": [
-                  "array",
-                  "null"
-               ]
-            },
-            "answer_other": {
-               "description": "The researcher's own answer, given in place of an option where the question allows it.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            }
-         },
-         "required": [
-            "answer_to"
-         ],
-         "title": "ChoiceAnswer",
-         "type": "object"
-      },
       "ConversationTurn": {
          "additionalProperties": false,
          "description": "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.",
@@ -159,6 +126,63 @@
          "title": "InventorySummary",
          "type": "object"
       },
+      "QuestionAnswer": {
+         "additionalProperties": false,
+         "description": "The researcher's answer to one question of a reply, named by its question_key: the values of the options chosen, for a choice question, and the answer in their own words, for a text question or where a choice question allows it.",
+         "properties": {
+            "answered_key": {
+               "description": "The question_key of the question answered.",
+               "pattern": "^[a-z][a-z0-9-]{0,39}$",
+               "type": "string"
+            },
+            "answer_values": {
+               "description": "The values of the options chosen, for a choice question; empty when the researcher answered in their own words, and always empty for a text question.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "answer_words": {
+               "description": "The researcher's answer in their own words: the whole answer to a text question, or an answer given in place of an option where a choice question allows it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "answered_key"
+         ],
+         "title": "QuestionAnswer",
+         "type": "object"
+      },
+      "ReplyAnswers": {
+         "additionalProperties": false,
+         "description": "The researcher's answers to the questions the turn before asked, given together: one QuestionAnswer for each question answered, none for a question skipped. The app checks them against those questions before it sends the turn (docs/specs/orchestration.md).",
+         "properties": {
+            "answer_to": {
+               "description": "The invocation whose reply asked the questions.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "given_answers": {
+               "description": "One answer for each question answered, in the order asked; at least one.",
+               "items": {
+                  "$ref": "#/$defs/QuestionAnswer"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "answer_to",
+            "given_answers"
+         ],
+         "title": "ReplyAnswers",
+         "type": "object"
+      },
       "StepProgress": {
          "additionalProperties": false,
          "description": "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).",
@@ -236,16 +260,16 @@
          ],
          "description": "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory."
       },
-      "choice_answer": {
+      "reply_answers": {
          "anyOf": [
             {
-               "$ref": "#/$defs/ChoiceAnswer"
+               "$ref": "#/$defs/ReplyAnswers"
             },
             {
                "type": "null"
             }
          ],
-         "description": "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose."
+         "description": "The researcher's answers to the questions the previous turn asked, when they answered them in the form. message_text still carries the answers as prose."
       },
       "project_entry": {
          "description": "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen.",
