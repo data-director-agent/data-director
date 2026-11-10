@@ -125,6 +125,7 @@ from dd_harness.settings import SettingsError
 from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
+from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk.contract.models import ChoiceAnswer, Principal
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
@@ -246,7 +247,12 @@ def build_app(
     # Each person sees only their own runs and conversations (#153); someone else's is answered
     # with 404, as one that does not exist.
     async def list_runs(request: Request, reader: Principal) -> Response:
-        return JSONResponse(await run_in_threadpool(governance.runs, reader))
+        try:
+            paging = page_params(request)
+        except PagingError as exc:
+            return _refused(str(exc), "Data Director could not list the runs")
+        page = await run_in_threadpool(lambda: governance.runs(reader, **paging))
+        return page_response(request, page)
 
     async def get_run(request: Request, reader: Principal) -> Response:
         invocation_id = request.path_params["invocation_id"]
@@ -386,7 +392,12 @@ def build_app(
             )
 
     async def list_conversations(request: Request, reader: Principal) -> Response:
-        return JSONResponse(await run_in_threadpool(governance.conversations, reader))
+        try:
+            paging = page_params(request)
+        except PagingError as exc:
+            return _refused(str(exc), "Data Director could not list the conversations")
+        page = await run_in_threadpool(lambda: governance.conversations(reader, **paging))
+        return page_response(request, page)
 
     async def get_conversation(request: Request, reader: Principal) -> Response:
         conversation_id = request.path_params["conversation_id"]

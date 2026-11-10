@@ -335,8 +335,9 @@ because saying a plan exists is not the check of the deposit against it.
 - Turns to one conversation run one at a time; turns to different conversations, and parents with
   their children, run side by side.
   (`test_async_callers_run_parents_side_by_side_and_their_children_never_wait_on_them`)
-- Performance: the file backend finds conversations by scanning every stored envelope; the
-  database backend answers with an indexed query ([Storage](storage.md)), TODO(#524).
+- Performance: the file backend finds and lists conversations by scanning every stored envelope;
+  the database backend answers from an index, a page at a time ([Storage](storage.md),
+  "Listing").
 
 ## Open questions
 

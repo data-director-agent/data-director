@@ -81,7 +81,7 @@ def test_turns_are_in_order_with_children_nested_and_history_built(tmp_path: Pat
     # The history is valid Message.history, so the next turn can carry it.
     Message(message_text="next", history=history)
 
-    [summary] = conversations.list_conversations(conductor.store)
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
     assert summary["conversation_id"] == conv
     assert summary["turns"] == 2
     assert summary["agent_id"] == "fake.delegation"
@@ -132,7 +132,7 @@ def test_a_conversation_is_titled_by_its_first_turns_reply(tmp_path: Path) -> No
     later = Message(message_text="And the licence?", history=found["history"])
     conductor.invoke(turn("fake.delegation", conv, later), acting_for=TEST_PRINCIPAL)
 
-    [summary] = conversations.list_conversations(conductor.store)
+    [summary] = conversations.list_conversations(conductor.store, limit=50).items
     assert summary["turns"] == 2
     assert summary["title"] == "Soil survey deposit"
     assert summary["title_source"] == "model"
@@ -156,7 +156,8 @@ def test_without_a_model_title_a_conversation_is_named_by_its_first_message(
     text = "I have interview transcripts from a study of farmers and want to share them openly"
     conductor.invoke(turn("fake.delegation", long, message(text)), acting_for=TEST_PRINCIPAL)
 
-    found = {s["conversation_id"]: s for s in conversations.list_conversations(conductor.store)}
+    listed = conversations.list_conversations(conductor.store, limit=50).items
+    found = {s["conversation_id"]: s for s in listed}
     assert found[short]["title"] == "Which licence should I use?"
     assert found[short]["title_source"] == "message"
     title = found[long]["title"]

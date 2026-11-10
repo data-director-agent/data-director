@@ -22,6 +22,7 @@ from dd_harness.remote import RemoteAgent
 from dd_harness.signin import SignIn
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.agui import agui_routes
+from dd_harness.transport.paging import PagingError, page_params, page_response
 from dd_sdk.agent import describe
 from dd_sdk.contract.validate import SCHEMA_DIR
 from workbench.transport.signin import SESSION_PATH, AdminGate, no_sign_in_session, sign_in_routes
@@ -67,21 +68,18 @@ def build_app(
         middleware = []
 
     async def runs_index(request: Request) -> Response:
-        items = [
-            {
-                "invocation_id": e["invocation_id"],
-                "agent_id": e["agent_id"],
-                "status": e["outcome"]["status"],
-                "completed_at": e["completed_at"],
-                # Runs stored before docs/specs/policy-and-identity.md name no principal.
-                "acting_for": (e.get("acting_for") or {}).get("name"),
-            }
-            for e in conductor.store.iter_envelopes()
-        ]
-        return JSONResponse(list(reversed(items)))
+        try:
+            paging = page_params(request)
+        except PagingError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return page_response(request, conductor.store.list_runs(**paging))
 
     async def conversations_index(request: Request) -> Response:
-        return JSONResponse(conversations.list_conversations(conductor.store))
+        try:
+            paging = page_params(request)
+        except PagingError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return page_response(request, conversations.list_conversations(conductor.store, **paging))
 
     async def conversation(request: Request) -> Response:
         conversation_id = request.path_params["conversation_id"]

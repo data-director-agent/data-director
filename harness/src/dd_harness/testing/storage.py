@@ -30,6 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from dd_harness.listing import Page, Readable, run_summary, scan_conversations, scan_runs
 from dd_harness.projects import (
     APPROVED,
     CONVERSATION_STARTED,
@@ -104,20 +105,28 @@ def _named[S](make: Callable[[str], S], n: int) -> Callable[[str], S]:
 
 
 def stored_envelope(
-    conversation_id: str | None = None, parent_invocation_id: str | None = None
+    conversation_id: str | None = None,
+    parent_invocation_id: str | None = None,
+    *,
+    project_id: str | None = None,
+    principal_id: str | None = None,
+    status: str = "succeeded",
 ) -> dict[str, Any]:
     """An envelope document with the fields a backend might index. `append` stores what it is
     given; the conductor has already checked it against the contract."""
-    return {
+    envelope: dict[str, Any] = {
         "invocation_id": new_invocation_id(),
         "agent_id": "stub.storage",
         "agent_version": "0.1.0",
         "conversation_id": conversation_id,
         "parent_invocation_id": parent_invocation_id,
-        "project_id": None,
+        "project_id": project_id,
         "completed_at": datetime.now(UTC).isoformat(),
-        "outcome": {"status": "succeeded", "statement": "Stored for a storage check."},
+        "outcome": {"status": status, "statement": "Stored for a storage check."},
     }
+    if principal_id is not None:
+        envelope["acting_for"] = {"principal_id": principal_id, "name": f"Person {principal_id}"}
+    return envelope
 
 
 def check_a_run_is_written_once(make: MakeRunStorage) -> None:
@@ -230,6 +239,131 @@ def check_a_malformed_run_name_names_nothing(make: MakeRunStorage) -> None:
         assert store.get_artifact(malformed, "spans.jsonl") is None
 
 
+def _every_page(
+    listing: Callable[..., Page], *, limit: int, before: str | None = None, **scope: Any
+) -> tuple[list[dict[str, Any]], list[Page]]:
+    """Every item of a listing from `before` on, read a page of `limit` at a time, and the pages
+    read."""
+    pages = [listing(limit=limit, before=before, **scope)]
+    while pages[-1].next is not None:
+        assert len(pages) <= 100, "a listing that never ends"
+        pages.append(listing(limit=limit, before=pages[-1].next, **scope))
+    return [item for page in pages for item in page.items], pages
+
+
+def _ids(items: list[dict[str, Any]], key: str) -> list[str]:
+    return [item[key] for item in items]
+
+
+def check_runs_are_listed_newest_first_a_page_at_a_time(make: MakeRunStorage) -> None:
+    store = make("runs")
+    conversation = new_invocation_id()
+    turn = stored_envelope(conversation)
+    envelopes = [
+        stored_envelope(),
+        turn,
+        stored_envelope(conversation, parent_invocation_id=turn["invocation_id"]),
+        stored_envelope(status="failed"),
+        stored_envelope(),
+    ]
+    for envelope in envelopes:
+        store.append(envelope)
+    newest_first = [run_summary(e) for e in reversed(envelopes)]
+    assert scan_runs(store.iter_envelopes(), readable=None, limit=50, before=None).items == (
+        newest_first
+    )
+    for limit in (1, 2, len(envelopes), len(envelopes) + 1):
+        items, pages = _every_page(store.list_runs, limit=limit)
+        assert items == newest_first
+        assert all(0 < len(page.items) <= limit for page in pages)
+        assert pages[-1].next is None
+    # A run stored after a page was read comes before that page, not after it.
+    first = store.list_runs(limit=2)
+    store.append(stored_envelope())
+    rest, _ = _every_page(store.list_runs, limit=2, before=first.next)
+    assert [*first.items, *rest] == newest_first
+    # Reopened, as after a restart, or opened beside it, a store lists the same runs.
+    assert make("runs").list_runs(limit=50).items == store.list_runs(limit=50).items
+
+
+def check_conversations_are_listed_by_their_latest_turn(make: MakeRunStorage) -> None:
+    store = make("runs")
+    first, second, delegated_only = (new_invocation_id() for _ in range(3))
+    opening = stored_envelope(first)
+    store.append(opening)
+    store.append(stored_envelope(second))
+    store.append(stored_envelope(first, parent_invocation_id=opening["invocation_id"]))
+    store.append(stored_envelope())
+    store.append(stored_envelope(delegated_only, parent_invocation_id=opening["invocation_id"]))
+    latest = stored_envelope(first, status="failed")
+    store.append(latest)
+
+    def listed() -> list[dict[str, Any]]:
+        scanned = scan_conversations(store.iter_envelopes(), readable=None, limit=50, before=None)
+        items, _ = _every_page(store.list_conversations, limit=1)
+        assert items == scanned.items
+        return items
+
+    found = listed()
+    assert _ids(found, "conversation_id") == [first, second]
+    summary = found[0]
+    assert summary["first_invocation_id"] == opening["invocation_id"]
+    assert summary["started_at"] == opening["completed_at"]
+    assert summary["last_completed_at"] == latest["completed_at"]
+    assert summary["last_status"] == "failed"
+    assert summary["turns"] == 2  # the delegated child is not a turn
+    # A new turn brings its conversation to the front.
+    store.append(stored_envelope(second))
+    assert _ids(listed(), "conversation_id") == [second, first]
+    assert make("runs").list_conversations(limit=50).items == listed()
+
+
+def check_a_listing_includes_what_its_reader_may_read(make: MakeRunStorage) -> None:
+    store = make("runs")
+    me, them = "https://orcid.org/0000-0000-0000-0001", "https://orcid.org/0000-0000-0000-0002"
+    mine, theirs = new_invocation_id(), new_invocation_id()
+    own = stored_envelope(principal_id=me)
+    others = stored_envelope(principal_id=them)
+    in_mine = stored_envelope(principal_id=them, project_id=mine)
+    in_theirs = stored_envelope(principal_id=me, project_id=theirs)
+    unnamed = stored_envelope()
+    for envelope in (own, others, in_mine, in_theirs, unnamed):
+        store.append(envelope)
+    by_project = Readable(me, frozenset({mine}))
+    alone = Readable(me, None)
+    for readable, expected in (
+        (by_project, [in_mine, own]),
+        (alone, [in_theirs, own]),
+        (Readable(me), [own]),
+    ):
+        items, _ = _every_page(store.list_runs, limit=1, readable=readable)
+        assert _ids(items, "invocation_id") == _ids(expected, "invocation_id")
+
+    # A conversation is judged on its first turn, whoever a later turn acted for.
+    started_by_me, started_by_them, started_in_mine = (new_invocation_id() for _ in range(3))
+    store.append(stored_envelope(started_by_me, principal_id=me))
+    store.append(stored_envelope(started_by_them, principal_id=them))
+    store.append(stored_envelope(started_in_mine, principal_id=them, project_id=mine))
+    store.append(stored_envelope(started_by_them, principal_id=me))
+    items, _ = _every_page(store.list_conversations, limit=1, readable=by_project)
+    assert _ids(items, "conversation_id") == [started_in_mine, started_by_me]
+    scanned = scan_conversations(store.iter_envelopes(), readable=by_project, limit=50, before=None)
+    assert items == scanned.items
+
+
+def check_a_malformed_cursor_names_an_empty_page(make: MakeRunStorage) -> None:
+    store = make("runs")
+    conversation = new_invocation_id()
+    store.append(stored_envelope(conversation))
+    for malformed in ("", "0", "-1", "x", "1.5", "9" * 40, "1; drop table runs", "\u0000"):
+        assert store.list_runs(limit=5, before=malformed) == Page([])
+        assert store.list_conversations(limit=5, before=malformed) == Page([])
+    assert len(store.list_runs(limit=5).items) == 1
+    for listing in (store.list_runs, store.list_conversations):
+        with _raises(ValueError, "a page that holds nothing"):
+            listing(limit=0)
+
+
 RUN_STORAGE_CHECKS: dict[str, Callable[[MakeRunStorage], None]] = {
     "a run is written once": check_a_run_is_written_once,
     "envelopes come back in the order stored": check_envelopes_come_back_in_the_order_stored,
@@ -238,6 +372,16 @@ RUN_STORAGE_CHECKS: dict[str, Callable[[MakeRunStorage], None]] = {
     "schemas are kept by digest": check_schemas_are_kept_by_digest,
     "prompts are kept with their run only": check_prompts_are_kept_with_their_run_only,
     "a malformed run name names nothing": check_a_malformed_run_name_names_nothing,
+    "runs are listed newest first a page at a time": (
+        check_runs_are_listed_newest_first_a_page_at_a_time
+    ),
+    "conversations are listed by their latest turn": (
+        check_conversations_are_listed_by_their_latest_turn
+    ),
+    "a listing includes what its reader may read": (
+        check_a_listing_includes_what_its_reader_may_read
+    ),
+    "a malformed cursor names an empty page": check_a_malformed_cursor_names_an_empty_page,
 }
 
 

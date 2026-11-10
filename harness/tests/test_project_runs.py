@@ -170,7 +170,7 @@ def test_a_draft_in_a_project_is_given_its_facts_and_kept_as_a_proposed_version(
 
     # The conversation says which project it is in.
     assert get_conversation(conductor.store, conversation)["project_id"] == project  # type: ignore[index]
-    assert list_conversations(conductor.store)[0]["project_id"] == project
+    assert list_conversations(conductor.store, limit=50).items[0]["project_id"] == project
 
 
 def test_a_run_in_a_project_its_principal_may_not_read_is_refused_and_nothing_is_stored(

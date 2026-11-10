@@ -23,6 +23,7 @@ from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.listing import Page, Readable
 from dd_harness.project_access import Action, Role
 from dd_harness.projects import UnknownProjectError, check_documentation
 from dd_harness.requirements import Requirements, load_requirements
@@ -34,6 +35,7 @@ from dd_harness.settings import (
     repositories_dir,
 )
 from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
+from dd_harness.transport.paging import PAGE_SIZE, PAGE_SIZE_MAX
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
     ChoiceAnswer,
@@ -366,7 +368,8 @@ class Governance:
     # by the principal it acted for. Ownership is read from what the run store and the project logs
     # already record, never from a second record that could disagree with them. A delegated child
     # carries its parent's `acting_for` and `project_id`, so it belongs where its parent does.
-    # TODO(#141): listing scans the run store; an index by principal comes with its record (#653).
+    # The run store lists what a reader may read (`readable`); finding the projects they may read
+    # reads every project's log, TODO(#713).
 
     def role(self, project_id: str, principal: Principal) -> Role | None:
         """`principal`'s role in the project `project_id`, as the harness's access check reads it
@@ -408,11 +411,26 @@ class Governance:
         )
         return first is not None and self.may_read_run(first, reader)
 
-    def conversations(self, reader: Principal) -> list[dict[str, Any]]:
-        """The stored conversations `reader` may read, most recently active first
+    def readable(self, reader: Principal, projects: list[dict[str, Any]] | None = None) -> Readable:
+        """What the run store lists for `reader`: runs in the projects they may read, and runs in
+        no project that acted for them. `projects` are the project summaries, if already read."""
+        if self.projects is None:
+            return Readable(reader.principal_id, None)
+        summaries = self.projects.projects() if projects is None else projects
+        return Readable(
+            reader.principal_id,
+            frozenset(
+                s["project_id"] for s in summaries if self.may_read_project(s["project_id"], reader)
+            ),
+        )
+
+    def conversations(
+        self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
+    ) -> Page:
+        """A page of the stored conversations `reader` may read, most recently active first
         (`GET /api/conversations`). One started but given no turn yet is not listed."""
         return conversations.list_conversations(
-            self.conductor.store, include=lambda first: self.may_read_run(first, reader)
+            self.conductor.store, readable=self.readable(reader), limit=limit, before=before
         )
 
     def projects_for(self, principal: Principal) -> list[dict[str, Any]]:
@@ -423,15 +441,17 @@ class Governance:
         listed, as a conversation with no turn is not."""
         if self.projects is None:
             return []
+        summaries = self.projects.projects()
+        readable = self.readable(principal, summaries)
         by_project: dict[str, list[dict[str, Any]]] = {}
-        for c in self.conversations(principal):
+        for c in self._every_conversation(readable):
             if c.get("project_id"):
                 by_project.setdefault(c["project_id"], []).append(
                     {key: c.get(key) for key in LISTED_CONVERSATION}
                 )
         found = []
-        for summary in self.projects.projects():
-            if not self.may_read_project(summary["project_id"], principal):
+        for summary in summaries:
+            if summary["project_id"] not in (readable.project_ids or ()):
                 continue
             listed = by_project.get(summary["project_id"], [])
             if (
@@ -443,6 +463,20 @@ class Governance:
             found.append({**summary, "conversations": listed})
         found.sort(key=_last_active, reverse=True)
         return found
+
+    def _every_conversation(self, readable: Readable) -> list[dict[str, Any]]:
+        """Every conversation `readable` includes, most recently active first, read a page at a
+        time: as many as the reader has, whatever the size of the store."""
+        found: list[dict[str, Any]] = []
+        before: str | None = None
+        while True:
+            page = conversations.list_conversations(
+                self.conductor.store, readable=readable, limit=PAGE_SIZE_MAX, before=before
+            )
+            found.extend(page.items)
+            if page.next is None:
+                return found
+            before = page.next
 
     def conversation(self, conversation_id: str, reader: Principal) -> dict[str, Any] | None:
         """A conversation as `dd_harness.conversations` derives it (`GET /api/conversations/{id}`),
@@ -476,20 +510,11 @@ class Governance:
             found["progress"] = summary["progress"]
         return found
 
-    def runs(self, reader: Principal) -> list[dict[str, Any]]:
-        """The stored runs `reader` may read, newest first (`GET /api/runs`)."""
-        rows = [
-            {
-                "invocation_id": e["invocation_id"],
-                "agent_id": e["agent_id"],
-                "status": e["outcome"]["status"],
-                "completed_at": e["completed_at"],
-                "acting_for": (e.get("acting_for") or {}).get("name"),
-            }
-            for e in self.conductor.store.iter_envelopes()
-            if self.may_read_run(e, reader)
-        ]
-        return list(reversed(rows))
+    def runs(self, reader: Principal, *, limit: int = PAGE_SIZE, before: str | None = None) -> Page:
+        """A page of the stored runs `reader` may read, newest first (`GET /api/runs`)."""
+        return self.conductor.store.list_runs(
+            readable=self.readable(reader), limit=limit, before=before
+        )
 
     def stored_run(self, invocation_id: str, reader: Principal) -> dict[str, Any] | None:
         """A stored run as `run` returned it, with its request (`GET /api/runs/{id}`), or None,

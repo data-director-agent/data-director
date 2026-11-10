@@ -15,6 +15,11 @@ needs no closing. A project's exclusive section is a transaction that holds a lo
 project's row (`select … for update`), which holds across processes and hosts; projects do not
 wait on one another. It stores and reads, and decides nothing: the project rules are
 `dd_harness.projects.Projects`, over this log.
+
+Listing runs and conversations reads one page from an index, whatever the size of the store
+(docs/specs/storage.md, "Listing"). `conversation_index` holds a row per conversation, written in
+the transaction that stores each turn. `runs_query` and `conversations_query` build the SQL a
+listing runs, so a test can ask the database how it plans it.
 """
 
 from __future__ import annotations
@@ -29,6 +34,15 @@ import psycopg
 from psycopg import errors, sql
 from psycopg.types.json import Json
 
+from dd_harness.listing import (
+    Page,
+    Readable,
+    check_limit,
+    is_turn,
+    paged,
+    position,
+    principal_of,
+)
 from dd_harness.settings import SettingsError, redact_location
 from dd_harness.store import DIGEST, RUN_ID, artifact_segments
 from dd_sdk.contract.classes import ClassSchema
@@ -164,17 +178,23 @@ class PostgresRunStore:
                         (schema.digest, Json(dict(schema.json_schema))),
                     )
                 conn.execute("select pg_advisory_xact_lock(%s)", (_RUN_ORDER_LOCK,))
-                conn.execute(
-                    "insert into runs (invocation_id, conversation_id, envelope, request, prompts)"
-                    " values (%s, %s, %s, %s, %s)",
+                row = conn.execute(
+                    "insert into runs (invocation_id, conversation_id, parent_invocation_id,"
+                    " project_id, principal_id, envelope, request, prompts)"
+                    " values (%s, %s, %s, %s, %s, %s, %s, %s) returning seq",
                     (
                         invocation_id,
                         envelope.get("conversation_id"),
+                        envelope.get("parent_invocation_id"),
+                        envelope.get("project_id"),
+                        principal_of(envelope),
                         Json(envelope),
                         None if request is None else Json(request),
                         Json({k: dict(v) for k, v in prompts.items()}) if prompts else None,
                     ),
-                )
+                ).fetchone()
+                if is_turn(envelope) and row is not None:
+                    _index_turn(conn, envelope, row[0])
         except errors.UniqueViolation as exc:
             raise FileExistsError(f"run {invocation_id} is already stored") from exc
 
@@ -189,6 +209,68 @@ class PostgresRunStore:
                 ).fetchall()
         for (envelope,) in rows:
             yield envelope
+
+    def list_runs(
+        self, *, readable: Readable | None = None, limit: int, before: str | None = None
+    ) -> Page:
+        """A page of runs, newest first, read from the indexes on `runs`."""
+        query, params = runs_query(readable=readable, limit=limit, before=before)
+        with _connect(self._location) as conn:
+            rows = conn.execute(query, params).fetchall()
+        return paged(
+            [
+                (
+                    seq,
+                    {
+                        "invocation_id": invocation_id,
+                        "agent_id": agent_id,
+                        "status": status,
+                        "completed_at": completed_at,
+                        "acting_for": acting_for,
+                    },
+                )
+                for seq, invocation_id, agent_id, status, completed_at, acting_for in rows
+            ],
+            limit,
+        )
+
+    def list_conversations(
+        self, *, readable: Readable | None = None, limit: int, before: str | None = None
+    ) -> Page:
+        """A page of conversations, most recently active first, read from
+        `conversation_index`."""
+        query, params = conversations_query(readable=readable, limit=limit, before=before)
+        with _connect(self._location) as conn:
+            rows = conn.execute(query, params).fetchall()
+        return paged(
+            [
+                (
+                    last_seq,
+                    {
+                        "conversation_id": conversation_id,
+                        "project_id": project_id,
+                        "agent_id": agent_id,
+                        "first_invocation_id": first_invocation_id,
+                        "turns": turns,
+                        "started_at": started_at,
+                        "last_completed_at": last_completed_at,
+                        "last_status": last_status,
+                    },
+                )
+                for (
+                    last_seq,
+                    conversation_id,
+                    project_id,
+                    agent_id,
+                    first_invocation_id,
+                    turns,
+                    started_at,
+                    last_completed_at,
+                    last_status,
+                ) in rows
+            ],
+            limit,
+        )
 
     def get(self, invocation_id: str) -> dict[str, Any] | None:
         return self._column(invocation_id, "envelope")
@@ -245,6 +327,98 @@ class PostgresRunStore:
     def where(self, invocation_id: str) -> str:
         """The database, without a credential, and the run within it."""
         return f"{self._where}#{invocation_id}"
+
+
+def _index_turn(conn: psycopg.Connection[Any], envelope: dict[str, Any], seq: int) -> None:
+    """Count a turn in its conversation's row of `conversation_index`, in the transaction that
+    stores it. The first turn makes the row; a later one moves its latest turn on."""
+    conn.execute(
+        "insert into conversation_index as c (conversation_id, first_invocation_id, project_id,"
+        " principal_id, agent_id, turns, started_at, last_seq, last_completed_at, last_status)"
+        " values (%s, %s, %s, %s, %s, 1, %s, %s, %s, %s)"
+        " on conflict (conversation_id) do update set turns = c.turns + 1,"
+        " last_seq = excluded.last_seq, last_completed_at = excluded.last_completed_at,"
+        " last_status = excluded.last_status",
+        (
+            envelope["conversation_id"],
+            envelope["invocation_id"],
+            envelope.get("project_id"),
+            principal_of(envelope),
+            envelope["agent_id"],
+            envelope["completed_at"],
+            seq,
+            envelope["completed_at"],
+            envelope["outcome"]["status"],
+        ),
+    )
+
+
+_RUN_COLUMNS = (
+    "seq, invocation_id, envelope ->> 'agent_id', envelope -> 'outcome' ->> 'status',"
+    " envelope ->> 'completed_at', envelope -> 'acting_for' ->> 'name'"
+)
+_CONVERSATION_COLUMNS = (
+    "last_seq, conversation_id, project_id, agent_id, first_invocation_id, turns, started_at,"
+    " last_completed_at, last_status"
+)
+
+
+def runs_query(
+    *, readable: Readable | None, limit: int, before: str | None
+) -> tuple[str, dict[str, Any]]:
+    """The SQL `list_runs` runs, and its parameters: one row more than a page, newest first."""
+    return _page_query("runs", _RUN_COLUMNS, "seq", readable=readable, limit=limit, before=before)
+
+
+def conversations_query(
+    *, readable: Readable | None, limit: int, before: str | None
+) -> tuple[str, dict[str, Any]]:
+    """The SQL `list_conversations` runs, and its parameters: one row more than a page, the most
+    recently active first."""
+    return _page_query(
+        "conversation_index",
+        _CONVERSATION_COLUMNS,
+        "last_seq",
+        readable=readable,
+        limit=limit,
+        before=before,
+    )
+
+
+def _page_query(
+    table: str,
+    columns: str,
+    order: str,
+    *,
+    readable: Readable | None,
+    limit: int,
+    before: str | None,
+) -> tuple[str, dict[str, Any]]:
+    """A page of `table` before the cursor, newest first by `order`. Each way a reader may see a
+    row is a scan of its own index that stops after a page; a reader's projects are each scanned
+    so, and the pages merged. What one page reads is bounded by the page and the reader's
+    projects, never by the size of the store."""
+    check_limit(limit)
+    params: dict[str, Any] = {"end": position(before), "rows": limit + 1}
+    page = f"{order} < %(end)s order by {order} desc limit %(rows)s"
+    if readable is None:
+        return f"select {columns} from {table} where {page}", params
+    params["principal"] = readable.principal_id
+    if readable.project_ids is None:
+        alone = f"select {columns} from {table} where principal_id = %(principal)s and {page}"
+        return alone, params
+    params["projects"] = sorted(readable.project_ids)
+    query = (
+        f"select * from ("
+        f"(select {columns} from {table}"
+        f" where project_id is null and principal_id = %(principal)s and {page})"
+        f" union all"
+        f" (select found.* from unnest(%(projects)s::text[]) as p (project_id)"
+        f" cross join lateral (select {columns} from {table}"
+        f" where {table}.project_id = p.project_id and {page}) as found)"
+        f") as readable order by {order} desc limit %(rows)s"
+    )
+    return query, params
 
 
 class PostgresSection:

@@ -19,6 +19,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
+from dd_harness.listing import Page, Readable
 from dd_harness.progress import ENTRY_BY_RESEARCHER, EntrySource
 from dd_harness.projects import Decision, TitleSource
 from dd_harness.requirements import Requirements
@@ -58,6 +59,11 @@ class RunStorage(Protocol):
        store returns (an envelope, an artifact) carries them.
     5. A name the caller supplies (an `invocation_id`, a digest, an artifact name) never reaches
        anything outside the store: one that is malformed names nothing.
+    6. `list_runs` and `list_conversations` return the items `dd_harness.listing.scan_runs` and
+       `scan_conversations` return over `iter_envelopes()`, in the same order, a page at a time.
+       A cursor is the backend's own: the next page holds what was stored before the last item
+       of the page that gave it, so pages neither repeat nor skip a run stored before the first
+       was read. A malformed cursor names an empty page.
     """
 
     def has(self, invocation_id: str) -> bool:
@@ -78,6 +84,23 @@ class RunStorage(Protocol):
     def iter_envelopes(self, *, conversation_id: str | None = None) -> Iterator[dict[str, Any]]:
         """Every stored envelope, in the order stored; with `conversation_id`, only that
         conversation's, turns and delegated children alike."""
+        ...
+
+    def list_runs(
+        self, *, readable: Readable | None = None, limit: int, before: str | None = None
+    ) -> Page:
+        """A page of run summaries (`dd_harness.listing.run_summary`), newest first, delegated
+        children included; with `readable`, only the runs it includes; with `before`, the runs
+        stored before that cursor."""
+        ...
+
+    def list_conversations(
+        self, *, readable: Readable | None = None, limit: int, before: str | None = None
+    ) -> Page:
+        """A page of conversation summaries (`dd_harness.listing.conversation_summary`, with its
+        turns counted), the most recently active first, by the stored order of each one's latest
+        turn. A delegated child is not a turn. With `readable`, only the conversations whose
+        first turn it includes."""
         ...
 
     def get(self, invocation_id: str) -> dict[str, Any] | None:

@@ -204,7 +204,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     project by the principal it acted for, or for a conversation with no turn yet, the person who
     started it. A delegated child belongs where its parent does, since it acts for the same
     principal in the same project. `GET /api/runs` and `GET /api/conversations` list only those,
-    and a run or conversation the person may not read is answered `404` by
+    newest first, a page at a time: `?limit=` (50 unless given, at most 200) and `?before=` the
+    cursor of the page before, with the next page named by a `Link` header with `rel="next"`
+    ([Storage](storage.md), "Listing"). The run store chooses what the person may read, so a page
+    costs the same whatever the size of the store. A run or conversation the person may not read is answered `404` by
     `GET /api/runs/{id}`, `GET /api/conversations/{id}` and `POST /api/conversations/{id}/turns`,
     as one that does not exist, with nothing run. A problem report attaches only what the reporter
     may read. Ownership is read from the `acting_for` and `project_id` the run store records and

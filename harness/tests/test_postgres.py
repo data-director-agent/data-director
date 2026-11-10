@@ -14,10 +14,12 @@ import os
 import re
 import uuid
 from collections.abc import Callable, Iterator
+from typing import Any
 from urllib.parse import quote
 
 import pytest
 
+from dd_harness.listing import Readable, scan_conversations, scan_runs
 from dd_harness.projects import Projects
 from dd_harness.settings import SettingsError, project_storage, run_storage
 from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
@@ -262,3 +264,102 @@ def test_the_conductor_keeps_a_run_whole_in_the_database(locate: Locate) -> None
     assert store.get_artifact(env.invocation_id, SPANS)
     assert store.get_artifact(env.invocation_id, f"{CRATE}/ro-crate-metadata.json")
     assert [e["invocation_id"] for e in store.iter_envelopes()] == [env.invocation_id]
+
+
+def _at_version_one(location: str) -> None:
+    """Apply the first migration alone, as a database made before listing was indexed."""
+    _version, name, script = postgres.migrations()[0]
+    with psycopg.connect(location) as conn, conn.transaction():
+        conn.execute(
+            "create table dd_schema (version integer primary key, name text not null,"
+            " applied_at timestamptz not null default now())"
+        )
+        conn.execute(script.encode())
+        conn.execute("insert into dd_schema (version, name) values (1, %s)", (name,))
+
+
+# A store large enough that reading it whole would show in a plan: runs in many conversations,
+# some delegated, for many principals, a third of them in projects.
+LARGE_STORE = """
+insert into runs (invocation_id, conversation_id, envelope)
+select
+    'run-' || i,
+    'conversation-' || (i %% 5000),
+    json_build_object(
+        'invocation_id', 'run-' || i,
+        'agent_id', 'stub.storage',
+        'agent_version', '0.1.0',
+        'conversation_id', 'conversation-' || (i %% 5000),
+        'parent_invocation_id', case when i %% 10 = 0 then 'run-' || (i - 1) end,
+        'project_id', case when (i %% 5000) %% 3 = 0 then 'project-' || (i %% 40) end,
+        'acting_for', json_build_object(
+            'principal_id', 'principal-' || ((i %% 5000) %% 50), 'name', 'Person ' || (i %% 50)
+        ),
+        'completed_at', to_char(timestamp '2026-01-01' + i * interval '1 second',
+            'YYYY-MM-DD"T"HH24:MI:SS"+00:00"'),
+        'outcome', json_build_object('status', 'succeeded', 'statement', 'Stored.')
+    )
+from generate_series(1, %(runs)s) as i
+"""
+
+
+def test_migrating_indexes_the_runs_already_stored(blank: Locate) -> None:
+    """Runs stored before listing was indexed are listed after the migration as they would have
+    been stored since."""
+    location = blank("runs")
+    _at_version_one(location)
+    with psycopg.connect(location) as conn:
+        conn.execute(LARGE_STORE, {"runs": 2000})
+    assert postgres.migrate(location) == [name for _, name, _ in postgres.migrations()[1:]]
+    store = postgres.PostgresRunStore(location)
+    readable = Readable("principal-7", frozenset({"project-3", "project-21"}))
+    for scope in (None, readable, Readable("principal-7", None)):
+        scanned = scan_conversations(
+            store.iter_envelopes(), readable=scope, limit=10**6, before=None
+        )
+        assert store.list_conversations(readable=scope, limit=10**6).items == scanned.items
+        runs = scan_runs(store.iter_envelopes(), readable=scope, limit=10**6, before=None)
+        assert store.list_runs(readable=scope, limit=10**6).items == runs.items
+
+
+def _scans(plan: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    yield plan
+    for child in plan.get("Plans", []):
+        yield from _scans(child)
+
+
+@pytest.mark.parametrize("listing", ["runs", "conversations"])
+def test_a_listing_reads_a_page_not_the_store(blank: Locate, listing: str) -> None:
+    """Listing a page, the first or one further on, for any reader, reads index entries in
+    proportion to the page and the reader's projects, never to the size of the store
+    (docs/specs/storage.md, "Listing")."""
+    location = blank("runs")
+    _at_version_one(location)
+    with psycopg.connect(location) as conn:
+        conn.execute(LARGE_STORE, {"runs": 20000})
+    postgres.migrate(location)
+    with psycopg.connect(location, autocommit=True) as conn:
+        conn.execute("analyze")
+    store = postgres.PostgresRunStore(location)
+    query = postgres.runs_query if listing == "runs" else postgres.conversations_query
+    page = store.list_runs if listing == "runs" else store.list_conversations
+    limit = 20
+    projects = frozenset({"project-3", "project-21", "project-30"})
+    for readable in (None, Readable("principal-7", projects), Readable("principal-7", None)):
+        first = page(readable=readable, limit=limit)
+        assert first.next is not None
+        for before in (None, first.next, page(readable=readable, limit=200).next):
+            sql, params = query(readable=readable, limit=limit, before=before)
+            with psycopg.connect(location) as conn:
+                row = conn.execute(f"explain (analyze, format json) {sql}", params).fetchone()
+            assert row is not None
+            nodes = list(_scans(row[0][0]["Plan"]))
+            tables = [n for n in nodes if n.get("Relation Name")]
+            assert tables, "the plan reads no table"
+            assert not [n for n in tables if n["Node Type"] == "Seq Scan"], tables
+            read = sum(
+                (n["Actual Rows"] + n.get("Rows Removed by Filter", 0)) * n["Actual Loops"]
+                for n in tables
+            )
+            ways_in = 1 if readable is None or readable.project_ids is None else len(projects) + 1
+            assert read <= (limit + 1) * ways_in, (read, nodes)
