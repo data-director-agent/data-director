@@ -435,6 +435,53 @@ to `/var/lib/data-director/runs.before-sign-in-<date>`, because a store holds no
 who signed in beside runs recorded for an operator. Then remove the password file,
 `sudo rm /etc/nginx/data-director.htpasswd`.
 
+## Container images
+
+Each push to `main`, and each release of the app, publishes one image that holds the app, its
+built shell and every in-tree agent: `ghcr.io/data-director-agent/data-director`, for
+`linux/amd64` and `linux/arm64` (`.github/workflows/images.yml`, built from
+`docker/release.Dockerfile`). It is an alternative to building on a VM as this page does, for a
+deployment elsewhere (#222). It holds no Node or uv, runs as a non-root user (uid 10001) and
+reports the commit it was built from at `GET /api/about`.
+
+| Tag | What it is |
+|---|---|
+| `edge` | the newest commit on `main` |
+| `0.3.0-alpha.8`, … | the app's released version; the other packages' versions are in the image's `org.data-director.package-versions` label |
+| `sha-<short>` | one commit |
+
+No `latest` is published while every package is alpha. Every image carries an SBOM and build
+provenance; check where one was built with
+
+```sh
+gh attestation verify oci://ghcr.io/data-director-agent/data-director:edge \
+  --repo data-director-agent/data-director
+```
+
+The command picks the service. The app is the default; each agent is its console script:
+
+```sh
+docker run --rm ghcr.io/data-director-agent/data-director:edge \
+  dd-advisor-quality serve --host 0.0.0.0 --port 8102 --public-url http://advisor-quality:8102
+```
+
+`docker/compose.image.yaml` runs the whole stack from the image, each agent at the name and port
+of `docker/agents.yaml`, which the app reads there. CI smoke-tests every image with it
+(`python3 scripts/smoke_image.py --image …`). To try it:
+
+```sh
+DD_PRINCIPAL_ID=https://orcid.org/0000-0002-1825-0097 DD_PRINCIPAL_NAME="A. Researcher" \
+  docker compose -f docker/compose.image.yaml up --wait
+```
+
+The app reads the settings in [`config/examples/app.env`](../config/examples/app.env) and the
+agents those in [`config/examples/agents.env`](../config/examples/agents.env); give them in files
+named by `DD_APP_ENV_FILE` and `DD_AGENTS_ENV_FILE` (relative to `docker/`). The model-backed
+orchestrator starts only with `--profile llm` and a model key.
+Runs and projects are written to `/runs` and `/projects`, which should be volumes. Without ORCID
+sign-in every run acts for the operator and the app authenticates nobody, so publish its port on
+loopback only, as the Compose file does, and put NGINX in front as on the VM.
+
 ## Not done yet
 
 - TODO(#144): no notice reaches anyone when a deployment fails; the journal and

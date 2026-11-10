@@ -7,7 +7,8 @@ name: release-please
 # one release PR open for every package with a pending release, so that a release starts one CI
 # run rather than one per package, and tags each `<component>-v<version>` when that PR is merged. The PR's title
 # starts `chore(main): release `, which the sign-off check in ci.yml exempts. Merging it also
-# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml).
+# archives the repository in Zenodo as a new version with its own DOI (zenodo.yml), and a release of
+# the app publishes the production image with its version (images.yml).
 on:
   push:
     branches: [main]
@@ -31,6 +32,8 @@ jobs:
       prs: ${{ steps.release.outputs.prs }}
       publish: ${{ steps.publish.outputs.paths }}
       releases_created: ${{ steps.release.outputs.releases_created }}
+      # Set only when this run released the app; the image is tagged with it (images.yml).
+      app_version: ${{ steps.release.outputs['app--release_created'] == 'true' && steps.release.outputs['app--version'] || '' }}
     steps:
       # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -163,3 +166,17 @@ jobs:
     uses: ./.github/workflows/zenodo.yml # zizmor: ignore[self-repository]
     with:
       ref: ${{ github.sha }}
+
+  # The production image, tagged with the app's version, when the app was released (#223).
+  images:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.app_version != '' }}
+    permissions:
+      contents: read
+      packages: write # to push the image
+      id-token: write # to sign its build provenance attestation
+      attestations: write # to store it
+    # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
+    uses: ./.github/workflows/images.yml # zizmor: ignore[self-repository]
+    with:
+      version: ${{ needs.release-please.outputs.app_version }}
