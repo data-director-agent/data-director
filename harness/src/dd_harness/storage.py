@@ -187,6 +187,12 @@ class ProjectStorage(Protocol):
         """A summary of every project, in the order created."""
         ...
 
+    def projects_naming(self, principal_id: str) -> list[str]:
+        """The projects whose log may give the principal a role, in the order created
+        (`ProjectLog.projects_naming`): a superset of the projects they have a role in, which
+        `dd_harness.project_access.readable_projects` narrows by reading each one's log."""
+        ...
+
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one."""
         ...
@@ -436,4 +442,10 @@ class ProjectLog(Protocol):
 
     def project_ids(self) -> list[str]:
         """Every project, in the order created."""
+        ...
+
+    def projects_naming(self, principal_id: str) -> list[str]:
+        """Every project with an event that `dd_harness.role_events.names` the principal, in the
+        order created: the projects whose log may give them a role. A database answers from an
+        index, so the cost follows the principal's projects, not the store's."""
         ...

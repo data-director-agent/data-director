@@ -363,3 +363,74 @@ def test_a_listing_reads_a_page_not_the_store(blank: Locate, listing: str) -> No
             )
             ways_in = 1 if readable is None or readable.project_ids is None else len(projects) + 1
             assert read <= (limit + 1) * ways_in, (read, nodes)
+
+
+# Many projects, each created by one of fifty principals, with a few more events each: enough that
+# reading every project's log, or every project, would show in a plan.
+MANY_PROJECTS = (
+    """
+insert into projects (project_id)
+select '01900000-0000-7000-8000-' || lpad(i::text, 12, '0')
+from generate_series(1, %(projects)s) as i
+""",
+    """
+insert into project_events (project_id, event)
+select
+    '01900000-0000-7000-8000-' || lpad(i::text, 12, '0'),
+    json_build_object(
+        'event', case when n = 0 then 'project_created' else 'check_event' end,
+        'project_id', '01900000-0000-7000-8000-' || lpad(i::text, 12, '0'),
+        'acted_for', json_build_object('principal_id', 'principal-' || (i %% 50), 'name', 'P')
+    )
+from generate_series(1, %(projects)s) as i cross join generate_series(0, 3) as n
+order by i, n
+""",
+)
+
+
+def _many_projects(location: str, projects: int) -> None:
+    with psycopg.connect(location) as conn:
+        for statement in MANY_PROJECTS:
+            conn.execute(statement, {"projects": projects})
+
+
+def _project(i: int) -> str:
+    return f"01900000-0000-7000-8000-{i:012d}"
+
+
+def test_migrating_names_the_creators_of_projects_already_stored(blank: Locate) -> None:
+    """Projects created before their readers were indexed are found after the migration by
+    whoever created them, and by no one who only acted in them."""
+    location = blank("projects")
+    _at_version_one(location)
+    _many_projects(location, 200)
+    postgres.migrate(location)
+    log = postgres.PostgresProjectLog(location)
+    assert log.projects_naming("principal-7") == [_project(i) for i in range(7, 201, 50)]
+    assert log.projects_naming("principal-nobody") == []
+
+
+def test_finding_a_persons_projects_reads_their_projects_not_the_store(blank: Locate) -> None:
+    """The projects whose log names a principal are found from an index, reading entries in
+    proportion to their projects, never to the number of projects in the store
+    (docs/specs/storage.md, "Listing")."""
+    location = blank("projects")
+    _at_version_one(location)
+    _many_projects(location, 20000)
+    postgres.migrate(location)
+    with psycopg.connect(location, autocommit=True) as conn:
+        conn.execute("analyze")
+    theirs = 20000 // 50
+    assert len(postgres.PostgresProjectLog(location).projects_naming("principal-7")) == theirs
+    sql, params = postgres.projects_naming_query("principal-7")
+    with psycopg.connect(location) as conn:
+        row = conn.execute(f"explain (analyze, format json) {sql}", params).fetchone()
+    assert row is not None
+    nodes = list(_scans(row[0][0]["Plan"]))
+    tables = [n for n in nodes if n.get("Relation Name")]
+    assert tables, "the plan reads no table"
+    assert not [n for n in tables if n["Node Type"] == "Seq Scan"], tables
+    read = sum(
+        (n["Actual Rows"] + n.get("Rows Removed by Filter", 0)) * n["Actual Loops"] for n in tables
+    )
+    assert read <= 2 * theirs, (read, nodes)

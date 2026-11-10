@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from dd_harness.listing import Page, Readable, run_summary, scan_conversations, scan_runs
+from dd_harness.project_access import readable_projects
 from dd_harness.projects import (
     APPROVED,
     CONVERSATION_STARTED,
@@ -68,6 +69,7 @@ from dd_sdk.contract.models import (
     FileInventory,
     IdentificationMethod,
     InventoryFile,
+    Principal,
     new_invocation_id,
 )
 from dd_sdk.evidence import input_hash
@@ -548,6 +550,23 @@ def check_projects_are_listed_in_the_order_created(make: MakeProjectStorage) -> 
     assert store.summary(first) == summaries[0]
 
 
+def check_a_person_reads_the_projects_they_have_a_role_in(make: MakeProjectStorage) -> None:
+    """The projects a person may read are the ones they have a role in, the one created first
+    first, found by any store over the record and after a restart (docs/specs/storage.md,
+    "Listing")."""
+    store = make("projects")
+    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
+    first = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    theirs = store.create(acted_for=someone, caused_by="check")
+    # Acting in a project names no one a member; only membership events do, TODO(#389).
+    store.start_conversation(theirs, acted_for=TEST_PRINCIPAL, caused_by="check")
+    second = make("projects").create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert readable_projects(store, TEST_PRINCIPAL) == [first, second]
+    assert readable_projects(make("projects"), someone) == [theirs]
+    nobody = Principal(principal_id="https://orcid.org/0000-0003-0000-0000", name="Nobody")
+    assert readable_projects(store, nobody) == []
+
+
 def check_a_persons_title_is_never_replaced_by_a_models(make: MakeProjectStorage) -> None:
     store = make("projects")
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -910,6 +929,9 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a refused change records nothing": check_a_refused_change_records_nothing,
     "an unknown project is refused": check_an_unknown_project_is_refused,
     "projects are listed in the order created": check_projects_are_listed_in_the_order_created,
+    "a person reads the projects they have a role in": (
+        check_a_person_reads_the_projects_they_have_a_role_in
+    ),
     "a person's title is never replaced by a model's": (
         check_a_persons_title_is_never_replaced_by_a_models
     ),
@@ -1056,6 +1078,23 @@ def check_a_log_finds_a_conversation_when_asked(make: MakeProjectLog) -> None:
     assert make("log").project_ids() == [project_id, other]
 
 
+def check_a_log_finds_the_projects_naming_a_principal(make: MakeProjectLog) -> None:
+    """The projects whose log names a principal (`dd_harness.role_events.names`) are found by any
+    log over the record, in the order created, whatever else their logs hold."""
+    first = make("log")
+    named, other = _new_project(first), new_invocation_id()
+    someone = {"principal_id": "https://orcid.org/0000-0002-1694-233X", "name": "Someone Else"}
+    first.create(other, {**_log_event(other, PROJECT_CREATED), "acted_for": someone})
+    # An event that names no one whose role may change.
+    with first.section(other) as section:
+        section.append([_log_event(other, "check_event")])
+    later = _new_project(make("log"))
+    principal_id = TEST_PRINCIPAL.principal_id
+    assert first.projects_naming(principal_id) == [named, later]
+    assert make("log").projects_naming(someone["principal_id"]) == [other]
+    assert first.projects_naming("https://orcid.org/0000-0003-0000-0000") == []
+
+
 def check_a_malformed_project_name_names_nothing(make: MakeProjectLog) -> None:
     log = make("log")
     project_id = _new_project(log)
@@ -1080,6 +1119,9 @@ PROJECT_LOG_CHECKS: dict[str, Callable[[MakeProjectLog], None]] = {
     ),
     "a log keeps content once by digest": check_a_log_keeps_content_once_by_digest,
     "a log finds a conversation when asked": check_a_log_finds_a_conversation_when_asked,
+    "a log finds the projects naming a principal": (
+        check_a_log_finds_the_projects_naming_a_principal
+    ),
     "a malformed project name names nothing": check_a_malformed_project_name_names_nothing,
 }
 

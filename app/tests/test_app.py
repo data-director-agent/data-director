@@ -1066,6 +1066,42 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
     check_fixture("projects.json", normalised_conversation(response.json()))
 
 
+def test_projects_are_paged_the_one_created_last_first(
+    in_projects: tuple[Governance, Any],
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    created = []
+    for n in range(3):
+        project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+        store.add_inventory(
+            project_id, a_file_inventory(f"{n}.csv"), acted_for=TEST_PRINCIPAL, caused_by="test"
+        )
+        created.append(project_id)
+        store.create(acted_for=TEST_PRINCIPAL, caused_by="test")  # empty, so not listed
+    newest_first = list(reversed(created))
+    assert [p["project_id"] for p in client.get("/api/projects").json()] == newest_first
+    listed: list[str] = []
+    url: str | None = "/api/projects?limit=2"
+    while url:
+        response = client.get(url)
+        assert len(response.json()) <= 2
+        listed += [p["project_id"] for p in response.json()]
+        url = response.links.get("next", {}).get("url")
+    assert listed == newest_first
+    for refused in ("0", "x", "201"):
+        response = client.get(f"/api/projects?limit={refused}")
+        assert response.status_code == 400
+        assert response.json()["type"].endswith("/request-refused")
+    # A cursor that names no project the person may read names an empty page.
+    someone = Principal(principal_id="https://orcid.org/0000-0002-1694-233X", name="Someone Else")
+    theirs = store.create(acted_for=someone, caused_by="test")
+    for cursor in ("nonsense", theirs):
+        assert client.get(f"/api/projects?before={cursor}").json() == []
+
+
 def test_every_project_route_answers_someone_elses_project_as_one_that_does_not_exist(
     in_projects: tuple[Governance, Any],
 ):

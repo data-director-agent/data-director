@@ -377,6 +377,10 @@ class Projects:
         """A summary of every project, the one created first first (see `summary`)."""
         return [self.summary(project_id) for project_id in self.log.project_ids()]
 
+    def projects_naming(self, principal_id: str) -> list[str]:
+        """The projects whose log may give the principal a role, the one created first first."""
+        return self.log.projects_naming(principal_id)
+
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one: its latest title and who gave it (`title_source`:
         `researcher`, `model`, or None while it has none), who created it and when, the latest
