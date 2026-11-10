@@ -15,7 +15,7 @@
 
 # --- The shell ----------------------------------------------------------------------------------
 
-FROM node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS web
+FROM node:25-bookworm-slim@sha256:81db02c4b671288a03915da9534dbd54f96d0e7c24d80ccc54f5b36b2e684370 AS web
 WORKDIR /src
 # What the shell's build reads: the app's front end, the libraries it links and the app's config.
 COPY sdk/browser sdk/browser
@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/root/.cache/dd-sources \
 # --- The image ----------------------------------------------------------------------------------
 
 # The Python the uv image is built on, so the virtual environment's interpreter is at the same path.
-FROM python:3.14.2-slim-bookworm@sha256:e87711ef5c86aaeaa7031718a69db79d334d94c545c709583f651b8185870941
+FROM python:3.15.0-slim-bookworm@sha256:0e019bbdfb5d9874cb2389f1c2884b64aa2ac97c99960b5bc521cef978c0617d
 
 ARG REVISION=""
 ARG VERSION=""
