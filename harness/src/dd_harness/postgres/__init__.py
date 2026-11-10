@@ -10,8 +10,11 @@ The schema changes only through the numbered SQL files in `migrations/`, applied
 (`dd-harness storage migrate`). A store refuses to open over a schema that is older or newer than
 this build's, naming that command, and nothing alters a schema as a side effect of serving.
 
-Each call opens its own connection and closes it, so a store is safe to share between threads and
-needs no closing. A project's exclusive section is a transaction that holds a lock on the
+Each store keeps a pool of connections (`psycopg_pool`), at most `pool_size` of them
+(`DD_POSTGRES_POOL_SIZE` through `dd_harness.settings`), and each call borrows one for its length,
+so a store is safe to share between threads. `close` releases the pool, as does the store being
+collected or the process ending. A store is opened in the process that uses it, never carried
+across a `fork`. A project's exclusive section is a transaction that holds a lock on the
 project's row (`select … for update`), which holds across processes and hosts; projects do not
 wait on one another. It stores and reads, and decides nothing: the project rules are
 `dd_harness.projects.Projects`, over this log.
@@ -27,14 +30,16 @@ person may read are found without reading every log (`projects_naming`, `project
 from __future__ import annotations
 
 import re
+import weakref
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from importlib.resources import files
-from typing import Any
+from typing import Any, Self
 
 import psycopg
 from psycopg import errors, sql
 from psycopg.types.json import Json
+from psycopg_pool import ConnectionPool
 
 from dd_harness.listing import (
     Page,
@@ -60,6 +65,8 @@ _CONVERSATION_STARTED = "conversation_started"
 _RUN_ORDER_LOCK = 0x6464_7275_6E73  # "ddruns"
 # Taken while the schema is migrated, so two commands never apply the same file.
 _MIGRATE_LOCK = 0x6464_6D69_6772  # "ddmigr"
+# The most connections one store keeps, unless `DD_POSTGRES_POOL_SIZE` says otherwise.
+DEFAULT_POOL_SIZE = 10
 
 
 def migrations() -> list[tuple[int, str, str]]:
@@ -143,18 +150,61 @@ def _open(location: str) -> str:
     return where
 
 
-class PostgresRunStore:
+type Pool = ConnectionPool[psycopg.Connection[Any]]
+
+
+def _pool(owner: object, location: str, where: str, size: int) -> Pool:
+    """A pool of at most `size` connections to `location`, closed when `owner` is collected or the
+    process ends. Each connection is checked as it is borrowed, so one the server dropped (a
+    restart) is replaced rather than handed out. The pool is named by `where`, which holds no
+    credential, so its log records hold none either."""
+    if size < 1:
+        raise ValueError(f"a pool holds at least one connection, not {size}")
+    pool: Pool = ConnectionPool(
+        location,
+        min_size=1,
+        max_size=size,
+        open=True,
+        check=ConnectionPool.check_connection,
+        name=where,
+    )
+    weakref.finalize(owner, pool.close)
+    return pool
+
+
+class _Pooled:
+    """What both stores share: a pool, released by `close` or at the end of a `with` block."""
+
+    _pool: Pool
+
+    @property
+    def pool_size(self) -> int:
+        """The most connections the store keeps open at once."""
+        return self._pool.max_size
+
+    def close(self) -> None:
+        """Close the store's connections. A call after this raises."""
+        self._pool.close()
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+
+class PostgresRunStore(_Pooled):
     """Runs kept in PostgreSQL. A run, its request, its prompts and its class schemas are stored
     in one transaction (invariant 4)."""
 
-    def __init__(self, location: str) -> None:
-        self._location = location
+    def __init__(self, location: str, *, pool_size: int = DEFAULT_POOL_SIZE) -> None:
         self._where = _open(location)
+        self._pool = _pool(self, location, self._where, pool_size)
 
     def has(self, invocation_id: str) -> bool:
         if not RUN_ID.fullmatch(invocation_id):
             return False
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             row = conn.execute(
                 "select 1 from runs where invocation_id = %s", (invocation_id,)
             ).fetchone()
@@ -173,7 +223,7 @@ class PostgresRunStore:
         if not RUN_ID.fullmatch(invocation_id):
             raise ValueError(f"{invocation_id!r} is not an invocation identifier")
         try:
-            with _connect(self._location) as conn, conn.transaction():
+            with self._pool.connection() as conn, conn.transaction():
                 for schema in schemas:
                     conn.execute(
                         "insert into run_schemas (digest, schema) values (%s, %s)"
@@ -202,7 +252,7 @@ class PostgresRunStore:
             raise FileExistsError(f"run {invocation_id} is already stored") from exc
 
     def iter_envelopes(self, *, conversation_id: str | None = None) -> Iterator[dict[str, Any]]:
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             if conversation_id is None:
                 rows = conn.execute("select envelope from runs order by seq").fetchall()
             else:
@@ -218,7 +268,7 @@ class PostgresRunStore:
     ) -> Page:
         """A page of runs, newest first, read from the indexes on `runs`."""
         query, params = runs_query(readable=readable, limit=limit, before=before)
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             rows = conn.execute(query, params).fetchall()
         return paged(
             [
@@ -243,7 +293,7 @@ class PostgresRunStore:
         """A page of conversations, most recently active first, read from
         `conversation_index`."""
         query, params = conversations_query(readable=readable, limit=limit, before=before)
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             rows = conn.execute(query, params).fetchall()
         return paged(
             [
@@ -287,7 +337,7 @@ class PostgresRunStore:
     def _column(self, invocation_id: str, column: str) -> dict[str, Any] | None:
         if not RUN_ID.fullmatch(invocation_id):
             return None
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             query = sql.SQL("select {} from runs where invocation_id = %s").format(
                 sql.Identifier(column)
             )
@@ -297,7 +347,7 @@ class PostgresRunStore:
     def get_schema(self, digest: str) -> dict[str, Any] | None:
         if not DIGEST.fullmatch(digest):
             return None
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             row = conn.execute(
                 "select schema from run_schemas where digest = %s", (digest,)
             ).fetchone()
@@ -307,7 +357,7 @@ class PostgresRunStore:
         if not RUN_ID.fullmatch(invocation_id) or artifact_segments(name) is None:
             raise ValueError(f"not an artifact name: {name!r}")
         try:
-            with _connect(self._location) as conn, conn.transaction():
+            with self._pool.connection() as conn, conn.transaction():
                 conn.execute(
                     "insert into run_artifacts (invocation_id, name, data) values (%s, %s, %s)",
                     (invocation_id, name, data),
@@ -320,7 +370,7 @@ class PostgresRunStore:
     def get_artifact(self, invocation_id: str, name: str) -> bytes | None:
         if not RUN_ID.fullmatch(invocation_id) or artifact_segments(name) is None:
             return None
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             row = conn.execute(
                 "select data from run_artifacts where invocation_id = %s and name = %s",
                 (invocation_id, name),
@@ -450,12 +500,12 @@ class PostgresSection:
         _append(self._conn, self._project_id, events)
 
 
-class PostgresProjectLog:
+class PostgresProjectLog(_Pooled):
     """Each project's log and blobs in PostgreSQL."""
 
-    def __init__(self, location: str) -> None:
-        self._location = location
+    def __init__(self, location: str, *, pool_size: int = DEFAULT_POOL_SIZE) -> None:
         self._where = _open(location)
+        self._pool = _pool(self, location, self._where, pool_size)
         # The project of each conversation found so far: a conversation's project never changes
         # once recorded (invariant 12). One not found is looked for again.
         self._conversations: dict[str, str] = {}
@@ -464,7 +514,7 @@ class PostgresProjectLog:
         if not _PROJECT_ID.fullmatch(project_id):
             raise ValueError(f"{project_id!r} is not a project identifier")
         try:
-            with _connect(self._location) as conn, conn.transaction():
+            with self._pool.connection() as conn, conn.transaction():
                 conn.execute("insert into projects (project_id) values (%s)", (project_id,))
                 _append(conn, project_id, [event])
         except errors.UniqueViolation as exc:
@@ -473,13 +523,13 @@ class PostgresProjectLog:
     def exists(self, project_id: str) -> bool:
         if not _PROJECT_ID.fullmatch(project_id):
             return False
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             return _exists(conn, project_id)
 
     def events(self, project_id: str) -> list[dict[str, Any]]:
         if not _PROJECT_ID.fullmatch(project_id):
             raise KeyError(project_id)
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             events = _events(conn, project_id)
         if not events:  # every project's log begins with its creation
             raise KeyError(project_id)
@@ -491,7 +541,7 @@ class PostgresProjectLog:
         exception, and rolled back if one is raised."""
         if not _PROJECT_ID.fullmatch(project_id):
             raise KeyError(project_id)
-        with _connect(self._location) as conn, conn.transaction():
+        with self._pool.connection() as conn, conn.transaction():
             locked = conn.execute(
                 "select 1 from projects where project_id = %s for no key update", (project_id,)
             ).fetchone()
@@ -505,7 +555,7 @@ class PostgresProjectLog:
         if not DIGEST.fullmatch(digest):
             raise ValueError("a digest is a SHA-256 in lower-case hex")
         try:
-            with _connect(self._location) as conn, conn.transaction():
+            with self._pool.connection() as conn, conn.transaction():
                 conn.execute(
                     "insert into project_blobs (project_id, digest, content) values (%s, %s, %s)"
                     " on conflict (project_id, digest) do nothing",
@@ -517,7 +567,7 @@ class PostgresProjectLog:
     def blob(self, project_id: str, digest: str) -> bytes | None:
         if not _PROJECT_ID.fullmatch(project_id) or not DIGEST.fullmatch(digest):
             return None
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             row = conn.execute(
                 "select content from project_blobs where project_id = %s and digest = %s",
                 (project_id, digest),
@@ -528,7 +578,7 @@ class PostgresProjectLog:
         found = self._conversations.get(conversation_id)
         if found is not None:
             return found
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             row = conn.execute(
                 "select project_id from project_events where started_conversation = %s"
                 " order by seq limit 1",
@@ -541,13 +591,13 @@ class PostgresProjectLog:
         return project_id
 
     def project_ids(self) -> list[str]:
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             rows = conn.execute("select project_id from projects order by created").fetchall()
         return [project_id for (project_id,) in rows]
 
     def projects_naming(self, principal_id: str) -> list[str]:
         query, params = projects_naming_query(principal_id)
-        with _connect(self._location) as conn:
+        with self._pool.connection() as conn:
             rows = conn.execute(query, params).fetchall()
         return [project_id for (project_id,) in rows]
 

@@ -149,6 +149,30 @@ def _postgres(variable: str) -> ModuleType:
         ) from exc
 
 
+POOL_SIZE_VARIABLE = "DD_POSTGRES_POOL_SIZE"
+
+
+def postgres_pool_size() -> int | None:
+    """The most connections one PostgreSQL store keeps: `DD_POSTGRES_POOL_SIZE`, or None for the
+    backend's default (docs/specs/storage.md). Anything but a positive whole number stops start-up
+    with `SettingsError`."""
+    value = os.environ.get(POOL_SIZE_VARIABLE, "").strip()
+    if not value:
+        return None
+    if not value.isdecimal() or int(value) < 1:
+        raise SettingsError(
+            f"{POOL_SIZE_VARIABLE}={value!r}: the pool size is a whole number of connections, "
+            "at least 1 (docs/specs/storage.md)"
+        )
+    return int(value)
+
+
+def _pooled() -> dict[str, int]:
+    """The pool size to pass a PostgreSQL store, if the environment names one."""
+    size = postgres_pool_size()
+    return {} if size is None else {"pool_size": size}
+
+
 def run_storage(location: StorageLocation, variable: str = "DD_RUNS_DIR") -> RunStorage:
     """The run storage at `location` (`DD_RUNS_DIR`): a path or `file://` URL is the file backend,
     a `postgresql://` URL the PostgreSQL one (docs/specs/storage.md). A location that cannot be
@@ -156,8 +180,9 @@ def run_storage(location: StorageLocation, variable: str = "DD_RUNS_DIR") -> Run
     where = storage_location(location, variable)
     if isinstance(where, Path):
         return _on_files(variable, where, RunStore)
+    pooled = _pooled()
     try:
-        store: RunStorage = _postgres(variable).PostgresRunStore(where)
+        store: RunStorage = _postgres(variable).PostgresRunStore(where, **pooled)
     except SettingsError as exc:
         raise SettingsError(f"{variable} {exc}") from exc
     return store
@@ -170,8 +195,9 @@ def project_storage(location: StorageLocation, variable: str = "DD_PROJECTS_DIR"
     where = storage_location(location, variable)
     if isinstance(where, Path):
         return _on_files(variable, where, ProjectStore)
+    pooled = _pooled()
     try:
-        log = _postgres(variable).PostgresProjectLog(where)
+        log = _postgres(variable).PostgresProjectLog(where, **pooled)
     except SettingsError as exc:
         raise SettingsError(f"{variable} {exc}") from exc
     return Projects(log)

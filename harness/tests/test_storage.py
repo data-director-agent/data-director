@@ -125,6 +125,18 @@ def test_a_database_location_without_its_driver_names_the_extra(
         project_storage("postgresql://db.example/dd")
 
 
+@pytest.mark.parametrize("size", ["0", "-1", "ten", "2.5"])
+def test_a_pool_size_that_is_not_a_positive_whole_number_stops_start_up(
+    monkeypatch: pytest.MonkeyPatch, size: str
+) -> None:
+    """Refused before any database is reached, so this needs none."""
+    monkeypatch.setenv("DD_POSTGRES_POOL_SIZE", size)
+    with pytest.raises(SettingsError, match="DD_POSTGRES_POOL_SIZE"):
+        run_storage("postgresql://db.example/dd")
+    with pytest.raises(SettingsError, match="DD_POSTGRES_POOL_SIZE"):
+        project_storage("postgresql://db.example/dd")
+
+
 def test_a_directory_that_cannot_be_made_stops_start_up(tmp_path: Path) -> None:
     (tmp_path / "file").write_text("not a directory")
     with pytest.raises(SettingsError, match=r"DD_RUNS_DIR .* cannot be used"):

@@ -12,6 +12,7 @@ from __future__ import annotations
 import multiprocessing
 import os
 import re
+import threading
 import uuid
 from collections.abc import Callable, Iterator
 from typing import Any
@@ -28,6 +29,7 @@ from dd_harness.testing import (
     PROJECT_STORAGE_CHECKS,
     RUN_STORAGE_CHECKS,
     SHARED_RECORD_CHECKS,
+    TEST_PRINCIPAL,
 )
 from dd_harness.testing.storage import stored_envelope
 
@@ -40,6 +42,7 @@ pytestmark = [
 
 psycopg = pytest.importorskip("psycopg")
 postgres = pytest.importorskip("dd_harness.postgres")
+psycopg_pool = pytest.importorskip("psycopg_pool")
 
 type Locate = Callable[[str], str]
 
@@ -48,6 +51,38 @@ def in_schema(database: str, schema: str) -> str:
     """`database`, with `schema` first on its search path."""
     option = quote(f"-csearch_path={schema}", safe="")
     return f"{database}{'&' if '?' in database else '?'}options={option}"
+
+
+@pytest.fixture(autouse=True)
+def closed_after(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Closes every pool a test's stores open once it ends, so that idle connections do not
+    build up while tests run side by side."""
+    pools: list[Any] = []
+    pool = postgres._pool
+
+    def kept(*args: Any, **kwargs: Any) -> Any:
+        pools.append(pool(*args, **kwargs))
+        return pools[-1]
+
+    monkeypatch.setattr(postgres, "_pool", kept)
+    yield
+    for each in pools:
+        each.close()
+
+
+def named(location: str, application: str) -> str:
+    """`location`, with its connections named `application` in `pg_stat_activity`."""
+    return f"{location}&application_name={application}"
+
+
+def connections(application: str) -> list[tuple[int, Any]]:
+    """The server's connections named `application`: each one's process and when it began."""
+    with psycopg.connect(DATABASE, autocommit=True) as conn:
+        rows = conn.execute(
+            "select pid, backend_start from pg_stat_activity where application_name = %s",
+            (application,),
+        ).fetchall()
+    return sorted((pid, started) for pid, started in rows)
 
 
 @pytest.fixture
@@ -199,6 +234,77 @@ def test_the_settings_choose_the_database_by_its_location(
     projects = project_storage(location)
     assert isinstance(projects, Projects)
     assert isinstance(projects.log, postgres.PostgresProjectLog)
+
+
+def test_the_pool_size_comes_from_the_settings(
+    locate: Locate, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    location = locate("store")
+    store = run_storage(location)
+    assert isinstance(store, postgres.PostgresRunStore)
+    assert store.pool_size == postgres.DEFAULT_POOL_SIZE
+    monkeypatch.setenv("DD_POSTGRES_POOL_SIZE", "3")
+    store = run_storage(location)
+    assert isinstance(store, postgres.PostgresRunStore)
+    assert store.pool_size == 3
+    projects = project_storage(location)
+    assert isinstance(projects, Projects)
+    assert isinstance(projects.log, postgres.PostgresProjectLog)
+    assert projects.log.pool_size == 3
+
+
+def test_a_store_reuses_its_connections_across_calls(locate: Locate) -> None:
+    application = f"dd_test_{uuid.uuid4().hex[:12]}"
+    store = postgres.PostgresRunStore(named(locate("runs"), application))
+    envelope = stored_envelope()
+    store.append(envelope)
+    kept = connections(application)
+    assert kept
+    for _ in range(5):
+        assert store.has(envelope["invocation_id"])
+        assert store.get(envelope["invocation_id"]) == envelope
+    assert connections(application) == kept
+
+
+def test_a_store_keeps_no_more_connections_than_its_pool_size(locate: Locate) -> None:
+    """Two sections held at once fill a pool of two; a third call waits for one of them rather
+    than opening a connection of its own."""
+    application = f"dd_test_{uuid.uuid4().hex[:12]}"
+    log = postgres.PostgresProjectLog(named(locate("projects"), application), pool_size=2)
+    projects = Projects(log)
+    held = [projects.create(acted_for=TEST_PRINCIPAL, caused_by="test") for _ in range(2)]
+    entered = threading.Barrier(len(held) + 1)
+    release = threading.Event()
+
+    def hold(project_id: str) -> None:
+        with log.section(project_id):
+            entered.wait()
+            release.wait()
+
+    holders = [threading.Thread(target=hold, args=(p,)) for p in held]
+    for holder in holders:
+        holder.start()
+    entered.wait()
+    assert len(connections(application)) == 2
+    found: list[bool] = []
+    waiting = threading.Thread(target=lambda: found.append(log.exists(held[0])))
+    waiting.start()
+    assert len(connections(application)) == 2
+    release.set()
+    for thread in (*holders, waiting):
+        thread.join()
+    assert found == [True]
+    assert len(connections(application)) <= 2
+
+
+def test_closing_a_store_releases_its_connections(locate: Locate) -> None:
+    application = f"dd_test_{uuid.uuid4().hex[:12]}"
+    with postgres.PostgresProjectLog(named(locate("projects"), application)) as log:
+        assert log.project_ids() == []
+        assert connections(application)
+    assert connections(application) == []
+    with pytest.raises(psycopg_pool.PoolClosed):
+        log.project_ids()
 
 
 def test_a_location_names_no_credential(locate: Locate) -> None:

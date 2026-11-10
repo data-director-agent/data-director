@@ -228,8 +228,18 @@ connection's `search_path`, which a location may choose with
 - **Documents are `json`, not `jsonb`.** `jsonb` refuses an escaped NUL (`\u0000`), which a
   researcher's text may hold, and does not keep the order of keys. A document is read back as it
   was given; what the backend looks up is copied into a column of its own.
-- **Connections.** Each call opens a connection and closes it, so a store is safe to share between
-  threads and needs no closing. A connection pool is a performance step, TODO(#712).
+- **Connections.** Each store keeps a pool of connections (`psycopg_pool`), and each call borrows
+  one for its length, so a store is safe to share between threads and a request does not pay for
+  a connection. `DD_POSTGRES_POOL_SIZE` is the most a store keeps open at once, 10 by default; a
+  value that is not a whole number of at least 1 stops start-up. The pool is per store: when
+  `DD_RUNS_DIR` and `DD_PROJECTS_DIR` name one database, a harness process may hold twice that,
+  and each process its own, which the server's `max_connections` must allow. When every
+  connection is borrowed, a call waits for one to come back, for up to 30 seconds, and then
+  raises. A connection is checked as it is borrowed, so one the server dropped is replaced, not
+  handed out. A project's exclusive section holds one connection for its transaction. `close`
+  releases the pool, as does the store being collected or the process ending; a store is opened
+  in the process that uses it, never carried across a `fork`. The migration commands open a
+  connection of their own.
 
 ## Moving file stores into a database
 
