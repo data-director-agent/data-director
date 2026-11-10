@@ -25,6 +25,7 @@ from starlette.testclient import TestClient
 from support import (
     APP_URL,
     FIXTURES,
+    JSON_HEADERS,
     check_fixture,
     configure_env,
     dist_dir,
@@ -573,7 +574,7 @@ def normalised_conversation(body: Any) -> Any:
 
 
 def start(client: TestClient) -> str:
-    response = client.post("/api/conversations")
+    response = client.post("/api/conversations", headers=JSON_HEADERS)
     assert response.status_code == 201
     conversation_id: str = response.json()["conversation_id"]
     assert response.headers["location"] == f"/api/conversations/{conversation_id}"
@@ -743,7 +744,9 @@ def a_file_inventory(*paths: str) -> dict[str, Any]:
 
 def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governance, dist: Path):
     client = TestClient(build_app(governance, dist))
-    first, second = (client.post("/api/conversations").json() for _ in range(2))
+    first, second = (
+        client.post("/api/conversations", headers=JSON_HEADERS).json() for _ in range(2)
+    )
     assert first["project_id"] != second["project_id"]
     store = governance.projects
     assert store is not None
@@ -758,7 +761,7 @@ def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governanc
 
 def test_a_conversation_is_started_in_the_project_it_names(governance: Governance, dist: Path):
     client = TestClient(build_app(governance, dist))
-    first = client.post("/api/conversations").json()
+    first = client.post("/api/conversations", headers=JSON_HEADERS).json()
     response = client.post("/api/conversations", json={"project_id": first["project_id"]})
     assert response.status_code == 201
     second = response.json()
@@ -881,7 +884,7 @@ def test_what_the_researcher_left_out_of_an_inventory_is_kept_nowhere(
 def test_a_project_without_an_inventory_serves_none(in_projects: tuple[Governance, Any]):
     _governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     none = client.get(f"/api/projects/{started['project_id']}/inventory")
     assert (none.status_code, none.json()["title"]) == (404, "No inventory")
     unknown = client.get(f"/api/projects/{uuid.uuid4()}/inventory")
@@ -901,7 +904,7 @@ def test_an_inventory_that_is_refused_leaves_no_trace_and_nothing_runs(
 ):
     governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     response = turn(client, started["conversation_id"], "hello", inventory=inventory)
     assert response.status_code == 400
     assert detail in response.json()["detail"]
@@ -994,7 +997,7 @@ def test_a_document_that_is_refused_leaves_no_trace_and_nothing_runs(
 ):
     governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     # Sent with an inventory the project would keep: that is refused with it.
     response = turn(
         client,
@@ -1023,7 +1026,7 @@ def test_a_document_needs_a_project_to_keep_it(delegating: tuple[Governance, Any
 def test_a_project_serves_only_the_documents_it_holds(in_projects: tuple[Governance, Any]):
     _governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     project_id = started["project_id"]
     assert client.get(f"/api/projects/{project_id}/documentation").json() == []
     none = client.get(f"/api/projects/{project_id}/documentation/{'0' * 64}")
@@ -1325,7 +1328,9 @@ def test_a_turn_goes_only_to_the_orchestrator_the_profile_names(
 
 def test_a_turn_that_is_not_json_is_refused(governance: Governance, dist: Path):
     client = TestClient(build_app(governance, dist))
-    response = client.post(f"/api/conversations/{start(client)}/turns", content=b"{")
+    response = client.post(
+        f"/api/conversations/{start(client)}/turns", content=b"{", headers=JSON_HEADERS
+    )
     assert response.status_code == 400
 
 
@@ -1395,3 +1400,48 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
             )
         )
     assert len(governance.runs(OTHER).items) == 2
+
+
+# #728: the session cookie is `SameSite=Lax`, which a same-site, cross-origin form still
+# rides, so a request that changes state must declare JSON, which such a form cannot.
+def _state_changing_routes(app: Any) -> list[tuple[str, str]]:
+    found = []
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/api/"):
+            continue
+        for method in sorted(getattr(route, "methods", None) or ()):
+            if method in {"POST", "PUT", "PATCH", "DELETE"}:
+                found.append((method, re.sub(r"\{[^}]+\}", "x", path)))
+    return found
+
+
+def test_every_state_changing_api_route_refuses_a_body_that_is_not_json(
+    governance: Governance, dist: Path
+):
+    app = build_app(governance, dist)
+    routes = _state_changing_routes(app)
+    assert ("POST", "/api/runs") in routes and ("PUT", "/api/projects/x/title") in routes
+    client = TestClient(app)
+    for method, path in routes:
+        for headers in (
+            {"content-type": "text/plain"},
+            {"content-type": "application/x-www-form-urlencoded"},
+            {"content-type": "multipart/form-data; boundary=b"},
+            {},
+        ):
+            response = client.request(method, path, content=b'{"a": 1}', headers=headers)
+            assert response.status_code == 415, (method, path, headers)
+            assert response.headers["content-type"].startswith("application/problem+json")
+        bodyless = client.request(method, path, headers={"content-type": "text/plain"})
+        assert bodyless.status_code == 415, (method, path)
+
+
+def test_a_json_request_with_a_charset_is_not_refused_for_its_type(
+    governance: Governance, dist: Path
+):
+    client = TestClient(build_app(governance, dist))
+    response = client.post(
+        "/api/runs", content=b"[]", headers={"content-type": "Application/JSON; charset=utf-8"}
+    )
+    assert response.status_code == 400

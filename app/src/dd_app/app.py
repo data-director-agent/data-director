@@ -191,6 +191,8 @@ def build_app(
         with `401` (docs/specs/policy-and-identity.md), and never given a default."""
 
         async def endpoint(request: Request) -> Response:
+            if (refused := _requires_json(request)) is not None:
+                return refused
             try:
                 principal = governance.authenticator.principal_for(request.headers)
             except Unauthenticated as exc:
@@ -851,6 +853,8 @@ def build_app(
         return JSONResponse(created, status_code=201)
 
     async def get_session(request: Request) -> Response:
+        if (refused := _requires_json(request)) is not None:
+            return refused
         # `GET` says when the session ends and does not keep it going; `POST` keeps it going,
         # which is what the shell's "Stay signed in" sends (WCAG 2.2.1).
         if sign_in is None:
@@ -919,6 +923,8 @@ def build_app(
         return response
 
     async def sign_out(request: Request) -> Response:
+        if (refused := _requires_json(request)) is not None:
+            return refused
         response = Response(status_code=204)
         if sign_in is not None:
             if session_id := cookie(request.headers, SESSION_COOKIE):
@@ -1087,6 +1093,30 @@ def examples(directory: Path) -> list[dict[str, Any]]:
             {"name": path.stem, "schema_class": document.get("schema_class"), "input": document}
         )
     return found
+
+
+_CHANGES_STATE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _requires_json(request: Request) -> Response | None:
+    """`415` for a request that changes state and does not declare `application/json`, else `None`.
+
+    A cross-origin page cannot send that type without a CORS preflight, which the app never
+    answers, whereas a form can send `text/plain` or form-encoded bodies with the session cookie
+    from a same-site origin that `SameSite=Lax` does not stop. The type is required whether or not
+    there is a body, since a form with no fields posts too (#728).
+    """
+    if request.method not in _CHANGES_STATE:
+        return None
+    media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if media_type == "application/json":
+        return None
+    return _problem(
+        415,
+        "unsupported-media-type",
+        "The request must be JSON",
+        "A request that changes state must declare Content-Type: application/json.",
+    )
 
 
 def _problem(status: int, slug: str, title: str, detail: str, **extra: Any) -> Response:

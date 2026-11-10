@@ -21,7 +21,7 @@ import httpx
 import pytest
 import uvicorn
 from starlette.testclient import TestClient
-from support import check_fixture, configure_env, dist_dir, with_standards
+from support import JSON_HEADERS, check_fixture, configure_env, dist_dir, with_standards
 
 from dd_app import app as dd_app
 from dd_app.app import build_app
@@ -273,7 +273,7 @@ def test_signing_out_ends_the_session_on_the_server(deployment: Deployment):
     sign_in(deployment, browser)
     session_id = browser.cookies.get(SESSION_COOKIE)
     assert session_id
-    assert browser.post("/api/sign-out").status_code == 204
+    assert browser.post("/api/sign-out", headers=JSON_HEADERS).status_code == 204
     assert browser.get("/api/agents").status_code == 401
     # The cookie the browser held is no good anywhere: the session is gone, not hidden.
     replay = deployment.browser()
@@ -299,7 +299,9 @@ def test_asking_when_a_session_ends_does_not_keep_it_going(deployment: Deploymen
     first = browser.get("/api/session").json()["expires_at"]
     deployment.clock.now += idle_s / 2
     assert browser.get("/api/session").json()["expires_at"] == first
-    stayed = browser.post("/api/session").json()["expires_at"]  # "Stay signed in"
+    stayed = browser.post("/api/session", headers=JSON_HEADERS).json()[
+        "expires_at"
+    ]  # "Stay signed in"
     assert stayed > first
     deployment.clock.now += idle_s - 60
     assert browser.get("/api/agents").status_code == 200
@@ -389,7 +391,7 @@ def test_a_development_server_acts_for_the_operator_and_says_so(env: Path, tmp_p
     assert session["principal"]["assurance"] == "asserted"
     check_fixture("session-development.json", session)
     assert browser.get("/api/sign-in", follow_redirects=False).status_code == 404
-    assert browser.post("/api/sign-out").status_code == 204
+    assert browser.post("/api/sign-out", headers=JSON_HEADERS).status_code == 204
     assert browser.get("/api/agents").status_code == 200
 
 
@@ -503,7 +505,9 @@ def test_nobody_reads_or_continues_another_persons_conversation(deployment: Depl
     josiah, ada = deployment.browser(), deployment.browser()
     sign_in(deployment, josiah, JOSIAH)
     sign_in(deployment, ada, ADA)
-    conversation_id = josiah.post("/api/conversations").json()["conversation_id"]
+    conversation_id = josiah.post("/api/conversations", headers=JSON_HEADERS).json()[
+        "conversation_id"
+    ]
     assert josiah.get(f"/api/conversations/{conversation_id}").status_code == 200
 
     absent = "01900000-0000-7000-8000-000000000009"

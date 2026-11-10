@@ -75,6 +75,10 @@ them.
     `HttpOnly`, `Secure` and `SameSite=Lax`; the server keeps only a hash of it. No ID, access or
     refresh token is kept once verified, in the session, the run store or the browser
     (`test_no_token_reaches_the_run_store`, `test_the_session_cookie_is_opaque_and_kept_from_script`).
+    `SameSite=Lax` does not stop a same-site, cross-origin form, so a `POST`, `PUT`, `PATCH` or
+    `DELETE` to `/api` is refused with `415` unless it declares `application/json`, body or not,
+    which a cross-origin page cannot send without a CORS preflight the app never answers
+    (`test_every_state_changing_api_route_refuses_a_body_that_is_not_json`).
 15. **Only the `openid` scope is requested**, so no email address is asked for or held
     (`test_the_app_asks_for_openid_alone_and_authenticates_with_its_secret`).
 16. **Two routes are two principals.** Accounts are never linked by matching email addresses or

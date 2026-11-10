@@ -39,6 +39,10 @@ RECORDS = (
 )
 
 
+# The app refuses a request that changes state unless it declares JSON, body or not (#728).
+JSON_HEADERS = {"content-type": "application/json"}
+
+
 def pin_export(root: Path) -> Path:
     """A `sources.yaml` pinning a re3data export of `RECORDS`, as `dd-re3data fetch` builds."""
     root.mkdir(parents=True, exist_ok=True)
