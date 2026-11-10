@@ -44,7 +44,9 @@ the project. `ProjectStore.project_of(conversation_id)` says which project, if a
 was started in, from what the logs hold when asked, so it holds after a restart and agrees with
 any other harness over the same directory. A conversation's project never changes once recorded,
 so the answers found are kept; a conversation not found is looked for again in every log, which
-does not scale past one deployment's projects, TODO(#524).
+does not scale past one deployment's projects. A deployment that outgrows it keeps its projects in
+the database, where finding a conversation's project is an indexed query
+([Storage](../../docs/specs/storage.md)).
 
 `inventory_added` also gives:
 

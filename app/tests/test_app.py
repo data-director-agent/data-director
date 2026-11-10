@@ -379,6 +379,26 @@ def test_an_input_the_agent_does_not_accept_is_a_failed_run(governance: Governan
     assert body["checks"]["sources"]["summary"] == "sources: 0 verified, 0 unresolved"
 
 
+def test_the_history_is_paged_with_a_link_to_the_next_page(governance: Governance, dist: Path):
+    client = TestClient(build_app(governance, dist))
+    stored = [run(client, example("empty.profile")).json()["envelope"] for _ in range(3)]
+    newest_first = [e["invocation_id"] for e in reversed(stored)]
+    assert [r["invocation_id"] for r in client.get("/api/runs").json()] == newest_first
+    listed: list[str] = []
+    url: str | None = "/api/runs?limit=2"
+    while url:
+        response = client.get(url)
+        assert len(response.json()) <= 2
+        listed += [r["invocation_id"] for r in response.json()]
+        url = response.links.get("next", {}).get("url")
+    assert listed == newest_first
+    for refused in ("0", "-1", "x", "201"):
+        response = client.get(f"/api/runs?limit={refused}")
+        assert response.status_code == 400
+        assert response.json()["type"].endswith("/request-refused")
+    assert client.get("/api/runs?before=nonsense").json() == []
+
+
 def test_the_history_lists_runs_newest_first_and_each_reopens(governance: Governance, dist: Path):
     client = TestClient(build_app(governance, dist))
     first = run(client, example("soil-chemistry.profile")).json()["envelope"]
@@ -640,6 +660,9 @@ def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, A
     # orchestrator.stub writes no title, so the conversation is named by its first message.
     assert (listed["title"], listed["title_source"]) == ("hello world", "message")
     assert listed["project_id"] == found["project_id"]
+    one = client.get("/api/conversations?limit=1")
+    assert one.json() == [listed] and "next" not in one.links
+    assert client.get("/api/conversations?limit=many").status_code == 400
     check_fixture("conversation-turn.json", normalised_conversation(second.json()))
     check_fixture("conversation.json", normalised_conversation(found))
 
@@ -1188,16 +1211,17 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
     (child,) = envelope["delegations"]
 
     # The delegated child is the starter's, as its parent is.
-    assert {r["invocation_id"] for r in governance.runs(OTHER)} == {
+    assert {r["invocation_id"] for r in governance.runs(OTHER).items} == {
         envelope["invocation_id"],
         child["delegated_invocation_id"],
     }
-    assert governance.runs(TEST_PRINCIPAL) == []
+    assert governance.runs(TEST_PRINCIPAL).items == []
     for invocation_id in (envelope["invocation_id"], child["delegated_invocation_id"]):
         assert governance.stored_run(invocation_id, OTHER) is not None
         assert governance.stored_run(invocation_id, TEST_PRINCIPAL) is None
-    assert [c["conversation_id"] for c in governance.conversations(OTHER)] == [conversation_id]
-    assert governance.conversations(TEST_PRINCIPAL) == []
+    listed = governance.conversations(OTHER).items
+    assert [c["conversation_id"] for c in listed] == [conversation_id]
+    assert governance.conversations(TEST_PRINCIPAL).items == []
     assert governance.conversation(conversation_id, TEST_PRINCIPAL) is None
     with pytest.raises(UnknownConversationError):
         asyncio.run(
@@ -1209,4 +1233,4 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
                 TEST_PRINCIPAL,
             )
         )
-    assert len(governance.runs(OTHER)) == 2
+    assert len(governance.runs(OTHER).items) == 2

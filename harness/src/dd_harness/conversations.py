@@ -20,16 +20,17 @@ A reply may ask a choice question (`Reply.reply_question`). `history` writes the
 reply's text, so a conversational agent sees on a later turn what it asked; `answer_problem` is how
 the caller checks a researcher's `ChoiceAnswer` against that question before sending the turn.
 
-TODO(#524): the file backend scans every envelope on each call; the database backend is to answer
-with an indexed query (docs/specs/storage.md).
+The run storage lists conversations a page at a time, for the readers allowed to see them
+(`RunStorage.list_conversations`, docs/specs/storage.md, "Listing"); this module adds each one's
+title, reading the first turn of each conversation on the page.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from typing import Any
 
+from dd_harness.listing import Page, Readable
 from dd_harness.storage import RunStorage
 from dd_sdk.contract.models import (
     ChoiceAnswer,
@@ -45,36 +46,21 @@ ELLIPSIS = "…"
 
 
 def list_conversations(
-    store: RunStorage, *, include: Callable[[dict[str, Any]], bool] | None = None
-) -> list[dict[str, Any]]:
-    """One summary per conversation, most recently active first; with `include`, only the
-    conversations whose first turn's envelope it accepts."""
-    summaries: dict[str, dict[str, Any]] = {}
-    first_turns: dict[str, dict[str, Any]] = {}
-    for envelope in store.iter_envelopes():
-        conversation_id = envelope.get("conversation_id")
-        if not conversation_id or envelope.get("parent_invocation_id"):
-            continue
-        summary = summaries.get(conversation_id)
-        if summary is None:
-            summary = summaries[conversation_id] = {
-                "conversation_id": conversation_id,
-                # The conductor gives every turn of a conversation the same project, if any.
-                "project_id": envelope.get("project_id"),
-                "agent_id": envelope["agent_id"],
-                "turns": 0,
-                "started_at": envelope["completed_at"],
-            }
-            first_turns[conversation_id] = envelope
-        summary["turns"] += 1
-        summary["last_completed_at"] = envelope["completed_at"]
-        summary["last_status"] = envelope["outcome"]["status"]
-    for conversation_id, envelope in first_turns.items():
-        if include is not None and not include(envelope):
-            del summaries[conversation_id]
-            continue
-        summaries[conversation_id].update(title_of(store, envelope))
-    return sorted(summaries.values(), key=lambda s: str(s["last_completed_at"]), reverse=True)
+    store: RunStorage,
+    *,
+    readable: Readable | None = None,
+    limit: int,
+    before: str | None = None,
+) -> Page:
+    """A page of conversation summaries, most recently active first, each with its title; with
+    `readable`, only the conversations whose first turn it includes."""
+    page = store.list_conversations(readable=readable, limit=limit, before=before)
+    items = []
+    for summary in page.items:
+        first_turn = store.get(summary["first_invocation_id"])
+        title = title_of(store, first_turn) if first_turn else untitled(summary)
+        items.append({**summary, **title})
+    return Page(items, page.next)
 
 
 def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:
@@ -89,6 +75,11 @@ def title_of(store: RunStorage, first_turn: dict[str, Any]) -> dict[str, str]:
     else:
         text = str(document.get("schema_class", ""))
     return {"title": shorten(text) or first_turn["agent_id"], "title_source": "message"}
+
+
+def untitled(summary: dict[str, Any]) -> dict[str, str]:
+    """The title of a conversation whose first turn cannot be read: its agent."""
+    return {"title": summary["agent_id"], "title_source": "message"}
 
 
 def shorten(text: str, limit: int = MESSAGE_TITLE_MAX) -> str:

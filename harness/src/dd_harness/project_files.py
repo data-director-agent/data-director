@@ -59,7 +59,8 @@ class FileProjectLog:
         # The project of each conversation found so far. A conversation's project never changes
         # once recorded, so only what was found is kept; one not found is looked for again, in
         # case another log over the same root has started it since (docs/specs/storage.md,
-        # invariant 12). Each miss reads every log, TODO(#524).
+        # invariant 12). Each miss reads every log; a deployment that outgrows that keeps its
+        # projects in the database, where finding one is an indexed query.
         self._conversations: dict[str, str] = {}
         self._conversations_guard = threading.Lock()
 

@@ -107,11 +107,43 @@ backend, with every check above and a contention between processes.
 - `dd_harness.provenance` builds the crate in a temporary directory and returns its files, and the
   conductor keeps each as an artifact. The crate's content does not depend on the backend, and the
   file backend holds the same `<run>/crate/` it did before artifacts existed.
-- Conversations are derived from the run storage, through `iter_envelopes(conversation_id=…)` and
-  `get_request` ([Orchestration](orchestration.md), invariant 2). A backend may index them; it
-  does not keep a second record of them.
+- Conversations are derived from the run storage, through `iter_envelopes(conversation_id=…)`,
+  `list_conversations` and `get_request` ([Orchestration](orchestration.md), invariant 2). A
+  backend may index them; it does not keep a second record of them. An index written in the
+  transaction that stores each run, and rebuilt from the runs by the migration that adds it, is
+  an index in this sense: it can never disagree with the runs.
 - Artifacts and project blobs are kept in the store itself: as files in the file backends, as
   bytes in the database in the PostgreSQL backend.
+
+## Listing
+
+`RunStorage.list_runs` and `list_conversations` answer the run history and the list of
+conversations a page at a time, for the reader allowed to see them (`dd_harness.listing`).
+
+- **Order.** Runs come newest first, in reverse stored order (invariant 3); conversations by the
+  stored place of their latest turn, the most recently active first. A delegated child is listed
+  as a run, never as a turn.
+- **Reader.** A `Readable` names a principal and the projects they may read: a run in one of those
+  projects is included, and a run in no project if it acted for the principal. A conversation is
+  judged on its first turn. Which projects a person may read is the caller's to decide, from the
+  project log ([Projects](projects.md)); doing that without reading every log is TODO(#713).
+- **Cursors.** A page names the cursor of the next, or none on the last. A cursor is the stored
+  place of the page's last item, opaque to the caller: the next page holds what was stored before
+  it, so a run stored while a person pages comes before the first page, not inside a later one.
+  A malformed cursor names an empty page (invariant 8).
+- **Cost.** The file backend scans `invocations.jsonl` for every page (`scan_runs`,
+  `scan_conversations`, which define the answer every backend gives). The PostgreSQL backend reads
+  one page from an index, whatever the size of the store (see below).
+- **Over HTTP.** `GET /api/runs` and `GET /api/conversations` in the app, and `/runs` and
+  `/conversations` in the workbench, take `?limit=` (50 unless given, at most 200) and
+  `?before=`, answer the page's items as a JSON list, and name the next page in a `Link` header
+  with `rel="next"` (`dd_harness.transport.paging`).
+
+The conformance kit checks that a backend's pages hold what the scan does, in the same order, for
+every reader, and that a malformed cursor names nothing
+(`check_runs_are_listed_newest_first_a_page_at_a_time`,
+`check_conversations_are_listed_by_their_latest_turn`,
+`check_a_listing_includes_what_its_reader_may_read`, `check_a_malformed_cursor_names_an_empty_page`).
 
 ## Project rules and the project log
 
@@ -170,6 +202,14 @@ connection's `search_path`, which a location may choose with
   one insert, so runs are committed in the order of their `seq` and a reader never sees a later
   run before an earlier one (invariant 3). Class schemas are in `run_schemas` by digest and
   artifacts in `run_artifacts`, as bytes.
+- **Listing.** A run's `parent_invocation_id`, `project_id` and principal are copied into columns
+  of `runs`, indexed with `seq` for each way a reader may see a run. `conversation_index` has a
+  row per conversation, written in the transaction that stores each turn: its first turn's
+  project, principal, agent and time, how many turns it has, and its latest turn's place, status
+  and time. A page is one scan of an index per way in (the reader's own runs, and each of their
+  projects), each stopping after a page, so it reads entries in proportion to the page and the
+  reader's projects, not to the store. `harness/tests/test_postgres.py` asks the database for the
+  plan of each listing over twenty thousand runs and checks that no table is read whole.
 - **Projects.** `projects` has a row per project, which a section locks with
   `select … for no key update`: sections of one project exclude one another, and keeping a blob,
   whose foreign key takes a weaker lock on the same row, is not held up by one. Events are in
@@ -179,7 +219,7 @@ connection's `search_path`, which a location may choose with
   researcher's text may hold, and does not keep the order of keys. A document is read back as it
   was given; what the backend looks up is copied into a column of its own.
 - **Connections.** Each call opens a connection and closes it, so a store is safe to share between
-  threads and needs no closing. A connection pool is a performance step, TODO(#524).
+  threads and needs no closing. A connection pool is a performance step, TODO(#712).
 
 ## Moving file stores into a database
 
@@ -267,8 +307,9 @@ files.
 - **Performance.** The file backends scan: conversations read every envelope, and `project_of` reads
   every project's log for a conversation it has not found before (a conversation's project, once
   found, is kept, as invariant 12 allows). They are not indexed; a deployment that outgrows a
-  scan moves to the database. In the database, listing runs, conversations and projects and
-  finding a conversation's project are indexed queries, TODO(#524).
+  scan moves to the database. In the database, listing runs and conversations reads a page from
+  an index ("Listing"), and finding a conversation's project is an indexed query. Listing the
+  projects a person may read reads every project's log in either backend, TODO(#713).
 - **Operations.** A documented and tested backup and restore of the database, and a health check,
   are TODO(#525).
 

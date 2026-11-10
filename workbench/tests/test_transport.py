@@ -212,6 +212,9 @@ def test_agui_thread_is_the_conversation_and_conversations_are_served(runs_dir: 
 
     status, index = _get(app, "/conversations")
     assert status == 200 and index[0]["conversation_id"] == conv
+    assert _get(app, "/conversations?limit=1") == (200, index)
+    assert _get(app, "/conversations?limit=0")[0] == 400
+    assert _get(app, "/runs?limit=999")[0] == 400
     status, found = _get(app, f"/conversations/{conv}")
     assert status == 200
     assert found["turns"][0]["agent_id"] == "advisor.quality"
