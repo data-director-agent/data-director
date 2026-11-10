@@ -23,7 +23,7 @@ from typing import Any
 import httpx
 import pytest
 from starlette.testclient import TestClient
-from support import APP_URL, ORDA, configure_env, dist_dir, pin_export
+from support import APP_URL, JSON_HEADERS, ORDA, configure_env, dist_dir, pin_export
 
 from dd_agent_advisor_documentation.agent import build as build_documentation
 from dd_agent_advisor_files.agent import build as build_files
@@ -129,7 +129,7 @@ class Researcher:
     def __init__(self, client: TestClient, orchestrator: str) -> None:
         self.client = client
         self.orchestrator = orchestrator
-        started = client.post("/api/conversations")
+        started = client.post("/api/conversations", headers=JSON_HEADERS)
         assert started.status_code == 201, started.json()
         self.conversation_id: str = started.json()["conversation_id"]
         self.project_id: str = started.json()["project_id"]
@@ -182,7 +182,7 @@ class Researcher:
         return response.json()
 
     def post(self, path: str, body: Any = None, status: int = 201) -> Any:
-        response = self.client.post(f"{self.project}{path}", json=body)
+        response = self.client.post(f"{self.project}{path}", json=body, headers=JSON_HEADERS)
         assert response.status_code == status, response.text
         return response.json()
 

@@ -409,10 +409,16 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async validate(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/validation`, { method: "POST" }));
+    return json(await fetch(`${projectPath(projectId)}/validation`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      }));
   },
   async buildPackage(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/package`, { method: "POST" }));
+    return json(await fetch(`${projectPath(projectId)}/package`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      }));
   },
   async decide(projectId, documentId, request) {
     return json(

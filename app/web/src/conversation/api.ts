@@ -89,12 +89,8 @@ export const httpConversationApi: ConversationApi = {
       await request("/api/conversations", {
         ...init(signal),
         method: "POST",
-        ...(projectId === null
-          ? {}
-          : {
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ project_id: projectId }),
-            }),
+        headers: { "content-type": "application/json" },
+        ...(projectId === null ? {} : { body: JSON.stringify({ project_id: projectId }) }),
       }),
     );
     return { conversation_id: created.conversation_id, project_id: created.project_id ?? null };
