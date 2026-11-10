@@ -59,11 +59,13 @@ done
 # What the manifest says of store NAME: "<kind> <location> <file>".
 recorded() { sed -n "s/^store $1 //p" "$backup/MANIFEST"; }
 
+# What restore.sh makes for itself is root's alone; what it extracts keeps the modes it was backed up
+# with (tar -p), as it does by default for root.
 umask 077
 staged="$(mktemp -d)"
 trap 'rm -rf "$staged"' EXIT
 install -d -m 0750 "$staged/etc"
-tar -C "$staged/etc" -xzf "$backup/config.tar.gz"
+tar -C "$staged/etc" -xzpf "$backup/config.tar.gz"
 
 # Each store's place comes from the restored settings, and must be the kind the backup holds.
 busy=()
@@ -96,11 +98,11 @@ fi
 "$SYSTEMCTL" stop data-director.target data-director-workbench.service 2>/dev/null || true
 
 install -d -m 0750 "$ETC"
-tar -C "$ETC" -xzf "$backup/config.tar.gz"
+tar -C "$ETC" -xzpf "$backup/config.tar.gz"
 echo "restored $ETC"
 if [[ -f "$backup/units.tar.gz" ]]; then
   install -d -m 0755 "$UNIT_DIR"
-  tar -C "$UNIT_DIR" -xzf "$backup/units.tar.gz"
+  tar -C "$UNIT_DIR" -xzpf "$backup/units.tar.gz"
   echo "restored the systemd drop-ins in $UNIT_DIR"
 fi
 owner=()
@@ -109,7 +111,7 @@ if [[ $EUID -eq 0 ]] && id "$USER_NAME" &>/dev/null; then
 fi
 install -d "${owner[@]}" -m 0750 "$STATE"
 if [[ -f "$backup/state.tar.gz" ]]; then
-  tar -C "$STATE" -xzf "$backup/state.tar.gz"
+  tar -C "$STATE" -xzpf "$backup/state.tar.gz"
 fi
 
 when="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -123,7 +125,7 @@ for name in "${STORE_NAMES[@]}"; do
       echo "moved what was in $location to $location.before-restore-$when"
     fi
     install -d "${owner[@]}" -m 0750 "$location"
-    tar -C "$location" -xzf "$backup/$file"
+    tar -C "$location" -xzpf "$backup/$file"
     if ((${#owner[@]})); then
       chown -R "$USER_NAME:$USER_NAME" "$location"
     fi
