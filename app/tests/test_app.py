@@ -881,6 +881,55 @@ def test_what_the_researcher_left_out_of_an_inventory_is_kept_nowhere(
     )
 
 
+def test_a_member_revises_the_projects_inventory_outside_a_turn(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: Role.MEMBER)
+    url = f"/api/projects/{project_id}/inventory"
+
+    first = client.post(url, json={"inventory": a_file_inventory("a.csv")})
+    assert first.status_code == 201, first.json()
+    assert first.json()["revises"] is None
+    revised = a_file_inventory("a.csv")
+    revised["inventory_files"][0] |= {"file_description": "Readings", "file_role": "data"}
+    second = client.post(url, json={"inventory": revised})
+    assert second.status_code == 201, second.json()
+    assert second.json()["revises"] == first.json()["digest"]
+    added = store.events(project_id)[-1]
+    assert added["caused_by"] == f"POST {url}"
+    assert client.get(url).json() == revised
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"inventory": {"schema_class": "FileInventory"}},
+        {"inventory": ["a.csv"]},
+        ["a.csv"],
+    ],
+)
+def test_a_revision_that_is_not_an_inventory_is_refused(
+    in_projects: tuple[Governance, Any], body: Any
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    refused = client.post(f"/api/projects/{project_id}/inventory", json=body)
+    assert refused.status_code == 400
+    assert store.inventory(project_id) is None
+    unknown = client.post(
+        f"/api/projects/{uuid.uuid4()}/inventory", json={"inventory": a_file_inventory("a")}
+    )
+    assert unknown.status_code == 404
+
+
 def test_a_project_without_an_inventory_serves_none(in_projects: tuple[Governance, Any]):
     _governance, app = in_projects
     client = TestClient(app)

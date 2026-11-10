@@ -56,6 +56,7 @@ the database, where finding a conversation's project is an indexed query
 | `canonicalisation` | `dd-input-json-v1`. The digest is therefore the input hash the conductor records when an agent is given this inventory. |
 | `file_count` | How many files the inventory lists. |
 | `inventory_made_at` | When `dd-inventory` made it. |
+| `revises` | The digest of the inventory the project held before, when it held one: this one revises it. The store finds it in the log; no caller gives it. |
 
 `repository_chosen` also gives:
 
