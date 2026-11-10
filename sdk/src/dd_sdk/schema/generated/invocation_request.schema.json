@@ -55,42 +55,9 @@
          "title": "Assurance",
          "type": "string"
       },
-      "ChoiceAnswer": {
-         "additionalProperties": false,
-         "description": "The researcher's answer to the choice question the turn before asked: the values they chose and any text they gave in place of an option. The app checks it against that question before it sends the turn (docs/specs/orchestration.md).",
-         "properties": {
-            "answer_to": {
-               "description": "The invocation whose reply asked the question.",
-               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-               "type": "string"
-            },
-            "answer_values": {
-               "description": "The values of the options chosen; empty when the researcher answered in their own words.",
-               "items": {
-                  "type": "string"
-               },
-               "type": [
-                  "array",
-                  "null"
-               ]
-            },
-            "answer_other": {
-               "description": "The researcher's own answer, given in place of an option where the question allows it.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            }
-         },
-         "required": [
-            "answer_to"
-         ],
-         "title": "ChoiceAnswer",
-         "type": "object"
-      },
       "ChoiceOption": {
          "additionalProperties": false,
-         "description": "One option of a choice question.",
+         "description": "One option of a choice question (a Question of kind choice).",
          "properties": {
             "option_value": {
                "description": "What the agent reads back when the option is chosen. A string, never a number: a number reaches the agent as a floating-point value over A2A.",
@@ -113,43 +80,6 @@
             "option_label"
          ],
          "title": "ChoiceOption",
-         "type": "object"
-      },
-      "ChoiceQuestion": {
-         "additionalProperties": false,
-         "description": "A question with a fixed set of options that a conversational agent asks the researcher in its reply, to be answered by choosing rather than typing. One or several options may be chosen, and where question_other is true the researcher may answer in their own words instead. Option values are unique within the question. Asking never suspends the run: the researcher may ignore the question and type (docs/specs/orchestration.md).",
-         "properties": {
-            "question_prompt": {
-               "description": "The question, as a short line a person reads before the options.",
-               "type": "string"
-            },
-            "question_options": {
-               "description": "The options, in the order they are shown; between 2 and 12, with unique values.",
-               "items": {
-                  "$ref": "#/$defs/ChoiceOption"
-               },
-               "type": "array"
-            },
-            "question_multiple": {
-               "description": "True when several options may be chosen; one only otherwise.",
-               "type": [
-                  "boolean",
-                  "null"
-               ]
-            },
-            "question_other": {
-               "description": "True when the researcher may answer in their own words instead of an option.",
-               "type": [
-                  "boolean",
-                  "null"
-               ]
-            }
-         },
-         "required": [
-            "question_prompt",
-            "question_options"
-         ],
-         "title": "ChoiceQuestion",
          "type": "object"
       },
       "ConversationTurn": {
@@ -1204,16 +1134,16 @@
                ],
                "description": "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory."
             },
-            "choice_answer": {
+            "reply_answers": {
                "anyOf": [
                   {
-                     "$ref": "#/$defs/ChoiceAnswer"
+                     "$ref": "#/$defs/ReplyAnswers"
                   },
                   {
                      "type": "null"
                   }
                ],
-               "description": "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose."
+               "description": "The researcher's answers to the questions the previous turn asked, when they answered them in the form. message_text still carries the answers as prose."
             },
             "project_entry": {
                "description": "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen.",
@@ -1545,6 +1475,106 @@
          "title": "ProblemDetails",
          "type": "object"
       },
+      "Question": {
+         "additionalProperties": false,
+         "description": "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md).",
+         "properties": {
+            "question_key": {
+               "description": "The question's identifier within its reply, which an answer names: a lower-case letter, then up to 39 lower-case letters, digits and hyphens.",
+               "pattern": "^[a-z][a-z0-9-]{0,39}$",
+               "type": "string"
+            },
+            "question_prompt": {
+               "description": "The question, as a short line a person reads before the options.",
+               "type": "string"
+            },
+            "question_kind": {
+               "$ref": "#/$defs/QuestionKind",
+               "description": "How the question is answered."
+            },
+            "question_help": {
+               "description": "One or two sentences shown under the question to help the researcher answer it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "question_options": {
+               "description": "The options of a choice question, in the order they are shown; between 2 and 12, with unique values. Absent for a text question.",
+               "items": {
+                  "$ref": "#/$defs/ChoiceOption"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "question_multiple": {
+               "description": "True when several options may be chosen; one only otherwise. Choice questions only.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "question_other": {
+               "description": "True when the researcher may answer in their own words instead of an option. Choice questions only.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "question_key",
+            "question_prompt",
+            "question_kind"
+         ],
+         "title": "Question",
+         "type": "object"
+      },
+      "QuestionAnswer": {
+         "additionalProperties": false,
+         "description": "The researcher's answer to one question of a reply, named by its question_key: the values of the options chosen, for a choice question, and the answer in their own words, for a text question or where a choice question allows it.",
+         "properties": {
+            "answered_key": {
+               "description": "The question_key of the question answered.",
+               "pattern": "^[a-z][a-z0-9-]{0,39}$",
+               "type": "string"
+            },
+            "answer_values": {
+               "description": "The values of the options chosen, for a choice question; empty when the researcher answered in their own words, and always empty for a text question.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "answer_words": {
+               "description": "The researcher's answer in their own words: the whole answer to a text question, or an answer given in place of an option where a choice question allows it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "answered_key"
+         ],
+         "title": "QuestionAnswer",
+         "type": "object"
+      },
+      "QuestionKind": {
+         "description": "How a question a reply asks is answered, and so which form field shows it.",
+         "enum": [
+            "choice",
+            "short_text",
+            "long_text"
+         ],
+         "title": "QuestionKind",
+         "type": "string"
+      },
       "ReasonCode": {
          "description": "Why an agent abstained or referred. Adapted from the standards-advisor experiment's NothingFoundReason.",
          "enum": [
@@ -1588,16 +1618,15 @@
                   "null"
                ]
             },
-            "reply_question": {
-               "anyOf": [
-                  {
-                     "$ref": "#/$defs/ChoiceQuestion"
-                  },
-                  {
-                     "type": "null"
-                  }
-               ],
-               "description": "A question with fixed options the reply asks, at most one; absent when the reply asks nothing or asks in prose."
+            "reply_questions": {
+               "description": "The questions the reply asks, in the order they are put to the researcher one at a time; between 1 and 8, with unique question_key values. Absent when the reply asks nothing or asks in prose.",
+               "items": {
+                  "$ref": "#/$defs/Question"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             },
             "new_project_title": {
                "description": "A name for the conversation's project, written by a model once it knows what the research or dataset is. The conductor records it as the project's title when the run succeeds, unless a person has given one; absent when the reply names nothing. Only an agent that declares it model-derived sets it.",
@@ -1629,6 +1658,30 @@
             "grounded_on"
          ],
          "title": "Reply",
+         "type": "object"
+      },
+      "ReplyAnswers": {
+         "additionalProperties": false,
+         "description": "The researcher's answers to the questions the turn before asked, given together: one QuestionAnswer for each question answered, none for a question skipped. The app checks them against those questions before it sends the turn (docs/specs/orchestration.md).",
+         "properties": {
+            "answer_to": {
+               "description": "The invocation whose reply asked the questions.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "given_answers": {
+               "description": "One answer for each question answered, in the order asked; at least one.",
+               "items": {
+                  "$ref": "#/$defs/QuestionAnswer"
+               },
+               "type": "array"
+            }
+         },
+         "required": [
+            "answer_to",
+            "given_answers"
+         ],
+         "title": "ReplyAnswers",
          "type": "object"
       },
       "RepositoryRequirements": {
@@ -1727,6 +1780,24 @@
                },
                "type": [
                   "array",
+                  "null"
+               ]
+            },
+            "unconfirmed": {
+               "description": "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "repository_url": {
+               "description": "Where the chosen repository is, taken from its override's url; absent when the deployment has no override for it.",
+               "format": "uri",
+               "type": [
+                  "string",
                   "null"
                ]
             }
@@ -1905,6 +1976,16 @@
                "description": "The pages the set's values were taken from, so that a steward can check them.",
                "items": {
                   "format": "uri",
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "unconfirmed": {
+               "description": "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's.",
+               "items": {
                   "type": "string"
                },
                "type": [

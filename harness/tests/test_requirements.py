@@ -49,6 +49,23 @@ def test_without_an_override_the_declared_standard_applies_and_the_researcher_is
     assert "licences" not in merged and "media_types" not in merged
 
 
+def test_the_merged_set_says_where_to_deposit_and_what_is_unconfirmed(tmp_path: Path) -> None:
+    """The person depositing by hand is told where the repository is and what its sets leave
+    open; only an override says where to deposit, since a standard's url describes the standard."""
+    root = write(
+        tmp_path / "repositories",
+        ("standards", standard(url="https://datacite.org/", unconfirmed=["A", "B"])),
+        ("overrides", override(url="https://orda.example/", unconfirmed=["B", "C"])),
+    )
+    requirements = load_requirements(root)
+    ours = requirements.resolve(ORDA, "ORDA", ["Dublin Core"]).requirements()
+    assert ours["repository_url"] == "https://orda.example/"
+    assert ours["unconfirmed"] == ["A", "B", "C"]
+    other = requirements.resolve(ELSEWHERE, "Elsewhere", ["DataCite Metadata Schema"])
+    assert "repository_url" not in other.requirements()
+    assert other.requirements()["unconfirmed"] == ["A", "B"]
+
+
 @pytest.mark.parametrize(
     ("re3data_id", "name", "declared"),
     [(ORDA, "ORDA", ["Dublin Core"]), (ELSEWHERE, "Elsewhere", ["Dublin Core"])],

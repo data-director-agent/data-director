@@ -126,7 +126,7 @@ describe("ConversationHome", () => {
         name: "Where are you with your research data?",
       });
       expect(screen.getByRole("status")).toHaveTextContent(
-        "It asks you to choose: Where are you with your research data?",
+        "It asks: Where are you with your research data?",
       );
       expect(await axe(container)).toHaveNoViolations();
       const send = screen.getByRole("button", { name: "Send answer" });
@@ -146,7 +146,7 @@ describe("ConversationHome", () => {
         undefined,
         {
           answer_to: asked,
-          answer_values: ["2"],
+          given_answers: [{ answered_key: "entry", answer_values: ["2"] }],
         },
       );
       // Answered, the question is read-only with the choice marked in words, and the reply leads

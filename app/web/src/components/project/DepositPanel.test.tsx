@@ -4,15 +4,17 @@ import { axe } from "jest-axe";
 
 import builtFixture from "../../../fixtures/project-package.json";
 import refusedFixture from "../../../fixtures/project-package-refused.json";
+import chosenFixture from "../../../fixtures/repository-chosen.json";
 import {
   type BuiltPackage,
   PackageRefused,
   type ProjectApi,
   ProjectApiContext,
+  type RepositoryRequirements,
   type Validation,
 } from "../../project/api";
 import type { Problem } from "../../run/types";
-import { DepositPanel, outcome, sizeInWords } from "./DepositPanel";
+import { DEPOSIT_GUIDE, DepositPanel, outcome, sizeInWords } from "./DepositPanel";
 
 // What the server says (app/tests/test_deposit_package.py): a project with Zenodo chosen and no metadata
 // record approved, refused with one violation and a warning; and, once one is approved, the
@@ -25,9 +27,12 @@ const VALID: Validation = Object.fromEntries(
   Object.entries(BUILT).filter(([key]) => key !== "package"),
 ) as unknown as Validation;
 const PROJECT_ID = BUILT.project_id;
+// ORDA as the server resolves it (app/tests/test_repository_choice.py): form labels, its address
+// and what its profile leaves unconfirmed.
+const ORDA = chosenFixture as RepositoryRequirements;
 
 function renderPanel(api: Partial<ProjectApi>, revision = 0) {
-  const full = { ...api } as ProjectApi;
+  const full = { repository: () => Promise.resolve(null), ...api } as ProjectApi;
   const panel = (n: number) => (
     <ProjectApiContext.Provider value={full}>
       <DepositPanel projectId={PROJECT_ID} revision={n} />
@@ -123,6 +128,74 @@ describe("DepositPanel", () => {
       expect(within(region()).getByText(result.message)).toBeVisible();
     }
     expect(within(region()).queryByRole("link", { name: /Download/ })).not.toBeInTheDocument();
+  });
+
+  it("says what to do next for the chosen repository, from its requirements", async () => {
+    const user = userEvent.setup();
+    const { container } = renderPanel({
+      repository: () => Promise.resolve(ORDA),
+      validate: () => Promise.resolve(VALID),
+      buildPackage: () => Promise.resolve(BUILT),
+    });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+    const build = await within(region()).findByRole("button", { name: "Build the package" });
+    await user.click(build);
+
+    const next = await within(region()).findByRole("region", { name: "What to do next" });
+    expect(within(region()).getByRole("status")).toHaveTextContent(/steps below/);
+    expect(within(next).getAllByRole("list")[0]?.tagName).toBe("OL");
+    expect(within(next).getByRole("link", { name: ORDA.repository_name })).toHaveAttribute(
+      "href",
+      ORDA.repository_url,
+    );
+    const labels = (obligation: string) => [
+      ...new Set(
+        ORDA.fields
+          .filter((f) => f.obligation === obligation && f.form_label)
+          .map((f) => f.form_label),
+      ),
+    ];
+    const required = within(next).getByRole("list", { name: "Fields the form requires" });
+    expect(
+      within(required)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(labels("required"));
+    const recommended = within(next).getByRole("list", { name: "Fields worth filling" });
+    expect(
+      within(recommended)
+        .getAllByRole("listitem")
+        .map((li) => li.textContent),
+    ).toEqual(labels("recommended"));
+    for (const field of ORDA.fields.filter((f) => !f.form_label)) {
+      expect(within(next).getByText(field.property)).toBeVisible();
+    }
+    expect(ORDA.unconfirmed?.length).toBeGreaterThan(0);
+    for (const item of ORDA.unconfirmed ?? []) {
+      expect(within(next).getByText(item)).toBeVisible();
+    }
+    expect(within(next).getByRole("link", { name: /user guide/ })).toHaveAttribute(
+      "href",
+      DEPOSIT_GUIDE,
+    );
+    expect(document.body).toHaveFocus();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("gives general steps when no repository can be read", async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      repository: () => Promise.reject(new Error("unavailable")),
+      validate: () => Promise.resolve(VALID),
+      buildPackage: () => Promise.resolve(BUILT),
+    });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+    await user.click(await within(region()).findByRole("button", { name: "Build the package" }));
+
+    const next = await within(region()).findByRole("region", { name: "What to do next" });
+    expect(within(next).queryByRole("list", { name: /Fields/ })).not.toBeInTheDocument();
+    expect(within(next).queryByText(/Not yet confirmed/)).not.toBeInTheDocument();
+    expect(within(next).getByRole("link", { name: /user guide/ })).toBeVisible();
   });
 
   it("drops a check that a later decision has overtaken", async () => {

@@ -131,9 +131,10 @@ class RepositoryAgent:
     def _from_re3data(
         self, needs: RepositoryNeeds, source: Repositories, got: _Retrieved
     ) -> tuple[list[Re3dataRecord], list[str], rank.Matches, dict[str, Re3dataRecord]]:
-        """Mandated records and the names not found, or the shortlist's hits and the generalist
-        repositories. A name that several records bear is not found, and noted in `got`: the
-        researcher is asked for the identifier rather than given a guess."""
+        """Mandated records and the names not found, or the shortlist's hits (by text and by the
+        themes' DFG subjects) and the generalist repositories. A name that several records bear
+        is not found, and noted in `got`: the researcher is asked for the identifier rather than
+        given a guess."""
         mandated: list[Re3dataRecord] = []
         not_found: list[str] = []
         matches = rank.Matches()
@@ -152,11 +153,19 @@ class RepositoryAgent:
             if named[0].re3data_id not in {m.re3data_id for m in mandated}:
                 mandated.append(named[0])
         if not needs.mandated:
+            limit = int(rank.config()["search_limit"])
+            themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
+            if themes:
+                rank.resolve(themes, source.subjects(), matches)
             for query in rank.queries(needs):
                 found = source.search(query)
-                for hit in found:
+                matches.add(query, found)
+                for hit in found[:limit]:
                     hits.setdefault(hit.record.re3data_id, hit.record)
-                    matches.add(query, hit.record.re3data_id)
+            for theme in themes:
+                filed = [r for c in matches.subjects[theme] for r in source.with_subject(c)]
+                for found_record in rank.by_subject(theme, filed, matches):
+                    hits.setdefault(found_record.re3data_id, found_record)
             for rid in rank.generalists():
                 if rid not in hits and (record := source.fetch(rid)) is not None:
                     hits[rid] = record
@@ -227,6 +236,7 @@ class RepositoryAgent:
         )
 
         chosen: list[tuple[Re3dataRecord, CandidateBasis, float | None, tuple[str, ...]]]
+        on_theme = False  # whether a recommended repository matches a theme
         if needs.mandated:
             if not mandated:
                 return _abstain(
@@ -254,6 +264,7 @@ class RepositoryAgent:
                     "deposits. Searched: " + "; ".join(queries) + ". " + source.credit(),
                 )
             chosen = [(r.record, CandidateBasis.RECOMMENDED, r.score, r.reasons) for r in ranked]
+            on_theme = any(r.on_theme and r.fit == rank.DISCIPLINE for r in ranked)
         searched = searched.model_copy(update={"candidates_qualifying": len(chosen)})
 
         items: list[Item] = []
@@ -323,9 +334,7 @@ class RepositoryAgent:
         if not_found:
             statement += f" No record found for: {', '.join(not_found)}.{_ambiguous(got)}"
         themes = [q.text for q in rank.queries(needs) if q.label == rank.THEME]
-        chosen_ids = {record.re3data_id for record, *_ in chosen}
-        disciplinary = set(matches.themes) - set(rank.generalists())
-        if not needs.mandated and themes and not chosen_ids & disciplinary:
+        if not needs.mandated and themes and not on_theme:
             statement += (
                 " No discipline-specific repository matched the themes ("
                 + "; ".join(themes)

@@ -253,6 +253,10 @@ export interface RepositoryRequirements {
   max_file_size?: number;
   max_item_size?: number;
   warnings: string[];
+  /** What the sets' sources leave open, each naming the issue that will settle it. */
+  unconfirmed?: string[];
+  /** Where the repository is, from its override; absent without one. */
+  repository_url?: string;
 }
 
 /**

@@ -1,4 +1,4 @@
-"""The orchestrator's model has no tools except its delegations and `offer_choices`,
+"""The orchestrator's model has no tools except its delegations and `ask_questions`,
 `name_project` and `set_entry_point`, which run nothing (docs/specs/orchestration.md).
 
 These tests fail if the model is offered a way to the outside world that is not a delegation
@@ -18,12 +18,12 @@ import pytest
 
 from dd_agent_example_hello.agent import HelloWorld
 from dd_agent_orchestrator_model.agent import (
-    CHOICE_TOOL,
-    CHOICE_TOOL_DEFINITION,
     ENTRY_TOOL,
     ENTRY_TOOL_DEFINITION,
     NAME_TOOL,
     NAME_TOOL_DEFINITION,
+    QUESTIONS_TOOL,
+    QUESTIONS_TOOL_DEFINITION,
     ModelOrchestrator,
 )
 from dd_agent_orchestrator_model.model import FALLBACK_BETA, AnthropicModel
@@ -113,9 +113,9 @@ def test_the_model_is_offered_only_delegations(runs_dir: Path) -> None:
     assert sent["tools"], "the manifest's agent should be offered as a tool"
     for tool in sent["tools"]:
         assert set(tool) == TOOL_KEYS, f"{tool.get('name')} is not a client tool"
-        if tool["name"] == CHOICE_TOOL:
+        if tool["name"] == QUESTIONS_TOOL:
             # A tool that is not a delegation: the loop ends on it and calls nothing.
-            assert tool == CHOICE_TOOL_DEFINITION
+            assert tool == QUESTIONS_TOOL_DEFINITION
             continue
         if tool["name"] == NAME_TOOL:
             # Nor is this: it puts a name on the reply and calls nothing.
@@ -127,7 +127,7 @@ def test_the_model_is_offered_only_delegations(runs_dir: Path) -> None:
             continue
         assert tool["description"].startswith("Ask the agent ")
     names = [t["name"] for t in sent["tools"]]
-    assert names.count(CHOICE_TOOL) == 1 and names.count(NAME_TOOL) == 1
+    assert names.count(QUESTIONS_TOOL) == 1 and names.count(NAME_TOOL) == 1
     assert names.count(ENTRY_TOOL) == 1
 
 

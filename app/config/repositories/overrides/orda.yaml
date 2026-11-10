@@ -5,7 +5,7 @@
 # they leave open is TODO(#385).
 schema_class: RequirementSet
 requirement_set_id: orda
-version: 2
+version: 3
 title: ORDA - The University of Sheffield Research Data Catalogue and Repository
 url: https://orda.shef.ac.uk/
 re3data_id: r3d100012124
@@ -96,3 +96,10 @@ guidance:
   - https://info.figshare.com/user-guide/figshare-metadata-schema-overview/
   - https://api.datacite.org/dois?client-id=bl.shef
   - https://www.re3data.org/repository/r3d100012124
+
+# What the public pages leave open, as the researcher depositing by hand is told. Each names the
+# issue that will settle it.
+unconfirmed:
+  - Whether ORDA's deposit form makes any field mandatory beyond Figshare's required set (#385).
+  - ORDA's own list of licences and its default licence (#385).
+  - The largest file and the largest item ORDA accepts (#385).

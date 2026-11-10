@@ -171,7 +171,7 @@ classes:
       - message_text
       - history
       - project_inventory
-      - choice_answer
+      - reply_answers
       - project_entry
       - project_progress
       - project_title
@@ -190,15 +190,24 @@ classes:
       - turn_agent_version
       - turn_invocation_id
 
-  ChoiceAnswer:
+  ReplyAnswers:
     description: >-
-      The researcher's answer to the choice question the turn before asked: the values they
-      chose and any text they gave in place of an option. The app checks it against that question
-      before it sends the turn (docs/specs/orchestration.md).
+      The researcher's answers to the questions the turn before asked, given together: one
+      QuestionAnswer for each question answered, none for a question skipped. The app checks them
+      against those questions before it sends the turn (docs/specs/orchestration.md).
     slots:
       - answer_to
+      - given_answers
+
+  QuestionAnswer:
+    description: >-
+      The researcher's answer to one question of a reply, named by its question_key: the values of
+      the options chosen, for a choice question, and the answer in their own words, for a text
+      question or where a choice question allows it.
+    slots:
+      - answered_key
       - answer_values
-      - answer_other
+      - answer_words
 
   StepProgress:
     description: >-
@@ -283,6 +292,7 @@ classes:
       - max_item_size
       - licences
       - guidance
+      - unconfirmed
     slot_usage:
       version:
         description: The version of the set, raised on every change.
@@ -323,6 +333,8 @@ classes:
       - max_item_size
       - licences
       - warnings
+      - unconfirmed
+      - repository_url
     slot_usage:
       re3data_id:
         description: The repository's re3data identifier, such as r3d100012124.
@@ -468,25 +480,30 @@ classes:
       - reply_text
       - reply_derivation
       - conversation_title
-      - reply_question
+      - reply_questions
       - new_project_title
       - new_project_entry
 
-  ChoiceQuestion:
+  Question:
     description: >-
-      A question with a fixed set of options that a conversational agent asks the researcher in
-      its reply, to be answered by choosing rather than typing. One or several options may be
-      chosen, and where question_other is true the researcher may answer in their own words
-      instead. Option values are unique within the question. Asking never suspends the run: the
-      researcher may ignore the question and type (docs/specs/orchestration.md).
+      One question a conversational agent asks the researcher in its reply, shown as a form field
+      and answered with the reply's other questions in the next turn. A choice question has a
+      fixed set of options, of which one or several may be chosen, and where question_other is
+      true the researcher may answer in their own words instead; option values are unique within
+      the question. A short or long text question is answered in the researcher's own words and
+      has no options. Asking never suspends the run: the researcher may skip a question, or
+      ignore them all and type (docs/specs/orchestration.md).
     slots:
+      - question_key
       - question_prompt
+      - question_kind
+      - question_help
       - question_options
       - question_multiple
       - question_other
 
   ChoiceOption:
-    description: One option of a choice question.
+    description: One option of a choice question (a Question of kind choice).
     slots:
       - option_value
       - option_label
@@ -914,29 +931,47 @@ slots:
       none. Only an agent that declares it model-derived sets it.
     # 1 to 3, checked by the SDK's model: a bound is not in the schema (#333).
     range: integer
-  reply_question:
+  reply_questions:
     description: >-
-      A question with fixed options the reply asks, at most one; absent when the reply asks
-      nothing or asks in prose.
-    range: ChoiceQuestion
-    inlined: true
+      The questions the reply asks, in the order they are put to the researcher one at a time;
+      between 1 and 8, with unique question_key values. Absent when the reply asks nothing or
+      asks in prose.
+    range: Question
+    multivalued: true
+    inlined_as_list: true
+    # No cardinality bounds, for the reason given at question_options (#333).
+  question_key:
+    description: >-
+      The question's identifier within its reply, which an answer names: a lower-case letter,
+      then up to 39 lower-case letters, digits and hyphens.
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,39}$"
   question_prompt:
     description: The question, as a short line a person reads before the options.
     required: true
+  question_kind:
+    description: How the question is answered.
+    range: QuestionKind
+    required: true
+  question_help:
+    description: One or two sentences shown under the question to help the researcher answer it.
   question_options:
-    description: The options, in the order they are shown; between 2 and 12, with unique values.
+    description: >-
+      The options of a choice question, in the order they are shown; between 2 and 12, with
+      unique values. Absent for a text question.
     range: ChoiceOption
     multivalued: true
     inlined_as_list: true
-    required: true
     # No minimum_cardinality or maximum_cardinality: a card carries class schemas over A2A, which
     # turns their integers into doubles and so breaks the schema digest (#333). The Pydantic model
     # holds the bounds.
   question_multiple:
-    description: True when several options may be chosen; one only otherwise.
+    description: True when several options may be chosen; one only otherwise. Choice questions only.
     range: boolean
   question_other:
-    description: True when the researcher may answer in their own words instead of an option.
+    description: >-
+      True when the researcher may answer in their own words instead of an option. Choice
+      questions only.
     range: boolean
   option_value:
     description: >-
@@ -948,21 +983,35 @@ slots:
     required: true
   option_help:
     description: One sentence that helps the researcher tell this option from the others.
-  choice_answer:
+  reply_answers:
     description: >-
-      The researcher's answer to the choice question the previous turn asked, when they answered
-      by choosing. message_text still carries the answer as prose.
-    range: ChoiceAnswer
+      The researcher's answers to the questions the previous turn asked, when they answered them
+      in the form. message_text still carries the answers as prose.
+    range: ReplyAnswers
     inlined: true
   answer_to:
-    description: The invocation whose reply asked the question.
+    description: The invocation whose reply asked the questions.
     required: true
     pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-  answer_values:
-    description: The values of the options chosen; empty when the researcher answered in their own words.
+  given_answers:
+    description: One answer for each question answered, in the order asked; at least one.
+    range: QuestionAnswer
     multivalued: true
-  answer_other:
-    description: The researcher's own answer, given in place of an option where the question allows it.
+    inlined_as_list: true
+    required: true
+  answered_key:
+    description: The question_key of the question answered.
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,39}$"
+  answer_values:
+    description: >-
+      The values of the options chosen, for a choice question; empty when the researcher answered
+      in their own words, and always empty for a text question.
+    multivalued: true
+  answer_words:
+    description: >-
+      The researcher's answer in their own words: the whole answer to a text question, or an
+      answer given in place of an option where a choice question allows it.
   document_kind:
     range: DocumentKind
     required: true
@@ -1215,6 +1264,17 @@ slots:
     description: The pages the set's values were taken from, so that a steward can check them.
     range: uri
     multivalued: true
+  unconfirmed:
+    description: >-
+      What the set's sources leave open, each a short statement naming the issue that will settle
+      it, such as "Whether ORDA's form makes any other field mandatory (#385)". Shown to the
+      person depositing; in a merged set, the standard's first, then the override's.
+    multivalued: true
+  repository_url:
+    description: >-
+      Where the chosen repository is, taken from its override's url; absent when the deployment
+      has no override for it.
+    range: uri
   property:
     description: The schema's property, such as DataCite's titles or types.resourceTypeGeneral.
     required: true
@@ -1496,6 +1556,16 @@ enums:
           researcher marked the step done.
       skipped:
         description: The researcher marked the step as not applying to this project, or not wanted.
+
+  QuestionKind:
+    description: How a question a reply asks is answered, and so which form field shows it.
+    permissible_values:
+      choice:
+        description: By choosing one or several of fixed options, or in own words where allowed.
+      short_text:
+        description: In the researcher's own words, on one line of at most 200 characters.
+      long_text:
+        description: In the researcher's own words, in up to 4000 characters over several lines.
 
   TurnRole:
     description: Who spoke in a conversation turn.

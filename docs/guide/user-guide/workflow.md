@@ -93,14 +93,16 @@ schema, vocabularies and validation rules for Phase 4.
 
 ### Phase 5: Deposit and submit
 
-Metadata is validated before submission, while you can still act on what is found.
+Metadata is validated before submission, while you can still act on what is found. Data Director
+builds the deposit package; you then deposit it in the repository yourself, as
+[Depositing your data](depositing.md) explains.
 
 - Validate metadata quality (R4)
 - Assign a licence
 - Link to related research outputs: publication DOIs, ORCID, ROR and grant IDs (R7)
 - Set access restrictions
 - Generate a private peer review link (*optional*)
-- Upload the files
+- Upload the files ([Depositing your data](depositing.md))
 - Review and finalise the submission
 
 ### Phase 6: Post-publication

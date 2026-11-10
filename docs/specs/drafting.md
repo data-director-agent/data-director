@@ -102,7 +102,7 @@ part, or a data dictionary cell named by `gap_file`, `gap_field` and `gap_column
 classes are in the core contract because the conductor, the app and an orchestrator all read them
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A set
-of choices, as the orchestrator's own `ChoiceQuestion` has, is added with the first drafter that
+of choices, as a reply's choice `Question` has, is added with the first drafter that
 sets one, TODO(#529).
 
 **Who does what.** The drafter writes the gaps and the questions. An orchestrator tells the

@@ -70,6 +70,8 @@ def test_the_model_names_an_unnamed_project_and_carries_on(tmp_path: Path) -> No
 
 def test_a_name_beside_choices_is_kept_and_the_choices_end_the_turn(tmp_path: Path) -> None:
     choices = {
+        "question_key": "q",
+        "question_kind": "choice",
         "question_prompt": "Does the dataset involve people?",
         "question_options": [
             {"option_value": "yes", "option_label": "Yes"},
@@ -77,12 +79,18 @@ def test_a_name_beside_choices_is_kept_and_the_choices_end_the_turn(tmp_path: Pa
         ],
     }
     model = ScriptedModel(
-        [asks("One question first.", (NAME_TOOL, {"name": NAME}), ("offer_choices", choices))]
+        [
+            asks(
+                "One question first.",
+                (NAME_TOOL, {"name": NAME}),
+                ("ask_questions", {"questions": [choices]}),
+            )
+        ]
     )
     conductor, _, conversation_id = in_project(tmp_path, model)
     reply = turn(conductor, conversation_id).payload_as(Reply)
     assert len(model.sent) == 1
-    assert reply.new_project_title == NAME and reply.reply_question is not None
+    assert reply.new_project_title == NAME and reply.reply_questions is not None
 
 
 def test_a_project_a_person_named_is_not_offered_the_tool(tmp_path: Path) -> None:
