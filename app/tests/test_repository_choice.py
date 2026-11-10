@@ -64,7 +64,7 @@ def test_a_choice_resolves_from_re3data_and_the_last_one_counts(
     assert orda.status_code == 201
     chosen = orda.json()
     assert chosen["re3data_id"] == ORDA
-    assert [s["ref"] for s in chosen["requirement_sets"]] == ["datacite-4@v1", "orda@v2"]
+    assert [s["ref"] for s in chosen["requirement_sets"]] == ["datacite-4@v1", "orda@v3"]
     assert chosen["warnings"] == []
     assert client.get(path).json() == chosen
     check_fixture("repository-chosen.json", chosen)

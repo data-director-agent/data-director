@@ -20,6 +20,11 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 12 ;
             sh:path dd:max_file_size ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path dd:unconfirmed ],
         [ sh:class dd:RequirementField ;
             sh:description "The metadata properties the set requires or recommends." ;
             sh:nodeKind sh:BlankNodeOrIRI ;

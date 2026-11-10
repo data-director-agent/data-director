@@ -105,12 +105,6 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:decision_reason ],
-        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
-            sh:in ( "proposed" "approved" "rejected" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 4 ;
-            sh:path dd:version_state ],
         [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
@@ -118,6 +112,12 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
+            sh:in ( "proposed" "approved" "rejected" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path dd:version_state ],
         [ sh:class dd:DocumentVersionRef ;
             sh:description "The version, by its document and number." ;
             sh:maxCount 1 ;
@@ -272,6 +272,11 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 9 ;
             sh:path dd:max_item_size ],
+        [ sh:description "Where the chosen repository is, taken from its override's url; absent when the deployment has no override for it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dd:repository_url ],
         [ sh:datatype xsd:string ;
             sh:description "What the researcher calls the repository chosen, such as ORDA." ;
             sh:maxCount 1 ;
@@ -306,6 +311,11 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
             sh:path dd:media_types ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:unconfirmed ],
         [ sh:class dd:RequirementField ;
             sh:description "The metadata properties the set requires or recommends." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
