@@ -785,7 +785,8 @@ def build_app(
 
     async def server_status(request: Request) -> Response:
         # Answers a monitor's `GET /server-status?auto` (collectd's apache plugin), in the shape
-        # Apache's mod_status uses: `Key: value` lines. Open, and says only that the app is up.
+        # Apache's mod_status uses: `Key: value` lines. Open on the app's own port; NGINX answers
+        # 404 to it, so only the VM's monitor reaches it.
         uptime = int(time.monotonic() - started)
         lines = [
             f"ServerVersion: data-director/{identity.get('app_version')}",

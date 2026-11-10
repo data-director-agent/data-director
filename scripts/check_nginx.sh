@@ -2,7 +2,7 @@
 # Set up deploy/nginx/data-director.conf as deploy/install.sh does, in front of stand-ins for
 # the app on 127.0.0.1:7860 and the workbench on 127.0.0.1:8000, and check that the proxy does
 # what the config says: HTTP redirected to HTTPS, TLS 1.3 alone, HSTS, no password of its own (the
-# app and the workbench sign people in), /a2a and the agent card closed, the forwarded headers set,
+# app and the workbench sign people in), /a2a, the agent card and /server-status closed, the forwarded headers set,
 # the body size limit, and port 8443 reaching the workbench and nothing else. The "NGINX reverse proxy" job in
 # .github/workflows/ci.yml runs it.
 #
@@ -85,6 +85,8 @@ expect 308 "http:// redirected" http://127.0.0.1/
 expect 200 "/ passed to the app, with no password" "$url/"
 expect 404 "/a2a" "$url/a2a"
 expect 404 "/.well-known/agent-card.json" "$url/.well-known/agent-card.json"
+expect 404 "/server-status" "$url/server-status"
+expect 404 "/server-status?auto" "$url/server-status?auto"
 expect 413 "a body over 2 MB" \
   -H 'Content-Type: application/json' --data-binary @<(head -c 3000000 /dev/zero | tr '\0' a) \
   "$url/"
@@ -107,6 +109,7 @@ workbench=https://127.0.0.1:8443
 expect 200 "8443 passed to the workbench, with no password" "$workbench/"
 expect 404 "8443 /a2a" "$workbench/a2a"
 expect 404 "8443 /.well-known/agent-card.json" "$workbench/.well-known/agent-card.json"
+expect 404 "8443 /server-status" "$workbench/server-status"
 expect 000 "8443 TLS 1.2" --tls-max 1.2 "$workbench/"
 expect 308 "http:// to 8443 redirected" http://127.0.0.1:8443/viewer/
 [[ $(curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:8443/viewer/?x=1) == https://127.0.0.1:8443/viewer/?x=1 ]] ||
