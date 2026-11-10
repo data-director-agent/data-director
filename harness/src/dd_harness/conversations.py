@@ -16,9 +16,10 @@ A summary's `title` is derived like everything else: the first turn's
 with `title_source` `model`; otherwise the start of the first turn's message, with `title_source`
 `message`. The harness calls no model to make one.
 
-A reply may ask a choice question (`Reply.reply_question`). `history` writes the question after the
-reply's text, so a conversational agent sees on a later turn what it asked; `answer_problem` is how
-the caller checks a researcher's `ChoiceAnswer` against that question before sending the turn.
+A reply may ask a series of questions (`Reply.reply_questions`): choices, or answers in the
+researcher's own words. `history` writes the questions after the reply's text, so a conversational
+agent sees on a later turn what it asked; `answer_problem` is how the caller checks a researcher's
+`ReplyAnswers` against those questions before sending the turn.
 
 The run storage lists conversations a page at a time, for the readers allowed to see them
 (`RunStorage.list_conversations`, docs/specs/storage.md, "Listing"); this module adds each one's
@@ -33,9 +34,13 @@ from typing import Any
 from dd_harness.listing import Page, Readable
 from dd_harness.storage import RunStorage
 from dd_sdk.contract.models import (
-    ChoiceAnswer,
-    ChoiceQuestion,
+    LONG_TEXT_MAX,
+    SHORT_TEXT_MAX,
     ConversationTurn,
+    Question,
+    QuestionAnswer,
+    QuestionKind,
+    ReplyAnswers,
     TurnRole,
     to_document,
 )
@@ -185,9 +190,9 @@ def history(turns: list[dict[str, Any]]) -> list[ConversationTurn]:
         payload = envelope.get("payload") or {}
         reply = payload.get("reply_text") if payload.get("schema_class") == "Reply" else None
         text = str(reply or envelope["outcome"]["statement"])
-        question = reply_question(envelope)
-        if question is not None:
-            text = f"{text}\n\n{question_text(question)}"
+        questions = reply_questions(envelope)
+        if questions:
+            text = f"{text}\n\n{questions_text(questions)}"
         out.append(
             ConversationTurn(
                 role=TurnRole.AGENT,
@@ -200,49 +205,92 @@ def history(turns: list[dict[str, Any]]) -> list[ConversationTurn]:
     return out
 
 
-def reply_question(envelope: dict[str, Any]) -> ChoiceQuestion | None:
-    """The choice question a turn's `Reply` asks, or None."""
+def reply_questions(envelope: dict[str, Any]) -> list[Question]:
+    """The questions a turn's `Reply` asks, in order; empty if it asks none."""
     payload = envelope.get("payload") or {}
-    if payload.get("schema_class") != "Reply" or not payload.get("reply_question"):
-        return None
-    return ChoiceQuestion.model_validate(payload["reply_question"])
+    if payload.get("schema_class") != "Reply":
+        return []
+    return [Question.model_validate(q) for q in payload.get("reply_questions") or []]
 
 
-def question_text(question: ChoiceQuestion) -> str:
-    """A choice question as plain text, as history presents it to an agent."""
+_KIND_TEXT = {
+    QuestionKind.SHORT_TEXT: "(To be answered in a line of the researcher's own words.)",
+    QuestionKind.LONG_TEXT: "(To be answered in the researcher's own words, at any length.)",
+}
+
+
+def questions_text(questions: list[Question]) -> str:
+    """The questions a reply asked as plain text, as history presents them to an agent."""
+    blocks = [_question_text(q) for q in questions]
+    if len(blocks) == 1:
+        return blocks[0]
+    lead = f"(The researcher was asked these {len(blocks)} questions, one at a time.)"
+    return "\n\n".join([lead, *(f"{n}. {b}" for n, b in enumerate(blocks, start=1))])
+
+
+def _question_text(question: Question) -> str:
     lines = [question.question_prompt]
-    lines += [f"- {o.option_label}" for o in question.question_options]
+    if question.question_kind is not QuestionKind.CHOICE:
+        return "\n".join([*lines, _KIND_TEXT[question.question_kind]])
+    lines += [f"- {o.option_label}" for o in question.question_options or []]
     if question.question_other:
         lines.append("- or something else, in the researcher's own words")
     choose = "one or more" if question.question_multiple else "one"
     return "\n".join([*lines, f"(The researcher was offered these to choose {choose}.)"])
 
 
-def answer_problem(conversation: dict[str, Any] | None, answer: ChoiceAnswer) -> str | None:
-    """Why `answer` cannot be sent as the next turn of `conversation`, or None if it can.
+def answer_problem(conversation: dict[str, Any] | None, answers: ReplyAnswers) -> str | None:
+    """Why `answers` cannot be sent as the next turn of `conversation`, or None if they can.
 
-    An answer names the latest turn, whose reply asked a choice question. Its values are options
-    of that question, at most one unless several may be chosen; text in place of an option only
-    where the question allows it; and something is chosen or said.
+    The answers name the latest turn, whose reply asked questions, and each answers one of those
+    questions; a question may be skipped. A choice answer's values are options of its question,
+    at most one unless several may be chosen, with words in place of an option only where the
+    question allows it; a text answer is words alone, within its kind's length; and every answer
+    chooses or says something.
     """
     turns = (conversation or {}).get("turns") or []
-    if not turns or turns[-1]["invocation_id"] != answer.answer_to:
-        return "the answer does not name the latest turn of the conversation"
-    question = reply_question(turns[-1]["envelope"])
-    if question is None:
-        return "the latest turn asked no choice question"
-    offered = {o.option_value for o in question.question_options}
+    if not turns or turns[-1]["invocation_id"] != answers.answer_to:
+        return "the answers do not name the latest turn of the conversation"
+    asked = {q.question_key: q for q in reply_questions(turns[-1]["envelope"])}
+    if not asked:
+        return "the latest turn asked no question"
+    for answer in answers.given_answers:
+        question = asked.get(answer.answered_key)
+        if question is None:
+            return f"not a question the latest turn asked: {answer.answered_key}"
+        if problem := _answer_problem(question, answer):
+            return f"{answer.answered_key}: {problem}"
+    return None
+
+
+def _answer_problem(question: Question, answer: QuestionAnswer) -> str | None:
+    words = (answer.answer_words or "").strip()
+    if answer.answer_words is not None and not words:
+        return "the answer in the researcher's own words is empty"
+    if question.question_kind is not QuestionKind.CHOICE:
+        limit = (
+            SHORT_TEXT_MAX if question.question_kind is QuestionKind.SHORT_TEXT else LONG_TEXT_MAX
+        )
+        if answer.answer_values:
+            return "the question takes words, not options"
+        if not words:
+            return "nothing is said"
+        if len(words) > limit:
+            return f"the answer is longer than {limit} characters"
+        if question.question_kind is QuestionKind.SHORT_TEXT and "\n" in words:
+            return "the answer is more than one line"
+        return None
+    offered = {o.option_value for o in question.question_options or []}
     unknown = [v for v in answer.answer_values if v not in offered]
     if unknown:
         return f"not an option of the question: {', '.join(unknown)}"
     if len(set(answer.answer_values)) != len(answer.answer_values):
         return "an option is chosen more than once"
-    other = (answer.answer_other or "").strip()
-    if answer.answer_other is not None and not other:
-        return "the answer in the researcher's own words is empty"
-    if other and not question.question_other:
+    if words and not question.question_other:
         return "the question takes only its options"
-    chosen = len(answer.answer_values) + (1 if other else 0)
+    if len(words) > SHORT_TEXT_MAX:
+        return f"the answer is longer than {SHORT_TEXT_MAX} characters"
+    chosen = len(answer.answer_values) + (1 if words else 0)
     if chosen == 0:
         return "nothing is chosen"
     if chosen > 1 and not question.question_multiple:

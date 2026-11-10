@@ -4,11 +4,11 @@
       "ChoiceOption": {
          "@id": "https://w3id.org/data-director/ChoiceOption"
       },
-      "ChoiceQuestion": {
-         "@id": "https://w3id.org/data-director/ChoiceQuestion"
-      },
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
+      },
+      "Question": {
+         "@id": "https://w3id.org/data-director/Question"
       },
       "Reply": {
          "@id": "https://w3id.org/data-director/Reply"
@@ -43,6 +43,15 @@
          "@id": "https://w3id.org/data-director/option_value"
       },
       "prov": "http://www.w3.org/ns/prov#",
+      "question_help": {
+         "@id": "https://w3id.org/data-director/question_help"
+      },
+      "question_key": {
+         "@id": "https://w3id.org/data-director/question_key"
+      },
+      "question_kind": {
+         "@id": "https://w3id.org/data-director/question_kind"
+      },
       "question_multiple": {
          "@id": "https://w3id.org/data-director/question_multiple"
       },
@@ -59,8 +68,8 @@
       "reply_derivation": {
          "@id": "https://w3id.org/data-director/reply_derivation"
       },
-      "reply_question": {
-         "@id": "https://w3id.org/data-director/reply_question",
+      "reply_questions": {
+         "@id": "https://w3id.org/data-director/reply_questions",
          "@type": "@id"
       },
       "reply_text": {

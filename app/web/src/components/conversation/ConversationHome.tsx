@@ -50,7 +50,7 @@ import {
 import { Paperclip, SendHorizontal, X } from "lucide-react";
 import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
-import { type ChoiceAnswer, replyQuestion } from "../../conversation/question";
+import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import {
   type AttachedDocument,
   DOCUMENT_EXTENSIONS,
@@ -437,16 +437,16 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     await deliver(text.trim(), attached, null, attachedDocument);
   }
 
-  /** Sends the answer to the latest turn's choice question, said in words as `message`. What is
-   * in the message box stays there. */
-  async function answerQuestion(answer: ChoiceAnswer, message: string) {
-    await deliver(message, null, answer);
+  /** Sends the answers to the latest turn's questions, said in words as `message`. What is in
+   * the message box stays there. */
+  async function answerQuestions(answers: ReplyAnswers, message: string) {
+    await deliver(message, null, answers);
   }
 
   async function deliver(
     message: string,
     inventory: AttachedInventory | null,
-    answer: ChoiceAnswer | null,
+    answer: ReplyAnswers | null,
     attachedDoc: AttachedDocument | null = null,
   ) {
     if (!orchestrator || (!message && !inventory && !attachedDoc) || busy) return;
@@ -496,10 +496,14 @@ export function ConversationHome({ directory }: { directory: Directory }) {
         throw e;
       });
       const last = updated.turns[updated.turns.length - 1];
-      const asks = last ? replyQuestion(last.envelope) : null;
+      const asks = last ? replyQuestions(last.envelope) : [];
       const said = last
         ? `New reply from ${last.agent_id}: ${OUTCOME[last.envelope.outcome.status].label}.` +
-          (asks ? ` It asks you to choose: ${asks.question_prompt}` : "")
+          (asks.length === 1
+            ? ` It asks: ${asks[0]?.question_prompt}`
+            : asks.length > 1
+              ? ` It asks you ${asks.length} questions, one at a time.`
+              : "")
         : "";
       announceDrafts.current = last
         ? { said, invocationIds: [last.invocation_id, ...last.children.map((c) => c.invocation_id)] }
@@ -629,7 +633,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                       document: sent.document,
                     }
               }
-              onAnswer={(answer, message) => void answerQuestion(answer, message)}
+              onAnswer={(answers, message) => void answerQuestions(answers, message)}
               chosenRepository={project?.repository?.re3data_id ?? null}
               {...(projectId
                 ? {
@@ -780,7 +784,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           onNew={reset}
         />
       }
-      context={<ContextPanel projectId={projectId} project={project} conversation={conversation} documents={documents} />}
+      context={
+        <ContextPanel
+          projectId={projectId}
+          project={project}
+          conversation={conversation}
+          documents={documents}
+          onInventorySaved={() => void reloadProjects()}
+        />
+      }
     />
   );
 }

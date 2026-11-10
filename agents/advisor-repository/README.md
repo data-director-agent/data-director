@@ -50,22 +50,39 @@ The pipeline is retrieve, assess, rank, explain. Retrieval comes first, and no m
 repository or makes a judgement:
 
 - **Search.** One query per theme and per kind of data over every repository in the registry
-  (BM25), where a hit must contain every word of the query, as re3data's own search requires. A
-  further query names the researcher's institution, and the generalist repositories listed in
-  `ranking.yaml` (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and Mendeley Data) are taken by
-  identifier.
+  (BM25), where a hit must contain every word of the query, as re3data's own search requires.
+  Each theme is also matched to the DFG subjects it names (`dfg.py`), and the repositories re3data
+  files under them are retrieved too, so a repository whose record never uses the theme's word is
+  still found. A further query names the researcher's institution, and the generalist
+  repositories listed in `ranking.yaml` (Zenodo, figshare, Harvard Dataverse, Dryad, OSF and
+  Mendeley Data) are taken by identifier.
 - **Assessment** (`assess.py`). Fixed rules over registry fields. Where the records are silent
   the answer is `unstated`, never a guess. A commercial institution counts as an operator only
   when its responsibility is general or funding. A commercial technical supplier, such as
   Figshare for ORDA, is a note.
-- **Ranking** (`ranking.yaml`). The discipline is judged from the themes alone: a repository
-  scores by the share of the themes it matches. The kinds of data add a little, never enough to
+- **Ranking** (`ranking.yaml`). The discipline is judged from the themes alone. Each theme is
+  graded from 0 to 1, half on the text (a hit's BM25 score relative to the best hit for that
+  theme) and half on the DFG subject: full marks for a repository filed under the subject the
+  theme names, less for one filed only under the subject just above it or two levels above, and
+  nothing for the top level (Natural Sciences, say). A theme that names no DFG subject, such as
+  "moorland", is graded on its text alone, as is a record that lists no subjects. A theme names
+  a subject when every word of the theme is in one field of the subject's name, and the closest
+  such subjects are kept: "hydrology" names `34601 Hydrogeology, Hydrology, ...`, and "fluid
+  dynamics" names none. A repository scores by the mean of its theme grades. The kinds of data
+  add a little, never enough to
   recommend a repository on their own, since a kind of data such as "images" is found in
   repositories of every discipline. A generalist scores below a repository that matches every
   theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
   found, the statement says that only generalist and institutional repositories are offered and
   suggests the broad field of study, since a narrow topic such as "moorland" may match none.
-  Ranking also uses whether the repository offers the access the data needs.
+  Ranking also uses whether the repository offers the access the data needs, and whether an
+  institution in the researcher's country operates it: a small weight that puts such a
+  repository above an equal or slightly closer match elsewhere, and never adds one on its own
+  (#741). The country is `country` when given, else the one re3data records for the
+  affiliation's institution, so no country, funder or repository is written into the rules.
+  Search folds English plurals to singulars (`-ies` to `-y`, a final `s` dropped except after
+  `s`, `u` or `i`) in queries and records alike, so the theme "environmental science" finds a
+  record that says only "sciences".
 - **The researcher's institution** is a fallback, in case no more specific destination (a
   repository of the discipline, or one a funder, journal or project requires) suits the data
   (#441). Affiliation adds no score. The shortlist is ordered by kind of fit (`order`): the
@@ -79,7 +96,9 @@ repository or makes a judgement:
   it lacks the access the data needs, and takes no other repository's place, so naming an
   institution adds to the shortlist and removes nothing.
 - **Order at an equal score.** A commercial operator is listed after the others, and then a
-  repository that lists a deposit fee; neither is dropped. Certification carries no weight,
+  repository that lists a deposit fee; neither is dropped. Repositories of the same kind of fit
+  and score each say in `ranked_by` that they are ranked equal, so the order among them is not
+  read as a preference. Certification carries no weight,
   because Figure 3 says paid certification must not outweigh free evaluation.
 - **Credit.** Every statement ends by crediting re3data and naming the export it read.
 - **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=anthropic`, a model

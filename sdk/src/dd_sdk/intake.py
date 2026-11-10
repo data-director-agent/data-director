@@ -25,7 +25,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from dd_sdk.contract.models import ChoiceOption, ChoiceQuestion
+from dd_sdk.contract.models import ChoiceOption, Question, QuestionKind
 from dd_sdk.process_flow import ENTRIES
 
 # The first question's id: its answer is the project's entry point (`entry_chosen`), not an
@@ -64,10 +64,13 @@ class IntakeQuestion:
         chosen = set(values)
         return frozenset(s for o in self.options if o.value in chosen for s in o.skips)
 
-    def choice_question(self) -> ChoiceQuestion:
-        """The question as the core `ChoiceQuestion` the app draws (docs/specs/contract.md)."""
-        return ChoiceQuestion(
+    def as_question(self) -> Question:
+        """The question as the core `Question` of kind choice the app draws
+        (docs/specs/contract.md), keyed by its id without the `intake.` prefix."""
+        return Question(
+            question_key=self.id.removeprefix("intake."),
             question_prompt=self.prompt,
+            question_kind=QuestionKind.CHOICE,
             question_options=[
                 ChoiceOption(option_value=o.value, option_label=o.label) for o in self.options
             ],

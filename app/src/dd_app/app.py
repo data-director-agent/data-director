@@ -24,6 +24,9 @@ the latest version asks, for the next draft to place as supplied, and answers `4
 version is no longer the latest or does not ask them (docs/specs/drafting.md).
 `GET /api/projects/{id}/inventory` is the inventory the project holds, as it was added, for the
 researcher to read; it answers `404` when there is none.
+`POST /api/projects/{id}/inventory` adds `{"inventory": …}` to the project as its latest, for
+the person signed in: the researcher's revision of the one it holds, or a new scan
+(docs/specs/projects.md). It answers `201` with what the project then holds of it.
 `GET /api/projects/{id}/documentation` lists the documents attached to the project, without their
 text, and `GET /api/projects/{id}/documentation/{digest}` is one document's text, `404` when the
 project holds none with that digest (docs/specs/projects.md).
@@ -127,7 +130,7 @@ from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
-from dd_sdk.contract.models import ChoiceAnswer, Principal
+from dd_sdk.contract.models import Principal, ReplyAnswers
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
@@ -145,6 +148,7 @@ ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
 TITLE_REFUSED = "Data Director could not rename this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
+INVENTORY_REFUSED = "Data Director could not add this inventory"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -312,12 +316,12 @@ def build_app(
             "follows",
             "inventory",
             "documentation",
-            "choice_answer",
+            "reply_answers",
         }
         if extra := sorted(set(body) - allowed):
             return _refused(
                 "A turn takes only `agent_id`, `message_text`, `follows`, `inventory`, "
-                f"`documentation` and `choice_answer`, not {extra}."
+                f"`documentation` and `reply_answers`, not {extra}."
             )
         agent_id, message_text = body.get("agent_id"), body.get("message_text")
         if not isinstance(agent_id, str) or not isinstance(message_text, str):
@@ -348,13 +352,14 @@ def build_app(
         if not message_text.strip() and inventory is None and documentation is None:
             return _refused("The message is empty.")
         answer = None
-        if body.get("choice_answer") is not None:
+        if body.get("reply_answers") is not None:
             try:
-                answer = ChoiceAnswer.model_validate(body["choice_answer"])
+                answer = ReplyAnswers.model_validate(body["reply_answers"])
             except ValueError:
                 return _refused(
-                    "`choice_answer` must name the turn it answers (`answer_to`) and give "
-                    "`answer_values`, a list of strings, and optionally `answer_other`."
+                    "`reply_answers` must name the turn it answers (`answer_to`) and give "
+                    "`given_answers`: for each question answered, its `answered_key`, the "
+                    "`answer_values` chosen and optionally `answer_words`."
                 )
         if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
             return _no_conversation(conversation_id)
@@ -441,6 +446,38 @@ def build_app(
                 404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
             )
         return JSONResponse(found)
+
+    async def add_inventory(request: Request, person: Principal) -> Response:
+        """A revised or new inventory for the project, outside a turn. The store checks it against
+        the `FileInventory` class schema and records which inventory it revises; whom it acts for
+        is whom the authenticator names, never the body."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", INVENTORY_REFUSED)
+        inventory = body.get("inventory") if isinstance(body, dict) else None
+        if not isinstance(inventory, dict):
+            return _refused(
+                "`inventory` must be the object `dd-inventory` wrote.", INVENTORY_REFUSED
+            )
+
+        def add() -> dict[str, Any]:
+            store.add_inventory(
+                project_id, inventory, acted_for=person, caused_by=f"POST {request.url.path}"
+            )
+            held: dict[str, Any] = store.summary(project_id)["inventory"]
+            return held
+
+        try:
+            return JSONResponse(await run_in_threadpool(add), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _refused(str(exc), INVENTORY_REFUSED)
 
     async def list_documentation(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -974,6 +1011,11 @@ def build_app(
                 "/api/projects/{project_id}/inventory",
                 in_project(Action.READ, get_inventory),
                 methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/inventory",
+                in_project(Action.CONTRIBUTE, add_inventory),
+                methods=["POST"],
             ),
             Route(
                 "/api/projects/{project_id}/documentation",

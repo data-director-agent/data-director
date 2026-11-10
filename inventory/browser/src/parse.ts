@@ -4,7 +4,7 @@
  * still checks it against the contract's class schema before a project keeps it.
  */
 
-import { IDENTIFICATION_METHODS, type FileInventory } from "./types";
+import { FILE_ROLES, IDENTIFICATION_METHODS, type FileInventory } from "./types";
 
 /** A document that is not an inventory; the message is a sentence a researcher can read. */
 export class NotAnInventory extends Error {
@@ -78,6 +78,12 @@ function fileProblem(file: unknown): string | null {
   }
   if (file.file_pronom_ids !== undefined && !isStringList(file.file_pronom_ids)) {
     return "has PRONOM identifiers that are not a list";
+  }
+  if (file.file_description !== undefined && typeof file.file_description !== "string") {
+    return "has a description that is not text";
+  }
+  if (file.file_role !== undefined && !FILE_ROLES.includes(file.file_role as never)) {
+    return "has a role that is not data, documentation, code or other";
   }
   const fields = file.file_fields;
   if (fields !== undefined) {

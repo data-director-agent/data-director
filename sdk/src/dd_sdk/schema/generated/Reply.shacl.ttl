@@ -22,12 +22,11 @@ dd:Reply a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:reply_text ],
-        [ sh:class dd:ChoiceQuestion ;
-            sh:description "A question with fixed options the reply asks, at most one; absent when the reply asks nothing or asks in prose." ;
-            sh:maxCount 1 ;
+        [ sh:class dd:Question ;
+            sh:description "The questions the reply asks, in the order they are put to the researcher one at a time; between 1 and 8, with unique question_key values. Absent when the reply asks nothing or asks in prose." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
-            sh:path dd:reply_question ],
+            sh:path dd:reply_questions ],
         [ sh:class dd:GroundingRef ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
@@ -64,7 +63,7 @@ dd:Reply a sh:NodeShape ;
     sh:targetClass dd:Reply .
 
 dd:ChoiceOption a sh:NodeShape ;
-    rdfs:comment "One option of a choice question." ;
+    rdfs:comment "One option of a choice question (a Question of kind choice)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -89,37 +88,6 @@ dd:ChoiceOption a sh:NodeShape ;
             sh:path dd:option_label ] ;
     sh:targetClass dd:ChoiceOption .
 
-dd:ChoiceQuestion a sh:NodeShape ;
-    rdfs:comment "A question with a fixed set of options that a conversational agent asks the researcher in its reply, to be answered by choosing rather than typing. One or several options may be chosen, and where question_other is true the researcher may answer in their own words instead. Option values are unique within the question. Asking never suspends the run: the researcher may ignore the question and type (docs/specs/orchestration.md)." ;
-    sh:closed true ;
-    sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:boolean ;
-            sh:description "True when the researcher may answer in their own words instead of an option." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:question_other ],
-        [ sh:datatype xsd:boolean ;
-            sh:description "True when several options may be chosen; one only otherwise." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:question_multiple ],
-        [ sh:datatype xsd:string ;
-            sh:description "The question, as a short line a person reads before the options." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:question_prompt ],
-        [ sh:class dd:ChoiceOption ;
-            sh:description "The options, in the order they are shown; between 2 and 12, with unique values." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path dd:question_options ] ;
-    sh:targetClass dd:ChoiceQuestion .
-
 dd:GroundingRef a sh:NodeShape ;
     rdfs:comment "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields." ;
     sh:closed true ;
@@ -138,4 +106,54 @@ dd:GroundingRef a sh:NodeShape ;
             sh:order 0 ;
             sh:path dd:source_id ] ;
     sh:targetClass dd:GroundingRef .
+
+dd:Question a sh:NodeShape ;
+    rdfs:comment "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:description "True when the researcher may answer in their own words instead of an option. Choice questions only." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:question_other ],
+        [ sh:datatype xsd:string ;
+            sh:description "One or two sentences shown under the question to help the researcher answer it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:question_help ],
+        [ sh:class dd:ChoiceOption ;
+            sh:description "The options of a choice question, in the order they are shown; between 2 and 12, with unique values. Absent for a text question." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path dd:question_options ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "True when several options may be chosen; one only otherwise. Choice questions only." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:question_multiple ],
+        [ sh:description "How the question is answered." ;
+            sh:in ( "choice" "short_text" "long_text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:question_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The question's identifier within its reply, which an answer names: a lower-case letter, then up to 39 lower-case letters, digits and hyphens." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:question_key ;
+            sh:pattern "^[a-z][a-z0-9-]{0,39}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The question, as a short line a person reads before the options." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:question_prompt ] ;
+    sh:targetClass dd:Question .
 

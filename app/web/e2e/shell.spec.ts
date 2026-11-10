@@ -335,7 +335,7 @@ for (const scheme of ["light", "dark"] as const) {
     // Until an answer is sent the conversation ends with the question; then with the answer.
     let sentAnswer: unknown = null;
     await page.route("/api/conversations/*/turns", (route) => {
-      sentAnswer = route.request().postDataJSON().choice_answer ?? null;
+      sentAnswer = route.request().postDataJSON().reply_answers ?? null;
       return route.fulfill({ status: 201, json: turn });
     });
     await page.route("/api/conversations/*", (route) =>
@@ -348,7 +348,7 @@ for (const scheme of ["light", "dark"] as const) {
 
     const group = page.getByRole("group", { name: "Where are you with your research data?" });
     await expect(group).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("It asks you to choose");
+    await expect(page.getByRole("status")).toContainText("It asks: Where are you");
     expect(await overflow(page), "horizontal overflow with a question").toBeLessThanOrEqual(0);
     expect(await axeViolations(page)).toEqual([]);
 
@@ -362,9 +362,77 @@ for (const scheme of ["light", "dark"] as const) {
     await page.keyboard.press("Enter");
 
     await expect(page.getByText("(your choice)")).toBeVisible();
-    expect(sentAnswer).toEqual({ answer_to: question.turns[0]?.invocation_id, answer_values: ["2"] });
+    expect(sentAnswer).toEqual({
+      answer_to: question.turns[0]?.invocation_id,
+      given_answers: [{ answered_key: "entry", answer_values: ["2"] }],
+    });
     await expect(box).toBeFocused();
     expect(await axeViolations(page)).toEqual([]);
+  });
+
+  test(`a series of questions, ${scheme}: answered one at a time by keyboard at 320px, with no axe violations`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await useScheme(page, scheme);
+    await serveConversation(page);
+    // The fixture's reply asks three questions instead of one: a choice, a line and a paragraph.
+    const series = structuredClone(question);
+    const asking = series.turns[0]?.envelope.payload as Record<string, unknown>;
+    const [entry] = asking.reply_questions as unknown[];
+    asking.reply_questions = [
+      entry,
+      { question_key: "title", question_kind: "short_text", question_prompt: "What is the dataset called?" },
+      {
+        question_key: "method",
+        question_kind: "long_text",
+        question_prompt: "How were the data collected?",
+        question_help: "A few sentences are enough.",
+      },
+    ];
+    let sentAnswer: unknown = null;
+    await page.route("/api/conversations/*/turns", (route) => {
+      sentAnswer = route.request().postDataJSON().reply_answers ?? null;
+      return route.fulfill({ status: 201, json: turn });
+    });
+    await page.route("/api/conversations/*", (route) => route.fulfill({ json: series }));
+    await page.goto("/");
+    const box = page.getByRole("textbox", { name: "What would you like to do?" });
+    await box.fill("hi");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    const form = page.getByRole("form", { name: /asks 3 questions for you/ });
+    await expect(form.getByText("Question 1 of 3")).toBeVisible();
+    await expect(page.getByRole("status")).toContainText("3 questions, one at a time");
+    expect(await overflow(page), "horizontal overflow with a series of questions").toBeLessThanOrEqual(0);
+    expect(await axeViolations(page)).toEqual([]);
+
+    // The choice, by keyboard, then Next; the focus moves to the next question.
+    await form.getByRole("radio").first().focus();
+    await page.keyboard.press("ArrowDown");
+    await form.getByRole("button", { name: "Next" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(form.getByText("Question 2 of 3")).toBeVisible();
+    await expect(form.getByText("What is the dataset called?")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("Bird counts");
+    await page.keyboard.press("Enter");
+
+    // The paragraph is skipped; the answers are checked, then sent together.
+    await expect(form.getByText("Question 3 of 3")).toBeVisible();
+    await form.getByRole("button", { name: "Skip" }).click();
+    await expect(form.getByRole("heading", { name: "Check your answers" })).toBeFocused();
+    expect(await overflow(page), "horizontal overflow with the answers to check").toBeLessThanOrEqual(0);
+    expect(await axeViolations(page)).toEqual([]);
+    await form.getByRole("button", { name: "Send answers" }).click();
+
+    await expect.poll(() => sentAnswer).toEqual({
+      answer_to: question.turns[0]?.invocation_id,
+      given_answers: [
+        { answered_key: "entry", answer_values: ["2"] },
+        { answered_key: "title", answer_values: [], answer_words: "Bird counts" },
+      ],
+    });
   });
 }
 
@@ -481,7 +549,16 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   await leaveOut.focus();
   await page.keyboard.press("Space");
   await expect(leaveOut).not.toBeChecked();
-  await expect(review.getByText("Left out: 1 file.")).toBeVisible();
+  await expect(review.getByRole("status")).toContainText("1 file left out");
+  // A file is described by keyboard, beside the facts the command found.
+  const describe = review.getByText("Describe data/file-0.csv");
+  await describe.focus();
+  await page.keyboard.press("Enter");
+  await review.getByRole("textbox", { name: "What this file is" }).fill("Readings from site 0");
+  await page.keyboard.press("Tab");
+  await expect(review.getByRole("status")).toContainText("1 description");
+  expect(await overflow(page), "horizontal overflow while describing a file").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
   await review.getByRole("button", { name: "Attach this inventory" }).press("Enter");
   await expect(review).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
@@ -498,6 +575,7 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   await expect(dialog.getByText("41 files, 49.2 kB in all")).toBeVisible();
   await expect(dialog.getByText("file-1.csv", { exact: true })).toHaveCount(0);
   await expect(dialog.getByText(/the researcher left out 1 file\./)).toBeVisible();
+  await expect(dialog.getByText("Readings from site 0")).toBeVisible();
   // The only top-level folder is open already.
   await expect(dialog.getByText("file-0.csv", { exact: true })).toBeVisible();
   expect(await overflow(page), "horizontal overflow with the inventory open").toBeLessThanOrEqual(0);

@@ -10,14 +10,19 @@
  *
  * A decision changes the project (`revision`), so a check made before it no longer stands: the
  * panel says so and offers no build until the project is checked again.
+ *
+ * Once a package is built, the panel says what the researcher does next to deposit by hand, since
+ * Data Director does not deposit (TODO(#383)). The field labels, the repository's address and what
+ * is not yet confirmed come from the chosen repository's requirements, never from this file.
  */
 
 import { Download, ListChecks, Package } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   type BuiltPackage,
   PackageRefused,
+  type RepositoryRequirements,
   type Validation,
   type ValidationResult,
   useProjectApi,
@@ -25,6 +30,11 @@ import {
 import { Button } from "../ui/Button";
 
 const HEADING_ID = "deposit-heading";
+const NEXT_ID = "deposit-next";
+
+/** The user guide's page on depositing by hand. */
+export const DEPOSIT_GUIDE =
+  "https://data-director-agent.github.io/data-director/user-guide/depositing/";
 
 type Result =
   | { state: "checked"; validation: Validation }
@@ -84,12 +94,124 @@ function Results({
   );
 }
 
+function FieldLabels({
+  choice,
+  obligation,
+}: {
+  choice: RepositoryRequirements;
+  obligation: string;
+}) {
+  const labels = choice.fields
+    .filter((f) => f.obligation === obligation && f.form_label)
+    .map((f) => f.form_label as string);
+  const unique = [...new Set(labels)];
+  if (unique.length === 0) return null;
+  return (
+    <ul
+      aria-label={obligation === "required" ? "Fields the form requires" : "Fields worth filling"}
+    >
+      {unique.map((label) => (
+        <li key={label}>{label}</li>
+      ))}
+    </ul>
+  );
+}
+
+/** What to do with a built package, for the chosen repository where it is known. */
+export function NextSteps({ choice }: { choice: RepositoryRequirements | null }) {
+  const name = choice?.repository_name ?? "the repository you chose";
+  const where = choice
+    ? (choice.repository_url ??
+      `https://www.re3data.org/repository/${encodeURIComponent(choice.re3data_id)}`)
+    : null;
+  const labelled = choice?.fields.some((f) => f.form_label) ?? false;
+  const unlabelled = [
+    ...new Set(choice?.fields.filter((f) => !f.form_label).map((f) => f.property) ?? []),
+  ];
+  const unconfirmed = choice?.unconfirmed ?? [];
+  return (
+    <section className="deposit-next" aria-labelledby={NEXT_ID}>
+      <h3 id={NEXT_ID}>What to do next</h3>
+      <p>
+        Data Director does not deposit, register a DOI or release an embargo. You do, in {name}:
+      </p>
+      <ol>
+        <li>Create a new item in {where ? <a href={where}>{name}</a> : name}.</li>
+        <li>
+          Enter the metadata from the approved metadata record, copying each value into the
+          repository&apos;s form.
+          {labelled && choice && (
+            <>
+              {" "}
+              The form&apos;s fields that the record fills are:
+              <FieldLabels choice={choice} obligation="required" />
+              and, if the record has them:
+              <FieldLabels choice={choice} obligation="recommended" />
+              {unlabelled.length > 0 && (
+                <p className="hint">
+                  The repository&apos;s profile names no form field for{" "}
+                  {unlabelled.map((property, i) => (
+                    <span key={property}>
+                      {i > 0 && ", "}
+                      <code>{property}</code>
+                    </span>
+                  ))}
+                  ; put these where the form allows, or leave them in the record.
+                </p>
+              )}
+            </>
+          )}
+        </li>
+        <li>
+          Attach your data files. The package lists each one with its SHA-256 digest, so you can
+          show the files you upload are the files described.
+        </li>
+        <li>
+          Keep the package with the project. It is the audit and metadata bundle: the approved
+          documents, the record of who decided what, and how generative AI was used. The repository
+          does not read it, though you may attach it to the item.
+        </li>
+        <li>Review the item and publish it from the repository.</li>
+      </ol>
+      {unconfirmed.length > 0 && (
+        <div className="callout status-warn">
+          <p>
+            <strong>Not yet confirmed for {name}:</strong>
+          </p>
+          <ul>
+            {unconfirmed.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p>
+        <a href={DEPOSIT_GUIDE}>Depositing your data, step by step, in the user guide</a>
+      </p>
+    </section>
+  );
+}
+
 export function DepositPanel({ projectId, revision }: { projectId: string; revision: number }) {
   const api = useProjectApi();
   const [busy, setBusy] = useState<"checking" | "building" | null>(null);
   const [result, setResult] = useState<(Result & { revision: number }) | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [said, setSaid] = useState("");
+  const [choice, setChoice] = useState<RepositoryRequirements | null>(null);
+
+  // Read the chosen repository for the steps after a build. Failing to read it leaves the steps
+  // general; it does not stop a check or a build.
+  useEffect(() => {
+    const controller = new AbortController();
+    api.repository(projectId, controller.signal).then(
+      (value) => setChoice(value),
+      () => {
+        if (!controller.signal.aborted) setChoice(null);
+      },
+    );
+    return () => controller.abort();
+  }, [api, projectId, revision]);
 
   const stale = result !== null && result.revision !== revision;
   const shown = stale ? null : result;
@@ -106,7 +228,10 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
       } else {
         const built = await api.buildPackage(projectId);
         setResult({ state: "built", built, revision });
-        setSaid(`The package is built (${sizeInWords(built.package.size)}). Download it below.`);
+        setSaid(
+          `The package is built (${sizeInWords(built.package.size)}). Download it, then follow ` +
+            "the steps below to deposit.",
+        );
       }
     } catch (error: unknown) {
       if (error instanceof PackageRefused) {
@@ -132,9 +257,9 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
       <h2 id={HEADING_ID}>Deposit package</h2>
       <p className="hint">
         Data Director checks the project against what the repository you chose asks for. Once
-        nothing stops it, it builds a package to upload: the approved documents, the record of who
-        decided what, and how generative AI was used. Your data files are listed in it but not
-        included; upload them beside it.
+        nothing stops it, it builds a package: the approved documents, the record of who decided
+        what, and how generative AI was used. Your data files are listed in it but not included; you
+        upload them to the repository yourself, as the panel says once the package is built.
       </p>
       <p className="document-actions">
         <Button
@@ -202,6 +327,7 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
           <p className="hint">
             SHA-256 <code className="deposit-digest">{shown.built.package.digest}</code>
           </p>
+          <NextSteps choice={choice} />
         </>
       )}
     </section>

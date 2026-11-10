@@ -1,0 +1,11 @@
+{
+  "schema_class": "RepositoryNeeds",
+  "themes": [
+    "environmental science"
+  ],
+  "data_kinds": [
+    "time series",
+    "calibration data"
+  ],
+  "country": "GBR"
+}

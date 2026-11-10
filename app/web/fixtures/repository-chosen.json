@@ -102,6 +102,7 @@
     "data_dictionary"
   ],
   "repository_name": "ORDA - The University of Sheffield Research Data Catalogue and Repository",
+  "repository_url": "https://orda.shef.ac.uk/",
   "required_documents": [
     "metadata_record"
   ],
@@ -111,9 +112,14 @@
       "sha256": "5805dbd29a54d7fae26cdcfd16db9fd7517edd31eab637de9d81193b1bc72083"
     },
     {
-      "ref": "orda@v2",
-      "sha256": "0899c16a10fbe06289b72712f072146b30353c56fc62809c662ef97dece438f3"
+      "ref": "orda@v3",
+      "sha256": "f703877afb1c4afb5a6aa1ff52af76e46abdad934847c3a93890cbce444776f8"
     }
+  ],
+  "unconfirmed": [
+    "Whether ORDA's deposit form makes any field mandatory beyond Figshare's required set (#385).",
+    "ORDA's own list of licences and its default licence (#385).",
+    "The largest file and the largest item ORDA accepts (#385)."
   ],
   "warnings": []
 }

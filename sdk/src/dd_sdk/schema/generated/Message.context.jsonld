@@ -1,9 +1,6 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/",
-      "ChoiceAnswer": {
-         "@id": "https://w3id.org/data-director/ChoiceAnswer"
-      },
       "ConversationTurn": {
          "@id": "https://w3id.org/data-director/ConversationTurn"
       },
@@ -16,11 +13,14 @@
       "Message": {
          "@id": "https://w3id.org/data-director/Message"
       },
+      "QuestionAnswer": {
+         "@id": "https://w3id.org/data-director/QuestionAnswer"
+      },
+      "ReplyAnswers": {
+         "@id": "https://w3id.org/data-director/ReplyAnswers"
+      },
       "StepProgress": {
          "@id": "https://w3id.org/data-director/StepProgress"
-      },
-      "answer_other": {
-         "@id": "https://w3id.org/data-director/answer_other"
       },
       "answer_to": {
          "@id": "https://w3id.org/data-director/answer_to"
@@ -28,9 +28,11 @@
       "answer_values": {
          "@id": "https://w3id.org/data-director/answer_values"
       },
-      "choice_answer": {
-         "@id": "https://w3id.org/data-director/choice_answer",
-         "@type": "@id"
+      "answer_words": {
+         "@id": "https://w3id.org/data-director/answer_words"
+      },
+      "answered_key": {
+         "@id": "https://w3id.org/data-director/answered_key"
       },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
@@ -50,6 +52,10 @@
       },
       "documentation_size": {
          "@id": "https://w3id.org/data-director/documentation_size"
+      },
+      "given_answers": {
+         "@id": "https://w3id.org/data-director/given_answers",
+         "@type": "@id"
       },
       "history": {
          "@id": "https://w3id.org/data-director/history",
@@ -103,6 +109,10 @@
          "@id": "https://w3id.org/data-director/project_title_by_researcher"
       },
       "prov": "http://www.w3.org/ns/prov#",
+      "reply_answers": {
+         "@id": "https://w3id.org/data-director/reply_answers",
+         "@type": "@id"
+      },
       "role": {
          "@id": "https://w3id.org/data-director/role"
       },

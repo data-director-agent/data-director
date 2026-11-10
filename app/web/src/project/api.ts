@@ -253,6 +253,10 @@ export interface RepositoryRequirements {
   max_file_size?: number;
   max_item_size?: number;
   warnings: string[];
+  /** What the sets' sources leave open, each naming the issue that will settle it. */
+  unconfirmed?: string[];
+  /** Where the repository is, from its override; absent without one. */
+  repository_url?: string;
 }
 
 /**
@@ -291,6 +295,8 @@ export interface ProjectApi {
   ): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
+  /** Adds `inventory` as the project's latest, revising the one it holds; answers with what it then holds. */
+  saveInventory(projectId: string, inventory: unknown): Promise<SavedInventory>;
   /** The repository chosen for the project, or null if none has been. */
   repository(projectId: string, signal?: AbortSignal): Promise<RepositoryRequirements | null>;
   /** Where the project is in the process flow, derived anew by the harness. */
@@ -306,6 +312,15 @@ export interface ProjectApi {
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
   buildPackage(projectId: string): Promise<BuiltPackage>;
+}
+
+/** What a project holds of its inventory once one is saved: `revises` names the one it replaced. */
+export interface SavedInventory {
+  digest: string;
+  file_count: number;
+  inventory_made_at: string;
+  added_at: string;
+  revises: string | null;
 }
 
 /**
@@ -379,6 +394,15 @@ export const httpProjectApi: ProjectApi = {
         `/api/projects/${encodeURIComponent(projectId)}/inventory`,
         signal ? { signal } : {},
       ),
+    );
+  },
+  async saveInventory(projectId, inventory) {
+    return json(
+      await fetch(`${projectPath(projectId)}/inventory`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ inventory }),
+      }),
     );
   },
   async repository(projectId, signal) {

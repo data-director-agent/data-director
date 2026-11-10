@@ -34,7 +34,11 @@ What is built:
   and draws its results ([The app](app.md)): `POST /api/projects/{id}/validation` checks the
   project and keeps the report; `POST /api/projects/{id}/package` builds the package, or answers
   `409` with the validation that stopped it; `GET /api/projects/{id}/packages/{digest}` downloads
-  a package the project log records as built (`app/tests/test_deposit_package.py`).
+  a package the project log records as built (`app/tests/test_deposit_package.py`);
+- what to do after downloading the package: the Deposit panel lists the manual steps for the
+  chosen repository, naming its form's fields by their `form_label`, linking to its
+  `repository_url` and listing its `unconfirmed` items, all read from the merged set; the user
+  guide's *Depositing your data* covers the same steps.
 
 A researcher chooses a repository in the app from an advisor's shortlist
 (`PUT /api/projects/{id}/repository`, [App](app.md)). Giving a drafter the merged set is
@@ -95,12 +99,16 @@ field names a property of the standard's schema, optionally qualified, the schem
 to, and its obligation. Properties the repository fills itself, such as the identifier and the
 publisher, are not listed. A value the guidance does not state is left out and marked with an
 issue reference, never guessed; each set cites the pages its values came from, so a steward can
-check them. What ORDA's public pages leave open is TODO(#385).
+check them. What the guidance leaves open is also listed in the set's `unconfirmed`, one
+statement per item naming its issue, so that a person depositing by hand sees it; the merged set
+carries both sets' items. What ORDA's public pages leave open is TODO(#385).
 
 **The metadata record follows DataCite.** The drafter writes a `Document` of kind
 `metadata_record` in DataCite's JSON form, with `conforms_to` set to the merged set's. DataCite is
 the schema ORDA's DOIs are registered in, and a DataCite record serves any repository that mints
-DataCite DOIs. An override's form labels tell a person depositing by hand where each value goes.
+DataCite DOIs. An override's form labels tell a person depositing by hand where each value goes, and its
+`url`, carried in the merged set as `repository_url`, where to deposit; a standard's `url`
+describes the standard and is not carried.
 Sets for other standards, such as DDI, each need a set, a mapping to schema.org and a drafter,
 TODO(#401).
 

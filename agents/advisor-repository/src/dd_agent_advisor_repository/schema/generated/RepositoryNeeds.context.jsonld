@@ -17,6 +17,9 @@
          "@id": "https://w3id.org/data-director/agents/repository/affiliation",
          "@type": "@id"
       },
+      "country": {
+         "@id": "https://w3id.org/data-director/agents/repository/country"
+      },
       "data_kinds": {
          "@id": "https://w3id.org/data-director/agents/repository/data_kinds"
       },

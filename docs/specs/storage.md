@@ -337,7 +337,9 @@ files.
 
 ## Open questions
 
-- How long runs, conversations and projects are kept, what deleting one removes, and how a
+- How long runs, conversations and projects are kept, what erasing one removes, and how a
   person's data in them is erased, now that the record is a database from which rows can be
-  deleted, TODO(#156).
+  deleted, TODO(#156). Deleting a project is settled and changes nothing here: it appends events
+  to the project's log and removes no row ([Projects](projects.md), invariant 22), so invariants 1
+  and 9 stand. Erasing would need an exception to them, and the spec of it will name one.
 - Whether deposit packages and other large blobs move to object storage, TODO(#744).

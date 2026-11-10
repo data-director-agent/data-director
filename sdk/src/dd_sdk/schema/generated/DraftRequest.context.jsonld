@@ -86,6 +86,9 @@
          "@id": "https://w3id.org/data-director/fields",
          "@type": "@id"
       },
+      "file_description": {
+         "@id": "http://purl.org/dc/terms/description"
+      },
       "file_fields": {
          "@id": "https://w3id.org/data-director/file_fields",
          "@type": "@id"
@@ -101,6 +104,9 @@
       },
       "file_pronom_ids": {
          "@id": "https://w3id.org/data-director/file_pronom_ids"
+      },
+      "file_role": {
+         "@id": "https://w3id.org/data-director/file_role"
       },
       "file_sha256": {
          "@id": "http://spdx.org/rdf/terms#checksumValue"
@@ -184,6 +190,10 @@
       "repository_name": {
          "@id": "https://w3id.org/data-director/repository_name"
       },
+      "repository_url": {
+         "@id": "https://w3id.org/data-director/repository_url",
+         "@type": "@id"
+      },
       "required_documents": {
          "@id": "https://w3id.org/data-director/required_documents"
       },
@@ -207,6 +217,9 @@
       },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",
+      "unconfirmed": {
+         "@id": "https://w3id.org/data-director/unconfirmed"
+      },
       "version": {
          "@id": "https://w3id.org/data-director/version"
       },

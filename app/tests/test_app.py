@@ -671,14 +671,14 @@ def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, A
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
-def test_a_choice_question_is_answered_by_choosing(in_projects: tuple[Governance, Any]):
+def test_a_question_is_answered_in_the_form(in_projects: tuple[Governance, Any]):
     governance, app = in_projects
     client = TestClient(app)
     conversation_id = start(client)
     first = turn(client, conversation_id, "hi")
     assert first.status_code == 200
     asked = first.json()["envelope"]
-    question = asked["payload"]["reply_question"]
+    (question,) = asked["payload"]["reply_questions"]
     assert [o["option_value"] for o in question["question_options"]] == ["1", "2", "3"]
     check_fixture(
         "conversation-question.json",
@@ -686,31 +686,32 @@ def test_a_choice_question_is_answered_by_choosing(in_projects: tuple[Governance
     )
 
     def answer(values: list[str], to: str = asked["invocation_id"], **kw: Any) -> Any:
+        given = {"answered_key": question["question_key"], "answer_values": values, **kw}
         return turn(
             client,
             conversation_id,
             "Data already collected, being prepared for sharing",
             asked["invocation_id"],
-            choice_answer={"answer_to": to, "answer_values": values, **kw},
+            reply_answers={"answer_to": to, "given_answers": [given]},
         )
 
     refused = answer(["9"])
     assert refused.status_code == 400
     assert "not an option of the question: 9" in refused.json()["detail"]
     assert answer(["1", "2"]).status_code == 400  # one answer only
-    assert answer(["2"], answer_other="ours").status_code == 400  # no answer in words
+    assert answer(["2"], answer_words="ours").status_code == 400  # no answer in words
     from_elsewhere = answer(["2"], to="0190a000-0000-7000-8000-000000000000")
     assert "latest turn" in from_elsewhere.json()["detail"]
-    assert answer(["2"], answer_to_typo=True).status_code == 400  # not a ChoiceAnswer
+    assert answer(["2"], answer_to_typo=True).status_code == 400  # not a QuestionAnswer
     assert len(client.get(f"/api/conversations/{conversation_id}").json()["turns"]) == 1
 
     answered = answer(["2"])
     assert answered.status_code == 200, answered.json()
     envelope = answered.json()["envelope"]
     stored = governance.conductor.store.get_request(envelope["invocation_id"]) or {}
-    assert stored["input"]["choice_answer"] == {
+    assert stored["input"]["reply_answers"] == {
         "answer_to": asked["invocation_id"],
-        "answer_values": ["2"],
+        "given_answers": [{"answered_key": question["question_key"], "answer_values": ["2"]}],
     }
     assert envelope["outcome"]["statement"].startswith("Listed the steps from entry point 2")
     # The answer reads as a normal message in the history; the question is written after the
@@ -879,6 +880,55 @@ def test_what_the_researcher_left_out_of_an_inventory_is_kept_nowhere(
     assert shown["project_inventory"]["inventory_limitations"][-1].startswith(
         "Before this inventory was added, the researcher left out 1 file and 1 column."
     )
+
+
+def test_a_member_revises_the_projects_inventory_outside_a_turn(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: Role.MEMBER)
+    url = f"/api/projects/{project_id}/inventory"
+
+    first = client.post(url, json={"inventory": a_file_inventory("a.csv")})
+    assert first.status_code == 201, first.json()
+    assert first.json()["revises"] is None
+    revised = a_file_inventory("a.csv")
+    revised["inventory_files"][0] |= {"file_description": "Readings", "file_role": "data"}
+    second = client.post(url, json={"inventory": revised})
+    assert second.status_code == 201, second.json()
+    assert second.json()["revises"] == first.json()["digest"]
+    added = store.events(project_id)[-1]
+    assert added["caused_by"] == f"POST {url}"
+    assert client.get(url).json() == revised
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"inventory": {"schema_class": "FileInventory"}},
+        {"inventory": ["a.csv"]},
+        ["a.csv"],
+    ],
+)
+def test_a_revision_that_is_not_an_inventory_is_refused(
+    in_projects: tuple[Governance, Any], body: Any
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    refused = client.post(f"/api/projects/{project_id}/inventory", json=body)
+    assert refused.status_code == 400
+    assert store.inventory(project_id) is None
+    unknown = client.post(
+        f"/api/projects/{uuid.uuid4()}/inventory", json={"inventory": a_file_inventory("a")}
+    )
+    assert unknown.status_code == 404
 
 
 def test_a_project_without_an_inventory_serves_none(in_projects: tuple[Governance, Any]):
@@ -1264,7 +1314,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
         (
             {"input": {}},
             "only `agent_id`, `message_text`, `follows`, `inventory`, `documentation` and "
-            "`choice_answer`",
+            "`reply_answers`",
         ),
         ({"message_text": 3}, "as strings"),
         ({"follows": 3}, "must give `follows`"),

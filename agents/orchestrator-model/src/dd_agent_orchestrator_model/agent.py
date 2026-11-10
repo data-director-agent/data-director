@@ -27,11 +27,12 @@ child is on the parent's `delegations` and its own envelope, and the reply repor
 failure, raises, and the conductor records failed(agent-error): a model-derived reply is never
 replaced by a template.
 
-Besides the delegations the model has one tool of the agent's own, `offer_choices`, which runs
-nothing: called alone, it ends the turn, and the reply carries the question as
-`Reply.reply_question` for the app to show as choices (docs/specs/orchestration.md). Called beside
-a delegation, or with options that are not a valid `ChoiceQuestion`, it is answered with an error
-and the loop goes on.
+Besides the delegations the model has one tool of the agent's own, `ask_questions`, which runs
+nothing: called alone, it ends the turn, and the reply carries the questions as
+`Reply.reply_questions`, for the app to put to the researcher one at a time as form fields:
+choices, or a line or more in their own words (docs/specs/orchestration.md). Called beside a
+delegation, or with questions that are not valid `Question`s, it is answered with an error and the
+loop goes on.
 
 In a project no person has named (`Message.project_title_by_researcher` false), the model is
 also offered `name_project`, which runs nothing either: it puts a short name for the project on
@@ -70,7 +71,8 @@ from dd_sdk.contract.models import (
     CHOICE_OPTIONS_MAX,
     CHOICE_OPTIONS_MIN,
     NEW_PROJECT_TITLE_MAX,
-    ChoiceQuestion,
+    QUESTION_KEY_PATTERN,
+    QUESTIONS_MAX,
     Derivation,
     EvidenceItem,
     GroundingMode,
@@ -80,6 +82,8 @@ from dd_sdk.contract.models import (
     OpenInput,
     Outcome,
     OutcomeStatus,
+    Question,
+    QuestionKind,
     ReasonCode,
     Reply,
     TurnRole,
@@ -105,51 +109,97 @@ TOOL_NAME_MAX = 64
 SCHEMA_ANNOTATIONS = ("$comment", "$id", "$schema", "title")
 CUT_SHORT = "(This reply was cut short.)"
 
-# The one tool that is not a delegation: it asks the researcher to choose, and runs nothing.
-CHOICE_TOOL = "offer_choices"
-CHOICE_TOOL_DEFINITION: dict[str, Any] = {
-    "name": CHOICE_TOOL,
+# The one tool that is not a delegation: it asks the researcher questions, and runs nothing.
+QUESTIONS_TOOL = "ask_questions"
+QUESTIONS_TOOL_DEFINITION: dict[str, Any] = {
+    "name": QUESTIONS_TOOL,
     "description": (
-        "Offer the researcher a question with a fixed set of options, shown as choices they "
-        "click. It runs nothing and ends your turn: call it alone, after the text of your reply, "
-        "when the answer is one of a few known options."
+        "Ask the researcher one or more questions, shown to them as form fields one at a time and "
+        "answered together in their next message. It runs nothing and ends your turn: call it "
+        "alone, after the text of your reply. Ask several at once only when you need several "
+        "facts before you can go on; use a choice question when the answer is one of a few known "
+        "options, and a text question otherwise."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
-            "question_prompt": {"type": "string", "description": "The question, in one line."},
-            "question_options": {
+            "questions": {
                 "type": "array",
-                "minItems": CHOICE_OPTIONS_MIN,
-                "maxItems": CHOICE_OPTIONS_MAX,
-                "description": "The options in the order to show them; values unique.",
+                "minItems": 1,
+                "maxItems": QUESTIONS_MAX,
+                "description": "The questions in the order to ask them.",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "option_value": {"type": "string", "description": "A short identifier."},
-                        "option_label": {
+                        "question_key": {
                             "type": "string",
-                            "description": "What the researcher reads.",
+                            "pattern": QUESTION_KEY_PATTERN,
+                            "description": "A short identifier, unique among these questions.",
                         },
-                        "option_help": {
+                        "question_prompt": {
                             "type": "string",
-                            "description": "Optional: one sentence telling this option apart.",
+                            "description": "The question, in one line.",
+                        },
+                        "question_kind": {
+                            "type": "string",
+                            "enum": [k.value for k in QuestionKind],
+                            "description": (
+                                "choice: pick from options; short_text: one line in their own "
+                                "words; long_text: several sentences in their own words."
+                            ),
+                        },
+                        "question_help": {
+                            "type": "string",
+                            "description": "Optional: a sentence that helps them answer.",
+                        },
+                        "question_options": {
+                            "type": "array",
+                            "minItems": CHOICE_OPTIONS_MIN,
+                            "maxItems": CHOICE_OPTIONS_MAX,
+                            "description": (
+                                "Choice questions only: the options in the order to show them; "
+                                "values unique."
+                            ),
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "option_value": {
+                                        "type": "string",
+                                        "description": "A short identifier.",
+                                    },
+                                    "option_label": {
+                                        "type": "string",
+                                        "description": "What the researcher reads.",
+                                    },
+                                    "option_help": {
+                                        "type": "string",
+                                        "description": (
+                                            "Optional: one sentence telling this option apart."
+                                        ),
+                                    },
+                                },
+                                "required": ["option_value", "option_label"],
+                                "additionalProperties": False,
+                            },
+                        },
+                        "question_multiple": {
+                            "type": "boolean",
+                            "description": "Choice questions only: true if several may be chosen.",
+                        },
+                        "question_other": {
+                            "type": "boolean",
+                            "description": (
+                                "Choice questions only: true if the researcher may answer in "
+                                "their own words instead."
+                            ),
                         },
                     },
-                    "required": ["option_value", "option_label"],
+                    "required": ["question_key", "question_prompt", "question_kind"],
                     "additionalProperties": False,
                 },
             },
-            "question_multiple": {
-                "type": "boolean",
-                "description": "True if several options may be chosen.",
-            },
-            "question_other": {
-                "type": "boolean",
-                "description": "True if the researcher may answer in their own words instead.",
-            },
         },
-        "required": ["question_prompt", "question_options"],
+        "required": ["questions"],
         "additionalProperties": False,
     },
 }
@@ -399,7 +449,7 @@ class ModelOrchestrator:
         derivations={
             "reply_text": Derived(Derivation.MODEL, recorded_in="reply_derivation"),
             "conversation_title": Derived(Derivation.MODEL),
-            "reply_question": Derived(Derivation.MODEL),
+            "reply_questions": Derived(Derivation.MODEL),
             "new_project_title": Derived(Derivation.MODEL),
             "new_project_entry": Derived(Derivation.MODEL),
         },
@@ -430,7 +480,7 @@ class ModelOrchestrator:
                 "from `workbench invoke`), so no agent was asked.",
             )
         tools = {t.name: t for t in tools_from_manifest(ctx.delegate.manifest())}
-        definitions = [*(t.definition for t in tools.values()), CHOICE_TOOL_DEFINITION]
+        definitions = [*(t.definition for t in tools.values()), QUESTIONS_TOOL_DEFINITION]
         # Only a project no person has named may be named by the model.
         may_name = message.project_title_by_researcher is False
         if may_name:
@@ -450,7 +500,7 @@ class ModelOrchestrator:
         model_id = self.model.model_id
         # Each call and what it sent, kept by digest with the run (docs/specs/disclosure.md).
         calls = ModelCallLog(PROVIDER)
-        question: ChoiceQuestion | None = None
+        questions: list[Question] | None = None
         name: str | None = None
         entry_point: int | None = None
         while True:
@@ -505,15 +555,15 @@ class ModelOrchestrator:
                 entry_point = given_entry or entry_point
                 named[call.id] = result
             others = [c for c in turn.tool_calls if c.name not in (NAME_TOOL, ENTRY_TOOL)]
-            question, problem = _question_of(others)
-            if question is not None:
+            questions, problem = _questions_of(others)
+            if questions is not None:
                 break
             results = []
             for call in turn.tool_calls:
                 if call.id in named:
                     results.append(named[call.id])
                     continue
-                if call.name == CHOICE_TOOL:
+                if call.name == QUESTIONS_TOOL:
                     results.append(_tool_result(call, problem or "", True))
                     continue
                 attempts += 1
@@ -524,7 +574,7 @@ class ModelOrchestrator:
         return self._reply(
             message,
             turn,
-            question,
+            questions,
             name,
             entry_point,
             delegated,
@@ -580,7 +630,7 @@ class ModelOrchestrator:
         self,
         message: Message,
         turn: ModelTurn,
-        question: ChoiceQuestion | None,
+        questions: list[Question] | None,
         name: str | None,
         entry_point: int | None,
         delegated: list[Delegated],
@@ -591,8 +641,12 @@ class ModelOrchestrator:
         calls: ModelCallLog,
     ) -> AgentResult:
         text = turn.text.strip()
-        if question is not None and not text:
-            text = question.question_prompt
+        if questions and not text:
+            text = (
+                questions[0].question_prompt
+                if len(questions) == 1
+                else f"I have {len(questions)} questions for you."
+            )
         if turn.stop_reason == "max_tokens":
             text = f"{text}\n\n{CUT_SHORT}" if text else CUT_SHORT
         if not text:
@@ -622,7 +676,7 @@ class ModelOrchestrator:
                 reply_text=text,
                 reply_derivation=Derivation.MODEL,
                 conversation_title=title.text if title is not None else None,
-                reply_question=question,
+                reply_questions=questions,
                 new_project_title=name,
                 new_project_entry=entry_point,
                 grounded_on=[input_ref, *(d.ref for d in delegated)],
@@ -645,24 +699,32 @@ class ModelOrchestrator:
         )
 
 
-def _question_of(calls: Sequence[ToolCall]) -> tuple[ChoiceQuestion | None, str | None]:
-    """The question asked by a turn whose only tool call is `offer_choices`, or why it is not
+def _questions_of(calls: Sequence[ToolCall]) -> tuple[list[Question] | None, str | None]:
+    """The questions asked by a turn whose only tool call is `ask_questions`, or why they are not
     asked: None and None when the turn does not call the tool."""
-    if not any(call.name == CHOICE_TOOL for call in calls):
+    if not any(call.name == QUESTIONS_TOOL for call in calls):
         return None, None
     if len(calls) > 1:
         return None, (
-            "Not shown: offer choices alone, in your final message, once the agents you need "
+            "Not shown: ask questions alone, in your final message, once the agents you need "
             "have answered."
         )
     try:
-        return ChoiceQuestion.model_validate(calls[0].input), None
+        given = calls[0].input.get("questions")
+        if not isinstance(given, list):
+            raise ValueError("questions must be a list")
+        if not 1 <= len(given) <= QUESTIONS_MAX:
+            raise ValueError(f"ask between 1 and {QUESTIONS_MAX} questions")
+        questions = [Question.model_validate(q) for q in given]
+        if len({q.question_key for q in questions}) != len(questions):
+            raise ValueError("each question has a key of its own")
+        return questions, None
     except ValueError as exc:  # pydantic's ValidationError
         errors = getattr(exc, "errors", None)
         reasons = "; ".join(str(e["msg"]) for e in errors()) if callable(errors) else str(exc)
         return (
             None,
-            f"Not shown: these are not valid choices ({reasons}). Fix them or ask in prose.",
+            f"Not shown: these are not valid questions ({reasons}). Fix them or ask in prose.",
         )
 
 
