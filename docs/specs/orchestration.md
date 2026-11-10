@@ -160,7 +160,8 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     derivation for the phase tracker. Work done out of order, or before the entry phase, counts.
     (`harness/tests/test_progress.py`,
     `test_a_message_in_a_project_is_told_its_entry_point_and_progress`,
-    `test_a_reply_records_the_entry_point_a_model_worked_out`,
+    `test_a_reply_records_the_entry_point_a_model_worked_out`, the storage conformance kit's
+    `check_a_researchers_entry_point_is_never_replaced_by_a_models` (`dd_harness.testing.storage`),
     `agents/orchestrator-model/tests/test_orchestrator_entry.py`)
 19. **The next step is a suggestion, never a gate.** `suggested_next` names one step: the first
     from the entry phase that is neither done nor skipped, in scope and not optional, with a step

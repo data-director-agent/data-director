@@ -480,17 +480,13 @@ class Projects:
             )
         if entry not in (1, 2, 3):
             raise ProjectError(f"the Blueprint has no entry point {entry!r}")
-        with self._lock(project_id):
-            self._require(project_id)
-            _, held = flow.entry_and_source(self.events(project_id))
+        with self._section(project_id) as section:
+            _, held = flow.entry_and_source(section.events())
             if source == flow.ENTRY_BY_MODEL and held == flow.ENTRY_BY_RESEARCHER:
                 return False
-            self._append(
-                project_id,
-                flow.ENTRY_CHOSEN,
-                acted_for,
-                caused_by,
-                {"entry": entry, "entry_source": source},
+            detail = {"entry": entry, "entry_source": source}
+            section.append(
+                [self._event(project_id, flow.ENTRY_CHOSEN, acted_for, caused_by, detail)]
             )
         return True
 
