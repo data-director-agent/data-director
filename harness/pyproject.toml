@@ -42,7 +42,8 @@ dd-harness = "dd_harness.server:main"
 serve = ["uvicorn>=0.30"]
 # The PostgreSQL backend of the run and project storage (docs/specs/storage.md). An extra, so a
 # deployment on files does not install the driver; `binary` bundles libpq.
-postgres = ["psycopg[binary]>=3.2"]
+# `psycopg-pool` keeps a pool of connections per store, sized by DD_POSTGRES_POOL_SIZE.
+postgres = ["psycopg[binary]>=3.2", "psycopg-pool>=3.2"]
 
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
