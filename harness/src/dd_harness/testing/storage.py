@@ -36,6 +36,8 @@ from dd_harness.projects import (
     DOCUMENT_CHANGE_REFUSED,
     DOCUMENT_QUESTION_ANSWERED,
     DOCUMENT_VERSION_DECIDED,
+    DOCUMENTATION_ADDED,
+    DOCUMENTATION_MAX_BYTES,
     INVENTORY_ADDED,
     PACKAGE_BUILT,
     PROJECT_CREATED,
@@ -320,6 +322,61 @@ def check_a_refused_change_records_nothing(make: MakeProjectStorage) -> None:
         store.create(acted_for=TEST_PRINCIPAL, caused_by="check", title="x" * 10_000)
     assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
     assert [s["project_id"] for s in store.projects()] == [project_id]
+
+
+def check_documentation_is_kept_by_digest_and_listed_once(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.documentation(project_id) == []
+
+    def add(name: str, text: str, media_type: str = "text/markdown") -> str:
+        return store.add_documentation(
+            project_id, name, media_type, text, acted_for=TEST_PRINCIPAL, caused_by="check"
+        )
+
+    protocol = "# Protocol\n\nSamples were taken weekly.\n"
+    digest = add("protocol.md", protocol)
+    assert digest == hashlib.sha256(protocol.encode("utf-8")).hexdigest()
+    add("codebook.txt", "age: years", "text/plain")
+    add("protocol.md", protocol)
+    listed = store.documentation(project_id)
+    assert [d["documentation_name"] for d in listed] == ["protocol.md", "codebook.txt"]
+    assert listed[0]["documentation_digest"] == digest
+    assert listed[0]["documentation_size"] == len(protocol.encode("utf-8"))
+    assert listed[0]["documentation_media_type"] == "text/markdown"
+    assert all("text" not in d for d in listed)
+    assert store.documentation_text(project_id, digest) == protocol
+    assert store.documentation_text(project_id, "0" * 64) is None
+    kinds = [e["event"] for e in store.events(project_id)]
+    assert kinds == [PROJECT_CREATED] + [DOCUMENTATION_ADDED] * 3
+    assert make("projects").documentation(project_id) == listed
+
+
+def check_refused_documentation_leaves_no_trace(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    refused = [
+        ("data.csv", "text/csv", "a,b\n1,2"),
+        ("report.pdf", "application/pdf", "%PDF"),
+        ("notes.md", "text/markdown", "  \n"),
+        ("big.txt", "text/plain", "x" * (DOCUMENTATION_MAX_BYTES + 1)),
+        ("../notes.md", "text/markdown", "notes"),
+        ("folder/notes.md", "text/markdown", "notes"),
+        ("C:\\notes.md", "text/markdown", "notes"),
+        ("", "text/markdown", "notes"),
+        ("x" * 256, "text/markdown", "notes"),
+    ]
+    for name, media_type, text in refused:
+        with _raises(ProjectError, f"{name[:20]!r} as {media_type}"):
+            store.add_documentation(
+                project_id, name, media_type, text, acted_for=TEST_PRINCIPAL, caused_by="check"
+            )
+    with _raises(ProjectError, "a document for an unknown project"):
+        store.add_documentation(
+            NOWHERE, "notes.md", "text/markdown", "notes", acted_for=TEST_PRINCIPAL, caused_by="c"
+        )
+    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
+    assert store.documentation(project_id) == []
 
 
 def check_an_unknown_project_is_refused(make: MakeProjectStorage) -> None:
@@ -692,6 +749,10 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     ),
     "a report and a package are kept by digest": check_a_report_and_a_package_are_kept_by_digest,
     "answers stand until answered again": check_answers_stand_until_answered_again,
+    "documentation is kept by digest and listed once": (
+        check_documentation_is_kept_by_digest_and_listed_once
+    ),
+    "refused documentation leaves no trace": check_refused_documentation_leaves_no_trace,
 }
 
 

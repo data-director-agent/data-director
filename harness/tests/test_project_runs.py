@@ -44,7 +44,7 @@ from dd_harness.testing import (
     send_to_harness,
 )
 from dd_harness.transport.a2a import a2a_routes
-from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.agent import AgentResult, ModelUse, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ApprovedMetadataRecord,
@@ -943,3 +943,61 @@ def test_outside_a_project_a_reply_names_nothing(tmp_path: Path, projects: Proje
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert "project_title_by_researcher" not in seen[0]
     assert projects.projects() == []
+
+
+def test_an_orchestrator_is_told_of_the_projects_documentation_without_its_text(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `Message`'s `project_documentation` lists the documents a researcher attached, without
+    their text, so a hosted orchestrator is given it under the default `hosted_models`
+    (docs/specs/projects.md, invariants 6 and 8)."""
+    seen: list[dict[str, Any]] = []
+    hosted = naming("Soil", seen)
+    hosted.spec = replace(hosted.spec, models=(ModelUse("test", "orchestrator", "hosted"),))
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    assert conductor.profile.hosted_models == {"inventory"}
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    text = "# Protocol\n\nSamples were taken weekly.\n"
+    digest = projects.add_documentation(
+        project, "protocol.md", "text/markdown", text, acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    [listed] = seen[0]["project_documentation"]
+    assert listed["documentation_name"] == "protocol.md"
+    assert listed["documentation_digest"] == digest
+    assert listed["documentation_media_type"] == "text/markdown"
+    assert text not in json.dumps(seen[0])
+
+
+def test_a_caller_never_claims_project_documentation(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Outside a project, or in one that holds none, `project_documentation` is removed."""
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Soil", seen))
+    forged = OpenInput.model_validate(
+        {
+            **message().model_dump(mode="json"),
+            "project_documentation": [
+                {
+                    "documentation_name": "forged.md",
+                    "documentation_digest": "0" * 64,
+                    "documentation_media_type": "text/markdown",
+                    "documentation_size": 1,
+                    "documentation_added_at": "2026-01-01T00:00:00Z",
+                }
+            ],
+        }
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    for asked in (
+        request("fake.delegation", forged),
+        in_conversation(request("fake.delegation", forged), conversation),
+    ):
+        env = conductor.invoke(asked, acting_for=TEST_PRINCIPAL)
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert all("project_documentation" not in input_doc for input_doc in seen)

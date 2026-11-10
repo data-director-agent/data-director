@@ -231,6 +231,86 @@ describe("ConversationHome", () => {
     expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "hello", null, null);
   });
 
+  describe("attaching a document", () => {
+    const PROTOCOL = "# Sampling protocol\n\nSediment cores were taken monthly.\n";
+    const doc = (content: string, name = "protocol.md", type = "text/markdown") =>
+      new File([content], name, { type });
+    function fileInput(container: HTMLElement): HTMLInputElement {
+      const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input");
+      return input;
+    }
+    async function confirmDocument() {
+      const review = await screen.findByRole("dialog", { name: "Check the document before attaching it" });
+      await userEvent.click(within(review).getByRole("button", { name: "Attach this document" }));
+    }
+
+    it("checks a chosen document, shows it as a chip and sends it beside the message", async () => {
+      const sendTurn = vi.fn().mockResolvedValue(undefined);
+      const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+      await userEvent.upload(fileInput(container), doc(PROTOCOL));
+      const review = await screen.findByRole("dialog", { name: "Check the document before attaching it" });
+      expect(within(review).getByText(/Sediment cores were taken monthly/)).toBeVisible();
+      expect(within(review).getByText(/never\s+the data themselves/)).toBeVisible();
+      expect(await axe(review)).toHaveNoViolations();
+      await confirmDocument();
+      expect(await screen.findByText(/Document: protocol.md/)).toBeVisible();
+      // Its text is never put into the message.
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
+      expect(await axe(container)).toHaveNoViolations();
+
+      // A document may be sent with no words.
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(sendTurn).toHaveBeenCalledWith(
+        "c1",
+        "orchestrator.stub",
+        "",
+        null,
+        null,
+        undefined,
+        null,
+        expect.objectContaining({ name: "protocol.md", media_type: "text/markdown", text: PROTOCOL }),
+      );
+      await waitFor(() => expect(screen.queryByText(/Document: protocol.md/)).toBeNull());
+    });
+
+    it("attaches nothing when the check is cancelled, and removes an attached document", async () => {
+      const { container } = renderHome(withOrchestrator(), fakeApi());
+      await userEvent.upload(fileInput(container), doc("age: years", "codebook.txt", "text/plain"));
+      const review = await screen.findByRole("dialog", { name: "Check the document before attaching it" });
+      await userEvent.click(within(review).getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByText(/Document: codebook.txt/)).toBeNull();
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+
+      await userEvent.upload(fileInput(container), doc("age: years", "codebook.txt", "text/plain"));
+      await confirmDocument();
+      expect(await screen.findByText(/Document: codebook.txt/)).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Remove codebook.txt" }));
+      expect(screen.queryByText(/Document: codebook.txt/)).toBeNull();
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus();
+    });
+
+    it("says why a file cannot be attached, and attaches nothing", async () => {
+      const { container } = renderHome(withOrchestrator(), fakeApi());
+      await userEvent.upload(fileInput(container), doc("x".repeat(256 * 1024 + 1), "big.txt", "text/plain"));
+      expect(await screen.findByRole("alert")).toHaveTextContent("a document may be at most 256 KB");
+      await userEvent.upload(fileInput(container), doc("  \n"));
+      expect(await screen.findByRole("alert")).toHaveTextContent("protocol.md is empty");
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    });
+
+    it("keeps the document attached when the send fails", async () => {
+      const sendTurn = vi.fn().mockRejectedValue(new Unreachable());
+      const { container } = renderHome(withOrchestrator(), fakeApi({ sendTurn }));
+      await userEvent.upload(fileInput(container), doc(PROTOCOL));
+      await confirmDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(await screen.findByText(/could not reach the server/)).toBeVisible();
+      expect(screen.getByRole("button", { name: "Remove protocol.md" })).toBeVisible();
+    });
+  });
+
   describe("attaching an inventory", () => {
     const INVENTORY = {
       schema_class: "FileInventory",
@@ -260,14 +340,15 @@ describe("ConversationHome", () => {
       await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
       await confirm();
       expect(await screen.findByText(/Inventory: 2 files, made 1 Nov 2026/)).toBeVisible();
-      expect(screen.queryByRole("button", { name: "Attach inventory" })).toBeNull();
+      // A document may still be attached beside it.
+      expect(screen.getByRole("button", { name: "Attach a file" })).toBeVisible();
       expect(await axe(container)).toHaveNoViolations();
 
       // An inventory may be sent with no words.
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
       expect(sendTurn).toHaveBeenCalledWith("c1", "orchestrator.stub", "", null, INVENTORY);
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
-      expect(await screen.findByRole("button", { name: "Attach inventory" })).toBeVisible();
+      expect(await screen.findByRole("button", { name: "Attach a file" })).toBeVisible();
     });
 
     it("says how to make an inventory, and attaches the file chosen at the end", async () => {
@@ -340,7 +421,7 @@ describe("ConversationHome", () => {
       await userEvent.click(within(review).getByRole("button", { name: "Cancel" }));
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(screen.queryByText(/Inventory: 2 files/)).toBeNull();
-      expect(screen.getByRole("button", { name: "Attach inventory" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Attach a file" })).toBeVisible();
       expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
       await waitFor(() =>
         expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus(),

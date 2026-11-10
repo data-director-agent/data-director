@@ -239,8 +239,7 @@ caused by the turn's request; an inventory the store refuses refuses the turn, a
 Before it is attached, the researcher sees all of it and may leave out files, folders and
 columns; what is left out never reaches the store, and the inventory's limitations count it
 without naming it, so the store needs no rule of its own for it.
-Adding documentation from the app
-is TODO(#395); a page for a project's members, and keeping what a person typed when a turn or edit is
+A page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).
 
 **The inventory command** `dd-inventory` is a workspace member of its own that depends on no other
@@ -252,9 +251,21 @@ inventory is TODO(#367): it is the same code run under Pyodide, and its inventor
 `inventory_tool_version` carries a local version label naming the runtime, such as
 `0.1.0a3+pyodide.314.0.7`, while the command's has none.
 
-**Documentation** may be added as text, within a size limit and from a list of media types, and
-the profile can refuse it altogether. The app cannot tell documentation from data, so the upload
-form and the user guide state the rule. Adding documentation is not built yet, TODO(#395).
+**Documentation** may be added as text, within a size limit and from a list of media types. A
+turn of the app may attach one document, plain text or Markdown of at most 256 KB under a file
+name with no folder, which the store keeps as a `documentation_added` event naming its name,
+media type, size and the SHA-256 of its UTF-8 text, under which the text is kept as a blob
+(`ProjectStore.add_documentation`). A document the store refuses leaves no trace, and a turn
+that attaches an inventory too adds neither when either is refused. A `Message`'s
+`project_documentation` lists each document the project holds by name, digest, media type, size
+and when it was added, without its text, so that an orchestrator knows it is there; outside a
+project, or in one that holds none, it is removed, so a caller can never claim one. The list
+holds no text, so it is neither `inventory` nor `documentation`, and a hosted orchestrator is
+given it under the default `hosted_models`
+(`harness/tests/test_project_runs.py`, `dd_harness.testing.storage`). The app cannot tell
+documentation from data, so the attach form and the user guide state the rule. Giving a
+document's text to a drafter, and a profile that refuses documentation altogether, are not built
+yet.
 
 **Agents** propose; they do not write. The only proposed change is a document version, returned as
 a `Document` payload. No agent writes anywhere or holds credentials to. A general proposed action

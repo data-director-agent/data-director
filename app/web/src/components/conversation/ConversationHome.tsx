@@ -29,6 +29,11 @@
  * (#443, docs/specs/app.md). A file read as an inventory is first opened to be checked, and is
  * attached, without whatever the researcher left out, only when they confirm (#472). Make an inventory, beside the button, opens a dialog that says how
  * to make one and ends by choosing it (#553).
+ *
+ * The same Attach a file button, or a drop, takes a supporting document as plain text or
+ * Markdown, which is opened to be checked, attached as a chip only when the researcher confirms,
+ * and goes to the project, never into the text (docs/specs/app.md). A message may carry one
+ * inventory and one document.
  */
 
 import {
@@ -45,6 +50,13 @@ import { Paperclip, SendHorizontal, X } from "lucide-react";
 import { FileTrigger } from "react-aria-components";
 import { TurnConflict, Unreachable, useConversationApi } from "../../conversation/api";
 import { type ChoiceAnswer, replyQuestion } from "../../conversation/question";
+import {
+  type AttachedDocument,
+  DOCUMENT_EXTENSIONS,
+  NotADocument,
+  isDocumentName,
+  readDocument,
+} from "../../conversation/documentation";
 import {
   type AttachedInventory,
   NotAnInventory,
@@ -72,6 +84,8 @@ import { Button } from "../ui/Button";
 import { EarlierConversations } from "./EarlierConversations";
 import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
 import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
+import { DocumentChip } from "./DocumentChip";
+import { DocumentReviewDialog } from "./DocumentReviewDialog";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
@@ -109,12 +123,17 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [attached, setAttached] = useState<AttachedInventory | null>(null);
   // An inventory read from a file and being checked, not yet attached (#472).
   const [pending, setPending] = useState<AttachedInventory | null>(null);
+  const [attachedDocument, setAttachedDocument] = useState<AttachedDocument | null>(null);
+  // A document read from a file and being checked, not yet attached.
+  const [pendingDocument, setPendingDocument] = useState<AttachedDocument | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [dropping, setDropping] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState<{ message: string; inventory: AttachedInventory | null } | null>(
-    null,
-  );
+  const [sent, setSent] = useState<{
+    message: string;
+    inventory: AttachedInventory | null;
+    document: AttachedDocument | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [flow, setFlow] = useState<FlowLoad>({ state: "loading" });
@@ -268,10 +287,23 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     }
   }
 
+  /** Reads a text or Markdown file as a document and opens it to be checked, or says why not. */
+  function attachDocument(content: string, name: string) {
+    try {
+      setPendingDocument(readDocument(content, name));
+      setAttachError(null);
+    } catch (e) {
+      setAttachError(e instanceof NotADocument ? e.message : errorMessage(e));
+    }
+  }
+
+  /** A file chosen or dropped: a document by its name, otherwise read as an inventory. */
   async function attachFile(file: File | undefined) {
     if (!file) return;
     try {
-      attach(await file.text(), file.name);
+      const content = await file.text();
+      if (isDocumentName(file.name)) attachDocument(content, file.name);
+      else attach(content, file.name);
     } catch (e) {
       setAttachError(`Data Director could not read ${file.name}: ${errorMessage(e)}`);
     }
@@ -303,6 +335,26 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     requestAnimationFrame(() => box.current?.focus());
   }
 
+  function confirmDocument(checked: AttachedDocument) {
+    setPendingDocument(null);
+    setAttachedDocument(checked);
+    setAnnouncement(`${checked.name} attached.`);
+    requestAnimationFrame(() => box.current?.focus());
+  }
+
+  function discardDocument() {
+    setPendingDocument(null);
+    setAnnouncement("Document not attached.");
+    requestAnimationFrame(() => box.current?.focus());
+  }
+
+  function removeDocument() {
+    const name = attachedDocument?.name ?? "Document";
+    setAttachedDocument(null);
+    setAnnouncement(`${name} removed.`);
+    box.current?.focus();
+  }
+
   function removeInventory() {
     setAttached(null);
     setAnnouncement("Inventory removed.");
@@ -332,7 +384,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   async function send(event: FormEvent) {
     event.preventDefault();
-    await deliver(text.trim(), attached, null);
+    await deliver(text.trim(), attached, null, attachedDocument);
   }
 
   /** Sends the answer to the latest turn's choice question, said in words as `message`. What is
@@ -345,8 +397,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     message: string,
     inventory: AttachedInventory | null,
     answer: ChoiceAnswer | null,
+    attachedDoc: AttachedDocument | null = null,
   ) {
-    if (!orchestrator || (!message && !inventory) || busy) return;
+    if (!orchestrator || (!message && !inventory && !attachedDoc) || busy) return;
     // A typed message comes from the box, and goes back to it if the send fails.
     const fromBox = answer === null;
     setBusy(true);
@@ -355,10 +408,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setAnnouncement("Waiting for a reply.");
     // The message and its inventory move into the transcript while the reply is awaited, and
     // come back to the box if the send fails, so nothing typed or attached is lost.
-    setSent({ message, inventory });
+    setSent({ message, inventory, document: attachedDoc });
     if (fromBox) {
       setText("");
       setAttached(null);
+      setAttachedDocument(null);
     }
     let id = conversationId;
     let stored = false;
@@ -377,7 +431,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       const document = inventory?.document ?? null;
       await (answer
         ? api.sendTurn(id, orchestrator.id, message, follows, document, undefined, answer)
-        : api.sendTurn(id, orchestrator.id, message, follows, document));
+        : attachedDoc
+          ? api.sendTurn(id, orchestrator.id, message, follows, document, undefined, null, attachedDoc)
+          : api.sendTurn(id, orchestrator.id, message, follows, document));
       // The turn is stored: from here a failure is in showing the reply, not in sending it, so
       // the message must not come back to the box to be sent twice (#337).
       stored = true;
@@ -414,6 +470,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       if (fromBox) {
         setText(message);
         setAttached(inventory);
+        setAttachedDocument(attachedDoc);
       }
       if (e instanceof Unreachable) {
         // The server may have received the turn and be running it, so show what it stored.
@@ -453,6 +510,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     setError(null);
     setText("");
     setAttached(null);
+    setAttachedDocument(null);
     setAttachError(null);
     setAnnouncement("");
     box.current?.focus();
@@ -504,7 +562,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               pending={
                 sent === null
                   ? null
-                  : { agentId: orchestrator.id, message: sent.message, inventory: sent.inventory }
+                  : {
+                      agentId: orchestrator.id,
+                      message: sent.message,
+                      inventory: sent.inventory,
+                      document: sent.document,
+                    }
               }
               onAnswer={(answer, message) => void answerQuestion(answer, message)}
               chosenRepository={project?.repository?.re3data_id ?? null}
@@ -532,7 +595,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               </p>
             </section>
           )}
-          {/* Dropping a file is a shortcut for the Attach inventory button, which keyboard and
+          {/* Dropping a file is a shortcut for the Attach a file button, which keyboard and
               screen reader users have, so the form's drag listeners need no role of their own. */}
           {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
           <form
@@ -557,7 +620,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   // Ctrl+Enter (Cmd+Enter on a Mac) sends; the Send button's rules still apply.
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
                     e.preventDefault();
-                    if (!busy && (text.trim() || attached)) e.currentTarget.form?.requestSubmit();
+                    if (!busy && (text.trim() || attached || attachedDocument)) {
+                      e.currentTarget.form?.requestSubmit();
+                    }
                   }
                 }}
               />
@@ -567,7 +632,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               </p>
             </div>
             <div className="composer-attach">
-              {attached ? (
+              {attached && (
                 <InventoryChip
                   fileCount={attached.fileCount}
                   madeAt={attached.madeAt}
@@ -575,29 +640,52 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                   source={{ document: attached.document }}
                   onRemove={removeInventory}
                 />
-              ) : (
-                <>
-                  <FileTrigger
-                    acceptedFileTypes={["application/json", ".json"]}
-                    onSelect={(files) => void attachFile(files?.[0])}
-                  >
-                    <Button icon={Paperclip} isDisabled={busy}>Attach inventory</Button>
-                  </FileTrigger>
-                  <MakeInventoryDialog
-                    isDisabled={busy}
-                    onAttach={(file) => void attachFromDialog(file)}
-                  />
-                </>
+              )}
+              {attachedDocument && (
+                <DocumentChip
+                  name={attachedDocument.name}
+                  size={attachedDocument.size}
+                  onRemove={removeDocument}
+                />
+              )}
+              {!(attached && attachedDocument) && (
+                <FileTrigger
+                  acceptedFileTypes={[
+                    "application/json",
+                    ".json",
+                    "text/plain",
+                    "text/markdown",
+                    ...DOCUMENT_EXTENSIONS,
+                  ]}
+                  onSelect={(files) => void attachFile(files?.[0])}
+                >
+                  <Button icon={Paperclip} isDisabled={busy} aria-describedby="attach-hint">
+                    Attach a file
+                  </Button>
+                </FileTrigger>
+              )}
+              {!attached && (
+                <MakeInventoryDialog
+                  isDisabled={busy}
+                  onAttach={(file) => void attachFromDialog(file)}
+                />
               )}
             </div>
-            <p id="inventory-hint" className="hint">
-              An inventory describes your data files (their names, sizes, formats and table column
-              headings); it does not contain the data themselves. Your data are not uploaded.
+            <p id="attach-hint" className="hint">
+              Attach an inventory of your data files (.json), which holds their names, sizes,
+              formats and table column headings but not the data themselves, or a document about
+              your data, such as a protocol or codebook (.txt or .md). Never attach the data
+              themselves: your data are not uploaded.
             </p>
             <InventoryReviewDialog
               pending={pending}
               onAttach={confirmInventory}
               onDiscard={discardInventory}
+            />
+            <DocumentReviewDialog
+              pending={pendingDocument}
+              onAttach={confirmDocument}
+              onDiscard={discardDocument}
             />
             {attachError && (
               <p role="alert" className="callout status-danger">
@@ -608,7 +696,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
               type="submit"
               variant="primary"
               icon={SendHorizontal}
-              isDisabled={!busy && !text.trim() && !attached}
+              isDisabled={!busy && !text.trim() && !attached && !attachedDocument}
               isPending={busy}
             >
               {busy ? "Sending…" : "Send"}

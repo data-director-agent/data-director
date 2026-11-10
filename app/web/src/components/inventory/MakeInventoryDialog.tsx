@@ -1,5 +1,5 @@
 /**
- * The **Make an inventory** button and its dialog, beside Attach inventory (#553). The dialog says
+ * The **Make an inventory** button and its dialog, beside Attach a file (#553). The dialog says
  * in one sentence what an inventory is, then how to make one with `dd-inventory` on each
  * operating system, a tab apiece with the browser's own selected, each command with a button that
  * copies it. It ends at the file picker, so the researcher goes straight on to attach what they

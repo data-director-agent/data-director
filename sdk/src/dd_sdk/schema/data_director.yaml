@@ -176,6 +176,7 @@ classes:
       - project_progress
       - project_title
       - project_title_by_researcher
+      - project_documentation
 
   ConversationTurn:
     description: >-
@@ -217,6 +218,18 @@ classes:
       - inventory_tool_version
       - inventory_made_at
       - inventory_limitations
+
+  DocumentationSummary:
+    description: >-
+      What one document a researcher attached to a project is, without its text: the conductor
+      fills one per document into a Message so that the agent knows the project holds it
+      (docs/specs/projects.md).
+    slots:
+      - documentation_name
+      - documentation_digest
+      - documentation_media_type
+      - documentation_size
+      - documentation_added_at
 
   FileInventory:
     description: >-
@@ -805,6 +818,32 @@ slots:
       while the project has no title. Filled by the conductor and never by the caller; absent
       when the run is in no project.
     range: boolean
+  project_documentation:
+    description: >-
+      The documents the conversation's project holds, without their text, filled by the conductor
+      and never by the caller. Absent when the run is in no project, or its project holds none.
+    range: DocumentationSummary
+    multivalued: true
+    inlined_as_list: true
+  documentation_name:
+    description: >-
+      The file name the researcher attached the document under, without any folder.
+    required: true
+  documentation_digest:
+    description: The SHA-256 of the document's UTF-8 text, by which the project keeps it.
+    required: true
+    pattern: "^[0-9a-f]{64}$"
+  documentation_media_type:
+    description: The document's media type, text/plain or text/markdown.
+    required: true
+  documentation_size:
+    description: The size of the document's UTF-8 text, in bytes.
+    range: integer
+    required: true
+  documentation_added_at:
+    description: When the document was added to the project.
+    range: datetime
+    required: true
   step_id:
     description: A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow).
     required: true

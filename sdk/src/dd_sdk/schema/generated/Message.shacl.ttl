@@ -14,6 +14,11 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
             sh:path dd:history ],
+        [ sh:class dd:DocumentationSummary ;
+            sh:description "The documents the conversation's project holds, without their text, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds none." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path dd:project_documentation ],
         [ sh:class dd:ChoiceAnswer ;
             sh:description "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose." ;
             sh:maxCount 1 ;
@@ -127,6 +132,48 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:turn_agent_id ] ;
     sh:targetClass dd:ConversationTurn .
+
+dd:DocumentationSummary a sh:NodeShape ;
+    rdfs:comment "What one document a researcher attached to a project is, without its text: the conductor fills one per document into a Message so that the agent knows the project holds it (docs/specs/projects.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The document's media type, text/plain or text/markdown." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:documentation_media_type ],
+        [ sh:datatype xsd:string ;
+            sh:description "The SHA-256 of the document's UTF-8 text, by which the project keeps it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:documentation_digest ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the document was added to the project." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:documentation_added_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file name the researcher attached the document under, without any folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:documentation_name ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The size of the document's UTF-8 text, in bytes." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:documentation_size ] ;
+    sh:targetClass dd:DocumentationSummary .
 
 dd:InventorySummary a sh:NodeShape ;
     rdfs:comment "What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md)." ;
