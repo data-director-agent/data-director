@@ -8,17 +8,17 @@ repository:RepositoryOptions a sh:NodeShape ;
     rdfs:comment "The repository advisor payload. Repositories recommended or described, each grounded on its registry records. The researcher selects; the agent does not." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "Mandated repositories for which no registry record was found." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path repository:not_found ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:datatype xsd:string ;
-            sh:description "Mandated repositories for which no registry record was found." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path repository:not_found ],
         [ sh:class repository:SearchedSummary ;
             sh:maxCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;

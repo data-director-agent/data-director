@@ -7,6 +7,8 @@ in particular a record that lists no deposit fee does not show that there is non
 
 from __future__ import annotations
 
+from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from dd_agent_advisor_repository.classes import AccessNeed, Affiliation, Answer, RepositoryNeeds
@@ -41,6 +43,31 @@ def commercial(record: Re3dataRecord) -> Answer:
 
 def fee_required(record: Re3dataRecord) -> Answer:
     return Answer.YES if "feeRequired" in record.data_upload_restrictions else Answer.UNSTATED
+
+
+def in_country(record: Re3dataRecord, country: str | None) -> Institution | None:
+    """The first operating institution in `country` (ISO 3166-1 alpha-3, as re3data writes
+    it), or None."""
+    if country is None:
+        return None
+    for institution in record.institutions:
+        if _operates(institution) and institution.country == country:
+            return institution
+    return None
+
+
+def home_country(records: Iterable[Re3dataRecord], affiliation: Affiliation | None) -> str | None:
+    """The country re3data gives the researcher's institution, wherever it operates one of
+    `records` (matched as `affiliated` matches), or None. Records that disagree give the most
+    common country, then the first in code order, so the answer does not depend on record order."""
+    seen: Counter[str] = Counter()
+    for record in records:
+        home = affiliated(record, affiliation)
+        if home is not None and home.country:
+            seen[home.country] += 1
+    if not seen:
+        return None
+    return min(seen, key=lambda c: (-seen[c], c))
 
 
 def affiliated(record: Re3dataRecord, affiliation: Affiliation | None) -> Institution | None:
