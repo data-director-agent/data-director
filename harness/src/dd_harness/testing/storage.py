@@ -1,15 +1,21 @@
 """Conformance checks for a storage backend (docs/specs/storage.md).
 
-Each check holds a backend to one guarantee `RunStorage` or `ProjectStorage` states, through the
-protocol alone, so any backend can run them: the file backends in the harness's own tests, and a
-database backend in its own package. A check takes `make`, which opens a store by name. The same
-name opens the same store again, as after a restart; another name opens an empty one.
+Each check holds a backend to one guarantee `RunStorage`, `ProjectLog` or `ProjectStorage`
+states, through the protocol alone, so any backend can run them: the file backends in the
+harness's own tests, and a database backend's tests. A check takes `make`, which opens a store by
+name. The same name opens the same store again, as after a restart; another name opens an empty
+one.
 
-    def test_my_run_storage(tmp_path):
+    def test_my_storage(tmp_path):
         check_run_storage(lambda name: MyRunStore(f"{database}/{name}"))
+        check_project_log(lambda name: MyProjectLog(f"{database}/{name}"))
+        check_project_rules(lambda name: MyProjectLog(f"{database}/{name}"))
 
-`RUN_STORAGE_CHECKS` and `PROJECT_STORAGE_CHECKS` name each check, for a test that reports them
-one by one.
+A backend provides a `ProjectLog`, never the project rules: `check_project_rules` runs every
+`ProjectStorage` check against the rules (`dd_harness.projects.Projects`) over the backend's log.
+
+`RUN_STORAGE_CHECKS`, `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS` name each check, for a
+test that reports them one by one.
 """
 
 from __future__ import annotations
@@ -17,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import tempfile
 import threading
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -38,12 +45,13 @@ from dd_harness.projects import (
     ChangeRefusedError,
     Decision,
     ProjectError,
+    Projects,
     Refusal,
     UnknownProjectError,
     Verdict,
     text_digest,
 )
-from dd_harness.storage import ProjectStorage, RunStorage
+from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
 from dd_harness.testing.classes import ProbeClaim
 from dd_harness.testing.doubles import STUB_QUESTION, DocumentStub
 from dd_harness.testing.fixtures import TEST_PRINCIPAL, document_request, request
@@ -63,6 +71,7 @@ from dd_sdk.evidence import input_hash
 
 type MakeRunStorage = Callable[[str], RunStorage]
 type MakeProjectStorage = Callable[[str], ProjectStorage]
+type MakeProjectLog = Callable[[str], ProjectLog]
 
 # A well-formed identifier that names nothing stored.
 NOWHERE = "0" * 8 + "-0000-7000-8000-" + "0" * 12
@@ -689,4 +698,153 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
 def check_project_storage(make: MakeProjectStorage) -> None:
     """Every `ProjectStorage` check, each on stores of its own."""
     for n, check in enumerate(PROJECT_STORAGE_CHECKS.values()):
+        check(_named(make, n))
+
+
+def check_project_rules(make: MakeProjectLog) -> None:
+    """Every `ProjectStorage` check, against the project rules over the backend's log."""
+    check_project_storage(lambda name: Projects(make(name)))
+
+
+# --- Project logs --------------------------------------------------------------------------------
+
+
+def _log_event(project_id: str, kind: str, **detail: Any) -> dict[str, Any]:
+    """An event as the project rules write one; the log neither checks nor changes it."""
+    return {
+        "event": kind,
+        "event_id": new_invocation_id(),
+        "project_id": project_id,
+        "at": datetime.now(UTC).isoformat(),
+        "acted_for": TEST_PRINCIPAL.model_dump(mode="json", exclude_none=True),
+        "caused_by": "check",
+        **detail,
+    }
+
+
+def _new_project(log: ProjectLog) -> str:
+    project_id = new_invocation_id()
+    log.create(project_id, _log_event(project_id, PROJECT_CREATED))
+    return project_id
+
+
+def check_a_log_keeps_events_in_the_order_appended(make: MakeProjectLog) -> None:
+    log = make("log")
+    project_id = _new_project(log)
+    assert log.exists(project_id)
+    created = log.events(project_id)
+    with _raises(FileExistsError, "a project created twice"):
+        log.create(project_id, _log_event(project_id, PROJECT_CREATED))
+    appended = [_log_event(project_id, "check_event", n=n, text="é ✓") for n in range(5)]
+    with log.section(project_id) as section:
+        section.append(appended[:2])
+        assert section.events()[1:] == appended[:2]
+    for event in appended[2:]:
+        with log.section(project_id) as section:
+            section.append([event])
+    assert log.events(project_id) == created + appended
+    assert make("log").events(project_id) == created + appended
+
+
+def check_a_section_is_exclusive_for_its_project_alone(make: MakeProjectLog) -> None:
+    """Changes that read the log and append to it in their sections lose none of one another's
+    events, and a section held on one project does not hold up another
+    (docs/specs/storage.md, invariant 10)."""
+    log = make("log")
+    busy, idle = _new_project(log), _new_project(log)
+    writers, rounds = 4, 5
+    start = threading.Barrier(writers)
+
+    def count() -> None:
+        start.wait()
+        for _ in range(rounds):
+            with log.section(busy) as section:
+                seen = len(section.events())
+                time.sleep(0.001)
+                section.append([_log_event(busy, "check_event", seen=seen)])
+
+    threads = [threading.Thread(target=count) for _ in range(writers)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+    seen = [e["seen"] for e in log.events(busy)[1:]]
+    assert seen == list(range(1, writers * rounds + 1)), "a section saw another's partial work"
+
+    entered = threading.Event()
+    with log.section(busy):
+        other = threading.Thread(target=lambda: _enter(log, idle, entered))
+        other.start()
+        assert entered.wait(timeout=10), "a section on one project held up another"
+        other.join(timeout=10)
+
+
+def _enter(log: ProjectLog, project_id: str, entered: threading.Event) -> None:
+    with log.section(project_id) as section:
+        section.append([_log_event(project_id, "check_event")])
+    entered.set()
+
+
+def check_a_log_keeps_content_once_by_digest(make: MakeProjectLog) -> None:
+    log = make("log")
+    project_id = _new_project(log)
+    content = bytes(range(256)) * 4
+    digest = hashlib.sha256(content).hexdigest()
+    assert log.blob(project_id, digest) is None
+    log.keep_blob(project_id, digest, content)
+    log.keep_blob(project_id, digest, content)
+    assert log.blob(project_id, digest) == content
+    assert make("log").blob(project_id, digest) == content
+    assert log.blob(_new_project(log), digest) is None
+
+
+def check_a_log_finds_a_conversation_when_asked(make: MakeProjectLog) -> None:
+    """A conversation's project is found by any log over the record, after a restart, and
+    whatever a log was asked before (docs/specs/storage.md, invariant 12)."""
+    first = make("log")
+    project_id, other = _new_project(first), _new_project(first)
+    conversation_id = new_invocation_id()
+    assert first.project_of(conversation_id) is None
+    second = make("log")
+    with second.section(project_id) as section:
+        section.append(
+            [_log_event(project_id, CONVERSATION_STARTED, conversation_id=conversation_id)]
+        )
+    assert first.project_of(conversation_id) == project_id
+    assert make("log").project_of(conversation_id) == project_id
+    assert first.project_of(NOWHERE) is None
+    assert make("log").project_ids() == [project_id, other]
+
+
+def check_a_malformed_project_name_names_nothing(make: MakeProjectLog) -> None:
+    log = make("log")
+    project_id = _new_project(log)
+    for name in (NOWHERE, "", "../" + project_id, project_id + "/..", project_id.upper()):
+        assert not log.exists(name)
+        assert log.blob(name, "0" * 64) is None
+        with _raises(KeyError, f"the log of {name!r}"):
+            log.events(name)
+        with _raises(KeyError, f"a section of {name!r}"), log.section(name):
+            pass
+    for digest in ("", "../events.jsonl", "A" * 64):
+        assert log.blob(project_id, digest) is None
+    with _raises(ValueError, "a project with a malformed identifier"):
+        log.create("../escape", _log_event("../escape", PROJECT_CREATED))
+    assert log.project_ids() == [project_id]
+
+
+PROJECT_LOG_CHECKS: dict[str, Callable[[MakeProjectLog], None]] = {
+    "a log keeps events in the order appended": check_a_log_keeps_events_in_the_order_appended,
+    "a section is exclusive for its project alone": (
+        check_a_section_is_exclusive_for_its_project_alone
+    ),
+    "a log keeps content once by digest": check_a_log_keeps_content_once_by_digest,
+    "a log finds a conversation when asked": check_a_log_finds_a_conversation_when_asked,
+    "a malformed project name names nothing": check_a_malformed_project_name_names_nothing,
+}
+
+
+def check_project_log(make: MakeProjectLog) -> None:
+    """Every `ProjectLog` check, each on logs of its own."""
+    for n, check in enumerate(PROJECT_LOG_CHECKS.values()):
         check(_named(make, n))

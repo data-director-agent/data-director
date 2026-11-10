@@ -12,8 +12,9 @@ This spec covers what the harness asks of a store, so that a move between backen
 caller. Each store is reached through a `typing.Protocol` in `dd_harness.storage`: `RunStorage` for
 runs, and `ProjectStorage` for projects, which the harness implements once over a narrower
 `ProjectLog` that each backend provides (see [Project rules and the project log](#project-rules-and-the-project-log)).
-The file backends, `RunStore` (`dd_harness.store`) and `ProjectStore` (`dd_harness.projects`),
-implement them today. The PostgreSQL backend is not built yet, TODO(#522).
+The file backends, `RunStore` (`dd_harness.store`) and `FileProjectLog`
+(`dd_harness.project_files`), implement them today; `ProjectStore` (`dd_harness.projects`) is the
+project rules over the file log. The PostgreSQL backend is not built yet, TODO(#522).
 
 It does not cover what a run or a project contains ([Contract](contract.md), [Projects](projects.md),
 [Disclosure](disclosure.md)), nor how long either is kept (see Open questions).
@@ -78,12 +79,14 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
     `harness/tests/test_storage.py`). This build supports files only, TODO(#522).
 15. **The file backends keep their layout.** A run is `<invocation_id>/` beside
     `invocations.jsonl` and `schemas/`; a project is `<project_id>/events.jsonl` beside its
-    blobs. The layout is in the docstrings of `store.py` and `projects.py`, and
+    blobs. The layout is in the docstrings of `store.py` and `project_files.py`, and
     `harness/tests/test_harness.py` and `test_projects.py` read it.
 
-Invariants 2 to 12 are the guarantees in the protocols' docstrings. The conformance kit
-(`dd_harness.testing.check_run_storage`, `check_project_storage`) checks each of them through the
-protocol alone, and `harness/tests/test_storage.py` runs it against the file backends. The kit
+Invariants 2 to 12 are the guarantees in the protocols' docstrings. The conformance kit checks
+each of them through the protocols alone: `dd_harness.testing.check_run_storage` a run storage,
+`check_project_log` a project log, and `check_project_rules` the project rules over a project log
+(it runs `check_project_storage` on them). `harness/tests/test_storage.py` runs the kit against the
+file backends. The kit
 checks concurrent changes from threads sharing one store; a check with two store instances
 contending for one project, which only a database backend can pass, is TODO(#522).
 
@@ -113,9 +116,14 @@ run an exclusive section in which the rules read and append (invariants 10 and 1
 content by digest, find a conversation's project, and list projects. Nothing in a `ProjectLog`
 decides whether a change is allowed.
 
-Today the rules and the file log are one class, `ProjectStore`; separating them is
-TODO(#521). Until then a second backend cannot be added without copying the rules, which this
-design forbids.
+The rules are `dd_harness.projects.Projects`, constructed over a `ProjectLog`. Every change runs
+in a section of the log: the rules read the log there, decide, and append the change's events in
+one call, or a `document_change_refused` event, and raise `ChangeRefusedError` once the section has
+ended. The rules fill each event's identifier and timestamp, so every backend stores the same
+events. Content is kept by digest before the event that names it is appended, outside the
+section; content kept for a change that is then refused is named by nothing and harms nothing.
+`FileProjectLog` (`dd_harness.project_files`) is the file log, and `ProjectStore` is `Projects`
+over it, keeping the file backend's name and constructor.
 
 ## Adding a backend
 
@@ -126,7 +134,8 @@ A backend:
    factory imports the module only when its scheme is named, so a deployment on files does not
    install the driver;
 2. implements `RunStorage` and `ProjectLog`, keeping every guarantee above;
-3. passes the conformance kit, run from the harness's tests against a real database. Those tests
+3. passes the conformance kit (`check_run_storage`, `check_project_log` and
+   `check_project_rules`), run from the harness's tests against a real database. Those tests
    are skipped when no database is named for them, and CI names one;
 4. changes its schema only through numbered SQL files, applied by an explicit command. Start-up
    refuses a database whose schema is older or newer than the build expects, naming the command.
