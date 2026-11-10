@@ -6,7 +6,7 @@
 import type { Envelope } from "../run/types";
 import type { DocumentationSummary } from "./documentation";
 import type { InventorySummary, ProjectInventory } from "./inventory";
-import type { ChoiceAnswer } from "./question";
+import type { ReplyAnswers } from "./question";
 
 export interface ConversationSummary {
   conversation_id: string;
@@ -61,7 +61,7 @@ export interface Conversation {
       message_text?: string;
       project_inventory?: InventorySummary;
       project_documentation?: DocumentationSummary[];
-      choice_answer?: ChoiceAnswer;
+      reply_answers?: ReplyAnswers;
     }
   >;
   version_changes: VersionChange[];

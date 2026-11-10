@@ -22,14 +22,15 @@ from dd_agent_orchestrator_stub.agent import (
 )
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
-    ChoiceAnswer,
     ConversationTurn,
     Derivation,
     GroundingMode,
     Message,
     OutcomeStatus,
+    QuestionAnswer,
     ReasonCode,
     Reply,
+    ReplyAnswers,
     TurnRole,
 )
 from dd_sdk.evidence import input_hash
@@ -182,8 +183,8 @@ def test_a_first_turn_that_names_nothing_asks_which_entry_point_applies(runs_dir
     c, env = ask(runs_dir, "hi")
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     reply = env.payload_as(Reply)
-    question = reply.reply_question
-    assert question is not None and not question.question_multiple
+    (question,) = reply.reply_questions or []
+    assert not question.question_multiple and question.question_options is not None
     assert [o.option_value for o in question.question_options] == [str(e.number) for e in ENTRIES]
     assert all(o.option_label for o in question.question_options)
     assert env.delegations == []
@@ -196,11 +197,15 @@ def test_a_chosen_entry_point_is_read_from_the_answer_not_the_text(runs_dir: Pat
     asked = c.invoke(
         request("orchestrator.stub", Message(message_text="hi")), acting_for=TEST_PRINCIPAL
     )
-    answer = ChoiceAnswer(answer_to=asked.invocation_id, answer_values=["3"])
+    (question,) = asked.payload_as(Reply).reply_questions or []
+    answer = ReplyAnswers(
+        answer_to=asked.invocation_id,
+        given_answers=[QuestionAnswer(answered_key=question.question_key, answer_values=["3"])],
+    )
     message = Message(
         message_text="Ready to deposit data into a repository",
         history=[ConversationTurn(role=TurnRole.AGENT, turn_text="Where are you?")],
-        choice_answer=answer,
+        reply_answers=answer,
     )
     env = c.invoke(request("orchestrator.stub", message), acting_for=TEST_PRINCIPAL)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement

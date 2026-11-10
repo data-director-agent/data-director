@@ -37,10 +37,10 @@ from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
 from dd_harness.transport.paging import PAGE_SIZE, PAGE_SIZE_MAX
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
-    ChoiceAnswer,
     Envelope,
     InvocationRequest,
     Principal,
+    ReplyAnswers,
     new_invocation_id,
 )
 
@@ -202,7 +202,7 @@ class Governance:
         follows: str | None,
         acting_for: Principal,
         inventory: Mapping[str, Any] | None = None,
-        answer: ChoiceAnswer | None = None,
+        answer: ReplyAnswers | None = None,
         documentation: AttachedDocument | None = None,
     ) -> dict[str, Any]:
         """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
@@ -219,9 +219,9 @@ class Governance:
         the project would refuse is refused before the inventory is added, so a refused turn adds
         neither. With either attached, `message_text` may be blank.
 
-        A turn may carry the researcher's `answer` to the choice question the latest turn asked,
-        beside `message_text`, which says the same in words. The harness checks it against that
-        question (`conversations.answer_problem`); one it refuses raises `ValueError` and nothing
+        A turn may carry the researcher's `answer` to the questions the latest turn asked, beside
+        `message_text`, which says the same in words. The harness checks it against those
+        questions (`conversations.answer_problem`); one it refuses raises `ValueError` and nothing
         is run (docs/specs/app.md).
 
         The history is built here from the stored turns, never taken from the caller, so the
@@ -288,7 +288,7 @@ class Governance:
                 "history": found["history"],
             }
             if answer is not None:
-                message["choice_answer"] = answer.model_dump(mode="json", exclude_none=True)
+                message["reply_answers"] = answer.model_dump(mode="json", exclude_none=True)
             run = asyncio.ensure_future(
                 self.invoke(
                     InvocationRequest(

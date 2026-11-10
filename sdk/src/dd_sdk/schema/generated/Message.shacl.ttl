@@ -25,12 +25,6 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 10 ;
             sh:path dd:project_entry_by_researcher ],
-        [ sh:class dd:ChoiceAnswer ;
-            sh:description "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 4 ;
-            sh:path dd:choice_answer ],
         [ sh:datatype xsd:integer ;
             sh:description "The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen." ;
             sh:maxCount 1 ;
@@ -42,6 +36,12 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 6 ;
             sh:path dd:project_progress ],
+        [ sh:class dd:ReplyAnswers ;
+            sh:description "The researcher's answers to the questions the previous turn asked, when they answered them in the form. message_text still carries the answers as prose." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path dd:reply_answers ],
         [ sh:class dd:InventorySummary ;
             sh:description "The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory." ;
             sh:maxCount 1 ;
@@ -77,31 +77,6 @@ dd:Message a sh:NodeShape ;
             sh:path dd:project_title_by_researcher ] ;
     sh:targetClass dd:Message .
 
-dd:ChoiceAnswer a sh:NodeShape ;
-    rdfs:comment "The researcher's answer to the choice question the turn before asked: the values they chose and any text they gave in place of an option. The app checks it against that question before it sends the turn (docs/specs/orchestration.md)." ;
-    sh:closed true ;
-    sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "The invocation whose reply asked the question." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:answer_to ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "The values of the options chosen; empty when the researcher answered in their own words." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:answer_values ],
-        [ sh:datatype xsd:string ;
-            sh:description "The researcher's own answer, given in place of an option where the question allows it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:answer_other ] ;
-    sh:targetClass dd:ChoiceAnswer .
-
 dd:ConversationTurn a sh:NodeShape ;
     rdfs:comment "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from." ;
     sh:closed true ;
@@ -119,6 +94,11 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:order 4 ;
             sh:path dd:turn_invocation_id ;
             sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:in ( "user" "agent" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:role ],
         [ sh:datatype xsd:string ;
             sh:description "What was said in the turn." ;
             sh:maxCount 1 ;
@@ -126,11 +106,6 @@ dd:ConversationTurn a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:turn_text ],
-        [ sh:in ( "user" "agent" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path dd:role ],
         [ sh:datatype xsd:string ;
             sh:description "For an agent turn, the agent that produced it." ;
             sh:maxCount 1 ;
@@ -227,6 +202,51 @@ dd:InventorySummary a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:inventory_tool_version ] ;
     sh:targetClass dd:InventorySummary .
+
+dd:QuestionAnswer a sh:NodeShape ;
+    rdfs:comment "The researcher's answer to one question of a reply, named by its question_key: the values of the options chosen, for a choice question, and the answer in their own words, for a text question or where a choice question allows it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The values of the options chosen, for a choice question; empty when the researcher answered in their own words, and always empty for a text question." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:answer_values ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's answer in their own words: the whole answer to a text question, or an answer given in place of an option where a choice question allows it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:answer_words ],
+        [ sh:datatype xsd:string ;
+            sh:description "The question_key of the question answered." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:answered_key ;
+            sh:pattern "^[a-z][a-z0-9-]{0,39}$" ] ;
+    sh:targetClass dd:QuestionAnswer .
+
+dd:ReplyAnswers a sh:NodeShape ;
+    rdfs:comment "The researcher's answers to the questions the turn before asked, given together: one QuestionAnswer for each question answered, none for a question skipped. The app checks them against those questions before it sends the turn (docs/specs/orchestration.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class dd:QuestionAnswer ;
+            sh:description "One answer for each question answered, in the order asked; at least one." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path dd:given_answers ],
+        [ sh:datatype xsd:string ;
+            sh:description "The invocation whose reply asked the questions." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:answer_to ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
+    sh:targetClass dd:ReplyAnswers .
 
 dd:StepProgress a sh:NodeShape ;
     rdfs:comment "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md)." ;

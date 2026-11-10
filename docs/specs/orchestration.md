@@ -68,11 +68,11 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    `test_a_child_acts_for_its_parents_principal_not_its_callers`,
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
-8. **An orchestrator has no tools except its delegations, `offer_choices`, `name_project` and
+8. **An orchestrator has no tools except its delegations, `ask_questions`, `name_project` and
    `set_entry_point`.** A
    model-backed orchestrator is offered one tool per input class of each agent in the harness's
-   manifest, and `offer_choices`, which reaches nothing: called alone it ends the turn, and the
-   reply carries its question as `Reply.reply_question`. In a project no person has named
+   manifest, and `ask_questions`, which reaches nothing: called alone it ends the turn, and the
+   reply carries its questions as `Reply.reply_questions`. In a project no person has named
    (`Message.project_title_by_researcher` false) it is also offered `name_project`, which reaches
    nothing either: the reply carries the name as `Reply.new_project_title`, which the conductor
    records as the project's title ([Projects](projects.md), invariant 21), and the turn goes on.
@@ -115,20 +115,23 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     follows the phases from that entry. In a project whose entry point is already known
     (`project_entry`, from the intake of invariant 20 or the phase tracker), it does not ask
     again, and suggests the next step from that entry instead (invariant 19), TODO(#669). The stub's question and its list of steps are templates
-    that delegate nothing and rest on the input alone; it asks as a choice question whose values
-    are the entry numbers, and reads a `choice_answer` naming one before any rule. The model's prompt carries the whole flow
+    that delegate nothing and rest on the input alone; it asks as a choice question keyed `entry`
+    whose values are the entry numbers, and reads `reply_answers` choosing one before any rule. The model's prompt carries the whole flow
     with step ids, tells the model not to show ids to the researcher, names no agent, and is the
     same on every run so that it caches.
     (`test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent`)
-16. **A choice question never holds up the conversation.** A reply that asks one ends
-    `succeeded` like any other; nothing is suspended or waits for the answer. The next turn may
-    answer by choosing, with a `choice_answer`, or ignore the question and say anything; either is
-    a `Message`. The history writes the question as text after the reply that asked it, so the
-    agent sees on a later turn what it offered, and the answer is the next turn's `message_text`.
-    An answer is checked against the question the latest turn asked before the turn runs: values
-    from its options, one unless several may be chosen, words only where allowed.
-    (`test_a_question_shows_in_history_and_an_answer_is_checked_against_it`,
-    `test_offering_choices_ends_the_turn_and_the_reply_carries_the_question`)
+16. **Questions never hold up the conversation.** A reply that asks a series of questions ends
+    `succeeded` like any other; nothing is suspended or waits for the answers. The researcher
+    answers them one at a time in the app, and the next turn sends every answer together, as
+    `reply_answers`, or ignores them and says anything; either is a `Message`. Any question may be
+    skipped. The history writes the questions as text after the reply that asked them, so the
+    agent sees on a later turn what it asked, and the answers are the next turn's `message_text`.
+    The answers are checked against the questions the latest turn asked before the turn runs: each
+    names a question asked, once; a choice answer's values are from its options, one unless
+    several may be chosen, with words only where allowed; a text answer is words alone, within its
+    kind's length; and at least one question is answered.
+    (`test_questions_show_in_history_and_answers_are_checked_against_them`,
+    `test_asking_questions_ends_the_turn_and_the_reply_carries_them`)
 
 17. **A step the Blueprint has and this project does not yet do is in the flow, marked
     `out_of_scope`.** The Data Management Plan steps (`setup.dmp-create`, `setup.dmp-review`,
@@ -184,7 +187,7 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     Director asks first, so the researcher need not know what to type. The questions are Blueprint
     data in the SDK (`dd_sdk.intake`, beside `dd_sdk.process_flow`). They name no agent and run no
     orchestrator, so the stub and the model behave the same. Each question is a core
-    `ChoiceQuestion` and is asked one at a time. Each, apart from the first, is asked only from the
+    `Question` of kind `choice` and is asked one at a time. Each, apart from the first, is asked only from the
     entry points that reach its step:
 
     | Question id | Asks | From entry | An answer of "No" marks skipped |
@@ -279,10 +282,16 @@ because saying a plan exists is not the check of the deposit against it.
 
 - **The orchestrator calling agents directly over A2A.** The children would be ungoverned and
   unstored, and the parent could cite anything.
-- **A choice question as A2A `input-required`, or a suspended run.** The run would stay open
+- **A question as A2A `input-required`, or a suspended run.** The run would stay open
   until the researcher answered, which may be never, and suspend and resume are not built
   (TODO(#72, #16)). A question the researcher may ignore needs neither.
-- **A choice question as a payload class of its own.** An orchestrator's payload is `Reply`, so it
+- **One question a turn.** An agent that needs several facts before it can go on would take a
+  turn, and a model call, for each, and the researcher could not see how many were coming. A
+  series asked together and answered one at a time in the app costs one turn, and the agent still
+  asks only what the next step needs.
+- **Each answer in a series sent as its own turn.** The agent would run between answers, and
+  the conversation would fill with partial turns; the series is checked and sent once.
+- **A question as a payload class of its own.** An orchestrator's payload is `Reply`, so it
   could not reply and ask in one turn.
 - **Choices in the model's text, or a structured final message on every turn.** Parsing a block
   out of prose is fragile; a JSON reply on every turn would change every reply to serve a few.
