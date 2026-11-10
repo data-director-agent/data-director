@@ -92,6 +92,8 @@ expect 200 "another host name, answered by this site and not the packaged one" -
 expect 000 "TLS 1.2" --tls-max 1.2 "$url/"
 curl -sk -o /dev/null -D - "$url/" | grep -qi '^Strict-Transport-Security: max-age=63072000' ||
   fail "no HSTS header"
+curl -sk -o /dev/null -D - "$url/" | grep -qi "^Content-Security-Policy: frame-ancestors 'none'" ||
+  fail "the app may be framed"
 
 headers=$(curl -sk "$url/")
 grep -qi '^X-Forwarded-Proto: https' <<<"$headers" || fail "X-Forwarded-Proto not passed to the app"
@@ -113,6 +115,8 @@ expect 308 "http:// to 8443 redirected" http://127.0.0.1:8443/viewer/
   fail "http:// to 8443 not redirected to the same path on https://"
 curl -sk -o /dev/null -D - "$workbench/" | grep -qi '^Strict-Transport-Security: max-age=63072000' ||
   fail "no HSTS header on 8443"
+curl -sk -o /dev/null -D - "$workbench/" | grep -qi "^Content-Security-Policy: frame-ancestors 'none'" ||
+  fail "the workbench may be framed"
 headers=$(curl -sk "$workbench/")
 grep -q '^Upstream: 8000' <<<"$headers" || fail "port 8443 does not reach the workbench"
 grep -qi '^X-Forwarded-Proto: https' <<<"$headers" || fail "X-Forwarded-Proto not passed to the workbench"
