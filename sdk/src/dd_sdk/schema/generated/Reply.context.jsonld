@@ -27,6 +27,9 @@
          "@type": "@id"
       },
       "linkml": "https://w3id.org/linkml/",
+      "new_project_entry": {
+         "@id": "https://w3id.org/data-director/new_project_entry"
+      },
       "new_project_title": {
          "@id": "http://purl.org/dc/terms/title"
       },

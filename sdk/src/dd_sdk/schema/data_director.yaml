@@ -176,6 +176,7 @@ classes:
       - project_progress
       - project_title
       - project_title_by_researcher
+      - project_entry_by_researcher
 
   ConversationTurn:
     description: >-
@@ -454,6 +455,7 @@ classes:
       - conversation_title
       - reply_question
       - new_project_title
+      - new_project_entry
 
   ChoiceQuestion:
     description: >-
@@ -805,6 +807,12 @@ slots:
       while the project has no title. Filled by the conductor and never by the caller; absent
       when the run is in no project.
     range: boolean
+  project_entry_by_researcher:
+    description: >-
+      Whether the researcher chose the project's entry point, so that a model's would be refused;
+      false when an orchestrator's model recorded it. Filled by the conductor and never by the
+      caller; absent when the run is in no project, or no entry point was recorded.
+    range: boolean
   step_id:
     description: A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow).
     required: true
@@ -857,6 +865,14 @@ slots:
     slot_uri: dcterms:title
     # One line of 1 to 80 characters; this LinkML has no maximum_length.
     pattern: "^.{1,80}$"
+  new_project_entry:
+    description: >-
+      The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said,
+      such as data already collected. The conductor records it for the conversation's project
+      when the run succeeds, unless the researcher has chosen one; absent when the reply records
+      none. Only an agent that declares it model-derived sets it.
+    # 1 to 3, checked by the SDK's model: a bound is not in the schema (#333).
+    range: integer
   reply_question:
     description: >-
       A question with fixed options the reply asks, at most one; absent when the reply asks

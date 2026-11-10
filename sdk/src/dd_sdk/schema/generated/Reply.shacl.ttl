@@ -26,7 +26,7 @@ dd:Reply a sh:NodeShape ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 6 ;
+            sh:order 7 ;
             sh:path dd:grounded_on ],
         [ sh:datatype xsd:string ;
             sh:description "A short label a person can tell the conversation apart by, written by a model from the researcher's first message. Set only on a conversation's first turn, and only by an agent that declares it model-derived; absent otherwise." ;
@@ -49,6 +49,12 @@ dd:Reply a sh:NodeShape ;
             sh:order 5 ;
             sh:path dcterms:title ;
             sh:pattern "^.{1,80}$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:new_project_entry ],
         [ sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
             sh:in ( "template" "model" "lexical" "registry" ) ;
             sh:maxCount 1 ;

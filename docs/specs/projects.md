@@ -227,7 +227,8 @@ project, using the invocation's `acting_for`, and the app's server makes it for 
 with the principal from its authenticator. It shows the state it reads back from the log, never a
 state it inferred, and holds no policy. The phase tracker shows where the project is in the
 process flow, which the harness derives from the log: the researcher's entry point
-(`entry_chosen`), their marks on steps (`step_marked`: done, skipped, or open again) and their
+(`entry_chosen`, or the one an orchestrator's model worked out from what they said until they
+choose one, `entry_source` `model`), their marks on steps (`step_marked`: done, skipped, or open again) and their
 intake answers (`intake_answered`, `intake_dismissed`, rule 20) are events of the log, written
 through the app's server like a decision ([Orchestration](orchestration.md),
 invariant 18). The right panel and status bar are drawn for a project but have no record behind

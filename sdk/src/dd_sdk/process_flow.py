@@ -398,7 +398,11 @@ def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> Progre
     """The step to suggest next: the first one from `start`'s phase that is neither done nor
     skipped, in scope and not optional; a started step before an open one. Whether an agent
     serves it does not matter: a step with no agent is suggested and named as having none. None
-    when all are done."""
+    when all are done.
+
+    With no `start`, where the researcher is is not known, so no open step is suggested: only a
+    started one, from any phase, or None. Suggesting the first step of Phase 1 would tell a
+    researcher whose data are already collected to plan their collection."""
     first = start.starts_at if start is not None else 1
     candidates = [
         s
@@ -409,6 +413,8 @@ def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> Progre
         and not s.step.optional
     ]
     started = [s for s in candidates if s.state == "started"]
+    if start is None:
+        return next(iter(started), None)
     return next(iter(started or candidates), None)
 
 
