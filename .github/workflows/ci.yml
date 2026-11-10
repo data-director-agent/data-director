@@ -173,6 +173,25 @@ jobs:
     if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # The database the PostgreSQL storage backend's tests run against
+    # (harness/tests/test_postgres.py); without DD_TEST_POSTGRES they are skipped. The password
+    # reaches libpq through PGPASSWORD, never the URL, as a deployment's must (docs/specs/storage.md).
+    # It guards a throwaway container that only this job can reach.
+    services:
+      postgres:
+        image: postgres:17@sha256:ff87138949ad9a46f32ff23bd6852b52ce024a13dffe9b4087be98292cdd3b4f
+        env:
+          POSTGRES_PASSWORD: dd-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DD_TEST_POSTGRES: postgresql://postgres@localhost:5432/postgres
+      PGPASSWORD: dd-ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

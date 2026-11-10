@@ -14,7 +14,9 @@ runs, and `ProjectStorage` for projects, which the harness implements once over 
 `ProjectLog` that each backend provides (see [Project rules and the project log](#project-rules-and-the-project-log)).
 The file backends, `RunStore` (`dd_harness.store`) and `FileProjectLog`
 (`dd_harness.project_files`), implement them today; `ProjectStore` (`dd_harness.projects`) is the
-project rules over the file log. The PostgreSQL backend is not built yet, TODO(#522).
+project rules over the file log. The PostgreSQL backend, `PostgresRunStore` and
+`PostgresProjectLog` (`dd_harness.postgres`), implements them for a deployment; `Projects` over
+`PostgresProjectLog` is its project storage.
 
 It does not cover what a run or a project contains ([Contract](contract.md), [Projects](projects.md),
 [Disclosure](disclosure.md)), nor how long either is kept (see Open questions).
@@ -76,7 +78,10 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
     or a `file://` URL, which select the file backends, or a `postgresql://` URL, which selects
     the PostgreSQL backend. Any other scheme stops start-up with `SettingsError`, naming the
     schemes this build supports (`dd_harness.settings.run_storage`, `project_storage`;
-    `harness/tests/test_storage.py`). This build supports files only, TODO(#522).
+    `harness/tests/test_storage.py`). A `postgresql://` location needs the harness's `postgres`
+    extra; without it, start-up stops naming the extra. A location that cannot be used (a
+    directory that cannot be made, a database that cannot be reached or whose schema is not this
+    build's) stops start-up with `SettingsError` too, naming the variable.
 15. **The file backends keep their layout.** A run is `<invocation_id>/` beside
     `invocations.jsonl` and `schemas/`; a project is `<project_id>/events.jsonl` beside its
     blobs. The layout is in the docstrings of `store.py` and `project_files.py`, and
@@ -85,10 +90,12 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
 Invariants 2 to 12 are the guarantees in the protocols' docstrings. The conformance kit checks
 each of them through the protocols alone: `dd_harness.testing.check_run_storage` a run storage,
 `check_project_log` a project log, and `check_project_rules` the project rules over a project log
-(it runs `check_project_storage` on them). `harness/tests/test_storage.py` runs the kit against the
-file backends. The kit
-checks concurrent changes from threads sharing one store; a check with two store instances
-contending for one project, which only a database backend can pass, is TODO(#522).
+(it runs `check_project_storage` on them). The kit checks concurrent changes from threads sharing
+one store. `check_shared_record` checks two logs opened over one record contending for one
+project, as two harness instances over one database do; only a backend whose section holds across
+instances passes it, so the file backend does not run it. `harness/tests/test_storage.py` runs the
+kit against the file backends, and `harness/tests/test_postgres.py` against the PostgreSQL
+backend, with every check above and a contention between processes.
 
 ## Boundaries and contracts
 
@@ -141,8 +148,38 @@ A backend:
    refuses a database whose schema is older or newer than the build expects, naming the command.
    Nothing alters a schema as a side effect of serving.
 
-The PostgreSQL backend uses `psycopg` (version 3) and plain SQL. Its entry in the
-[dependency register](dependencies.md#the-register) is added with the code, TODO(#522).
+The PostgreSQL backend uses `psycopg` (version 3) and plain SQL
+([dependency register](dependencies.md#the-register)).
+
+## The PostgreSQL backend
+
+`dd_harness.postgres` keeps both records in one database, or in two: `DD_RUNS_DIR` and
+`DD_PROJECTS_DIR` may name the same location. Its tables are in the first schema of the
+connection's `search_path`, which a location may choose with
+`?options=-csearch_path%3D<schema>`.
+
+- **Schema.** The numbered files in `dd_harness/postgres/migrations/` are the schema, and
+  `dd_schema` records which have been applied. `dd-harness storage migrate [LOCATION]` applies
+  those a database lacks, under a lock so that two commands never apply one file twice;
+  `dd-harness storage status` prints the version and exits 1 if it is not this build's. With no
+  location they act on the `postgresql://` locations `DD_RUNS_DIR` and `DD_PROJECTS_DIR` name.
+  Opening a store reads the version and refuses any other (invariant 14, "Adding a backend").
+- **Runs.** `runs` holds each run's envelope, request and prompts in one row, with its
+  `conversation_id` in a column of its own and indexed, so a conversation is an indexed query.
+  `seq` is the stored order: a run takes it in a transaction that holds a lock for the length of
+  one insert, so runs are committed in the order of their `seq` and a reader never sees a later
+  run before an earlier one (invariant 3). Class schemas are in `run_schemas` by digest and
+  artifacts in `run_artifacts`, as bytes.
+- **Projects.** `projects` has a row per project, which a section locks with
+  `select … for no key update`: sections of one project exclude one another, and keeping a blob,
+  whose foreign key takes a weaker lock on the same row, is not held up by one. Events are in
+  `project_events` in the order of `seq`; a `conversation_started` event's conversation is in an
+  indexed column, so `project_of` is an indexed query. Content is in `project_blobs`.
+- **Documents are `json`, not `jsonb`.** `jsonb` refuses an escaped NUL (`\u0000`), which a
+  researcher's text may hold, and does not keep the order of keys. A document is read back as it
+  was given; what the backend looks up is copied into a column of its own.
+- **Connections.** Each call opens a connection and closes it, so a store is safe to share between
+  threads and needs no closing. A connection pool is a performance step, TODO(#524).
 
 ## Moving file stores into a database
 
