@@ -202,6 +202,11 @@ jobs:
       - run: uv sync --all-packages --all-extras
       # Sources agents build outside git, from the cache the `sources` job filled.
       - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
+      # pg_dump and pg_restore of the service's major version, for the backup round trip
+      # (scripts/tests/test_backup.py), which skips with an older pg_dump; the runner's is older.
+      - run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          scripts/retry.sh sudo apt-get install -y -q postgresql-client-17
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
       # The JSON report is handed to the conformance job, which decides CONFORMANCE.md from it.
       # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report

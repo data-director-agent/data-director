@@ -1,0 +1,14 @@
+# Back up every night, at a time of night that differs from VM to VM. A night missed while the VM
+# was off is made up when it starts.
+[Unit]
+Description=Back up Data Director every night
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
+
+[Timer]
+OnCalendar=*-*-* 02:17:00
+RandomizedDelaySec=1h
+FixedRandomDelay=yes
+Persistent=true
+
+[Install]
+WantedBy=timers.target

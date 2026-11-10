@@ -9,6 +9,8 @@
     uv run scripts/dd.py doctor    # check everything and name the fix for each problem; changes nothing
     uv run scripts/dd.py apply     # make the instance what deployment.yaml says (--check: only say)
     uv run scripts/dd.py secret set AGENT SECRET | remove AGENT SECRET | list
+    uv run scripts/dd.py backup    # VM: back up the settings, secrets and stores now
+    uv run scripts/dd.py restore [--force] BACKUP   # VM: put a backup back (deploy/README.md)
 
 On a VM deployed with deploy/install.sh, which installs this as `data-director`:
 
@@ -39,6 +41,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from ddtool.backup import run_script
 from ddtool.common import DevError
 from ddtool.deployment import Place, apply
 from ddtool.doctor import doctor
@@ -85,6 +88,16 @@ def main(argv: list[str] | None = None) -> int:
         "secret", help="set, remove or list an agent's secrets, such as its model key"
     )
     secret_cmd.add_argument("args", nargs=argparse.REMAINDER, metavar="set|remove|list ...")
+    commands.add_parser(
+        "backup", help="VM: back up the settings, secrets and stores now (deploy/README.md)"
+    )
+    restore_cmd = commands.add_parser(
+        "restore", help="VM: put a backup back, before deploy/install.sh starts it all again"
+    )
+    restore_cmd.add_argument(
+        "--force", action="store_true", help="set aside or replace stores that hold something"
+    )
+    restore_cmd.add_argument("backup", help="the backup's directory, such as /var/backups/...")
     args = parser.parse_args(argv)
     target = args.target or ("vm" if detect(System(), Vm()) else "dev")
     try:
@@ -98,6 +111,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "start":
             return start(
                 agents_only=args.agents_only, web=not args.no_web, reload=not args.no_reload
+            )
+        if args.command == "backup":
+            return run_script(target, "backup", [])
+        if args.command == "restore":
+            return run_script(
+                target, "restore", [*(["--force"] if args.force else []), args.backup]
             )
         if args.command == "secret":
             return secret(target, args.args)
