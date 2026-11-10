@@ -75,11 +75,14 @@ repository or makes a judgement:
   theme (Figure 3's "domain-specific or generalist"); when no repository of the discipline is
   found, the statement says that only generalist and institutional repositories are offered and
   suggests the broad field of study, since a narrow topic such as "moorland" may match none.
-  Ranking also uses whether the repository offers the access the data needs, and, when the
-  researcher's country is given, whether an institution in that country operates it: a small
-  weight that puts such a repository above an equal or slightly closer match elsewhere, and never
-  adds one on its own (#741). Search folds plurals to singulars, so the theme "environmental science"
-  finds a record that says only "sciences".
+  Ranking also uses whether the repository offers the access the data needs, and whether an
+  institution in the researcher's country operates it: a small weight that puts such a
+  repository above an equal or slightly closer match elsewhere, and never adds one on its own
+  (#741). The country is `country` when given, else the one re3data records for the
+  affiliation's institution, so no country, funder or repository is written into the rules.
+  Search folds English plurals to singulars (`-ies` to `-y`, a final `s` dropped except after
+  `s`, `u` or `i`) in queries and records alike, so the theme "environmental science" finds a
+  record that says only "sciences".
 - **The researcher's institution** is a fallback, in case no more specific destination (a
   repository of the discipline, or one a funder, journal or project requires) suits the data
   (#441). Affiliation adds no score. The shortlist is ordered by kind of fit (`order`): the

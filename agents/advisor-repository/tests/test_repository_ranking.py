@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from dd_agent_advisor_repository import dfg, rank
-from dd_agent_advisor_repository.classes import AccessNeed, RepositoryNeeds
+import pytest
+
+from dd_agent_advisor_repository import assess, dfg, rank
+from dd_agent_advisor_repository.classes import AccessNeed, Affiliation, RepositoryNeeds
 from dd_agent_advisor_repository.records import Institution, Re3dataRecord
 from dd_agent_advisor_repository.retrieve import Hit, Query
+from dd_agent_advisor_repository.snapshot import fold, tokenise
 
 NAMES = {
     "2": "Life Sciences",
@@ -168,3 +171,123 @@ def test_a_query_asks_for_more_text_hits_than_it_retrieves() -> None:
     [query] = rank.queries(HYDROLOGY)
     assert query == Query(text="hydrology", limit=rank.config()["text_hits"], label=rank.THEME)
     assert rank.config()["text_hits"] >= rank.config()["search_limit"]
+
+
+# --- the researcher's country (#741) ----------------------------------------------------------
+
+HOME = Affiliation(name="University of Example", ror="https://ror.org/000000000")
+
+
+def operated_in(rid: str, country: str, *codes: str) -> Re3dataRecord:
+    return repository(rid, *codes).model_copy(
+        update={"institutions": [Institution(name=f"Trust {country}", country=country)]}
+    )
+
+
+def ranked_ids(needs: RepositoryNeeds, *pairs: tuple[Re3dataRecord, float]) -> list[str]:
+    matches = matched(needs, {t: list(pairs) for t in needs.themes})
+    return order(needs, matches, *(r for r, _ in pairs))
+
+
+@pytest.mark.parametrize("country", ["AAA", "BBB"])
+def test_a_repository_in_the_researchers_country_ranks_first_among_equals(country: str) -> None:
+    """No country is special: whichever is given, its repository goes first."""
+    a = operated_in("r3d100000201", "AAA", "3", "34", "346", "34601")
+    b = operated_in("r3d100000202", "BBB", "3", "34", "346", "34601")
+    needs = HYDROLOGY.model_copy(update={"country": country})
+    first = a if country == "AAA" else b
+    assert ranked_ids(needs, (a, 5.0), (b, 5.0))[0] == first.re3data_id
+
+
+def test_the_country_does_not_outweigh_a_clearly_better_match() -> None:
+    near = operated_in("r3d100000211", "AAA", "3", "34", "346", "34601")
+    far = operated_in("r3d100000212", "BBB", "3", "34")
+    needs = HYDROLOGY.model_copy(update={"country": "BBB"})
+    assert ranked_ids(needs, (near, 5.0), (far, 5.0)) == [near.re3data_id, far.re3data_id]
+
+
+def test_the_country_adds_no_repository_on_its_own() -> None:
+    off_theme = operated_in("r3d100000221", "AAA", "12", "124")
+    needs = HYDROLOGY.model_copy(update={"country": "AAA"})
+    ranked = rank.rank(matched(needs, {}), {off_theme.re3data_id: off_theme}, needs)
+    assert ranked == []
+
+
+def test_the_country_lifts_no_repository_over_the_floor() -> None:
+    """A repository just below the floor stays below it, whatever its country."""
+    floor = rank.config()["confidence_floor"]
+    weak = operated_in("r3d100000241", "AAA")
+    # One theme of four, by text alone: a quarter of the theme weight, just under the floor.
+    needs = RepositoryNeeds(themes=["moorland", "peat", "bog", "heath"], country="AAA")
+    matches = matched(needs, {"moorland": [(weak, 1.0)]})
+    weights = rank.config()["weights"]
+    assert weights["theme"] / 4 < floor <= weights["theme"] / 4 + weights["country"]
+    assert rank.rank(matches, {weak.re3data_id: weak}, needs) == []
+
+
+def test_an_unset_country_is_read_from_the_affiliations_institution() -> None:
+    a = operated_in("r3d100000231", "AAA", "3", "34", "346", "34601")
+    b = operated_in("r3d100000232", "BBB", "3", "34", "346", "34601")
+    home = repository("r3d100000233").model_copy(
+        update={"institutions": [Institution(name=HOME.name, country="BBB", ror="000000000")]}
+    )
+    needs = HYDROLOGY.model_copy(update={"affiliation": HOME})
+    matches = matched(needs, {"hydrology": [(a, 5.0), (b, 5.0)]})
+    ranked = rank.rank(matches, {r.re3data_id: r for r in (a, b, home)}, needs)
+    assert ranked[0].record.re3data_id == b.re3data_id
+    assert any("researcher's institution" in r for r in ranked[0].reasons)
+    assert assess.home_country([a, b, home], HOME) == "BBB"
+    assert assess.home_country([a, b], HOME) is None
+
+
+def test_records_that_disagree_on_the_institutions_country_give_the_commonest() -> None:
+    def home(rid: str, country: str) -> Re3dataRecord:
+        return repository(rid).model_copy(
+            update={"institutions": [Institution(name=HOME.name, country=country, ror="000000000")]}
+        )
+
+    records = [home("r3d1", "BBB"), home("r3d2", "AAA"), home("r3d3", "BBB")]
+    assert assess.home_country(records, HOME) == "BBB"
+    assert assess.home_country(reversed(records), HOME) == "BBB"
+    assert assess.home_country(records[:2], HOME) == "AAA"  # a tie goes to code order
+
+
+# --- equal ranks ------------------------------------------------------------------------------
+
+
+def test_only_repositories_of_the_same_fit_and_score_are_said_to_be_ranked_equal() -> None:
+    def ranked(rid: str, score: float, fit: str = rank.DISCIPLINE) -> rank.Ranked:
+        return rank.Ranked(repository(rid), score, ("reason",), fit)
+
+    out = rank._say_ties(
+        [
+            ranked("r3d1", 1.1),
+            ranked("r3d2", 1.0),
+            ranked("r3d3", 1.0),
+            ranked("r3d4", 1.0, rank.GENERALIST),
+        ]
+    )
+    assert [len(r.reasons) for r in out] == [1, 2, 2, 1]
+    assert out[1].reasons[-1] == out[2].reasons[-1]
+
+
+# --- plurals ----------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("plural", "singular"),
+    [
+        ("sciences", "science"),
+        ("studies", "study"),
+        ("repositories", "repository"),
+        ("models", "model"),
+        ("environmental sciences", "environmental science"),
+    ],
+)
+def test_a_plural_and_its_singular_tokenise_alike(plural: str, singular: str) -> None:
+    assert tokenise(plural) == tokenise(singular)
+
+
+@pytest.mark.parametrize("word", ["analysis", "glass", "status", "census", "gas"])
+def test_a_word_that_is_not_a_plural_is_left_alone(word: str) -> None:
+    assert fold(word) == word

@@ -135,6 +135,9 @@ class Ranked:
     fit: str = DISCIPLINE
     # Whether it matches any theme, by its text or its DFG subjects.
     on_theme: bool = False
+    # The part of the score that an inferred country added: left out when the cap is applied,
+    # so that naming an institution reorders the shortlist and removes nothing (#441).
+    nudge: float = 0.0
 
 
 def _quoted(terms: set[str]) -> str:
@@ -200,14 +203,20 @@ def rank(
     repositories of every discipline. Affiliation adds no score: an institution's repository
     that matches the discipline is ranked as any other, and one that does not is offered as the
     fallback, in case no more specific destination suits the data (#441). The researcher's
-    country adds a little to a repository that already matches, so that one operated there
-    ranks above an equal or slightly closer match elsewhere (#741).
+    country, as given or else as re3data records the institution's, adds a little to a repository
+    that already matches, so that one operated there ranks above an equal or slightly closer
+    match elsewhere (#741).
     """
     cfg = config()
     weights = cfg["weights"]
     themes = [q.text for q in queries(needs) if q.label == THEME]
     kinds = [q.text for q in queries(needs) if q.label == DATA_KIND]
     general = set(generalists())
+    # The researcher's country as given, else as re3data records their institution's.
+    country, whose, inferred = needs.country, "the researcher's country", False
+    if country is None:
+        country = assess.home_country(records.values(), needs.affiliation)
+        whose, inferred = "the country of the researcher's institution", True
     ranked: list[Ranked] = []
     for rid, record in records.items():
         home = assess.affiliated(record, needs.affiliation)
@@ -234,11 +243,6 @@ def rank(
                 )
                 for theme in sorted(matched):
                     reasons.extend(graded[theme][1])
-        if score > 0 and (local := assess.in_country(record, needs.country)) is not None:
-            score += weights["country"]
-            reasons.append(
-                f"Operated in {needs.country}, the researcher's country, by {local.name}."
-            )
         found = matches.data_kinds.get(rid, {})
         if (matched := set(found)) and rid not in general:
             score += weights["data_kind"] * sum(m.grade for m in found.values()) / len(kinds)
@@ -248,8 +252,14 @@ def rank(
         if access_unmet:
             score += weights["access_unmet"]
         score = round(score, 4)
+        nudge = 0.0
         if score >= cfg["confidence_floor"]:
             fit = GENERALIST if rid in general else DISCIPLINE
+            # After the floor, so the country reorders matches and never makes one (#741).
+            if (local := assess.in_country(record, country)) is not None:
+                score = round(score + weights["country"], 4)
+                nudge = weights["country"] if inferred else 0.0
+                reasons.append(f"Operated in {country}, {whose}, by {local.name}.")
             if home is not None:
                 reasons.append(f"Operated by {home.name}, the researcher's institution.")
         elif home is not None and not access_unmet:
@@ -263,12 +273,15 @@ def rank(
             continue
         if access_unmet:
             reasons.append(f"Does not list {needs.access} access, which the data needs.")
-        ranked.append(Ranked(record, score, tuple(reasons), fit, on_theme))
+        ranked.append(Ranked(record, score, tuple(reasons), fit, on_theme, nudge))
     # The cap applies only to repositories the researcher's institution does not operate, so
     # naming an institution adds its repositories and never displaces another (#441).
     cap = int(cfg["max_candidates"])
     ours = [r for r in ranked if assess.affiliated(r.record, needs.affiliation) is not None]
-    others = sorted((r for r in ranked if r not in ours), key=_order)[:cap]
+    others = sorted(
+        (r for r in ranked if r not in ours),
+        key=lambda r: _order(replace(r, score=r.score - r.nudge)),
+    )[:cap]
     return _say_ties(sorted(others + ours, key=_order))
 
 

@@ -8,6 +8,7 @@ discipline, or open only to another institution's members, that once appeared.
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
@@ -22,8 +23,7 @@ from dd_agent_advisor_repository.classes import (
     RepositoryOptions,
     RepositoryRef,
 )
-from dd_agent_advisor_repository.records import Re3dataRecord
-from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry, tokenise
+from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import OutcomeStatus
 
@@ -31,9 +31,7 @@ NEEDS = Path(__file__).parent / "data" / "needs"
 
 CEDA = "r3d100000011"
 CSD = "r3d100010197"  # Cambridge Structural Database
-EDI = "r3d100010272"  # Environmental Data Initiative Repository (USA)
 EIDC = "r3d100010199"  # Environmental Information Data Centre
-ESS_DIVE = "r3d100000019"  # USA
 ENA = "r3d100010527"  # European Nucleotide Archive
 GESIS = "r3d100012496"
 LEEDS = "r3d100011945"  # Research Data Leeds Repository
@@ -68,9 +66,8 @@ def load(name: str) -> RepositoryNeeds:
 @pytest.mark.parametrize(
     ("case", "include", "exclude"),
     [
-        # A: moorland sensors (NERC), from a UK institution: without the country, US environmental
-        # repositories outrank CEDA (#741). NOMAD's subjects are chemistry and physics.
-        ("moorland-sensors.json", {EIDC, PANGAEA, CEDA}, {NOMAD}),
+        # A: moorland sensors (NERC). NOMAD's subjects are chemistry and physics.
+        ("moorland-sensors.json", {EIDC, PANGAEA}, {NOMAD}),
         # B: perovskite XRD and SEM (EPSRC). CSD holds small-molecule crystal structures; Leeds
         # takes deposits only from its members, and no institution was named.
         ("perovskite-xrd-sem.json", {NOMAD, ZENODO}, {CSD, LEEDS}),
@@ -163,10 +160,6 @@ def test_a_narrow_topic_with_an_institution_is_not_the_institutional_repository_
     assert any("offered as a fallback" in r for r in orda.ranked_by)
 
 
-def test_a_plural_in_a_record_matches_the_singular_in_a_query() -> None:
-    assert tokenise("environmental sciences") == tokenise("environmental science")
-
-
 @pytest.mark.requirement("R1")
 @pytest.mark.parametrize("country", ["GBR", None])
 def test_a_uk_environmental_dataset_is_offered_eidc(
@@ -179,40 +172,74 @@ def test_a_uk_environmental_dataset_is_offered_eidc(
     assert EIDC in ids, ids
 
 
+def _local_first(re3data: Re3dataRegistry, options: RepositoryOptions, country: str) -> None:
+    """Every matching repository operated in `country` says so, and none ranks below an
+    equal-scoring one operated elsewhere. A fallback scores nothing, so gains nothing."""
+    rows = []
+    for c in options.candidates:
+        record = re3data.fetch(c.grounded_on[0].source_id)
+        assert record is not None
+        local = bool(c.score) and assess.in_country(record, country) is not None
+        assert local == any(f"Operated in {country}" in r for r in c.ranked_by), c.ranked_by
+        rows.append((c.score, local))
+    for (score, local), (next_score, next_local) in pairwise(rows):
+        assert not (score == next_score and next_local and not local), rows
+
+
 @pytest.mark.requirement("R1")
-def test_repositories_in_the_researchers_country_come_first_among_equals(
-    runs_dir: Path, re3data: Re3dataRegistry
+@pytest.mark.parametrize(
+    "update",
+    [{"country": "GBR"}, {"affiliation": SHEFFIELD}],
+    ids=["given", "from affiliation"],
+)
+def test_repositories_in_the_researchers_country_rank_higher_among_matches(
+    runs_dir: Path, re3data: Re3dataRegistry, update: dict[str, object]
 ) -> None:
-    """#741: US repositories matching the theme once ranked level with UK ones for a UK
-    researcher."""
-    ids, options, _ = shortlist(runs_dir, re3data, load("moorland-loggers-uk.json"))
-    assert {EIDC, EDI} <= set(ids) or {EIDC, ESS_DIVE} <= set(ids), ids
-    generalist = set(rank.generalists())
-    records = [re3data.fetch(i) for i in ids if i not in generalist]
-    local = [assess.in_country(r, "GBR") is not None for r in records if r is not None]
-    assert local == sorted(local, reverse=True), list(zip(ids, local, strict=False))
-    scores = {c.grounded_on[0].source_id: c.score or 0.0 for c in options.candidates}
-    assert all(scores[EIDC] > scores[i] for i in (EDI, ESS_DIVE) if i in scores), scores
+    """#741: the country, given or read from the institution's re3data records, raises each
+    matching repository operated there by the same small weight, and adds none on its own."""
+    needs = load("moorland-sensors.json")
+    _, plain, _ = shortlist(runs_dir, re3data, needs)
+    _, local, _ = shortlist(runs_dir, re3data, needs.model_copy(update=update))
+    _local_first(re3data, local, "GBR")
+    weight = rank.config()["weights"]["country"]
+    before = {c.grounded_on[0].source_id: c.score or 0.0 for c in plain.candidates}
+    for c in local.candidates:
+        rid = c.grounded_on[0].source_id
+        if rid in before and any("Operated in GBR" in r for r in c.ranked_by):
+            assert c.score == pytest.approx(before[rid] + weight), rid
+        assert c.score or any("fallback" in r for r in c.ranked_by), c
 
 
-def test_repositories_ranked_equal_each_say_so() -> None:
-    """#741: five repositories of equal score were each called "recommended", with nothing to
-    say their order meant nothing."""
-
-    def ranked(rid: str, score: float) -> rank.Ranked:
-        return rank.Ranked(Re3dataRecord(re3data_id=rid, name=rid), score, ("reason",))
-
-    out = rank._say_ties([ranked("r3d1", 1.1), ranked("r3d2", 1.0), ranked("r3d3", 1.0)])
-    assert [len(r.reasons) for r in out] == [1, 2, 2]
-    assert out[1].reasons[-1] == out[2].reasons[-1]
+@pytest.mark.parametrize(
+    "case", ["moorland-sensors.json", "perovskite-xrd-sem.json", "cylinder-flow.json"]
+)
+def test_a_country_read_from_the_affiliation_reorders_the_shortlist_and_removes_none(
+    runs_dir: Path, case: str, re3data: Re3dataRegistry
+) -> None:
+    """#441 holds with #741: naming an institution may move its country's repositories up, but
+    offers the same repositories as without it, and the institution's own besides. Only a
+    country given outright decides which repositories make the shortlist."""
+    needs = load(case)
+    without, _, _ = shortlist(runs_dir, re3data, needs)
+    named, _, _ = shortlist(runs_dir, re3data, needs.model_copy(update={"affiliation": SHEFFIELD}))
+    assert set(named) - {ORDA} == set(without), (without, named)
 
 
 def test_a_fairsharing_record_cited_in_another_case_is_grounded(
     runs_dir: Path, re3data: Re3dataRegistry
 ) -> None:
-    """#741: re3data cites ESS-DIVE's FAIRsharing record as FAIRsharing.d6pe1f, which FAIRsharing
-    writes FAIRsharing.d6Pe1f. The candidate rests on it and passes the grounding check."""
-    needs = RepositoryNeeds(mandated=[RepositoryRef(name="ESS-DIVE", re3data_id=ESS_DIVE)])
+    """#741: a repository whose re3data record cites its FAIRsharing record in another case than
+    FAIRsharing's own is grounded on both records."""
+    record = next(
+        r
+        for r in re3data.records
+        if r.fairsharing_id
+        and r.fairsharing_id not in FairsharingSnapshot().records
+        and FairsharingSnapshot().fetch(r.fairsharing_id) is not None
+    )
+    needs = RepositoryNeeds(
+        mandated=[RepositoryRef(name=record.name, re3data_id=record.re3data_id)]
+    )
     ids, options, _ = shortlist(runs_dir, re3data, needs)
-    assert ids == [ESS_DIVE]
+    assert ids == [record.re3data_id]
     assert len(options.candidates[0].grounded_on) == 2

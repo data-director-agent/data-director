@@ -8,6 +8,5 @@
     "sensor time series",
     "environmental monitoring data"
   ],
-  "access": "open",
-  "country": "GBR"
+  "access": "open"
 }
