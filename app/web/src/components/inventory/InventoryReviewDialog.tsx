@@ -1,21 +1,21 @@
 /**
  * The check an inventory goes through before it is attached (#472). Whatever way it came (the
- * Attach button, a drop, a paste or Make an inventory), the researcher sees everything it holds,
- * may leave out files, folders and columns, and attaches it only by pressing **Attach this
- * inventory**. Until then nothing is attached, so nothing can be sent or recorded. Closing the
+ * Attach button, a drop, a paste or Make an inventory), the researcher sees everything it holds in
+ * the inventory editor, may leave out files, folders and columns and say what the command cannot
+ * know, and attaches it only by pressing **Attach this inventory**. Until then nothing is attached, so nothing can be sent or recorded. Closing the
  * dialog any other way discards it. The dialog lays out what `@data-director/inventory` says and
  * holds no policy; that only `inventory` content goes to a hosted model by default is the
  * Projects spec's rule, stated here so that the researcher knows it when deciding.
  */
 
-import { NOTHING_OMITTED, type Omission } from "@data-director/inventory";
 import { Check } from "lucide-react";
 import { useState } from "react";
 
-import { INVENTORY_GUIDE, withOmission, type AttachedInventory } from "../../conversation/inventory";
+import { INVENTORY_GUIDE, withEdits, type AttachedInventory } from "../../conversation/inventory";
 import { Button } from "../ui/Button";
 import { ModalDialog } from "../ui/Dialog";
-import { InventoryView } from "./InventoryView";
+import { startHistory, type EditHistory } from "./history";
+import { InventoryEditor } from "./InventoryEditor";
 
 export function InventoryReviewDialog({
   pending,
@@ -27,13 +27,12 @@ export function InventoryReviewDialog({
   onAttach: (attached: AttachedInventory) => void;
   onDiscard: () => void;
 }) {
-  // A new inventory starts with nothing left out.
-  const [choice, setChoice] = useState<{ for: AttachedInventory | null; omission: Omission }>({
-    for: pending,
-    omission: NOTHING_OMITTED,
-  });
-  if (choice.for !== pending) setChoice({ for: pending, omission: NOTHING_OMITTED });
-  const omission = choice.for === pending ? choice.omission : NOTHING_OMITTED;
+  // A new inventory starts with nothing changed.
+  const [choice, setChoice] = useState<{ for: AttachedInventory | null; history: EditHistory }>(
+    () => ({ for: pending, history: startHistory() }),
+  );
+  if (choice.for !== pending) setChoice({ for: pending, history: startHistory() });
+  const history = choice.for === pending ? choice.history : startHistory();
   return (
     <ModalDialog
       title="Check the inventory before attaching it"
@@ -48,7 +47,7 @@ export function InventoryReviewDialog({
             <Button
               variant="primary"
               icon={Check}
-              onPress={() => onAttach(withOmission(pending, omission))}
+              onPress={() => onAttach(withEdits(pending, history.present))}
             >
               Attach this inventory
             </Button>
@@ -68,14 +67,16 @@ export function InventoryReviewDialog({
             </p>
             <p>
               Untick anything that should not leave your computer. What you leave out is not named
-              anywhere; the inventory says only how many files and columns were left out.{" "}
+              anywhere; the inventory says only how many files and columns were left out. You can
+              also say what a file or column is, and what part a file plays: what you write is
+              kept and shown to agents in the same way.{" "}
               <a href={INVENTORY_GUIDE}>What an inventory holds</a>
             </p>
           </div>
-          <InventoryView
-            inventory={pending.document}
-            omission={omission}
-            onOmit={(next) => setChoice({ for: pending, omission: next })}
+          <InventoryEditor
+            base={pending.document}
+            history={history}
+            onHistory={(next) => setChoice({ for: pending, history: next })}
           />
         </>
       )}

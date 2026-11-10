@@ -780,7 +780,15 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           onNew={reset}
         />
       }
-      context={<ContextPanel projectId={projectId} project={project} conversation={conversation} documents={documents} />}
+      context={
+        <ContextPanel
+          projectId={projectId}
+          project={project}
+          conversation={conversation}
+          documents={documents}
+          onInventorySaved={() => void reloadProjects()}
+        />
+      }
     />
   );
 }

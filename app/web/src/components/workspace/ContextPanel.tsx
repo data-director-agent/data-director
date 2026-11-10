@@ -11,14 +11,15 @@
 
 import "./ContextPanel.css";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { INVENTORY_GUIDE, type InventorySource } from "../../conversation/inventory";
 import type { Conversation } from "../../conversation/types";
-import { type ProjectSummary, useProjectApi } from "../../project/api";
+import { type ProjectSummary, type SavedInventory, useProjectApi } from "../../project/api";
 import { type DocumentsRead, documentHref, latestOf } from "../../project/drafted";
 import { Link } from "../../route";
 import { InventoryChip } from "../conversation/InventoryChip";
+import { InventoryEditDialog } from "../inventory/InventoryEditDialog";
 import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
 import { IssueLinks } from "../NotBuilt";
@@ -91,6 +92,7 @@ export function ContextPanel({
   project = null,
   conversation = null,
   documents = { state: "loading" },
+  onInventorySaved,
 }: {
   /** The project the workspace is in, or null before the first message starts one. */
   projectId?: string | null;
@@ -99,9 +101,18 @@ export function ContextPanel({
   conversation?: Conversation | null;
   /** The project's documents, as the workspace last read them. */
   documents?: DocumentsRead;
+  /** Called once a revised inventory is saved, so that what reads the project reads it again. */
+  onInventorySaved?: (() => void) | undefined;
 }) {
-  // The open conversation was read after the projects list, so it knows of a newer inventory.
-  const inventory = conversation ? conversation.inventory : project?.inventory;
+  // An inventory saved here is newer than any read; otherwise the open conversation was read
+  // after the projects list, so it knows of a newer inventory.
+  const [saved, setSaved] = useState<{ projectId: string; inventory: SavedInventory } | null>(null);
+  const inventory =
+    saved && saved.projectId === projectId
+      ? saved.inventory
+      : conversation
+        ? conversation.inventory
+        : project?.inventory;
   const projectApi = useProjectApi();
   const source = useMemo<InventorySource | undefined>(
     () => (projectId ? { load: (signal) => projectApi.inventory(projectId, signal) } : undefined),
@@ -169,6 +180,13 @@ export function ContextPanel({
                   fileCount={inventory.file_count}
                   madeAt={inventory.inventory_made_at}
                   source={source}
+                />{" "}
+                <InventoryEditDialog
+                  projectId={projectId}
+                  onSaved={(next) => {
+                    setSaved({ projectId, inventory: next });
+                    onInventorySaved?.();
+                  }}
                 />
               </p>
             ) : (

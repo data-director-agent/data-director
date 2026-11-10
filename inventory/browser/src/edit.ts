@@ -144,6 +144,7 @@ export function edit(base: FileInventory, edits: InventoryEdits, action: EditAct
       if (!file) return edits;
       const text = clean(action.text);
       const value = text === (file.file_description ?? "") ? undefined : text;
+      if (value === edits.files.get(action.path)?.description) return edits;
       const statement = restated(edits.files.get(action.path), "description", value);
       return { ...edits, files: withEntry(edits.files, action.path, statement) };
     }
@@ -154,6 +155,7 @@ export function edit(base: FileInventory, edits: InventoryEdits, action: EditAct
         const file = byPath.get(path);
         if (!file) continue;
         const value = action.role === (file.file_role ?? null) ? undefined : action.role;
+        if (value === files.get(path)?.role) continue;
         files = withEntry(files, path, restated(files.get(path), "role", value));
       }
       return files === edits.files ? edits : { ...edits, files };
@@ -179,6 +181,7 @@ export function edit(base: FileInventory, edits: InventoryEdits, action: EditAct
       if (!field) return edits;
       const text = clean(action.text);
       const value = text === (field.field_description ?? "") ? undefined : text;
+      if (value === edits.fields.get(action.path)?.get(action.column)) return edits;
       const columns = withEntry(
         edits.fields.get(action.path) ?? new Map<string, string>(),
         action.column,

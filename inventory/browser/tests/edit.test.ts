@@ -161,6 +161,9 @@ describe("edit", () => {
     expect(edit(base, once, { kind: "omit", path: "code" })).toBe(once);
     expect(edit(base, once, { kind: "include-column", path: "data/soil.csv", column: "x" })).toBe(once);
     expect(edit(base, once, { kind: "role", paths: ["missing"], role: "data" })).toBe(once);
+    expect(edit(base, once, { kind: "role", paths: ["code/clean.py"], role: "code" })).toBe(once);
+    expect(edit(base, once, { kind: "describe", path: "README.md", text: "How the survey was run" })).toBe(once);
+    expect(edit(base, once, { kind: "describe-column", path: "data/soil.csv", column: "ph", text: "Acidity" })).toBe(once);
     const chosen = edit(base, once, { kind: "format", path: "data/scan.tif", format: { pronomId: "fmt/154" } });
     expect(edit(base, chosen, { kind: "format", path: "data/scan.tif", format: { pronomId: "fmt/154" } })).toBe(chosen);
   });

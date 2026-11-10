@@ -109,7 +109,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     sent to agents, that file and folder names and column headings are included and may
     themselves be sensitive, and that agents may show it to a hosted model
     ([Projects](projects.md), rule 8), then lays the inventory out as **View inventory** does
-    (below) with an Include checkbox on every file, folder and column. Nothing is attached until
+    (below) in the inventory editor: an Include checkbox on every file, folder and column, and,
+    behind a **Describe** disclosure on each file, what the researcher may state beside the facts
+    the command found (a description, the part the file plays, and a format where the command
+    matched several, guessed from the name or matched none), one choice of part for every file
+    of a folder, a description for each column, Undo and Redo, a status line counting what
+    changed, and a choice to show only the files worth a look ([Projects](projects.md)). The
+    editing is `@data-director/inventory`'s `edit` and `applyEdits`; the editor lays it out.
+    Nothing is attached until
     the researcher presses **Attach this inventory**; closing the dialog any other way discards
     it. What they untick is removed from the document before it is attached, and so is never
     sent or stored: a folder takes every file beneath it, a limitation that names a file left
@@ -141,6 +148,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while open and a search draws at most 200 matches, so an inventory of thousands of files
     stays usable; checkboxes and folders work by keyboard and are named for screen readers
     (`app/web/src/components/inventory/InventoryView.test.tsx`, `app/web/e2e/shell.spec.ts`).
+    Beside the project's chip, **Edit inventory** opens the same editor on the inventory the
+    project holds, and may read a new scan of the same dataset instead, onto which what the
+    researcher stated is carried by path, with what the scan added, changed and removed, and the
+    files they had described that it no longer lists. **Save as the project's inventory** sends
+    the result to `POST /api/projects/{id}/inventory`, which adds it as the project's latest; the
+    store records which inventory it revises ([Projects](projects.md))
+    (`app/web/src/components/inventory/InventoryEditor.test.tsx`, `app/tests/test_app.py`).
     A supporting document is attached in the same way: a turn may carry `documentation`, an
     object giving its `name`, `media_type` and `text`, which the server adds to the
     conversation's project before the turn runs ([Projects](projects.md)). With one, the message
