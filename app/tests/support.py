@@ -96,6 +96,33 @@ def check_fixture(name: str, body: dict[str, Any]) -> None:
     )
 
 
+# AG-UI streams the shell replays (docs/specs/transport.md), one event per line, kept like the
+# fixtures above. `scripts/record_ui_cassettes.py` rewrites them all.
+CASSETTES = Path(__file__).resolve().parents[1] / "web/cassettes"
+
+
+def check_cassette(name: str, events: list[dict[str, Any]]) -> None:
+    """`events` is what the cassette `name` holds, one JSON object a line, compared as JSON."""
+    path = CASSETTES / name
+    text = "".join(json.dumps(e, ensure_ascii=False, sort_keys=True) + "\n" for e in events)
+    held = (
+        [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+        if path.exists()
+        else None
+    )
+    if held == events:
+        return
+    if _rewrite_fixtures():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return
+    changed = ", ".join(_changed_keys(held, events)[:10])
+    raise AssertionError(
+        f"{path.name} is stale (changed: {changed}). Run `uv run python "
+        "scripts/record_ui_cassettes.py`, which rewrites it, and commit the result."
+    )
+
+
 def with_standards(governance: Governance) -> Governance:
     """`governance` with the standards advisor registered as the reference list would reach its
     service, but served in memory over A2A."""

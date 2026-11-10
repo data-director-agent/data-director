@@ -10,8 +10,8 @@ fixes what the word "harness" names.
 | Member | Distribution | What it is |
 |---|---|---|
 | `sdk/` | `data-director-sdk` | What agents and the harness share: the core contract, evidence, span helpers and the A2A agent server. |
-| `harness/` | `data-director-harness` | The governance of an invocation: conductor, policy gate, input check, grounding linter, source check, run store and provenance, its A2A way in, and its test kit. Deployable. |
-| `workbench/` | `data-director-workbench` | The development way in to the harness: CLI, viewer, AG-UI transport, evaluation, and a development configuration. Not deployed. |
+| `harness/` | `data-director-harness` | The governance of an invocation: conductor, policy gate, input check, grounding linter, source check, run store and provenance, its A2A way in, the AG-UI binding other ways in mount, and its test kit. Deployable. |
+| `workbench/` | `data-director-workbench` | The development way in to the harness: CLI, viewer, evaluation, and a development configuration. Not deployed. |
 | `app/` | `data-director-app` | The Data Director app that researchers use. A way in to the harness. |
 | `agents/<name>/` | `data-director-agent-<name>` | One package and one A2A service per agent ([Agents](agents.md)). |
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
@@ -104,7 +104,7 @@ identifiers, timestamps and lineage ([Orchestration](orchestration.md)). `dd-har
 serves the A2A routes and agent card and nothing else, for a deployment that needs no viewer;
 `uvicorn` is an optional extra so that a way in which embeds the conductor does not install it;
 a storage backend's driver is an extra for the same reason ([Storage](storage.md)).
-`workbench serve` builds the same conductor and adds AG-UI and the viewer. The CLI stays with the
+`workbench serve` builds the same conductor and adds the harness's AG-UI binding and the viewer. The CLI stays with the
 workbench.
 
 **The test kit belongs to the harness.** The scripted doubles, the in-memory agent server and

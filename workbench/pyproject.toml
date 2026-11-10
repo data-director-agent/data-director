@@ -16,7 +16,6 @@ dependencies = [
   "data-director-harness>=0.2.0a0",
   "pydantic>=2.14.1,<3",
   "starlette>=0.40",
-  "ag-ui-protocol>=1.0.0,<1.1",
   "uvicorn>=0.30",
 ]
 

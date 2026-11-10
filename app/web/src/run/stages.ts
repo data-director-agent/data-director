@@ -3,7 +3,7 @@
  *
  * The stages are the conductor's, the same for every agent: policy gate, input check, the agent,
  * the grounding check and the source check (harness/src/dd_harness/conductor.py), then a human
- * review that is not built yet (#72, #73). Until runs stream over AG-UI (#68, #69) the page
+ * review that is not built yet (#72, #73). Until runs stream over AG-UI (#69) the page
  * cannot watch them happen, so each is read back from the envelope: a problem type names the
  * stage that stopped the run, and the checks' stored summaries say how the checks went.
  */

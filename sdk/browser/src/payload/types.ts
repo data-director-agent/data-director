@@ -2,7 +2,7 @@
  * The parts of the contract's envelope (sdk/src/dd_sdk/contract/models.py) that a payload is read
  * with. These types cover the fields a page uses; a field they do not know is ignored, not refused.
  *
- * TODO(#68, #69): generate these from the contract's JSON Schema.
+ * TODO(#69): generate these from the contract's JSON Schema.
  */
 
 export type OutcomeStatus = "succeeded" | "abstained" | "referred" | "failed" | "suspended";

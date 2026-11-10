@@ -8,7 +8,7 @@ running tests and checks, are in the root [`AGENTS.md`](../AGENTS.md); the harne
 ## What belongs here
 
 The workbench is a development client of the harness for the people who build and test agents:
-the `workbench` CLI, the AG-UI transport, the admin sign-in gate for a deployed workbench, the
+the `workbench` CLI, the routes it mounts (the harness's A2A and AG-UI bindings among them), the admin sign-in gate for a deployed workbench, the
 viewer (`viewer/`) and its browser tests, and the development configuration it supplies to the
 harness (`workbench.config`, `profiles/`, `agents.yaml`, `sources.yaml`).
 

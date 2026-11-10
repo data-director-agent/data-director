@@ -132,6 +132,7 @@ def test_a_page_with_no_session_is_sent_to_sign_in_and_back(workbench: Workbench
         ("GET", "/viewer/js/common.js"),
         ("GET", "/agui/runs/01900000-0000-7000-8000-000000000001"),
         ("POST", "/agui"),
+        ("POST", "/agui/runs/r1/cancel"),
     ],
 )
 def test_a_request_with_no_session_is_refused(workbench: Workbench, method: str, path: str):

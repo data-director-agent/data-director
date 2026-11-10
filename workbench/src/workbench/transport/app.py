@@ -21,9 +21,9 @@ from dd_harness.identity import Authenticator
 from dd_harness.remote import RemoteAgent
 from dd_harness.signin import SignIn
 from dd_harness.transport.a2a import a2a_routes
+from dd_harness.transport.agui import agui_routes
 from dd_sdk.agent import describe
 from dd_sdk.contract.validate import SCHEMA_DIR
-from workbench.transport import agui
 from workbench.transport.signin import SESSION_PATH, AdminGate, no_sign_in_session, sign_in_routes
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -65,12 +65,6 @@ def build_app(
         _card, routes = a2a_routes(conductor, authenticator, base_url)
         session_routes = [Route(SESSION_PATH, no_sign_in_session, methods=["GET"])]
         middleware = []
-
-    async def agui_run(request: Request) -> Response:
-        return await agui.run_agent(request, conductor, authenticator)
-
-    async def agui_replay(request: Request) -> Response:
-        return await agui.replay_run(request, conductor)
 
     async def runs_index(request: Request) -> Response:
         items = [
@@ -141,8 +135,7 @@ def build_app(
         routes=[
             *routes,
             *session_routes,
-            Route("/agui", agui_run, methods=["POST"]),
-            Route("/agui/runs/{invocation_id}", agui_replay, methods=["GET"]),
+            *agui_routes(conductor, authenticator),
             Route("/runs", runs_index, methods=["GET"]),
             Route("/conversations", conversations_index, methods=["GET"]),
             Route("/conversations/{conversation_id}", conversation, methods=["GET"]),
