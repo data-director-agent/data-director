@@ -87,6 +87,12 @@ whom an invocation acts for, and how that is established, is in
     and nothing the agent answered is kept beyond its model calls. Only the principal who started
     a run may cancel it, and a stream the client leaves cancels its run
     (`harness/tests/test_transport_agui.py::test_a_cancelled_run_finishes_cancelled_and_is_stored_failed`).
+20. An A2A server here, the harness's or an agent's, answers `message/send` alone. A2A's task
+    methods (get, list, cancel, subscribe) are refused, a message may not name an earlier task,
+    and a task is forgotten once it ends: callers are not authenticated to the task store, so a
+    task kept would give any caller another's request, reply and delegation grant
+    (`dd_sdk.serve.request_handler`;
+    `harness/tests/test_server.py::test_no_caller_can_read_back_a_task_or_the_grant_it_carried`).
 
 ## Boundaries and contracts
 

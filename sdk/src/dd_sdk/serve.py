@@ -10,6 +10,13 @@ Per request the server starts an isolated tracer, parents it to the `traceparent
 sent, runs the agent in a worker thread, and returns the result with the spans the agent emitted.
 It does no governance: the harness's conductor applies the policy gate, the input check and the
 grounding linter to whatever comes back.
+
+`request_handler` is the A2A request handler this server and the harness's
+(`dd_harness.transport.a2a`) both use. It answers `message/send` alone: A2A's task methods (get,
+list, cancel, subscribe) are refused, a message may not name an earlier task, and a task is
+forgotten once it ends. Callers are not authenticated to the SDK's task store, so a stored task
+would otherwise be readable by any caller, with the request, the reply and the message metadata (a
+delegation grant included) (docs/specs/transport.md).
 """
 
 from __future__ import annotations
@@ -19,17 +26,34 @@ import asyncio
 import importlib
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
 from typing import Any
 
 from a2a.helpers import get_data_parts, new_data_part, new_task_from_user_message
 from a2a.server.agent_execution import AgentExecutor, RequestContext
+from a2a.server.context import ServerCallContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
 from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
-from a2a.types import AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentSkill
+from a2a.types import (
+    AgentCapabilities,
+    AgentCard,
+    AgentExtension,
+    AgentInterface,
+    AgentSkill,
+    CancelTaskRequest,
+    GetTaskRequest,
+    ListTasksRequest,
+    ListTasksResponse,
+    Message,
+    SendMessageRequest,
+    SubscribeToTaskRequest,
+    Task,
+    TaskState,
+)
+from a2a.utils.errors import InvalidParamsError, UnsupportedOperationError
 from google.protobuf.json_format import MessageToDict
 from opentelemetry import context as otel_context
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
@@ -193,6 +217,69 @@ class AgentServerExecutor(AgentExecutor):
         raise NotImplementedError("invocations are synchronous; nothing to cancel")
 
 
+# A task in one of these states has ended: nothing further is sent for it.
+ENDED = frozenset(
+    {
+        TaskState.TASK_STATE_COMPLETED,
+        TaskState.TASK_STATE_FAILED,
+        TaskState.TASK_STATE_CANCELED,
+        TaskState.TASK_STATE_REJECTED,
+    }
+)
+ONE_SHOT = "this server answers message/send alone; it keeps no task to get, list, cancel or follow"
+
+
+class TransientTaskStore(InMemoryTaskStore):
+    """Holds a task only while it runs, and forgets it once it has ended."""
+
+    async def save(self, task: Task, context: ServerCallContext) -> None:
+        if task.status.state in ENDED:
+            await self.delete(task.id, context)
+        else:
+            await super().save(task, context)
+
+
+class OneShotRequestHandler(DefaultRequestHandler):
+    """`message/send` and nothing else, each message a task of its own (`ONE_SHOT`)."""
+
+    async def on_message_send(
+        self, params: SendMessageRequest, context: ServerCallContext
+    ) -> Message | Task:
+        if params.message.task_id:
+            raise InvalidParamsError(message="a message may not name an earlier task")
+        answered: Message | Task = await super().on_message_send(params, context)
+        return answered
+
+    async def on_get_task(self, params: GetTaskRequest, context: ServerCallContext) -> Task | None:
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+    async def on_list_tasks(
+        self, params: ListTasksRequest, context: ServerCallContext
+    ) -> ListTasksResponse:
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+    async def on_cancel_task(
+        self, params: CancelTaskRequest, context: ServerCallContext
+    ) -> Task | None:
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+    async def on_subscribe_to_task(
+        self, params: SubscribeToTaskRequest, context: ServerCallContext
+    ) -> AsyncGenerator[Any]:
+        # An async generator, as the base's is, which the dispatcher iterates: it yields nothing.
+        nothing: tuple[Any, ...] = ()
+        for event in nothing:
+            yield event
+        raise UnsupportedOperationError(message=ONE_SHOT)
+
+
+def request_handler(executor: AgentExecutor, card: AgentCard) -> DefaultRequestHandler:
+    """The A2A request handler for `executor` behind `card` (`OneShotRequestHandler`)."""
+    return OneShotRequestHandler(
+        agent_executor=executor, task_store=TransientTaskStore(), agent_card=card
+    )
+
+
 def app(
     agent: Agent,
     base_url: str = "http://127.0.0.1:8100",
@@ -201,11 +288,7 @@ def app(
     """`delegate_client_factory` gives the httpx client a delegation agent uses to call the
     harness back; tests bind it to the harness's in-process app."""
     card = agent_card(agent, base_url)
-    handler = DefaultRequestHandler(
-        agent_executor=AgentServerExecutor(agent, delegate_client_factory),
-        task_store=InMemoryTaskStore(),
-        agent_card=card,
-    )
+    handler = request_handler(AgentServerExecutor(agent, delegate_client_factory), card)
     return Starlette(
         routes=[*create_agent_card_routes(card), *create_jsonrpc_routes(handler, JSONRPC_PATH)]
     )

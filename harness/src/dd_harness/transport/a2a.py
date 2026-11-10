@@ -24,9 +24,8 @@ from a2a.helpers import (
 )
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
-from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
-from a2a.server.tasks import InMemoryTaskStore, TaskUpdater
+from a2a.server.tasks import TaskUpdater
 from a2a.types import (
     AgentCapabilities,
     AgentCard,
@@ -43,6 +42,7 @@ from dd_harness.policy import PolicyError
 from dd_sdk.contract.models import InvocationRequest, to_document
 from dd_sdk.contract.problem import unauthenticated
 from dd_sdk.contract.validate import ContractViolation
+from dd_sdk.serve import request_handler
 from dd_sdk.wire import (
     ENVELOPE_JSON_ARTIFACT,
     MANIFEST_EXTENSION_URI,
@@ -191,11 +191,8 @@ def a2a_routes(
     With `authenticator` None the endpoint accepts delegation callbacks only (`DELEGATED_ONLY`).
     """
     card = agent_card(conductor, base_url)
-    handler = DefaultRequestHandler(
-        agent_executor=ConductorExecutor(conductor, authenticator),
-        task_store=InMemoryTaskStore(),
-        agent_card=card,
-    )
+    # `message/send` alone: no task is kept for any caller to read back (dd_sdk.serve).
+    handler = request_handler(ConductorExecutor(conductor, authenticator), card)
     routes: list[BaseRoute] = [
         *create_agent_card_routes(card),
         *create_jsonrpc_routes(handler, "/a2a"),

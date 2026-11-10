@@ -10,12 +10,24 @@ from typing import Any
 import httpx
 import pytest
 import uvicorn
+from starlette.applications import Starlette
 
 from dd_harness import server
 from dd_harness.identity import OperatorAssertion
 from dd_harness.settings import Settings
-from dd_harness.testing import PERMISSIVE, TEST_PRINCIPAL, ScriptedAgent, make_conductor
-from dd_sdk.contract.models import GroundingMode
+from dd_harness.testing import (
+    PERMISSIVE,
+    TEST_PRINCIPAL,
+    AbstainingStub,
+    ScriptedAgent,
+    make_conductor,
+    request,
+)
+from dd_harness.testing.serving import send_to_harness
+from dd_harness.transport.a2a import a2a_routes
+from dd_sdk import serve
+from dd_sdk.contract.models import GroundingMode, InvocationRequest, to_document
+from dd_sdk.wire import META_DELEGATION_TOKEN
 
 BASE = "http://testserver"
 PATH_VARIABLES = ("DD_RUNS_DIR", "DD_PROFILE", "DD_AGENTS_CONFIG", "DD_SOURCES_CONFIG")
@@ -167,3 +179,65 @@ def test_the_app_serves_a2a_and_nothing_else(tmp_path: Path) -> None:
     # The workbench's routes are not the harness's.
     for path in ("/runs", "/conversations", "/agents", "/viewer/", "/"):
         assert _get(app, path).status_code == 404, path
+
+
+def _rpc(app: Any, method: str, params: dict[str, Any]) -> dict[str, Any]:
+    async def go() -> dict[str, Any]:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=BASE) as hc:
+            body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+            response = await hc.post("/a2a", json=body, headers={"A2A-Version": "1.0"})
+            found: dict[str, Any] = response.json()
+            return found
+
+    return asyncio.run(go())
+
+
+def _task_methods(task_id: str) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        ("ListTasks", {"includeArtifacts": True}),
+        ("GetTask", {"id": task_id}),
+        ("CancelTask", {"id": task_id}),
+        ("SubscribeToTask", {"id": task_id}),
+    ]
+
+
+def _every_a2a_server(tmp_path: Path) -> list[tuple[Any, InvocationRequest]]:
+    """The harness's A2A app, as served alone and as the app serves it (callbacks only), and an
+    agent's own server (`dd_sdk.serve`), each with a request it answers."""
+    stub = AbstainingStub()
+    conductor = make_conductor(tmp_path / "runs", stub)
+    harness_request = request(stub.spec.agent_id)
+    _card, callbacks_only = a2a_routes(conductor, None, BASE)
+    return [
+        (server.build_app(conductor, OperatorAssertion(TEST_PRINCIPAL), BASE), harness_request),
+        (Starlette(routes=callbacks_only), harness_request),
+        (serve.app(AbstainingStub(), base_url=BASE), harness_request),
+    ]
+
+
+def test_no_caller_can_read_back_a_task_or_the_grant_it_carried(tmp_path: Path) -> None:
+    # Callers are not authenticated to A2A's task store, so a kept task would give any caller
+    # another's request, reply and delegation grant (docs/specs/transport.md).
+    for app, sent in _every_a2a_server(tmp_path):
+        ordinary = send_to_harness(app, BASE, sent)
+        delegated = send_to_harness(app, BASE, sent, metadata={META_DELEGATION_TOKEN: "a-grant"})
+        for task in (ordinary, delegated):
+            assert task is not None
+            for method, params in _task_methods(task.id):
+                answer = _rpc(app, method, params)
+                assert "result" not in answer, (method, answer)
+                assert "a-grant" not in str(answer)
+
+
+def test_a_message_may_not_continue_an_earlier_task(tmp_path: Path) -> None:
+    for app, sent in _every_a2a_server(tmp_path):
+        task = send_to_harness(app, BASE, sent)
+        assert task is not None
+        message = {
+            "messageId": "m-2",
+            "role": "ROLE_USER",
+            "taskId": task.id,
+            "parts": [{"data": to_document(sent)}],
+        }
+        answer = _rpc(app, "SendMessage", {"message": message})
+        assert "result" not in answer, answer

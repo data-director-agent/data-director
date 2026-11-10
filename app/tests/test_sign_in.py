@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import webbrowser
 from collections.abc import Iterator
@@ -20,6 +21,7 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 import pytest
 import uvicorn
+from starlette.routing import Route
 from starlette.testclient import TestClient
 from support import check_fixture, configure_env, dist_dir, with_standards
 
@@ -245,6 +247,27 @@ def test_a_request_with_no_session_is_refused(deployment: Deployment, method: st
     assert response.status_code == 401
     assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["type"] == "https://w3id.org/data-director/problems/unauthenticated"
+    assert list(deployment.runs.glob("*/envelope.json")) == []
+
+
+# The `/api` routes open to a caller with no session, so the shell can draw its sign-in page.
+OPEN_API = {"/api/about", "/api/session", "/api/sign-in", "/api/sign-in/callback", "/api/sign-out"}
+
+
+def test_every_api_route_but_the_open_ones_needs_a_session(deployment: Deployment):
+    # Walks the route table, so a route added later without `signed_in` is caught here.
+    browser = deployment.browser()
+    checked = 0
+    for route in deployment.app.routes:
+        path = getattr(route, "path", "")
+        if not isinstance(route, Route) or not path.startswith("/api/") or path in OPEN_API:
+            continue
+        url = re.sub(r"\{[^}]+\}", "01900000-0000-7000-8000-000000000001", path)
+        for method in sorted((route.methods or set()) - {"HEAD"}):
+            response = browser.request(method, url, json={})
+            assert response.status_code == 401, (method, path)
+            checked += 1
+    assert checked > len(PROTECTED)
     assert list(deployment.runs.glob("*/envelope.json")) == []
 
 
