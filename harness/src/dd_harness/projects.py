@@ -416,6 +416,7 @@ class Projects:
                 "file_count": inventory["file_count"],
                 "inventory_made_at": inventory["inventory_made_at"],
                 "added_at": inventory["at"],
+                "revises": inventory.get("revises"),
             }
             if inventory
             else None,
@@ -443,7 +444,8 @@ class Projects:
         acted_for: Principal,
         caused_by: str,
     ) -> str:
-        """Add a `FileInventory` to the project. Returns its digest.
+        """Add a `FileInventory` to the project. Returns its digest. When the project already
+        holds one, the event names its digest as `revises`, found in the log, never given.
 
         Raises `ProjectError` for an unknown project or a document the class schema refuses."""
         self._require(project_id)
@@ -454,18 +456,17 @@ class Projects:
         digest = input_hash(document)
         self._keep_blob(project_id, digest, canonicalise(document, INPUT_CANONICALISATION))
         files = document.get("inventory_files") or []
-        self._append(
-            project_id,
-            INVENTORY_ADDED,
-            acted_for,
-            caused_by,
-            {
-                "digest": digest,
-                "canonicalisation": INPUT_CANONICALISATION,
-                "file_count": len(files),
-                "inventory_made_at": document["inventory_made_at"],
-            },
-        )
+        detail: dict[str, Any] = {
+            "digest": digest,
+            "canonicalisation": INPUT_CANONICALISATION,
+            "file_count": len(files),
+            "inventory_made_at": document["inventory_made_at"],
+        }
+        with self._section(project_id) as section:
+            previous = [e for e in section.events() if e["event"] == INVENTORY_ADDED]
+            if previous:
+                detail["revises"] = previous[-1]["digest"]
+            section.append([self._event(project_id, INVENTORY_ADDED, acted_for, caused_by, detail)])
         return digest
 
     def add_documentation(

@@ -65,5 +65,8 @@ weights:
   data_kind: 0.2
   # A generalist repository. Above the floor and below a full theme match.
   generalist: 0.4
+  # Operated in the researcher's country (#741). Far below the floor, so it reorders repositories
+  # that already match and never recommends one by itself.
+  country: 0.1
   # The access the data needs (Phase 2) is not listed.
   access_unmet: -0.5

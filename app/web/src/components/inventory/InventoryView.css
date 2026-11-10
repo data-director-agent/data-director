@@ -73,4 +73,60 @@
   .inventory-table .table-scroll {
     margin-top: var(--space-2);
   }
+
+  /* What the researcher stated sits under the file's facts, marked as theirs by its place. */
+  .inventory-description {
+    display: block;
+    max-width: var(--measure);
+    font-style: italic;
+    overflow-wrap: anywhere;
+  }
+
+  .inventory-role {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-strong);
+  }
+
+  .inventory-edit {
+    display: block;
+    margin-top: var(--space-1);
+  }
+
+  .inventory-edit > summary {
+    width: fit-content;
+    color: var(--color-link, currentcolor);
+  }
+
+  .inventory-edit-fields,
+  .inventory-format {
+    display: grid;
+    gap: var(--space-2);
+    max-width: var(--measure);
+    margin-top: var(--space-2);
+  }
+
+  .inventory-edit-fields textarea,
+  .inventory-edit-fields input[type="text"],
+  .inventory-column-description {
+    width: 100%;
+    min-width: 12rem;
+  }
+
+  .inventory-choice {
+    display: inline-flex;
+    gap: var(--space-1);
+    margin-inline-end: var(--space-3);
+  }
+
+  .inventory-find {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    align-items: end;
+  }
+
+  .inventory-folder-role {
+    margin-block: var(--space-1);
+    font-size: var(--font-size-small);
+  }
 }

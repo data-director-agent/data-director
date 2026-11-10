@@ -16,10 +16,10 @@ sources:
     built: true
     id_field: re3data_id
     sha256: 37e4ce9d248a72765357d5d14d966f7ac55eb9b9cd2160f442f305fe17acfcbd
-  - snapshot_refs: ["fairsharing:snapshot:2026-10-29", "fairsharing:snapshot:2026-10-29 (stale)"]
+  - snapshot_refs: ["fairsharing:snapshot:2026-11-10", "fairsharing:snapshot:2026-11-10 (stale)"]
     path: ../../agents/advisor-repository/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id
-    sha256: cca3c0b34ec9510002308fe2b6309ba8f9e8e158070bcdafb9facc7aefff3a87
+    sha256: 11981403cfb20816fb1557d3308e88b6a35e31df90f2948349281bdbb016c7b5
   - snapshot_refs: ["fairsharing-policy:snapshot:2026-10-29", "fairsharing-policy:snapshot:2026-10-29 (stale)"]
     path: ../../agents/advisor-policy/data/fairsharing/snapshot.jsonl
     id_field: fairsharing_id

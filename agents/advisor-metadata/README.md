@@ -27,7 +27,7 @@ property in the request's `requirements` is written:
   researcher.
 - `types.resourceTypeGeneral` is `Dataset`, since that is what the project deposits.
 - Where the request gives `researchers`, the facts the project's researchers kept from their
-  public ORCID records ([Projects](../../docs/specs/projects.md), invariant 22), and the
+  public ORCID records ([Projects](../../docs/specs/projects.md), invariant 27), and the
   repository asks for the property: `creators` lists each researcher with their name (or `null`
   if they did not keep it), their ORCID iD as a name identifier, and the employers they kept that
   they still work for, with ROR identifiers where ORCID gives them; `subjects` adds their keywords

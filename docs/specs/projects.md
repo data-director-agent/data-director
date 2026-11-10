@@ -46,7 +46,7 @@ use by the conductor before a run in a project and by every route of the app's s
 TODO(#389); the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
 researcher facts a person keeps from their own public ORCID record, given to the project's
-agents (invariant 22); the inventory command; and the core
+agents (invariant 27); the inventory command; and the core
 classes `FileInventory`, `InventorySummary` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
 
@@ -105,7 +105,7 @@ intended design, and each part says where it is not built yet.
    project holds more than one of the kind; one that is not the project's, or is of another kind,
    fails the run with problem `revision-refused` before the agent is called, and outside a
    project it is removed (`ProjectStore.current_version`). A `Message`'s `project_researchers` and
-   a `DraftRequest`'s `researchers` are the researcher facts the project holds (invariant 22); a
+   a `DraftRequest`'s `researchers` are the researcher facts the project holds (invariant 27); a
    `Message`'s are removed outside a project, so a caller can never claim them. Filling any other
    class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
@@ -116,7 +116,7 @@ intended design, and each part says where it is not built yet.
    grant. The agent is never sent `project_id` (`harness/tests/test_project_runs.py`).
 8. **Only `inventory` goes to a hosted model by default.** Project content is of three classes:
    `inventory`, `documentation` (uploaded text, and any document version given back to an
-   agent) and `researcher` (the facts researchers kept from their ORCID records, invariant 22). The profile lists the classes that may be given to an agent whose card declares a
+   agent) and `researcher` (the facts researchers kept from their ORCID records, invariant 27). The profile lists the classes that may be given to an agent whose card declares a
    `hosted` model; where it does not say, only `inventory` may. The conductor refuses anything
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
@@ -180,7 +180,7 @@ intended design, and each part says where it is not built yet.
     (`app/tests/test_app.py`); until membership is built the creator is the only one with a role,
     TODO(#389).
 18. **No principal's identifier or name enters an agent's input**, except the researcher facts a
-    person chose to keep for the record (invariant 22). A conversation's history marks each
+    person chose to keep for the record (invariant 27). A conversation's history marks each
     turn's speaker with a label pseudonymous within the project, such as "Member 1", stable
     across its conversations. Not built yet, TODO(#390). The researcher facts are not a speaker's
     identity: they are what a researcher supplies for the record, as they would type their name
@@ -221,7 +221,31 @@ intended design, and each part says where it is not built yet.
     `app/tests/test_project_title.py`). The title is neither `inventory` nor `documentation`
     (invariant 8): it is what the researcher typed, or what a model wrote from the conversation it
     was already sent.
-22. **Researcher facts are what a person chose from their own public ORCID record, in ORCID's
+22. **Deleting a project is an event, not a removal.** An owner deletes a project by appending
+    `project_deleted` and restores it by appending `project_restored`. Each names the principal and
+    the cause (invariant 4). No event is changed or removed (invariant 2), and a project is deleted
+    when the last of these two events in its log is a deletion. Not built yet, TODO(#156).
+23. **A deleted project is hidden from everyone but its owners.** It leaves every list, and so do
+    its conversations, runs, inventories, documents and decisions, which follow the project
+    (invariant 17). A non-member, and a member who is not an owner, are refused with status 404,
+    so that a refusal does not reveal that the project exists. An owner finds it only under
+    "recently deleted", with the date, the person who deleted it and the time left to restore it.
+    Not built yet, TODO(#156).
+24. **A deleted project takes no new work.** Starting or continuing a conversation, adding an
+    inventory or documentation, deciding or editing a version, building a package and renaming are
+    refused with status 409 until the project is restored. A run already going finishes and is
+    recorded, as invariant 19 says of a member who leaves. Not built yet, TODO(#156).
+25. **An owner can restore a project for a period the deployment sets.** The period runs from the
+    deletion and is 30 days unless the deployment says otherwise; zero makes a deletion final to
+    the app. Within it, restoring appends one event and changes nothing else, so the project is as
+    it was. After it, the app does not restore the project and does not remove it either: nothing
+    in the app removes a project's content, TODO(#156).
+26. **Deleting hides and does not erase.** A deleted project's log, blobs and runs stay in the
+    record, so deleting one does not meet a person's request for their data to be erased. Nor does
+    it recall a package already built or downloaded, or a deposit already made; each holds its own
+    copy of the log ([Deposit](deposit.md)). What erasure removes, and what it leaves of the
+    provenance that P5 requires, is TODO(#156).
+27. **Researcher facts are what a person chose from their own public ORCID record, in ORCID's
     words.** A person signed in with ORCID may read their public record from ORCID's public API
     and keep, in a project, the sections and items they tick: name, other names, biography,
     keywords, country, web pages, other identifiers, and affiliations, works and fundings item by
@@ -275,6 +299,24 @@ caused by the turn's request; an inventory the store refuses refuses the turn, a
 Before it is attached, the researcher sees all of it and may leave out files, folders and
 columns; what is left out never reaches the store, and the inventory's limitations count it
 without naming it, so the store needs no rule of its own for it.
+The researcher may also state, beside the facts the command found, what the command cannot know:
+what a file or a column is (`file_description`, `field_description`), what part a file plays
+(`file_role`: data, documentation, code or other), and which format a file is where the command
+matched several formats, guessed from the name, or matched none (`file_identified_by`
+`researcher`). What the command observed (a file's path, size, digest and PRONOM matches, a
+column's name and type) is never edited, so a digest always describes the bytes it was made from.
+What the researcher states is shown to agents and hosted models as the rest of the inventory is.
+Editing is one model in `@data-director/inventory` (`edit`, `applyEdits`), the same before an
+inventory is attached and when a project's inventory is revised.
+
+A revision is a whole new `inventory_added` event: the project's latest inventory is the one it
+holds, and the earlier ones stay in the log. When the project already holds one, the store
+records the digest it replaces as `revises`, which no caller can give. A researcher may revise
+the inventory the project holds, or replace it with a new scan of the same dataset, onto which
+what they stated is carried by path (`carryOver`); a format they chose carries over only to a file
+whose digest is unchanged. What was left out of the earlier inventory cannot carry over, since it
+was never kept: a new scan lists it again, the editor marks every file new in the scan, and the
+researcher leaves it out again.
 A page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).
 
@@ -327,12 +369,26 @@ TODO(#16, #72).
 | leave the project | yes | unless the last owner |
 | approve or reject a document version | no | yes |
 | add or remove a member, or change a role | no | yes |
+| delete the project, or restore a deleted one | no | yes |
 
 A member is added by the principal identifier they sign in with (an ORCID iD for ORCID sign-in);
 they need not have signed in before. Whether an added person must accept first, and how they are
 told, are TODO(#388, #378). Each turn of a shared conversation acts for the member who sent it,
 and a delegated child for that turn's principal. A run outside any project belongs to the
 principal it acted for alone ([App](app.md), rule 24).
+
+**Deletion and retention.** Deleting and restoring are the `MANAGE` action, an owner's alone
+(`dd_harness.project_access`). The app asks the owner to type the project's name before it deletes,
+and says what stays behind: the record is kept, a package already built is not recalled, and the
+project can be restored until a date it names. The confirmation is there because the loss of access
+is immediate (C13 blocks an irreversible action without one; this one is reversible for the period,
+and the confirmation guards the owner's own mistakes and not only the agents'). A deployment sets
+the restore period; it does not set how long the record itself is kept. That decision is the
+hosting institution's, and needs the advice of its data protection officer, TODO(#156).
+
+A member may withdraw documentation they added, before any version of it is decided; a decided
+version is final (invariant 11). Withdrawing is an event, as deleting is. Not built yet,
+TODO(#156).
 
 **Audit.** The project log is the audit trail of the project: versions name the run that drafted
 them (whose grounding, evidence and trace are in the run store) or the person who edited them;
@@ -362,7 +418,11 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   goes into the package, and every document in it names who approved it and when.
 - **Shared projects**, because research data are rarely managed by one person, and colleagues must
   see the same inventory, documents, decisions and conversations.
-- **Researcher facts from ORCID, chosen item by item** (invariant 22), because creators,
+- **Deleting as an event.** The log stays the audit trail and invariant 2 stays true. A mistaken
+  deletion is recoverable, and no second store holds what a deletion hid. Hiding is what the app
+  can promise today; erasing is a different promise that waits on the rules for provenance and
+  personal data (TODO(#156)).
+- **Researcher facts from ORCID, chosen item by item** (invariant 27), because creators,
   affiliations, subjects and funding are what a researcher is asked for most and has often
   recorded already (`docs/ui/best-practices.md`: reduce metadata burden visibly). A person
   ticks what to keep, rather than everything being taken at sign-in, so that what agents and any
@@ -409,6 +469,11 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - **Membership set in the deployment's profile.** Who works on a research project is the
   researchers' choice, and a profile changes by review. Whether a profile may limit sharing is
   TODO(#388).
+- **Removing a project's rows when it is deleted.** The log would no longer show who could see the
+  project or who decided what, and P5 and the audit trail above would fail before the rules for
+  erasure exist.
+- **An "archived" state beside deleted.** It would hide a project in the same way and differ only
+  in the word. Revisit it if researchers want to retire a project without a restore deadline.
 
 ## Non-functional requirements
 
@@ -419,7 +484,8 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   personal: they go to a hosted model only where the profile lists `researcher` (invariant 8),
   and withdrawing them stops them being given but does not erase them from the log, TODO(#156). Members see each other's words and work,
   and the user guide must say so where a member is added, TODO(#391).
-- **Disclosure.** A refusal to a non-member does not reveal whether a project exists.
+- **Disclosure.** A refusal to a non-member does not reveal whether a project exists, and a
+  deleted project is refused to anyone but an owner in the same way (invariant 23).
 - **Durability.** An event is flushed to disk before the call returns, and a blob is written aside
   and moved into place, so a reader never sees half of one.
 - **Sovereignty.** The project store lives under a directory the operator names and has no default
@@ -427,8 +493,11 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 
 ## Open questions
 
-- How long a project and its conversations are kept, and what deleting a project or a version
-  removes, TODO(#156).
+- How long a project and its conversations are kept once nobody can restore them, TODO(#156).
+- What erasing a project, a conversation or a version removes, and how provenance survives it,
+  TODO(#156).
 - What a former member may have erased from a project, TODO(#156).
+- Whether a member may delete a conversation. Every member sees a project's conversations, so today
+  only an owner could, by deleting the project, TODO(#156).
 - What a data steward may do in a researcher's project, and whether a deployment role may decide
   on a version, TODO(#372, #154).

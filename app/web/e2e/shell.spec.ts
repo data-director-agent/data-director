@@ -549,7 +549,16 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   await leaveOut.focus();
   await page.keyboard.press("Space");
   await expect(leaveOut).not.toBeChecked();
-  await expect(review.getByText("Left out: 1 file.")).toBeVisible();
+  await expect(review.getByRole("status")).toContainText("1 file left out");
+  // A file is described by keyboard, beside the facts the command found.
+  const describe = review.getByText("Describe data/file-0.csv");
+  await describe.focus();
+  await page.keyboard.press("Enter");
+  await review.getByRole("textbox", { name: "What this file is" }).fill("Readings from site 0");
+  await page.keyboard.press("Tab");
+  await expect(review.getByRole("status")).toContainText("1 description");
+  expect(await overflow(page), "horizontal overflow while describing a file").toBeLessThanOrEqual(0);
+  expect(await axeViolations(page)).toEqual([]);
   await review.getByRole("button", { name: "Attach this inventory" }).press("Enter");
   await expect(review).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "What would you like to do?" })).toBeFocused();
@@ -566,6 +575,7 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   await expect(dialog.getByText("41 files, 49.2 kB in all")).toBeVisible();
   await expect(dialog.getByText("file-1.csv", { exact: true })).toHaveCount(0);
   await expect(dialog.getByText(/the researcher left out 1 file\./)).toBeVisible();
+  await expect(dialog.getByText("Readings from site 0")).toBeVisible();
   // The only top-level folder is open already.
   await expect(dialog.getByText("file-0.csv", { exact: true })).toBeVisible();
   expect(await overflow(page), "horizontal overflow with the inventory open").toBeLessThanOrEqual(0);

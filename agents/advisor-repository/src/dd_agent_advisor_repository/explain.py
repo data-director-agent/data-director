@@ -80,7 +80,7 @@ def template_rationale(item: Item) -> str:
         lead = f"{r.name} ({r.re3data_id}) was named as mandated, so it is described, not ranked."
     else:
         why = f" {' '.join(item.reasons)}" if item.reasons else ""
-        lead = f"{r.name} ({r.re3data_id}) is recommended.{why}"
+        lead = f"{r.name} ({r.re3data_id}) is shortlisted.{why}"
     kind = f" re3data lists it as {', '.join(r.types)}." if r.types else ""
     subjects = f" Subjects: {'; '.join(r.subject_names()[:3])}." if r.subjects else ""
     gaps = (

@@ -222,8 +222,10 @@ class RepositoryAgent:
         for rid, repository in got.repositories.items():
             with retrieval_span(ctx.tracer, rid, repository.content_hash()):
                 pass
-        for fid, (database, _) in got.databases.items():
-            with retrieval_span(ctx.tracer, fid, database.content_hash()):
+        # A FAIRsharing record by its own identifier, as the candidate cites it, not as re3data
+        # wrote it (#741).
+        for database, _ in got.databases.values():
+            with retrieval_span(ctx.tracer, database.fairsharing_id, database.content_hash()):
                 pass
 
         queries = [f"mandated: {r.name!r}" for r in needs.mandated] or [
@@ -384,11 +386,13 @@ class RepositoryAgent:
                         content=repository.document(),
                     )
                 )
-        for fid, (database, ref) in sorted(got.databases.items()):
-            if fid in cited:
+        # Keyed by the record's own identifier, which the candidate grounds on: re3data may cite
+        # it in another case (FAIRsharing.d6pe1f for FAIRsharing.d6Pe1f, #741).
+        for _, (database, ref) in sorted(got.databases.items()):
+            if database.fairsharing_id in cited - {e.source_id for e in out}:
                 out.append(
                     EvidenceItem(
-                        source_id=fid,
+                        source_id=database.fairsharing_id,
                         source_uri=database.source_uri,
                         retrieved_at=now,
                         snapshot_ref=ref.as_string(),

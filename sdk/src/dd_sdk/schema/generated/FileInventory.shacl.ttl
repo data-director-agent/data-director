@@ -62,7 +62,13 @@ dd:InventoryFile a sh:NodeShape ;
     rdfs:comment "One file of a dataset, as the inventory command found it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none." ;
+            sh:in ( "signature" "container" "extension" "none" "researcher" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:file_identified_by ],
+        [ sh:datatype xsd:string ;
             sh:description "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown." ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
@@ -72,12 +78,6 @@ dd:InventoryFile a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 6 ;
             sh:path dd:file_fields ],
-        [ sh:description "How the PRONOM identifiers were arrived at." ;
-            sh:in ( "signature" "container" "extension" "none" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 5 ;
-            sh:path dd:file_identified_by ],
         [ sh:datatype xsd:integer ;
             sh:description "The file's size in bytes." ;
             sh:maxCount 1 ;
@@ -93,12 +93,23 @@ dd:InventoryFile a sh:NodeShape ;
             sh:order 2 ;
             sh:path spdx:checksumValue ;
             sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:description "What part the file plays in the dataset, as the researcher states it. Unset means not stated, not data." ;
+            sh:in ( "data" "documentation" "code" "other" ) ;
+            sh:maxCount 1 ;
+            sh:order 8 ;
+            sh:path dd:file_role ],
         [ sh:datatype xsd:string ;
             sh:description "The file's media type (MIME type), when it could be told." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dcat:mediaType ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the file is, in the researcher's words. The inventory command never fills it; a researcher states it beside the facts the command found (docs/specs/projects.md)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dcterms:description ],
         [ sh:datatype xsd:string ;
             sh:description "The file's path relative to the dataset's root folder, with forward slashes. Never an absolute path, which would say where the data live." ;
             sh:maxCount 1 ;

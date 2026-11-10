@@ -159,7 +159,7 @@ nonce. PKCE is to be added if ORCID advertises it; a confidential client checkin
 which needs no credential and returns only what the holder made public, and only for their own
 iD: the one ORCID vouched for at sign-in, or on a development server the operator's asserted iD
 URL (`dd_harness.orcid.issuer_of`). What they keep of it in a project, and how it reaches agents,
-is in [Projects](projects.md), invariant 22. An email address is never read from it.
+is in [Projects](projects.md), invariant 27. An email address is never read from it.
 
 **The principal.** Its identifier is an absolute IRI: for ORCID, the iD URL; for staff without an
 iD and for roles, a `mailto:` IRI or a URN. Its kind is `person` or `accountable_role`, the latter
@@ -205,7 +205,7 @@ file and restarting that agent's service; nothing else changes.
   authentication enters was built first so that adding it changed nothing else.
 - **The agent is not told** because no agent needs to know whom it acts for to do its work, and
   personal data goes only where the record needs it. Researcher facts a person keeps in a project
-  ([Projects](projects.md), invariant 22) do not tell it: they are the project's researchers, the
+  ([Projects](projects.md), invariant 27) do not tell it: they are the project's researchers, the
   same for every run in it, and the record needs them as its creators.
 - **The record says who vouched**, so a reader can weigh an identity claim by who made it. No
   published vocabulary has a term meaning exactly this, so the contract mints `dd:vouched_by` and
@@ -258,7 +258,7 @@ file and restarting that agent's service; nothing else changes.
 - **Privacy.** Sign-in holds nothing beyond the iD and a display name. The only other personal
   data held about a person is what they choose to keep in a project from their own public ORCID
   record, which they may withdraw from agents but which stays in the project's log
-  ([Projects](projects.md), invariant 22). Retention of personal data the app holds about its
+  ([Projects](projects.md), invariant 27). Retention of personal data the app holds about its
   users is TODO(#156).
 - **Availability.** Sessions are held in the app's memory, which suits one server process:
   restarting the app signs everyone out.

@@ -61,8 +61,20 @@ _STOP = frozenset(
 )
 
 
+def fold(token: str) -> str:
+    """A plural as its singular, so that "science" finds a record that says only "sciences"
+    (#741). A light rule rather than a stemmer: `-ies` to `-y`, and a final `s` dropped unless
+    the word ends in `ss`, `us` or `is`. Queries and records fold alike, so a word it gets wrong
+    (`series` to `serie`) still matches itself."""
+    if len(token) > 4 and token.endswith("ies"):
+        return token[:-3] + "y"
+    if len(token) > 3 and token.endswith("s") and not token.endswith(("ss", "us", "is")):
+        return token[:-1]
+    return token
+
+
 def tokenise(text: str) -> list[str]:
-    return [t for t in _TOKEN.findall(text.lower()) if t not in _STOP and len(t) > 1]
+    return [fold(t) for t in _TOKEN.findall(text.lower()) if t not in _STOP and len(t) > 1]
 
 
 def _lines(path: Path) -> list[dict[str, object]]:
@@ -201,5 +213,11 @@ class FairsharingSnapshot:
     def snapshot_ref(self) -> SnapshotRef:
         return _ref("fairsharing", self.path)
 
+    @cached_property
+    def _by_folded_id(self) -> dict[str, DatabaseRecord]:
+        return {fid.casefold(): r for fid, r in self.records.items()}
+
     def fetch(self, fairsharing_id: str) -> DatabaseRecord | None:
-        return self.records.get(fairsharing_id)
+        """Ignoring case, as FAIRsharing resolves its identifiers: re3data cites ESS-DIVE's
+        record as FAIRsharing.d6pe1f, which FAIRsharing writes FAIRsharing.d6Pe1f."""
+        return self.records.get(fairsharing_id) or self._by_folded_id.get(fairsharing_id.casefold())

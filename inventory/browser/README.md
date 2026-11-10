@@ -11,11 +11,12 @@ the contract's class schema before a project keeps it ([Projects](../../docs/spe
 
 | Module | Gives |
 | --- | --- |
-| `types` | `FileInventory`, `InventoryFile`, `TableField`, `IdentificationMethod`, with the contract's slot names |
+| `types` | `FileInventory`, `InventoryFile`, `TableField`, `IdentificationMethod`, `FileRole`, with the contract's slot names |
 | `parse` | `parseInventory(text)`, `asInventory(value)` and `looksLikeInventory(text)`; `NotAnInventory` says in a sentence what is wrong |
 | `summary` | `summarise(inventory)`: totals, formats by media type, how formats were identified, ambiguous and unrecognised files, tables, limitations |
 | `tree` | `folderTree(files)`: the files as folders, each with its file count and size |
 | `omit` | `omit(inventory, omission)`: the inventory without the files, folders and columns a researcher left out, with one limitation that counts them and names none; `countOmitted`, `describeOmitted`, `isOmitted` |
+| `edit` | The edit model: an `InventoryEdits` value says what a researcher left out and what they stated (a file's description, role and, where the command could not tell, format; a column's description). `edit(base, edits, action)` makes the next value and keeps only real changes, `applyEdits(base, edits)` writes them in (omitting with `omit`), `countEdits` and `describeEdits` say how much changed, `diffInventories` compares two scans, and `carryOver(previous, rescan)` states again on a new scan what was said before, by path. What the command observed is never edited |
 | `search` | `searchFiles(files, query)`: by path, media type, PRONOM identifier or column name |
 | `format` | `formatBytes`, `formatFileCount`, `formatDate`, `describeInventory`, `identificationLabel`, `pronomUrl` |
 | `making` | `MAKING_AN_INVENTORY`, how to make an inventory on each operating system, and `systemFromPlatform(platform)` |
