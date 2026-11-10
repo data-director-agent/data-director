@@ -124,6 +124,24 @@ def update_env(path: Path, updates: dict[str, str], header: str) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def remove_env(path: Path, names: Iterable[str]) -> bool:
+    """Remove each of `names` from `path`, keeping every other line as it was. Whether any was."""
+    if not path.is_file():
+        return False
+    drop = set(names)
+    lines = path.read_text(encoding="utf-8").splitlines()
+    kept = [
+        raw
+        for raw in lines
+        if raw.lstrip().startswith("#")
+        or raw.strip().removeprefix("export ").partition("=")[0].strip() not in drop
+    ]
+    if len(kept) == len(lines):
+        return False
+    path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    return True
+
+
 def _without_key(path: Path) -> dict[str, str]:
     """The settings in `path`, which every agent reads, so it may hold no model key (docs/specs/policy-and-identity.md)."""
     found = read_env(path)

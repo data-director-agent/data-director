@@ -24,7 +24,7 @@ from ddtool import (  # noqa: E402
     paths,
     secret,
 )
-from ddtool.setup import Prompter, mask, setup  # noqa: E402
+from ddtool.setup import DB_LOCATION, Prompter, mask, setup  # noqa: E402
 
 KEY = "sk-ant-test-0123456789abcd"
 
@@ -52,14 +52,14 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def scripted(*answers: str, asked: list[str] | None = None) -> Prompter:
-    """A prompter that gives `answers` in order, to questions and secrets alike, and records each
-    question in `asked`."""
+    """A prompter that gives `answers` in order, to questions and secrets alike, then presses Enter
+    to each question after them, and records each question in `asked`."""
     queue: Iterator[str] = iter(answers)
     log = [] if asked is None else asked
 
     def answer(question: str) -> str:
         log.append(question)
-        return next(queue)
+        return next(queue, "")
 
     return Prompter(ask=answer, ask_secret=answer)
 
@@ -198,6 +198,53 @@ def test_a_rerun_keeps_the_key_and_other_lines(repo: Path) -> None:
     setup(scripted("", "", "", "n", "n", "", asked=asked), install=False)
     assert own.read_text() == text
     assert any(mask(KEY) in q for q in asked) and not any(KEY in q for q in asked)
+
+
+def test_runs_and_projects_stay_in_files_by_default(repo: Path) -> None:
+    setup(Prompter(accept_defaults=True), install=False)
+    app = common.read_env(repo / "config" / "local" / "app.env")
+    assert not {"DD_RUNS_DIR", "DD_PROJECTS_DIR", "PGPASSFILE"} & app.keys()
+    assert not (repo / "config" / "local" / "credentials" / "pgpass").exists()
+
+
+def test_postgresql_gets_a_password_file_and_locations_without_a_password(repo: Path) -> None:
+    # Principal, model key, FAIRsharing login, then PostgreSQL.
+    setup(scripted("", "", "", "", "y"), install=False)
+    local = repo / "config" / "local"
+    credentials = local / "credentials"
+    password = (credentials / "postgres-password").read_text().strip()
+    assert len(password) >= 32
+    assert (credentials / "pgpass").read_text() == f"*:*:dd:dd:{password}\n"
+    for path in (credentials / "postgres-password", credentials / "pgpass", local / "app.env"):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    app = common.read_env(local / "app.env")
+    assert app["DD_RUNS_DIR"] == app["DD_PROJECTS_DIR"] == DB_LOCATION == "postgresql://dd@/dd"
+    assert (app["PGHOST"], app["PGPORT"]) == ("localhost", "5432")
+    assert app["PGPASSFILE"] == str(credentials / "pgpass")
+    assert password not in (local / "app.env").read_text()
+
+    # A rerun asks with yes as the default, and keeps the password the database started with.
+    asked: list[str] = []
+    setup(scripted(asked=asked), install=False)
+    assert any("PostgreSQL" in q and "[Y/n]" in q for q in asked)
+    assert (credentials / "postgres-password").read_text().strip() == password
+    assert common.read_env(local / "app.env")["DD_RUNS_DIR"] == DB_LOCATION
+
+    # No puts the app back on files, and keeps the password for the volume.
+    setup(scripted("", "", "", "", "n"), install=False)
+    app = common.read_env(local / "app.env")
+    assert not {"DD_RUNS_DIR", "DD_PROJECTS_DIR", "PGHOST", "PGPORT", "PGPASSFILE"} & app.keys()
+    assert app["DD_PRINCIPAL_ID"] == common.EXAMPLE_PRINCIPAL["DD_PRINCIPAL_ID"]
+    assert (credentials / "postgres-password").read_text().strip() == password
+
+
+def test_removing_settings_keeps_comments_and_other_lines(tmp_path: Path) -> None:
+    path = tmp_path / "app.env"
+    path.write_text("# DD_RUNS_DIR=/old\nA=1\nexport DD_RUNS_DIR=x\nB=2\n")
+    assert common.remove_env(path, ["DD_RUNS_DIR"])
+    assert path.read_text() == "# DD_RUNS_DIR=/old\nA=1\nB=2\n"
+    assert not common.remove_env(path, ["DD_RUNS_DIR"])
+    assert not common.remove_env(tmp_path / "missing.env", ["A"])
 
 
 @pytest.mark.parametrize(

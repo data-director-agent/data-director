@@ -3,7 +3,8 @@
 # because the app does not authenticate callers. Settings are read from config/local/, which
 # `uv run scripts/dd.py setup` creates, as in deployment. Set DD_APP_HOST_PORT, DD_WEB_HOST_PORT or
 # DD_WORKBENCH_HOST_PORT in the shell if a port is taken. The agents are reached only inside the
-# network.
+# network. Runs and projects are kept in volumes unless config/local/app.env names a
+# postgresql:// location; the `postgres` profile runs that database (README.md).
 
 x-python: &python
   build:
@@ -18,6 +19,14 @@ x-python: &python
     DD_AGENTS_CONFIG: /workspace/docker/agents.yaml
     # Where a relative *_FILE is read from, as under systemd (docs/specs/policy-and-identity.md).
     CREDENTIALS_DIRECTORY: /workspace/config/local/credentials
+
+# Where libpq finds the `db` service and its password file inside the stack. `dd.py setup` writes
+# the host's own values to config/local/app.env, which these override, so that file serves
+# `dd.py start` on the host as well. A location never carries a password (docs/specs/storage.md).
+x-postgres-env: &postgres-env
+  PGHOST: db
+  PGPORT: "5432"
+  PGPASSFILE: /workspace/config/local/credentials/pgpass
 
 x-agent: &agent
   <<: *python
@@ -68,6 +77,40 @@ x-agents-healthy: &agents-healthy
     condition: service_healthy
 
 services:
+  # The database runs and projects are kept in when config/local/app.env names it: opt-in, with
+  # `docker compose --profile postgres up`, after `dd.py setup` has written its password. The
+  # major version CI tests against (.github/workflows/ci.yml).
+  db:
+    image: postgres:17@sha256:ff87138949ad9a46f32ff23bd6852b52ce024a13dffe9b4087be98292cdd3b4f
+    profiles: [postgres]
+    environment:
+      POSTGRES_USER: dd
+      POSTGRES_DB: dd
+      POSTGRES_PASSWORD_FILE: /credentials/postgres-password
+    volumes:
+      - ./config/local/credentials:/credentials:ro
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD, pg_isready, -U, dd, -d, dd]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    ports: ["127.0.0.1:${DD_DB_HOST_PORT:-5432}:5432"]
+
+  # Applies the schema to `db`, then exits; with nothing to apply, it changes nothing.
+  db-migrate:
+    <<: *python
+    profiles: [postgres]
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    command: uv run --no-sync dd-harness storage migrate postgresql://dd@/dd
+    environment:
+      <<: [*python-env, *postgres-env]
+
   # Installs every workspace package into the venv volume, builds the sources that agents build
   # outside git (dd-sources, sdk/src/dd_sdk/sources.py), then exits. Downloads stay in each
   # source's gitignored cache in the checkout, so they survive the container.
@@ -279,9 +322,15 @@ services:
         condition: service_completed_successfully
       web-build:
         condition: service_completed_successfully
+      # Only with the `postgres` profile; without it, there is nothing to wait for.
+      db-migrate:
+        condition: service_completed_successfully
+        required: false
       <<: *agents-healthy
     command: uv run --no-sync data-director
+    # The volumes below, unless config/local/app.env names other locations.
     env_file:
+      - docker/storage.env
       - path: config/local/app.env
         required: false
     healthcheck:
@@ -294,15 +343,13 @@ services:
       timeout: 5s
       retries: 24
     environment:
-      <<: *python-env
+      <<: [*python-env, *postgres-env]
       DD_APP_HOST: 0.0.0.0
       DD_APP_PORT: "7860"
       DD_HARNESS_URL: http://app:7860
       # `dd.py setup` names the profile it writes by its path on the host; this is the same
       # file where the checkout is mounted.
       DD_PROFILE: /workspace/config/local/profile.yaml
-      DD_RUNS_DIR: /runs
-      DD_PROJECTS_DIR: /projects
     volumes:
       - .:/workspace
       - venv:/venv
@@ -340,17 +387,20 @@ services:
     depends_on:
       deps:
         condition: service_completed_successfully
+      db-migrate:
+        condition: service_completed_successfully
+        required: false
       <<: *agents-healthy
     working_dir: /workspace/workbench
     command: uv run --no-sync workbench serve --host 0.0.0.0 --port 8000
     environment:
-      <<: *python-env
+      <<: [*python-env, *postgres-env]
       DD_HARNESS_URL: http://workbench:8000
       # `dd.py setup` names the profile it writes by its path on the host; this is the same
       # file where the checkout is mounted.
       DD_PROFILE: /workspace/config/local/profile.yaml
-      DD_RUNS_DIR: /runs
     env_file:
+      - docker/storage.env
       - path: config/local/app.env
         required: false
     volumes:
@@ -367,3 +417,4 @@ volumes:
   app-runs:
   app-projects:
   workbench-runs:
+  db-data:
