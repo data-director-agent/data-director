@@ -7,7 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from dd_harness.project_access import Action, Role, allowed, may, role_of, roles
+from dd_harness.project_access import (
+    Action,
+    Role,
+    allowed,
+    may,
+    readable_projects,
+    role_of,
+    roles,
+)
 from dd_harness.projects import ProjectStore
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import Principal
@@ -52,3 +60,20 @@ def test_a_project_that_does_not_exist_gives_no_one_a_role(
 ) -> None:
     assert role_of(projects, project_id, TEST_PRINCIPAL) is None
     assert not may(projects, project_id, TEST_PRINCIPAL, Action.READ)
+
+
+def test_a_principal_may_read_the_projects_they_have_a_role_in(projects: ProjectStore) -> None:
+    mine = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    theirs = projects.create(acted_for=SOMEONE_ELSE, caused_by="test")
+    also_mine = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert readable_projects(projects, TEST_PRINCIPAL) == [mine, also_mine]
+    assert readable_projects(projects, SOMEONE_ELSE) == [theirs]
+
+
+def test_being_named_in_a_project_gives_no_role_in_it(projects: ProjectStore) -> None:
+    """The log finds where to look; the roles in the project's log decide."""
+    theirs = projects.create(acted_for=SOMEONE_ELSE, caused_by="test")
+    # An event acted for someone with no role, which the rules would not have let them cause.
+    projects.start_conversation(theirs, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert projects.project_ids(naming=TEST_PRINCIPAL.principal_id) == [theirs]
+    assert readable_projects(projects, TEST_PRINCIPAL) == []

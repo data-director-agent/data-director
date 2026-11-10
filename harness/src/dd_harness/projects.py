@@ -377,6 +377,11 @@ class Projects:
         """A summary of every project, the one created first first (see `summary`)."""
         return [self.summary(project_id) for project_id in self.log.project_ids()]
 
+    def project_ids(self, *, naming: str | None = None) -> list[str]:
+        """Every project, in the order created; with `naming`, only those whose log has an event
+        that names that `principal_id` (`dd_harness.listing.principals_named`)."""
+        return self.log.project_ids(naming=naming)
+
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one: its latest title and who gave it (`title_source`:
         `researcher`, `model`, or None while it has none), who created it and when, the latest

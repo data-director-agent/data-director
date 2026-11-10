@@ -1066,6 +1066,48 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
     check_fixture("projects.json", normalised_conversation(response.json()))
 
 
+def test_projects_are_paged_most_recently_active_first(in_projects: tuple[Governance, Any]):
+    """`GET /api/projects` pages as the runs and conversations do, and a project worked in while
+    a person pages comes before the first page, not inside a later one (#713)."""
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    made = []
+    for name in ("a.csv", "b.csv", "c.csv"):
+        project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+        store.add_inventory(
+            project_id, a_file_inventory(name), acted_for=TEST_PRINCIPAL, caused_by="test"
+        )
+        made.append(project_id)
+    first, second, third = made
+
+    def ids(response: Any) -> list[str]:
+        return [p["project_id"] for p in response.json()]
+
+    assert ids(client.get("/api/projects")) == [third, second, first]
+    page = client.get("/api/projects?limit=1")
+    assert ids(page) == [third]
+    # The first project is worked in: it moves ahead of the page already read.
+    started = client.post("/api/conversations", json={"project_id": first}).json()
+    assert turn(client, started["conversation_id"], "hello").status_code == 200
+    listed = ids(page)
+    url: str | None = page.links["next"]["url"]
+    while url:
+        page = client.get(url)
+        assert len(page.json()) == 1
+        listed += ids(page)
+        url = page.links.get("next", {}).get("url")
+    assert listed == [third, second]
+    assert ids(client.get("/api/projects")) == [first, third, second]
+    for refused in ("0", "x", "201"):
+        response = client.get(f"/api/projects?limit={refused}")
+        assert response.status_code == 400
+        assert response.json()["type"].endswith("/request-refused")
+    for malformed in ("nonsense", "1.x", f"-1.{first}", f"{'9' * 40}.{first}"):
+        assert client.get(f"/api/projects?before={malformed}").json() == []
+
+
 def test_every_project_route_answers_someone_elses_project_as_one_that_does_not_exist(
     in_projects: tuple[Governance, Any],
 ):

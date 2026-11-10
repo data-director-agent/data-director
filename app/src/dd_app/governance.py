@@ -16,14 +16,14 @@ import re
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_harness import conversations, project_access
 from dd_harness.conductor import Conductor
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
-from dd_harness.listing import Page, Readable
+from dd_harness.listing import Page, Readable, check_limit
 from dd_harness.project_access import Action, Role
 from dd_harness.projects import UnknownProjectError, check_documentation
 from dd_harness.requirements import Requirements, load_requirements
@@ -56,6 +56,10 @@ DOCUMENTATION_ONLY_TEXT = "I have attached a document about my dataset."
 BOTH_ONLY_TEXT = "I have attached an inventory of my dataset's files and a document about it."
 # What `GET /api/projects` says of each conversation in a project.
 LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
+# A cursor of `GET /api/projects`: the last listed project's last activity, in microseconds since
+# the epoch, and its identifier.
+PROJECT_CURSOR = re.compile(rf"(0|[1-9][0-9]{{0,18}})\.({UUID7_PATTERN.strip('^$')})")
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -83,6 +87,21 @@ def _last_active(project: Mapping[str, Any]) -> datetime:
         c.get("last_completed_at") or c["started_at"] for c in project["conversations"]
     ]
     return max(datetime.fromisoformat(t) for t in times if t)
+
+
+def _project_key(project: Mapping[str, Any]) -> tuple[int, str]:
+    """Where a project is listed: by when it was last worked in, then by its identifier, both
+    descending. A cursor names this key."""
+    return (_last_active(project) - _EPOCH) // timedelta(microseconds=1), project["project_id"]
+
+
+def _project_cursor(before: str | None) -> tuple[int, str] | None:
+    """The key a page of projects ends before: None, before nothing, with no cursor. A malformed
+    cursor ends before everything, so it names an empty page."""
+    if before is None:
+        return None
+    match = PROJECT_CURSOR.fullmatch(before)
+    return (int(match.group(1)), match.group(2)) if match else (-1, "")
 
 
 class UnknownConversationError(LookupError):
@@ -368,8 +387,9 @@ class Governance:
     # by the principal it acted for. Ownership is read from what the run store and the project logs
     # already record, never from a second record that could disagree with them. A delegated child
     # carries its parent's `acting_for` and `project_id`, so it belongs where its parent does.
-    # The run store lists what a reader may read (`readable`); finding the projects they may read
-    # reads every project's log, TODO(#713).
+    # The run store lists what a reader may read (`readable`), and the project log finds the
+    # projects they may read from an index (`project_access.readable_projects`), so neither reads
+    # more than the reader's own work.
 
     def role(self, project_id: str, principal: Principal) -> Role | None:
         """`principal`'s role in the project `project_id`, as the harness's access check reads it
@@ -411,17 +431,14 @@ class Governance:
         )
         return first is not None and self.may_read_run(first, reader)
 
-    def readable(self, reader: Principal, projects: list[dict[str, Any]] | None = None) -> Readable:
+    def readable(self, reader: Principal) -> Readable:
         """What the run store lists for `reader`: runs in the projects they may read, and runs in
-        no project that acted for them. `projects` are the project summaries, if already read."""
+        no project that acted for them."""
         if self.projects is None:
             return Readable(reader.principal_id, None)
-        summaries = self.projects.projects() if projects is None else projects
         return Readable(
             reader.principal_id,
-            frozenset(
-                s["project_id"] for s in summaries if self.may_read_project(s["project_id"], reader)
-            ),
+            frozenset(project_access.readable_projects(self.projects, reader)),
         )
 
     def conversations(
@@ -433,16 +450,23 @@ class Governance:
             self.conductor.store, readable=self.readable(reader), limit=limit, before=before
         )
 
-    def projects_for(self, principal: Principal) -> list[dict[str, Any]]:
-        """The projects `principal` may read, most recently active first (`GET /api/projects`):
-        each project's summary, with the conversations started in it that have a turn, most
-        recent first, so that the shell can name a project the app created untitled. A project
-        with nothing in it yet (no conversation with a turn, no inventory and no document) is not
-        listed, as a conversation with no turn is not."""
+    def projects_for(
+        self, principal: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
+    ) -> Page:
+        """A page of the projects `principal` may read, most recently active first
+        (`GET /api/projects`): each project's summary, with the conversations started in it that
+        have a turn, most recent first, so that the shell can name a project the app created
+        untitled. A project with nothing in it yet (no conversation with a turn, no inventory and
+        no document) is not listed, as a conversation with no turn is not.
+
+        Only the reader's own projects are read, never every project in the store. A cursor names
+        the last project of a page by when it was last worked in, so a project worked in while
+        a person pages comes before the first page, not inside a later one; a malformed cursor
+        names an empty page."""
+        check_limit(limit)
         if self.projects is None:
-            return []
-        summaries = self.projects.projects()
-        readable = self.readable(principal, summaries)
+            return Page([])
+        readable = self.readable(principal)
         by_project: dict[str, list[dict[str, Any]]] = {}
         for c in self._every_conversation(readable):
             if c.get("project_id"):
@@ -450,10 +474,9 @@ class Governance:
                     {key: c.get(key) for key in LISTED_CONVERSATION}
                 )
         found = []
-        for summary in summaries:
-            if summary["project_id"] not in (readable.project_ids or ()):
-                continue
-            listed = by_project.get(summary["project_id"], [])
+        for project_id in sorted(readable.project_ids or ()):
+            summary = self.projects.summary(project_id)
+            listed = by_project.get(project_id, [])
             if (
                 not listed
                 and summary["inventory"] is None
@@ -461,8 +484,16 @@ class Governance:
             ):
                 continue
             found.append({**summary, "conversations": listed})
-        found.sort(key=_last_active, reverse=True)
-        return found
+        end = _project_cursor(before)
+        keyed = sorted(
+            ((_project_key(p), p) for p in found if end is None or _project_key(p) < end),
+            key=lambda pair: pair[0],
+            reverse=True,
+        )
+        page = keyed[: limit + 1]
+        more = len(page) > limit
+        last = page[limit - 1][0] if more else None
+        return Page([p for _, p in page[:limit]], f"{last[0]}.{last[1]}" if last else None)
 
     def _every_conversation(self, readable: Readable) -> list[dict[str, Any]]:
         """Every conversation `readable` includes, most recently active first, read a page at a

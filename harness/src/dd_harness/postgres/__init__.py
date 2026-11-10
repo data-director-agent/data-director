@@ -19,7 +19,10 @@ wait on one another. It stores and reads, and decides nothing: the project rules
 Listing runs and conversations reads one page from an index, whatever the size of the store
 (docs/specs/storage.md, "Listing"). `conversation_index` holds a row per conversation, written in
 the transaction that stores each turn. `runs_query` and `conversations_query` build the SQL a
-listing runs, so a test can ask the database how it plans it.
+listing runs, so a test can ask the database how it plans it. `project_principals` holds a row for
+each principal a project's events name, written in the transaction that appends them, so the
+projects a person may read are found from an index (`projects_naming_query`), not by reading
+every log.
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ from dd_harness.listing import (
     paged,
     position,
     principal_of,
+    principals_named,
 )
 from dd_harness.settings import SettingsError, redact_location
 from dd_harness.store import DIGEST, RUN_ID, artifact_segments
@@ -525,14 +529,28 @@ class PostgresProjectLog:
         self._conversations[conversation_id] = project_id
         return project_id
 
-    def project_ids(self) -> list[str]:
+    def project_ids(self, *, naming: str | None = None) -> list[str]:
         with _connect(self._location) as conn:
-            rows = conn.execute("select project_id from projects order by created").fetchall()
+            if naming is None:
+                rows = conn.execute("select project_id from projects order by created").fetchall()
+            else:
+                query, params = projects_naming_query(naming)
+                rows = conn.execute(query, params).fetchall()
         return [project_id for (project_id,) in rows]
 
     def where(self) -> str:
         """The database, without a credential."""
         return self._where
+
+
+def projects_naming_query(principal_id: str) -> tuple[str, dict[str, Any]]:
+    """The SQL `project_ids(naming=…)` runs, and its parameters: the projects whose events name
+    the principal, in the order created, read from `project_principals`."""
+    return (
+        "select p.project_id from project_principals n join projects p using (project_id)"
+        " where n.principal_id = %(principal)s order by p.created",
+        {"principal": principal_id},
+    )
 
 
 def _exists(conn: psycopg.Connection[Any], project_id: str) -> bool:
@@ -563,4 +581,9 @@ def _append(conn: psycopg.Connection[Any], project_id: str, events: list[dict[st
                 )
                 for event in events
             ],
+        )
+        cur.executemany(
+            "insert into project_principals (principal_id, project_id) values (%s, %s)"
+            " on conflict do nothing",
+            sorted({(named, project_id) for e in events for named in principals_named(e)}),
         )

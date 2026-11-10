@@ -19,7 +19,7 @@ from urllib.parse import quote
 
 import pytest
 
-from dd_harness.listing import Readable, scan_conversations, scan_runs
+from dd_harness.listing import Readable, principals_named, scan_conversations, scan_runs
 from dd_harness.projects import Projects
 from dd_harness.settings import SettingsError, project_storage, run_storage
 from dd_harness.storage import ProjectLog, ProjectStorage, RunStorage
@@ -266,16 +266,21 @@ def test_the_conductor_keeps_a_run_whole_in_the_database(locate: Locate) -> None
     assert [e["invocation_id"] for e in store.iter_envelopes()] == [env.invocation_id]
 
 
-def _at_version_one(location: str) -> None:
-    """Apply the first migration alone, as a database made before listing was indexed."""
-    _version, name, script = postgres.migrations()[0]
+def _at_version(location: str, version: int) -> None:
+    """Apply the first `version` migrations alone, as a database made before the rest."""
     with psycopg.connect(location) as conn, conn.transaction():
         conn.execute(
             "create table dd_schema (version integer primary key, name text not null,"
             " applied_at timestamptz not null default now())"
         )
-        conn.execute(script.encode())
-        conn.execute("insert into dd_schema (version, name) values (1, %s)", (name,))
+        for number, name, script in postgres.migrations()[:version]:
+            conn.execute(script.encode())
+            conn.execute("insert into dd_schema (version, name) values (%s, %s)", (number, name))
+
+
+def _at_version_one(location: str) -> None:
+    """Apply the first migration alone, as a database made before listing was indexed."""
+    _at_version(location, 1)
 
 
 # A store large enough that reading it whole would show in a plan: runs in many conversations,
@@ -363,3 +368,93 @@ def test_a_listing_reads_a_page_not_the_store(blank: Locate, listing: str) -> No
             )
             ways_in = 1 if readable is None or readable.project_ids is None else len(projects) + 1
             assert read <= (limit + 1) * ways_in, (read, nodes)
+
+
+# Many projects, as stored before the projects a principal may read were indexed: each created by
+# one of 500 principals, and every seventh with an event acted for another.
+MANY_PROJECTS = (
+    """
+insert into projects (project_id)
+select 'project-' || i from generate_series(1, %(projects)s) as i
+""",
+    """
+insert into project_events (project_id, event)
+select 'project-' || i, json_build_object(
+    'event', 'project_created', 'project_id', 'project-' || i,
+    'acted_for', json_build_object('principal_id', 'principal-' || (i %% 500))
+)
+from generate_series(1, %(projects)s) as i
+""",
+    """
+insert into project_events (project_id, event, started_conversation)
+select 'project-' || i, json_build_object(
+    'event', 'conversation_started', 'project_id', 'project-' || i,
+    'conversation_id', 'conversation-' || i,
+    'acted_for', json_build_object('principal_id', 'principal-' || ((i + 1) %% 500))
+), 'conversation-' || i
+from generate_series(1, %(projects)s) as i where i %% 7 = 0
+""",
+)
+
+
+def _store_many_projects(location: str, projects: int) -> None:
+    with psycopg.connect(location) as conn:
+        for statement in MANY_PROJECTS:
+            conn.execute(statement, {"projects": projects})
+
+
+def _named_by_scan(location: str, principal_id: str) -> list[str]:
+    """The projects whose events name `principal_id`, in the order created, found by reading
+    every event."""
+    with psycopg.connect(location) as conn:
+        rows = conn.execute(
+            "select project_id, event from project_events join projects using (project_id)"
+            " order by created, seq"
+        ).fetchall()
+    found: list[str] = []
+    for project_id, event in rows:
+        if principal_id in principals_named(event) and project_id not in found:
+            found.append(project_id)
+    return found
+
+
+def test_migrating_indexes_the_projects_already_stored(blank: Locate) -> None:
+    """Projects stored before the principals they name were indexed are found after the migration
+    as they would have been since."""
+    location = blank("projects")
+    _at_version(location, 2)
+    _store_many_projects(location, 2000)
+    assert postgres.migrate(location) == [name for _, name, _ in postgres.migrations()[2:]]
+    log = postgres.PostgresProjectLog(location)
+    for principal_id in ("principal-7", "principal-8", "principal-499"):
+        found = log.project_ids(naming=principal_id)
+        assert found
+        assert found == _named_by_scan(location, principal_id)
+
+
+def test_finding_a_principals_projects_reads_theirs_not_the_store(blank: Locate) -> None:
+    """Finding the projects whose events name a principal reads index entries in proportion to
+    their projects, never to the number of projects in the store (docs/specs/storage.md,
+    "Listing")."""
+    location = blank("projects")
+    _at_version(location, 2)
+    _store_many_projects(location, 20000)
+    postgres.migrate(location)
+    with psycopg.connect(location, autocommit=True) as conn:
+        conn.execute("analyze")
+    log = postgres.PostgresProjectLog(location)
+    found = log.project_ids(naming="principal-7")
+    assert found
+    sql, params = postgres.projects_naming_query("principal-7")
+    with psycopg.connect(location) as conn:
+        row = conn.execute(f"explain (analyze, format json) {sql}", params).fetchone()
+    assert row is not None
+    nodes = list(_scans(row[0][0]["Plan"]))
+    tables = [n for n in nodes if n.get("Relation Name")]
+    assert tables, "the plan reads no table"
+    assert not [n for n in tables if n["Node Type"] == "Seq Scan"], tables
+    read = sum(
+        (n["Actual Rows"] + n.get("Rows Removed by Filter", 0)) * n["Actual Loops"] for n in tables
+    )
+    # The principal's index entries, and each of their projects' rows once.
+    assert read <= 2 * len(found), (read, nodes)

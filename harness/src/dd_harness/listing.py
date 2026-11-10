@@ -14,6 +14,10 @@ position 0, before everything, and names an empty page (invariant 8).
 project by whoever may read the project, and a run in no project by the principal it acted for. A
 conversation is judged on its first turn, a delegated child by its own envelope, which carries its
 parent's `acting_for` and `project_id`.
+
+Which projects a reader may read is found the same way, from what is stored: a project log indexes
+the principals each event names (`principals_named`), and `dd_harness.project_access` judges each
+project it finds from the project's log.
 """
 
 from __future__ import annotations
@@ -58,6 +62,16 @@ def principal_of(envelope: dict[str, Any]) -> str | None:
     acting_for = envelope.get("acting_for") or {}
     found = acting_for.get("principal_id")
     return str(found) if found else None
+
+
+def principals_named(event: dict[str, Any]) -> frozenset[str]:
+    """The `principal_id` of each principal a project event names: whom it acted for, so the
+    creator of a project is named by its `project_created` event. TODO(#389): the member a
+    membership event adds, removes or changes the role of is named here too, so a project log
+    finds a member's projects as it finds a creator's."""
+    acted_for = event.get("acted_for") or {}
+    found = acted_for.get("principal_id")
+    return frozenset({str(found)}) if found else frozenset()
 
 
 def run_summary(envelope: dict[str, Any]) -> dict[str, Any]:

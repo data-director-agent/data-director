@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from dd_harness.listing import principals_named
 from dd_sdk.contract.models import UUID7_PATTERN
 
 EVENTS_NAME = "events.jsonl"
@@ -129,11 +130,19 @@ class FileProjectLog:
                     return project_id
         return None
 
-    def project_ids(self) -> list[str]:
+    def project_ids(self, *, naming: str | None = None) -> list[str]:
         # UUIDv7s sort by the time they were made, so this is the order the projects were created.
-        return sorted(
+        found = sorted(
             path.name for path in self.root.iterdir() if path.is_dir() and self.exists(path.name)
         )
+        if naming is None:
+            return found
+        # The file backend has no index: it reads every log (docs/specs/storage.md).
+        return [
+            project_id
+            for project_id in found
+            if any(naming in principals_named(event) for event in self.events(project_id))
+        ]
 
     def _require(self, project_id: str) -> None:
         if not self.exists(project_id):

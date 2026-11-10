@@ -126,7 +126,10 @@ conversations a page at a time, for the reader allowed to see them (`dd_harness.
 - **Reader.** A `Readable` names a principal and the projects they may read: a run in one of those
   projects is included, and a run in no project if it acted for the principal. A conversation is
   judged on its first turn. Which projects a person may read is the caller's to decide, from the
-  project log ([Projects](projects.md)); doing that without reading every log is TODO(#713).
+  project log ([Projects](projects.md)): `ProjectStorage.project_ids(naming=…)` finds the projects
+  whose events name the principal (`dd_harness.listing.principals_named`), and
+  `dd_harness.project_access.readable_projects` keeps those in which their role lets them read.
+  The log finds where to look and never decides; the roles are read from each project's own log.
 - **Cursors.** A page names the cursor of the next, or none on the last. A cursor is the stored
   place of the page's last item, opaque to the caller: the next page holds what was stored before
   it, so a run stored while a person pages comes before the first page, not inside a later one.
@@ -134,8 +137,12 @@ conversations a page at a time, for the reader allowed to see them (`dd_harness.
 - **Cost.** The file backend scans `invocations.jsonl` for every page (`scan_runs`,
   `scan_conversations`, which define the answer every backend gives). The PostgreSQL backend reads
   one page from an index, whatever the size of the store (see below).
-- **Over HTTP.** `GET /api/runs` and `GET /api/conversations` in the app, and `/runs` and
-  `/conversations` in the workbench, take `?limit=` (50 unless given, at most 200) and
+- **Projects.** `GET /api/projects` lists a person's projects most recently active first, by
+  their latest conversation's last turn or else their creation, and reads only those projects,
+  never every project in the store. A cursor names the last project of a page by that time and
+  its identifier, so a project worked in while a person pages comes before the first page.
+- **Over HTTP.** `GET /api/runs`, `GET /api/conversations` and `GET /api/projects` in the app, and
+  `/runs` and `/conversations` in the workbench, take `?limit=` (50 unless given, at most 200) and
   `?before=`, answer the page's items as a JSON list, and name the next page in a `Link` header
   with `rel="next"` (`dd_harness.transport.paging`).
 
@@ -214,7 +221,11 @@ connection's `search_path`, which a location may choose with
   `select … for no key update`: sections of one project exclude one another, and keeping a blob,
   whose foreign key takes a weaker lock on the same row, is not held up by one. Events are in
   `project_events` in the order of `seq`; a `conversation_started` event's conversation is in an
-  indexed column, so `project_of` is an indexed query. Content is in `project_blobs`.
+  indexed column, so `project_of` is an indexed query. `project_principals` has a row for each
+  principal a project's events name, written in the transaction that appends them, so
+  `project_ids(naming=…)` is an indexed query; the test asks the database for its plan over twenty
+  thousand projects and checks that it reads that principal's entries, not the table. Content is
+  in `project_blobs`.
 - **Documents are `json`, not `jsonb`.** `jsonb` refuses an escaped NUL (`\u0000`), which a
   researcher's text may hold, and does not keep the order of keys. A document is read back as it
   was given; what the backend looks up is copied into a column of its own.
@@ -308,8 +319,9 @@ files.
   every project's log for a conversation it has not found before (a conversation's project, once
   found, is kept, as invariant 12 allows). They are not indexed; a deployment that outgrows a
   scan moves to the database. In the database, listing runs and conversations reads a page from
-  an index ("Listing"), and finding a conversation's project is an indexed query. Listing the
-  projects a person may read reads every project's log in either backend, TODO(#713).
+  an index ("Listing"), and finding a conversation's project, or the projects whose events name a
+  principal, is an indexed query. The file backends find a principal's projects by reading every
+  project's log.
 - **Operations.** A documented and tested backup and restore of the database, and a health check,
   are TODO(#525).
 

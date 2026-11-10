@@ -1056,6 +1056,27 @@ def check_a_log_finds_a_conversation_when_asked(make: MakeProjectLog) -> None:
     assert make("log").project_ids() == [project_id, other]
 
 
+def check_a_log_finds_the_projects_naming_a_principal(make: MakeProjectLog) -> None:
+    """A log finds the projects whose events name a principal, in the order created, from the
+    moment the event is stored, by any log over the record (docs/specs/storage.md, "Listing")."""
+    first = make("log")
+    someone = {"principal_id": "https://orcid.org/0000-0000-0000-0002", "name": "Someone"}
+    mine, theirs, joined = (new_invocation_id() for _ in range(3))
+    first.create(mine, _log_event(mine, PROJECT_CREATED))
+    first.create(theirs, _log_event(theirs, PROJECT_CREATED, acted_for=someone))
+    first.create(joined, _log_event(joined, PROJECT_CREATED, acted_for=someone))
+    me = TEST_PRINCIPAL.principal_id
+    assert first.project_ids(naming=me) == [mine]
+    # An event in another section, by another log, that names the principal.
+    with make("log").section(joined) as section:
+        section.append([_log_event(joined, "check_event"), _log_event(joined, "check_event")])
+    for log in (first, make("log")):
+        assert log.project_ids(naming=me) == [mine, joined]
+        assert log.project_ids(naming=someone["principal_id"]) == [theirs, joined]
+        assert log.project_ids(naming="https://orcid.org/0000-0000-0000-0003") == []
+        assert log.project_ids() == [mine, theirs, joined]
+
+
 def check_a_malformed_project_name_names_nothing(make: MakeProjectLog) -> None:
     log = make("log")
     project_id = _new_project(log)
@@ -1080,6 +1101,9 @@ PROJECT_LOG_CHECKS: dict[str, Callable[[MakeProjectLog], None]] = {
     ),
     "a log keeps content once by digest": check_a_log_keeps_content_once_by_digest,
     "a log finds a conversation when asked": check_a_log_finds_a_conversation_when_asked,
+    "a log finds the projects naming a principal": (
+        check_a_log_finds_the_projects_naming_a_principal
+    ),
     "a malformed project name names nothing": check_a_malformed_project_name_names_nothing,
 }
 

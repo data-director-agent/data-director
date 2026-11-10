@@ -9,6 +9,11 @@ Today the log makes one owner, the principal who created the project (`project_c
 membership events that add members, change roles and remove them are TODO(#389): they extend
 `roles`, and nothing that calls `may` changes.
 
+`readable_projects` answers which projects a principal may read without reading every log: the
+project log finds the projects whose events name the principal from an index
+(`ProjectStorage.project_ids(naming=…)`), and `roles` judges each from its own log. What the index
+finds is only where to look, never an answer: a principal it names may since have lost their role.
+
 A caller that refuses a principal with no role answers as for a project that does not exist, so
 that a refusal does not reveal whether it does; one that refuses a member an owner's action says
 so (docs/specs/projects.md, invariant 17).
@@ -78,3 +83,13 @@ def role_of(store: ProjectStorage, project_id: str, principal: Principal) -> Rol
 def may(store: ProjectStorage, project_id: str, principal: Principal, action: Action) -> bool:
     """Whether `principal` may take `action` in the project `project_id`."""
     return allowed(role_of(store, project_id, principal), action)
+
+
+def readable_projects(store: ProjectStorage, principal: Principal) -> list[str]:
+    """The projects `principal` may read, in the order created. Reads the logs of the projects
+    whose events name them, never every project's (docs/specs/storage.md, "Listing")."""
+    return [
+        project_id
+        for project_id in store.project_ids(naming=principal.principal_id)
+        if allowed(roles(store.events(project_id)).get(principal.principal_id), Action.READ)
+    ]

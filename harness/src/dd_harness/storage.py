@@ -187,6 +187,12 @@ class ProjectStorage(Protocol):
         """A summary of every project, in the order created."""
         ...
 
+    def project_ids(self, *, naming: str | None = None) -> list[str]:
+        """Every project, in the order created; with `naming`, only those whose log has an event
+        that names that `principal_id` (`dd_harness.listing.principals_named`). Who may read a
+        project is `dd_harness.project_access`'s to judge, from among these."""
+        ...
+
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one."""
         ...
@@ -399,7 +405,8 @@ class ProjectLog(Protocol):
        by its digest alone.
     4. `project_of`, `project_ids` and every other read answer from what is stored when asked.
        Only what can never change, such as a conversation's project once recorded, may be
-       cached.
+       cached. `project_ids(naming=…)` finds a project by any event that names the principal
+       (`dd_harness.listing.principals_named`), from the moment that event is stored.
     5. A malformed `project_id` or digest names nothing: `exists` is False, `blob` None, and
        `events` and `section` raise `KeyError`, as for a project that does not exist.
     """
@@ -434,6 +441,7 @@ class ProjectLog(Protocol):
         None."""
         ...
 
-    def project_ids(self) -> list[str]:
-        """Every project, in the order created."""
+    def project_ids(self, *, naming: str | None = None) -> list[str]:
+        """Every project, in the order created; with `naming`, only those whose log has an event
+        that names that `principal_id`."""
         ...
