@@ -38,8 +38,8 @@ comes from a `DD_*` variable or from a default the caller passes to `Settings.fr
 | `DD_PROFILE` | The institutional profile applied to every invocation. |
 | `DD_AGENTS_CONFIG` | The YAML list of agent base URLs. |
 | `DD_SOURCES_CONFIG` | The pinned source copies the source check resolves evidence against, and the re3data export `dd-harness project choose-repository` reads a repository's name and standards from. |
-| `DD_RUNS_DIR` | Where runs are written: a path or a `file://` URL ([Storage](../docs/specs/storage.md)). |
-| `DD_PROJECTS_DIR` | Where project records are kept: a path or a `file://` URL. Only `dd-harness project` and the app need it. |
+| `DD_RUNS_DIR` | Where runs are written: a path or a `file://` URL, or a `postgresql://` URL with the `postgres` extra ([Storage](../docs/specs/storage.md)). |
+| `DD_PROJECTS_DIR` | Where project records are kept: a path or a `file://` URL, or a `postgresql://` URL. Only `dd-harness project` and the app need it. |
 | `DD_REPOSITORIES_DIR` | The requirement sets a chosen repository resolves to: `standards/` and `overrides/` ([Deposit](../docs/specs/deposit.md)). Only `dd-harness project choose-repository` needs it so far. |
 | `DD_PRINCIPAL_ID`, `DD_PRINCIPAL_NAME`, `DD_PRINCIPAL_KIND` | Whom every invocation acts for on a server that signs no one in, and for callers with no request (the CLI, the evaluation). Recorded as `asserted`. |
 | `DD_OIDC_ISSUER`, `DD_OIDC_CLIENT_ID` | The OpenID Connect provider (for example `https://orcid.org`) and the client ID its ID tokens are issued to. Set, every HTTP caller must send one of its ID tokens, and is recorded as `authenticated` ([Policy and identity](../docs/specs/policy-and-identity.md)). It cannot be set beside `DD_PRINCIPAL_ID`. |
@@ -61,6 +61,26 @@ Not yet decided (#57):
 - TODO(#225): one file (e.g. `harness.yaml`) naming the other three and the run directory.
 - TODO(#225): how `sources.yaml` pins a source copy stored outside the repository.
 - TODO(#225): how a steward edits and reviews the profile in a deployment ([Policy and identity](../docs/specs/policy-and-identity.md), #41).
+
+## Keeping runs and projects in PostgreSQL
+
+The file backends are the default, for development and a single host. A deployment that runs
+more than one instance keeps runs and projects in PostgreSQL ([Storage](../docs/specs/storage.md)):
+
+```sh
+pip install 'data-director-harness[postgres]'   # psycopg is an extra; in this workspace, uv sync --all-extras installs it
+export DD_RUNS_DIR=postgresql://dd@db.example/dd DD_PROJECTS_DIR=postgresql://dd@db.example/dd
+dd-harness storage migrate                       # once, and after each upgrade that changes the schema
+```
+
+- A location never carries a password: start-up refuses one that does. libpq reads it from
+  `~/.pgpass`, a service file (`PGSERVICEFILE`) or `PGPASSWORD`.
+- Start-up refuses a database whose schema is not this build's, naming `dd-harness storage
+  migrate`; nothing changes a schema while serving. `dd-harness storage status` prints the
+  version.
+- The harness's tests run the storage conformance kit against a database when
+  `DD_TEST_POSTGRES` names one, such as `postgresql://postgres@localhost/postgres`; each test
+  works in schemas of its own and drops them. Without it they are skipped.
 
 ## Serving the harness
 

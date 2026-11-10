@@ -30,7 +30,7 @@ from dd_harness.identity import OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry
 from dd_harness.remote import RemoteAgent
-from dd_harness.settings import run_storage
+from dd_harness.settings import StorageLocation, run_storage
 from dd_harness.testing.fixtures import PERMISSIVE, TEST_PRINCIPAL
 from dd_harness.transport.a2a import a2a_routes
 from dd_sdk import serve
@@ -102,7 +102,7 @@ def in_process(
 
 
 def make_conductor(
-    runs_dir: Path,
+    runs_dir: StorageLocation,
     *agents: Agent,
     crate: bool = False,
     remote: bool = True,

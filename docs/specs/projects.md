@@ -60,8 +60,10 @@ intended design, and each part says where it is not built yet.
    the call returns; a read of the log never sees part of an append. A checked change runs in an
    exclusive section for its project, so a change in one project never waits on another
    ([Storage](storage.md), invariants 10 and 11). Enforced in part by
-   `harness/tests/test_projects.py` and the storage conformance kit; in the file backend the
-   section holds within one harness process only (`FileProjectLog.section`).
+   `harness/tests/test_projects.py` and the storage conformance kit. In the file backend the
+   section holds within one harness process only (`FileProjectLog.section`); in the PostgreSQL
+   backend it holds across processes and hosts (`PostgresProjectLog.section`,
+   `harness/tests/test_postgres.py`).
 3. **What the store refuses leaves no trace.** An inventory that fails the `FileInventory` class
    schema, or a call on an unknown project, records nothing and keeps no blob
    (`harness/tests/test_projects.py`).

@@ -15,7 +15,8 @@ Import everything from here; the modules are an internal arrangement:
 - `storage`: `check_run_storage`, `check_project_log` and `check_project_rules`, the conformance
   checks any storage backend must pass, and `check_project_storage`, which the last runs over the
   project rules (docs/specs/storage.md); each check is also named in `RUN_STORAGE_CHECKS`,
-  `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS`.
+  `PROJECT_LOG_CHECKS` and `PROJECT_STORAGE_CHECKS`. `check_shared_record` (`SHARED_RECORD_CHECKS`)
+  holds two logs over one record to one another, which a backend serving several instances passes.
 
 Nothing here needs the workbench (docs/specs/system.md) or knows about any real agent.
 """
@@ -72,10 +73,12 @@ from dd_harness.testing.storage import (
     PROJECT_LOG_CHECKS,
     PROJECT_STORAGE_CHECKS,
     RUN_STORAGE_CHECKS,
+    SHARED_RECORD_CHECKS,
     check_project_log,
     check_project_rules,
     check_project_storage,
     check_run_storage,
+    check_shared_record,
     file_inventory,
 )
 
@@ -87,6 +90,7 @@ __all__ = [
     "PROJECT_STORAGE_CHECKS",
     "RESTRICTIVE",
     "RUN_STORAGE_CHECKS",
+    "SHARED_RECORD_CHECKS",
     "SOURCE_A",
     "SOURCE_B",
     "SPECS",
@@ -110,6 +114,7 @@ __all__ = [
     "check_project_rules",
     "check_project_storage",
     "check_run_storage",
+    "check_shared_record",
     "claim",
     "document_request",
     "fact_check_over",

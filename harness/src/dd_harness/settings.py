@@ -16,11 +16,13 @@ console-script entry calls it; `Settings.from_env()` reads the real environment 
 
 from __future__ import annotations
 
+import importlib
 import os
-from collections.abc import Iterable, MutableMapping
+from collections.abc import Callable, Iterable, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlsplit
+from types import ModuleType
+from urllib.parse import parse_qsl, urlsplit, urlunsplit
 from urllib.request import url2pathname
 
 from dotenv import dotenv_values
@@ -35,7 +37,7 @@ from dd_harness.identity import (
     OperatorAssertion,
 )
 from dd_harness.policy import load_profile
-from dd_harness.projects import ProjectStore
+from dd_harness.projects import Projects, ProjectStore
 from dd_harness.registry import Registered, Registry
 from dd_harness.sources import Sources
 from dd_harness.storage import ProjectStorage, RunStorage
@@ -74,13 +76,20 @@ def _path(variable: str, default: Path | None) -> Path:
 
 
 # The schemes a storage location may name in this build (docs/specs/storage.md). A location with no
-# scheme is a path; both mean the file backends.
-STORAGE_SCHEMES = ("file",)
+# scheme is a path; it and `file://` mean the file backends, and `postgresql://` the PostgreSQL one.
+STORAGE_SCHEMES = ("file", "postgresql")
+POSTGRES = "postgresql"
+
+# Where runs or projects are kept: a directory for the file backends, or a `postgresql://` URL.
+type StorageLocation = Path | str
 
 
-def storage_location(location: Path | str, variable: str = "a storage location") -> Path:
-    """The directory a storage location names: a path, or a `file://` URL. Raises `SettingsError`
-    for any other scheme, naming the ones this build supports."""
+def storage_location(
+    location: StorageLocation, variable: str = "a storage location"
+) -> StorageLocation:
+    """What a storage location names: the directory a path or a `file://` URL names, or a
+    `postgresql://` URL as given. Raises `SettingsError` for any other scheme, naming the ones this
+    build supports, and for a database URL that carries a credential (invariant 13)."""
     if isinstance(location, Path) or "://" not in location:
         return Path(location)
     parsed = urlsplit(location)
@@ -90,36 +99,98 @@ def storage_location(location: Path | str, variable: str = "a storage location")
             f"{variable}: {parsed.scheme}:// storage is not supported by this build; "
             f"name a path or one of {supported} (docs/specs/storage.md)"
         )
+    if parsed.scheme == POSTGRES:
+        query = {key.lower() for key, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+        if parsed.password is not None or "password" in query:
+            raise SettingsError(
+                f"{variable}: {redact_location(location)} carries a password; a location never "
+                "does: give it in libpq's password file, service file or PGPASSWORD "
+                "(docs/specs/storage.md)"
+            )
+        return location
     if parsed.netloc not in ("", "localhost"):
         raise SettingsError(f"{variable}: a file:// URL names no host, not {parsed.netloc!r}")
     return Path(url2pathname(parsed.path))
 
 
-def _storage(variable: str, default: Path | None) -> Path:
+def redact_location(location: StorageLocation) -> str:
+    """A storage location as a person may be shown it: a database URL without its user, password
+    or parameters (docs/specs/storage.md, invariant 13)."""
+    if isinstance(location, Path) or "://" not in location:
+        return str(location)
+    parsed = urlsplit(location)
+    host = parsed.hostname or ""
+    if ":" in host:  # an IPv6 address
+        host = f"[{host}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    netloc = f"{host}:{port}" if port is not None else host
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+
+
+def _storage(variable: str, default: Path | None) -> StorageLocation:
     """The storage location `variable` names, else the caller's default."""
     value = os.environ.get(variable)
     return storage_location(value, variable) if value else _path(variable, default)
 
 
-def run_storage(location: Path | str) -> RunStorage:
-    """The run storage at `location` (`DD_RUNS_DIR`): a path or `file://` URL is the file
-    backend (docs/specs/storage.md)."""
-    return RunStore(storage_location(location))
+def _postgres(variable: str) -> ModuleType:
+    """The PostgreSQL backend, imported only when a location names it, so a deployment on files
+    does not install its driver."""
+    try:
+        return importlib.import_module("dd_harness.postgres")
+    except ImportError as exc:
+        raise SettingsError(
+            f"{variable}: postgresql:// storage needs its driver; install "
+            "data-director-harness[postgres] (docs/specs/storage.md)"
+        ) from exc
 
 
-def project_storage(location: Path | str) -> ProjectStorage:
-    """The project storage at `location` (`DD_PROJECTS_DIR`): a path or `file://` URL is the file
-    backend (docs/specs/storage.md)."""
-    return ProjectStore(storage_location(location))
+def run_storage(location: StorageLocation, variable: str = "DD_RUNS_DIR") -> RunStorage:
+    """The run storage at `location` (`DD_RUNS_DIR`): a path or `file://` URL is the file backend,
+    a `postgresql://` URL the PostgreSQL one (docs/specs/storage.md). A location that cannot be
+    used stops start-up with `SettingsError`."""
+    where = storage_location(location, variable)
+    if isinstance(where, Path):
+        return _on_files(variable, where, RunStore)
+    try:
+        store: RunStorage = _postgres(variable).PostgresRunStore(where)
+    except SettingsError as exc:
+        raise SettingsError(f"{variable} {exc}") from exc
+    return store
 
 
-def projects_dir(default: Path | None = None) -> Path:
+def project_storage(location: StorageLocation, variable: str = "DD_PROJECTS_DIR") -> ProjectStorage:
+    """The project storage at `location` (`DD_PROJECTS_DIR`): the project rules over the file log
+    for a path or `file://` URL, or over the PostgreSQL log for a `postgresql://` URL
+    (docs/specs/storage.md). A location that cannot be used stops start-up with `SettingsError`."""
+    where = storage_location(location, variable)
+    if isinstance(where, Path):
+        return _on_files(variable, where, ProjectStore)
+    try:
+        log = _postgres(variable).PostgresProjectLog(where)
+    except SettingsError as exc:
+        raise SettingsError(f"{variable} {exc}") from exc
+    return Projects(log)
+
+
+def _on_files[S](variable: str, root: Path, backend: Callable[[Path], S]) -> S:
+    try:
+        return backend(root)
+    except OSError as exc:
+        # One line at start-up, like any other setting that is wrong.
+        raise SettingsError(f"{variable} {root} cannot be used: {exc.strerror or exc}") from exc
+
+
+def projects_dir(default: Path | None = None) -> StorageLocation:
     """Where project records are kept: `DD_PROJECTS_DIR`, which has no default
     (docs/specs/projects.md)."""
     return _storage("DD_PROJECTS_DIR", default)
 
 
-def runs_dir(default: Path | None = None) -> Path:
+def runs_dir(default: Path | None = None) -> StorageLocation:
     """Where runs are kept: `DD_RUNS_DIR`, which has no default (docs/specs/storage.md)."""
     return _storage("DD_RUNS_DIR", default)
 
@@ -171,7 +242,8 @@ def principal_from_env() -> Principal:
 
 @dataclass(frozen=True)
 class Settings:
-    runs_dir: Path
+    # A directory, or a `postgresql://` URL (docs/specs/storage.md).
+    runs_dir: StorageLocation
     # The one institutional profile this deployment applies to every invocation
     # (docs/specs/policy-and-identity.md).
     profile: Path
@@ -238,7 +310,7 @@ def build_registry(settings: Settings, agents: Iterable[Registered] = ()) -> Reg
 def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) -> Conductor:
     return Conductor(
         registry=build_registry(settings, agents),
-        store=run_storage(settings.runs_dir),
+        store=run_storage(settings.runs_dir, "DD_RUNS_DIR"),
         profile=load_profile(settings.profile),  # a bad profile stops start-up, not a request
         write_crate=settings.write_crate,
         sources=Sources.from_config(settings.sources_config),

@@ -1,8 +1,10 @@
 """The file backends pass the storage conformance kit (docs/specs/storage.md), and a storage
-location names a backend this build has."""
+location names a backend this build has. The PostgreSQL backend's own tests are in
+`test_postgres.py`."""
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -15,6 +17,7 @@ from dd_harness.settings import (
     SettingsError,
     project_storage,
     projects_dir,
+    redact_location,
     run_storage,
     storage_location,
 )
@@ -25,6 +28,7 @@ from dd_harness.testing import (
     PROJECT_STORAGE_CHECKS,
     RUN_STORAGE_CHECKS,
     check_project_rules,
+    check_shared_record,
 )
 
 
@@ -68,17 +72,63 @@ def test_a_location_is_a_path_or_a_file_url(tmp_path: Path) -> None:
     assert isinstance(project_storage(str(tmp_path / "projects")), ProjectStore)
 
 
-@pytest.mark.parametrize(
-    "location", ["postgresql://db.example/runs", "mongodb://db.example/runs", "s3://bucket/runs"]
-)
+@pytest.mark.parametrize("location", ["mongodb://db.example/runs", "s3://bucket/runs"])
 def test_a_location_naming_another_backend_is_refused_with_those_supported(
     location: str, tmp_path: Path
 ) -> None:
-    with pytest.raises(SettingsError, match=r"not supported by this build.*file://"):
+    with pytest.raises(SettingsError, match=r"not supported by this build.*file://.*postgresql://"):
         run_storage(location)
     with pytest.raises(SettingsError, match="not supported"):
         project_storage(location)
     assert not any(tmp_path.iterdir())
+
+
+def test_a_database_location_is_kept_as_given() -> None:
+    location = "postgresql://db.example:5433/dd?sslmode=require"
+    assert storage_location(location) == location
+
+
+@pytest.mark.parametrize(
+    "location",
+    [
+        "postgresql://someone:hunter2@db.example/dd",
+        "postgresql://someone@db.example/dd?password=hunter2",
+        "postgresql://db.example/dd?sslmode=require&PASSWORD=hunter2",
+    ],
+)
+def test_a_database_location_carrying_a_password_is_refused_without_showing_it(
+    location: str,
+) -> None:
+    with pytest.raises(SettingsError, match="password") as refused:
+        storage_location(location, "DD_RUNS_DIR")
+    assert "hunter2" not in str(refused.value)
+    assert "DD_RUNS_DIR" in str(refused.value)
+
+
+def test_a_location_is_shown_without_its_user_or_parameters(tmp_path: Path) -> None:
+    assert redact_location("postgresql://someone@db.example:5433/dd?sslmode=require") == (
+        "postgresql://db.example:5433/dd"
+    )
+    assert redact_location("postgresql://[::1]/dd") == "postgresql://[::1]/dd"
+    assert redact_location(tmp_path) == str(tmp_path)
+
+
+def test_a_database_location_without_its_driver_names_the_extra(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(sys.modules, "dd_harness.postgres", None)  # as if psycopg were missing
+    with pytest.raises(SettingsError, match=r"DD_RUNS_DIR: .*data-director-harness\[postgres\]"):
+        run_storage("postgresql://db.example/dd")
+    with pytest.raises(SettingsError, match=r"DD_PROJECTS_DIR: .*\[postgres\]"):
+        project_storage("postgresql://db.example/dd")
+
+
+def test_a_directory_that_cannot_be_made_stops_start_up(tmp_path: Path) -> None:
+    (tmp_path / "file").write_text("not a directory")
+    with pytest.raises(SettingsError, match=r"DD_RUNS_DIR .* cannot be used"):
+        run_storage(tmp_path / "file" / "runs")
+    with pytest.raises(SettingsError, match=r"DD_PROJECTS_DIR .* cannot be used"):
+        project_storage(tmp_path / "file" / "projects")
 
 
 def test_a_file_url_with_a_host_is_refused() -> None:
@@ -86,7 +136,7 @@ def test_a_file_url_with_a_host_is_refused() -> None:
         storage_location("file://elsewhere/runs")
 
 
-def test_the_variables_take_a_file_url_and_refuse_another_scheme(
+def test_the_variables_take_a_file_url_or_a_database_and_refuse_another_scheme(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DD_PROJECTS_DIR", (tmp_path / "projects").as_uri())
@@ -97,6 +147,18 @@ def test_the_variables_take_a_file_url_and_refuse_another_scheme(
     monkeypatch.setenv("DD_RUNS_DIR", "mongodb://db.example/runs")
     with pytest.raises(SettingsError, match="DD_RUNS_DIR: mongodb:// storage"):
         Settings.from_env(**given)
-    monkeypatch.setenv("DD_PROJECTS_DIR", "postgresql://db.example/projects")
-    with pytest.raises(SettingsError, match="DD_PROJECTS_DIR: postgresql:// storage"):
+    monkeypatch.setenv("DD_RUNS_DIR", "postgresql://db.example/dd")
+    assert Settings.from_env(**given).runs_dir == "postgresql://db.example/dd"
+    monkeypatch.setenv("DD_PROJECTS_DIR", "postgresql://db.example/dd")
+    assert projects_dir() == "postgresql://db.example/dd"
+    monkeypatch.setenv("DD_PROJECTS_DIR", "postgresql://someone:hunter2@db.example/dd")
+    with pytest.raises(SettingsError, match=r"DD_PROJECTS_DIR: .* carries a password"):
         projects_dir()
+
+
+def test_only_a_database_shares_a_section_between_stores(tmp_path: Path) -> None:
+    """The file backend's lock holds within one instance, so two logs over one directory do not
+    exclude each other; `check_shared_record` is for a backend that serves several instances
+    (harness/tests/test_postgres.py)."""
+    with pytest.raises(AssertionError):
+        check_shared_record(lambda name: FileProjectLog(tmp_path / name))
