@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+from dd_harness.role_events import names
 from dd_sdk.contract.models import UUID7_PATTERN
 
 EVENTS_NAME = "events.jsonl"
@@ -134,6 +135,16 @@ class FileProjectLog:
         return sorted(
             path.name for path in self.root.iterdir() if path.is_dir() and self.exists(path.name)
         )
+
+    def projects_naming(self, principal_id: str) -> list[str]:
+        # With no index, every log is read, as listing runs scans `invocations.jsonl`; a
+        # deployment that outgrows that keeps its projects in the database, where it is an
+        # indexed query.
+        return [
+            project_id
+            for project_id in self.project_ids()
+            if any(names(event) == principal_id for event in self.events(project_id))
+        ]
 
     def _require(self, project_id: str) -> None:
         if not self.exists(project_id):

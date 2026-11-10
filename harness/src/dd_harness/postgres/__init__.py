@@ -19,7 +19,9 @@ wait on one another. It stores and reads, and decides nothing: the project rules
 Listing runs and conversations reads one page from an index, whatever the size of the store
 (docs/specs/storage.md, "Listing"). `conversation_index` holds a row per conversation, written in
 the transaction that stores each turn. `runs_query` and `conversations_query` build the SQL a
-listing runs, so a test can ask the database how it plans it.
+listing runs, so a test can ask the database how it plans it. Each project event's
+`names_principal` is the principal whose role it may change, indexed, so that the projects a
+person may read are found without reading every log (`projects_naming`, `projects_naming_query`).
 """
 
 from __future__ import annotations
@@ -43,6 +45,7 @@ from dd_harness.listing import (
     position,
     principal_of,
 )
+from dd_harness.role_events import names
 from dd_harness.settings import SettingsError, redact_location
 from dd_harness.store import DIGEST, RUN_ID, artifact_segments
 from dd_sdk.contract.classes import ClassSchema
@@ -421,6 +424,18 @@ def _page_query(
     return query, params
 
 
+def projects_naming_query(principal_id: str) -> tuple[str, dict[str, Any]]:
+    """The SQL `projects_naming` runs, and its parameters: the projects with an event naming the
+    principal, read from `project_events_by_principal` alone, in the order created. A project's
+    first event is its creation, appended in the transaction that creates its row, so the place
+    of the first event naming a principal orders the projects as they were created."""
+    query = (
+        "select project_id from project_events where names_principal = %(principal)s"
+        " group by project_id order by min(seq)"
+    )
+    return query, {"principal": principal_id}
+
+
 class PostgresSection:
     """A project's exclusive section: a transaction holding the lock on the project's row."""
 
@@ -530,6 +545,12 @@ class PostgresProjectLog:
             rows = conn.execute("select project_id from projects order by created").fetchall()
         return [project_id for (project_id,) in rows]
 
+    def projects_naming(self, principal_id: str) -> list[str]:
+        query, params = projects_naming_query(principal_id)
+        with _connect(self._location) as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [project_id for (project_id,) in rows]
+
     def where(self) -> str:
         """The database, without a credential."""
         return self._where
@@ -551,8 +572,8 @@ def _append(conn: psycopg.Connection[Any], project_id: str, events: list[dict[st
     """Append `events` on `conn`, in the transaction the caller holds."""
     with conn.cursor() as cur:
         cur.executemany(
-            "insert into project_events (project_id, event, started_conversation)"
-            " values (%s, %s, %s)",
+            "insert into project_events (project_id, event, started_conversation, names_principal)"
+            " values (%s, %s, %s, %s)",
             [
                 (
                     project_id,
@@ -560,6 +581,7 @@ def _append(conn: psycopg.Connection[Any], project_id: str, events: list[dict[st
                     event.get("conversation_id")
                     if event.get("event") == _CONVERSATION_STARTED
                     else None,
+                    names(event),
                 )
                 for event in events
             ],

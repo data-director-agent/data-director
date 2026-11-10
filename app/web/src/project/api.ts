@@ -256,8 +256,9 @@ export interface RepositoryRequirements {
 }
 
 /**
- * One project the person may read, as `GET /api/projects` lists it: what it holds, how many of
- * its documents are in each state, and the conversations started in it, most recent first.
+ * One project the person may read, as `GET /api/projects` lists it, the one created last first
+ * and a page at a time (the shell reads the first page): what it holds, how many of its documents
+ * are in each state, and the conversations started in it, most recent first.
  */
 export interface ProjectSummary {
   project_id: string;

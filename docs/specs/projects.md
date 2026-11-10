@@ -37,7 +37,9 @@ an agent the project's facts and recording its draft; document versions and a pe
 which the app shows and takes at `/projects/{project_id}`; a person's answers to a draft's
 questions, taken on the draft's card in the conversation and given to the next draft
 ([Drafting documents](drafting.md)); the app's list of a person's projects
-at `/projects` (`GET /api/projects`), which leaves out a project with nothing in it yet; the
+at `/projects` (`GET /api/projects`), the one created last first and a page at a time, which
+leaves out a project with nothing in it yet and finds the person's projects from an index
+(docs/specs/storage.md, "Listing"); the
 access check `dd_harness.project_access`, which reads each principal's role from the log, and its
 use by the conductor before a run in a project and by every route of the app's server under
 `/api/projects/{project_id}`, with the creator as the only owner until membership is built,

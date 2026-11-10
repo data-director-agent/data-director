@@ -1,6 +1,6 @@
 /**
  * The person's projects, the first page in the main navigation (docs/specs/app.md): each project
- * they may read, most recently worked in first, with what it holds. A project is the unit of work
+ * they may read, the one created last first, with what it holds. A project is the unit of work
  * (docs/specs/projects.md), so this page is where the work is organised; a conversation still
  * starts one, so a person never has to make a project before saying what they need.
  *

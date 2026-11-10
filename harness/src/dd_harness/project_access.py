@@ -7,7 +7,11 @@ principal and a project.
 
 Today the log makes one owner, the principal who created the project (`project_created`). The
 membership events that add members, change roles and remove them are TODO(#389): they extend
-`roles`, and nothing that calls `may` changes.
+`roles` and `dd_harness.role_events.names`, and nothing that calls `may` changes.
+
+`readable_projects` finds the projects a principal may read without reading every project's log:
+the backend names the projects whose log may give them a role (`ProjectStorage.projects_naming`,
+an index in a database), and only those logs are read here to confirm it.
 
 A caller that refuses a principal with no role answers as for a project that does not exist, so
 that a refusal does not reveal whether it does; one that refuses a member an owner's action says
@@ -78,3 +82,14 @@ def role_of(store: ProjectStorage, project_id: str, principal: Principal) -> Rol
 def may(store: ProjectStorage, project_id: str, principal: Principal, action: Action) -> bool:
     """Whether `principal` may take `action` in the project `project_id`."""
     return allowed(role_of(store, project_id, principal), action)
+
+
+def readable_projects(store: ProjectStorage, principal: Principal) -> list[str]:
+    """The projects `principal` may read, the one created first first. Only the logs of the
+    projects that name them are read, so the cost follows their projects, not the store's."""
+    found = []
+    for project_id in store.projects_naming(principal.principal_id):
+        role = roles(store.events(project_id)).get(principal.principal_id)
+        if allowed(role, Action.READ):
+            found.append(project_id)
+    return found

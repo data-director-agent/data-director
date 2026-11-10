@@ -28,7 +28,7 @@ const KEY = "dd-project";
 export interface ActiveProject {
   /** The active project, or null when the next message is to start a new one. */
   projectId: string | null;
-  /** The projects the person may switch to, most recently active first. */
+  /** The projects the person may switch to, the one created last first. */
   projects: ProjectSummary[];
   setProjectId(projectId: string | null): void;
   /** Reads the projects again, as after a message has started or changed one. */
