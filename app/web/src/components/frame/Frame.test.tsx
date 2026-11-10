@@ -26,6 +26,18 @@ describe("Frame", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("links the app name in the banner to the home page", () => {
+    render(
+      <Frame current="/agents">
+        <p>Content</p>
+      </Frame>,
+    );
+    expect(screen.getByRole("link", { name: "Data Director" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
   it("puts Projects first in the main navigation, before the conversation", () => {
     render(
       <Frame current="/projects">

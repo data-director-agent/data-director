@@ -71,7 +71,10 @@ export function Frame({
       <header className="app-header">
         <div className="app-header-inner">
           <p className="app-brand">
-            Data Director <span className="status status-warn">Alpha</span>
+            <Link to="/" className="app-brand-link">
+              Data Director
+            </Link>{" "}
+            <span className="status status-warn">Alpha</span>
           </p>
           <nav aria-label="Main" className="app-nav">
             <ul className="app-nav-list">

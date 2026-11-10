@@ -83,6 +83,16 @@
     font-size: var(--font-size-h3);
   }
 
+  .app-brand-link {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .app-brand-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
   .app-tools {
     grid-area: tools;
     align-self: center;
