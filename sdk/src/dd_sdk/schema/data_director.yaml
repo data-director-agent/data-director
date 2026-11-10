@@ -281,6 +281,7 @@ classes:
       - max_item_size
       - licences
       - guidance
+      - unconfirmed
     slot_usage:
       version:
         description: The version of the set, raised on every change.
@@ -321,6 +322,8 @@ classes:
       - max_item_size
       - licences
       - warnings
+      - unconfirmed
+      - repository_url
     slot_usage:
       re3data_id:
         description: The repository's re3data identifier, such as r3d100012124.
@@ -1201,6 +1204,17 @@ slots:
     description: The pages the set's values were taken from, so that a steward can check them.
     range: uri
     multivalued: true
+  unconfirmed:
+    description: >-
+      What the set's sources leave open, each a short statement naming the issue that will settle
+      it, such as "Whether ORDA's form makes any other field mandatory (#385)". Shown to the
+      person depositing; in a merged set, the standard's first, then the override's.
+    multivalued: true
+  repository_url:
+    description: >-
+      Where the chosen repository is, taken from its override's url; absent when the deployment
+      has no override for it.
+    range: uri
   property:
     description: The schema's property, such as DataCite's titles or types.resourceTypeGeneral.
     required: true

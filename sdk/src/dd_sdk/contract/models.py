@@ -177,6 +177,7 @@ class RequirementSet(Frozen):
     max_item_size: int | None = None
     licences: list[str] | None = None
     guidance: list[str] = Field(default_factory=list)
+    unconfirmed: list[str] = Field(default_factory=list)
 
 
 class RequirementSetUse(Frozen):
@@ -199,6 +200,8 @@ class RepositoryRequirements(Frozen):
     max_item_size: int | None = None
     licences: list[str] | None = None
     warnings: list[str] = Field(default_factory=list)
+    unconfirmed: list[str] = Field(default_factory=list)
+    repository_url: str | None = None
 
 
 # --- Inputs -----------------------------------------------------------------------------------
