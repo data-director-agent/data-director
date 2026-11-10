@@ -82,7 +82,7 @@ def _changed_keys(old: Any, new: Any, where: str = "") -> list[str]:
     return [] if old == new else [where or "."]
 
 
-def check_fixture(name: str, body: dict[str, Any]) -> None:
+def check_fixture(name: str, body: Any) -> None:
     """`body` is what the fixture `name` holds; compared as JSON, so layout does not matter."""
     path = FIXTURES / name
     text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"

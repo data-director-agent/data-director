@@ -12,7 +12,12 @@ dd:FileInventory a sh:NodeShape ;
     rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:class dd:InventoryFile ;
+            sh:description "Every file under the dataset's root folder that the command read, sorted by path." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path dd:inventory_files ],
+        [ sh:datatype xsd:string ;
             sh:description "The version of the command that made the inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -50,12 +55,7 @@ dd:FileInventory a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path prov:generatedAtTime ],
-        [ sh:class dd:InventoryFile ;
-            sh:description "Every file under the dataset's root folder that the command read, sorted by path." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path dd:inventory_files ] ;
+            sh:path prov:generatedAtTime ] ;
     sh:targetClass dd:FileInventory .
 
 dd:InventoryFile a sh:NodeShape ;

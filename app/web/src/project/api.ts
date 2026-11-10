@@ -279,6 +279,89 @@ export interface ProjectSummary {
   conversations: ProjectConversation[];
 }
 
+/** An identifier from another scheme, as an ORCID record gives it, such as a DOI. */
+export interface ExternalIdentifier {
+  identifier_type: string;
+  identifier_value: string;
+  identifier_url?: string;
+}
+
+export interface Affiliation {
+  put_code: string;
+  affiliation_kind: string;
+  organisation_name: string;
+  organisation_identifier?: string;
+  organisation_identifier_scheme?: string;
+  department?: string;
+  role_title?: string;
+  start_year?: number;
+  end_year?: number;
+}
+
+export interface ResearcherWork {
+  put_code: string;
+  work_title: string;
+  work_type?: string;
+  publication_year?: number;
+  journal_title?: string;
+  work_identifiers?: ExternalIdentifier[];
+}
+
+export interface ResearcherFunding {
+  put_code: string;
+  funding_title: string;
+  funding_type?: string;
+  funder_name: string;
+  funder_identifier?: string;
+  funder_identifier_scheme?: string;
+  award_identifier?: string;
+  start_year?: number;
+  end_year?: number;
+}
+
+/**
+ * What a researcher's public ORCID record offers, or what they kept of it in a project
+ * (docs/specs/projects.md). Never an email address.
+ */
+export interface ResearcherRecord {
+  orcid_id: string;
+  researcher_name?: string;
+  other_names?: string[];
+  biography?: string;
+  keywords?: string[];
+  country?: string[];
+  researcher_links?: { link_title?: string; link_url: string }[];
+  external_identifiers?: ExternalIdentifier[];
+  affiliations?: Affiliation[];
+  works?: ResearcherWork[];
+  works_omitted?: number;
+  fundings?: ResearcherFunding[];
+  record_retrieved_at: string;
+  record_source: string;
+}
+
+/** The sections of a record kept whole, and those chosen item by item, by put-code. */
+export const RECORD_SECTIONS = [
+  "researcher_name",
+  "other_names",
+  "biography",
+  "keywords",
+  "country",
+  "researcher_links",
+  "external_identifiers",
+] as const;
+export type RecordSection = (typeof RECORD_SECTIONS)[number];
+export const RECORD_ITEMS = ["affiliations", "works", "fundings"] as const;
+export type RecordItems = (typeof RECORD_ITEMS)[number];
+
+/** What a person ticked: never the facts, which the server reads from ORCID again. */
+export interface KeepChoice {
+  sections: RecordSection[];
+  affiliations: string[];
+  works: string[];
+  fundings: string[];
+}
+
 export interface ProjectApi {
   projects(signal?: AbortSignal): Promise<ProjectSummary[]>;
   /** Give the project a person's name; a model's name never replaces it. */
@@ -310,6 +393,14 @@ export interface ProjectApi {
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
   buildPackage(projectId: string): Promise<BuiltPackage>;
+  /** What the signed-in person's own public ORCID record offers; nothing is kept. */
+  orcidRecord(signal?: AbortSignal): Promise<ResearcherRecord>;
+  /** The ORCID facts the project's researchers kept, which agents in the project are given. */
+  researchers(projectId: string, signal?: AbortSignal): Promise<ResearcherRecord[]>;
+  /** Keep what the person ticked of their own record; answers with the project's records. */
+  keepResearcher(projectId: string, keep: KeepChoice): Promise<ResearcherRecord[]>;
+  /** Stop agents being given what the person kept; answers with the records that stand. */
+  withdrawResearcher(projectId: string): Promise<ResearcherRecord[]>;
 }
 
 /**
@@ -423,6 +514,23 @@ export const httpProjectApi: ProjectApi = {
         method: "POST",
         headers: { "content-type": "application/json" },
       }));
+  },
+  async orcidRecord(signal) {
+    return json(await fetch("/api/researcher/orcid", signal ? { signal } : {}));
+  },
+  async researchers(projectId, signal) {
+    return json(await fetch(`${projectPath(projectId)}/researchers`, signal ? { signal } : {}));
+  },
+  async keepResearcher(projectId, keep) {
+    return json(await fetch(`${projectPath(projectId)}/researchers/me`, put({ keep })));
+  },
+  async withdrawResearcher(projectId) {
+    return json(
+      await fetch(`${projectPath(projectId)}/researchers/me`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+      }),
+    );
   },
   async decide(projectId, documentId, request) {
     return json(

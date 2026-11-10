@@ -115,9 +115,10 @@ propose the change in its payload and the conductor is to perform it after appro
 the classes requiring approval, the optional orchestrator and `hosted_models`. A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
-`hosted_models` lists the classes of project content (`inventory`, `documentation`) that may go
-to an agent whose card declares a `hosted` model; without it only `inventory` may
-([Projects](projects.md), invariant 8). It covers project content the conductor gives, not what a
+`hosted_models` lists the classes of project content (`inventory`, `documentation`,
+`researcher`) that may go to an agent whose card declares a `hosted` model; without it only
+`inventory` may ([Projects](projects.md), invariant 8). Researcher facts the profile does not list
+are left out of such an agent's input rather than refused. It covers project content the conductor gives, not what a
 caller or a person sends, such as a conversation's text (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
 when repository selection or deposit needs it.
 
@@ -152,7 +153,13 @@ and checks both; binds `state` to the browser that started it, so a callback car
 browser opens no session; and verifies the ID token's signature against the issuer's published
 keys (RS256 only, so a token cannot choose a weaker algorithm), its issuer, audience, expiry and
 nonce. PKCE is to be added if ORCID advertises it; a confidential client checking `state` and
-`nonce` does not depend on it. Nothing calls ORCID's API, so a free public API client suffices.
+`nonce` does not depend on it. Sign-in calls no ORCID API, so a free public API client suffices.
+
+**A person's public ORCID record** is read only when that person asks, from ORCID's public API,
+which needs no credential and returns only what the holder made public, and only for their own
+iD: the one ORCID vouched for at sign-in, or on a development server the operator's asserted iD
+URL (`dd_harness.orcid.issuer_of`). What they keep of it in a project, and how it reaches agents,
+is in [Projects](projects.md), invariant 22. An email address is never read from it.
 
 **The principal.** Its identifier is an absolute IRI: for ORCID, the iD URL; for staff without an
 iD and for roles, a `mailto:` IRI or a URN. Its kind is `person` or `accountable_role`, the latter
@@ -197,7 +204,9 @@ file and restarting that agent's service; nothing else changes.
   stub that honestly records `asserted` was preferred to no record, and the place where real
   authentication enters was built first so that adding it changed nothing else.
 - **The agent is not told** because no agent needs to know whom it acts for to do its work, and
-  personal data goes only where the record needs it.
+  personal data goes only where the record needs it. Researcher facts a person keeps in a project
+  ([Projects](projects.md), invariant 22) do not tell it: they are the project's researchers, the
+  same for every run in it, and the record needs them as its creators.
 - **The record says who vouched**, so a reader can weigh an identity claim by who made it. No
   published vocabulary has a term meaning exactly this, so the contract mints `dd:vouched_by` and
   the crate carries it as `vouchedBy`, referencing an `Organization` entity for the issuer.
@@ -246,8 +255,11 @@ file and restarting that agent's service; nothing else changes.
 - **Key hygiene.** A deployment may give several agents one key, but should give each its own, so
   one can be revoked alone and the provider's usage reports show each agent. A spending limit is
   set on the provider's side per workspace, not per key.
-- **Privacy.** Nothing beyond the iD and a display name is held about a person who signs in.
-  Personal data the app holds about its users is TODO(#156).
+- **Privacy.** Sign-in holds nothing beyond the iD and a display name. The only other personal
+  data held about a person is what they choose to keep in a project from their own public ORCID
+  record, which they may withdraw from agents but which stays in the project's log
+  ([Projects](projects.md), invariant 22). Retention of personal data the app holds about its
+  users is TODO(#156).
 - **Availability.** Sessions are held in the app's memory, which suits one server process:
   restarting the app signs everyone out.
 - **Accessibility.** The session time-out warning meets WCAG 2.2.1.

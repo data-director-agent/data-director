@@ -162,8 +162,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/conversation/Transcript.test.tsx`, `app/web/e2e/shell.spec.ts`).
 20. **The profile page shows only what the session holds.** `/profile`, reached from the name in
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
-    known and when the session ends, and says that nothing more is kept. It makes no request to
-    the provider and the app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
+    known and when the session ends, and says that nothing more is kept but the facts a person
+    chooses, in a project, from their public record. It makes no request to the provider and the
+    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -241,6 +242,17 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current
     answers chosen. Not built yet, TODO(#668).
+26. **Researcher facts are chosen on the project's page, with nothing ticked.** The project's page
+    lists **Researchers** beside the repository, the disclosure and the deposit package. It shows
+    each record the project's researchers kept and, for the signed-in person's own, a button to
+    withdraw it. **Bring in facts from your ORCID record** reads their public record and offers
+    each section, and each affiliation, work and funding, as a checkbox, none ticked, with a
+    button to tick or untick all of a group; **Keep the ticked facts** sends only what is ticked,
+    by section and put-code, and the page then shows what the server kept. The panel says that the
+    facts go to the project's agents, and to a hosted model only where the deployment allows it,
+    and that an email address is never read
+    (`app/web/src/components/project/ResearcherPanel.test.tsx`, `app/tests/test_researcher_facts.py`,
+    [Projects](projects.md), invariant 22).
 
 ## Boundaries and contracts
 

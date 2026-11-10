@@ -9,7 +9,19 @@ dd:Reply a sh:NodeShape ;
     rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:new_project_entry ],
+        [ sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:reply_derivation ],
+        [ sh:datatype xsd:string ;
             sh:description "The reply, as prose." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -47,19 +59,7 @@ dd:Reply a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dcterms:title ;
-            sh:pattern "^.{1,80}$" ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:new_project_entry ],
-        [ sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 2 ;
-            sh:path dd:reply_derivation ] ;
+            sh:pattern "^.{1,80}$" ] ;
     sh:targetClass dd:Reply .
 
 dd:ChoiceOption a sh:NodeShape ;

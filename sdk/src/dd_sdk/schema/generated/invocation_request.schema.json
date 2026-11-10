@@ -1,6 +1,87 @@
 {
    "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
+      "Affiliation": {
+         "additionalProperties": false,
+         "description": "One affiliation on an ORCID record: an employment, an education or another kind, with the organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold).",
+         "properties": {
+            "put_code": {
+               "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+               "type": "string"
+            },
+            "affiliation_kind": {
+               "$ref": "#/$defs/AffiliationKind",
+               "description": "What kind of affiliation the item is."
+            },
+            "organisation_name": {
+               "description": "The organisation's name.",
+               "type": "string"
+            },
+            "organisation_identifier": {
+               "description": "The organisation's identifier, where ORCID gives one: a URL for ROR, else as given.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "organisation_identifier_scheme": {
+               "description": "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "department": {
+               "description": "The department within the organisation.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "role_title": {
+               "description": "The researcher's role or degree.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "start_year": {
+               "description": "The year it started.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "end_year": {
+               "description": "The year it ended; absent while it continues.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "put_code",
+            "affiliation_kind",
+            "organisation_name"
+         ],
+         "title": "Affiliation",
+         "type": "object"
+      },
+      "AffiliationKind": {
+         "description": "The kinds of affiliation an ORCID record holds.",
+         "enum": [
+            "employment",
+            "education",
+            "qualification",
+            "invited_position",
+            "distinction",
+            "membership",
+            "service"
+         ],
+         "title": "AffiliationKind",
+         "type": "string"
+      },
       "Any": {
          "additionalProperties": true,
          "description": "Placeholder range for slots whose value type is enumerated in any_of.",
@@ -458,7 +539,7 @@
       },
       "DraftRequest": {
          "additionalProperties": false,
-         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md).",
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -530,6 +611,16 @@
                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
                "type": [
                   "string",
+                  "null"
+               ]
+            },
+            "researchers": {
+               "description": "The researcher facts the project holds, one record for each person who kept some. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherRecord"
+               },
+               "type": [
+                  "array",
                   "null"
                ]
             }
@@ -760,6 +851,34 @@
             "content_hash"
          ],
          "title": "EvidenceItem",
+         "type": "object"
+      },
+      "ExternalIdentifier": {
+         "additionalProperties": false,
+         "description": "An identifier from another scheme, as an ORCID record gives it: for a researcher, such as a Scopus Author ID; for a work, such as a DOI.",
+         "properties": {
+            "identifier_type": {
+               "description": "The scheme, in ORCID's words, such as doi or Scopus Author ID.",
+               "type": "string"
+            },
+            "identifier_value": {
+               "description": "The identifier within its scheme.",
+               "type": "string"
+            },
+            "identifier_url": {
+               "description": "The identifier as a URL, where the record gives one.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "identifier_type",
+            "identifier_value"
+         ],
+         "title": "ExternalIdentifier",
          "type": "object"
       },
       "FileInventory": {
@@ -1070,7 +1189,7 @@
       },
       "Message": {
          "additionalProperties": false,
-         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md).",
+         "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -1161,6 +1280,16 @@
                "description": "Whether the researcher chose the project's entry point, so that a model's would be refused; false when an orchestrator's model recorded it. Filled by the conductor and never by the caller; absent when the run is in no project, or no entry point was recorded.",
                "type": [
                   "boolean",
+                  "null"
+               ]
+            },
+            "project_researchers": {
+               "description": "The researcher facts the conversation's project holds, one record for each person who kept some, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project kept any.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherRecord"
+               },
+               "type": [
+                  "array",
                   "null"
                ]
             }
@@ -1994,6 +2123,276 @@
             "sha256"
          ],
          "title": "RequirementSetUse",
+         "type": "object"
+      },
+      "ResearcherFunding": {
+         "additionalProperties": false,
+         "description": "One grant or award on an ORCID record, with its funder.",
+         "properties": {
+            "put_code": {
+               "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+               "type": "string"
+            },
+            "funding_title": {
+               "description": "The grant's or award's title.",
+               "type": "string"
+            },
+            "funding_type": {
+               "description": "The kind of funding, in ORCID's words, such as grant or award.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "funder_name": {
+               "description": "The funder's name.",
+               "type": "string"
+            },
+            "funder_identifier": {
+               "description": "The funder's identifier, where ORCID gives one, such as a Crossref Funder ID.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "funder_identifier_scheme": {
+               "description": "The scheme of funder_identifier, in ORCID's words, such as FUNDREF or ROR. Present exactly when funder_identifier is.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "award_identifier": {
+               "description": "The grant number or award identifier, where the record gives one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "start_year": {
+               "description": "The year it started.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "end_year": {
+               "description": "The year it ended; absent while it continues.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "put_code",
+            "funding_title",
+            "funder_name"
+         ],
+         "title": "ResearcherFunding",
+         "type": "object"
+      },
+      "ResearcherLink": {
+         "additionalProperties": false,
+         "description": "A web page the researcher lists on their ORCID record, such as a personal page.",
+         "properties": {
+            "link_title": {
+               "description": "The name the researcher gave the page.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "link_url": {
+               "description": "The page's address.",
+               "format": "uri",
+               "type": "string"
+            }
+         },
+         "required": [
+            "link_url"
+         ],
+         "title": "ResearcherLink",
+         "type": "object"
+      },
+      "ResearcherRecord": {
+         "additionalProperties": false,
+         "description": "What one researcher in a project chose to keep from their public ORCID record: only the sections and items they ticked, in ORCID's own words, never edited by a person or a model. The conductor fills the project's records into a Message and a DraftRequest so that an agent can draft creators, affiliations, subjects and funding from them (docs/specs/projects.md). Email addresses are never kept, even public ones.",
+         "properties": {
+            "orcid_id": {
+               "description": "The researcher's ORCID iD, as its URL, such as https://orcid.org/0000-0002-1825-0097.",
+               "format": "uri",
+               "type": "string"
+            },
+            "researcher_name": {
+               "description": "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "other_names": {
+               "description": "Other names the researcher is known by, as their ORCID record lists them.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "biography": {
+               "description": "The researcher's biography, as their ORCID record gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "keywords": {
+               "description": "The researcher's own keywords for their research, as their ORCID record lists them.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "country": {
+               "description": "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "researcher_links": {
+               "description": "The web pages the researcher's ORCID record lists.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherLink"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "external_identifiers": {
+               "description": "The researcher's identifiers in other schemes, as their ORCID record lists them.",
+               "items": {
+                  "$ref": "#/$defs/ExternalIdentifier"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "affiliations": {
+               "description": "The researcher's affiliations they kept, the current ones first.",
+               "items": {
+                  "$ref": "#/$defs/Affiliation"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "works": {
+               "description": "The researcher's works they kept, the most recent first: at most 50 are offered, so that an agent's input stays bounded.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherWork"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "works_omitted": {
+               "description": "How many works the record held beyond the 50 offered. Absent when none were left out.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "fundings": {
+               "description": "The researcher's grants and awards they kept, the current ones first.",
+               "items": {
+                  "$ref": "#/$defs/ResearcherFunding"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "record_retrieved_at": {
+               "description": "When the record was read from ORCID's public API.",
+               "format": "date-time",
+               "type": "string"
+            },
+            "record_source": {
+               "description": "The public API address the record was read from.",
+               "format": "uri",
+               "type": "string"
+            }
+         },
+         "required": [
+            "orcid_id",
+            "record_retrieved_at",
+            "record_source"
+         ],
+         "title": "ResearcherRecord",
+         "type": "object"
+      },
+      "ResearcherWork": {
+         "additionalProperties": false,
+         "description": "One work on an ORCID record, such as a journal article or a dataset.",
+         "properties": {
+            "put_code": {
+               "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+               "type": "string"
+            },
+            "work_title": {
+               "description": "The work's title.",
+               "type": "string"
+            },
+            "work_type": {
+               "description": "The work's type, in ORCID's words, such as journal-article or data-set.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "publication_year": {
+               "description": "The year the work was published.",
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "journal_title": {
+               "description": "Where the work was published, such as a journal's name.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "work_identifiers": {
+               "description": "The work's identifiers, such as its DOI.",
+               "items": {
+                  "$ref": "#/$defs/ExternalIdentifier"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "put_code",
+            "work_title"
+         ],
+         "title": "ResearcherWork",
          "type": "object"
       },
       "StepProgress": {

@@ -10,7 +10,12 @@ dd:RequirementSet a sh:NodeShape ;
     rdfs:comment "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "The pages the set's values were taken from, so that a steward can check them." ;
+    sh:property [ sh:description "Where the standard or the repository is described." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path schema1:url ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them." ;
             sh:nodeKind sh:IRI ;
             sh:order 15 ;
             sh:path dd:guidance ],
@@ -100,12 +105,7 @@ dd:RequirementSet a sh:NodeShape ;
             sh:description "A standard's set only: the metadataStandardName values in re3data that select it." ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path dd:re3data_names ],
-        [ sh:description "Where the standard or the repository is described." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:order 4 ;
-            sh:path schema1:url ] ;
+            sh:path dd:re3data_names ] ;
     sh:targetClass dd:RequirementSet .
 
 dd:RequirementField a sh:NodeShape ;

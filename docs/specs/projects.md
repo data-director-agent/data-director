@@ -45,7 +45,8 @@ use by the conductor before a run in a project and by every route of the app's s
 `/api/projects/{project_id}`, with the creator as the only owner until membership is built,
 TODO(#389); the app
 starting each conversation in a project of its own and adding an inventory attached to a turn;
-the inventory command; and the core
+researcher facts a person keeps from their own public ORCID record, given to the project's
+agents (invariant 22); the inventory command; and the core
 classes `FileInventory`, `InventorySummary` and `Document`. All of the log is kept by `dd_harness.projects`. The rest of this spec is the
 intended design, and each part says where it is not built yet.
 
@@ -83,8 +84,9 @@ intended design, and each part says where it is not built yet.
    project store, and refers to a data file by path and digest. An inventory's stored digest is
    already its `dd-input-json-v1` input hash. Today the conductor fills three core classes
    (`dd_harness.project_facts`, `harness/tests/test_project_runs.py`). In a project, a
-   `DraftRequest`'s `inventory`, `requirements`, `metadata_record` and `draft_answers` are the project's,
-   replacing what the caller sent, and a slot the project has no value for is removed. The
+   `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers` and
+   `researchers` are the project's, replacing what the caller sent, and a slot the project has no
+   value for is removed. The
    metadata record is given with the version it is, its media type, its schema and its text, so a
    drafter can treat it as supplied ([Drafting documents](drafting.md), invariant 2). Its
    `draft_answers` are the latest answer a person recorded to each question of the project's
@@ -102,26 +104,33 @@ intended design, and each part says where it is not built yet.
    rather than a new document. A caller may name the document with `redraft_document` where the
    project holds more than one of the kind; one that is not the project's, or is of another kind,
    fails the run with problem `revision-refused` before the agent is called, and outside a
-   project it is removed (`ProjectStore.current_version`). Filling any other class is not built
-   yet.
+   project it is removed (`ProjectStore.current_version`). A `Message`'s `project_researchers` and
+   a `DraftRequest`'s `researchers` are the researcher facts the project holds (invariant 22); a
+   `Message`'s are removed outside a project, so a caller can never claim them. Filling any other
+   class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
    conversation started from a project is a `conversation_started` event of its log, so the
    harness can say which project a conversation is in after a restart (`ProjectStore.project_of`,
    `harness/tests/test_projects.py`). A delegated child takes its parent's project from the
    grant. The agent is never sent `project_id` (`harness/tests/test_project_runs.py`).
-8. **Only `inventory` goes to a hosted model by default.** Project content is of two classes,
-   `inventory` and `documentation` (uploaded text, and any document version given back to an
-   agent). The profile lists the classes that may be given to an agent whose card declares a
+8. **Only `inventory` goes to a hosted model by default.** Project content is of three classes:
+   `inventory`, `documentation` (uploaded text, and any document version given back to an
+   agent) and `researcher` (the facts researchers kept from their ORCID records, invariant 22). The profile lists the classes that may be given to an agent whose card declares a
    `hosted` model; where it does not say, only `inventory` may. The conductor refuses anything
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates and a person's answers are `documentation`; a repository's requirements
-   are neither (`dd_harness.project_facts.given`). The conductor checks after the input check: a
+   drafter regenerates and a person's answers are `documentation`; a `Message`'s
+   `project_researchers` and a `DraftRequest`'s `researchers` are `researcher`; a repository's
+   requirements are none of these (`dd_harness.project_facts.given`). The conductor checks after the input check: a
    run it refuses fails with problem `project-content-withheld` and is stored, and the agent is
-   not called (`harness/tests/test_project_runs.py`). What a caller sends outside a project is
-   not the project's, and the key does not apply to it.
+   not called (`harness/tests/test_project_runs.py`). Researcher facts are the exception: they add
+   to what an agent is given and no agent needs them, so where the profile keeps `researcher`
+   from an agent the conductor leaves them out of its input, before it is hashed, and the run goes
+   ahead, so a conversation with a hosted orchestrator does not stop because someone kept facts
+   (`dd_harness.project_facts.leave_out`). What a caller sends outside a project is not the
+   project's, and the key does not apply to it.
 9. **Only a `Document` payload of a succeeded run becomes a project document.** When a run that
    belongs to a project succeeds with a `Document` payload, the conductor records it as a new
    version. A run that does not succeed adds no version, whatever it returned. Another payload
@@ -170,9 +179,12 @@ intended design, and each part says where it is not built yet.
     `harness/tests/test_project_runs.py`) and the app's `in_project` route guard
     (`app/tests/test_app.py`); until membership is built the creator is the only one with a role,
     TODO(#389).
-18. **No principal's identifier or name enters an agent's input.** A conversation's history marks
-    each turn's speaker with a label pseudonymous within the project, such as "Member 1", stable
-    across its conversations. Not built yet, TODO(#390).
+18. **No principal's identifier or name enters an agent's input**, except the researcher facts a
+    person chose to keep for the record (invariant 22). A conversation's history marks each
+    turn's speaker with a label pseudonymous within the project, such as "Member 1", stable
+    across its conversations. Not built yet, TODO(#390). The researcher facts are not a speaker's
+    identity: they are what a researcher supplies for the record, as they would type their name
+    into a draft, and an agent is not told which of them, if any, it acts for.
 19. **Leaving or removal takes effect from that event.** Earlier turns, runs, versions and
     decisions keep their attribution, and a run already going finishes. Not built yet,
     TODO(#389).
@@ -209,11 +221,30 @@ intended design, and each part says where it is not built yet.
     `app/tests/test_project_title.py`). The title is neither `inventory` nor `documentation`
     (invariant 8): it is what the researcher typed, or what a model wrote from the conversation it
     was already sent.
+22. **Researcher facts are what a person chose from their own public ORCID record, in ORCID's
+    words.** A person signed in with ORCID may read their public record from ORCID's public API
+    and keep, in a project, the sections and items they tick: name, other names, biography,
+    keywords, country, web pages, other identifiers, and affiliations, works and fundings item by
+    item (`dd_harness.orcid`). Nothing is read until they ask, only their own iD is read, and an
+    email address is never taken, even a public one (C2). The app sends a choice, never the
+    facts: the server reads the record again and keeps only what it holds, so a project never
+    holds a fact a person or a model wrote in ORCID's name. At most 50 works, the most recent, are
+    offered. The store keeps the chosen `ResearcherRecord` as a `researcher_added` event naming
+    the iD, when the record was read and the record's digest, with the record as a blob; a person
+    keeps only their own record, keeping again replaces it, and a `researcher_withdrawn` event
+    stops it being given to agents (`ProjectStore.add_researcher`, `withdraw_researcher`,
+    `researchers`). Like every event, what was kept stays in the log (invariant 2). Every run in
+    the project is given the records that stand, whoever it acts for (invariant 6). A member
+    keeps and withdraws their own from the project's page (`GET /api/researcher/orcid`,
+    `PUT` and `DELETE /api/projects/{project_id}/researchers/me`, `CONTRIBUTE`;
+    `GET /api/projects/{project_id}/researchers`, `READ`) (`harness/tests/test_orcid.py`,
+    `dd_harness.testing.storage`, `harness/tests/test_project_runs.py`,
+    `app/tests/test_researcher_facts.py`).
 
 ## Boundaries and contracts
 
-**The core contract** ([Contract](contract.md)) holds `FileInventory`, `InventorySummary`, `Document`, `DocumentKind`, `DraftRequest`
-and the version reference, because the conductor, the app and the package builder must read them
+**The core contract** ([Contract](contract.md)) holds `FileInventory`, `InventorySummary`, `Document`, `DocumentKind`, `DraftRequest`,
+`ResearcherRecord` and the version reference, because the conductor, the app and the package builder must read them
 from any agent without knowing the agent. A document's content is always text with a media type;
 a metadata record is serialised, and `conforms_to` names the schema it follows. Checking a record
 against that schema is validation's work ([Deposit](deposit.md)), not the contract's. What an agent
@@ -331,6 +362,14 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   goes into the package, and every document in it names who approved it and when.
 - **Shared projects**, because research data are rarely managed by one person, and colleagues must
   see the same inventory, documents, decisions and conversations.
+- **Researcher facts from ORCID, chosen item by item** (invariant 22), because creators,
+  affiliations, subjects and funding are what a researcher is asked for most and has often
+  recorded already (`docs/ui/best-practices.md`: reduce metadata burden visibly). A person
+  ticks what to keep, rather than everything being taken at sign-in, so that what agents and any
+  hosted model see is their decision, and keeping ORCID's own words means a draft's creator is
+  the one ORCID vouches for. They are kept in the project, not with the person, because a
+  project's record is already kept, audited and shared, and holding personal data about users
+  beyond a project waits for a retention policy, TODO(#156).
 
 ## Rejected alternatives
 
@@ -362,6 +401,11 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   anything yet, or remove one.
 - **Names or identifiers in the conversation history.** An agent would be told whom it acts for,
   and names would go to hosted models with every turn.
+- **Reading the ORCID record at sign-in, or asking for a wider scope.** Every agent would be given
+  facts nobody chose to share, and the sign-in would ask for more than it needs. The public API
+  needs no scope and returns only what the holder made public.
+- **Letting the app send the facts to keep.** A person, or a page, could then keep facts in
+  ORCID's name that ORCID does not hold.
 - **Membership set in the deployment's profile.** Who works on a research project is the
   researchers' choice, and a profile changes by review. Whether a profile may limit sharing is
   TODO(#388).
@@ -371,7 +415,9 @@ store, and writes to neither ([Disclosure](disclosure.md)).
 - **Privacy.** File and field names, a project's title, uploaded documentation and a person's
   edits may identify people. Limiting what goes to a hosted model limits what leaves; it does not show that nothing
   personal did. Detecting personal data is TODO(#39, #40), and the tool never anonymises (C2).
-  No email address is asked for or held for a member. Members see each other's words and work,
+  No email address is asked for or held for a member. Researcher facts are public, but
+  personal: they go to a hosted model only where the profile lists `researcher` (invariant 8),
+  and withdrawing them stops them being given but does not erase them from the log, TODO(#156). Members see each other's words and work,
   and the user guide must say so where a member is added, TODO(#391).
 - **Disclosure.** A refusal to a non-member does not reveal whether a project exists.
 - **Durability.** An event is flushed to disk before the call returns, and a blob is written aside

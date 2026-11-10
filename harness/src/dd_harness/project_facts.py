@@ -3,9 +3,10 @@
 
 Three core classes are filled. Within a project:
 
-- a `DraftRequest`'s `inventory`, `requirements`, `metadata_record` and `draft_answers` are the
-  project's own: whatever the caller sent is replaced, and a slot the project has no value for
-  is removed, so that an agent is never given facts a caller, or a model, made up. The metadata
+- a `DraftRequest`'s `inventory`, `requirements`, `metadata_record`, `draft_answers` and
+  `researchers` are the project's own: whatever the caller sent is replaced, and a slot the
+  project has no value for is removed, so that an agent is never given facts a caller, or a
+  model, made up. The metadata
   record is the version a person approved last, since a drafter treats it as supplied. The
   answers are the latest a person recorded to each question of the project's documents of the
   kind asked for (docs/specs/drafting.md, invariant 6): a drafter marks an answer
@@ -24,7 +25,11 @@ Three core classes are filled. Within a project:
   `project_documentation` lists the documents a researcher attached, by name, digest, media type
   and size, without their text, so that an orchestrator knows they are there.
   `project_entry_by_researcher` whether the researcher chose the entry point, so that the model
-  can record one it worked out from what they said until they do.
+  can record one it worked out from what they said until they do. Its `project_researchers` are
+  the facts people in the project kept from their public ORCID records, as a `DraftRequest`'s
+  `researchers` are, so that an agent can draft creators, affiliations, subjects and funding
+  from what a researcher chose to supply rather than ask for them. They are the project's
+  researchers, not whom the run acts for: every run in the project is given the same.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -38,7 +43,10 @@ requirements are the repository's, not the project's, and a `Message`'s entry po
 say only which steps of the process flow have gone how far; they are neither. Nor is a project's
 title: a name a researcher typed, or a model wrote from what was said in the conversation, which
 the model is sent anyway. Nor is a `Message`'s `project_documentation`: it holds a document's
-file name, as a researcher gave it in the conversation, and never its text.
+file name, as a researcher gave it in the conversation, and never its text. Researcher facts
+are `researcher`: public, but personal, so they go to a hosted model only where the profile says.
+They add to what an agent is given and no agent needs them, so where the profile keeps them from
+an agent the conductor leaves them out (`leave_out`) rather than refusing the run.
 """
 
 from __future__ import annotations
@@ -65,11 +73,15 @@ MESSAGE_PROJECT_SLOTS = (
     "project_title_by_researcher",
     "project_documentation",
     "project_entry_by_researcher",
+    "project_researchers",
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
 INVENTORY = "inventory"
 DOCUMENTATION = "documentation"
+RESEARCHER = "researcher"
+# The slots that hold researcher facts, of a `Message` and of a `DraftRequest`.
+RESEARCHER_SLOTS = ("project_researchers", "researchers")
 # A `DraftRequest`'s slots that hold documentation.
 DOCUMENTATION_SLOTS = ("metadata_record", "current_version", "draft_answers")
 
@@ -113,6 +125,8 @@ def give(
                     if where["entry_source"] is not None
                     else None
                 ),
+                # Left out while nobody in the project kept any.
+                "project_researchers": store.researchers(project_id),
             },
         )
     elif schema_class == DRAFT_REQUEST:
@@ -125,6 +139,7 @@ def give(
                 "current_version": _current(store, project_id, filled),
                 # Only answers a person recorded may be placed as supplied.
                 "draft_answers": _answers(store, project_id, filled.get("document_kind")),
+                "researchers": store.researchers(project_id),
             },
         )
     elif schema_class == FILE_INVENTORY:
@@ -159,16 +174,31 @@ def given(
         return frozenset()
     schema_class = filled.get("schema_class")
     found: set[str] = set()
-    if schema_class == MESSAGE and filled.get("project_inventory"):
-        found.add(INVENTORY)
+    if schema_class == MESSAGE:
+        if filled.get("project_inventory"):
+            found.add(INVENTORY)
+        if filled.get("project_researchers"):
+            found.add(RESEARCHER)
     elif schema_class == DRAFT_REQUEST:
         if filled.get("inventory"):
             found.add(INVENTORY)
         if any(filled.get(slot) for slot in DOCUMENTATION_SLOTS):
             found.add(DOCUMENTATION)
+        if filled.get("researchers"):
+            found.add(RESEARCHER)
     elif schema_class == FILE_INVENTORY and store.inventory(project_id) is not None:
         found.add(INVENTORY)
     return frozenset(found)
+
+
+def leave_out(filled: Mapping[str, Any], classes: frozenset[str]) -> dict[str, Any]:
+    """`filled` without the researcher facts, if `classes` names `researcher`: the one class of
+    project content left out, rather than refused, where the profile keeps it from an agent."""
+    kept = dict(filled)
+    if RESEARCHER in classes:
+        for slot in RESEARCHER_SLOTS:
+            kept.pop(slot, None)
+    return kept
 
 
 def summarise(store: ProjectStorage, project_id: str) -> dict[str, Any] | None:

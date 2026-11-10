@@ -50,6 +50,14 @@ within `DOCUMENTATION_MAX_BYTES` are kept, and a name is a file name, never a pa
 same text again under the same name records nothing new in `documentation`, which lists each
 document once, the one added first first.
 
+A researcher may keep facts from their own public ORCID record in the project
+(`dd_harness.orcid`): a `researcher_added` event names their iD, when the record was read, and the
+digest of the `ResearcherRecord` they chose, kept as a blob in its `dd-input-json-v1` canonical
+bytes (`add_researcher`). A person keeps only their own record, and keeping it again replaces what
+they kept before. `researcher_withdrawn` (`withdraw_researcher`) stops it being given to agents;
+like every event, what was kept stays in the log. `researchers` gives the records that stand, the
+one kept first first, which the conductor puts into a `Message` and a `DraftRequest`.
+
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from what the logs hold when asked.
 
@@ -86,6 +94,7 @@ from dd_sdk.contract.models import (
     FileInventory,
     OutcomeStatus,
     Principal,
+    ResearcherRecord,
     new_invocation_id,
     now,
 )
@@ -99,6 +108,8 @@ PROJECT_RENAMED = "project_renamed"
 CONVERSATION_STARTED = "conversation_started"
 INVENTORY_ADDED = "inventory_added"
 DOCUMENTATION_ADDED = "documentation_added"
+RESEARCHER_ADDED = "researcher_added"
+RESEARCHER_WITHDRAWN = "researcher_withdrawn"
 REPOSITORY_CHOSEN = "repository_chosen"
 DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"
@@ -513,6 +524,72 @@ class Projects:
         if digest not in held:
             return None
         return self._blob(project_id, digest).decode("utf-8")
+
+    def add_researcher(
+        self,
+        project_id: str,
+        record: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep `record`, a `ResearcherRecord` of what a person chose from their public ORCID
+        record, in the project. Returns its digest.
+
+        Raises `ProjectError` for an unknown project, a document that is not a `ResearcherRecord`,
+        or a record of anyone but the person `acted_for` names: a person keeps only their own."""
+        self._require(project_id)
+        document = dict(record)
+        try:
+            ResearcherRecord.model_validate(document)
+        except ValueError as exc:  # pydantic's ValidationError is a ValueError
+            raise ProjectError(f"not a ResearcherRecord: {exc}") from exc
+        if document["orcid_id"] != acted_for.principal_id:
+            raise ProjectError("a person keeps only their own ORCID record")
+        digest = input_hash(document)
+        self._keep_blob(project_id, digest, canonicalise(document, INPUT_CANONICALISATION))
+        self._append(
+            project_id,
+            RESEARCHER_ADDED,
+            acted_for,
+            caused_by,
+            {
+                "orcid_id": document["orcid_id"],
+                "digest": digest,
+                "canonicalisation": INPUT_CANONICALISATION,
+                "record_retrieved_at": document["record_retrieved_at"],
+            },
+        )
+        return digest
+
+    def withdraw_researcher(
+        self, project_id: str, orcid_id: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Stop giving agents the record the person `orcid_id` names kept. Raises `ProjectError`
+        for an unknown project, a record the project does not hold, or anyone withdrawing a
+        record but their own."""
+        if orcid_id != acted_for.principal_id:
+            raise ProjectError("a person withdraws only their own ORCID record")
+        if orcid_id not in self._researcher_digests(project_id):
+            raise ProjectError("the project holds no ORCID record of theirs")
+        self._append(project_id, RESEARCHER_WITHDRAWN, acted_for, caused_by, {"orcid_id": orcid_id})
+
+    def researchers(self, project_id: str) -> list[dict[str, Any]] | None:
+        """The `ResearcherRecord` each person kept and has not withdrawn, the one kept first
+        first; None while there is none. Raises `UnknownProjectError` for an unknown project."""
+        held = self._researcher_digests(project_id)
+        records = [json.loads(self._blob(project_id, digest)) for digest in held.values()]
+        return records or None
+
+    def _researcher_digests(self, project_id: str) -> dict[str, str]:
+        """The digest of the record that stands for each iD, in the order first kept."""
+        held: dict[str, str] = {}
+        for event in self.events(project_id):
+            if event["event"] == RESEARCHER_ADDED:
+                held[event["orcid_id"]] = event["digest"]
+            elif event["event"] == RESEARCHER_WITHDRAWN:
+                held.pop(event["orcid_id"], None)
+        return held
 
     def choose_repository(
         self,

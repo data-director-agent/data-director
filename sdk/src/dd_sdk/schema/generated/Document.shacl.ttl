@@ -10,7 +10,13 @@ dd:Document a sh:NodeShape ;
     rdfs:comment "The payload of an agent that drafts or regenerates a project document: a metadata record, a README, a data dictionary or another document, as text (docs/specs/projects.md). The only payload class that becomes a project document." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:class dd:DocumentVersionRef ;
+            sh:description "The version this document replaces, when an agent regenerates it. Absent for a new document, for which the conductor mints a document_id." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path prov:wasRevisionOf ],
+        [ sh:datatype xsd:string ;
             sh:description "The content of the document, as text; a structured record is serialised." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -63,13 +69,7 @@ dd:Document a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 6 ;
-            sh:path dd:document_derivation ],
-        [ sh:class dd:DocumentVersionRef ;
-            sh:description "The version this document replaces, when an agent regenerates it. Absent for a new document, for which the conductor mints a document_id." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 7 ;
-            sh:path prov:wasRevisionOf ] ;
+            sh:path dd:document_derivation ] ;
     sh:targetClass dd:Document .
 
 dd:DocumentQuestion a sh:NodeShape ;
