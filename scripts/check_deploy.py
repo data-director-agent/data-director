@@ -10,7 +10,8 @@ units in `deploy/systemd/` must name no agent instance, or a list would come bac
 
 The development Compose stack (`compose.yaml`) reaches the agents through `docker/agents.yaml`. It
 must list the same agents, ports and timeouts as the app's list, each at its service's name, and
-`compose.yaml` must start each one on that port.
+`compose.yaml` must start each one on that port. So must `docker/compose.image.yaml`, which runs
+the same agents from the published image (docker/release.Dockerfile).
 
     uv run python scripts/check_deploy.py
 
@@ -33,6 +34,7 @@ ENV_DIR = ROOT / "deploy/agents"
 UNITS = ROOT / "deploy/systemd"
 COMPOSE_AGENTS = ROOT / "docker/agents.yaml"
 COMPOSE = ROOT / "compose.yaml"
+COMPOSE_IMAGE = ROOT / "docker/compose.image.yaml"
 
 # An agent instance named in a unit, which the units leave to `dd.py apply`. The template
 # (`data-director-agent@.service`) is not an instance.
@@ -86,21 +88,22 @@ def compose_list_problems(app: Path = AGENTS, compose: Path = COMPOSE_AGENTS) ->
 def compose_service_problems(agents: Path = COMPOSE_AGENTS, compose: Path = COMPOSE) -> list[str]:
     """Where `compose` does not start an agent `agents` lists, on the port and URL it names."""
     services = yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]
+    where = compose.relative_to(ROOT) if compose.is_relative_to(ROOT) else compose.name
     found: list[str] = []
     for agent in _agents(agents):
         name, url = agent["name"], agent["url"]
         port = urlsplit(url).port
         service = services.get(name)
         if service is None:
-            found.append(f"compose.yaml: no service {name}, which {agents.name} lists")
+            found.append(f"{where}: no service {name}, which {agents.name} lists")
             continue
         command = service.get("command", "")
         command = command if isinstance(command, str) else " ".join(command)
         env_port = (service.get("environment") or {}).get("PORT")
         if str(env_port) != str(port) or f"--port {port}" not in command:
-            found.append(f"compose.yaml: {name} does not serve on port {port} (PORT and --port)")
+            found.append(f"{where}: {name} does not serve on port {port} (PORT and --port)")
         if f"--public-url {url}" not in command:
-            found.append(f"compose.yaml: {name} does not give --public-url {url}")
+            found.append(f"{where}: {name} does not give --public-url {url}")
     return found
 
 
@@ -141,6 +144,7 @@ def problems() -> list[str]:
     ]
     found += compose_list_problems()
     found += compose_service_problems()
+    found += compose_service_problems(compose=COMPOSE_IMAGE)
     return found
 
 

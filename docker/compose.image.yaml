@@ -1,0 +1,188 @@
+# The published image (docker/release.Dockerfile) as a stack: every in-tree agent and the app, each
+# a container of the same image, on the ports and names of docker/agents.yaml. CI starts it to
+# smoke-test each image it builds (scripts/smoke_image.sh); it is also a starting point for running
+# the image elsewhere (deploy/README.md, "Container images"). Nothing is mounted from the checkout.
+#
+#   DD_IMAGE=ghcr.io/data-director-agent/data-director:edge docker compose -f docker/compose.image.yaml up --wait
+#
+# The app's port is published on loopback only, because the app does not authenticate callers.
+# scripts/check_deploy.py fails if the agents here drift from docker/agents.yaml.
+
+x-image: &image
+  image: ${DD_IMAGE:-ghcr.io/data-director-agent/data-director:edge}
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+x-agent: &agent
+  <<: *image
+  # The agents' shared settings (config/examples/agents.env), optional; relative to this file.
+  env_file:
+    - path: ${DD_AGENTS_ENV_FILE:-agents.env}
+      required: false
+  healthcheck:
+    test:
+      - CMD
+      - python
+      - -c
+      - "import urllib.request,os; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/.well-known/agent-card.json')"
+    interval: 5s
+    timeout: 5s
+    retries: 24
+
+services:
+  example-hello:
+    <<: *agent
+    command: dd-example-hello serve --host 0.0.0.0 --port 8101 --public-url http://example-hello:8101
+    environment:
+      PORT: "8101"
+
+  advisor-quality:
+    <<: *agent
+    command: dd-advisor-quality serve --host 0.0.0.0 --port 8102 --public-url http://advisor-quality:8102
+    environment:
+      PORT: "8102"
+
+  advisor-standards:
+    <<: *agent
+    command: dd-advisor-standards serve --host 0.0.0.0 --port 8105 --public-url http://advisor-standards:8105
+    environment:
+      PORT: "8105"
+
+  advisor-policy:
+    <<: *agent
+    command: dd-advisor-policy serve --host 0.0.0.0 --port 8108 --public-url http://advisor-policy:8108
+    environment:
+      PORT: "8108"
+
+  advisor-repository:
+    <<: *agent
+    command: dd-advisor-repository serve --host 0.0.0.0 --port 8109 --public-url http://advisor-repository:8109
+    environment:
+      PORT: "8109"
+
+  advisor-ethics:
+    <<: *agent
+    command: dd-advisor-ethics serve --host 0.0.0.0 --port 8111 --public-url http://advisor-ethics:8111
+    environment:
+      PORT: "8111"
+
+  advisor-files:
+    <<: *agent
+    command: dd-advisor-files serve --host 0.0.0.0 --port 8110 --public-url http://advisor-files:8110
+    environment:
+      PORT: "8110"
+
+  advisor-dmp:
+    <<: *agent
+    command: dd-advisor-dmp serve --host 0.0.0.0 --port 8112 --public-url http://advisor-dmp:8112
+    environment:
+      PORT: "8112"
+
+  advisor-metadata:
+    <<: *agent
+    command: dd-advisor-metadata serve --host 0.0.0.0 --port 8113 --public-url http://advisor-metadata:8113
+    environment:
+      PORT: "8113"
+
+  advisor-documentation:
+    <<: *agent
+    command: dd-advisor-documentation serve --host 0.0.0.0 --port 8114 --public-url http://advisor-documentation:8114
+    environment:
+      PORT: "8114"
+
+  advisor-rights:
+    <<: *agent
+    command: dd-advisor-rights serve --host 0.0.0.0 --port 8115 --public-url http://advisor-rights:8115
+    environment:
+      PORT: "8115"
+
+  advisor-linking:
+    <<: *agent
+    command: dd-advisor-linking serve --host 0.0.0.0 --port 8116 --public-url http://advisor-linking:8116
+    environment:
+      PORT: "8116"
+
+  advisor-fairness:
+    <<: *agent
+    command: dd-advisor-fairness serve --host 0.0.0.0 --port 8117 --public-url http://advisor-fairness:8117
+    environment:
+      PORT: "8117"
+
+  orchestrator-stub:
+    <<: *agent
+    command: dd-orchestrator-stub serve --host 0.0.0.0 --port 8106 --public-url http://orchestrator-stub:8106
+    environment:
+      PORT: "8106"
+
+  # Model-backed, so it is opt-in: `--profile llm`. It exits at start-up without a model key
+  # (ANTHROPIC_API_KEY_FILE).
+
+  orchestrator-model:
+    <<: *agent
+    profiles: [llm]
+    command: dd-orchestrator-model serve --host 0.0.0.0 --port 8107 --public-url http://orchestrator-model:8107
+    environment:
+      PORT: "8107"
+
+  app:
+    <<: *image
+    depends_on:
+      example-hello:
+        condition: service_healthy
+      advisor-quality:
+        condition: service_healthy
+      advisor-standards:
+        condition: service_healthy
+      advisor-policy:
+        condition: service_healthy
+      advisor-repository:
+        condition: service_healthy
+      advisor-ethics:
+        condition: service_healthy
+      advisor-files:
+        condition: service_healthy
+      advisor-dmp:
+        condition: service_healthy
+      advisor-metadata:
+        condition: service_healthy
+      advisor-documentation:
+        condition: service_healthy
+      advisor-rights:
+        condition: service_healthy
+      advisor-linking:
+        condition: service_healthy
+      advisor-fairness:
+        condition: service_healthy
+      orchestrator-stub:
+        condition: service_healthy
+    # The app's settings (config/examples/app.env): whom runs act for, or ORCID sign-in. The file
+    # is optional and relative to this file; DD_PRINCIPAL_ID and DD_PRINCIPAL_NAME may come from
+    # the shell instead.
+    env_file:
+      - path: ${DD_APP_ENV_FILE:-app.env}
+        required: false
+    environment:
+      DD_AGENTS_CONFIG: /opt/data-director/docker/agents.yaml
+      DD_HARNESS_URL: http://app:7860
+      DD_PRINCIPAL_ID: ${DD_PRINCIPAL_ID:-}
+      DD_PRINCIPAL_NAME: ${DD_PRINCIPAL_NAME:-}
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/api/agents')"
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    volumes:
+      - runs:/runs
+      - projects:/projects
+    ports: ["127.0.0.1:${DD_APP_HOST_PORT:-7860}:7860"]
+
+volumes:
+  runs:
+  projects:
