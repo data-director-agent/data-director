@@ -45,10 +45,13 @@ def test_progress_is_derived_from_the_project_and_changed_by_the_researchers_wor
     assert found.status_code == 200
     assert found.json()["entry"] is None
     assert found.json()["steps"] == {"preparation.files": "done"}
-    assert found.json()["suggested"] == "setup.documentation"
+    # Where the researcher is is not known, so nothing is suggested: not a Phase 1 step.
+    assert found.json()["suggested"] is None
 
     chosen = client.put(f"/api/projects/{project}/progress/entry", json={"entry": 2})
     assert chosen.status_code == 201 and chosen.json()["entry"] == 2
+    assert chosen.json()["entry_source"] == "researcher"
+    assert chosen.json()["suggested"].startswith("governance.")
     marked = client.put(
         f"/api/projects/{project}/progress/steps/governance.embargo", json={"mark": "skipped"}
     )

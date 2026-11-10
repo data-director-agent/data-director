@@ -7,8 +7,11 @@ picked, a document's versions show the documentation or the metadata drafted (st
 approved (done), a validation shows the project validated (done if the last one conforms, started
 if not), and a package built shows the deposit finalised. The others are the researcher's own
 word: `entry_chosen` names the entry point, and `step_marked` marks a step done, skipped, or open
-again, for the many steps nothing else in the log records. What the log produces outranks a mark:
-a step whose output is approved is done whatever it was marked.
+again, for the many steps nothing else in the log records. An `entry_chosen` may instead be an
+orchestrator's model's reading of what the researcher said (`entry_source` "model"), a weaker word
+that the researcher's own choice replaces and that is never recorded once they have made one.
+What the log produces outranks a mark: a step whose output is approved is done whatever it was
+marked.
 
 Nothing here orders the steps or keeps a current one. The order, and the step to suggest next, are
 `dd_sdk.process_flow`'s; any step may be done, marked or reopened at any time.
@@ -17,7 +20,7 @@ Nothing here orders the steps or keeps a current one. The order, and the step to
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from dd_sdk.process_flow import (
     OUT_OF_SCOPE,
@@ -31,6 +34,11 @@ from dd_sdk.process_flow import (
 
 ENTRY_CHOSEN: Final = "entry_chosen"
 STEP_MARKED: Final = "step_marked"
+# Who recorded an entry point: the researcher, or an orchestrator's model from what they said. An
+# `entry_chosen` with no `entry_source` is the researcher's.
+ENTRY_BY_RESEARCHER: Final = "researcher"
+ENTRY_BY_MODEL: Final = "model"
+type EntrySource = Literal["researcher", "model"]
 INVENTORY_ADDED: Final = "inventory_added"
 REPOSITORY_CHOSEN: Final = "repository_chosen"
 DOCUMENT_VERSION_ADDED: Final = "document_version_added"
@@ -68,8 +76,19 @@ def markable(step_id: str) -> bool:
 
 def entry_chosen(events: Iterable[Mapping[str, Any]]) -> int | None:
     """The entry point chosen last, or None if none has been."""
-    chosen = [e["entry"] for e in events if e["event"] == ENTRY_CHOSEN]
-    return chosen[-1] if chosen else None
+    return entry_and_source(events)[0]
+
+
+def entry_and_source(events: Iterable[Mapping[str, Any]]) -> tuple[int | None, EntrySource | None]:
+    """The entry point chosen last and who recorded it, or (None, None) if none has been."""
+    chosen = [e for e in events if e["event"] == ENTRY_CHOSEN]
+    if not chosen:
+        return None, None
+    last = chosen[-1]
+    source: EntrySource = (
+        ENTRY_BY_MODEL if last.get("entry_source") == ENTRY_BY_MODEL else ENTRY_BY_RESEARCHER
+    )
+    return last["entry"], source
 
 
 def step_states(events: Iterable[Mapping[str, Any]]) -> dict[str, StepState]:
@@ -116,14 +135,15 @@ def step_states(events: Iterable[Mapping[str, Any]]) -> dict[str, StepState]:
 
 
 def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """The entry point, the step states and the step `suggested_next` names, as a project
-    summary carries them and the app's phase tracker shows them."""
+    """The entry point and who recorded it, the step states and the step `suggested_next`
+    names, as a project summary carries them and the app's phase tracker shows them."""
     events = list(events)
-    chosen, states = entry_chosen(events), step_states(events)
+    (chosen, source), states = entry_and_source(events), step_states(events)
     start = entry(chosen) if chosen is not None else None
     suggested = suggested_next(progress(start, states, []), start)
     return {
         "entry": chosen,
+        "entry_source": source,
         "steps": states,
         "suggested": suggested.step.id if suggested is not None else None,
     }

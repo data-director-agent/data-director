@@ -385,6 +385,38 @@ def check_a_persons_title_is_never_replaced_by_a_models(make: MakeProjectStorage
     )
 
 
+def check_a_researchers_entry_point_is_never_replaced_by_a_models(
+    make: MakeProjectStorage,
+) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.progress(project_id)["entry_source"] is None
+
+    def choose(entry: int, source: Any) -> bool:
+        return store.choose_entry(
+            project_id, entry, source=source, acted_for=TEST_PRINCIPAL, caused_by="check"
+        )
+
+    assert choose(2, "model")
+    where = store.progress(project_id)
+    assert (where["entry"], where["entry_source"]) == (2, "model")
+    assert choose(3, "model")
+    assert choose(2, "researcher")
+    before = store.events(project_id)
+    assert not choose(1, "model")
+    assert store.events(project_id) == before
+    for entry, source in ((4, "researcher"), (2, "agent")):
+        with _raises(ProjectError, f"entry point {entry!r} from {source!r}"):
+            choose(entry, source)
+    with _raises(ProjectError, "an entry point for an unknown project"):
+        store.choose_entry(NOWHERE, 2, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.events(project_id) == before
+    again = make("projects").progress(project_id)
+    assert (again["entry"], again["entry_source"]) == (2, "researcher")
+    assert choose(3, "researcher")
+    assert store.progress(project_id)["entry"] == 3
+
+
 def check_a_conversation_is_found_after_a_restart(make: MakeProjectStorage) -> None:
     store = make("projects")
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
@@ -679,6 +711,9 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "projects are listed in the order created": check_projects_are_listed_in_the_order_created,
     "a person's title is never replaced by a model's": (
         check_a_persons_title_is_never_replaced_by_a_models
+    ),
+    "a researcher's entry point is never replaced by a model's": (
+        check_a_researchers_entry_point_is_never_replaced_by_a_models
     ),
     "a conversation is found after a restart": check_a_conversation_is_found_after_a_restart,
     "a conversation started elsewhere is found": check_a_conversation_started_elsewhere_is_found,

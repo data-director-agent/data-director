@@ -30,10 +30,11 @@
     },
     "progress": {
       "entry": null,
+      "entry_source": null,
       "steps": {
         "preparation.files": "done"
       },
-      "suggested": "setup.documentation"
+      "suggested": null
     },
     "project_id": "01900000-0000-7000-8000-000000000002",
     "repository": null,

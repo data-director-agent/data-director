@@ -94,7 +94,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     (`{"project_id": …}`), or in a new project when it names none, acting for the person signed
     in. A project that does not exist, or that the person may not read, is refused with a 404 and
     nothing is started; a body with any other field is refused with a 400. A conversation names
-    its `project_id` and the inventory its project holds. The app gives the conductor the same project store, so a turn's runs belong to the
+    its `project_id` and the inventory its project holds. The shell names the open conversation
+    in the address (`?conversation=`), so a reload or a link reopens it in its own project and a
+    message sent afterwards continues it. The app gives the conductor the same project store, so a turn's runs belong to the
     project and a drafter's documents are kept in it ([Projects](projects.md),
     `app/tests/test_app.py`).
 19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,

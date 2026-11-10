@@ -20,7 +20,9 @@ Three core classes are filled. Within a project:
   `project_progress` say which entry point the researcher chose and how far each step of the
   process flow has gone, derived from the log on every turn (`dd_harness.progress`); its
   `project_title` is the project's latest title, and `project_title_by_researcher` whether a
-  person gave it, so that an orchestrator's model can name a project nobody has named.
+  person gave it, so that an orchestrator's model can name a project nobody has named; its
+  `project_entry_by_researcher` whether the researcher chose the entry point, so that the model
+  can record one it worked out from what they said until they do.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -41,6 +43,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from dd_harness.progress import ENTRY_BY_RESEARCHER
 from dd_harness.projects import TITLE_BY_RESEARCHER
 from dd_harness.storage import ProjectStorage
 from dd_sdk.contract.models import DocumentKind
@@ -57,6 +60,7 @@ MESSAGE_PROJECT_SLOTS = (
     "project_progress",
     "project_title",
     "project_title_by_researcher",
+    "project_entry_by_researcher",
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
@@ -97,6 +101,12 @@ def give(
                 "project_title": summary["title"],
                 # False while the project is untitled too: the model may name it.
                 "project_title_by_researcher": summary["title_source"] == TITLE_BY_RESEARCHER,
+                # Absent until an entry point is recorded, as `project_entry` is.
+                "project_entry_by_researcher": (
+                    where["entry_source"] == ENTRY_BY_RESEARCHER
+                    if where["entry_source"] is not None
+                    else None
+                ),
             },
         )
     elif schema_class == DRAFT_REQUEST:
