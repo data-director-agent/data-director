@@ -28,7 +28,6 @@ from dd_harness.projects import UnknownProjectError, check_documentation
 from dd_harness.requirements import Requirements, load_requirements
 from dd_harness.settings import (
     Settings,
-    SettingsError,
     build_conductor,
     project_storage,
     projects_dir,
@@ -152,14 +151,9 @@ class Governance:
             authenticator = OperatorAssertion(settings.principal())
         conductor = build_conductor(settings)
         conductor.harness_url = settings.harness_url or base_url
-        root = projects_dir(DEFAULT_PROJECTS_DIR)
-        try:
-            projects = project_storage(root)
-        except OSError as exc:
-            # One line at start-up, like any other setting that is wrong.
-            raise SettingsError(
-                f"DD_PROJECTS_DIR {root} cannot be used: {exc.strerror or exc}"
-            ) from exc
+        # A location that cannot be used (a directory that cannot be made, a database that
+        # cannot be reached or is not migrated) stops start-up with `SettingsError`.
+        projects = project_storage(projects_dir(DEFAULT_PROJECTS_DIR), "DD_PROJECTS_DIR")
         requirements = load_requirements(repositories_dir(DEFAULT_REPOSITORIES_DIR))
         return cls(conductor, authenticator, projects, requirements)
 
@@ -176,7 +170,7 @@ class Governance:
     ) -> dict[str, Any]:
         """One run, start to finish (`POST /api/runs`): its envelope and the checks' reports.
 
-        A stopgap until the shell streams runs over AG-UI (#68, #69): the page learns nothing
+        A stopgap until the shell streams runs over AG-UI (#69): the page learns nothing
         until the run has ended, and infers the stages from what comes back. Raises what
         `Conductor.invoke` raises for a request it refuses before running.
         """

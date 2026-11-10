@@ -138,7 +138,7 @@ class RemoteAgent:
                 # Not streamed: the policy gate, grounding linter and source check judge the
                 # whole envelope, so the conductor waits for the agent's finished reply and
                 # nothing reaches a person before those checks have run. Streaming text to the
-                # shell is a separate matter, TODO(#68, #69).
+                # shell is a separate matter, TODO(#159).
                 client = await create_client(
                     agent=self.url, client_config=ClientConfig(streaming=False, httpx_client=hc)
                 )

@@ -257,8 +257,8 @@ class ChoiceAnswer(Frozen):
 class Message(Frozen):
     """One conversational turn and the conversation so far (docs/specs/orchestration.md). The
     conductor fills `project_inventory`, `project_entry`, `project_progress`, `project_title`,
-    `project_title_by_researcher` and `project_documentation` from the conversation's project; a
-    caller never does."""
+    `project_title_by_researcher`, `project_entry_by_researcher` and `project_documentation` from
+    the conversation's project; a caller never does."""
 
     schema_class: Literal["Message"] = "Message"
     message_text: str
@@ -270,6 +270,7 @@ class Message(Frozen):
     project_title: str | None = Field(default=None, pattern=PROJECT_TITLE_PATTERN)
     project_title_by_researcher: bool | None = None
     project_documentation: list[DocumentationSummary] | None = None
+    project_entry_by_researcher: bool | None = None
 
 
 class TableField(Frozen):
@@ -449,6 +450,9 @@ class Reply(Grounded):
     reply_question: ChoiceQuestion | None = None
     # A name for the conversation's project, which the conductor records unless a person named it.
     new_project_title: str | None = Field(default=None, pattern=NEW_PROJECT_TITLE_PATTERN)
+    # An entry point a model worked out, which the conductor records unless the researcher chose
+    # one. The bounds are not in the schema (#333).
+    new_project_entry: int | None = Field(default=None, ge=1, le=3)
 
 
 class DocumentVersionRef(Frozen):

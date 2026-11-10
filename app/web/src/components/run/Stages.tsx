@@ -2,7 +2,7 @@
  * The conductor's stages for one run, each with a word for its state (checklist item 1).
  *
  * The stages are read back after the run has ended (run/stages.ts), and the page says so: live
- * progress needs the AG-UI stream (#68, #69).
+ * progress needs the AG-UI stream (#69).
  */
 
 import "./Stages.css";
@@ -30,7 +30,7 @@ export function Stages({ stages, inferred }: { stages: Stage[]; inferred: boolea
       {inferred && (
         <p className="hint">
           Read back after the run ended. Watching each stage as it happens is not built yet (
-          <IssueLinks issues={[68, 69]} />
+          <IssueLinks issues={[69]} />
           ).
         </p>
       )}

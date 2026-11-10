@@ -288,6 +288,13 @@
             "array",
             "null"
          ]
+      },
+      "project_entry_by_researcher": {
+         "description": "Whether the researcher chose the project's entry point, so that a model's would be refused; false when an orchestrator's model recorded it. Filled by the conductor and never by the caller; absent when the run is in no project, or no entry point was recorded.",
+         "type": [
+            "boolean",
+            "null"
+         ]
       }
    },
    "required": [

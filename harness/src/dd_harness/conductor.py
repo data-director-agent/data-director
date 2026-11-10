@@ -40,7 +40,8 @@ hashed, the conductor puts the project's facts into an input class that asks for
 (`project_facts`). A run in a project that succeeds with a `Document` is recorded in the project
 as a proposed version, caused by the run; a draft the project refuses fails the run instead. A
 `Reply` that names the project (`new_project_title`) renames it, caused by the run, unless a
-person has given it a title.
+person has given it a title; one that records an entry point (`new_project_entry`) records it as
+the model's word, caused by the run, unless the researcher has chosen one.
 
 Threads (#171). `invoke` may be called from any thread, and several invocations may run at
 once. Async code calls `ainvoke` and `ainvoke_delegated` instead, which keep the one rule that
@@ -65,7 +66,10 @@ from opentelemetry.trace import SpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from dd_harness import grounding, policy, project_access, project_facts, shacl
+from dd_harness import observe as steps
 from dd_harness import sources as source_check
+from dd_harness.observe import RunObserver, Watch
+from dd_harness.progress import ENTRY_BY_MODEL
 from dd_harness.projects import TITLE_BY_MODEL, ProjectError, UnknownProjectError
 from dd_harness.provenance import process_run_crate
 from dd_harness.registry import Registry
@@ -91,6 +95,7 @@ from dd_sdk.contract.models import (
     Outcome,
     OutcomeStatus,
     Principal,
+    ProblemDetails,
     ReasonCode,
     Telemetry,
     input_source_id,
@@ -112,7 +117,8 @@ from dd_sdk.tracing import (
 DATA_STEWARD = "data_steward"
 # The core payload class a run in a project records as a document version.
 DOCUMENT = "Document"
-# The core payload class whose `new_project_title` renames the run's project.
+# The core payload class whose `new_project_title` renames the run's project, and whose
+# `new_project_entry` records its entry point.
 REPLY = "Reply"
 
 
@@ -187,13 +193,22 @@ class Conductor:
     _parents: ThreadPoolExecutor | None = field(default=None, repr=False)
     _parents_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
-    async def ainvoke(self, request: InvocationRequest, *, acting_for: Principal) -> Envelope:
+    async def ainvoke(
+        self,
+        request: InvocationRequest,
+        *,
+        acting_for: Principal,
+        observer: RunObserver | None = None,
+        cancel: threading.Event | None = None,
+    ) -> Envelope:
         """`invoke`, awaited from async code without blocking its event loop."""
         with self._parents_lock:
             if self._parents is None:
                 self._parents = ThreadPoolExecutor(thread_name_prefix="dd-conductor")
             parents = self._parents
-        call = functools.partial(self.invoke, request, acting_for=acting_for)
+        call = functools.partial(
+            self.invoke, request, acting_for=acting_for, observer=observer, cancel=cancel
+        )
         return await asyncio.get_running_loop().run_in_executor(parents, call)
 
     def close(self) -> None:
@@ -210,9 +225,21 @@ class Conductor:
         """`invoke_delegated`, awaited from async code, off the pool parents run on."""
         return await asyncio.to_thread(self.invoke_delegated, request, token, traceparent)
 
-    def invoke(self, request: InvocationRequest, *, acting_for: Principal) -> Envelope:
+    def invoke(
+        self,
+        request: InvocationRequest,
+        *,
+        acting_for: Principal,
+        observer: RunObserver | None = None,
+        cancel: threading.Event | None = None,
+    ) -> Envelope:
         """Run one top-level invocation on behalf of `acting_for`, the principal the caller's
-        transport authenticated. Lineage is the conductor's to set, never the caller's."""
+        transport authenticated. Lineage is the conductor's to set, never the caller's.
+
+        `observer` is told the run's stages and its checks' reports as they happen
+        (`dd_harness.observe`). Setting `cancel` cancels the run: the conductor looks at it before
+        each stage and when the agent answers, and a cancelled run is stored as failed with the
+        problem `run-cancelled`, whatever the agent answered (docs/specs/transport.md)."""
         if request.parent_invocation_id is not None:
             raise DelegationError(
                 "parent_invocation_id is set by the conductor from a delegation grant; "
@@ -238,7 +265,9 @@ class Conductor:
             )
         ):
             raise UnknownProjectError(f"no project {project_id!r}")
-        return self._invoke(request, acting_for, project_id=project_id)
+        return self._invoke(
+            request, acting_for, project_id=project_id, watch=Watch(observer, cancel)
+        )
 
     def invoke_delegated(
         self, request: InvocationRequest, token: str, traceparent: str = ""
@@ -317,6 +346,7 @@ class Conductor:
         link: SpanContext | None = None,
         *,
         project_id: str | None = None,
+        watch: Watch | None = None,
     ) -> Envelope:
         # The project's facts go in before anything is hashed or stored, so the input hash and
         # request.json cover what the agent was shown; outside a project, what only the conductor
@@ -341,7 +371,9 @@ class Conductor:
                 )
             self._running.add(invocation_id)
         try:
-            return self._run(request, request_doc, acting_for, link, given, refused)
+            return self._run(
+                request, request_doc, acting_for, link, given, refused, watch or Watch(None, None)
+            )
         finally:
             with self._running_lock:
                 self._running.discard(invocation_id)
@@ -354,6 +386,7 @@ class Conductor:
         link: SpanContext | None,
         given: frozenset[str] = frozenset(),
         unfillable: str | None = None,
+        watch: Watch | None = None,
     ) -> Envelope:
         """`given` is the classes of project content the conductor put into the input, and
         `unfillable` why it could not fill it from the project, if it could not."""
@@ -367,6 +400,8 @@ class Conductor:
                 + self.registry.not_registered()
             )
         spec = agent.spec
+        watch = watch or Watch(None, None)
+        watch.plan()
         started = datetime.now(UTC)
         tracer = self.tracing.tracer
         input_hash = compute_input_hash(request_doc["input"])
@@ -388,8 +423,23 @@ class Conductor:
 
             # 1. Policy gate, against the deployment's profile.
             profile = self.profile
+            watch.started(steps.GATE)
             with policy_gate_span(tracer, spec.agent_id):
                 decision = policy.gate(profile, spec.agent_id, spec.action_class)
+            watch.finished(steps.GATE)
+            # 2-4. The input check: the input against the agent's card, the project's facts and
+            # what the profile keeps from hosted models. Run only for an agent the gate lets run
+            # straight away, and not once the run is cancelled.
+            refused: tuple[str, list[str]] | None = None
+            kept_back: list[str] = []
+            if decision.allowed and not decision.requires_approval and not watch.cancelled():
+                watch.started(steps.INPUT)
+                refused = _input_refusal(spec, request_doc["input"])
+                if refused is None and unfillable is None:
+                    kept_back = policy.withheld(
+                        profile, (model.hosting for model in spec.models), given
+                    )
+                watch.finished(steps.INPUT)
             result: AgentResult
             if not decision.allowed:
                 result = AgentResult(
@@ -418,7 +468,9 @@ class Conductor:
                     )
                 )
                 prob = None
-            elif refused := _input_refusal(spec, request_doc["input"]):
+            elif watch.cancelled():
+                result, prob = _cancelled(spec.agent_id, ran=False)
+            elif refused:
                 # 2. Input check, against the class schema the agent's card carries
                 # (docs/specs/contract.md).
                 # A valid request addressed to an agent that does not read this input is an
@@ -449,9 +501,7 @@ class Conductor:
                     )
                 )
                 prob = problems.revision_refused(unfillable)
-            elif kept_back := policy.withheld(
-                profile, (model.hosting for model in spec.models), given
-            ):
+            elif kept_back:
                 # 4. Project content, against the profile's `hosted_models`
                 # (docs/specs/projects.md, invariant 8): nothing is sent that the profile does not
                 # let an agent calling a hosted model see.
@@ -484,6 +534,7 @@ class Conductor:
                 ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
                 # The agent is never told which project it works in (docs/specs/projects.md).
                 sent = request.model_copy(update={"project_id": None})
+                watch.started(steps.AGENT)
                 try:
                     # An in-process agent records its spans in this trace already.
                     received = (
@@ -528,6 +579,12 @@ class Conductor:
                             )
                         )
                         prob = problems.agent_error(spec.agent_id, mismatch)
+                watch.finished(steps.AGENT)
+                # A blocking call cannot be stopped, so a run cancelled while its agent worked
+                # ends here: what the agent answered is discarded, and its model calls are kept.
+                if watch.cancelled():
+                    result, prob = _cancelled(spec.agent_id, ran=True)
+                    from_agent = False
 
             if grant is not None:
                 # Recorded whatever the agent did afterwards: the children ran and are stored.
@@ -567,15 +624,21 @@ class Conductor:
 
         try:
             # 6. Grounding linter, over the finished tree of this trace.
+            watch.started(steps.GROUNDING)
             records = self.tracing.finished_records(trace_id)
             report = grounding.lint(records, envelope.to_document())
+            watch.grounding(report)
+            watch.finished(steps.GROUNDING)
             with self._reports_lock:  # invocations finish side by side
                 self.grounding_reports[request.invocation_id] = report
                 while len(self.grounding_reports) > GROUNDING_REPORTS_KEPT:
                     del self.grounding_reports[next(iter(self.grounding_reports))]
             # 6a. Source check, over the evidence the linter has just read
             # (docs/specs/grounding.md).
+            watch.started(steps.SOURCES)
             source_report = source_check.check(envelope.to_document(), self.sources)
+            watch.sources(source_report)
+            watch.finished(steps.SOURCES)
             withheld = [
                 (check, found)
                 for check, found in (
@@ -668,6 +731,24 @@ class Conductor:
                     acted_for=acting_for,
                     caused_by=envelope.invocation_id,
                 )
+            # 7a''. An entry point a model worked out in a succeeded reply is recorded as its
+            # word, caused by this run, unless the researcher has chosen one
+            # (docs/specs/orchestration.md, invariant 18). The value passed the contract already.
+            new_entry = doc.get("payload", {}).get("new_project_entry")
+            if (
+                self.projects is not None
+                and envelope.project_id is not None
+                and envelope.outcome.status == OutcomeStatus.SUCCEEDED
+                and doc.get("payload", {}).get("schema_class") == REPLY
+                and new_entry is not None
+            ):
+                self.projects.choose_entry(
+                    envelope.project_id,
+                    int(new_entry),
+                    source=ENTRY_BY_MODEL,
+                    acted_for=acting_for,
+                    caused_by=envelope.invocation_id,
+                )
             # The schemas the run was checked against, kept by digest for the viewer
             # (docs/specs/contract.md).
             checked = [accepted] if accepted else []
@@ -710,6 +791,20 @@ class Conductor:
             path = Path(tmp) / SPANS
             self.tracing.write_jsonl(path, trace_id)
             return path.read_bytes()
+
+
+def _cancelled(agent_id: str, *, ran: bool) -> tuple[AgentResult, ProblemDetails]:
+    """The result of a run its caller cancelled: failed with `run-cancelled`, nothing kept of what
+    the agent answered (docs/specs/transport.md)."""
+    detail = (
+        f"The run was cancelled while {agent_id} worked; what it answered was discarded."
+        if ran
+        else f"The run was cancelled before {agent_id} was run."
+    )
+    return (
+        AgentResult(outcome=Outcome(status=OutcomeStatus.FAILED, statement=detail)),
+        problems.run_cancelled(detail),
+    )
 
 
 def _input_refusal(spec: AgentSpec, document: dict[str, Any]) -> tuple[str, list[str]] | None:

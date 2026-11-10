@@ -945,6 +945,66 @@ def test_outside_a_project_a_reply_names_nothing(tmp_path: Path, projects: Proje
     assert projects.projects() == []
 
 
+def entering(entry: int, seen: list[dict[str, Any]]) -> ScriptedAgent:
+    """An orchestrator that records what it was given and records entry point `entry`."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        seen.append(req.input.model_dump(mode="json", exclude_none=True))
+        result = reply_over(ctx)
+        assert result.payload is not None
+        return replace(
+            result, payload=result.payload.model_copy(update={"new_project_entry": entry})
+        )
+
+    return ScriptedAgent(GroundingMode.DELEGATION, behaviour)
+
+
+def test_a_reply_records_the_entry_point_a_model_worked_out(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A researcher who says their data are collected, without choosing an entry point, has the
+    model's reading recorded as the model's word (docs/specs/orchestration.md, invariant 18)."""
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, entering(2, seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    forged = OpenInput.model_validate(
+        {**message().model_dump(mode="json"), "project_entry_by_researcher": True}
+    )
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", forged), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_entry_by_researcher" not in seen[0]
+    where = projects.progress(project)
+    assert (where["entry"], where["entry_source"]) == (2, "model")
+    recorded = projects.events(project)[-1]
+    assert recorded["caused_by"] == env.invocation_id
+
+    conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert (seen[1]["project_entry"], seen[1]["project_entry_by_researcher"]) == (2, False)
+
+
+def test_a_reply_never_replaces_the_entry_point_the_researcher_chose(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    projects.choose_entry(project, 3, acted_for=TEST_PRINCIPAL, caused_by="test")
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, entering(1, seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    before = projects.events(project)
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert (seen[0]["project_entry"], seen[0]["project_entry_by_researcher"]) == (3, True)
+    assert projects.events(project) == before
+
+
 def test_an_orchestrator_is_told_of_the_projects_documentation_without_its_text(
     tmp_path: Path, projects: ProjectStore, project: str
 ) -> None:

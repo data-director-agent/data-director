@@ -1,0 +1,15 @@
+{"runId": "run", "threadId": "thread", "type": "RUN_STARTED"}
+{"name": "dd.plan", "type": "CUSTOM", "value": {"steps": [{"id": "gate", "label": "Policy gate"}, {"id": "input", "label": "Input check"}, {"id": "agent", "label": "Agent"}, {"id": "grounding", "label": "Grounding check"}, {"id": "sources", "label": "Source check"}]}}
+{"stepName": "gate", "type": "STEP_STARTED"}
+{"stepName": "gate", "type": "STEP_FINISHED"}
+{"stepName": "input", "type": "STEP_STARTED"}
+{"stepName": "input", "type": "STEP_FINISHED"}
+{"stepName": "agent", "type": "STEP_STARTED"}
+{"stepName": "agent", "type": "STEP_FINISHED"}
+{"stepName": "grounding", "type": "STEP_STARTED"}
+{"name": "dd.grounding", "type": "CUSTOM", "value": {"chat_count": 1, "mode": "none", "passed": false, "retrieval_count": 0, "violations": ["N1: 1 chat span(s) in an agent that declared no model call"]}}
+{"stepName": "grounding", "type": "STEP_FINISHED"}
+{"stepName": "sources", "type": "STEP_STARTED"}
+{"name": "dd.sources", "type": "CUSTOM", "value": {"passed": true, "unresolved": [], "verified": 0, "violations": []}}
+{"stepName": "sources", "type": "STEP_FINISHED"}
+{"result": {"acting_for": {"assurance": "asserted", "name": "Josiah Carberry", "principal_id": "https://orcid.org/0000-0002-1825-0097", "principal_kind": "person"}, "agent_id": "fake.none", "agent_version": "0", "completed_at": "2026-01-01T00:00:00Z", "contract_version": "0.9.11", "evidence": [], "grounding_mode": "none", "input_schema": "5219dc2daf5c74988da48f644307067df0a3a5ad98cc80b7dec53a4d28127147", "invocation_id": "01900000-0000-7000-8000-000000000001", "outcome": {"statement": "Output withheld: it failed the grounding linter. N1: 1 chat span(s) in an agent that declared no model call", "status": "failed"}, "policy_bundle_ref": "profile:test-permissive@v8", "policy_digest": "10648fba894881f48d5fab42b8e6ee06031adfbfade7dfbb0ca06b95e40296e8", "problem": {"detail": "Nothing ungrounded leaves the system. Violations: N1: 1 chat span(s) in an agent that declared no model call", "http_status": 500, "title": "Output failed the grounding linter", "type": "https://w3id.org/data-director/problems/grounding-violation"}, "requires_human_review": true, "telemetry": {"energy_estimate_j": null, "energy_method": "not_measured", "trace_id": "00000000000000000000000000000000"}}, "runId": "run", "threadId": "thread", "type": "RUN_FINISHED"}

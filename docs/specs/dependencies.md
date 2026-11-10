@@ -53,6 +53,7 @@ modules are not dependencies here.
 | `protobuf` | SDK, harness | `dd_sdk.serve`, `dd_harness.transport.a2a`: A2A messages to and from plain documents | Whatever `a2a-sdk` uses; it is declared because the code imports it directly. |
 | `starlette` | SDK, harness, workbench, app | The ASGI applications in `dd_sdk.serve`, `dd_harness.server`, `dd_app.app` | Any ASGI framework; each application is a handful of routes. |
 | `uvicorn` | SDK, harness (`serve` extra), workbench, app | The `serve` commands | Any ASGI server. |
+| `psycopg[binary]` | Harness (`postgres` extra) | `dd_harness.postgres`: the PostgreSQL backend of the run and project storage, in plain SQL ([Storage](storage.md)) | Another PostgreSQL driver behind the same module; the file backends for a single host. |
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
 | `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export) | `urllib.request`. |
 | `rocrate` | Harness | `dd_harness.provenance`; the deposit package in `dd_harness.deposit` | Write `ro-crate-metadata.json` directly. |
@@ -60,7 +61,7 @@ modules are not dependencies here.
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
 | `python-dotenv` | Harness | `dd_harness.settings` | `uv run --env-file`, or variables exported in the shell. |
 | `joserfc` | Harness, app | ID-token verification in `dd_harness.identity`; the RS256 JWT a GitHub App presents in `dd_app.github_auth` | Another JOSE library, or RS256 with `cryptography`. |
-| `ag-ui-protocol` | Workbench | `workbench.transport.agui` | Two pydantic event models and an SSE encoder. |
+| `ag-ui-protocol` | Harness | `dd_harness.transport.agui` | The seven pydantic event models the AG-UI binding sends, and an SSE encoder. |
 | `rank-bm25` (with numpy) | Retrieving agents | Each agent's `snapshot` module | About forty lines of BM25. |
 | `anthropic` | Orchestrator (required); retrieving advisers and the Documentation Editor (optional extra) | `dd_agent_orchestrator_model.model`; each adviser's `explain` module; the Documentation Editor's `prose` module | The rule-based orchestrator stub, an adviser's template explainer or the editor's template writer; any HTTP client against the Messages API. |
 | `opf-fido` | `dd-inventory` | `dd_inventory.identify` | Media types from file extensions, with no PRONOM identifier. |

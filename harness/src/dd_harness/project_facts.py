@@ -23,6 +23,8 @@ Three core classes are filled. Within a project:
   person gave it, so that an orchestrator's model can name a project nobody has named; its
   `project_documentation` lists the documents a researcher attached, by name, digest, media type
   and size, without their text, so that an orchestrator knows they are there.
+  `project_entry_by_researcher` whether the researcher chose the entry point, so that the model
+  can record one it worked out from what they said until they do.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -44,6 +46,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from dd_harness.progress import ENTRY_BY_RESEARCHER
 from dd_harness.projects import TITLE_BY_RESEARCHER
 from dd_harness.storage import ProjectStorage
 from dd_sdk.contract.models import DocumentKind
@@ -61,6 +64,7 @@ MESSAGE_PROJECT_SLOTS = (
     "project_title",
     "project_title_by_researcher",
     "project_documentation",
+    "project_entry_by_researcher",
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
@@ -103,6 +107,12 @@ def give(
                 "project_title_by_researcher": summary["title_source"] == TITLE_BY_RESEARCHER,
                 # Left out while the project holds none, as `project_inventory` is.
                 "project_documentation": store.documentation(project_id) or None,
+                # Absent until an entry point is recorded, as `project_entry` is.
+                "project_entry_by_researcher": (
+                    where["entry_source"] == ENTRY_BY_RESEARCHER
+                    if where["entry_source"] is not None
+                    else None
+                ),
             },
         )
     elif schema_class == DRAFT_REQUEST:

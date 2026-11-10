@@ -19,6 +19,12 @@ dd:Message a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 9 ;
             sh:path dd:project_documentation ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Whether the researcher chose the project's entry point, so that a model's would be refused; false when an orchestrator's model recorded it. Filled by the conductor and never by the caller; absent when the run is in no project, or no entry point was recorded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:project_entry_by_researcher ],
         [ sh:class dd:ChoiceAnswer ;
             sh:description "The researcher's answer to the choice question the previous turn asked, when they answered by choosing. message_text still carries the answer as prose." ;
             sh:maxCount 1 ;

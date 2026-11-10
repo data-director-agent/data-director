@@ -153,12 +153,8 @@ class RunStore:
     def _artifact_path(self, invocation_id: str, name: str) -> Path | None:
         """Where an artifact is kept, or None if either name is malformed or the name is one of
         the run's own files."""
-        segments = name.split("/")
-        if (
-            not RUN_ID.fullmatch(invocation_id)
-            or name in RESERVED
-            or not all(ARTIFACT_SEGMENT.fullmatch(s) for s in segments)
-        ):
+        segments = artifact_segments(name)
+        if not RUN_ID.fullmatch(invocation_id) or segments is None:
             return None
         return self.root.joinpath(invocation_id, *segments)
 
@@ -186,6 +182,15 @@ class RunStore:
         if not DIGEST.fullmatch(digest):
             return None
         return _read_json(self.root / SCHEMAS_DIR / f"{digest}.json")
+
+
+def artifact_segments(name: str) -> list[str] | None:
+    """The plain segments of an artifact name, or None if it is malformed or names one of the run's
+    own files. Every backend refuses the same names (docs/specs/storage.md, invariant 5)."""
+    segments = name.split("/")
+    if name in RESERVED or not all(ARTIFACT_SEGMENT.fullmatch(s) for s in segments):
+        return None
+    return segments
 
 
 def _read_json(path: Path | None) -> dict[str, Any] | None:

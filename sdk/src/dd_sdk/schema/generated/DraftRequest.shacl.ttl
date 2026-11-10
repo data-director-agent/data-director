@@ -105,6 +105,12 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:decision_reason ],
+        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
+            sh:in ( "proposed" "approved" "rejected" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path dd:version_state ],
         [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
@@ -112,12 +118,6 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
-        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
-            sh:in ( "proposed" "approved" "rejected" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 4 ;
-            sh:path dd:version_state ],
         [ sh:class dd:DocumentVersionRef ;
             sh:description "The version, by its document and number." ;
             sh:maxCount 1 ;
@@ -398,6 +398,11 @@ dd:TableField a sh:NodeShape ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:field_format ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
@@ -412,12 +417,7 @@ dd:TableField a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dcterms:description ],
-        [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:field_format ] ;
+            sh:path dcterms:description ] ;
     sh:targetClass dd:TableField .
 
 dd:DocumentVersionRef a sh:NodeShape ;

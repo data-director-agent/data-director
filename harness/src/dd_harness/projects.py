@@ -36,7 +36,8 @@ answer to each question of the documents of a kind, which the conductor puts int
 Where the project is in the Blueprint's process flow is derived from the log by `progress`, never
 stored (`dd_harness.progress`, docs/specs/orchestration.md). The researcher's own word on it is two
 events: `entry_chosen` (`choose_entry`, the last counts) and `step_marked` (`mark_step`: done,
-skipped, or open again).
+skipped, or open again). An orchestrator's model may also record an `entry_chosen` it worked out
+from what the researcher said, saying so in `entry_source`, until the researcher chooses one.
 
 A project may have a title, so that a person can tell projects apart. A person gives it when
 creating the project or renames it later; while no person has, an orchestrator's model may name
@@ -559,14 +560,33 @@ class Projects:
         return digest
 
     def choose_entry(
-        self, project_id: str, entry: int, *, acted_for: Principal, caused_by: str
-    ) -> None:
-        """Record the Blueprint entry point (1, 2 or 3) the researcher chose; the last counts.
-        Raises `ProjectError` for an unknown project or entry point."""
-        self._require(project_id)
+        self,
+        project_id: str,
+        entry: int,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+        source: flow.EntrySource = flow.ENTRY_BY_RESEARCHER,
+    ) -> bool:
+        """Record the Blueprint entry point (1, 2 or 3) the researcher chose, or an
+        orchestrator's model worked out from what they said; the last counts. Returns False, and
+        records nothing, for a model's entry point once the researcher has chosen one. Raises
+        `ProjectError` for an unknown project, entry point or source."""
+        if source not in (flow.ENTRY_BY_RESEARCHER, flow.ENTRY_BY_MODEL):
+            raise ProjectError(
+                f"an entry point is chosen by a researcher or a model, not {source!r}"
+            )
         if entry not in (1, 2, 3):
             raise ProjectError(f"the Blueprint has no entry point {entry!r}")
-        self._append(project_id, flow.ENTRY_CHOSEN, acted_for, caused_by, {"entry": entry})
+        with self._section(project_id) as section:
+            _, held = flow.entry_and_source(section.events())
+            if source == flow.ENTRY_BY_MODEL and held == flow.ENTRY_BY_RESEARCHER:
+                return False
+            detail = {"entry": entry, "entry_source": source}
+            section.append(
+                [self._event(project_id, flow.ENTRY_CHOSEN, acted_for, caused_by, detail)]
+            )
+        return True
 
     def mark_step(
         self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str

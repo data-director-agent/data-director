@@ -68,14 +68,19 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    `test_a_child_acts_for_its_parents_principal_not_its_callers`,
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
-8. **An orchestrator has no tools except its delegations, `offer_choices` and `name_project`.** A
+8. **An orchestrator has no tools except its delegations, `offer_choices`, `name_project` and
+   `set_entry_point`.** A
    model-backed orchestrator is offered one tool per input class of each agent in the harness's
    manifest, and `offer_choices`, which reaches nothing: called alone it ends the turn, and the
    reply carries its question as `Reply.reply_question`. In a project no person has named
    (`Message.project_title_by_researcher` false) it is also offered `name_project`, which reaches
    nothing either: the reply carries the name as `Reply.new_project_title`, which the conductor
    records as the project's title ([Projects](projects.md), invariant 21), and the turn goes on.
-   Nothing else is offered: no MCP server, no server tool
+   In a project whose researcher has not chosen an entry point
+   (`Message.project_entry_by_researcher` not true) it is also offered `set_entry_point`, which
+   reaches nothing: the reply carries the entry point the model worked out from what the
+   researcher said as `Reply.new_project_entry`, which the conductor records (invariant 18), and
+   the turn goes on. Nothing else is offered: no MCP server, no server tool
    (web search, web fetch, code execution), no Agent Skills; its package depends on and imports
    nothing that could provide one.
    (`agents/orchestrator-model/tests/test_orchestrator_only_delegates.py`)
@@ -141,15 +146,29 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     step started once drafted and done once approved, a README with any data dictionary drafted
     alongside it. The last validation shows `deposit.validate` done if it conforms and started if
     not, and a package built shows `deposit.finalise` done. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
-    event, which they may change at any time; what the log produced outranks a skip. The conductor
+    event, which they may change at any time; what the log produced outranks a skip. The one
+    exception is the entry point an orchestrator's model worked out from what the researcher said,
+    such as data already collected: a succeeded `Reply`'s `new_project_entry` is an
+    `entry_chosen` event with `entry_source` `model`, caused by the run, so that the journey the
+    app shows matches what the reply told the researcher. It is a weaker word. The researcher's own
+    choice (`entry_source` `researcher`, or none on an older event) replaces it, and once they have
+    chosen, the store refuses a model's and records nothing, so the model is no longer offered
+    the tool (`Message.project_entry_by_researcher`). The phase tracker says when Data Director set
+    the entry point. The conductor
     puts the entry point and the states into a `Message` in a project (`project_entry`,
     `project_progress`), so the input hash covers them, and the project summary carries the same
     derivation for the phase tracker. Work done out of order, or before the entry phase, counts.
     (`harness/tests/test_progress.py`,
-    `test_a_message_in_a_project_is_told_its_entry_point_and_progress`)
+    `test_a_message_in_a_project_is_told_its_entry_point_and_progress`,
+    `test_a_reply_records_the_entry_point_a_model_worked_out`, the storage conformance kit's
+    `check_a_researchers_entry_point_is_never_replaced_by_a_models` (`dd_harness.testing.storage`),
+    `agents/orchestrator-model/tests/test_orchestrator_entry.py`)
 19. **The next step is a suggestion, never a gate.** `suggested_next` names one step: the first
     from the entry phase that is neither done nor skipped, in scope and not optional, with a step
-    begun before one not begun, whether or not an agent serves it. Both orchestrators and the
+    begun before one not begun, whether or not an agent serves it. With no entry point recorded,
+    where the researcher is is not known, so it names only a step begun, from any phase, or none:
+    it never sends a researcher whose data are collected back to Phase 1. The tracker then asks
+    where they started, and the model's note names no step and tells it to find out. Both orchestrators and the
     tracker use that one function; none refuses a step because it is not yet time. The stub offers
     the suggestion with a few other open steps as a choice question whose values are step ids;
     choosing one delegates the inputs `routing.yaml` gives for that step to the agent serving it,
@@ -184,7 +203,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     or by answering again. The researcher may skip a question, dismiss the intake, or type instead.
     None of these holds up the conversation (invariant 16). When the intake ends, the app says which
     phase the project starts at, by its researcher-facing name, and which step `suggested_next`
-    proposes. The wording and the decision mapping await a Blueprint reading, TODO(#670); the
+    proposes. A researcher who dismisses the intake or types instead may still say where they are
+    in their own words; the model then records the entry point it worked out (invariant 18). The
+    wording and the decision mapping await a Blueprint reading, TODO(#670); the
     question set, its tests and the app's card are TODO(#665, #667, #668).
 
 ## Boundaries and contracts

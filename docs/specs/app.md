@@ -94,7 +94,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     (`{"project_id": …}`), or in a new project when it names none, acting for the person signed
     in. A project that does not exist, or that the person may not read, is refused with a 404 and
     nothing is started; a body with any other field is refused with a 400. A conversation names
-    its `project_id` and the inventory its project holds. The app gives the conductor the same project store, so a turn's runs belong to the
+    its `project_id` and the inventory its project holds. The shell names the open conversation
+    in the address (`?conversation=`), so a reload or a link reopens it in its own project and a
+    message sent afterwards continues it. The app gives the conductor the same project store, so a turn's runs belong to the
     project and a drafter's documents are kept in it ([Projects](projects.md),
     `app/tests/test_app.py`).
 19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,
@@ -254,9 +256,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
   its process, so there is nothing in it to call a model.
-- **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). Not built yet:
-  a run is one request that answers when it has ended, so stages are read back, not watched, and
-  a run cannot be cancelled. TODO(#68, #69).
+- **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). The harness
+  streams a run's stages, its checks' reports and cancelling; the app does not serve that stream
+  yet. A run is one request that answers when it has ended, so stages are read back, not watched,
+  and a run cannot be cancelled. TODO(#69).
 - **Outcomes, evidence and the checks' reports** are rendered as the [Contract](contract.md) and
   [Evidence and grounding](grounding.md) define them. A drafted document in a run's result is
   shown as a document: rendered when its media type is `text/markdown`, tables included, and
@@ -467,7 +470,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   answers `/api` from fixtures.
 - TODO(#244): whether the shell's tests feed `CONFORMANCE.md`; until then they carry no
   requirement marker and C6 rests on review.
-- TODO(#68, #69, #159): streamed runs and replies over AG-UI, the activity log, live regions and
+- TODO(#69, #159): streamed turns and replies over AG-UI, the activity log, live regions and
   cancellation.
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.

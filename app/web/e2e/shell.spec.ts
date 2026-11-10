@@ -555,7 +555,7 @@ test("a delegated run opens inside its card at 320px, keeping focus and the conv
   await page.getByRole("button", { name: "Send" }).click();
   const toggle = page.getByRole("button", { name: /(Show|Hide) the run/ }).first();
   await toggle.click();
-  await expect(page).toHaveURL(/\?run=/);
+  await expect(page).toHaveURL(/[?&]run=/);
   await expect(toggle).toBeFocused();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   const conversation = page.getByRole("list", { name: "Conversation" });
@@ -563,7 +563,7 @@ test("a delegated run opens inside its card at 320px, keeping focus and the conv
   await expect(conversation.getByRole("heading", { name: /^Outcome:/ })).toBeVisible();
   expect(await overflow(page), "horizontal overflow with a run open").toBeLessThanOrEqual(0);
   await toggle.click();
-  await expect(page).not.toHaveURL(/\?run=/);
+  await expect(page).not.toHaveURL(/[?&]run=/);
   await expect(toggle).toBeFocused();
 });
 

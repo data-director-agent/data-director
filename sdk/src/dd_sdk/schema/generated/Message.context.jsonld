@@ -85,6 +85,9 @@
       "project_entry": {
          "@id": "https://w3id.org/data-director/project_entry"
       },
+      "project_entry_by_researcher": {
+         "@id": "https://w3id.org/data-director/project_entry_by_researcher"
+      },
       "project_inventory": {
          "@id": "https://w3id.org/data-director/project_inventory",
          "@type": "@id"

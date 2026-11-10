@@ -143,6 +143,13 @@
             "null"
          ]
       },
+      "new_project_entry": {
+         "description": "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it.",
+         "type": [
+            "integer",
+            "null"
+         ]
+      },
       "grounded_on": {
          "description": "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash).",
          "items": {

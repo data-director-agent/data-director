@@ -351,9 +351,11 @@ def test_the_model_is_told_where_the_project_is_only_in_a_project() -> None:
     assert "governance.policies" in note
     # A started step is suggested before an earlier open one.
     assert "Suggested next: [preparation.metadata]" in note
-    # In a project with no entry chosen and nothing done, the note still says so.
+    # In a project with no entry chosen and nothing done, the note still says so, and suggests
+    # no step: a researcher whose data are collected is not sent back to Phase 1.
     (sent,) = conversation(Message(message_text="now", project_progress=[]), history_turns=0)
     assert "no entry point" in sent["content"]
+    assert "Suggested next" not in sent["content"]
 
 
 CHOICES: dict[str, Any] = {

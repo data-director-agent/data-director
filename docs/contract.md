@@ -120,6 +120,9 @@ proposal.
 | `failed` | The agent or the harness could not complete the run. | A `problem` in RFC 9457 Problem Details format. |
 | `suspended` | The run is waiting for something outside the harness. | A `problem` that says what must happen before it can resume. |
 
+A run that its caller cancelled is `failed` with problem type `run-cancelled`. Whatever the agent
+answered is not kept ([Transport and tracing](specs/transport.md)).
+
 ## Payloads
 
 Each payload class is specific to an agent: `Recommendations`, `QualityReview`,

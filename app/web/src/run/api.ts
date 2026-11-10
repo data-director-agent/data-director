@@ -2,7 +2,7 @@
  * The run endpoints, behind one interface so tests can stand in for the server.
  *
  * `POST /api/runs` answers when the run has ended: the page learns nothing while it runs. A
- * stopgap until runs stream over AG-UI (#68, #69).
+ * stopgap until runs stream over AG-UI (#69).
  */
 
 import { createContext, useContext } from "react";
