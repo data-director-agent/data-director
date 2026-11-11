@@ -25,6 +25,7 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
 )
 from dd_sdk.credentials import ConfigError
+from dd_sdk.testing import FakeModel
 
 SAMPLES = Path(__file__).with_name("data")
 MODEL = "claude-test"
@@ -208,6 +209,17 @@ def test_the_call_and_its_prompt_are_recorded(runs_dir: Path) -> None:
     calls = env.telemetry.model_calls
     assert len(calls) == 1 and calls[0].model_id == MODEL
     assert env.telemetry.input_tokens == 100 and env.telemetry.output_tokens == 40
+
+
+def test_the_writer_calls_any_model_through_the_sdk_seam(runs_dir: Path) -> None:
+    model = FakeModel(json.dumps({"overview": OVERVIEW}), model_id=MODEL)
+    editor = DocumentationEditor(writer=AnthropicWriter(model=model))
+    conductor = make_conductor(runs_dir, editor)
+    asked = sample("soil-survey.readme.draft.json")
+    env = conductor.invoke(request("advisor.documentation", asked), acting_for=TEST_PRINCIPAL)
+    assert env.payload_as(Document).document_text.startswith(f"# README\n\n{OVERVIEW}\n\n")
+    assert model.sent[0].system == SYSTEM_PROMPT
+    assert [c.model_id for c in env.telemetry.model_calls] == [MODEL]
 
 
 def test_the_factory_defaults_to_the_template_and_declares_a_configured_model() -> None:

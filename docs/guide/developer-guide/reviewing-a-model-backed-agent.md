@@ -59,8 +59,9 @@ Invariant 14 in [Agents](../../specs/agents.md#invariants).
 - [ ] Each payload field a model may write is declared in `AgentSpec.derivations` with a
       `recorded_in` sibling of type `Derivation` (invariant 8).
 - [ ] That recorder is set per value, so a template fallback is shown as `template`, not `model`.
-- [ ] Each model call is recorded with `dd_sdk.prompts.ModelCallLog`, and the log's `calls` and
-      `prompts` are returned in the `AgentResult` ([Disclosure](../../specs/disclosure.md)).
+- [ ] Each model call is made with `dd_sdk.model.call`, not the provider's client directly, so
+      it is recorded with `dd_sdk.prompts.ModelCallLog`; the log's `calls` and `prompts` are
+      returned in the `AgentResult` ([Disclosure](../../specs/disclosure.md)).
 
 ### 5. Prompts are code
 
@@ -69,10 +70,10 @@ Invariant 14 in [Agents](../../specs/agents.md#invariants).
 - [ ] A change to a prompt is reviewed as a change to behaviour: the pull request says what is
       meant to change, and the tests or the evaluation show it.
 
-### 6. Tests use a fake client
+### 6. Tests use a fake model
 
-- [ ] The suite exercises the model path, including a rejected or malformed reply, with a fake
-      client kept in the agent's own `testing` module or tests.
+- [ ] The suite exercises the model path, including a rejected or malformed reply, with
+      `dd_sdk.testing.FakeModel` or a fake kept in the agent's own `testing` module or tests.
 - [ ] Nothing in the suite needs a key or the network; CI runs it as it is.
 
 ### 7. An evaluation before alpha ends

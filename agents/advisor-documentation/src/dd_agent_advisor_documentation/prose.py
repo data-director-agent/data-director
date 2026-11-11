@@ -7,8 +7,9 @@ by rule in `agent.py`, so a writer cannot close a gap, change a value or rephras
 never given the researcher's answers or an earlier version.
 
 `TemplateWriter` is the default and writes no prose: the draft is the template's. `AnthropicWriter`
-is selected with `DD_DOCUMENTATION_WRITER=anthropic` (`factory.py`) and is the package's only
-importer of the `anthropic` SDK (docs/specs/dependencies.md). It is sent the inventory's
+is selected with `DD_DOCUMENTATION_WRITER=anthropic` (`factory.py`) and calls Claude through the
+SDK's model seam (`dd_sdk.model`, `dd_sdk.model_anthropic`), so this package imports no model
+provider's SDK (docs/specs/dependencies.md). It is sent the inventory's
 structure, the metadata record's values and the repository's name and licences, never the data.
 
 What the model writes is checked before it is used (`check`). A paragraph is dropped, and the
@@ -32,16 +33,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import now
+from dd_sdk.model import Model, call
+from dd_sdk.model import Usage as Usage
+from dd_sdk.model_anthropic import PROVIDER as PROVIDER
+from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.prompts import ModelCallLog
-from dd_sdk.tracing import chat_span, record_tokens
 
 if TYPE_CHECKING:
     import anthropic
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
-# Who serves the model, as the agent's card names it (factory.py).
-PROVIDER = "anthropic"
 # What the model is told it may and may not write; the prose is a Markdown file beside this module.
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
 # What the model is told when it suggests answers to a data dictionary's questions.
@@ -55,12 +56,6 @@ MAX_SUGGESTION = 200
 OVERVIEW = "overview"
 # The longest paragraph kept, in characters: a README's prose introduces its facts, briefly.
 MAX_PARAGRAPH = 1200
-
-
-@dataclass
-class Usage:
-    input_tokens: int | None = None
-    output_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -136,25 +131,26 @@ class TemplateWriter:
 
 
 class AnthropicWriter:
-    """Writes the prose with Claude. Emits one `chat` span carrying model id and token counts."""
+    """Writes the prose with Claude. Emits one `chat` span per call, carrying the model id and the
+    token counts (`dd_sdk.model.call`)."""
 
     def __init__(
         self,
         client: anthropic.Anthropic | None = None,
         model_id: str = DEFAULT_MODEL,
         api_key: str | None = None,
+        *,
+        model: Model | None = None,
     ) -> None:
-        """Give a `client` (tests) or an `api_key` (`dd_sdk.credentials.api_key`). The key is
-        always passed explicitly, so the SDK's own credential chain is never used
-        (docs/specs/policy-and-identity.md)."""
-        if client is None:
-            if not api_key:
-                raise ValueError("AnthropicWriter needs a client or an api_key")
-            import anthropic as _anthropic
-
-            client = _anthropic.Anthropic(api_key=api_key)
-        self._client = client
-        self.model_id: str | None = model_id
+        """Give a `model` (`dd_sdk.testing.FakeModel` in tests), a `client`, or an `api_key`
+        (`dd_sdk.credentials.api_key`). The key is always passed explicitly, so the provider
+        SDK's own credential chain is never used (docs/specs/policy-and-identity.md)."""
+        if model is None:
+            if client is None and not api_key:
+                raise ValueError("AnthropicWriter needs a model, a client or an api_key")
+            model = AnthropicModel(model_id, api_key=api_key, client=client)
+        self._model = model
+        self.model_id: str | None = model.model_id
 
     def write(self, facts: Mapping[str, Any], sections: Sequence[str], ctx: RunContext) -> Prose:
         if not sections:
@@ -198,31 +194,10 @@ class AnthropicWriter:
     ) -> tuple[str, bool, str, Usage, ModelCallLog]:
         """One model call: its text, whether it was refused, the model that answered, its token
         counts and the record of what was sent."""
-        assert self.model_id is not None
-        # What is sent, kept by digest with the run (docs/specs/disclosure.md).
-        sent = {"system": system, "messages": [{"role": "user", "content": content}]}
-        calls = ModelCallLog(PROVIDER)
-        with chat_span(ctx.tracer, self.model_id) as span:
-            called_at = now()
-            response = self._client.messages.create(
-                model=self.model_id,
-                max_tokens=4096,
-                system=system,
-                messages=[{"role": "user", "content": content}],
-            )
-            usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
-            record_tokens(span, usage.input_tokens, usage.output_tokens)
-        # The model the response names, which may be more exact than the one asked for.
-        model_id = getattr(response, "model", None) or self.model_id
-        calls.record(
-            sent,
-            model_id,
-            called_at=called_at,
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
+        reply = call(
+            self._model, ctx, system=system, messages=[{"role": "user", "content": content}]
         )
-        text = "".join(block.text for block in response.content if block.type == "text")
-        return text, response.stop_reason == "refusal", model_id, usage, calls
+        return reply.text, reply.refused, reply.model_id, reply.usage, reply.calls
 
 
 def prompt(facts: Mapping[str, Any], sections: Sequence[str]) -> str:
