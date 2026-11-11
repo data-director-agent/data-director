@@ -17,7 +17,8 @@ A message no rule matches may name one of the Blueprint's three entry points (§
 collection, data collected and being prepared for sharing, or ready to deposit. The reply then lists
 every step from that entry's phase to the last, with the agents whose manifest entry serves the
 step, and says "no agent yet" with the step's requirement where none does
-(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, it asks which
+(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, and only
+when the project has no entry point (a researcher outside a project has none), it asks which
 entry applies, as a choice question (`Reply.reply_questions`, keyed `entry`) whose values are the
 entry numbers; a `Message.reply_answers` choosing one is read before any rule. Otherwise it reads
 only the current message: `Message.history` is covered by the input hash, and used only to tell a

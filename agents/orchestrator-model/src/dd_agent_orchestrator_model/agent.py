@@ -46,7 +46,9 @@ entry point the model worked out from what the researcher said, such as data alr
 on `Reply.new_project_entry`, declared model-derived. The conductor records it as the model's word,
 which the researcher can change and which never replaces their own choice
 (docs/specs/orchestration.md, invariant 18). With no entry point recorded, the harness's note names
-no suggested step and tells the model to find out where the researcher is.
+no suggested step and tells the model to find out where the researcher is. With one recorded, from
+the intake, the phase tracker or the model, the prompt tells the model not to ask again, even on
+the first turn, and to suggest the step the note names (invariant 15).
 
 On a conversation's first turn (an empty `Message.history`), once the model has replied, a
 `Titler` names the conversation from the researcher's message (`title.py`). The title is
