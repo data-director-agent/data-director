@@ -29,8 +29,9 @@ system_units=/usr/lib/systemd/system
 cp -r "$system_units" "$root/usr/lib/systemd/"
 cp -r "$units_src"/. "$unit_dir"/
 
-# Every executable a unit starts, as a stand-in; the agent template's is per instance.
-grep -rhoE '^Exec[A-Za-z]*=[-@+!:]*/opt/data-director/current/[^ ]+' "$unit_dir" |
+# Every executable a unit starts from the release or from what install.sh installs as root, as a
+# stand-in; the agent template's is per instance.
+grep -rhoE '^Exec[A-Za-z]*=[-@+!:]*(/opt/data-director/current|/usr/local/lib/data-director)/[^ ]+' "$unit_dir" |
   sed -E 's/^[^=]*=[-@+!:]*//' | sed 's/%i/example-hello/' | sort -u |
   while IFS= read -r exe; do
     mkdir -p "$root$(dirname "$exe")"

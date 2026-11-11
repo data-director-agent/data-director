@@ -330,8 +330,10 @@ files.
   scan moves to the database. In the database, listing runs and conversations reads a page from
   an index ("Listing"), and finding a conversation's project and the projects a person may read
   are indexed queries. The file backend finds a person's projects by reading every project's log.
-- **Operations.** A documented and tested backup and restore of the database, and a health check,
-  are TODO(#525).
+- **Operations.** A deployment on a VM backs up its stores every night, a directory as files and a
+  database with `pg_dump`, and restores them on a clean VM; `data-director doctor` checks the
+  backups, the free disk space and each database's schema
+  ([Deploying to a VM](../../deploy/README.md#backups)).
 
 ## Open questions
 
@@ -340,4 +342,4 @@ files.
   deleted, TODO(#156). Deleting a project is settled and changes nothing here: it appends events
   to the project's log and removes no row ([Projects](projects.md), invariant 22), so invariants 1
   and 9 stand. Erasing would need an exception to them, and the spec of it will name one.
-- Whether deposit packages and other large blobs move to object storage, TODO(#525).
+- Whether deposit packages and other large blobs move to object storage, TODO(#744).

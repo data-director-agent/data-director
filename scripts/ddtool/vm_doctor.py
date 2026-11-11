@@ -7,7 +7,9 @@ checks what that user can read and says what it skipped.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +42,19 @@ DEPLOY_UNIT = "data-director-deploy.service"
 SIGN_IN_SETTINGS = ("DD_OIDC_ISSUER", "DD_OIDC_CLIENT_ID", "DD_APP_PUBLIC_URL")
 OPERATOR_SETTINGS = ("DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME")
 MODEL_KEY = "anthropic-api-key"
+BACKUP_UNIT = "data-director-backup.service"
+BACKUP_TIMER = "data-director-backup.timer"
+# A backup older than this means the nightly one has stopped (deploy/README.md, "Backups").
+BACKUP_MAX_AGE = timedelta(days=2)
+BACKUP_NAME = re.compile(r"^\d{8}T\d{6}Z$")
+# Less free than this share of a file system, and a store or a backup may soon not fit.
+LOW_DISK = 0.10
+# The settings that name a store, by the file that holds them.
+STORE_SETTINGS = (
+    ("app_env", "DD_RUNS_DIR"),
+    ("app_env", "DD_PROJECTS_DIR"),
+    ("workbench_env", "DD_RUNS_DIR"),
+)
 
 
 @dataclass
@@ -377,6 +392,95 @@ class Doctor:
                     journal(agent_unit(name)),
                 )
 
+    # --- The stores and their backups -----------------------------------------------------------
+
+    def storage(self, now: datetime | None = None) -> None:
+        """The backup timer and the newest backup, the free space where the stores and the backups
+        are kept, and whether each database a store names answers with this release's schema."""
+        system, vm, report = self.system, self.vm, self.report
+        if not is_active(system, BACKUP_TIMER):
+            report.problem(f"{BACKUP_TIMER} is not active, so nothing is backed up", self.install)
+        result = systemctl_show(system, [BACKUP_UNIT], ["Result"]).get(BACKUP_UNIT, {})
+        if result.get("Result") not in (None, "", "success"):
+            report.problem(f"the last backup ended with {result['Result']}", journal(BACKUP_UNIT))
+        for name in ("backup.sh", "stores.sh"):
+            source, installed = vm.clone / "deploy" / name, vm.lib / name
+            if system.readable(source) and (
+                not system.readable(installed) or system.read(installed) != system.read(source)
+            ):
+                report.problem(f"{installed} is not the clone's deploy/{name}", self.install)
+        settings = read_settings(system, vm.backup_env)
+        if settings is None:
+            report.skip(str(vm.backup_env))
+            settings = {}
+        backups = Path(settings.get("DD_BACKUP_DIR") or vm.backups)
+        newest_size = 0
+        if system.is_root():
+            names = (
+                sorted(
+                    p.name for p in backups.iterdir() if p.is_dir() and BACKUP_NAME.match(p.name)
+                )
+                if backups.is_dir()
+                else []
+            )
+            if not names:
+                report.problem(f"there is no backup in {backups}", f"{self.tool} backup")
+            else:
+                made = datetime.strptime(names[-1], "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+                age = (now or datetime.now(UTC)) - made
+                if age > BACKUP_MAX_AGE:
+                    report.problem(
+                        f"the newest backup, {backups / names[-1]}, is {age.days} days old",
+                        f"{journal(BACKUP_UNIT)}; then {self.tool} backup",
+                    )
+                newest_size = sum(
+                    f.stat().st_size for f in (backups / names[-1]).iterdir() if f.is_file()
+                )
+        else:
+            report.skip(str(backups))
+        for path in dict.fromkeys((vm.state, backups)):
+            usage = system.disk(path)
+            if usage is None:
+                continue
+            total, free = usage
+            if total and free < total * LOW_DISK:
+                report.problem(
+                    f"the file system holding {path} has {free // 2**20} MiB free, under "
+                    f"{LOW_DISK:.0%}",
+                    "free space (old releases, the journal) or give the VM a larger disk",
+                )
+            elif path == backups and free < newest_size:
+                report.problem(
+                    f"{backups} has {free // 2**20} MiB free, less than the last backup took",
+                    "copy the backups off the VM and lower DD_BACKUP_KEEP_DAYS, or free space",
+                )
+        release = vm.live_release()
+        harness = release / ".venv" / "bin" / "dd-harness" if release else None
+        databases: dict[str, list[str]] = {}
+        for file_name, variable in STORE_SETTINGS:
+            file = getattr(vm, file_name)
+            found = read_settings(system, file)
+            if found is None:
+                continue  # skipped above, or reported by settings()
+            location = found.get(variable, "")
+            if location.startswith("postgresql://"):
+                databases.setdefault(
+                    location, [f"{k}={v}" for k, v in found.items() if re.fullmatch("PG[A-Z]+", k)]
+                )
+        for location, libpq in databases.items():
+            if harness is None or not system.exists(harness):
+                report.skip(f"the schema of {location} (no live release)")
+                continue
+            done = system.run("env", *libpq, str(harness), "storage", "status", location)
+            if done.status != 0:
+                said = done.out.strip().splitlines()[-1:] or ["no answer"]
+                report.problem(
+                    f"the database store {location} does not answer with this release's schema: "
+                    f"{said[0]}",
+                    "check the database answers (pg_isready), then apply the release's schema "
+                    f"as the service user: {harness} storage migrate (docs/specs/storage.md)",
+                )
+
     def nginx(self) -> None:
         system, vm, report = self.system, self.vm, self.report
         if not system.exists(vm.nginx_enabled / "data-director"):
@@ -406,6 +510,7 @@ class Doctor:
         self.secrets(agents)
         self.settings(release)
         self.live(live)
+        self.storage()
         self.nginx()
         return self.report.print()
 

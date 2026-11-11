@@ -10,6 +10,7 @@ import re
 import shutil
 import sys
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -71,11 +72,20 @@ class FakeVm(System):
                 "NRestarts": "0",
             },
             "data-director-deploy.service": {"Result": "success"},
+            "data-director-backup.service": {"Result": "success"},
         }
     )
     active: set[str] = field(
-        default_factory=lambda: {"data-director-deploy.timer", "data-director-restart.path"}
+        default_factory=lambda: {
+            "data-director-deploy.timer",
+            "data-director-restart.path",
+            "data-director-backup.timer",
+        }
     )
+    # The size of each file system and the bytes free on it.
+    free: tuple[int, int] = (100 * 2**30, 50 * 2**30)
+    # What `dd-harness storage status` answers.
+    schema: Done = field(default_factory=lambda: Done(0, "version 3, this build expects 3"))
     instances: list[str] = field(
         default_factory=lambda: [
             "data-director-agent@example-hello.service",
@@ -96,6 +106,9 @@ class FakeVm(System):
 
     def run(self, *cmd: str) -> Done:
         match cmd:
+            case ("env", *rest) if rest[-3:-1] == ["storage", "status"]:
+                self.calls.append(cmd)
+                return self.schema
             case ("env", *_) | ("systemctl", "daemon-reload" | "disable" | "restart", *_):
                 self.calls.append(cmd)
                 return Done(0, "")
@@ -127,6 +140,16 @@ class FakeVm(System):
     def is_root(self) -> bool:
         return self.root
 
+    def disk(self, path: Path) -> tuple[int, int] | None:
+        return self.free
+
+
+def make_backup(vm: Vm, age: timedelta = timedelta(hours=3)) -> Path:
+    made = vm.backups / (datetime.now(UTC) - age).strftime("%Y%m%dT%H%M%SZ")
+    made.mkdir(parents=True)
+    (made / "config.tar.gz").write_bytes(b"x" * 1024)
+    return made
+
 
 @pytest.fixture
 def vm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Vm:
@@ -141,6 +164,9 @@ def vm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Vm:
         nginx_available=tmp_path / "nginx" / "available",
         sudoers=tmp_path / "sudoers",
         clone=tmp_path / "clone",
+        state=tmp_path / "state",
+        backups=tmp_path / "backups",
+        lib=tmp_path / "lib",
     )
     release = layout.releases / SHA
     (release / "app" / "config").mkdir(parents=True)
@@ -162,8 +188,9 @@ def vm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Vm:
         (site / "data-director").write_text("server_name dd.example.ac.uk;\n")
     shutil.copyfile(EXAMPLE_PROFILE, release / "app" / "config" / "profile.yaml.example")
     (layout.etc / "deployment.yaml").write_text("name: test\norchestrator: stub\n")
-    # As `apply` left it.
+    # As `apply` left it, after a night's backup.
     assert apply(FakeVm(), Place.vm(layout), layout) == 0
+    make_backup(layout)
     return layout
 
 
@@ -437,3 +464,82 @@ def test_a_deployment_that_cannot_be_is_refused_with_why(vm: Vm, text: str, mess
     (vm.etc / "deployment.yaml").write_text(text)
     with pytest.raises(DevError, match=message):
         plan(FakeVm(), Place.vm(vm), vm)
+
+
+def test_no_backup_timer_and_a_failed_backup_are_problems(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm()
+    system.active.discard("data-director-backup.timer")
+    system.units["data-director-backup.service"] = {"Result": "exit-code"}
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "problem", "data-director-backup.timer")
+    assert says(out, "problem", "exit-code")
+    assert says(out, "fix", "journalctl -u data-director-backup.service")
+
+
+def test_an_old_backup_or_none_names_the_backup_command(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    shutil.rmtree(vm.backups)
+    make_backup(vm, age=timedelta(days=3))
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", "newest backup", "3 days")
+    assert says(out, "fix", "data-director backup")
+    shutil.rmtree(vm.backups)
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", "no backup", str(vm.backups))
+
+
+def test_backups_kept_where_backup_env_says_are_found(
+    vm: Vm, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    elsewhere = tmp_path / "elsewhere"
+    vm.backup_env.write_text(f"DD_BACKUP_DIR={elsewhere}\n")
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 1 and says(out, "problem", "no backup", str(elsewhere))
+    (elsewhere / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")).mkdir(parents=True)
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 0, out
+
+
+def test_a_full_disk_is_a_problem(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
+    status, out = check(FakeVm(free=(100 * 2**30, 2**30)), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", str(vm.state), "free")
+    assert says(out, "problem", str(vm.backups), "free")
+
+
+def test_no_room_for_another_backup_is_a_problem(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    status, out = check(FakeVm(free=(1000, 200)), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", str(vm.backups), "less than the last backup")
+
+
+def test_a_database_store_with_another_schema_names_the_migration(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    location = "postgresql://dd@/dd"
+    harness = vm.current / ".venv" / "bin" / "dd-harness"
+    harness.parent.mkdir(parents=True)
+    harness.write_text("")
+    vm.app_env.write_text(
+        vm.app_env.read_text()
+        + f"DD_RUNS_DIR={location}\nDD_PROJECTS_DIR={location}\nPGHOST=/run/postgresql\n"
+    )
+    system = FakeVm()
+    status, out = check(system, vm, capsys)
+    assert status == 0, out
+    [asked] = [call for call in system.calls if "storage" in call]
+    assert "PGHOST=/run/postgresql" in asked and asked[-1] == location
+
+    system = FakeVm(schema=Done(1, f"{location}: version 2, this build expects 3"))
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "problem", location, "version 2")
+    assert says(out, "fix", "storage migrate")
