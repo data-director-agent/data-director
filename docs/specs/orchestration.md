@@ -114,12 +114,16 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
 15. **On a first turn that names no task, an orchestrator asks which entry point applies**, then
     follows the phases from that entry. In a project whose entry point is already known
     (`project_entry`, from the intake of invariant 20 or the phase tracker), it does not ask
-    again, and suggests the next step from that entry instead (invariant 19), TODO(#669). The stub's question and its list of steps are templates
+    again, and suggests the next step from that entry instead (invariant 19). The stub's question and its list of steps are templates
     that delegate nothing and rest on the input alone; it asks as a choice question keyed `entry`
     whose values are the entry numbers, and reads `reply_answers` choosing one before any rule. The model's prompt carries the whole flow
     with step ids, tells the model not to show ids to the researcher, names no agent, and is the
     same on every run so that it caches.
-    (`test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent`)
+    (`test_the_prompt_carries_every_entry_point_and_phase_and_names_no_agent`,
+    `test_a_project_whose_intake_gave_an_entry_point_is_not_asked_for_it_again`,
+    `test_a_project_with_no_entry_point_is_asked_for_one_on_its_first_turn`,
+    `test_a_first_turn_in_a_project_with_an_entry_point_suggests_a_step_and_does_not_ask`,
+    `test_the_prompt_says_not_to_ask_again_and_is_the_same_with_or_without_an_entry_point`)
 16. **Questions never hold up the conversation.** A reply that asks a series of questions ends
     `succeeded` like any other; nothing is suspended or waits for the answers. The researcher
     answers them one at a time in the app, and the next turn sends every answer together, as
