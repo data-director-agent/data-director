@@ -37,10 +37,12 @@ def test_each_question_converts_to_a_core_choice_question(q: IntakeQuestion) -> 
     assert not asked.question_other
 
 
-def test_every_skip_names_a_known_step_that_is_in_scope() -> None:
-    skipped = {s for q in INTAKE for o in q.options for s in o.skips}
-    assert skipped <= STEPS
-    assert not skipped & OUT_OF_SCOPE
+@pytest.mark.parametrize("q", INTAKE, ids=lambda q: q.id)
+def test_every_effect_names_a_known_step_that_is_in_scope(q: IntakeQuestion) -> None:
+    in_scope = STEPS - OUT_OF_SCOPE
+    for o in q.options:
+        stray = set(o.skips) - in_scope
+        assert not stray, f"{q.id} = {o.value} skips unknown or out-of-scope steps {stray}"
 
 
 def test_the_entry_questions_values_are_exactly_the_entry_numbers() -> None:
@@ -49,13 +51,20 @@ def test_the_entry_questions_values_are_exactly_the_entry_numbers() -> None:
     assert not entry.skips(o.value for o in entry.options)
 
 
+@pytest.mark.parametrize("q", [q for q in INTAKE if q.id != ENTRY], ids=lambda q: q.id)
+def test_every_question_but_the_entry_offers_not_sure_which_skips_nothing(
+    q: IntakeQuestion,
+) -> None:
+    assert NOT_SURE in {o.value for o in q.options}
+    assert not q.skips([NOT_SURE])
+
+
 @pytest.mark.parametrize("question_id", sorted(EXPECTED_SKIPS))
-def test_only_no_skips_steps_and_not_sure_is_always_offered(question_id: str) -> None:
+def test_only_no_skips_steps(question_id: str) -> None:
     q = question(question_id)
     assert {o.value for o in q.options} == {YES, NO, NOT_SURE}
     assert q.skips([NO]) == EXPECTED_SKIPS[question_id]
     assert not q.skips([YES])
-    assert not q.skips([NOT_SURE])
 
 
 def test_each_question_is_asked_only_from_the_entry_points_that_reach_its_step() -> None:
