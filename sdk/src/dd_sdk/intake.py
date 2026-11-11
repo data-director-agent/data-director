@@ -8,8 +8,8 @@ its step (docs/specs/orchestration.md, invariant 20).
 
 This is Blueprint data, the same for every deployment, beside `dd_sdk.process_flow`. It names no
 agent and runs no orchestrator. The harness records the answers in the project log and derives
-step states from them (docs/specs/projects.md, rule 20), TODO(#667); the app shows the questions
-one at a time, TODO(#668).
+step states from them (docs/specs/projects.md, rule 20, `dd_harness.intake`); the app shows the
+questions one at a time, TODO(#668).
 
 An answer of "No" marks the question's steps skipped. "Yes" and "Not sure" mark nothing: saying a
 plan exists is not the check of a deposit against it, so the intake never shows a step as done.
