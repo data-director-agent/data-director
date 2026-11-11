@@ -93,6 +93,8 @@ nav:
       - Configuration: operations/configuration.md
       - The data-director command: operations/commands.md
       - Deploying to a VM: /deploy/README.md
+      - LLM gateway: /deploy/llm-gateway/README.md
+      - LLM gateway background: /deploy/llm-gateway/background.md
       - Institutional profiles: /workbench/profiles/README.md
       - Repository requirements: /app/config/repositories/README.md
   - Developer guide:
