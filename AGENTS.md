@@ -85,11 +85,16 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
   who may sign off there before merge. A pull request opened from their account is signed off
   implicitly by them, so CI ("Developer Certificate of Origin") passes without that line; it
   warns on any sign-off by an agent (a warning, not a failure, but still to be fixed).
-- The pull request title is a Conventional Commit, `type(scope)!: summary`, lower case, no full
-  stop, at most 90 characters, such as `feat(app): register every in-tree agent`. Check it before
-  opening and after editing:
+- **Every pull request title must be a Conventional Commit**, `type(scope)!: summary`, lower case,
+  no full stop, at most 90 characters, such as `feat(app): register every in-tree agent`. There is
+  no exception: a title like `Add a history tab` fails CI and blocks the merge. Run the check
+  before you open the pull request and again after every edit to the title, and do not open or
+  edit one until it passes:
   `python3 scripts/check_names.py --title "…" --branch "$(git branch --show-current)"`.
   Keep an assigned `claude/…` branch.
+- Install the hooks once per clone, before your first commit: `uv tool install pre-commit &&
+  pre-commit install`. The `commit-msg` hook rejects a commit whose subject is not a Conventional
+  Commit, so write every commit subject in that form too. Never bypass it with `--no-verify`.
 - Put no labels on pull requests by hand ([labels](CONTRIBUTING.md#issues-and-labels)).
 - If **Project status** fails asking for `GH_TOKEN`, that is the unset `PROJECT_TOKEN` secret, not
   your change: do not chase it; tell the user that the organisation owner must set it.

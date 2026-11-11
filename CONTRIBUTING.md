@@ -235,6 +235,10 @@ never fails for that reason. Install it once:
 uv tool install pre-commit && pre-commit install
 ```
 
+The same install adds a `commit-msg` hook that holds each commit subject to the pull request title
+rule (`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is
+still checked in CI, as it is the one squash-merged onto `main`.
+
 Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock again:
 
 ```sh
