@@ -8,7 +8,8 @@ deposit package is built from what was approved ([Deposit](deposit.md)). Every s
 first works on the same dataset, so the project is a record of its own that outlives any one
 conversation. A conversation belongs to exactly one project, and a project may have many. A
 conversation is in a project when it is started from that project. One started from no project is
-in none, which the app still allows, TODO(#160).
+in none, which the app still allows, TODO(#160). The app's shell starts every conversation from a
+project, which a researcher creates on purpose from the Projects page ([The app](app.md), rule 27).
 
 A project holds four things:
 
