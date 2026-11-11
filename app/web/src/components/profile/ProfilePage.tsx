@@ -1,7 +1,8 @@
 /**
  * Who Data Director takes the signed-in person to be: the name and iD that ORCID gave at sign-in,
- * how the identity was confirmed and when the session ends. Nothing else is held about a person
- * (docs/specs/policy-and-identity.md), and the page says so.
+ * how the identity was confirmed and when the session ends. The page reads nothing from ORCID
+ * (docs/specs/app.md, rule 20); it says that only facts a person keeps in a project, from their
+ * public record, are held beyond these (docs/specs/policy-and-identity.md).
  */
 
 import "./ProfilePage.css";
@@ -71,7 +72,7 @@ export function ProfilePage({ session }: { session: Session }) {
       </dl>
       <p>
         {session.signsIn
-          ? `Data Director asks ${provider} for your iD and your name only. It keeps no email address, no biography and no access to your ${provider} record. To change what ${provider} says about you, edit your record there.`
+          ? `When you sign in, Data Director asks ${provider} for your iD and your name only. It keeps no email address and has no access to your ${provider} record. In a project, you may choose facts from your public record for its agents to use; your record is read only when you ask, and only what you tick is kept. To change what ${provider} says about you, edit your record there.`
           : "No sign-in provider is configured, so nothing here came from a person’s own record."}
       </p>
       <p>

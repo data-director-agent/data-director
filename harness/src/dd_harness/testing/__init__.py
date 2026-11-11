@@ -12,6 +12,8 @@ Import everything from here; the modules are an internal arrangement:
 - `fixtures`: the test profiles (in `profiles/`), `TEST_PRINCIPAL` and inputs.
 - `identity`: `FakeIdentityProvider`, an OpenID Connect provider in memory
   (docs/specs/policy-and-identity.md).
+- `orcid`: `FakeOrcidRegistry`, ORCID's public API in memory, and `sample_record`, the public
+  record it serves (docs/specs/projects.md).
 - `storage`: `check_run_storage`, `check_project_log` and `check_project_rules`, the conformance
   checks any storage backend must pass, and `check_project_storage`, which the last runs over the
   project rules (docs/specs/storage.md); each check is also named in `RUN_STORAGE_CHECKS`,
@@ -52,6 +54,7 @@ from dd_harness.testing.fixtures import (
     request,
 )
 from dd_harness.testing.identity import FakeIdentityProvider
+from dd_harness.testing.orcid import SAMPLE_ID, FakeOrcidRegistry, sample_record
 from dd_harness.testing.results import (
     SOURCE_A,
     SOURCE_B,
@@ -90,6 +93,7 @@ __all__ = [
     "PROJECT_STORAGE_CHECKS",
     "RESTRICTIVE",
     "RUN_STORAGE_CHECKS",
+    "SAMPLE_ID",
     "SHARED_RECORD_CHECKS",
     "SOURCE_A",
     "SOURCE_B",
@@ -101,6 +105,7 @@ __all__ = [
     "Chat",
     "DocumentStub",
     "FakeIdentityProvider",
+    "FakeOrcidRegistry",
     "ProbeCheck",
     "ProbeClaim",
     "ProbeDocumentRequest",
@@ -130,5 +135,6 @@ __all__ = [
     "reply_over",
     "request",
     "review_of_input",
+    "sample_record",
     "send_to_harness",
 ]

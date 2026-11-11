@@ -9,7 +9,13 @@ dd:Reply a sh:NodeShape ;
     rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:new_project_entry ],
+        [ sh:description "How reply_text came about. template for a rule-based agent, model for a model." ;
             sh:in ( "template" "model" "lexical" "registry" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -53,13 +59,7 @@ dd:Reply a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dcterms:title ;
-            sh:pattern "^.{1,80}$" ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The Blueprint entry point (1, 2 or 3) a model worked out from what the researcher said, such as data already collected. The conductor records it for the conversation's project when the run succeeds, unless the researcher has chosen one; absent when the reply records none. Only an agent that declares it model-derived sets it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:new_project_entry ] ;
+            sh:pattern "^.{1,80}$" ] ;
     sh:targetClass dd:Reply .
 
 dd:ChoiceOption a sh:NodeShape ;
@@ -134,12 +134,6 @@ dd:Question a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:question_multiple ],
-        [ sh:description "How the question is answered." ;
-            sh:in ( "choice" "short_text" "long_text" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 2 ;
-            sh:path dd:question_kind ],
         [ sh:datatype xsd:string ;
             sh:description "The question's identifier within its reply, which an answer names: a lower-case letter, then up to 39 lower-case letters, digits and hyphens." ;
             sh:maxCount 1 ;
@@ -148,6 +142,12 @@ dd:Question a sh:NodeShape ;
             sh:order 0 ;
             sh:path dd:question_key ;
             sh:pattern "^[a-z][a-z0-9-]{0,39}$" ],
+        [ sh:description "How the question is answered." ;
+            sh:in ( "choice" "short_text" "long_text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:question_kind ],
         [ sh:datatype xsd:string ;
             sh:description "The question, as a short line a person reads before the options." ;
             sh:maxCount 1 ;

@@ -1027,10 +1027,91 @@
       "requires_approval": false,
       "schemas": {
         "Message": {
-          "digest": "089a252c8c567ba50f7439923dc6db39225d4a734fe4826fadbcd5054ce4a216",
+          "digest": "7afc62f7a9bf50e223557a152252bf8741e26f9ef0aa819ad6e23f81a18149d1",
           "json_schema": {
             "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
             "$defs": {
+              "Affiliation": {
+                "additionalProperties": false,
+                "description": "One affiliation on an ORCID record: an employment, an education or another kind, with the organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold).",
+                "properties": {
+                  "affiliation_kind": {
+                    "$ref": "#/$defs/AffiliationKind",
+                    "description": "What kind of affiliation the item is."
+                  },
+                  "department": {
+                    "description": "The department within the organisation.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "end_year": {
+                    "description": "The year it ended; absent while it continues.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "organisation_identifier": {
+                    "description": "The organisation's identifier, where ORCID gives one: a URL for ROR, else as given.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "organisation_identifier_scheme": {
+                    "description": "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "organisation_name": {
+                    "description": "The organisation's name.",
+                    "type": "string"
+                  },
+                  "put_code": {
+                    "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+                    "type": "string"
+                  },
+                  "role_title": {
+                    "description": "The researcher's role or degree.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "start_year": {
+                    "description": "The year it started.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "put_code",
+                  "affiliation_kind",
+                  "organisation_name"
+                ],
+                "title": "Affiliation",
+                "type": "object"
+              },
+              "AffiliationKind": {
+                "description": "The kinds of affiliation an ORCID record holds.",
+                "enum": [
+                  "employment",
+                  "education",
+                  "qualification",
+                  "invited_position",
+                  "distinction",
+                  "membership",
+                  "service"
+                ],
+                "title": "AffiliationKind",
+                "type": "string"
+              },
               "ConversationTurn": {
                 "additionalProperties": false,
                 "description": "One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.",
@@ -1107,6 +1188,34 @@
                   "documentation_added_at"
                 ],
                 "title": "DocumentationSummary",
+                "type": "object"
+              },
+              "ExternalIdentifier": {
+                "additionalProperties": false,
+                "description": "An identifier from another scheme, as an ORCID record gives it: for a researcher, such as a Scopus Author ID; for a work, such as a DOI.",
+                "properties": {
+                  "identifier_type": {
+                    "description": "The scheme, in ORCID's words, such as doi or Scopus Author ID.",
+                    "type": "string"
+                  },
+                  "identifier_url": {
+                    "description": "The identifier as a URL, where the record gives one.",
+                    "format": "uri",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "identifier_value": {
+                    "description": "The identifier within its scheme.",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "identifier_type",
+                  "identifier_value"
+                ],
+                "title": "ExternalIdentifier",
                 "type": "object"
               },
               "InventorySummary": {
@@ -1213,6 +1322,276 @@
                 "title": "ReplyAnswers",
                 "type": "object"
               },
+              "ResearcherFunding": {
+                "additionalProperties": false,
+                "description": "One grant or award on an ORCID record, with its funder.",
+                "properties": {
+                  "award_identifier": {
+                    "description": "The grant number or award identifier, where the record gives one.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "end_year": {
+                    "description": "The year it ended; absent while it continues.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "funder_identifier": {
+                    "description": "The funder's identifier, where ORCID gives one, such as a Crossref Funder ID.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "funder_identifier_scheme": {
+                    "description": "The scheme of funder_identifier, in ORCID's words, such as FUNDREF or ROR. Present exactly when funder_identifier is.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "funder_name": {
+                    "description": "The funder's name.",
+                    "type": "string"
+                  },
+                  "funding_title": {
+                    "description": "The grant's or award's title.",
+                    "type": "string"
+                  },
+                  "funding_type": {
+                    "description": "The kind of funding, in ORCID's words, such as grant or award.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "put_code": {
+                    "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+                    "type": "string"
+                  },
+                  "start_year": {
+                    "description": "The year it started.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "put_code",
+                  "funding_title",
+                  "funder_name"
+                ],
+                "title": "ResearcherFunding",
+                "type": "object"
+              },
+              "ResearcherLink": {
+                "additionalProperties": false,
+                "description": "A web page the researcher lists on their ORCID record, such as a personal page.",
+                "properties": {
+                  "link_title": {
+                    "description": "The name the researcher gave the page.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "link_url": {
+                    "description": "The page's address.",
+                    "format": "uri",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "link_url"
+                ],
+                "title": "ResearcherLink",
+                "type": "object"
+              },
+              "ResearcherRecord": {
+                "additionalProperties": false,
+                "description": "What one researcher in a project chose to keep from their public ORCID record: only the sections and items they ticked, in ORCID's own words, never edited by a person or a model. The conductor fills the project's records into a Message and a DraftRequest so that an agent can draft creators, affiliations, subjects and funding from them (docs/specs/projects.md). Email addresses are never kept, even public ones.",
+                "properties": {
+                  "affiliations": {
+                    "description": "The researcher's affiliations they kept, the current ones first.",
+                    "items": {
+                      "$ref": "#/$defs/Affiliation"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "biography": {
+                    "description": "The researcher's biography, as their ORCID record gives it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "country": {
+                    "description": "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "external_identifiers": {
+                    "description": "The researcher's identifiers in other schemes, as their ORCID record lists them.",
+                    "items": {
+                      "$ref": "#/$defs/ExternalIdentifier"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "fundings": {
+                    "description": "The researcher's grants and awards they kept, the current ones first.",
+                    "items": {
+                      "$ref": "#/$defs/ResearcherFunding"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "keywords": {
+                    "description": "The researcher's own keywords for their research, as their ORCID record lists them.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "orcid_id": {
+                    "description": "The researcher's ORCID iD, as its URL, such as https://orcid.org/0000-0002-1825-0097.",
+                    "format": "uri",
+                    "type": "string"
+                  },
+                  "other_names": {
+                    "description": "Other names the researcher is known by, as their ORCID record lists them.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "record_retrieved_at": {
+                    "description": "When the record was read from ORCID's public API.",
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "record_source": {
+                    "description": "The public API address the record was read from.",
+                    "format": "uri",
+                    "type": "string"
+                  },
+                  "researcher_links": {
+                    "description": "The web pages the researcher's ORCID record lists.",
+                    "items": {
+                      "$ref": "#/$defs/ResearcherLink"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "researcher_name": {
+                    "description": "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "works": {
+                    "description": "The researcher's works they kept, the most recent first: at most 50 are offered, so that an agent's input stays bounded.",
+                    "items": {
+                      "$ref": "#/$defs/ResearcherWork"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "works_omitted": {
+                    "description": "How many works the record held beyond the 50 offered. Absent when none were left out.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "orcid_id",
+                  "record_retrieved_at",
+                  "record_source"
+                ],
+                "title": "ResearcherRecord",
+                "type": "object"
+              },
+              "ResearcherWork": {
+                "additionalProperties": false,
+                "description": "One work on an ORCID record, such as a journal article or a dataset.",
+                "properties": {
+                  "journal_title": {
+                    "description": "Where the work was published, such as a journal's name.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "publication_year": {
+                    "description": "The year the work was published.",
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "put_code": {
+                    "description": "ORCID's identifier for the item within the record, by which a researcher chose to keep it.",
+                    "type": "string"
+                  },
+                  "work_identifiers": {
+                    "description": "The work's identifiers, such as its DOI.",
+                    "items": {
+                      "$ref": "#/$defs/ExternalIdentifier"
+                    },
+                    "type": [
+                      "array",
+                      "null"
+                    ]
+                  },
+                  "work_title": {
+                    "description": "The work's title.",
+                    "type": "string"
+                  },
+                  "work_type": {
+                    "description": "The work's type, in ORCID's words, such as journal-article or data-set.",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "put_code",
+                  "work_title"
+                ],
+                "title": "ResearcherWork",
+                "type": "object"
+              },
               "StepProgress": {
                 "additionalProperties": false,
                 "description": "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).",
@@ -1256,7 +1635,7 @@
             "$id": "https://w3id.org/data-director/schema/core/Message",
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
-            "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md).",
+            "description": "One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).",
             "properties": {
               "history": {
                 "description": "The earlier turns of the conversation, oldest first.",
@@ -1317,6 +1696,16 @@
                   "null"
                 ]
               },
+              "project_researchers": {
+                "description": "The researcher facts the conversation's project holds, one record for each person who kept some, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project kept any.",
+                "items": {
+                  "$ref": "#/$defs/ResearcherRecord"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
               "project_title": {
                 "description": "The conversation's project's latest title. Filled by the conductor and never by the caller; absent when the run is in no project, or the project has no title yet.",
                 "pattern": "^.{1,200}$",
@@ -1362,11 +1751,17 @@
             "context": {
               "@context": {
                 "@vocab": "https://w3id.org/data-director/",
+                "Affiliation": {
+                  "@id": "https://w3id.org/data-director/Affiliation"
+                },
                 "ConversationTurn": {
                   "@id": "https://w3id.org/data-director/ConversationTurn"
                 },
                 "DocumentationSummary": {
                   "@id": "https://w3id.org/data-director/DocumentationSummary"
+                },
+                "ExternalIdentifier": {
+                  "@id": "https://w3id.org/data-director/ExternalIdentifier"
                 },
                 "InventorySummary": {
                   "@id": "https://w3id.org/data-director/InventorySummary"
@@ -1380,8 +1775,27 @@
                 "ReplyAnswers": {
                   "@id": "https://w3id.org/data-director/ReplyAnswers"
                 },
+                "ResearcherFunding": {
+                  "@id": "https://w3id.org/data-director/ResearcherFunding"
+                },
+                "ResearcherLink": {
+                  "@id": "https://w3id.org/data-director/ResearcherLink"
+                },
+                "ResearcherRecord": {
+                  "@id": "https://w3id.org/data-director/ResearcherRecord"
+                },
+                "ResearcherWork": {
+                  "@id": "https://w3id.org/data-director/ResearcherWork"
+                },
                 "StepProgress": {
                   "@id": "https://w3id.org/data-director/StepProgress"
+                },
+                "affiliation_kind": {
+                  "@id": "https://w3id.org/data-director/affiliation_kind"
+                },
+                "affiliations": {
+                  "@id": "https://w3id.org/data-director/affiliations",
+                  "@type": "@id"
                 },
                 "answer_to": {
                   "@id": "https://w3id.org/data-director/answer_to"
@@ -1395,9 +1809,21 @@
                 "answered_key": {
                   "@id": "https://w3id.org/data-director/answered_key"
                 },
+                "award_identifier": {
+                  "@id": "https://w3id.org/data-director/award_identifier"
+                },
+                "biography": {
+                  "@id": "https://w3id.org/data-director/biography"
+                },
+                "country": {
+                  "@id": "https://w3id.org/data-director/country"
+                },
                 "dcat": "http://www.w3.org/ns/dcat#",
                 "dcterms": "http://purl.org/dc/terms/",
                 "dd": "https://w3id.org/data-director/",
+                "department": {
+                  "@id": "https://w3id.org/data-director/department"
+                },
                 "documentation_added_at": {
                   "@id": "https://w3id.org/data-director/documentation_added_at",
                   "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
@@ -1414,6 +1840,32 @@
                 "documentation_size": {
                   "@id": "https://w3id.org/data-director/documentation_size"
                 },
+                "end_year": {
+                  "@id": "https://w3id.org/data-director/end_year"
+                },
+                "external_identifiers": {
+                  "@id": "https://w3id.org/data-director/external_identifiers",
+                  "@type": "@id"
+                },
+                "funder_identifier": {
+                  "@id": "https://w3id.org/data-director/funder_identifier"
+                },
+                "funder_identifier_scheme": {
+                  "@id": "https://w3id.org/data-director/funder_identifier_scheme"
+                },
+                "funder_name": {
+                  "@id": "https://w3id.org/data-director/funder_name"
+                },
+                "funding_title": {
+                  "@id": "https://w3id.org/data-director/funding_title"
+                },
+                "funding_type": {
+                  "@id": "https://w3id.org/data-director/funding_type"
+                },
+                "fundings": {
+                  "@id": "https://w3id.org/data-director/fundings",
+                  "@type": "@id"
+                },
                 "given_answers": {
                   "@id": "https://w3id.org/data-director/given_answers",
                   "@type": "@id"
@@ -1421,6 +1873,16 @@
                 "history": {
                   "@id": "https://w3id.org/data-director/history",
                   "@type": "@id"
+                },
+                "identifier_type": {
+                  "@id": "https://w3id.org/data-director/identifier_type"
+                },
+                "identifier_url": {
+                  "@id": "https://w3id.org/data-director/identifier_url",
+                  "@type": "@id"
+                },
+                "identifier_value": {
+                  "@id": "https://w3id.org/data-director/identifier_value"
                 },
                 "inventory_digest": {
                   "@id": "https://w3id.org/data-director/inventory_digest"
@@ -1441,9 +1903,38 @@
                 "inventory_tool_version": {
                   "@id": "https://w3id.org/data-director/inventory_tool_version"
                 },
+                "journal_title": {
+                  "@id": "https://w3id.org/data-director/journal_title"
+                },
+                "keywords": {
+                  "@id": "https://w3id.org/data-director/keywords"
+                },
+                "link_title": {
+                  "@id": "https://w3id.org/data-director/link_title"
+                },
+                "link_url": {
+                  "@id": "https://w3id.org/data-director/link_url",
+                  "@type": "@id"
+                },
                 "linkml": "https://w3id.org/linkml/",
                 "message_text": {
                   "@id": "https://w3id.org/data-director/message_text"
+                },
+                "orcid_id": {
+                  "@id": "https://w3id.org/data-director/orcid_id",
+                  "@type": "@id"
+                },
+                "organisation_identifier": {
+                  "@id": "https://w3id.org/data-director/organisation_identifier"
+                },
+                "organisation_identifier_scheme": {
+                  "@id": "https://w3id.org/data-director/organisation_identifier_scheme"
+                },
+                "organisation_name": {
+                  "@id": "https://w3id.org/data-director/organisation_name"
+                },
+                "other_names": {
+                  "@id": "https://w3id.org/data-director/other_names"
                 },
                 "project_documentation": {
                   "@id": "https://w3id.org/data-director/project_documentation",
@@ -1463,6 +1954,10 @@
                   "@id": "https://w3id.org/data-director/project_progress",
                   "@type": "@id"
                 },
+                "project_researchers": {
+                  "@id": "https://w3id.org/data-director/project_researchers",
+                  "@type": "@id"
+                },
                 "project_title": {
                   "@id": "https://w3id.org/data-director/project_title"
                 },
@@ -1470,12 +1965,36 @@
                   "@id": "https://w3id.org/data-director/project_title_by_researcher"
                 },
                 "prov": "http://www.w3.org/ns/prov#",
+                "publication_year": {
+                  "@id": "https://w3id.org/data-director/publication_year"
+                },
+                "put_code": {
+                  "@id": "https://w3id.org/data-director/put_code"
+                },
+                "record_retrieved_at": {
+                  "@id": "https://w3id.org/data-director/record_retrieved_at",
+                  "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+                },
+                "record_source": {
+                  "@id": "https://w3id.org/data-director/record_source",
+                  "@type": "@id"
+                },
                 "reply_answers": {
                   "@id": "https://w3id.org/data-director/reply_answers",
                   "@type": "@id"
                 },
+                "researcher_links": {
+                  "@id": "https://w3id.org/data-director/researcher_links",
+                  "@type": "@id"
+                },
+                "researcher_name": {
+                  "@id": "https://w3id.org/data-director/researcher_name"
+                },
                 "role": {
                   "@id": "https://w3id.org/data-director/role"
+                },
+                "role_title": {
+                  "@id": "https://w3id.org/data-director/role_title"
                 },
                 "schema": "http://schema.org/",
                 "schema_class": {
@@ -1483,6 +2002,9 @@
                 },
                 "shex": "http://www.w3.org/ns/shex#",
                 "spdx": "http://spdx.org/rdf/terms#",
+                "start_year": {
+                  "@id": "https://w3id.org/data-director/start_year"
+                },
                 "step_id": {
                   "@id": "https://w3id.org/data-director/step_id"
                 },
@@ -1501,11 +2023,28 @@
                 "turn_text": {
                   "@id": "https://w3id.org/data-director/turn_text"
                 },
+                "work_identifiers": {
+                  "@id": "https://w3id.org/data-director/work_identifiers",
+                  "@type": "@id"
+                },
+                "work_title": {
+                  "@id": "https://w3id.org/data-director/work_title"
+                },
+                "work_type": {
+                  "@id": "https://w3id.org/data-director/work_type"
+                },
+                "works": {
+                  "@id": "https://w3id.org/data-director/works",
+                  "@type": "@id"
+                },
+                "works_omitted": {
+                  "@id": "https://w3id.org/data-director/works_omitted"
+                },
                 "xsd": "http://www.w3.org/2001/XMLSchema#"
               }
             },
-            "digest": "b06d3f71021fdd7a2c216362dfc7e367fcecde22e3f1a99c8a7e2328750577eb",
-            "shacl": "@prefix dd: <https://w3id.org/data-director/> .\n@prefix prov: <http://www.w3.org/ns/prov#> .\n@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\ndd:Message a sh:NodeShape ;\n    rdfs:comment \"One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:class dd:ConversationTurn ;\n            sh:description \"The earlier turns of the conversation, oldest first.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 2 ;\n            sh:path dd:history ],\n        [ sh:class dd:DocumentationSummary ;\n            sh:description \"The documents the conversation's project holds, without their text, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds none.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 9 ;\n            sh:path dd:project_documentation ],\n        [ sh:datatype xsd:boolean ;\n            sh:description \"Whether the researcher chose the project's entry point, so that a model's would be refused; false when an orchestrator's model recorded it. Filled by the conductor and never by the caller; absent when the run is in no project, or no entry point was recorded.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 10 ;\n            sh:path dd:project_entry_by_researcher ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dd:project_entry ],\n        [ sh:class dd:StepProgress ;\n            sh:description \"The process-flow steps the conversation's project log shows started, done or skipped, in flow order. Filled by the conductor and never by the caller; absent when the run is in no project. Derived from the log on every turn, never stored.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 6 ;\n            sh:path dd:project_progress ],\n        [ sh:class dd:ReplyAnswers ;\n            sh:description \"The researcher's answers to the questions the previous turn asked, when they answered them in the form. message_text still carries the answers as prose.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 4 ;\n            sh:path dd:reply_answers ],\n        [ sh:class dd:InventorySummary ;\n            sh:description \"The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 3 ;\n            sh:path dd:project_inventory ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The conversation's project's latest title. Filled by the conductor and never by the caller; absent when the run is in no project, or the project has no title yet.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 7 ;\n            sh:path dd:project_title ;\n            sh:pattern \"^.{1,200}$\" ],\n        [ sh:datatype xsd:string ;\n            sh:description \"What the user said in this turn.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:message_text ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:schema_class ],\n        [ sh:datatype xsd:boolean ;\n            sh:description \"Whether a person gave the project its title, so that a model's would be refused; false while the project has no title. Filled by the conductor and never by the caller; absent when the run is in no project.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 8 ;\n            sh:path dd:project_title_by_researcher ] ;\n    sh:targetClass dd:Message .\n\ndd:ConversationTurn a sh:NodeShape ;\n    rdfs:comment \"One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"For an agent turn, the version of the agent that produced it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:turn_agent_version ],\n        [ sh:datatype xsd:string ;\n            sh:description \"For an agent turn, the invocation it came from.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:turn_invocation_id ;\n            sh:pattern \"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\" ],\n        [ sh:in ( \"user\" \"agent\" ) ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:order 0 ;\n            sh:path dd:role ],\n        [ sh:datatype xsd:string ;\n            sh:description \"What was said in the turn.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:turn_text ],\n        [ sh:datatype xsd:string ;\n            sh:description \"For an agent turn, the agent that produced it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:turn_agent_id ] ;\n    sh:targetClass dd:ConversationTurn .\n\ndd:DocumentationSummary a sh:NodeShape ;\n    rdfs:comment \"What one document a researcher attached to a project is, without its text: the conductor fills one per document into a Message so that the agent knows the project holds it (docs/specs/projects.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:integer ;\n            sh:description \"The size of the document's UTF-8 text, in bytes.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:documentation_size ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The document's media type, text/plain or text/markdown.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:documentation_media_type ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The SHA-256 of the document's UTF-8 text, by which the project keeps it.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:documentation_digest ;\n            sh:pattern \"^[0-9a-f]{64}$\" ],\n        [ sh:datatype xsd:dateTime ;\n            sh:description \"When the document was added to the project.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:documentation_added_at ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The file name the researcher attached the document under, without any folder.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:documentation_name ] ;\n    sh:targetClass dd:DocumentationSummary .\n\ndd:InventorySummary a sh:NodeShape ;\n    rdfs:comment \"What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:integer ;\n            sh:description \"How many files the inventory lists.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:inventory_file_count ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The command that made the inventory, such as dd-inventory.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path prov:wasGeneratedBy ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The inventory's dd-input-json-v1 hash, by which the project keeps it.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:inventory_digest ;\n            sh:pattern \"^[0-9a-f]{64}$\" ],\n        [ sh:datatype xsd:string ;\n            sh:description \"What the inventory left out or could not do, such as files it skipped.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dd:inventory_limitations ],\n        [ sh:datatype xsd:dateTime ;\n            sh:description \"When the inventory was made.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path prov:generatedAtTime ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The version of the command that made the inventory.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:inventory_tool_version ] ;\n    sh:targetClass dd:InventorySummary .\n\ndd:QuestionAnswer a sh:NodeShape ;\n    rdfs:comment \"The researcher's answer to one question of a reply, named by its question_key: the values of the options chosen, for a choice question, and the answer in their own words, for a text question or where a choice question allows it.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"The values of the options chosen, for a choice question; empty when the researcher answered in their own words, and always empty for a text question.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:answer_values ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The researcher's answer in their own words: the whole answer to a text question, or an answer given in place of an option where a choice question allows it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:answer_words ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The question_key of the question answered.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:answered_key ;\n            sh:pattern \"^[a-z][a-z0-9-]{0,39}$\" ] ;\n    sh:targetClass dd:QuestionAnswer .\n\ndd:ReplyAnswers a sh:NodeShape ;\n    rdfs:comment \"The researcher's answers to the questions the turn before asked, given together: one QuestionAnswer for each question answered, none for a question skipped. The app checks them against those questions before it sends the turn (docs/specs/orchestration.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:class dd:QuestionAnswer ;\n            sh:description \"One answer for each question answered, in the order asked; at least one.\" ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 1 ;\n            sh:path dd:given_answers ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The invocation whose reply asked the questions.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:answer_to ;\n            sh:pattern \"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\" ] ;\n    sh:targetClass dd:ReplyAnswers .\n\ndd:StepProgress a sh:NodeShape ;\n    rdfs:comment \"How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:in ( \"started\" \"done\" \"skipped\" ) ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:order 1 ;\n            sh:path dd:step_state ],\n        [ sh:datatype xsd:string ;\n            sh:description \"A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow).\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:step_id ;\n            sh:pattern \"^[a-z]+\\\\.[a-z-]+$\" ] ;\n    sh:targetClass dd:StepProgress .\n\n"
+            "digest": "b02e5c8890c29d62501388be2232ff87db7bd96a7adb9fd5c2453083d82ba355",
+            "shacl": "@prefix dd: <https://w3id.org/data-director/> .\n@prefix prov: <http://www.w3.org/ns/prov#> .\n@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix sh: <http://www.w3.org/ns/shacl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\ndd:Message a sh:NodeShape ;\n    rdfs:comment \"One conversational turn addressed to an agent: the text of the turn and the conversation so far. The history is part of the input, so the input hash covers everything the agent saw. In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md); in any project, it adds the entry point chosen, the progress the project log shows and the project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:boolean ;\n            sh:description \"Whether a person gave the project its title, so that a model's would be refused; false while the project has no title. Filled by the conductor and never by the caller; absent when the run is in no project.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 8 ;\n            sh:path dd:project_title_by_researcher ],\n        [ sh:class dd:ConversationTurn ;\n            sh:description \"The earlier turns of the conversation, oldest first.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 2 ;\n            sh:path dd:history ],\n        [ sh:class dd:DocumentationSummary ;\n            sh:description \"The documents the conversation's project holds, without their text, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds none.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 9 ;\n            sh:path dd:project_documentation ],\n        [ sh:datatype xsd:boolean ;\n            sh:description \"Whether the researcher chose the project's entry point, so that a model's would be refused; false when an orchestrator's model recorded it. Filled by the conductor and never by the caller; absent when the run is in no project, or no entry point was recorded.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 10 ;\n            sh:path dd:project_entry_by_researcher ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"The Blueprint entry point (1, 2 or 3) the researcher chose for the conversation's project, the latest chosen. Filled by the conductor and never by the caller; absent when the run is in no project, or none was chosen.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dd:project_entry ],\n        [ sh:class dd:StepProgress ;\n            sh:description \"The process-flow steps the conversation's project log shows started, done or skipped, in flow order. Filled by the conductor and never by the caller; absent when the run is in no project. Derived from the log on every turn, never stored.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 6 ;\n            sh:path dd:project_progress ],\n        [ sh:class dd:ReplyAnswers ;\n            sh:description \"The researcher's answers to the questions the previous turn asked, when they answered them in the form. message_text still carries the answers as prose.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 4 ;\n            sh:path dd:reply_answers ],\n        [ sh:class dd:InventorySummary ;\n            sh:description \"The inventory the conversation's project holds, filled by the conductor and never by the caller. Absent when the run is in no project, or its project holds no inventory.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 3 ;\n            sh:path dd:project_inventory ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The conversation's project's latest title. Filled by the conductor and never by the caller; absent when the run is in no project, or the project has no title yet.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 7 ;\n            sh:path dd:project_title ;\n            sh:pattern \"^.{1,200}$\" ],\n        [ sh:datatype xsd:string ;\n            sh:description \"What the user said in this turn.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:message_text ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:schema_class ],\n        [ sh:class dd:ResearcherRecord ;\n            sh:description \"The researcher facts the conversation's project holds, one record for each person who kept some, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project kept any.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 11 ;\n            sh:path dd:project_researchers ] ;\n    sh:targetClass dd:Message .\n\ndd:Affiliation a sh:NodeShape ;\n    rdfs:comment \"One affiliation on an ORCID record: an employment, an education or another kind, with the organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"The researcher's role or degree.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 6 ;\n            sh:path dd:role_title ],\n        [ sh:datatype xsd:string ;\n            sh:description \"ORCID's identifier for the item within the record, by which a researcher chose to keep it.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:put_code ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:organisation_identifier_scheme ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The department within the organisation.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dd:department ],\n        [ sh:description \"What kind of affiliation the item is.\" ;\n            sh:in ( \"employment\" \"education\" \"qualification\" \"invited_position\" \"distinction\" \"membership\" \"service\" ) ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:order 1 ;\n            sh:path dd:affiliation_kind ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The organisation's identifier, where ORCID gives one: a URL for ROR, else as given.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:organisation_identifier ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"The year it ended; absent while it continues.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 8 ;\n            sh:path dd:end_year ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"The year it started.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 7 ;\n            sh:path dd:start_year ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The organisation's name.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:organisation_name ] ;\n    sh:targetClass dd:Affiliation .\n\ndd:ConversationTurn a sh:NodeShape ;\n    rdfs:comment \"One earlier turn of a conversation, as the caller presents it to the agent. An agent turn names the agent and version that produced it and the invocation it came from.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"For an agent turn, the version of the agent that produced it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:turn_agent_version ],\n        [ sh:datatype xsd:string ;\n            sh:description \"For an agent turn, the invocation it came from.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:turn_invocation_id ;\n            sh:pattern \"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\" ],\n        [ sh:in ( \"user\" \"agent\" ) ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:order 0 ;\n            sh:path dd:role ],\n        [ sh:datatype xsd:string ;\n            sh:description \"What was said in the turn.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:turn_text ],\n        [ sh:datatype xsd:string ;\n            sh:description \"For an agent turn, the agent that produced it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:turn_agent_id ] ;\n    sh:targetClass dd:ConversationTurn .\n\ndd:DocumentationSummary a sh:NodeShape ;\n    rdfs:comment \"What one document a researcher attached to a project is, without its text: the conductor fills one per document into a Message so that the agent knows the project holds it (docs/specs/projects.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:integer ;\n            sh:description \"The size of the document's UTF-8 text, in bytes.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:documentation_size ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The document's media type, text/plain or text/markdown.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:documentation_media_type ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The SHA-256 of the document's UTF-8 text, by which the project keeps it.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:documentation_digest ;\n            sh:pattern \"^[0-9a-f]{64}$\" ],\n        [ sh:datatype xsd:dateTime ;\n            sh:description \"When the document was added to the project.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:documentation_added_at ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The file name the researcher attached the document under, without any folder.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:documentation_name ] ;\n    sh:targetClass dd:DocumentationSummary .\n\ndd:InventorySummary a sh:NodeShape ;\n    rdfs:comment \"What the inventory a project holds is, without its files: the conductor fills it into a Message so that the agent knows the project has one (docs/specs/projects.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"The version of the command that made the inventory.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:inventory_tool_version ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"How many files the inventory lists.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:inventory_file_count ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The command that made the inventory, such as dd-inventory.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path prov:wasGeneratedBy ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The inventory's dd-input-json-v1 hash, by which the project keeps it.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:inventory_digest ;\n            sh:pattern \"^[0-9a-f]{64}$\" ],\n        [ sh:datatype xsd:string ;\n            sh:description \"What the inventory left out or could not do, such as files it skipped.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dd:inventory_limitations ],\n        [ sh:datatype xsd:dateTime ;\n            sh:description \"When the inventory was made.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path prov:generatedAtTime ] ;\n    sh:targetClass dd:InventorySummary .\n\ndd:QuestionAnswer a sh:NodeShape ;\n    rdfs:comment \"The researcher's answer to one question of a reply, named by its question_key: the values of the options chosen, for a choice question, and the answer in their own words, for a text question or where a choice question allows it.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"The values of the options chosen, for a choice question; empty when the researcher answered in their own words, and always empty for a text question.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:answer_values ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The researcher's answer in their own words: the whole answer to a text question, or an answer given in place of an option where a choice question allows it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:answer_words ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The question_key of the question answered.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:answered_key ;\n            sh:pattern \"^[a-z][a-z0-9-]{0,39}$\" ] ;\n    sh:targetClass dd:QuestionAnswer .\n\ndd:ReplyAnswers a sh:NodeShape ;\n    rdfs:comment \"The researcher's answers to the questions the turn before asked, given together: one QuestionAnswer for each question answered, none for a question skipped. The app checks them against those questions before it sends the turn (docs/specs/orchestration.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:class dd:QuestionAnswer ;\n            sh:description \"One answer for each question answered, in the order asked; at least one.\" ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 1 ;\n            sh:path dd:given_answers ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The invocation whose reply asked the questions.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:answer_to ;\n            sh:pattern \"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\" ] ;\n    sh:targetClass dd:ReplyAnswers .\n\ndd:ResearcherFunding a sh:NodeShape ;\n    rdfs:comment \"One grant or award on an ORCID record, with its funder.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:integer ;\n            sh:description \"The year it ended; absent while it continues.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 8 ;\n            sh:path dd:end_year ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The scheme of funder_identifier, in ORCID's words, such as FUNDREF or ROR. Present exactly when funder_identifier is.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dd:funder_identifier_scheme ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The funder's identifier, where ORCID gives one, such as a Crossref Funder ID.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:funder_identifier ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The kind of funding, in ORCID's words, such as grant or award.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:funding_type ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The funder's name.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:funder_name ],\n        [ sh:datatype xsd:string ;\n            sh:description \"ORCID's identifier for the item within the record, by which a researcher chose to keep it.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:put_code ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The grant number or award identifier, where the record gives one.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 6 ;\n            sh:path dd:award_identifier ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"The year it started.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 7 ;\n            sh:path dd:start_year ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The grant's or award's title.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:funding_title ] ;\n    sh:targetClass dd:ResearcherFunding .\n\ndd:ResearcherLink a sh:NodeShape ;\n    rdfs:comment \"A web page the researcher lists on their ORCID record, such as a personal page.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:description \"The page's address.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:IRI ;\n            sh:order 1 ;\n            sh:path dd:link_url ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The name the researcher gave the page.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:link_title ] ;\n    sh:targetClass dd:ResearcherLink .\n\ndd:ResearcherRecord a sh:NodeShape ;\n    rdfs:comment \"What one researcher in a project chose to keep from their public ORCID record: only the sections and items they ticked, in ORCID's own words, never edited by a person or a model. The conductor fills the project's records into a Message and a DraftRequest so that an agent can draft creators, affiliations, subjects and funding from them (docs/specs/projects.md). Email addresses are never kept, even public ones.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"The researcher's biography, as their ORCID record gives it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:biography ],\n        [ sh:datatype xsd:string ;\n            sh:description \"A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 5 ;\n            sh:path dd:country ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"How many works the record held beyond the 50 offered. Absent when none were left out.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 10 ;\n            sh:path dd:works_omitted ],\n        [ sh:datatype xsd:dateTime ;\n            sh:description \"When the record was read from ORCID's public API.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 12 ;\n            sh:path dd:record_retrieved_at ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:researcher_name ],\n        [ sh:class dd:Affiliation ;\n            sh:description \"The researcher's affiliations they kept, the current ones first.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 8 ;\n            sh:path dd:affiliations ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The researcher's own keywords for their research, as their ORCID record lists them.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:keywords ],\n        [ sh:description \"The researcher's ORCID iD, as its URL, such as https://orcid.org/0000-0002-1825-0097.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:IRI ;\n            sh:order 0 ;\n            sh:path dd:orcid_id ],\n        [ sh:class dd:ResearcherWork ;\n            sh:description \"The researcher's works they kept, the most recent first: at most 50 are offered, so that an agent's input stays bounded.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 9 ;\n            sh:path dd:works ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Other names the researcher is known by, as their ORCID record lists them.\" ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:other_names ],\n        [ sh:class dd:ExternalIdentifier ;\n            sh:description \"The researcher's identifiers in other schemes, as their ORCID record lists them.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 7 ;\n            sh:path dd:external_identifiers ],\n        [ sh:class dd:ResearcherLink ;\n            sh:description \"The web pages the researcher's ORCID record lists.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 6 ;\n            sh:path dd:researcher_links ],\n        [ sh:class dd:ResearcherFunding ;\n            sh:description \"The researcher's grants and awards they kept, the current ones first.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 11 ;\n            sh:path dd:fundings ],\n        [ sh:description \"The public API address the record was read from.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:IRI ;\n            sh:order 13 ;\n            sh:path dd:record_source ] ;\n    sh:targetClass dd:ResearcherRecord .\n\ndd:ResearcherWork a sh:NodeShape ;\n    rdfs:comment \"One work on an ORCID record, such as a journal article or a dataset.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"ORCID's identifier for the item within the record, by which a researcher chose to keep it.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:put_code ],\n        [ sh:class dd:ExternalIdentifier ;\n            sh:description \"The work's identifiers, such as its DOI.\" ;\n            sh:nodeKind sh:BlankNodeOrIRI ;\n            sh:order 5 ;\n            sh:path dd:work_identifiers ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The work's title.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:work_title ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The work's type, in ORCID's words, such as journal-article or data-set.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 2 ;\n            sh:path dd:work_type ],\n        [ sh:datatype xsd:integer ;\n            sh:description \"The year the work was published.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 3 ;\n            sh:path dd:publication_year ],\n        [ sh:datatype xsd:string ;\n            sh:description \"Where the work was published, such as a journal's name.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 4 ;\n            sh:path dd:journal_title ] ;\n    sh:targetClass dd:ResearcherWork .\n\ndd:StepProgress a sh:NodeShape ;\n    rdfs:comment \"How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:datatype xsd:string ;\n            sh:description \"A process-flow step id, `<phase>.<step>` (dd_sdk.process_flow).\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:step_id ;\n            sh:pattern \"^[a-z]+\\\\.[a-z-]+$\" ],\n        [ sh:in ( \"started\" \"done\" \"skipped\" ) ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:order 1 ;\n            sh:path dd:step_state ] ;\n    sh:targetClass dd:StepProgress .\n\ndd:ExternalIdentifier a sh:NodeShape ;\n    rdfs:comment \"An identifier from another scheme, as an ORCID record gives it: for a researcher, such as a Scopus Author ID; for a work, such as a DOI.\" ;\n    sh:closed true ;\n    sh:ignoredProperties ( rdf:type ) ;\n    sh:property [ sh:description \"The identifier as a URL, where the record gives one.\" ;\n            sh:maxCount 1 ;\n            sh:nodeKind sh:IRI ;\n            sh:order 2 ;\n            sh:path dd:identifier_url ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The scheme, in ORCID's words, such as doi or Scopus Author ID.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 0 ;\n            sh:path dd:identifier_type ],\n        [ sh:datatype xsd:string ;\n            sh:description \"The identifier within its scheme.\" ;\n            sh:maxCount 1 ;\n            sh:minCount 1 ;\n            sh:nodeKind sh:Literal ;\n            sh:order 1 ;\n            sh:path dd:identifier_value ] ;\n    sh:targetClass dd:ExternalIdentifier .\n\n"
           }
         }
       },

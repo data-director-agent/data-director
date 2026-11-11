@@ -1,6 +1,9 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/",
+      "Affiliation": {
+         "@id": "https://w3id.org/data-director/Affiliation"
+      },
       "Any": {
          "@id": "https://w3id.org/linkml/Any"
       },
@@ -19,6 +22,9 @@
       "DraftRequest": {
          "@id": "https://w3id.org/data-director/DraftRequest"
       },
+      "ExternalIdentifier": {
+         "@id": "https://w3id.org/data-director/ExternalIdentifier"
+      },
       "FileInventory": {
          "@id": "https://w3id.org/data-director/FileInventory"
       },
@@ -34,8 +40,27 @@
       "RequirementSetUse": {
          "@id": "https://w3id.org/data-director/RequirementSetUse"
       },
+      "ResearcherFunding": {
+         "@id": "https://w3id.org/data-director/ResearcherFunding"
+      },
+      "ResearcherLink": {
+         "@id": "https://w3id.org/data-director/ResearcherLink"
+      },
+      "ResearcherRecord": {
+         "@id": "https://w3id.org/data-director/ResearcherRecord"
+      },
+      "ResearcherWork": {
+         "@id": "https://w3id.org/data-director/ResearcherWork"
+      },
       "TableField": {
          "@id": "https://w3id.org/data-director/TableField"
+      },
+      "affiliation_kind": {
+         "@id": "https://w3id.org/data-director/affiliation_kind"
+      },
+      "affiliations": {
+         "@id": "https://w3id.org/data-director/affiliations",
+         "@type": "@id"
       },
       "answer_text": {
          "@id": "https://w3id.org/data-director/answer_text"
@@ -43,9 +68,18 @@
       "answered_question": {
          "@id": "https://w3id.org/data-director/answered_question"
       },
+      "award_identifier": {
+         "@id": "https://w3id.org/data-director/award_identifier"
+      },
+      "biography": {
+         "@id": "https://w3id.org/data-director/biography"
+      },
       "conforms_to": {
          "@id": "http://purl.org/dc/terms/conformsTo",
          "@type": "@id"
+      },
+      "country": {
+         "@id": "https://w3id.org/data-director/country"
       },
       "current_version": {
          "@id": "https://w3id.org/data-director/current_version",
@@ -56,6 +90,9 @@
       "dd": "https://w3id.org/data-director/",
       "decision_reason": {
          "@id": "https://w3id.org/data-director/decision_reason"
+      },
+      "department": {
+         "@id": "https://w3id.org/data-director/department"
       },
       "document_id": {
          "@id": "https://w3id.org/data-director/document_id"
@@ -71,6 +108,13 @@
       },
       "draft_answers": {
          "@id": "https://w3id.org/data-director/draft_answers",
+         "@type": "@id"
+      },
+      "end_year": {
+         "@id": "https://w3id.org/data-director/end_year"
+      },
+      "external_identifiers": {
+         "@id": "https://w3id.org/data-director/external_identifiers",
          "@type": "@id"
       },
       "field_description": {
@@ -117,6 +161,35 @@
       "form_label": {
          "@id": "https://w3id.org/data-director/form_label"
       },
+      "funder_identifier": {
+         "@id": "https://w3id.org/data-director/funder_identifier"
+      },
+      "funder_identifier_scheme": {
+         "@id": "https://w3id.org/data-director/funder_identifier_scheme"
+      },
+      "funder_name": {
+         "@id": "https://w3id.org/data-director/funder_name"
+      },
+      "funding_title": {
+         "@id": "https://w3id.org/data-director/funding_title"
+      },
+      "funding_type": {
+         "@id": "https://w3id.org/data-director/funding_type"
+      },
+      "fundings": {
+         "@id": "https://w3id.org/data-director/fundings",
+         "@type": "@id"
+      },
+      "identifier_type": {
+         "@id": "https://w3id.org/data-director/identifier_type"
+      },
+      "identifier_url": {
+         "@id": "https://w3id.org/data-director/identifier_url",
+         "@type": "@id"
+      },
+      "identifier_value": {
+         "@id": "https://w3id.org/data-director/identifier_value"
+      },
       "inventory": {
          "@id": "https://w3id.org/data-director/inventory",
          "@type": "@id"
@@ -141,8 +214,21 @@
       "inventory_tool_version": {
          "@id": "https://w3id.org/data-director/inventory_tool_version"
       },
+      "journal_title": {
+         "@id": "https://w3id.org/data-director/journal_title"
+      },
+      "keywords": {
+         "@id": "https://w3id.org/data-director/keywords"
+      },
       "licences": {
          "@id": "https://w3id.org/data-director/licences"
+      },
+      "link_title": {
+         "@id": "https://w3id.org/data-director/link_title"
+      },
+      "link_url": {
+         "@id": "https://w3id.org/data-director/link_url",
+         "@type": "@id"
       },
       "linkml": "https://w3id.org/linkml/",
       "max_file_size": {
@@ -167,10 +253,32 @@
       "obligation": {
          "@id": "https://w3id.org/data-director/obligation"
       },
+      "orcid_id": {
+         "@id": "https://w3id.org/data-director/orcid_id",
+         "@type": "@id"
+      },
+      "organisation_identifier": {
+         "@id": "https://w3id.org/data-director/organisation_identifier"
+      },
+      "organisation_identifier_scheme": {
+         "@id": "https://w3id.org/data-director/organisation_identifier_scheme"
+      },
+      "organisation_name": {
+         "@id": "https://w3id.org/data-director/organisation_name"
+      },
+      "other_names": {
+         "@id": "https://w3id.org/data-director/other_names"
+      },
       "property": {
          "@id": "https://w3id.org/data-director/property"
       },
       "prov": "http://www.w3.org/ns/prov#",
+      "publication_year": {
+         "@id": "https://w3id.org/data-director/publication_year"
+      },
+      "put_code": {
+         "@id": "https://w3id.org/data-director/put_code"
+      },
       "qualifier": {
          "@id": "https://w3id.org/data-director/qualifier",
          "@type": "@id"
@@ -180,6 +288,14 @@
       },
       "recommended_documents": {
          "@id": "https://w3id.org/data-director/recommended_documents"
+      },
+      "record_retrieved_at": {
+         "@id": "https://w3id.org/data-director/record_retrieved_at",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "record_source": {
+         "@id": "https://w3id.org/data-director/record_source",
+         "@type": "@id"
       },
       "redraft_document": {
          "@id": "https://w3id.org/data-director/redraft_document"
@@ -205,6 +321,20 @@
          "@id": "https://w3id.org/data-director/requirements",
          "@type": "@id"
       },
+      "researcher_links": {
+         "@id": "https://w3id.org/data-director/researcher_links",
+         "@type": "@id"
+      },
+      "researcher_name": {
+         "@id": "https://w3id.org/data-director/researcher_name"
+      },
+      "researchers": {
+         "@id": "https://w3id.org/data-director/researchers",
+         "@type": "@id"
+      },
+      "role_title": {
+         "@id": "https://w3id.org/data-director/role_title"
+      },
       "schema": "http://schema.org/",
       "schema_class": {
          "@id": "https://w3id.org/data-director/schema_class"
@@ -217,6 +347,9 @@
       },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",
+      "start_year": {
+         "@id": "https://w3id.org/data-director/start_year"
+      },
       "unconfirmed": {
          "@id": "https://w3id.org/data-director/unconfirmed"
       },
@@ -232,6 +365,23 @@
       },
       "warnings": {
          "@id": "https://w3id.org/data-director/warnings"
+      },
+      "work_identifiers": {
+         "@id": "https://w3id.org/data-director/work_identifiers",
+         "@type": "@id"
+      },
+      "work_title": {
+         "@id": "https://w3id.org/data-director/work_title"
+      },
+      "work_type": {
+         "@id": "https://w3id.org/data-director/work_type"
+      },
+      "works": {
+         "@id": "https://w3id.org/data-director/works",
+         "@type": "@id"
+      },
+      "works_omitted": {
+         "@id": "https://w3id.org/data-director/works_omitted"
       },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }

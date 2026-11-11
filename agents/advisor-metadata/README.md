@@ -26,6 +26,13 @@ property in the request's `requirements` is written:
   qualifier, such as ORDA's `subjectScheme: ANZSRC Fields of Research`, and a `null` value for the
   researcher.
 - `types.resourceTypeGeneral` is `Dataset`, since that is what the project deposits.
+- Where the request gives `researchers`, the facts the project's researchers kept from their
+  public ORCID records ([Projects](../../docs/specs/projects.md), invariant 27), and the
+  repository asks for the property: `creators` lists each researcher with their name (or `null`
+  if they did not keep it), their ORCID iD as a name identifier, and the employers they kept that
+  they still work for, with ROR identifiers where ORCID gives them; `subjects` adds their keywords
+  after the entries the repository's vocabularies ask for; and `fundingReferences` lists their
+  grants, with the funder's identifier and the award number.
 - A property `datacite.yaml` does not know is written as `null`.
 
 From the inventory it adds `formats` (the files' media types) and `sizes` (the number of files
@@ -41,9 +48,9 @@ slot, so the outcome's statement says what the mock does not do (docs/specs/agen
 
 ## What it does not do
 
-- It fills no property that only the researcher can, such as the title, creators, subjects or
-  licence.
-- It uses no controlled vocabularies, and does not split names or add identifiers such as ORCID.
+- It fills no property that only the researcher can, such as the title or licence, and fills
+  creators, subjects and funding only from what researchers kept from their ORCID records.
+- It uses no controlled vocabularies, and does not split names into given and family names.
 - It does not map a record between schemas (R6), or write Figshare's own item format (#383).
 - It does not check that a value is correct. Validating the record is the harness's work (#19).
 - It does not read an earlier version, or the reason a person gave for a decision on it.

@@ -233,6 +233,27 @@ class ProjectStorage(Protocol):
         """The text of the project's document with this digest, or None."""
         ...
 
+    def add_researcher(
+        self,
+        project_id: str,
+        record: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep a person's own `ResearcherRecord`; returns its digest."""
+        ...
+
+    def withdraw_researcher(
+        self, project_id: str, orcid_id: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Stop giving agents the record a person kept."""
+        ...
+
+    def researchers(self, project_id: str) -> list[dict[str, Any]] | None:
+        """The `ResearcherRecord`s that stand, the one kept first first; None while none."""
+        ...
+
     def choose_repository(
         self,
         project_id: str,

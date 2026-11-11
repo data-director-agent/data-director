@@ -1061,3 +1061,128 @@ def test_a_caller_never_claims_project_documentation(
         env = conductor.invoke(asked, acting_for=TEST_PRINCIPAL)
         assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     assert all("project_documentation" not in input_doc for input_doc in seen)
+
+
+def keep_researcher(projects: ProjectStore, project: str) -> dict[str, Any]:
+    """The test principal keeps their name and a keyword from their ORCID record."""
+    record = {
+        "orcid_id": TEST_PRINCIPAL.principal_id,
+        "researcher_name": "Josiah Carberry",
+        "keywords": ["psychoceramics"],
+        "record_retrieved_at": "2026-11-10T12:00:00+00:00",
+        "record_source": "https://pub.orcid.org/v3.0/0000-0002-1825-0097/record",
+    }
+    projects.add_researcher(project, record, acted_for=TEST_PRINCIPAL, caused_by="t")
+    return record
+
+
+def test_a_draft_is_given_the_researcher_facts_a_person_kept(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `DraftRequest` in a project is given the facts its researchers kept from their ORCID
+    records, and is given none once they are withdrawn (docs/specs/projects.md, invariant 6)."""
+    conductor = conductor_over(tmp_path / "runs", projects, DocumentStub())
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    kept = keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert stored_input(tmp_path / "runs", env.invocation_id)["researchers"] == [kept]
+
+    projects.withdraw_researcher(
+        project, TEST_PRINCIPAL.principal_id, acted_for=TEST_PRINCIPAL, caused_by="t"
+    )
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert "researchers" not in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+@pytest.mark.requirement("C13.5")
+def test_researcher_facts_are_left_out_for_a_hosted_model_by_default(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """Researcher facts are `researcher`, which the default `hosted_models` keeps from a hosted
+    model; they are left out and the run goes ahead (docs/specs/projects.md, invariant 8)."""
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "researchers" not in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+@pytest.mark.requirement("C13.5")
+def test_a_profile_may_let_a_hosted_model_be_given_researcher_facts(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    hosted = DocumentStub("hosted-model", hosting="hosted")
+    conductor = withholding(
+        conductor_over(tmp_path / "runs", projects, hosted),
+        frozenset({"inventory", "researcher"}),
+    )
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("stub.document", draft_request()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "researchers" in stored_input(tmp_path / "runs", env.invocation_id)
+
+
+def test_a_message_is_given_researcher_facts_a_caller_never_claims(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A `Message` in a project is given `project_researchers`; outside one, what a caller sends
+    in their place is removed."""
+    seen: list[dict[str, Any]] = []
+    conductor = conductor_over(tmp_path / "runs", projects, naming("Soil", seen))
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    kept = keep_researcher(projects, project)
+    forged = OpenInput.model_validate(
+        {**message().model_dump(mode="json"), "project_researchers": [kept]}
+    )
+
+    for asked in (
+        in_conversation(request("fake.delegation", message()), conversation),
+        request("fake.delegation", forged),
+    ):
+        env = conductor.invoke(asked, acting_for=TEST_PRINCIPAL)
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+
+    [given] = seen[0]["project_researchers"]
+    assert (given["orcid_id"], given["keywords"]) == (kept["orcid_id"], kept["keywords"])
+    assert "project_researchers" not in seen[1]
+
+
+def test_a_hosted_orchestrator_goes_on_without_researcher_facts(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """A conversation is not stopped by facts the profile keeps from its hosted model."""
+    seen: list[dict[str, Any]] = []
+    hosted = naming("Soil", seen)
+    hosted.spec = replace(hosted.spec, models=(ModelUse("test", "orchestrator", "hosted"),))
+    conductor = conductor_over(tmp_path / "runs", projects, hosted)
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    keep_researcher(projects, project)
+
+    env = conductor.invoke(
+        in_conversation(request("fake.delegation", message()), conversation),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_researchers" not in seen[0]

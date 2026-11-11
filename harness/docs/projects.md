@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `project_renamed`, `conversation_started`, `inventory_added`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
+| `event` | What happened: `project_created`, `project_renamed`, `conversation_started`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `project_validated` or `package_built`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -57,6 +57,20 @@ the database, where finding a conversation's project is an indexed query
 | `file_count` | How many files the inventory lists. |
 | `inventory_made_at` | When `dd-inventory` made it. |
 | `revises` | The digest of the inventory the project held before, when it held one: this one revises it. The store finds it in the log; no caller gives it. |
+
+`researcher_added` keeps the facts a person chose from their own public ORCID record
+([Projects](../../docs/specs/projects.md), invariant 27). It also gives:
+
+| Member | What it is |
+|---|---|
+| `orcid_id` | The person's iD URL; always the iD of the principal in `acted_for`. |
+| `digest` | The SHA-256 of the `ResearcherRecord`'s canonical bytes, under which the blob is kept. |
+| `canonicalisation` | `dd-input-json-v1`. |
+| `record_retrieved_at` | When the record was read from ORCID's public API. |
+
+The latest `researcher_added` for an iD counts. `researcher_withdrawn` gives the `orcid_id` whose
+record is no longer given to agents; it may be added again later. `ProjectStore.researchers` gives
+the records that stand, the one kept first first.
 
 `repository_chosen` also gives:
 

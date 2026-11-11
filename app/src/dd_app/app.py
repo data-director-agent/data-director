@@ -108,6 +108,7 @@ from dd_app.governance import (
     UnknownConversationError,
     principal_summary,
 )
+from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
@@ -130,7 +131,7 @@ from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
-from dd_sdk.contract.models import Principal, ReplyAnswers
+from dd_sdk.contract.models import Principal, ReplyAnswers, now
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
@@ -148,6 +149,7 @@ ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
 TITLE_REFUSED = "Data Director could not rename this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
+RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
 INVENTORY_REFUSED = "Data Director could not add this inventory"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
@@ -175,12 +177,14 @@ def build_app(
     feedback_client: httpx.AsyncClient | None = None,
     build: Mapping[str, str | None] | None = None,
     sign_in: SignIn | None = None,
+    orcid_transport: httpx.BaseTransport | None = None,
 ) -> Starlette:
     """The server. `web_dist` must hold a built shell (its `index.html`).
 
     Problem reports are on when `feedback_source` is given; `feedback_client` and `build` let a test
     stand in for GitHub and for the build's identity. `sign_in` signs people in; its
     authenticator must be `governance.authenticator`. Without it, the server signs nobody in.
+    `orcid_transport` lets a test stand in for ORCID's public API (`dd_harness.orcid`).
     """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
@@ -507,6 +511,92 @@ def build_app(
                 f"Project {project_id!r} holds no document {digest!r}.",
             )
         return PlainTextResponse(found)
+
+    def read_orcid(person: Principal) -> dict[str, Any]:
+        """`person`'s own public ORCID record as a `ResearcherRecord`: only their own iD is ever
+        read, and only when they ask (docs/specs/policy-and-identity.md)."""
+        issuer = orcid.issuer_of(person)
+        raw = orcid.fetch_record(person.principal_id, issuer, transport=orcid_transport)
+        return orcid.normalise(
+            raw,
+            principal_id=person.principal_id,
+            retrieved_at=now(),
+            source=orcid.record_url(person.principal_id, issuer),
+        )
+
+    async def get_orcid_record(request: Request, person: Principal) -> Response:
+        """What the signed-in person's public ORCID record offers, to choose from. Nothing is
+        kept: keeping is `keep_researcher`, which reads the record again."""
+        try:
+            return JSONResponse(await run_in_threadpool(read_orcid, person))
+        except orcid.OrcidError as exc:
+            return _problem(409, "no-orcid-record", "No ORCID record to read", str(exc))
+        except orcid.OrcidUnavailableError as exc:
+            return _orcid_unavailable(str(exc))
+
+    async def list_researchers(request: Request, _: Principal) -> Response:
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            return JSONResponse(await run_in_threadpool(store.researchers, project_id) or [])
+        except UnknownProjectError:
+            return _no_project(project_id)
+
+    async def keep_researcher(request: Request, person: Principal) -> Response:
+        """Keep in the project what the person ticked of their own public ORCID record. The body
+        names a choice (`{"keep": {"sections": [...], "works": [put-codes], ...}}`), never the
+        facts: the record is read again and only what it holds is kept, so the project holds
+        ORCID's own words (docs/specs/projects.md). Answers with the project's records."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", RESEARCHER_REFUSED)
+        keep = body.get("keep") if isinstance(body, dict) else None
+        if not isinstance(keep, dict):
+            return _refused("`keep` names the sections and items to keep.", RESEARCHER_REFUSED)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def add() -> list[dict[str, Any]]:
+            chosen = orcid.select(read_orcid(person), keep)
+            store.add_researcher(project_id, chosen, acted_for=person, caused_by=caused_by)
+            return store.researchers(project_id) or []
+
+        try:
+            return JSONResponse(await run_in_threadpool(add), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except orcid.OrcidUnavailableError as exc:
+            return _orcid_unavailable(str(exc))
+        except (orcid.OrcidError, ProjectError) as exc:
+            return _refused(str(exc), RESEARCHER_REFUSED)
+
+    async def withdraw_researcher(request: Request, person: Principal) -> Response:
+        """Stop giving agents the ORCID facts the person kept in the project. Answers with the
+        project's records that stand."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def withdraw() -> list[dict[str, Any]]:
+            store.withdraw_researcher(
+                project_id, person.principal_id, acted_for=person, caused_by=caused_by
+            )
+            return store.researchers(project_id) or []
+
+        try:
+            return JSONResponse(await run_in_threadpool(withdraw))
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _problem(404, "researcher-not-found", "Nothing of yours to withdraw", str(exc))
 
     async def get_disclosure(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -1028,6 +1118,21 @@ def build_app(
                 methods=["GET"],
             ),
             Route(
+                "/api/projects/{project_id}/researchers",
+                in_project(Action.READ, list_researchers),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/researchers/me",
+                in_project(Action.CONTRIBUTE, keep_researcher),
+                methods=["PUT"],
+            ),
+            Route(
+                "/api/projects/{project_id}/researchers/me",
+                in_project(Action.CONTRIBUTE, withdraw_researcher),
+                methods=["DELETE"],
+            ),
+            Route(
                 "/api/projects/{project_id}/disclosure",
                 in_project(Action.READ, get_disclosure),
                 methods=["GET"],
@@ -1082,6 +1187,7 @@ def build_app(
                 in_project(Action.CONTRIBUTE, answer),
                 methods=["POST"],
             ),
+            Route("/api/researcher/orcid", signed_in(get_orcid_record), methods=["GET"]),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/policy", signed_in(get_policy), methods=["GET"]),
@@ -1186,6 +1292,10 @@ def _no_project(project_id: str) -> Response:
 
 def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:
     return _problem(400, "request-refused", title, detail)
+
+
+def _orcid_unavailable(detail: str) -> Response:
+    return _problem(502, "orcid-unavailable", "ORCID could not be reached", detail)
 
 
 def _unauthenticated(detail: str) -> Response:

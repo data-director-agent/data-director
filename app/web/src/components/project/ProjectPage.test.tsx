@@ -64,6 +64,10 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     validate: () => Promise.reject(new Error("not checked in this test")),
     buildPackage: () => Promise.reject(new Error("not built in this test")),
     chooseRepository: () => Promise.reject(new Error("no repository in these tests")),
+    orcidRecord: () => Promise.reject(new Error("no ORCID record in these tests")),
+    researchers: () => Promise.resolve([]),
+    keepResearcher: () => Promise.reject(new Error("nothing kept in these tests")),
+    withdrawResearcher: () => Promise.resolve([]),
     ...overrides,
   };
 }

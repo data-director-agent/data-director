@@ -47,10 +47,12 @@ Each agent declares the models it sends data to in its manifest (`models`: provi
 hosting). The app's **About** tab for the agent shows the list, or says that it calls no model.
 This is what the deployment configured, declared by the agent itself; it is not proof of what
 left the host. The profile's `hosted_models` says which classes of project content (`inventory`,
-`documentation`) an agent with a hosted model may be given; the shipped profile allows both, so
-that the documentation advisor can write a project's documents. Remove `documentation` to keep
-metadata records, drafts and answers from the provider; the advisor's runs in a project then fail
-with `project-content-withheld`. A rule for other data, such as a conversation's text, is not
+`documentation`, `researcher`) an agent with a hosted model may be given; the shipped profile
+allows the first two, so that the documentation advisor can write a project's documents. Remove
+`documentation` to keep metadata records, drafts and answers from the provider; the advisor's runs
+in a project then fail with `project-content-withheld`. Add `researcher` to let such an agent be
+given the facts researchers kept from their ORCID records, such as their affiliations and works;
+without it those facts are left out of its input and the run goes ahead. A rule for other data, such as a conversation's text, is not
 built yet (#40).
 
 ## Choose a model

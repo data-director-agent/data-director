@@ -83,7 +83,7 @@ from dd_harness.storage import (
     ProjectStorage,
     RunStorage,
 )
-from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
+from dd_sdk.agent import AgentResult, AgentSpec, ModelUse, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
 from dd_sdk.contract.models import (
@@ -355,6 +355,12 @@ class Conductor:
         sent = to_document(request.input)
         filled = project_facts.give(self.projects, in_project, sent)
         given = project_facts.given(self.projects, in_project, filled)
+        # Researcher facts the profile keeps from this agent's hosted model are left out, not
+        # refused (docs/specs/projects.md, invariant 8): no agent needs them.
+        if project_facts.RESEARCHER in given:
+            hostings = [model.hosting for model in self._models_of(request.agent_id)]
+            out = frozenset(policy.withheld(self.profile, hostings, {project_facts.RESEARCHER}))
+            filled, given = project_facts.leave_out(filled, out), given - out
         refused = project_facts.refusal(self.projects, in_project, filled)
         if in_project is not None or filled != sent:
             request = InvocationRequest.model_validate(
@@ -377,6 +383,15 @@ class Conductor:
         finally:
             with self._running_lock:
                 self._running.discard(invocation_id)
+
+    def _models_of(self, agent_id: str) -> tuple[ModelUse, ...]:
+        """The models the agent's card declares; none for an agent not registered, which `_run`
+        refuses."""
+        agent = self.registry.get(agent_id)
+        if agent is None:
+            self.registry.refresh()
+            agent = self.registry.get(agent_id)
+        return tuple(agent.spec.models) if agent is not None else ()
 
     def _run(
         self,
