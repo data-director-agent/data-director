@@ -1,0 +1,46 @@
+# Test configuration: routes to a local fake provider (scripts/testing/fake_upstream.py),
+# so no provider keys are needed and nothing is billed. Each fake call with
+# max_tokens=50 uses 10 input + 50 output tokens. Input is priced at 0 to keep the
+# arithmetic exact: every such call costs 50 x $0.004 = $0.20.
+#
+#   docker compose -f compose.yaml -f compose.test.yaml up -d
+#   scripts/smoke_test.sh
+
+model_list:
+  - model_name: test-claude            # exercised via the Anthropic /v1/messages route
+    litellm_params:
+      model: anthropic/test-claude
+      api_base: http://fake-upstream:8080
+      api_key: not-used
+    model_info:
+      input_cost_per_token: 0          # fake prices, deliberately high output
+      output_cost_per_token: 0.004
+
+  - model_name: test-gpt               # exercised via the OpenAI /v1/chat/completions route
+    litellm_params:
+      model: openai/test-gpt
+      api_base: http://fake-upstream:8080/v1
+      api_key: not-used
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0.004
+
+  # Named like the model Data Director agents use (DD_MODEL_ID), so an agent-style client can
+  # be pointed at the test stack with ANTHROPIC_BASE_URL alone.
+  - model_name: claude-sonnet-5-5
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_base: http://fake-upstream:8080
+      api_key: not-used
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0.004
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+
+litellm_settings:
+  callbacks: ["prometheus"]
+  prometheus_initialize_budget_metrics: true   # publish budget gauges for every key/team/user
+  turn_off_message_logging: true
