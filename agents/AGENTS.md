@@ -50,3 +50,8 @@ the workbench, stop.
   ([Evaluation and conformance](../docs/specs/evaluation.md)).
 - **Shared doubles for one agent's tests live in that agent's `testing` module** (for example
   `dd_agent_advisor_standards.testing`), not in another package.
+- **An advisor that calls a model is built to [Model-backed personas](../docs/specs/agents.md#model-backed-personas)**
+  and reviewed against
+  [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
+  If you find yourself letting a model remove a rule's flag, write a value the researcher must
+  give, or run with no `template` default, stop.
