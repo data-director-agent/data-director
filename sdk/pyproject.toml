@@ -24,6 +24,10 @@ dependencies = [
   "watchfiles>=1.0",
 ]
 
+[project.optional-dependencies]
+# The Claude adapter behind the model seam (dd_sdk.model_anthropic, docs/specs/dependencies.md).
+anthropic = ["anthropic>=1.15.0,<2.5"]
+
 [project.scripts]
 # Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (docs/specs/contract.md).
 dd-gen-schema = "dd_sdk.schema.gen:main"

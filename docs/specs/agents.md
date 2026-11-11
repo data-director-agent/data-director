@@ -176,12 +176,16 @@ the worked example of the `template` default and the declared model (`factory.py
    writes it ([Drafting documents](drafting.md)).
 4. **Provenance per value.** Each field a model may write names a `Derivation` recorder in
    `recorded_in` (invariant 8), so a template fallback is shown as what it was. Each call is
-   recorded with `dd_sdk.prompts.ModelCallLog`, and the card declares the model as a
-   `dd_sdk.agent.ModelUse`.
+   made with `dd_sdk.model.call`, which opens the `chat` span, records the call's tokens and
+   records it with `dd_sdk.prompts.ModelCallLog`; the card declares the model as a
+   `dd_sdk.agent.ModelUse`. The provider is an adapter behind `dd_sdk.model.Model`
+   (`dd_sdk.model_anthropic.AnthropicModel` for Claude), so an agent imports no provider's
+   SDK.
 5. **Prompts are code.** The system prompt is `system_prompt.md` beside the module that sends it.
    A change to a prompt is a change to the agent's behaviour and is reviewed as one.
-6. **Tests use a fake client.** An agent's suite exercises the model path with a fake client in
-   its own `testing` module; CI never needs a key.
+6. **Tests use a fake model.** An agent's suite exercises the model path with
+   `dd_sdk.testing.FakeModel`, or a fake of its own in its `testing` module; CI never needs a
+   key.
 7. **An evaluation before alpha ends.** An advisor leaves alpha only with an evaluation set that
    includes false-negative cases: the flags, discrepancies or options it must not miss
    ([Evaluation and conformance](evaluation.md)).

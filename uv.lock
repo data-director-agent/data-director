@@ -986,7 +986,7 @@ dependencies = [
 
 [package.optional-dependencies]
 anthropic = [
-    { name = "anthropic" },
+    { name = "data-director-sdk", extra = ["anthropic"] },
 ]
 
 [package.dev-dependencies]
@@ -996,8 +996,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.50" },
     { name = "data-director-sdk", editable = "sdk" },
+    { name = "data-director-sdk", extras = ["anthropic"], marker = "extra == 'anthropic'", editable = "sdk" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 provides-extras = ["anthropic"]
@@ -1531,9 +1531,15 @@ dependencies = [
     { name = "watchfiles" },
 ]
 
+[package.optional-dependencies]
+anthropic = [
+    { name = "anthropic" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.2.2,<2" },
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.15.0,<2.5" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jsonschema", specifier = ">=4.23" },
     { name = "opentelemetry-sdk", specifier = ">=1.44" },
@@ -1543,6 +1549,7 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.30" },
     { name = "watchfiles", specifier = ">=1.0" },
 ]
+provides-extras = ["anthropic"]
 
 [[package]]
 name = "data-director-workbench"
