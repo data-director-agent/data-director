@@ -1,0 +1,52 @@
+# LiteLLM gateway configuration.
+# `model_name` is what clients ask for; `litellm_params.model` is the real provider model.
+# The Claude entries use the model IDs themselves, so Data Director agents (DD_MODEL_ID,
+# default claude-sonnet-5-5) can switch to the gateway without a configuration change.
+# Costs for known models come from LiteLLM's built-in price map. Override with
+# input_cost_per_token / output_cost_per_token under model_info (USD per token).
+
+model_list:
+  # --- Anthropic ----------------------------------------------------------
+  - model_name: claude-sonnet-5-5
+    litellm_params:
+      model: anthropic/claude-sonnet-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-haiku-5-5
+    litellm_params:
+      model: anthropic/claude-haiku-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # --- OpenAI: replace the placeholder with a current model ID --------------
+  - model_name: gpt
+    litellm_params:
+      model: openai/REPLACE-WITH-OPENAI-MODEL-ID
+      api_key: os.environ/OPENAI_API_KEY
+
+  # --- Google Gemini (AI Studio key). For Vertex AI use vertex_ai/<model> ---
+  - model_name: gemini
+    litellm_params:
+      model: gemini/REPLACE-WITH-GEMINI-MODEL-ID
+      api_key: os.environ/GEMINI_API_KEY
+
+  # --- Local Ollama: tokens metered, cost zero ------------------------------
+  - model_name: llama-local
+    litellm_params:
+      model: ollama_chat/llama3.1
+      api_base: os.environ/OLLAMA_API_BASE
+    model_info:
+      input_cost_per_token: 0
+      output_cost_per_token: 0
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+
+litellm_settings:
+  # Prometheus metrics at /metrics (requires an API key to scrape).
+  callbacks: ["prometheus"]
+  prometheus_initialize_budget_metrics: true   # publish budget gauges for every key/team/user
+  # Uncomment to send traces to Langfuse (set LANGFUSE_* in .env):
+  # success_callback: ["langfuse"]
+  # Don't store prompt/response text in the spend logs (privacy):
+  turn_off_message_logging: true
