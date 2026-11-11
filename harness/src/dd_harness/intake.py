@@ -25,6 +25,9 @@ from dd_harness.progress import (
     entry_chosen,
     intake_answers,
 )
+from dd_harness.progress import (
+    describe as describe_progress,
+)
 from dd_sdk.contract.models import QuestionAnswer
 from dd_sdk.intake import ENTRY, INTAKE, IntakeQuestion, question
 
@@ -67,6 +70,38 @@ def state(events: Iterable[Mapping[str, Any]]) -> IntakeState:
     if dismissed(events):
         return DISMISSED
     return PENDING if next_question(events) is not None else COMPLETE
+
+
+def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Where the intake stands, as the app's card reads it (docs/specs/app.md, rule 25): its
+    state, the id of the next question (None once none is left), every question asked from the
+    project's entry point, in order, each as a core `Question` with its current answer's values
+    (None while it has none), and the project's progress, whose entry point and suggested step
+    the card names once the intake is complete."""
+    events = list(events)
+    entry, answers = entry_chosen(events), intake_answers(events)
+    following = next_question(events)
+
+    def current(q: IntakeQuestion) -> list[str] | None:
+        if q.id == ENTRY:
+            return [str(entry)] if entry is not None else None
+        values = answers.get(q.id)
+        return list(values) if values is not None else None
+
+    return {
+        "state": state(events),
+        "next": following.id if following is not None else None,
+        "questions": [
+            {
+                "question_id": q.id,
+                "question": q.as_question().model_dump(mode="json", exclude_none=True),
+                "answer_values": current(q),
+            }
+            for q in INTAKE
+            if q.asked_at(entry)
+        ],
+        "progress": describe_progress(events),
+    }
 
 
 def answer_problem(question_id: str, answer_values: Sequence[str], entry: int | None) -> str | None:

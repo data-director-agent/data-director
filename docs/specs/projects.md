@@ -207,7 +207,8 @@ intended design, and each part says where it is not built yet.
 
     So answering "Yes" after "No" opens the step again. Marking a step open from the tracker
     overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
-    which question comes next in the same way, and none is stored. Any entry point recorded,
+    which question comes next in the same way, and none is stored; `ProjectStore.intake` reads the
+    questions with their current answers for the app's card. Any entry point recorded,
     the researcher's or one a model worked out, answers the entry question, and an answer marks
     steps skipped only while the entry point is one its question is asked from. The project
     summary says whether the intake is `pending`, `complete` or `dismissed`.

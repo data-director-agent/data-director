@@ -12,6 +12,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { createContext, useContext } from "react";
 
+import type { Question } from "../conversation/question";
 import type { ProjectProgress, StepMark } from "../flow/types";
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
@@ -391,6 +392,12 @@ export interface ProjectApi {
   chooseEntry(projectId: string, entry: number): Promise<ProjectProgress>;
   /** Record a step marked done, skipped or open again; answers with the progress anew. */
   markStep(projectId: string, stepId: string, mark: StepMark): Promise<ProjectProgress>;
+  /** Where the project's intake stands, with its next question. */
+  intake(projectId: string, signal?: AbortSignal): Promise<ProjectIntake>;
+  /** Record the researcher's answer to one intake question; answers with the intake anew. */
+  answerIntake(projectId: string, questionId: string, values: string[]): Promise<ProjectIntake>;
+  /** Record the intake dismissed; answers with the intake anew. */
+  dismissIntake(projectId: string): Promise<ProjectIntake>;
   /** Choose a repository by its re3data identifier; answers with the requirements it resolved
    * to. A change is a new choice, and the last one counts. */
   chooseRepository(projectId: string, re3dataId: string): Promise<RepositoryRequirements>;
@@ -406,6 +413,31 @@ export interface ProjectApi {
   keepResearcher(projectId: string, keep: KeepChoice): Promise<ResearcherRecord[]>;
   /** Stop agents being given what the person kept; answers with the records that stand. */
   withdrawResearcher(projectId: string): Promise<ResearcherRecord[]>;
+}
+
+/** Whether the project's intake still has a question to ask, has none left, or was dismissed. */
+export type IntakeState = "pending" | "complete" | "dismissed";
+
+/** One intake question asked from the project's entry point, with its current answer. */
+export interface IntakeQuestion {
+  /** The intake's stable id, `intake.<name>`, which an answer is posted to. */
+  question_id: string;
+  question: Question;
+  /** The values of the latest answer, or null while it has none. */
+  answer_values: string[] | null;
+}
+
+/**
+ * Where a project's intake stands, derived by the harness from the project log on every read
+ * (docs/specs/app.md, rule 25): the next question, every question asked from the entry point
+ * with its answer, and the project's progress, whose entry point and suggested step the card
+ * names once the intake is complete.
+ */
+export interface ProjectIntake {
+  state: IntakeState;
+  next: string | null;
+  questions: IntakeQuestion[];
+  progress: ProjectProgress;
 }
 
 /** What a project holds of its inventory once one is saved: `revises` names the one it replaced. */
@@ -450,6 +482,10 @@ function projectPath(projectId: string): string {
 
 function progressPath(projectId: string): string {
   return `${projectPath(projectId)}/progress`;
+}
+
+function post(body: unknown): RequestInit {
+  return { ...put(body), method: "POST" };
 }
 
 function put(body: unknown): RequestInit {
@@ -517,6 +553,20 @@ export const httpProjectApi: ProjectApi = {
     return json(
       await fetch(`${progressPath(projectId)}/steps/${encodeURIComponent(stepId)}`, put({ mark })),
     );
+  },
+  async intake(projectId, signal) {
+    return json(await fetch(`${projectPath(projectId)}/intake`, signal ? { signal } : {}));
+  },
+  async answerIntake(projectId, questionId, values) {
+    return json(
+      await fetch(
+        `${projectPath(projectId)}/intake/${encodeURIComponent(questionId)}`,
+        post({ answer_values: values }),
+      ),
+    );
+  },
+  async dismissIntake(projectId) {
+    return json(await fetch(`${projectPath(projectId)}/intake/dismiss`, post({})));
   },
   async chooseRepository(projectId, re3dataId) {
     return json(

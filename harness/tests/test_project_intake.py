@@ -123,3 +123,49 @@ def test_an_unknown_project_is_refused(store: ProjectStore) -> None:
         answer(store, missing, ENTRY, "1")
     with pytest.raises(UnknownProjectError):
         store.dismiss_intake(missing, acted_for=TEST_PRINCIPAL, caused_by="test")
+
+
+def test_the_intake_read_lists_the_questions_asked_from_the_entry_with_their_answers(
+    store: ProjectStore, project: str
+) -> None:
+    before = store.intake(project)
+    assert before["state"] == intake.PENDING
+    assert before["next"] == ENTRY
+    # With no entry point, only the entry question is asked.
+    assert [q["question_id"] for q in before["questions"]] == [ENTRY]
+    assert before["questions"][0]["answer_values"] is None
+    assert before["questions"][0]["question"]["question_kind"] == "choice"
+
+    third = ENTRIES[-1].number
+    answer(store, project, ENTRY, str(third))
+    answer(store, project, "intake.repository-mandated", NO)
+    read = store.intake(project)
+    assert [q["question_id"] for q in read["questions"]] == [
+        q.id for q in INTAKE if q.asked_at(third)
+    ]
+    answers = {q["question_id"]: q["answer_values"] for q in read["questions"]}
+    assert answers[ENTRY] == [str(third)]
+    assert answers["intake.repository-mandated"] == [NO]
+    assert read["progress"]["entry"] == third
+
+
+def test_a_complete_intake_reads_with_the_step_suggested_and_no_next_question(
+    store: ProjectStore, project: str
+) -> None:
+    answer(store, project, ENTRY, str(ENTRIES[0].number))
+    for q in INTAKE[1:]:
+        if q.asked_at(ENTRIES[0].number):
+            answer(store, project, q.id, NOT_SURE)
+    read = store.intake(project)
+    assert read["state"] == intake.COMPLETE
+    assert read["next"] is None
+    assert read["progress"]["suggested"] is not None
+
+
+def test_a_dismissed_intake_reads_as_dismissed_with_no_next_question(
+    store: ProjectStore, project: str
+) -> None:
+    store.dismiss_intake(project, acted_for=TEST_PRINCIPAL, caused_by="test")
+    read = store.intake(project)
+    assert read["state"] == intake.DISMISSED
+    assert read["next"] is None

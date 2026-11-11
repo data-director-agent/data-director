@@ -214,8 +214,7 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     phase the project starts at, by its researcher-facing name, and which step `suggested_next`
     proposes. A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18). The
-    wording and the decision mapping await a Blueprint reading, TODO(#670); the app's card is
-    TODO(#668).
+    wording and the decision mapping await a Blueprint reading, TODO(#670).
 
 ## Boundaries and contracts
 

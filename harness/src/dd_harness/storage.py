@@ -307,6 +307,10 @@ class ProjectStorage(Protocol):
         """The entry point chosen and the step states, derived from the log."""
         ...
 
+    def intake(self, project_id: str) -> dict[str, Any]:
+        """Where the intake stands and its questions with their current answers."""
+        ...
+
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:
         """Record a run's `Document` payload as a proposed version."""
         ...

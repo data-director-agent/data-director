@@ -34,6 +34,12 @@ project holds none with that digest (docs/specs/projects.md).
 and `404` when none has been; `PUT` on it chooses one by its re3data identifier, which the pinned
 re3data export resolves to the repository's name and declared standards, for the person signed in,
 and answers with the requirements it resolved to and their warnings (docs/specs/deposit.md).
+`GET /api/projects/{id}/intake` says whether the project's intake is pending, complete or
+dismissed, with its next question and each question asked from the project's entry point and its
+current answer; `POST /api/projects/{id}/intake/{question_id}` records the person's answer to one
+(`{"answer_values": […]}`), refused with `400` when malformed and `409` when the harness rejects
+it, and `POST /api/projects/{id}/intake/dismiss` passes the intake by; both answer with the intake
+read anew (docs/specs/app.md, rule 25).
 `GET /api/projects/{id}/disclosure` says how each approved document came about and what
 generative AI was used, as a statement and as a PROV-O graph (docs/specs/disclosure.md).
 `POST /api/projects/{id}/validation` validates the project against the requirements recorded
@@ -147,6 +153,7 @@ FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
+INTAKE_REFUSED = "Data Director could not record this answer"
 TITLE_REFUSED = "Data Director could not rename this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
 RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
@@ -656,6 +663,70 @@ def build_app(
         except ProjectError as exc:
             return _refused(str(exc), PROGRESS_REFUSED)
 
+    async def get_intake(request: Request, _: Principal) -> Response:
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            return JSONResponse(await run_in_threadpool(store.intake, project_id))
+        except UnknownProjectError:
+            return _no_project(project_id)
+
+    async def answer_intake(request: Request, person: Principal) -> Response:
+        """The researcher's answer to one intake question (docs/specs/app.md, rule 25), recorded
+        for whom the authenticator names, never the body. A malformed body is refused with `400`
+        and an answer the harness rejects with `409`, recording nothing; otherwise the server
+        answers with where the intake then stands: the next question, or the progress the card
+        names once it is complete."""
+        project_id = request.path_params["project_id"]
+        question_id = request.path_params["question_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", INTAKE_REFUSED)
+        values = body.get("answer_values") if isinstance(body, dict) else None
+        if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+            return _refused(
+                "The body is an object whose `answer_values` is a list of option values.",
+                INTAKE_REFUSED,
+            )
+        caused_by = f"{request.method} {request.url.path}"
+
+        def record() -> dict[str, Any]:
+            store.answer_intake(
+                project_id, question_id, values, acted_for=person, caused_by=caused_by
+            )
+            return store.intake(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(record), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _problem(409, "intake-answer-refused", INTAKE_REFUSED, str(exc))
+
+    async def dismiss_intake(request: Request, person: Principal) -> Response:
+        """The researcher passing the intake by (docs/specs/app.md, rule 25); an answer recorded
+        later opens it again. Answers with where the intake then stands."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def dismiss() -> dict[str, Any]:
+            store.dismiss_intake(project_id, acted_for=person, caused_by=caused_by)
+            return store.intake(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(dismiss), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+
     async def rename_project(request: Request, person: Principal) -> Response:
         """A person's name for the project, which a model's never replaces
         (docs/specs/projects.md). Whom it acts for is whom the authenticator names, never the
@@ -1161,6 +1232,22 @@ def build_app(
                 "/api/projects/{project_id}/progress/steps/{step_id}",
                 in_project(Action.CONTRIBUTE, change_progress),
                 methods=["PUT"],
+            ),
+            Route(
+                "/api/projects/{project_id}/intake",
+                in_project(Action.READ, get_intake),
+                methods=["GET"],
+            ),
+            # Before the route below, which would read `dismiss` as a question.
+            Route(
+                "/api/projects/{project_id}/intake/dismiss",
+                in_project(Action.CONTRIBUTE, dismiss_intake),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/intake/{question_id}",
+                in_project(Action.CONTRIBUTE, answer_intake),
+                methods=["POST"],
             ),
             Route(
                 "/api/projects/{project_id}/validation",

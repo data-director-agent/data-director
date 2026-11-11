@@ -736,6 +736,11 @@ class Projects:
         `UnknownProjectError`."""
         return flow.describe(self.events(project_id))
 
+    def intake(self, project_id: str) -> dict[str, Any]:
+        """Where the project's intake stands, its questions with their current answers and the
+        project's progress (`dd_harness.intake.describe`). Raises `UnknownProjectError`."""
+        return intake.describe(self.events(project_id))
+
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:
         """Record a run's `Document` payload as a proposed version (docs/specs/projects.md,
         invariants 9 and 10): the first version of a new document if it revises nothing, else the

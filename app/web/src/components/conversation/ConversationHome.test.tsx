@@ -17,6 +17,8 @@ import {
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import { ActiveProjectProvider } from "../../project/active";
+import intakeCompleteFixture from "../../../fixtures/intake-complete.json";
+import intakePendingFixture from "../../../fixtures/intake-pending.json";
 import projectsFixture from "../../../fixtures/projects.json";
 import projectFixture from "../../../fixtures/project-documents.json";
 import {
@@ -26,6 +28,7 @@ import {
   ProjectApiContext,
   type ProjectDocument,
   type ProjectDocuments,
+  type ProjectIntake,
   type ProjectSummary,
 } from "../../project/api";
 import type { ProcessFlow, ProjectProgress } from "../../flow/types";
@@ -1627,6 +1630,57 @@ describe("ConversationHome", () => {
       expect(
         within(phases).getByRole("combobox", { name: "Where you started" }),
       ).toHaveValue("2");
+    });
+
+    it("opens a pending project with the intake card and keeps the message box usable", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const pending = intakePendingFixture as ProjectIntake;
+      const complete = intakeCompleteFixture as ProjectIntake;
+      const entry = pending.questions[0];
+      const option = entry?.question.question_options?.[0];
+      if (!entry || !option) throw new Error("the intake fixture asks nothing");
+      const answerIntake = vi.fn<ProjectApi["answerIntake"]>(() => Promise.resolve(complete));
+      renderHome(
+        withOrchestrator(),
+        fakeApi(),
+        FLOW,
+        withProgress({ intake: () => Promise.resolve(pending), answerIntake }),
+      );
+      const group = await screen.findByRole("group", { name: entry.question.question_prompt });
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
+
+      await userEvent.click(within(group).getByRole("radio", { name: option.option_label }));
+      await userEvent.click(screen.getByRole("button", { name: "Next" }));
+      expect(answerIntake).toHaveBeenCalledWith(LOGGERS.project_id, entry.question_id, [
+        option.option_value,
+      ]);
+      // The tracker moves with the progress the answer came back with.
+      const suggested = complete.progress.suggested;
+      if (!suggested) throw new Error("the complete fixture suggests nothing");
+      const phases = screen.getByRole("navigation", { name: "Your data journey" });
+      await waitFor(() =>
+        expect(within(phases).getByRole("status")).toHaveTextContent(label(suggested)),
+      );
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
+    });
+
+    it("shows no card for a complete intake until the tracker asks the questions again", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const complete = intakeCompleteFixture as ProjectIntake;
+      renderHome(
+        withOrchestrator(),
+        fakeApi(),
+        FLOW,
+        withProgress({ intake: () => Promise.resolve(complete) }),
+      );
+      const again = await screen.findByRole("button", { name: "Answer the setup questions again" });
+      const first = complete.questions[0];
+      if (!first) throw new Error("the intake fixture asks nothing");
+      expect(screen.queryByRole("group", { name: first.question.question_prompt })).toBeNull();
+      await userEvent.click(again);
+      expect(
+        await screen.findByRole("group", { name: first.question.question_prompt }),
+      ).toBeInTheDocument();
     });
   });
 });
