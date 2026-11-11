@@ -15,7 +15,7 @@ backend.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
@@ -285,6 +285,22 @@ class ProjectStorage(Protocol):
         self, project_id: str, step_id: str, mark: str, *, acted_for: Principal, caused_by: str
     ) -> None:
         """Record a step marked done, skipped or open."""
+        ...
+
+    def answer_intake(
+        self,
+        project_id: str,
+        question_id: str,
+        answer_values: Sequence[str],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> None:
+        """Record an answer to an intake question, checked against the question."""
+        ...
+
+    def dismiss_intake(self, project_id: str, *, acted_for: Principal, caused_by: str) -> None:
+        """Record the intake dismissed."""
         ...
 
     def progress(self, project_id: str) -> dict[str, Any]:

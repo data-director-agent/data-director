@@ -207,7 +207,11 @@ intended design, and each part says where it is not built yet.
 
     So answering "Yes" after "No" opens the step again. Marking a step open from the tracker
     overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
-    which question comes next in the same way, and none is stored. Not built yet, TODO(#667).
+    which question comes next in the same way, and none is stored. Any entry point recorded,
+    the researcher's or one a model worked out, answers the entry question, and an answer marks
+    steps skipped only while the entry point is one its question is asked from. The project
+    summary says whether the intake is `pending`, `complete` or `dismissed`.
+    (`harness/tests/test_project_intake.py`; `harness/tests/test_progress.py`)
 21. **A person's name for a project outranks a model's.** A project's title is the latest given,
     at creation or by a `project_renamed` event, which says whether a person (`researcher`) or an
     orchestrator's model (`model`) gave it; a title given at creation is a person's. A member

@@ -277,6 +277,9 @@ export interface ProjectSummary {
   repository: ChosenRepository | null;
   documents: Record<VersionState, number>;
   conversations: ProjectConversation[];
+  /** Whether the project's intake still has a question to ask, has none left, or was dismissed;
+   * derived from the project log (docs/specs/projects.md, rule 20). */
+  intake?: "pending" | "complete" | "dismissed";
 }
 
 /** An identifier from another scheme, as an ORCID record gives it, such as a DOI. */

@@ -31,14 +31,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from dd_harness.answers import question_answer_problem
 from dd_harness.listing import Page, Readable
 from dd_harness.storage import RunStorage
 from dd_sdk.contract.models import (
-    LONG_TEXT_MAX,
-    SHORT_TEXT_MAX,
     ConversationTurn,
     Question,
-    QuestionAnswer,
     QuestionKind,
     ReplyAnswers,
     TurnRole,
@@ -258,41 +256,6 @@ def answer_problem(conversation: dict[str, Any] | None, answers: ReplyAnswers) -
         question = asked.get(answer.answered_key)
         if question is None:
             return f"not a question the latest turn asked: {answer.answered_key}"
-        if problem := _answer_problem(question, answer):
+        if problem := question_answer_problem(question, answer):
             return f"{answer.answered_key}: {problem}"
-    return None
-
-
-def _answer_problem(question: Question, answer: QuestionAnswer) -> str | None:
-    words = (answer.answer_words or "").strip()
-    if answer.answer_words is not None and not words:
-        return "the answer in the researcher's own words is empty"
-    if question.question_kind is not QuestionKind.CHOICE:
-        limit = (
-            SHORT_TEXT_MAX if question.question_kind is QuestionKind.SHORT_TEXT else LONG_TEXT_MAX
-        )
-        if answer.answer_values:
-            return "the question takes words, not options"
-        if not words:
-            return "nothing is said"
-        if len(words) > limit:
-            return f"the answer is longer than {limit} characters"
-        if question.question_kind is QuestionKind.SHORT_TEXT and "\n" in words:
-            return "the answer is more than one line"
-        return None
-    offered = {o.option_value for o in question.question_options or []}
-    unknown = [v for v in answer.answer_values if v not in offered]
-    if unknown:
-        return f"not an option of the question: {', '.join(unknown)}"
-    if len(set(answer.answer_values)) != len(answer.answer_values):
-        return "an option is chosen more than once"
-    if words and not question.question_other:
-        return "the question takes only its options"
-    if len(words) > SHORT_TEXT_MAX:
-        return f"the answer is longer than {SHORT_TEXT_MAX} characters"
-    chosen = len(answer.answer_values) + (1 if words else 0)
-    if chosen == 0:
-        return "nothing is chosen"
-    if chosen > 1 and not question.question_multiple:
-        return "the question takes one answer"
     return None
