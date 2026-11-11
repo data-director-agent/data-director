@@ -1,4 +1,5 @@
 # Install once with `uv tool install pre-commit && pre-commit install` (CONTRIBUTING.md).
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.13.4
@@ -6,3 +7,13 @@ repos:
       # Re-lock whenever a pyproject.toml changes, so uv.lock never lags behind it (CI runs with
       # UV_LOCKED). Locking from the current state keeps lock diffs small, and so conflicts rare.
       - id: uv-lock
+  - repo: local
+    hooks:
+      # A pull request is squash-merged under its title, which release-please reads as a
+      # Conventional Commit. Holding every commit subject to the same rule (scripts/check_names.py)
+      # catches a bad one before it is pushed; the pull request title is still checked by CI.
+      - id: conventional-commit
+        name: commit subject is a Conventional Commit
+        entry: python3 scripts/check_names.py --message-file
+        language: system
+        stages: [commit-msg]
