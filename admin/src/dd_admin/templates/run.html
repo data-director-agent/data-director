@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status, person %}
+{% from "_macros.html" import status, person, cost as cost_of %}
 {% block title %}Run {{ envelope.invocation_id | short }}{% endblock %}
 {% block heading %}Run <span class="mono">{{ envelope.invocation_id }}</span>{% endblock %}
 {% block content %}
@@ -18,6 +18,8 @@
     {% if envelope.conversation_id %}<dt>Conversation</dt><dd><a class="mono" href="/runs?conversation={{ envelope.conversation_id }}">{{ envelope.conversation_id }}</a></dd>{% endif %}
     {% if envelope.parent_invocation_id %}<dt>Delegated by</dt><dd><a class="mono" href="/runs/{{ envelope.parent_invocation_id }}">{{ envelope.parent_invocation_id }}</a></dd>{% endif %}
     {% if telemetry.model_id or telemetry.input_tokens %}<dt>Model</dt><dd>{{ telemetry.model_id or "—" }} · {{ telemetry.input_tokens or 0 }} tokens in, {{ telemetry.output_tokens or 0 }} out</dd>{% endif %}
+    {% if calls %}<dt>Model calls</dt><dd>{{ calls | length }} ({% for m, i, o in calls %}{{ m }}: {{ i | number }} in, {{ o | number }} out{% if not loop.last %}; {% endif %}{% endfor %})</dd>
+    <dt>Estimated cost</dt><dd>{{ cost_of(cost, prices) }}</dd>{% endif %}
     {% if envelope.policy_bundle_ref %}<dt>Policy</dt><dd class="mono">{{ envelope.policy_bundle_ref }}</dd>{% endif %}
     <dt>Kept at</dt><dd class="mono">{{ where }}</dd>
   </dl>

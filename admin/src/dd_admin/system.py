@@ -4,6 +4,7 @@ that tests replace: running a command, fetching a URL, and reading a file or dir
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,10 +39,10 @@ class System:
             return Done(124, "", f"{cmd[0]}: no answer within {timeout_s:.0f} s")
         return Done(done.returncode, done.stdout, done.stderr)
 
-    def get_json(self, url: str) -> object | None:
+    def get_json(self, url: str, headers: Mapping[str, str] | None = None) -> object | None:
         """The JSON document at `url`, or None if it cannot be fetched or is not JSON."""
         try:
-            response = httpx.get(url, timeout=HTTP_TIMEOUT_S)
+            response = httpx.get(url, headers=dict(headers or {}), timeout=HTTP_TIMEOUT_S)
             response.raise_for_status()
             found: object = response.json()
         except httpx.HTTPError, ValueError:

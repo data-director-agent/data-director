@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import person, run_table %}
+{% from "_macros.html" import person, run_table, cost as cost_of %}
 {% block title %}{{ summary.title or "Untitled project" }}{% endblock %}
 {% block heading %}{{ summary.title or "Untitled project" }}{% endblock %}
 {% block content %}
@@ -14,6 +14,8 @@
     {% if summary.progress %}<dt>Process flow</dt><dd>entry {{ summary.progress.entry or "not chosen" }}{% if summary.progress.suggested %} · next {{ summary.progress.suggested }}{% endif %}</dd>{% endif %}
     <dt>Inventory</dt><dd>{% if summary.inventory %}{{ summary.inventory.file_count }} files, added {{ summary.inventory.added_at | when }}{% else %}none{% endif %}</dd>
     <dt>Repository</dt><dd>{{ summary.repository.repository_name if summary.repository else "none chosen" }}</dd>
+    <dt>Model tokens</dt><dd>{{ cost.input_tokens | number }} in, {{ cost.output_tokens | number }} out, on its runs</dd>
+    {% if cost.input_tokens or cost.output_tokens %}<dt>Estimated cost</dt><dd>{{ cost_of(cost, prices) }}</dd>{% endif %}
     {% set d = summary.documents or {} %}
     <dt>Documents</dt><dd>{{ d.approved or 0 }} approved · {{ d.proposed or 0 }} proposed · {{ d.rejected or 0 }} rejected</dd>
   </dl>

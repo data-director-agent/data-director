@@ -105,6 +105,7 @@ main { padding: 1.5rem 2rem 3rem; max-width: 1200px; width: 100%; }
   padding: 0.6rem 0.9rem; margin-bottom: 1rem;
 }
 .banner.bad { border-color: var(--bad); background: var(--bad-soft); }
+.banner.warn { border-color: var(--warn); background: var(--warn-soft); }
 
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.9rem; margin-bottom: 1.25rem; }
 .tile {

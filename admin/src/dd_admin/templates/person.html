@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import run_table %}
+{% from "_macros.html" import run_table, cost as cost_of %}
 {% block title %}{{ person.name }}{% endblock %}
 {% block heading %}{{ person.name }}{% endblock %}
 {% block content %}
@@ -9,6 +9,8 @@
     <dt>Identifier</dt><dd class="mono">{% if person.principal_id.startswith("https://") %}<a href="{{ person.principal_id }}" rel="noreferrer">{{ person.principal_id }}</a>{% else %}{{ person.principal_id }}{% endif %}</dd>
     <dt>Sign-in</dt><dd>{{ person.assurance or "—" }}</dd>
     <dt>Runs</dt><dd>{{ person.runs | number }} (and delegated runs on their behalf)</dd>
+    <dt>Model tokens</dt><dd>{{ cost.input_tokens | number }} in, {{ cost.output_tokens | number }} out, on all their runs</dd>
+    {% if cost.input_tokens or cost.output_tokens %}<dt>Estimated cost</dt><dd>{{ cost_of(cost, prices) }}</dd>{% endif %}
     <dt>Conversations</dt><dd>{{ person.conversations | length | number }}</dd>
     <dt>First seen</dt><dd>{{ person.first_seen | when }}</dd>
     <dt>Last seen</dt><dd>{{ person.last_seen | when }}</dd>

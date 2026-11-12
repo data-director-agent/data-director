@@ -36,12 +36,34 @@ elsewhere it would need a sign-in, which it does not have (#154).
 | Operations | Each problem `data-director doctor` finds, with its fix; its notes and what it skipped; the releases on disk, which is live and which failed to start; each unit's state, restarts and last 100 journal lines | `data-director doctor --json`, run as the service's user; `/opt/data-director`; `systemctl show`; `journalctl` |
 | Agents | Each agent in `agents.yaml`: whether its card answers, its unit, version, action class and models; the card in full | Each agent's `/.well-known/agent-card.json` |
 | People | Everyone a run acted for or who created a project: their runs, conversations and projects, and when they were first and last seen | The run and project stores |
-| Runs | Every run, newest first, by agent, outcome, person, project or conversation; a run's outcome, who it acted for, telemetry and envelope | The run store |
+| Runs | Every run, newest first, by agent, outcome, person, project or conversation; a run's outcome, who it acted for, telemetry, estimated cost and envelope | The run store |
+| Spend | Spend this month against an optional budget; spend over the last 30 days by day, model and gateway key; the tokens runs recorded over 30 days by model, agent, person and project, with their estimated cost | The LLM gateway's `/spend/logs/v2` and `/model/info`; the run store |
 | Projects | Every project: who created it, its documents and repository; a project's event log and runs | The project store |
 | Configuration | The files under `/etc/data-director`, each with the command that changes it; the stores' locations and the live profile | `/etc/data-director`; the app's `/api/about` |
 | Feedback | A link to the feedback issues | `DD_FEEDBACK_REPO` |
 
-The stores and the doctor are read at most once a minute; **Refresh** reads them again.
+The stores and the doctor are read at most once a minute, and the gateway every five minutes;
+**Refresh** reads them again.
+
+### Spend
+
+Spend comes from the optional LLM gateway ([deploy/llm-gateway](../../../deploy/llm-gateway/README.md)),
+when the agents call their models through it. The page keeps two figures apart:
+
+- **The gateway's**, which LiteLLM priced as each call was made: the month to date, the last
+  30 days by day, by model and by gateway key (one key per agent).
+- **An estimate from the runs**: the tokens each run's agent reported (`telemetry.model_calls`),
+  priced at the gateway's own per-token prices. Only this one can say which person or project the
+  tokens were for, so the person, project and run pages show it too. It differs from the
+  gateway's figure when an agent calls a model without the gateway, when something else uses the
+  gateway, and by discounts such as cached input. Tokens on a model the gateway has no price for
+  are counted as unpriced, not as free.
+
+Without the gateway the page still shows the tokens runs recorded, without prices.
+`DD_ADMIN_MONTHLY_BUDGET` sets a budget that the overview and the page show the month's spend
+against, amber from 80 % and red once reached; it stops nothing, as the gateway's key, user and
+team budgets do. Setting the gateway up for the page is in its
+[README](../../../deploy/llm-gateway/README.md#the-admin-services-spend-page).
 
 The doctor runs as the service's user, `datadirector`, so the checks that need root are listed
 as skipped: the secrets, the backups directory and `nginx -t`. Run `sudo data-director doctor` on
@@ -97,6 +119,9 @@ settings.
 | `DD_ADMIN_ETC` | The settings the configuration page shows | `/etc/data-director` |
 | `DD_ADMIN_SYSTEMD` | `yes` to read units' states and journals | `yes` |
 | `DD_FEEDBACK_REPO` | Where the app files feedback | From `app.env`, else `data-director-agent/data-director` |
+| `DD_ADMIN_LITELLM_URL` | The LLM gateway, for spend and prices | Unset; `http://127.0.0.1:4000` where the gateway runs |
+| `DD_ADMIN_LITELLM_KEY_FILE` | A read-only gateway key | Unset: the `litellm-key` credential the unit's drop-in loads |
+| `DD_ADMIN_MONTHLY_BUDGET` | A month's budget, in US dollars; shown, not enforced | Unset |
 
 A page whose setting is unset says which one, so the service also runs on a developer's machine:
 
@@ -112,3 +137,5 @@ DD_AGENTS_CONFIG=app/config/agents.yaml uv run dd-admin serve
 - It cannot change anything: deploying, restarting, rolling back and `apply` stay on the command
   line, with the commands on each page.
 - It shows an agent's card as facts and JSON, not as the app draws it.
+- The gateway answers at most 10,000 calls for a window; past that the page says its spend is
+  short. Costs are at the gateway's list prices, which can differ from what a provider bills.

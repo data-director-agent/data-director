@@ -77,8 +77,38 @@ class Usage:
         since = self.made_at - timedelta(days=days)
         return sum(1 for p in self.people if p.last_seen is not None and p.last_seen >= since)
 
+    def tokens_since(self, days: int) -> tuple[int, int]:
+        """Model tokens in and out on runs that finished in the last `days`."""
+        since = self.made_at - timedelta(days=days)
+        recent = [r for r in self.runs if r["at"] is not None and r["at"] >= since]
+        return sum(r["input_tokens"] for r in recent), sum(r["output_tokens"] for r in recent)
+
     def person(self, principal_id: str) -> Person | None:
         return next((p for p in self.people if p.principal_id == principal_id), None)
+
+
+def _int(value: object) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
+
+
+def model_calls(telemetry: dict[str, Any]) -> list[tuple[str, int, int]]:
+    """The run's tokens by model, as (model_id, in, out): one entry per call the agent reported
+    (docs/specs/disclosure.md), or the run's totals under its one model if it reported none."""
+    calls = [
+        (
+            str(c.get("model_id") or "unknown"),
+            _int(c.get("input_tokens")),
+            _int(c.get("output_tokens")),
+        )
+        for c in telemetry.get("model_calls") or []
+        if isinstance(c, dict)
+    ]
+    if any(i or o for _, i, o in calls):
+        return calls
+    totals = (_int(telemetry.get("input_tokens")), _int(telemetry.get("output_tokens")))
+    if not any(totals):
+        return []
+    return [(str(telemetry.get("model_id") or "unknown"), *totals)]
 
 
 def run_row(envelope: dict[str, Any]) -> dict[str, Any]:
@@ -98,8 +128,9 @@ def run_row(envelope: dict[str, Any]) -> dict[str, Any]:
         "project_id": envelope.get("project_id"),
         "conversation_id": envelope.get("conversation_id"),
         "delegated": bool(envelope.get("parent_invocation_id")),
-        "input_tokens": telemetry.get("input_tokens") or 0,
-        "output_tokens": telemetry.get("output_tokens") or 0,
+        "input_tokens": _int(telemetry.get("input_tokens")),
+        "output_tokens": _int(telemetry.get("output_tokens")),
+        "calls": model_calls(telemetry),
     }
 
 
