@@ -52,7 +52,7 @@ from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.project_access import Role
-from dd_harness.projects import ProjectStore
+from dd_harness.projects import PROJECT_CREATED, TITLE_MAX_LENGTH, ProjectStore
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
 from dd_harness.settings import SettingsError
@@ -1117,6 +1117,69 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
         "My logger data",
     )
     check_fixture("projects.json", normalised_conversation(response.json()))
+
+
+def test_a_person_creates_a_project_with_no_conversation(in_projects: tuple[Governance, Any]):
+    """Docs/specs/app.md, rule 27: **New project** creates the project on its own, for the person
+    signed in, and it is listed before it holds anything."""
+    governance, app = in_projects
+    store = governance.projects
+    assert store is not None
+    client = TestClient(app)
+
+    named = client.post("/api/projects", json={"title": "  Soil cores  "})
+    assert named.status_code == 201
+    body = named.json()
+    assert body["title"] == "Soil cores"
+    assert body["title_source"] == "researcher"
+    assert body["created_by"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    assert body["conversations"] == []
+    (created,) = store.events(body["project_id"])
+    assert created["event"] == PROJECT_CREATED
+    assert created["caused_by"] == "POST /api/projects"
+    check_fixture("project-created.json", normalised_conversation(body))
+
+    for unnamed in ({}, {"title": "   "}, {"title": None}):
+        response = client.post("/api/projects", json=unnamed)
+        assert response.status_code == 201
+        assert response.json()["title"] is None
+
+    # Listed as created, the one created last first; a project the app made for a
+    # conversation and nothing else is still left out.
+    store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    listed = client.get("/api/projects").json()
+    assert len(listed) == 4
+    assert listed[-1] == body
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"not json",
+        b"[]",
+        b'{"title": 3}',
+        b'{"name": "Soil cores"}',
+        b'{"title": "Soil cores", "acted_for": "someone"}',
+        json.dumps({"title": "x" * (TITLE_MAX_LENGTH + 1)}).encode(),
+    ],
+)
+def test_a_project_is_not_created_from_a_malformed_body(
+    in_projects: tuple[Governance, Any], content: bytes
+):
+    governance, app = in_projects
+    store = governance.projects
+    assert store is not None
+    response = TestClient(app).post("/api/projects", content=content, headers=JSON_HEADERS)
+    assert response.status_code == 400
+    assert response.json()["title"] == "Data Director could not create this project"
+    assert store.projects() == []
+
+
+def test_a_server_that_keeps_no_projects_creates_none(delegating: tuple[Governance, Any]):
+    _governance, app = delegating
+    response = TestClient(app).post("/api/projects", json={})
+    assert response.status_code == 404
+    assert response.json()["type"].endswith("project-not-found")
 
 
 def test_projects_are_paged_the_one_created_last_first(

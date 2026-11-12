@@ -39,7 +39,9 @@ which the app shows and takes at `/projects/{project_id}`; a person's answers to
 questions, taken on the draft's card in the conversation and given to the next draft
 ([Drafting documents](drafting.md)); the app's list of a person's projects
 at `/projects` (`GET /api/projects`), the one created last first and a page at a time, which
-leaves out a project with nothing in it yet and finds the person's projects from an index
+leaves out a project the app started for a conversation while it has nothing in it yet, lists one
+a person created with **New project** (`POST /api/projects`) from the start, and finds the
+person's projects from an index
 (docs/specs/storage.md, "Listing"); the
 access check `dd_harness.project_access`, which reads each principal's role from the log, and its
 use by the conductor before a run in a project and by every route of the app's server under

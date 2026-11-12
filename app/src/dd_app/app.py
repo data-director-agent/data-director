@@ -14,7 +14,9 @@ and a supporting document's text for the project to keep, answered as a run is, 
 them from the run store (docs/specs/orchestration.md, #130).
 `GET /api/projects` lists the projects the person signed in may read, the one created last first
 and a page at a time, each with what it holds and the conversations started in it
-(docs/specs/projects.md, docs/specs/app.md, docs/specs/storage.md "Listing").
+(docs/specs/projects.md, docs/specs/app.md, docs/specs/storage.md "Listing"); `POST /api/projects`
+creates one for the person signed in, with no conversation, named by the optional `title` it is
+sent, and answers `201` with its summary as the list shows it (docs/specs/app.md, rule 27).
 `GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
@@ -108,6 +110,7 @@ from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
 from dd_app.governance import (
+    CREATED_BY_ROUTE,
     AttachedDocument,
     Governance,
     TurnConflictError,
@@ -155,6 +158,7 @@ ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
 INTAKE_REFUSED = "Data Director could not record this answer"
 TITLE_REFUSED = "Data Director could not rename this project"
+CREATE_REFUSED = "Data Director could not create this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
 RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
 INVENTORY_REFUSED = "Data Director could not add this inventory"
@@ -432,6 +436,37 @@ def build_app(
             return _refused(str(exc), "Data Director could not list the projects")
         page = await run_in_threadpool(lambda: governance.projects_for(reader, **paging))
         return page_response(request, page)
+
+    async def create_project(request: Request, person: Principal) -> Response:
+        """A project of its own, with no conversation, named by the optional `title` the body
+        gives (docs/specs/app.md, rule 27). Whom it is created for is whom the authenticator
+        names, never the body. Answers `201` with its summary as `GET /api/projects` lists it."""
+        store = governance.projects
+        if store is None:
+            return _problem(
+                404, "project-not-found", "No such project", "This server keeps no projects."
+            )
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", CREATE_REFUSED)
+        if not isinstance(body, dict):
+            return _refused("The body must be an object.", CREATE_REFUSED)
+        extra = sorted(set(body) - {"title"})
+        if extra:
+            return _refused(f"Unexpected field(s): {', '.join(extra)}.", CREATE_REFUSED)
+        title = body.get("title")
+        if title is not None and not isinstance(title, str):
+            return _refused("`title` is the project's name, or left out.", CREATE_REFUSED)
+
+        def create() -> dict[str, Any]:
+            project_id = store.create(acted_for=person, caused_by=CREATED_BY_ROUTE, title=title)
+            return {**store.summary(project_id), "conversations": []}
+
+        try:
+            return JSONResponse(await run_in_threadpool(create), status_code=201)
+        except ProjectError as exc:
+            return _refused(str(exc), CREATE_REFUSED)
 
     async def get_documents(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -1158,6 +1193,7 @@ def build_app(
                 methods=["POST"],
             ),
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
+            Route("/api/projects", signed_in(create_project), methods=["POST"]),
             Route(
                 "/api/projects/{project_id}/title",
                 in_project(Action.CONTRIBUTE, rename_project),

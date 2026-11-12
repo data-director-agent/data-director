@@ -1,0 +1,28 @@
+{
+  "conversation_count": 0,
+  "conversations": [],
+  "created_at": "2026-01-01T00:00:00Z",
+  "created_by": {
+    "assurance": "asserted",
+    "name": "Josiah Carberry",
+    "principal_id": "https://orcid.org/0000-0002-1825-0097",
+    "principal_kind": "person"
+  },
+  "documents": {
+    "approved": 0,
+    "proposed": 0,
+    "rejected": 0
+  },
+  "intake": "pending",
+  "inventory": null,
+  "progress": {
+    "entry": null,
+    "entry_source": null,
+    "steps": {},
+    "suggested": null
+  },
+  "project_id": "01900000-0000-7000-8000-000000000001",
+  "repository": null,
+  "title": "Soil cores",
+  "title_source": "researcher"
+}
