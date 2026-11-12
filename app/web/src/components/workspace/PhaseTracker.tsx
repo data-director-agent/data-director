@@ -23,6 +23,8 @@ import type {
   StepMark,
   StepState,
 } from "../../flow/types";
+import { ListChecks } from "lucide-react";
+
 import { Button } from "../ui/Button";
 
 export type FlowLoad =
@@ -37,6 +39,8 @@ export interface TrackedProgress {
   markStep(stepId: string, mark: StepMark): void;
   /** Why the last change was not recorded, if it was not. */
   error?: string | null;
+  /** Opens the intake card with the current answers chosen (docs/specs/app.md, rule 25). */
+  answerIntakeAgain?: () => void;
 }
 
 const STATE_LABEL: Record<StepState, string> = {
@@ -103,6 +107,11 @@ export function PhaseTracker({
                 "Every step from where you started is done or skipped."
               )}
             </p>
+            {tracked.answerIntakeAgain && (
+              <Button size="small" icon={ListChecks} onPress={tracked.answerIntakeAgain}>
+                Answer the setup questions again
+              </Button>
+            )}
           </>
         )}
       </div>

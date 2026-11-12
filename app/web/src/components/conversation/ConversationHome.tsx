@@ -69,7 +69,7 @@ import type { ProjectProgress } from "../../flow/types";
 import type { Conversation, ConversationSummary } from "../../conversation/types";
 import type { AgentView, Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
-import { type ProjectDocuments, useProjectApi } from "../../project/api";
+import { type ProjectDocuments, type ProjectIntake, useProjectApi } from "../../project/api";
 import { type DocumentsRead, draftedBy } from "../../project/drafted";
 import { Link, homePath, navigate, useLocation } from "../../route";
 import { OUTCOME } from "../../manifest/wording";
@@ -87,6 +87,7 @@ import { InventoryReviewDialog } from "../inventory/InventoryReviewDialog";
 import { MakeInventoryDialog } from "../inventory/MakeInventoryDialog";
 import { DocumentChip } from "./DocumentChip";
 import { DocumentReviewDialog } from "./DocumentReviewDialog";
+import { IntakeCard } from "./IntakeCard";
 import { InventoryChip } from "./InventoryChip";
 import { RunDetail } from "./RunDetail";
 import { Transcript } from "./Transcript";
@@ -224,6 +225,50 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     },
     [],
   );
+
+  // The project's intake (docs/specs/app.md, rule 25), read when the project is known. The card
+  // opens while the intake is pending, or when asked for again from the phase tracker, and stays
+  // open until the researcher closes or dismisses it, so that it can end with its summary.
+  const [intakeOf, setIntakeOf] = useState<{
+    projectId: string;
+    intake: ProjectIntake;
+    open: boolean;
+    again: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (!projectId) return;
+    const abort = new AbortController();
+    projectApi.intake(projectId, abort.signal).then(
+      (intake) =>
+        setIntakeOf({ projectId, intake, open: intake.state === "pending", again: false }),
+      () => undefined,
+    );
+    return () => abort.abort();
+  }, [projectApi, projectId]);
+  const intake = projectId && intakeOf?.projectId === projectId ? intakeOf : null;
+  const intakeChanged = useCallback((of: string, changed: ProjectIntake) => {
+    setIntakeOf((was) => (was?.projectId === of ? { ...was, intake: changed } : was));
+    setProgressOf({ projectId: of, progress: changed.progress });
+  }, []);
+  async function answerIntake(of: string, questionId: string, values: string[]) {
+    const changed = await projectApi.answerIntake(of, questionId, values);
+    intakeChanged(of, changed);
+    return changed;
+  }
+  function dismissIntake(of: string) {
+    projectApi.dismissIntake(of).then(
+      (changed) => {
+        intakeChanged(of, changed);
+        closeIntake();
+        setAnnouncement("Setup questions skipped. You can answer them from the phase tracker.");
+      },
+      (e: unknown) => setError(`Data Director could not skip the setup questions: ${errorMessage(e)}`),
+    );
+  }
+  function closeIntake() {
+    setIntakeOf((was) => (was ? { ...was, open: false, again: false } : was));
+  }
+
   const tracked: TrackedProgress | null =
     projectId && progressOf?.projectId === projectId
       ? {
@@ -232,6 +277,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           markStep: (stepId, mark) =>
             changeProgress(projectApi.markStep(projectId, stepId, mark), projectId),
           error: progressError,
+          ...(intake
+            ? {
+                answerIntakeAgain: () =>
+                  setIntakeOf((was) => (was ? { ...was, open: true, again: true } : was)),
+              }
+            : {}),
         }
       : null;
 
@@ -616,6 +667,18 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           <h2 id="conversation-heading" className="visually-hidden">
             Conversation
           </h2>
+          {projectId && intake?.open && (
+            <IntakeCard
+              key={`${projectId}-${intake.again ? "again" : "pending"}`}
+              intake={intake.intake}
+              again={intake.again}
+              flow={flow.state === "loaded" ? flow.flow : null}
+              onAnswer={(questionId, values) => answerIntake(projectId, questionId, values)}
+              onDismiss={() => dismissIntake(projectId)}
+              onClose={closeIntake}
+              onAnnounce={setAnnouncement}
+            />
+          )}
           {((conversation && conversation.turns.length > 0) || sent !== null) && (
             <Transcript
               conversation={conversation}

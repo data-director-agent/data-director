@@ -245,7 +245,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     thing in it. The card holds a greeting and the next question, drawn as in rule 21. It is announced in the polite live region and has a
     "Skip these questions" button.
     - `GET /api/projects/{id}/intake` reads the next question, or says the intake is complete or
-      dismissed.
+      dismissed. It carries `state`, `next` (the next question's id, or null), every question
+      asked from the project's entry point with its current `answer_values`, and the project's
+      `progress` (`dd_harness.intake.describe`).
     - `POST /api/projects/{id}/intake/{question_id}` records an answer (`{"answer_values": […]}`).
       It answers with the next question, or, once the intake is complete, with the phase the
       project starts at and the suggested step, both from the project summary.
@@ -258,7 +260,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current
-    answers chosen. Not built yet, TODO(#668).
+    answers chosen and records only an answer that changed. The card's Skip passes one question
+    by for that visit only, recording nothing, so it is asked again when the workspace next opens;
+    "Skip these questions" records the dismissal. The card's questions are drawn by
+    `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
+    `app/web/src/components/conversation/IntakeCard.test.tsx`).
 26. **Researcher facts are chosen on the project's page, with nothing ticked.** The project's page
     lists **Researchers** beside the repository, the disclosure and the deposit package. It shows
     each record the project's researchers kept and, for the signed-in person's own, a button to
@@ -552,7 +558,6 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.
-- TODO(#668): the intake card, its routes and the tracker's way back to it (rule 25).
 - TODO(#761): the Projects page as the landing page and the new-project workflow (rule 27).
 - TODO(#67): no agent declares limits, reliability or data handling yet.
 - TODO(#141): listing runs and conversations reads the whole run store; an index by principal
