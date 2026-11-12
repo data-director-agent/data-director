@@ -14,6 +14,7 @@ connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
                                               └─ switch /opt/data-director/current, restart
  browser ──HTTPS──▶ NGINX ──▶ app (ORCID sign-in) 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101–8117
  admin ──HTTPS :8443──▶ NGINX ──▶ workbench (ORCID, admins only) 127.0.0.1:8000 ──┘
+ operator ──SSH tunnel──▶ admin service (read-only, no NGINX) 127.0.0.1:8200
 ```
 
 The app signs people in with ORCID, and each run acts for the person who signed in
@@ -22,7 +23,8 @@ a request without a session. The app and agents listen on loopback only ([Agents
 it that way: a request that reaches an agent directly carries no sign-in.
 
 The [workbench](#the-workbench) runs beside the app as a service of its own, on port 8443, for
-admins only.
+admins only. The [admin service](#the-admin-service), a read-only view of the deployment, listens
+on loopback alone and is reached through an SSH tunnel.
 
 ## What is here
 
@@ -37,6 +39,7 @@ admins only.
 | `systemd/data-director.target` | The app and the agents, started and restarted together. It names no agent: `apply` writes which agents it starts. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
+| `systemd/data-director-admin.service` | The admin service (`dd-admin serve`), on 127.0.0.1:8200 only, read-only. Part of the target; `install.sh` enables it. |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): each agent `deployment.yaml` runs. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
@@ -73,6 +76,7 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
+| `/etc/data-director/admin.env` | The admin service's overrides, if any (optional; [docs/guide/operations/admin.md](../docs/guide/operations/admin.md)). |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/etc/data-director/backup.env` | `backup.sh`'s settings (`deploy/backup.env.example`). |
 | `/var/backups/data-director/<time>/` | One backup each, root's alone ([Backups](#backups)). |
@@ -183,6 +187,21 @@ The workbench is restarted with the app on each deployment, but `deploy.sh` chec
 health: a workbench that fails to start does not roll the release back. `journalctl -u
 data-director-workbench` says why.
 
+## The admin service
+
+The admin service (`admin/README.md`) is a read-only web view of the deployment: what the doctor
+finds, the releases, each service's state and journal, the agents' cards, the settings (secret
+values hidden), and every person's runs and projects. It has no sign-in, so it listens on
+127.0.0.1:8200 alone and NGINX does not serve it. Reach it through an SSH tunnel:
+
+```bash
+ssh -N -L 8200:127.0.0.1:8200 you@data-director.example.ac.uk   # then open http://localhost:8200
+```
+
+`install.sh` enables it; it needs no setting. It changes nothing, and names the command for each
+change. [The admin service](../docs/guide/operations/admin.md) in the operations guide says what
+it reads and how.
+
 ## Day to day
 
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
@@ -220,6 +239,7 @@ journalctl -u data-director-deploy -n 50                # what each pass did
 sudo systemctl start data-director-deploy.service       # look now
 journalctl -u data-director -u 'data-director-agent@*' -f   # the app and agents
 journalctl -u data-director-workbench -f                # the workbench
+journalctl -u data-director-admin -f                    # the admin service
 readlink /opt/data-director/current                     # which commit is linked
 curl -s http://127.0.0.1:7860/api/about                 # which commit is running
 ```

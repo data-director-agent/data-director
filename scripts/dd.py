@@ -77,7 +77,14 @@ def main(argv: list[str] | None = None) -> int:
     start_cmd.add_argument(
         "--no-reload", action="store_true", help="do not restart an agent when its files change"
     )
-    commands.add_parser("doctor", help="check everything and name each fix; change nothing")
+    doctor_cmd = commands.add_parser(
+        "doctor", help="check everything and name each fix; change nothing"
+    )
+    doctor_cmd.add_argument(
+        "--json",
+        action="store_true",
+        help="on a VM, print the report as one JSON document (what the admin service reads)",
+    )
     apply_cmd = commands.add_parser(
         "apply", help="make the instance what deployment.yaml says: profile, units, credentials"
     )
@@ -124,7 +131,11 @@ def main(argv: list[str] | None = None) -> int:
             vm = Vm()
             place = Place.vm(vm) if target == "vm" else Place.dev()
             return apply(System(), place, vm if target == "vm" else None, check=args.check)
-        return vm_doctor() if target == "vm" else doctor()
+        if target == "vm":
+            return vm_doctor(as_json=args.json)
+        if args.json:
+            raise DevError("doctor --json reports on a VM; run it there, or without --json")
+        return doctor()
     except DevError as exc:
         print(f"dd.py: {exc}", file=sys.stderr)
         return 1

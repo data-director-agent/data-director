@@ -6,6 +6,7 @@
 #   workbench/   data-director-workbench  the development way in: CLI, viewer, evaluation
 #   agents/*/    data-director-agent-*    one package and one service per agent
 #   app/         data-director-app        the Data Director app (alpha)
+#   admin/       data-director-admin      the operators' read-only view of a deployment, on loopback
 #   inventory/   data-director-inventory  the local command that inventories a dataset's files
 
 [project]
@@ -47,6 +48,7 @@ dependencies = [
   "data-director-agent-orchestrator-stub",
   "data-director-agent-orchestrator-model",
   "data-director-app",
+  "data-director-admin",
   "data-director-inventory",
 ]
 
@@ -92,7 +94,7 @@ accessibility = [
 package = false
 
 [tool.uv.workspace]
-members = ["sdk", "harness", "workbench", "agents/*", "app", "inventory"]
+members = ["sdk", "harness", "workbench", "agents/*", "app", "admin", "inventory"]
 
 [tool.uv.sources]
 data-director-sdk = { workspace = true }
@@ -114,6 +116,7 @@ data-director-agent-advisor-policy = { workspace = true }
 data-director-agent-orchestrator-stub = { workspace = true }
 data-director-agent-orchestrator-model = { workspace = true }
 data-director-app = { workspace = true }
+data-director-admin = { workspace = true }
 data-director-inventory = { workspace = true }
 
 # Package direction (docs/specs/system.md, ADR-0031): `uv run lint-imports`. Imports a member
@@ -124,6 +127,7 @@ root_packages = [
   "dd_harness",
   "workbench",
   "dd_app",
+  "dd_admin",
   "dd_inventory",
   "dd_agent_advisor_dmp",
   "dd_agent_advisor_documentation",
@@ -147,7 +151,7 @@ include_external_packages = false
 name = "sdk is below the harness, which is below everything that uses it"
 type = "layers"
 layers = [
-  "workbench | dd_app | dd_agent_advisor_dmp | dd_agent_advisor_documentation | dd_agent_advisor_ethics | dd_agent_advisor_fairness | dd_agent_advisor_files | dd_agent_advisor_linking | dd_agent_advisor_metadata | dd_agent_advisor_policy | dd_agent_advisor_quality | dd_agent_advisor_repository | dd_agent_advisor_rights | dd_agent_advisor_standards | dd_agent_example_hello | dd_agent_orchestrator_model | dd_agent_orchestrator_stub",
+  "workbench | dd_app | dd_admin | dd_agent_advisor_dmp | dd_agent_advisor_documentation | dd_agent_advisor_ethics | dd_agent_advisor_fairness | dd_agent_advisor_files | dd_agent_advisor_linking | dd_agent_advisor_metadata | dd_agent_advisor_policy | dd_agent_advisor_quality | dd_agent_advisor_repository | dd_agent_advisor_rights | dd_agent_advisor_standards | dd_agent_example_hello | dd_agent_orchestrator_model | dd_agent_orchestrator_stub",
   "dd_harness",
   "dd_sdk",
 ]
@@ -165,10 +169,22 @@ source_modules = ["dd_app"]
 forbidden_modules = ["workbench", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
+name = "the admin service imports neither the app, the workbench nor an agent"
+type = "forbidden"
+source_modules = ["dd_admin"]
+forbidden_modules = ["dd_app", "workbench", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+
+[[tool.importlinter.contracts]]
+name = "nothing imports the admin service"
+type = "forbidden"
+source_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_inventory", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_admin"]
+
+[[tool.importlinter.contracts]]
 name = "the harness does not import the workbench, the app or an agent"
 type = "forbidden"
 source_modules = ["dd_harness"]
-forbidden_modules = ["workbench", "dd_app", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["workbench", "dd_app", "dd_admin", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "agents do not import one another"
@@ -195,7 +211,7 @@ modules = [
 name = "the inventory command imports no other member"
 type = "forbidden"
 source_modules = ["dd_inventory"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [tool.ruff]
 line-length = 100
@@ -206,7 +222,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "ANN", "RUF", "PTH",
 ignore = ["ANN401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_inventory"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_inventory"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN"]
@@ -225,7 +241,7 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hell
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "inventory/tests", "scripts/tests"]
+testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "admin/tests", "inventory/tests", "scripts/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
 # `dd_agent_advisor_standards.testing`, not in a test directory.
@@ -254,7 +270,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_inventory"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_inventory"]
 relative_files = true
 
 [tool.coverage.report]
@@ -273,13 +289,13 @@ python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "workbench/src", "workbench/tests",
   "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/advisor-standards/scripts", "agents/advisor-repository/scripts", "agents/advisor-policy/scripts",
-  "app/src", "app/tests", "inventory/src", "inventory/tests", "scripts",
+  "app/src", "app/tests", "admin/src", "admin/tests", "inventory/src", "inventory/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
   "scripts", "sdk/src", "harness/src", "workbench/src", "workbench/scripts", "agents/example-hello/src",
   "agents/advisor-quality/src", "agents/advisor-standards/src", "agents/advisor-repository/src", "agents/advisor-policy/src",
-  "agents/advisor-ethics/src", "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "inventory/src",
+  "agents/advisor-ethics/src", "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "inventory/src",
   "harness/tests", "sdk/tests",
 ]
 strict = true
@@ -291,6 +307,6 @@ module = ["fido.*", "frictionless.*", "a2a.*", "ag_ui.*", "rank_bm25.*", "rocrat
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_feedback", "test_sign_in", "test_orchestrator", "test_orchestrator_stub", "test_standards_evals", "test_standards_harness", "support", "test_inventory"]
+module = ["conftest", "sdk.tests.*", "harness.tests.*", "workbench.tests.*", "workbench.browser_tests.*", "agents.*", "app.*", "test_app", "test_feedback", "test_sign_in", "test_orchestrator", "test_orchestrator_stub", "test_standards_evals", "test_standards_harness", "support", "test_inventory", "test_admin", "admin_support"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false

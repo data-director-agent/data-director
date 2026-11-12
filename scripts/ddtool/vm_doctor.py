@@ -7,6 +7,7 @@ checks what that user can read and says what it skipped.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -38,6 +39,7 @@ from ddtool.vm import (
 
 APP_UNIT = "data-director-app.service"
 DEPLOY_UNIT = "data-director-deploy.service"
+ADMIN_UNIT = "data-director-admin.service"
 # The settings the app needs to sign people in (deploy/install.sh waits for them).
 SIGN_IN_SETTINGS = ("DD_OIDC_ISSUER", "DD_OIDC_CLIENT_ID", "DD_APP_PUBLIC_URL")
 OPERATOR_SETTINGS = ("DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME")
@@ -88,6 +90,16 @@ class Report:
                 print(f"    fix: {fix}")
         print("All good." if not self.problems else f"{len(self.problems)} problem(s).")
         return 1 if self.problems else 0
+
+    def as_json(self, target: dict[str, Any]) -> dict[str, Any]:
+        """The report as one JSON document, for a program to read: the admin service shows it
+        (admin/, docs/guide/operations/admin.md). `target` says what was checked."""
+        return {
+            "target": target,
+            "problems": [{"text": text, "fix": fix} for text, fix in self.problems],
+            "notes": self.notes,
+            "skipped": self.skipped,
+        }
 
 
 def short(sha: str | None) -> str:
@@ -156,6 +168,11 @@ class Doctor:
         for unit in ("data-director-deploy.timer", "data-director-restart.path"):
             if not is_active(system, unit):
                 report.problem(f"{unit} is not active, so releases stop", self.install)
+        if not is_active(system, ADMIN_UNIT):
+            report.problem(
+                f"{ADMIN_UNIT} is not active, so the admin pages do not answer on 127.0.0.1:8200",
+                f"sudo systemctl enable --now {ADMIN_UNIT}; {journal(ADMIN_UNIT)}",
+            )
         result = systemctl_show(system, [DEPLOY_UNIT], ["Result"]).get(DEPLOY_UNIT, {})
         if result.get("Result") not in (None, "", "success"):
             report.problem(
@@ -492,12 +509,32 @@ class Doctor:
                     f"nginx -t fails: {done.out.strip().splitlines()[-1:]}", "sudo nginx -t"
                 )
 
-    def run(self) -> int:
+    def run(self, *, as_json: bool = False) -> int:
+        """Run every check and print the report: as text, or with `as_json` as one JSON document
+        (`Report.as_json`). The status is 1 if there is a problem either way."""
         vm, system = self.vm, self.system
         release = vm.live_release()
-        print(f"target: vm ({vm.etc}, release {short(release.name if release else None)})")
-        if not system.is_root():
-            print("note: not run as root, so the settings and secrets are not all checked")
+        root = system.is_root()
+        if not as_json:
+            print(f"target: vm ({vm.etc}, release {short(release.name if release else None)})")
+            if not root:
+                print("note: not run as root, so the settings and secrets are not all checked")
+        self.check()
+        if as_json:
+            target = {
+                "kind": "vm",
+                "etc": str(vm.etc),
+                "release": release.name if release else None,
+                "root": root,
+            }
+            print(json.dumps(self.report.as_json(target), indent=2))
+            return 1 if self.report.problems else 0
+        return self.report.print()
+
+    def check(self) -> None:
+        """Every check, in order, each adding what it finds to `self.report`."""
+        vm, system = self.vm, self.system
+        release = vm.live_release()
         live = about(system, vm)
         self.release(live)
         try:
@@ -512,8 +549,7 @@ class Doctor:
         self.live(live)
         self.storage()
         self.nginx()
-        return self.report.print()
 
 
-def vm_doctor(system: System | None = None, vm: Vm | None = None) -> int:
-    return Doctor(system or System(), vm or Vm()).run()
+def vm_doctor(system: System | None = None, vm: Vm | None = None, *, as_json: bool = False) -> int:
+    return Doctor(system or System(), vm or Vm()).run(as_json=as_json)

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Admin{% endblock %} · Data Director admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='admin.css') }}">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="shell">
+  <nav class="side" aria-label="Sections">
+    <p class="brand">Data Director <span>admin</span></p>
+    {% set sections = [
+      ("/", "Overview"),
+      ("/operations", "Operations"),
+      ("/agents", "Agents"),
+      ("/people", "People"),
+      ("/runs", "Runs"),
+      ("/projects", "Projects"),
+      ("/config", "Configuration"),
+      ("/feedback", "Feedback"),
+    ] %}
+    <ul>
+    {% for href, label in sections %}
+      {% set here = (nav == href) or (href != "/" and nav.startswith(href)) or (href == "/people" and nav == "/person") %}
+      <li><a href="{{ href }}"{% if here %} aria-current="page"{% endif %}>{{ label }}</a></li>
+    {% endfor %}
+    </ul>
+    <p class="side-note">Read-only. Changes are made on the VM's command line; each page names the command.</p>
+  </nav>
+  <main id="main">
+    <header class="page-head">
+      <h1>{% block heading %}{% endblock %}</h1>
+      <p class="as-of">As of {{ now | when }} · <a href="{{ refresh_url }}">Refresh</a></p>
+    </header>
+    {% for error in store_errors %}
+      <div class="banner bad" role="alert">{{ error }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

@@ -143,6 +143,14 @@ opening a session, and every request is checked against the list, so an admin ta
 refused at once. TODO(#154): the list stands in for an administrator role until people have
 roles.
 
+**The admin service.** The admin service (`admin/`) shows an operator every person's runs and
+projects, and the deployment's settings with secret values hidden. It has no sign-in of its own:
+it listens on the VM's loopback only, NGINX does not serve it, and it refuses a request whose
+`Host` is not a loopback name. Whoever can open an SSH session to the VM can reach it, through a
+tunnel, and could read the same stores and files there already; SSH access is its credential. It
+reads and never writes, and acts for nobody: it starts no run. TODO(#154): when people have roles,
+decide whether the administrator role signs in to it.
+
 **Signing in.** The app is the relying party and a confidential client running the
 authorisation-code flow. The flow and the sessions are the harness's (`dd_harness.signin`,
 `dd_harness.sessions`), so any way in that signs people in runs the same checks; the way in serves

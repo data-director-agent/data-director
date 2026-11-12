@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Feedback{% endblock %}
+{% block heading %}Feedback{% endblock %}
+{% block content %}
+<section class="panel">
+  <p>The app keeps no feedback of its own: each report someone sends becomes an issue in <span class="mono">{{ repo }}</span>, labelled <span class="tag">area: app</span>.</p>
+  <p><a class="button" href="{{ issues_url }}" rel="noreferrer">Open the feedback issues on GitHub</a></p>
+  <p class="muted">Where feedback goes is <code>DD_FEEDBACK_REPO</code> in <code>/etc/data-director/app.env</code>.</p>
+</section>
+{% endblock %}

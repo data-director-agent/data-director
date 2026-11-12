@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset %}
+{% block title %}Agents{% endblock %}
+{% block heading %}Agents{% endblock %}
+{% block content %}
+{% if not agents.configured %}
+  {{ unset("DD_AGENTS_CONFIG", "The agents") }}
+{% elif agents.error %}
+  <div class="banner bad" role="alert">{{ agents.error }}</div>
+{% else %}
+<p class="muted">Each agent in the app's <code>agents.yaml</code>, as its card describes it. Which agents run is set in <code>/etc/data-director/deployment.yaml</code>; change it, then <code>sudo data-director apply</code>.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th scope="col">Agent</th><th scope="col">Card</th>
+    {% if units is not none %}<th scope="col">Unit</th>{% endif %}
+    <th scope="col">Version</th><th scope="col">Action class</th><th scope="col">Models</th><th scope="col">Address</th>
+  </tr></thead>
+  <tbody>
+  {% for a in agents.agents %}
+    {% set u = units.get("data-director-agent@" ~ a.name ~ ".service", {}) if units is not none else {} %}
+    <tr>
+      <td><a href="/agents/{{ a.name | urlencode }}">{{ a.name }}</a>{% if a.described.agent_id %}<br><span class="muted mono">{{ a.described.agent_id }}</span>{% endif %}</td>
+      <td><span class="pill a-{{ a.state }}">{{ a.state }}</span></td>
+      {% if units is not none %}<td><span class="pill u-{{ u.ActiveState or 'unknown' }}">{{ u.ActiveState or "unknown" }}</span></td>{% endif %}
+      <td class="mono">{{ a.described.version or "—" }}</td>
+      <td>{{ a.described.action_class or "—" }}</td>
+      <td>{% for m in a.described.models or [] %}{{ m.provider }} {{ m.model }}{% if not loop.last %}, {% endif %}{% else %}<span class="muted">none</span>{% endfor %}</td>
+      <td class="mono">{{ a.url }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

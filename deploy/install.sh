@@ -206,6 +206,13 @@ fi
 step "Enabling the services, the deployment timer and the backup timer"
 systemctl enable --now data-director.target data-director-deploy.timer data-director-backup.timer
 
+step "Admin service, on the VM's loopback only, port 8200"
+# Read-only and with no sign-in, so it listens on 127.0.0.1 alone and NGINX does not serve it;
+# operators reach it through an SSH tunnel (docs/guide/operations/admin.md). It needs nothing set.
+systemctl enable --now data-director-admin.service
+echo "The admin service is http://127.0.0.1:8200/ on this VM. From your machine:"
+echo "  ssh -N -L 8200:127.0.0.1:8200 <you>@$domain   then open http://localhost:8200"
+
 step "Workbench, for admins, at https://$domain:8443/"
 # The workbench uses the app's ORCID client and is reached on port 8443. install.sh fills what it
 # knows into an empty setting, and leaves an operator's value alone.
@@ -236,4 +243,4 @@ fi
 
 echo
 echo "Done. The site is https://$domain/ and people sign in with ORCID."
-echo "Check the deployment at any time with: sudo data-director doctor"
+echo "Check the deployment at any time with: sudo data-director doctor, or the admin service."
