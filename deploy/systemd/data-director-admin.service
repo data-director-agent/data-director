@@ -1,0 +1,70 @@
+# The Data Director admin service (admin/README.md): a read-only view of this deployment for its
+# operators. It has no sign-in, so it listens on loopback only and NGINX does not serve it:
+# operators reach it through an SSH tunnel (docs/guide/operations/admin.md):
+#
+#   ssh -N -L 8200:127.0.0.1:8200 you@<name>
+#
+# It reads the app's stores, the agents' cards, /etc/data-director, the releases, each unit's state
+# and journal, and what `data-director doctor --json` reports run as this user. It writes nothing:
+# ProtectSystem=strict with no ReadWritePaths leaves every store read-only to it.
+#
+# It does not wait for the agents, unlike the app: it is most needed when something is down.
+[Unit]
+Description=Data Director admin (read-only, loopback)
+Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+PartOf=data-director.target
+
+[Service]
+Type=exec
+User=datadirector
+Group=datadirector
+# To read every data-director unit's journal (journalctl), which this user may not otherwise.
+SupplementaryGroups=systemd-journal
+WorkingDirectory=/opt/data-director/current
+# The app's stores, named as in data-director-app.service; app.env overrides them with a
+# postgresql:// location and its PG* settings when the deployment keeps them in a database.
+Environment=DD_RUNS_DIR=/var/lib/data-director/runs
+Environment=DD_PROJECTS_DIR=/var/lib/data-director/projects
+EnvironmentFile=/etc/data-director/app.env
+Environment=DD_AGENTS_CONFIG=/opt/data-director/current/app/config/agents.yaml
+Environment=DD_ADMIN_APP_URL=http://127.0.0.1:7860
+Environment=DD_ADMIN_DEPLOY_ROOT=/opt/data-director
+Environment=DD_ADMIN_ETC=/etc/data-director
+Environment=DD_ADMIN_SYSTEMD=yes
+# The doctor as the live release has it, run with the release's Python (which has PyYAML).
+Environment="DD_ADMIN_DOCTOR=/opt/data-director/current/.venv/bin/python /opt/data-director/current/scripts/dd.py --target vm doctor --json"
+# Settings of its own, if an operator needs any (docs/guide/operations/admin.md).
+EnvironmentFile=-/etc/data-director/admin.env
+ExecStart=/opt/data-director/current/.venv/bin/dd-admin serve --host 127.0.0.1 --port 8200
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
+SyslogIdentifier=data-director-admin
+
+# Hardening: it reads, and writes nowhere.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+UMask=0027
+
+[Install]
+WantedBy=data-director.target

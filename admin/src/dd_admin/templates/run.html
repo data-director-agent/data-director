@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status, person %}
+{% block title %}Run {{ envelope.invocation_id | short }}{% endblock %}
+{% block heading %}Run <span class="mono">{{ envelope.invocation_id }}</span>{% endblock %}
+{% block content %}
+{% set outcome = envelope.outcome or {} %}
+{% set acting = envelope.acting_for or {} %}
+{% set telemetry = envelope.telemetry or {} %}
+<p><a href="/runs">← Runs</a></p>
+<section class="panel">
+  <dl class="facts">
+    <dt>Agent</dt><dd><a href="/runs?agent={{ envelope.agent_id | urlencode }}">{{ envelope.agent_id }}</a> <span class="mono muted">{{ envelope.agent_version }}</span></dd>
+    <dt>Outcome</dt><dd>{{ status(outcome.status) }}{% if outcome.reason_code %} <span class="mono">{{ outcome.reason_code }}</span>{% endif %}</dd>
+    {% if outcome.statement %}<dt>Statement</dt><dd>{{ outcome.statement }}</dd>{% endif %}
+    <dt>Finished</dt><dd>{{ envelope.completed_at | when }}</dd>
+    <dt>Acted for</dt><dd>{{ person(acting.name, acting.principal_id) }}{% if acting.assurance %} <span class="muted">({{ acting.assurance }}{% if acting.vouched_by %}, by {{ acting.vouched_by }}{% endif %})</span>{% endif %}</dd>
+    {% if envelope.project_id %}<dt>Project</dt><dd><a class="mono" href="/projects/{{ envelope.project_id }}">{{ envelope.project_id }}</a></dd>{% endif %}
+    {% if envelope.conversation_id %}<dt>Conversation</dt><dd><a class="mono" href="/runs?conversation={{ envelope.conversation_id }}">{{ envelope.conversation_id }}</a></dd>{% endif %}
+    {% if envelope.parent_invocation_id %}<dt>Delegated by</dt><dd><a class="mono" href="/runs/{{ envelope.parent_invocation_id }}">{{ envelope.parent_invocation_id }}</a></dd>{% endif %}
+    {% if telemetry.model_id or telemetry.input_tokens %}<dt>Model</dt><dd>{{ telemetry.model_id or "—" }} · {{ telemetry.input_tokens or 0 }} tokens in, {{ telemetry.output_tokens or 0 }} out</dd>{% endif %}
+    {% if envelope.policy_bundle_ref %}<dt>Policy</dt><dd class="mono">{{ envelope.policy_bundle_ref }}</dd>{% endif %}
+    <dt>Kept at</dt><dd class="mono">{{ where }}</dd>
+  </dl>
+</section>
+{% if children %}
+<section class="panel">
+  <h2>Delegated</h2>
+  <ul class="plain">{% for c in children %}<li><a class="mono" href="/runs/{{ c.invocation_id }}">{{ c.invocation_id | short(13) }}</a> {{ c.agent_id }} {{ status(c.status) }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+<section class="panel">
+  <h2>Envelope</h2>
+  <pre class="json">{{ envelope | pretty }}</pre>
+</section>
+{% if request_doc %}
+<section class="panel">
+  <details><summary><h2 class="inline">Request</h2></summary>
+  <pre class="json">{{ request_doc | pretty }}</pre>
+  </details>
+</section>
+{% endif %}
+<p class="muted">The workbench shows the run's trace and evidence in full.</p>
+{% endblock %}

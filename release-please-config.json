@@ -46,6 +46,13 @@
         "app/tests"
       ]
     },
+    "admin": {
+      "component": "admin",
+      "release-type": "python",
+      "exclude-paths": [
+        "admin/tests"
+      ]
+    },
     "agents/orchestrator-stub": {
       "component": "agent-orchestrator-stub",
       "release-type": "python",

@@ -80,6 +80,7 @@ class FakeVm(System):
             "data-director-deploy.timer",
             "data-director-restart.path",
             "data-director-backup.timer",
+            "data-director-admin.service",
         }
     )
     # The size of each file system and the bytes free on it.
@@ -543,3 +544,36 @@ def test_a_database_store_with_another_schema_names_the_migration(
     assert status == 1
     assert says(out, "problem", location, "version 2")
     assert says(out, "fix", "storage migrate")
+
+
+def test_the_report_as_json_has_each_problem_with_its_fix(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm()
+    system.about = {**(system.about or {}), "commit": "c" * 40}
+    status = Doctor(system, vm).run(as_json=True)
+    report = json.loads(capsys.readouterr().out)
+    assert status == 1
+    assert report["target"]["kind"] == "vm"
+    assert report["target"]["release"] == SHA
+    assert any(
+        "cccccccccc" in problem["text"] and "--bootstrap" in (problem["fix"] or "")
+        for problem in report["problems"]
+    )
+    assert isinstance(report["notes"], list) and isinstance(report["skipped"], list)
+
+
+def test_a_healthy_vm_as_json_has_no_problems(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
+    assert Doctor(FakeVm(), vm).run(as_json=True) == 0
+    assert json.loads(capsys.readouterr().out)["problems"] == []
+
+
+def test_an_admin_service_that_is_not_running_is_a_problem(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm()
+    system.active.discard("data-director-admin.service")
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "problem", "data-director-admin.service")
+    assert says(out, "fix", "enable --now data-director-admin.service")

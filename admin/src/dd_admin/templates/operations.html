@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset %}
+{% block title %}Operations{% endblock %}
+{% block heading %}Operations{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2>Doctor</h2>
+  {% if not doctor.configured %}
+    {{ unset("DD_ADMIN_DOCTOR", "The doctor's report") }}
+  {% elif doctor.error %}
+    <div class="banner bad" role="alert">{{ doctor.error }}</div>
+  {% else %}
+    <p class="muted">What <code>data-director doctor</code> finds, run as the service's user{% if doctor.target.root is sameas false %}, so the checks that need root are skipped: run <code>sudo data-director doctor</code> on the VM for those{% endif %}.</p>
+    {% if doctor.problems %}
+      <ol class="findings">
+      {% for p in doctor.problems %}
+        <li class="finding bad">
+          <p>{{ p.text }}</p>
+          {% if p.fix %}<p class="fix"><span>Fix:</span> <code>{{ p.fix }}</code></p>{% endif %}
+        </li>
+      {% endfor %}
+      </ol>
+    {% else %}
+      <p class="finding good">No problems found.</p>
+    {% endif %}
+    {% if doctor.notes %}
+      <h3>Notes</h3>
+      <ul class="plain">{% for n in doctor.notes %}<li>{{ n }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if doctor.skipped %}
+      <h3>Skipped</h3>
+      <ul class="plain muted">{% for n in doctor.skipped %}<li>{{ n }}</li>{% endfor %}</ul>
+    {% endif %}
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Releases</h2>
+  {% if about %}
+    <dl class="facts">
+      <dt>Running commit</dt><dd class="mono">{{ about.commit or "unknown" }}</dd>
+      <dt>App</dt><dd>{{ about.app_version }}</dd>
+      <dt>Harness</dt><dd>{{ about.harness_version }}</dd>
+      {% if about.profile %}<dt>Profile</dt><dd>{{ about.profile.id }} v{{ about.profile.version }} · orchestrator {{ about.profile.orchestrator }}</dd>{% endif %}
+    </dl>
+  {% else %}
+    <div class="banner bad">The app does not answer on <code>{{ settings.app_url }}/api/about</code>.</div>
+  {% endif %}
+  {% if not releases.configured %}
+    {{ unset("DD_ADMIN_DEPLOY_ROOT", "The releases on disk") }}
+  {% elif not releases.readable %}
+    <div class="banner">The releases directory cannot be read.</div>
+  {% else %}
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">Release</th><th scope="col">State</th></tr></thead>
+      <tbody>
+      {% for r in releases.releases %}
+        <tr>
+          <td class="mono">{{ r.name }}</td>
+          <td>
+            {% if r.current %}<span class="pill s-succeeded">live</span>{% endif %}
+            {% if r.failed %}<span class="pill s-failed">failed to start</span>{% endif %}
+            {% if not r.built %}<span class="pill s-unknown">not built</span>{% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="2" class="empty">No releases.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if releases.failed_commits %}
+      <p class="muted">Commits that failed to start are not tried again until removed from <code>/opt/data-director/failed-commits</code>.</p>
+    {% endif %}
+    <p class="muted">To deploy now: <code>sudo systemctl start data-director-deploy.service</code>. To roll back: <code>sudo -u datadirector ln -sfn /opt/data-director/releases/&lt;sha&gt; /opt/data-director/current &amp;&amp; sudo systemctl restart data-director.target</code>.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Services</h2>
+  {% if units is none %}
+    {{ unset("DD_ADMIN_SYSTEMD", "Each unit's state and journal") }}
+  {% else %}
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">Unit</th><th scope="col">State</th><th scope="col">Enabled</th><th scope="col" class="num">Restarts</th><th scope="col">Since</th><th scope="col">Log</th></tr></thead>
+      <tbody>
+      {% for u in units %}
+        {% set active = u.ActiveState or "unknown" %}
+        <tr>
+          <td class="mono">{{ u.Id }}</td>
+          <td><span class="pill u-{{ active }}">{{ active }}{% if u.SubState and u.SubState != active %} ({{ u.SubState }}){% endif %}</span>{% if u.Result and u.Result != "success" %} <span class="pill s-failed">{{ u.Result }}</span>{% endif %}</td>
+          <td>{{ u.UnitFileState or "—" }}</td>
+          <td class="num">{{ u.NRestarts or "—" }}</td>
+          <td class="nowrap">{{ u.ActiveEnterTimestamp or "—" }}</td>
+          <td><a href="/operations/journal/{{ u.Id }}">journal</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="muted">To restart everything: <code>sudo systemctl restart data-director.target</code>.</p>
+  {% endif %}
+</section>
+{% endblock %}

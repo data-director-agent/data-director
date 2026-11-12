@@ -238,6 +238,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     from the project log, never from a second record. A deployment that turns sign-in on starts
     from an empty run store ([Policy and identity](policy-and-identity.md)), so no run is left
     without an owner (`app/tests/test_sign_in.py`, `app/tests/test_app.py`).
+    The admin service is not the app and is outside this rule: it shows an operator every
+    person's runs, on the VM's loopback only ([Policy and identity](policy-and-identity.md),
+    "The admin service").
 25. **A new project's conversation opens with the intake, and the researcher may always pass it
     by.** While a project's intake is pending ([Orchestration](orchestration.md), invariant 20),
     its workspace (`/projects/{id}/conversation`) opens with Data Director's card before any turn.

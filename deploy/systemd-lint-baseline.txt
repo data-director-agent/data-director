@@ -8,6 +8,9 @@ data-director-app.service Security.UMaskOW # UMask=0027 is not world-writable; t
 data-director-workbench.service InvalidSetting # As for the app: LoadCredential= is in systemd 250 and later.
 data-director-workbench.service Security.Delegate # As for the app.
 data-director-workbench.service Security.UMaskOW # As for the app.
+data-director-admin.service Security.Delegate # As for the app.
+data-director-admin.service Security.UMaskOW # As for the app.
+data-director-admin.service Security.SupplementaryGroups # systemd-journal, to read the deployment's units' journals; read access only.
 data-director-agent@.service Security.Delegate # As for the app.
 data-director-agent@.service Security.UMaskOW # As for the app.
 data-director-restart.service Security.NoUser # Runs as root: it restarts other units with systemctl, which needs it.

@@ -13,6 +13,7 @@ fixes what the word "harness" names.
 | `harness/` | `data-director-harness` | The governance of an invocation: conductor, policy gate, input check, grounding linter, source check, run store and provenance, its A2A way in, the AG-UI binding other ways in mount, and its test kit. Deployable. |
 | `workbench/` | `data-director-workbench` | The development way in to the harness: CLI, viewer, evaluation, and a development configuration. Not deployed. |
 | `app/` | `data-director-app` | The Data Director app that researchers use. A way in to the harness. |
+| `admin/` | `data-director-admin` | A read-only view of one deployment for its operators: its health, agents, settings, and the runs and projects in its stores across every person. Listens on loopback only, with no sign-in. Not a way in: it runs nothing. |
 | `agents/<name>/` | `data-director-agent-<name>` | One package and one A2A service per agent ([Agents](agents.md)). |
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
 
@@ -42,6 +43,8 @@ The contract, transport, grounding and the app's own process boundary are specif
    - `sdk` depends on no other member;
    - `harness` depends on `sdk` only;
    - `workbench` and `app` depend on `harness` and `sdk`, and on nothing else in the workspace;
+   - `admin` depends on `harness` and `sdk`, and on nothing else in the workspace; no member
+     depends on it;
    - each agent depends on `sdk` only;
    - `inventory` depends on no other member.
 
@@ -49,7 +52,8 @@ The contract, transport, grounding and the app's own process boundary are specif
    declarations with this list, so a new first-party dependency is a change to this spec.
    Import Linter contracts in the root `pyproject.toml` (`uv run lint-imports`, CI) fail an
    import, direct or indirect, that runs against the direction above: the layers `sdk`,
-   `harness`, then `workbench`, `app` and each agent, with no agent importing another and
+   `harness`, then `workbench`, `app`, `admin` and each agent, with no agent importing another,
+   `admin` importing neither the app, the workbench nor an agent, nothing importing `admin`, and
    `inventory` importing no member. A known exception is an `ignore_imports` entry naming the
    issue that removes it. `scripts/check_boundaries.py` (CI) fails code that imports a member it
    does not declare, and `scripts/check_wheels.py` (CI) installs each built wheel alone and
