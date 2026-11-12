@@ -224,20 +224,36 @@ with "To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environme
 failure comes from repository settings, not from the change: the organisation owner sets
 `PROJECT_TOKEN` as the workflow's header comment describes.
 
-## Keeping `uv.lock` current
+## Pre-commit hooks
 
-`uv.lock` records every workspace package's version and dependencies, so any branch that changes
-a `pyproject.toml` changes it too, and two such branches conflict. The `uv-lock` pre-commit hook
-re-locks whenever a `pyproject.toml` changes, so the lock never lags behind and CI's locked check
-never fails for that reason. Install it once:
+`.pre-commit-config.yaml` holds the fast checks, so that they fail on your machine rather than in
+CI. Install them once per clone:
 
 ```sh
 uv tool install pre-commit && pre-commit install
 ```
 
-The same install adds a `commit-msg` hook that holds each commit subject to the pull request title
-rule (`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is
+Before each commit they fix trailing whitespace, final newlines and line endings; check YAML, TOML
+and JSON parse, and that no merge marker, private key or file over 1 MB is committed; check file
+modes against shebangs; run Ruff (lint with fixes, then format, at the version in `uv.lock`);
+check each to-do marker names an issue (`scripts/check_todos.py`); re-lock `uv.lock` (below);
+lint the workflows with actionlint and zizmor (offline); and refuse a commit made directly on
+`main`. A `commit-msg` hook holds each commit subject to the pull request title rule
+(`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is
 still checked in CI, as it is the one squash-merged onto `main`.
+
+Run them all over the tree with `pre-commit run --all-files`. Generated and recorded files
+(`uv.lock`, lock files, `schema/generated/`, test data, cassettes) and `docs/blueprint/` are left
+alone. mypy, pytest, the architecture checks and the app/web npm scripts take minutes and need the
+full environment, so they are not hooks: CI runs them. CI's "Pre-commit hooks" job runs the hooks
+too, for anyone who has not installed them. Dependabot keeps the hook revisions current.
+
+## Keeping `uv.lock` current
+
+`uv.lock` records every workspace package's version and dependencies, so any branch that changes
+a `pyproject.toml` changes it too, and two such branches conflict. The `uv-lock` pre-commit hook
+re-locks whenever a `pyproject.toml` changes, so the lock never lags behind and CI's locked check
+never fails for that reason.
 
 Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock again:
 

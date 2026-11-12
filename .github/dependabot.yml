@@ -18,6 +18,19 @@ updates:
     commit-message:
       prefix: ci
 
+  # The hook revisions in .pre-commit-config.yaml. Ruff there runs from uv.lock, so has no pin.
+  - package-ecosystem: pre-commit
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      hooks:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
   - package-ecosystem: uv
     directory: /
     schedule:

@@ -13,7 +13,7 @@ name: CI
 #     as three jobs side by side so that the slowest, not their sum, sets how long the run takes
 #   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does, and the
 #     systemd units in deploy/systemd
-#   Repository: links, citation file, workflows, sign-off, dependency review
+#   Repository: pre-commit hooks, links, citation file, workflows, sign-off, dependency review
 #
 # The jobs that test the Python workspace do not wait for one another: each restores the built
 # sources and the Playwright browser from the cache (.github/actions/), so the longest single job
@@ -484,6 +484,24 @@ jobs:
 
   # --- Repository ------------------------------------------------------------------------------
 
+  hooks:
+    name: Pre-commit hooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      # The hooks in .pre-commit-config.yaml, for every contributor whether or not they installed
+      # them. Skipped here: the branch rule (pushes to main), the lock (UV_LOCKED holds every job
+      # to it), Ruff (the lint job) and zizmor (the workflows job runs it online).
+      - env:
+          SKIP: no-commit-to-branch,uv-lock,ruff-check,ruff-format,zizmor
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
   docs:
     name: Links and citation file
     runs-on: ubuntu-latest
@@ -568,6 +586,7 @@ jobs:
       - web-e2e
       - nginx
       - systemd
+      - hooks
       - docs
       - workflows
       - dependency-review

@@ -93,7 +93,9 @@ fixtures in `app/web/fixtures` and `sdk/browser/tests/fixtures`, and the AG-UI c
   `python3 scripts/check_names.py --title "…" --branch "$(git branch --show-current)"`.
   Keep an assigned `claude/…` branch.
 - Install the hooks once per clone, before your first commit: `uv tool install pre-commit &&
-  pre-commit install`. The `commit-msg` hook rejects a commit whose subject is not a Conventional
+  pre-commit install`. They fix whitespace and run Ruff, among other fast checks
+  ([Pre-commit hooks](CONTRIBUTING.md#pre-commit-hooks)): if a hook changes a file, stage it and
+  commit again. The `commit-msg` hook rejects a commit whose subject is not a Conventional
   Commit, so write every commit subject in that form too. Never bypass it with `--no-verify`.
 - Put no labels on pull requests by hand ([labels](CONTRIBUTING.md#issues-and-labels)).
 - If **Project status** fails asking for `GH_TOKEN`, that is the unset `PROJECT_TOKEN` secret, not
