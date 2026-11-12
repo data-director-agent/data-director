@@ -333,7 +333,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   calls no model.
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
-  its process, so there is nothing in it to call a model.
+  its process, so there is nothing in it to call a model. A person adding their own model account
+  sends the key from the browser straight to the model broker with an enrolment ticket; the app
+  issues the ticket and never sees the key ([A person's own model account](model-accounts.md), TODO(#807)).
 - **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). The harness
   streams a run's stages, its checks' reports and cancelling; the app does not serve that stream
   yet. A run is one request that answers when it has ended, so stages are read back, not watched,

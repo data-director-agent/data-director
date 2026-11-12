@@ -1,6 +1,6 @@
 # AI models
 
-Most of Data Director runs without a model. Four agents can call a hosted AI model, and an operator
+Most of Data Director runs without a model. Five agents can call a hosted AI model, and an operator
 decides whether they do, which model they call, and whose key pays for it. This page covers those
 decisions. [Policy and identity](../../specs/policy-and-identity.md) records why the key is handled as it is.
 
@@ -12,6 +12,7 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 | `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=anthropic`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode. |
 | `advisor.policy` | Only with `DD_POLICY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
+| `advisor.documentation` | Only with `DD_DOCUMENTATION_WRITER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with, so a
@@ -24,7 +25,7 @@ declare a `local` model, but no agent in the repository uses one.
 ## What a provider receives
 
 A model call sends the provider text from the user's session. It is worth stating to the data
-steward, and to the institution's data protection officer, before turning either agent on.
+steward, and to the institution's data protection officer, before turning any of these agents on.
 
 - **The orchestrator** sends the model the latest turns of the conversation (20 by default,
   `DD_ORCHESTRATOR_HISTORY`), the description of each agent the profile permits, and the result of
@@ -57,7 +58,7 @@ built yet (#40).
 
 ## Choose a model
 
-`DD_MODEL_ID`, in the agent's own settings file, selects the model. Both agents default to
+`DD_MODEL_ID`, in the agent's own settings file, selects the model. Every model-backed agent defaults to
 `claude-sonnet-5-5`, which balances the quality of routing and wording against cost and latency.
 
 | If you want | Do |
@@ -96,6 +97,11 @@ do, and the key never appears in a run, a trace, a manifest or an export.
 the provider's usage reports show each agent separately. A spending limit is set on the provider's
 side, for the Console workspace a key belongs to, not per key. An institution that wants a limit
 per agent needs a workspace per agent.
+
+**People's own accounts.** Letting each person use their own AI provider account, so that their
+calls are paid for by them rather than by the deployment, is specified in
+[A person's own model account](../../specs/model-accounts.md) but not built yet (#221). Until it
+is, every model call uses the keys described here.
 
 ## Turn on the standards advisor's explainer
 

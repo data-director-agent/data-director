@@ -252,7 +252,8 @@ reviewer can open each child on its own, and the parent names each with its agen
 Agents are separate services, so an orchestrator cannot reach the conductor in-process; the grant
 and callback carry its hand-offs back across the network to the one place that governs them.
 The linter trusts only what the harness observed, which is why lineage and `delegations` are the
-conductor's and the child's acting-for comes from the grant.
+conductor's and the child's acting-for comes from the grant. For the same reason each child gets
+its own model grant from the conductor, never its parent's ([A person's own model account](model-accounts.md), invariant 5).
 
 Two facts place an agent in the researcher's work: the process flow, which is the Blueprint's and
 the same everywhere, and which agent serves which step, which depends on what a harness has
