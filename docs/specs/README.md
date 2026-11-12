@@ -43,6 +43,7 @@ which gets one line that points to the code.
 | [Agents](agents.md) | Agents as separate services, the registry and manifest, derivations, and the roster. |
 | [Orchestration](orchestration.md) | Conversations, delegation through the harness, entry points and the process steps an agent serves. |
 | [Policy and identity](policy-and-identity.md) | Institutional profiles, signing in, the human an invocation acts for, and model credentials. |
+| [A person's own model account](model-accounts.md) | The model broker, enrolling a person's own key, the model grant, and recording whose account paid. |
 | [The app](app.md) | The browser shell, the app's process boundary and problem reports. |
 | [Projects](projects.md) | Projects, file inventories, documents and their versions, proposed changes and approval, sharing. |
 | [Drafting documents](drafting.md) | What a drafter may infer, ask and write; gaps, questions to the researcher and their answers. |

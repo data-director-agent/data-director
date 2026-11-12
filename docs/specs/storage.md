@@ -18,6 +18,9 @@ project rules over the file log. The PostgreSQL backend, `PostgresRunStore` and
 `PostgresProjectLog` (`dd_harness.postgres`), implements them for a deployment; `Projects` over
 `PostgresProjectLog` is its project storage.
 
+People's own model keys are not in either store: the model broker keeps them, sealed, in a store
+of its own ([A person's own model account](model-accounts.md)).
+
 It does not cover what a run or a project contains ([Contract](contract.md), [Projects](projects.md),
 [Disclosure](disclosure.md)), nor how long either is kept (see Open questions).
 

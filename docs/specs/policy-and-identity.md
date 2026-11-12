@@ -12,7 +12,8 @@ named. This spec covers four things that make that true:
 - **signing in**, by which a person establishes who they are through OpenID Connect, with ORCID
   as the first provider (C1);
 - **model credentials**: where an API key for a hosted model lives, and what may never carry it
-  (C1, C2).
+  (C1, C2). A person's own model account, held by the model broker rather than by an agent, is in
+  [A person's own model account](model-accounts.md).
 
 It does not cover who may see or continue a project or a conversation ([Projects](projects.md)),
 the app's process boundary ([The app](app.md)), or how a delegation grant is issued
@@ -58,7 +59,9 @@ them.
 9. **A delegated child acts for its parent's principal**, carried on the grant, whoever sends the
    callback (`test_a_child_acts_for_its_parent_whoever_sends_the_callback`).
 10. **An agent is not told whom it acts for.** Neither the run context nor the A2A request to an
-    agent carries the principal.
+    agent carries the principal. A model grant names only a pseudonym sealed to the broker, which
+    the agent cannot read
+    ([A person's own model account](model-accounts.md), invariants 3–4).
 11. **No anonymous fallback.** With neither a provider nor an operator principal configured, the
     CLI, the servers and the evaluation refuse to start (`harness/tests/test_identity.py`,
     `harness/tests/test_server.py`, `app/tests/test_app.py`).
@@ -83,14 +86,20 @@ them.
     (`test_the_app_asks_for_openid_alone_and_authenticates_with_its_secret`).
 16. **Two routes are two principals.** Accounts are never linked by matching email addresses or
     names.
-17. **Only the calling agent's process holds a model key.** The app, the harness and the conductor
-    never hold one, and no A2A message, grant, envelope, span, evidence item, crate or export
-    carries one (`agents/advisor-standards/tests/test_key_not_stored.py`,
+17. **Only the calling agent's process holds the deployment's model key, and only the model broker
+    holds a person's own.** When the profile turns own accounts on, the broker holds the
+    deployment's key as well, and agents hold only a broker credential. The app, the harness and the conductor never hold one, and no A2A
+    message, grant, envelope, span, evidence item, crate or export carries one
+    (`agents/advisor-standards/tests/test_key_not_stored.py`,
     `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`,
-    which run against a cassette with a sentinel key).
+    which run against a cassette with a sentinel key). The broker is not built yet
+    ([A person's own model account](model-accounts.md), invariant 1, TODO(#806)).
 18. **A model client is always given its key explicitly**, read once when the agent's factory
     builds it (`sdk/src/dd_sdk/credentials.py`). The provider SDK's own credential chain, such as
-    a saved command-line login, is never searched, and no key is read during a run.
+    a saved command-line login, is never searched, and no key is read during a run. A model grant
+    is not a key: it is minted by the conductor for one invocation of one agent, allows only the
+    models that agent declares, and expires with the run
+    ([A person's own model account](model-accounts.md), invariant 4).
 19. **A credential misconfiguration stops the agent at start-up**, in one line that names the
     variable or path and never the value, before any port opens; the agent's unit does not
     restart on that exit status (`sdk/tests/test_credentials.py`, `deploy/systemd/`).
@@ -112,7 +121,9 @@ propose the change in its payload and the conductor is to perform it after appro
 (TODO(#72)).
 
 **The profile vocabulary** is the identifier, version, description, the agent-to-class mapping,
-the classes requiring approval, the optional orchestrator and `hosted_models`. A change to which orchestrator is
+the classes requiring approval, the optional orchestrator, `hosted_models` and, once enforced,
+`model_accounts` (whether people may or must use their own model account, TODO(#810);
+[A person's own model account](model-accounts.md)). A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
 `hosted_models` lists the classes of project content (`inventory`, `documentation`,
@@ -195,7 +206,11 @@ provider follows the same rule under its own variable name. Each agent's manifes
 model it sends data to (provider, model, `hosted` or `local`) and names no credential
 ([Agents](agents.md)); the app's agent directory shows the list. The declaration is the deployment's
 configuration as the agent reports it, not proof. Rotating a key means replacing the credential
-file and restarting that agent's service; nothing else changes.
+file and restarting that agent's service; nothing else changes. When a profile lets people use
+their own account, an agent's model calls go to the model broker instead, with the agent's own
+broker credential and the run's grant; the deployment's key, if the profile keeps it as the
+fallback, is then the broker's, not the agent's
+([A person's own model account](model-accounts.md), invariant 14, TODO(#806)).
 
 ## Rationale
 
@@ -227,6 +242,9 @@ file and restarting that agent's service; nothing else changes.
 - **The key stays with the agent**, read once and passed explicitly, so the configuration alone
   says which credential a run used, a missing key fails start-up rather than every run, and a key
   in one agent's settings reaches no other agent and never the process that serves the web page.
+  A person's own key cannot follow that rule, since it is chosen per run, so it stays with one
+  service built to hold it, and the run records whose account paid
+  ([A person's own model account](model-accounts.md), Rationale).
 
 ## Rejected alternatives
 

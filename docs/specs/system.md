@@ -122,6 +122,10 @@ who write agents. The app must not depend on it.
 configuration, so an agent can be served from this repository or from anywhere else; the
 mechanics are in [Agents](agents.md) and [Transport and tracing](transport.md).
 
+**The model broker is a service of its own**, beside the harness rather than in it, because it
+holds people's own model keys and nothing else may ([A person's own model account](model-accounts.md), not built yet,
+TODO(#806)).
+
 **Documents are kept with what they describe.** A package's own design notes are in its
 `docs/`; what governs every package (the specs, contract, glossary, requirements register and
 review record) is in the repository-level `docs/`.
