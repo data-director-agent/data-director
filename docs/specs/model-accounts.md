@@ -59,7 +59,8 @@ the broker checks that decision.
 4. **A grant is not a key.** A model grant authorises one invocation of one agent to call the
    models that agent's card declares and the profile allows, for the person the run acts for. It
    expires no later than that invocation's timeout. It is useless to any other agent, for any
-   other run, and after it expires. It names the pseudonym, never the principal (TODO(#808)).
+   other run, and after it expires. It names the person only by their pseudonym, sealed to the
+   broker, so an agent cannot read the pseudonym or link two grants to one person (TODO(#808)).
 5. **The conductor mints every grant; nothing else does.** Each invocation of an agent whose card
    declares `models` gets its own grant, delegated children included. A request cannot carry a
    grant, and an agent cannot mint one or pass its grant to a child (TODO(#808)).
@@ -82,8 +83,8 @@ the broker checks that decision.
 10. **A missing or failing account is an outcome.** If the profile requires a person's own account
     and they have none, the run ends with `model-account-missing`. If the provider refuses the key,
     it ends with `model-account-rejected`. If the provider reports a quota or rate limit, it ends
-    with `model-account-limit`. None of these is an exception, and none silently changes who pays
-    (TODO(#809)).
+    with `model-account-limit`. None of these is an exception, and none silently changes who pays.
+    Adding these reason codes raises the contract version ([Contract](contract.md), TODO(#809)).
 11. **The profile decides; the default changes nothing.** Whether people may use their own
     account, whether they must, and whether the deployment's key is the fallback are profile
     settings that the conductor and the broker enforce. The shipped profile turns own accounts off
@@ -94,6 +95,10 @@ the broker checks that decision.
 13. **Tests and CI never need a real key**, a real provider or a real broker key-encryption key.
     Provider calls are replayed from cassettes, as everywhere else
     ([Policy and identity](policy-and-identity.md), invariant 21).
+14. **Only the broker decides who pays.** When the profile turns own accounts on, every model call
+    goes through the broker, which then holds the deployment's provider keys as well as people's
+    own. Only the broker applies the grant's account setting; an agent never chooses who pays and
+    holds no provider key of its own (TODO(#806)).
 
 ## Boundaries and contracts
 
@@ -103,7 +108,10 @@ grant's format and on nothing in the harness. It holds:
 
 - the sealed keys and their labels, by pseudonym;
 - each person's token counts, by pseudonym and day;
-- its key-encryption key and its own credential list for agents.
+- its key-encryption key and its own credential list for agents;
+- the deployment's provider keys, when the profile allows own accounts, each read once at start-up
+  from a systemd credential as an agent's key is today
+  ([Policy and identity](policy-and-identity.md), invariants 18–19).
 
 It keeps no prompt and no reply. It exposes two interfaces: enrolment, for the browser, and model
 calls, for agents. Each speaks the provider's own request format: the Anthropic Messages API and
@@ -124,13 +132,16 @@ The steps are:
    one, and the last four characters of the key.
 
 The page shows the label and the person's token use, and nothing else. Removing the account erases
-the sealed record at once. A run that has already started finishes on the grant it holds.
+the sealed record at once. A run in progress makes no further calls on that account: its next
+call ends the run with `model-account-missing`, or is paid for by the deployment only if the grant
+allows `own-or-deployment`, and the run records that it was (invariants 9–10).
 
 **The grant.** A JWT signed by the harness with an asymmetric key, which the broker verifies
 against the harness's published keys. Its claims are:
 
 - the audience (the broker);
-- the pseudonym;
+- the pseudonym, encrypted to the broker (a JWE nested in the signed grant), so the value an
+  agent forwards is one it cannot read and that differs in every grant;
 - the agent's identifier;
 - the invocation's identifier;
 - the models allowed: the card's `models` that the profile permits, and only those;
@@ -148,6 +159,18 @@ agent as an opaque value on the run context, and its broker adapter for the mode
 - `fallback`: `deployment` or `none`;
 - `providers`: the providers, and the allow-listed base URLs, that a person's own account may use.
 
+The conductor turns the first two into the grant's account setting:
+
+| `own` | `fallback` | The grant's account | A person with no account of their own |
+|---|---|---|---|
+| `off` | either | `deployment` | Not applicable. |
+| `allowed` | `deployment` | `own-or-deployment` | The deployment pays. |
+| `allowed` | `none` | `own` | The run ends with `model-account-missing`. |
+| `required` | `none` | `own` | The run ends with `model-account-missing`. |
+
+`required` with `fallback: deployment` contradicts itself, so a profile that combines them is
+refused when it is loaded (TODO(#810)).
+
 It sits beside `hosted_models` ([Policy and identity](policy-and-identity.md), The profile
 vocabulary), which still governs what project content may go to a `hosted` model. A person's own
 endpoint counts as `hosted` unless the operator declares its base URL local.
@@ -161,8 +184,10 @@ profile lets that agent use it. A stored run shows `own` or `deployment` for eac
 
 - **A broker, not the agent, holds a person's key.** Every model-backed agent would otherwise hold
   every person's key in memory during their runs, and every agent would become a place a key could
-  leak. With a broker, the agents keep exactly the credentials they hold today: one per agent,
-  read at start-up. A compromised agent can spend only the grants it is given while it runs.
+  leak. With a broker, each agent still holds one credential read at start-up, but it is a broker
+  credential in place of a provider key, and it is worth nothing without a grant. A compromised
+  agent can spend only the grants it is given while it runs. The broker holds the deployment's keys
+  too when own accounts are on, so that one service, not each agent, decides who pays.
 - **A grant rather than a key on the wire.** A grant is bound to one agent, one invocation and a
   list of models, and it expires with the run. A stolen grant is worth one run's calls to the
   models the run was already allowed. A stolen key is worth everything the account can do until
@@ -173,7 +198,8 @@ profile lets that agent use it. A stored run shows `own` or `deployment` for eac
 - **A pseudonym, not the principal.** The broker needs to find one person's key and nothing about
   who they are. A keyed hash keeps the broker's records useless for identifying anyone without the
   harness's secret. It also keeps invariant 10 of Policy and identity, that an agent is not told
-  whom it acts for, true in substance: the grant an agent forwards names nobody it could look up.
+  whom it acts for, true in substance: the pseudonym in the grant an agent forwards is sealed to
+  the broker, so the agent can neither read it nor correlate two runs of one person.
 - **Enrolment goes straight to the broker** so that the app, the one process that serves web
   pages, stays a process that has never held a model key
   ([The app](app.md), Boundaries and contracts).
@@ -211,6 +237,7 @@ profile lets that agent use it. A stored run shows `own` or `deployment` for eac
   | The broker is compromised. | Keys are sealed under a key-encryption key in a systemd credential that only the broker's user can read. A database copy without that credential opens no key. The broker's process can still use every key, so it runs alone, holds nothing else, and exposes only its two interfaces to the host's private network. |
   | A grant is stolen from an agent's memory or the network. | It works for one agent's credential, one invocation, the declared models, and until the run's timeout. |
   | A grant is replayed by a different agent. | The broker checks the calling agent's own credential against the agent the grant names. |
+  | The broker spends the deployment's key. | With own accounts on, the broker holds the deployment's provider keys and sends the deployment's calls through the LiteLLM gateway, whose spending limits still apply ([`deploy/llm-gateway`](../../deploy/llm-gateway/README.md)). |
   | An attacker sends the broker an SSRF base URL. | A custom base URL must be on the operator's allow-list. Private, loopback and link-local addresses are refused unless the operator listed them, and the address is checked after resolving the name, not only as text. |
   | A key reaches logs. | Errors from the provider are reduced to a status and a reason code before they leave the broker. No request body is logged. |
 

@@ -108,7 +108,8 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     envelope, the trace or the crate; the run store keeps it ([Disclosure](disclosure.md)).
     Recording whose account paid for each call (`own` or `deployment`) and the reason codes
     `model-account-missing`, `model-account-rejected` and `model-account-limit` are specified in
-    [A person's own model account](model-accounts.md) and not built yet, TODO(#809).
+    [A person's own model account](model-accounts.md) and not built yet; adding the reason codes
+    raises the contract version, TODO(#809).
 22. A `Reply` may carry `conversation_title`, one line of at most 80 characters that a person can
     tell the conversation apart by. A model writes it from the researcher's first message, on a
     conversation's first turn only; an agent that sets it declares it model-derived, and a later

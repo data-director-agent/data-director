@@ -59,7 +59,8 @@ them.
 9. **A delegated child acts for its parent's principal**, carried on the grant, whoever sends the
    callback (`test_a_child_acts_for_its_parent_whoever_sends_the_callback`).
 10. **An agent is not told whom it acts for.** Neither the run context nor the A2A request to an
-    agent carries the principal. A model grant names only a pseudonym the agent does not read
+    agent carries the principal. A model grant names only a pseudonym sealed to the broker, which
+    the agent cannot read
     ([A person's own model account](model-accounts.md), invariants 3–4).
 11. **No anonymous fallback.** With neither a provider nor an operator principal configured, the
     CLI, the servers and the evaluation refuse to start (`harness/tests/test_identity.py`,
@@ -86,7 +87,8 @@ them.
 16. **Two routes are two principals.** Accounts are never linked by matching email addresses or
     names.
 17. **Only the calling agent's process holds the deployment's model key, and only the model broker
-    holds a person's own.** The app, the harness and the conductor never hold one, and no A2A
+    holds a person's own.** When the profile turns own accounts on, the broker holds the
+    deployment's key as well, and agents hold only a broker credential. The app, the harness and the conductor never hold one, and no A2A
     message, grant, envelope, span, evidence item, crate or export carries one
     (`agents/advisor-standards/tests/test_key_not_stored.py`,
     `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`,
@@ -208,7 +210,7 @@ file and restarting that agent's service; nothing else changes. When a profile l
 their own account, an agent's model calls go to the model broker instead, with the agent's own
 broker credential and the run's grant; the deployment's key, if the profile keeps it as the
 fallback, is then the broker's, not the agent's
-([A person's own model account](model-accounts.md), TODO(#806)).
+([A person's own model account](model-accounts.md), invariant 14, TODO(#806)).
 
 ## Rationale
 
