@@ -55,6 +55,9 @@ INVENTORY_ONLY_TEXT = "I have attached an inventory of my dataset's files."
 DOCUMENTATION_ONLY_TEXT = "I have attached a document about my dataset."
 # What a turn says when the researcher attached both and wrote nothing.
 BOTH_ONLY_TEXT = "I have attached an inventory of my dataset's files and a document about it."
+# The cause recorded for a project a person creates on purpose (`POST /api/projects`), which is
+# listed before it holds anything (docs/specs/app.md, rule 27).
+CREATED_BY_ROUTE = "POST /api/projects"
 # What `GET /api/projects` says of each conversation in a project.
 LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
 # How long `GET /api/about`, which is open to anyone, waits between retries of the agents still
@@ -439,8 +442,9 @@ class Governance:
         """A page of the projects `principal` may read, the one created last first
         (`GET /api/projects`): each project's summary, with the conversations started in it that
         have a turn, most recently active first, so that the shell can name a project the app
-        created untitled. A project with nothing in it yet (no conversation with a turn, no
-        inventory and no document) is not listed, as a conversation with no turn is not. The
+        created untitled. A project the app created for a conversation, with nothing in it yet (no
+        conversation with a turn, no inventory and no document), is not listed, as a conversation
+        with no turn is not; one a person created with `POST /api/projects` is. The
         cursor is the last listed project; one that names no project the person may read names
         an empty page."""
         check_limit(limit)
@@ -465,6 +469,7 @@ class Governance:
                 not listed
                 and summary["inventory"] is None
                 and not any(summary["documents"].values())
+                and self.projects.events(project_id)[0]["caused_by"] != CREATED_BY_ROUTE
             ):
                 continue
             if len(found) == limit:

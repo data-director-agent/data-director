@@ -304,8 +304,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     refuses is refused with a 400 too, and nothing is created in either case. Where the app keeps
     no projects, the route answers 404, as every project route does there. Once the project is
     created, it becomes active and the shell goes to its workspace, where the intake card shows
-    (rule 25). A refusal or failure is said in the dialog, which keeps what was typed. Not built
-    yet: the route, TODO(#763); the addresses and landing page, TODO(#764); the dialog,
+    (rule 25). A project created this way is listed on the Projects page before it holds
+    anything; one the server created for a conversation that named no project is listed once it
+    does (`app/tests/test_app.py`). A refusal or failure is said in the dialog, which keeps what
+    was typed. Not built yet: the addresses and landing page, TODO(#764); the dialog,
     TODO(#765).
 
 ## Boundaries and contracts
