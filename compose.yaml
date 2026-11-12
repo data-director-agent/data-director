@@ -301,6 +301,32 @@ services:
       - path: config/local/agents/orchestrator-model.env
         required: false
 
+  # The model broker (docs/guide/operations/model-broker.md): opt-in with the `model-broker`
+  # profile. Its secrets are files in config/local/credentials/model-broker/, its settings
+  # config/local/model-broker.env. Reached only inside the network, like the agents.
+  model-broker:
+    <<: *python
+    profiles: [model-broker]
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    command: uv run --no-sync dd-model-broker serve --host 0.0.0.0 --port 8300
+    environment:
+      <<: *python-env
+      DD_BROKER_STORE: /var/lib/model-broker/broker.sqlite3
+      DD_BROKER_KEY_ENCRYPTION_KEY_FILE: model-broker/key-encryption-key
+      DD_BROKER_SUBJECT_KEY_FILE: model-broker/subject-key
+      DD_BROKER_AGENT_CREDENTIALS_FILE: model-broker/agent-credentials
+    env_file:
+      - path: config/local/model-broker.env
+        required: false
+    volumes:
+      - .:/workspace
+      - venv:/venv
+      - uv-cache:/uv-cache
+      - model-broker:/var/lib/model-broker
+    restart: unless-stopped
+
   # Builds the shell once: the app will not start without app/web/dist.
   web-build:
     build:
@@ -417,4 +443,5 @@ volumes:
   app-runs:
   app-projects:
   workbench-runs:
+  model-broker:
   db-data:

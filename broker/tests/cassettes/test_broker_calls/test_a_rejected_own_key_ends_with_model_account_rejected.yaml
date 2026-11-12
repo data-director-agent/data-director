@@ -1,0 +1,20 @@
+# Written by hand, not recorded: the provider's answers to the broker. vcrpy matches on method and
+# URI, so the request headers and bodies below are not compared, and the answers play back in order.
+interactions:
+- request:
+    body: ''
+    headers:
+      content-type:
+      - application/json
+    method: POST
+    uri: https://api.anthropic.com/v1/messages
+  response:
+    body:
+      string: "{\"type\": \"error\", \"error\": {\"type\": \"authentication_error\", \"message\": \"invalid x-api-key sk-ant-sentinel-7d2e9b40c1a85f36\"}}"
+    headers:
+      content-type:
+      - application/json
+    status:
+      code: 401
+      message: Unauthorized
+version: 1

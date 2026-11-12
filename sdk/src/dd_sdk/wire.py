@@ -38,6 +38,7 @@ from dd_sdk.contract.models import (
     Outcome,
     to_document,
 )
+from dd_sdk.model_grant import META_MODEL_GRANT as META_MODEL_GRANT
 
 # TODO(#3): a persistent identifier for the extension. The w3id namespace the problem types use is
 # not yet registered either (contract/problem.py).
@@ -52,6 +53,8 @@ META_TRACEPARENT = "traceparent"
 # present.
 META_DELEGATE_URL = "dd.delegate_url"
 META_DELEGATION_TOKEN = "dd.delegation_token"
+# META_MODEL_GRANT (imported above, docs/specs/model-accounts.md): the model grant for one
+# invocation of a model-backed agent, minted by the conductor (TODO(#808)).
 
 ARTIFACT_NAME = "agent-result"
 # The harness's answer to a delegated request: one text part holding the envelope as the JSON

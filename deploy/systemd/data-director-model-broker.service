@@ -1,0 +1,65 @@
+# The Data Director model broker (broker/README.md, docs/specs/model-accounts.md): it holds people's
+# own model keys, sealed, and makes model calls for agents that present a model grant. It is off
+# until an operator turns own accounts on (docs/guide/operations/model-broker.md); install.sh
+# installs this unit but does not enable it.
+#
+# It runs as its own user, data-director-broker, which no other service shares, so that no agent,
+# the app or the harness can read its store or its credentials. Its secrets are root's files in
+# /etc/data-director/credentials/model-broker/, handed to it alone with LoadCredential=. The
+# deployment's model key, or a LiteLLM gateway key, is added with a drop-in when the broker pays
+# for the deployment's calls too (docs/guide/operations/model-broker.md).
+[Unit]
+Description=Data Director model broker
+Documentation=https://github.com/data-director-agent/data-director/blob/main/docs/guide/operations/model-broker.md
+After=network-online.target
+Wants=network-online.target
+PartOf=data-director.target
+
+[Service]
+Type=exec
+User=data-director-broker
+Group=data-director-broker
+WorkingDirectory=/opt/data-director/current
+# /var/lib/data-director-model-broker, owned by the broker's user alone.
+StateDirectory=data-director-model-broker
+StateDirectoryMode=0700
+Environment=DD_BROKER_STORE=%S/data-director-model-broker/broker.sqlite3
+LoadCredential=key-encryption-key:/etc/data-director/credentials/model-broker/key-encryption-key
+LoadCredential=subject-key:/etc/data-director/credentials/model-broker/subject-key
+LoadCredential=agent-credentials:/etc/data-director/credentials/model-broker/agent-credentials
+Environment=DD_BROKER_KEY_ENCRYPTION_KEY_FILE=key-encryption-key
+Environment=DD_BROKER_SUBJECT_KEY_FILE=subject-key
+Environment=DD_BROKER_AGENT_CREDENTIALS_FILE=agent-credentials
+# DD_BROKER_HARNESS_JWKS_URL, and any allow-listed base URLs (docs/guide/operations/model-broker.md).
+EnvironmentFile=-/etc/data-director/model-broker.env
+ExecStart=/opt/data-director/current/.venv/bin/dd-model-broker serve --host 127.0.0.1 --port 8300
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=30
+SyslogIdentifier=data-director-model-broker
+
+# Hardening: it writes only its own state directory.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=data-director.target

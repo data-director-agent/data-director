@@ -101,7 +101,7 @@ cmd_list() {
   for dir in "$CREDENTIALS"/*/; do
     [[ -d "$dir" ]] || continue
     agent="$(basename "$dir")"
-    [[ "$agent" == app ]] && continue
+    [[ "$agent" == app || "$agent" == model-broker ]] && continue
     for file in "$dir"*; do
       [[ -e "$file" || -L "$file" ]] || continue
       found=1

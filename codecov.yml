@@ -33,6 +33,8 @@ flag_management:
       paths: [app/src/]
     - name: admin
       paths: [admin/]
+    - name: broker
+      paths: [broker/]
     - name: agents
       paths: [agents/]
     - name: inventory
