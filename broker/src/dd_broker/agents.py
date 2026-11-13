@@ -1,9 +1,9 @@
 """Which agent is calling (docs/specs/model-accounts.md, invariants 7 and 8).
 
 Each agent that calls through the broker holds a broker credential of its own, read once at
-start-up like any key (TODO(#808)). It sends the credential where its provider client already sends
-an API key (`x-api-key`, or `Authorization: Bearer`), so the agent's adapter changes only its base
-URL and its credential.
+start-up like any key (`dd_sdk.credentials.model_endpoint`). It sends the credential where its
+provider client already sends an API key (`x-api-key`, or `Authorization: Bearer`), so the agent's
+adapter changes only its base URL and its credential.
 
 The broker holds only the SHA-256 digest of each credential, by agent identifier, read once at
 start-up from `DD_BROKER_AGENT_CREDENTIALS` (a JSON object, `{"<agent id>": "<hex digest>"}`).

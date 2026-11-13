@@ -273,8 +273,8 @@ def test_a_base_url_off_the_allow_list_is_refused(harness: FakeHarness, broker: 
 def test_the_anthropic_client_works_through_the_broker(
     harness: FakeHarness, broker: Broker
 ) -> None:
-    # What an agent's adapter will do (TODO(#808)): its usual client, with the broker's base URL,
-    # its broker credential as the API key, and the grant as a header.
+    # What an agent's adapter does (`dd_sdk.model_anthropic.anthropic_client`): its usual client,
+    # with the broker's base URL, its broker credential as the API key, and the grant as a header.
     enrol(broker)
     with client(broker) as http:
         model = anthropic.Anthropic(

@@ -22,6 +22,8 @@ from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKin
 from dd_agent_advisor_standards.fairsharing.records import Record
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation, now
+from dd_sdk.credentials import ModelEndpoint
+from dd_sdk.model_anthropic import anthropic_client
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import chat_span, record_tokens
 
@@ -126,17 +128,16 @@ class AnthropicExplainer:
         self,
         client: anthropic.Anthropic | None = None,
         model_id: str = DEFAULT_MODEL,
-        api_key: str | None = None,
+        endpoint: ModelEndpoint | None = None,
     ) -> None:
-        """Give a `client` (tests) or an `api_key` (`dd_sdk.credentials.api_key`). The key is
-        always passed explicitly, so the SDK's own credential chain is never used
-        (docs/specs/policy-and-identity.md)."""
+        """Give a `client` (tests) or an `endpoint` (`dd_sdk.credentials.model_endpoint`): the
+        provider with its key, or the model broker with the agent's credential. Either is passed
+        explicitly, so the SDK's own credential chain is never used
+        (docs/specs/policy-and-identity.md, docs/specs/model-accounts.md)."""
         if client is None:
-            if not api_key:
-                raise ValueError("AnthropicExplainer needs a client or an api_key")
-            import anthropic as _anthropic
-
-            client = _anthropic.Anthropic(api_key=api_key)
+            if endpoint is None:
+                raise ValueError("AnthropicExplainer needs a client or an endpoint")
+            client = anthropic_client(endpoint)
         self._client = client
         self.model_id: str | None = model_id
 

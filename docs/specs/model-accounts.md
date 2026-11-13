@@ -32,11 +32,13 @@ It does not cover:
 - spending limits, which a person sets with their provider, and the deployment's own spend
   ([`deploy/llm-gateway`](../../deploy/llm-gateway/README.md)).
 
-The broker is built (`broker/`), with the grant's format in the SDK (`dd_sdk.model_grant`), but
-nothing calls it yet. Enrolment is TODO(#807); minting the grant, the harness's published keys and
-the agent's adapter TODO(#808); recording and the reason codes TODO(#809); the profile key
-TODO(#810); OpenAI-compatible accounts TODO(#811). Until those land, every model call is paid for
-by the deployment, as it is today.
+The broker is built (`broker/`), with the grant's format in the SDK (`dd_sdk.model_grant`). The
+harness mints grants and publishes its keys (`dd_harness.model_grants`), and every model-backed
+agent can call through the broker (`dd_sdk.credentials.model_endpoint`,
+`dd_sdk.model_anthropic.anthropic_client`). Enrolment is TODO(#807); recording and the reason codes
+TODO(#809); the profile key TODO(#810); OpenAI-compatible accounts TODO(#811). Until those land,
+every grant says the deployment pays, and every model call is paid for by the deployment, as it is
+today.
 
 The governing rule is the one in [Policy and identity](policy-and-identity.md): **the party being
 governed does not state the facts the governance rests on.** Neither an agent nor a request chooses
@@ -63,15 +65,17 @@ the broker checks that decision.
    models that agent's card declares and the profile allows, for the person the run acts for. It
    expires no later than that invocation's timeout. It is useless to any other agent, for any
    other run, and after it expires. It names the person only by their pseudonym, sealed to the
-   broker, so an agent cannot read the pseudonym or link two grants to one person (TODO(#808)).
+   broker, so an agent cannot read the pseudonym or link two grants to one person
+   (`harness/tests/test_model_grants.py`).
 5. **The conductor mints every grant; nothing else does.** Each invocation of an agent whose card
    declares `models` gets its own grant, delegated children included. A request cannot carry a
-   grant, and an agent cannot mint one or pass its grant to a child (TODO(#808)).
+   grant, and an agent cannot mint one or pass its grant to a child: the harness reads no grant
+   from a request's metadata (`harness/tests/test_model_grants.py`).
 6. **A grant is never stored.** It travels only in the A2A request's metadata, as the delegation
    grant does, and never enters the envelope, a span, the run store, the crate or an export. A
    task is forgotten once it ends ([Transport and tracing](transport.md), invariant 20), so no
-   caller can read a grant back. Planned test: a sentinel grant, then a search for it in every
-   record (TODO(#808)).
+   caller can read a grant back (`harness/tests/test_model_grants.py`,
+   `agents/advisor-documentation/tests/test_grant_not_stored.py`).
 7. **The broker checks every call.** It refuses a call unless the grant's signature is the
    harness's, the grant is addressed to the broker and has not expired, the calling agent proves
    it is the agent the grant names using its own credential, and the model asked for is one the
@@ -80,7 +84,8 @@ the broker checks that decision.
 8. **The agent's own credential is read once, at start-up.** An agent that calls through the
    broker holds a broker credential of its own, supplied like any key
    ([Policy and identity](policy-and-identity.md), invariants 18–19). A missing or malformed
-   credential stops the agent at start-up in one line (TODO(#808)).
+   credential stops the agent at start-up in one line (`dd_sdk.credentials.model_endpoint`,
+   `sdk/tests/test_model_broker.py`).
 9. **Whose account paid is recorded, never whose key.** Every model call records `own` or
    `deployment`, and the provider and model that served it as the broker reports them. The
    credential, its label and the pseudonym never enter the record (TODO(#809)).
@@ -103,8 +108,10 @@ the broker checks that decision.
     goes through the broker, which then holds the deployment's provider keys as well as people's
     own. Only the broker applies the grant's account setting; an agent never chooses who pays and
     holds no provider key of its own. The broker applies the account setting
-    (`broker/tests/test_broker_calls.py`); agents still hold their own provider keys until they
-    call through it (TODO(#808)).
+    (`broker/tests/test_broker_calls.py`). An agent configured to call through the broker refuses
+    to start with a provider key beside its broker credential (`sdk/tests/test_model_broker.py`);
+    until the profile key exists, which agents call through the broker is the operator's choice
+    (TODO(#810)).
 
 ## Boundaries and contracts
 
@@ -200,14 +207,34 @@ against the harness's published keys. Its claims are:
 - **The sealed pseudonym:** a compact JWE in `dd_subject`, made with `ECDH-ES+A256KW` and
   `A256GCM` to the broker's P-256 key.
 
-The broker allows 30 seconds of clock skew. The harness's signing key and its published keys
-arrive with the grant's minting (TODO(#808)). Until then the broker reads the keys from a URL or a
-file that the operator names.
+The broker allows 30 seconds of clock skew. The grant expires the agent's transport timeout after
+it is issued, rounded down to the second.
+
+The harness mints grants when three settings are given, each as `NAME` or as `NAME_FILE` for a
+systemd credential:
+
+- `DD_MODEL_GRANT_SIGNING_KEY`: its private signing key, an RSA or EC P-256 key as a JWK or a PEM;
+- `DD_MODEL_BROKER_SUBJECT_KEY`: the broker's public P-256 key, to which pseudonyms are sealed;
+- `DD_PSEUDONYM_SECRET`: at least 32 bytes, the secret under which the pseudonym is a keyed hash
+  (HMAC-SHA256) of the principal's identifier.
+
+With none of them, the harness mints no grant. With some but not all, or one it cannot use, it
+stops at start-up in one line that names the setting and never its value. When it mints grants,
+every way in that serves HTTP, the app included, publishes the public signing key as a JWK set at
+`/.well-known/jwks.json`, which the broker's `DD_BROKER_HARNESS_JWKS_URL` names. The broker can read
+the same set from a file instead.
 
 It holds no key, no principal and no project content. The conductor passes it as `dd.model_grant`
 in the A2A request's metadata, beside `dd.input_ref` and `traceparent`. The SDK exposes it to the
-agent as an opaque value on the run context, and its broker adapter for the model seam
-(`dd_sdk.model`) sends it with each call. An agent never parses it.
+agent as an opaque value on the run context (`RunContext.model_grant`), and binds it to the run
+while the agent works. Every Claude client the SDK builds
+(`dd_sdk.model_anthropic.anthropic_client`, which `AnthropicModel` behind the model seam uses too)
+sends the bound grant as `X-DD-Model-Grant` with each call to the broker, so no agent's own code
+handles it. An agent never parses it.
+
+An agent calls through the broker when `DD_MODEL_BROKER_URL` is set. It then reads its broker
+credential, `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE`, once at start-up, and
+refuses to start if a provider key is set beside it (`dd_sdk.credentials.model_endpoint`).
 
 **The profile.** One key, `model_accounts`, with three settings:
 

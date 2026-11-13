@@ -122,6 +122,7 @@ from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
+from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import (
@@ -1322,6 +1323,9 @@ def build_app(
             Route(CALLBACK_PATH, finish_sign_in, methods=["GET"]),
             Route("/api/sign-out", sign_out, methods=["POST"]),
             *delegation,
+            # The harness's public keys for model grants, when it mints them
+            # (docs/specs/model-accounts.md).
+            *jwks_routes(governance.conductor.model_grants),
             Route("/activity", shell, methods=["GET"]),
             Route("/agents", shell, methods=["GET"]),
             Route("/policy", shell, methods=["GET"]),

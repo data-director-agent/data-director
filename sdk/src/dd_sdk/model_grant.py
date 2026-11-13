@@ -6,8 +6,9 @@ only forwards it, as an opaque value, and never parses it.
 
 This module holds only what the harness, the broker and the agent's adapter must agree on: the
 claim names, the account values, the algorithms, the metadata key and the HTTP headers. Minting is
-the conductor's job (TODO(#808)). Verifying is the broker's own code (`dd_broker.grants`), because
-checking a grant is governance ([Dependencies](../../../docs/specs/dependencies.md)).
+the conductor's job (`dd_harness.model_grants`). Verifying is the broker's own code
+(`dd_broker.grants`), because checking a grant is governance
+([Dependencies](../../../docs/specs/dependencies.md)).
 
 `ModelGrantClaims.from_claims` checks that a verified claim set has the shape below. It does not
 check a signature, an audience or a time; the broker does that before calling it.

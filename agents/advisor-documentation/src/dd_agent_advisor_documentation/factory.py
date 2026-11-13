@@ -31,7 +31,7 @@ from dd_agent_advisor_documentation.prose import (
 )
 from dd_sdk import serve
 from dd_sdk.agent import ModelUse
-from dd_sdk.credentials import ConfigError, api_key
+from dd_sdk.credentials import ConfigError, model_endpoint
 
 
 def build_writer(env: Mapping[str, str]) -> Writer:
@@ -39,7 +39,9 @@ def build_writer(env: Mapping[str, str]) -> Writer:
     if choice == "template":
         return TemplateWriter()
     if choice == "anthropic":
-        return AnthropicWriter(model_id=env.get("DD_MODEL_ID", DEFAULT_MODEL), api_key=api_key(env))
+        return AnthropicWriter(
+            model_id=env.get("DD_MODEL_ID", DEFAULT_MODEL), endpoint=model_endpoint(env)
+        )
     raise ConfigError(f"DD_DOCUMENTATION_WRITER={choice!r}: expected template or anthropic")
 
 

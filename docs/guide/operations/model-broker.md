@@ -6,15 +6,14 @@ for agents. No agent, and neither the app nor the harness, ever holds a person's
 is in [A person's own model account](../../specs/model-accounts.md).
 
 !!! warning "Alpha, and off by default"
-    The broker is built, but nothing calls it yet:
+    The harness can sign model grants and agents can call through the broker, but:
 
     - A person cannot yet enrol a key from the Profile page (TODO(#807)).
-    - The harness does not yet sign model grants or publish its keys, and agents do not yet call
-      through the broker (TODO(#808)).
-    - The profile has no `model_accounts` setting yet (TODO(#810)).
+    - The profile has no `model_accounts` setting yet (TODO(#810)), so every grant says the
+      deployment pays.
 
-    Until those land, every call is paid for by the deployment, as before, and there is no reason
-    to turn the broker on.
+    Until those land, every call is paid for by the deployment, as before. Turning the broker on
+    now only moves the deployment's key from the agents to the broker.
 
 ## What it does
 
@@ -64,10 +63,10 @@ SHA-256 digest of that agent's broker credential:
 ```
 
 Make a credential with `openssl rand -hex 32`, and its digest with `printf %s "$credential" |
-sha256sum`. The agent holds the credential and the broker holds only the digest. Giving agents
-their credentials is TODO(#808).
+sha256sum`. The agent holds the credential and the broker holds only the digest.
 
-Set `DD_BROKER_HARNESS_JWKS_URL` in `model-broker.env`, then start the broker:
+Set `DD_BROKER_HARNESS_JWKS_URL` in `model-broker.env` to the harness's published keys (below),
+then start the broker:
 
 ```bash
 sudo systemctl enable --now data-director-model-broker.service
@@ -75,6 +74,37 @@ sudo systemctl enable --now data-director-model-broker.service
 
 The broker listens on `127.0.0.1:8300`. Like the agents' ports, it must not be reachable from
 beyond the host or a private network (TODO(#17)).
+
+### The harness: signing grants
+
+The process that runs the conductor, normally the app, signs a model grant for each invocation of
+an agent whose card declares models. It needs three secrets, each as `NAME` in development or as
+`NAME_FILE`, a systemd credential, in deployment:
+
+- `DD_MODEL_GRANT_SIGNING_KEY`: the harness's private signing key, for example
+  `openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt`;
+- `DD_MODEL_BROKER_SUBJECT_KEY`: the broker's public subject key,
+  `openssl ec -in subject-key -pubout`;
+- `DD_PSEUDONYM_SECRET`: at least 32 random bytes, such as `openssl rand -hex 32`. Changing it
+  changes every person's pseudonym, so the broker no longer finds their enrolled keys.
+
+With all three set, the app publishes the public half of the signing key at
+`/.well-known/jwks.json`. Point the broker's `DD_BROKER_HARNESS_JWKS_URL` there, or copy that
+JSON to a file and name it with `DD_BROKER_HARNESS_JWKS_FILE`. With none set, no grant is minted.
+With only some set, the app stops at start-up.
+
+### The agents: calling through the broker
+
+An agent calls through the broker when its environment sets:
+
+- `DD_MODEL_BROKER_URL`, such as `http://127.0.0.1:8300`;
+- `DD_MODEL_BROKER_CREDENTIAL_FILE`, a systemd credential holding the agent's broker credential
+  (`DD_MODEL_BROKER_CREDENTIAL` in development).
+
+Remove its `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE`: an agent that calls through the broker
+holds no provider key, and refuses to start with one. It also refuses to start without its
+credential. Each of the model-backed agents (`advisor.documentation`, `advisor.policy`,
+`advisor.repository`, `advisor.standards` and `orchestrator.model`) reads the same two settings.
 
 ### The deployment's own calls
 

@@ -28,5 +28,5 @@ dd-model-broker = "dd_broker.cli:main"
 packages = ["src/dd_broker"]
 
 [dependency-groups]
-# The tests drive the broker with the real Anthropic client, as an agent's adapter will (TODO(#808)).
+# The tests drive the broker with the real Anthropic client, as an agent's adapter does.
 dev = ["anthropic>=1.15.0,<2.6"]

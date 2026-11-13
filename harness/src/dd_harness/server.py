@@ -35,6 +35,7 @@ from starlette.applications import Starlette
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, Validation, build_package, check
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
+from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.projects import ProjectError
 from dd_harness.registry import RegistryError
@@ -81,9 +82,10 @@ def serving(settings: Settings, base_url: str) -> tuple[Conductor, Authenticator
 
 
 def build_app(conductor: Conductor, authenticator: Authenticator, base_url: str) -> Starlette:
-    """The A2A endpoint at `/a2a` and the agent card at `/.well-known/agent-card.json`."""
+    """The A2A endpoint at `/a2a`, the agent card at `/.well-known/agent-card.json` and, when the
+    harness mints model grants, its public keys at `/.well-known/jwks.json`."""
     _card, routes = a2a_routes(conductor, authenticator, base_url)
-    return Starlette(routes=routes)
+    return Starlette(routes=[*routes, *jwks_routes(conductor.model_grants)])
 
 
 def cmd_serve(args: argparse.Namespace) -> int:

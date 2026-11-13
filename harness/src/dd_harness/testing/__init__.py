@@ -10,6 +10,8 @@ Import everything from here; the modules are an internal arrangement:
 - `results`: results a scripted agent can return, and the sources they are grounded on.
 - `classes`: the doubles' own `Probe*` classes, declared in `../schema/doubles.yaml`.
 - `fixtures`: the test profiles (in `profiles/`), `TEST_PRINCIPAL` and inputs.
+- `model_grants`: `GrantKeys`, keys for a conductor that mints model grants, which opens a grant
+  as the broker would (docs/specs/model-accounts.md).
 - `identity`: `FakeIdentityProvider`, an OpenID Connect provider in memory
   (docs/specs/policy-and-identity.md).
 - `orcid`: `FakeOrcidRegistry`, ORCID's public API in memory, and `sample_record`, the public
@@ -54,6 +56,7 @@ from dd_harness.testing.fixtures import (
     request,
 )
 from dd_harness.testing.identity import FakeIdentityProvider
+from dd_harness.testing.model_grants import GrantKeys, OpenedGrant
 from dd_harness.testing.orcid import SAMPLE_ID, FakeOrcidRegistry, sample_record
 from dd_harness.testing.results import (
     SOURCE_A,
@@ -106,6 +109,8 @@ __all__ = [
     "DocumentStub",
     "FakeIdentityProvider",
     "FakeOrcidRegistry",
+    "GrantKeys",
+    "OpenedGrant",
     "ProbeCheck",
     "ProbeClaim",
     "ProbeDocumentRequest",

@@ -11,8 +11,9 @@ This is governance and the broker's own code. A grant is accepted only if:
 
 Whether the model asked for is one the grant allows is checked per call, by `VerifiedGrant.allows`.
 
-The harness does not yet sign grants or publish its keys; both are TODO(#808). Until then the
-broker reads the keys from `DD_BROKER_HARNESS_JWKS_URL` or `DD_BROKER_HARNESS_JWKS_FILE`.
+The harness signs grants (`dd_harness.model_grants`) and publishes its public keys at
+`/.well-known/jwks.json`. The broker reads them from `DD_BROKER_HARNESS_JWKS_URL`, normally that
+address, or from `DD_BROKER_HARNESS_JWKS_FILE`.
 """
 
 from __future__ import annotations
