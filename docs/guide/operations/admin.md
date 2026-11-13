@@ -51,13 +51,16 @@ Spend comes from the optional LLM gateway ([deploy/llm-gateway](../../../deploy/
 when the agents call their models through it. The page keeps two figures apart:
 
 - **The gateway's**, which LiteLLM priced as each call was made: the month to date, the last
-  30 days by day, by model and by gateway key (one key per agent).
+  30 days by day, by model and by gateway key (one key per agent, or one key for the
+  [model broker](model-broker.md) when it pays for the deployment's calls).
 - **An estimate from the runs**: the tokens each run's agent reported (`telemetry.model_calls`),
   priced at the gateway's own per-token prices. Only this one can say which person or project the
   tokens were for, so the person, project and run pages show it too. It differs from the
   gateway's figure when an agent calls a model without the gateway, when something else uses the
   gateway, and by discounts such as cached input. Tokens on a model the gateway has no price for
-  are counted as unpriced, not as free.
+  are counted as unpriced, not as free. When people may use their own model accounts, the
+  estimate also prices calls their own accounts paid for, which the gateway never sees; runs do
+  not yet record whose account paid (TODO(#809)).
 
 Without the gateway the page still shows the tokens runs recorded, without prices.
 `DD_ADMIN_MONTHLY_BUDGET` sets a budget that the overview and the page show the month's spend
