@@ -140,6 +140,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
+    An inventory may also be added to a project without a conversation: the project's page and the
+    workspace's Project panel offer **Add an inventory** (**Replace the inventory** where the project
+    holds one) beside **Make an inventory**. The file goes through the same check as one attached to
+    a message, and only **Add this inventory** sends it, to `POST /api/projects/{id}/inventory`; a
+    refusal is said and the check stays open, and cancelling stores nothing
+    (`app/web/src/components/inventory/AddInventory.test.tsx`).
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
