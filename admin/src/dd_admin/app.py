@@ -29,7 +29,7 @@ from starlette.templating import Jinja2Templates
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from dd_admin import agents as agents_module
-from dd_admin import config_files, operations, usage
+from dd_admin import config_files, operations, spend, usage
 from dd_admin.cache import Cached
 from dd_admin.settings import AdminSettings
 from dd_admin.system import System
@@ -119,6 +119,8 @@ class Admin:
             lambda: agents_module.probe(self.settings.agents_config, self.client_factory),
             ttl_s=30,
         )
+        # The gateway's spend logs change by the call but are costly to read in full.
+        self.gateway = Cached(lambda: spend.read_gateway(self.settings, self.system), ttl_s=300)
         self.about = Cached(
             lambda: self.system.get_json(self.settings.app_url.rstrip("/") + "/api/about"),
             ttl_s=30,
@@ -145,6 +147,11 @@ class Admin:
             except Exception as exc:  # noqa: BLE001 - shown on the page
                 admin.store_errors.append(f"DD_PROJECTS_DIR cannot be opened: {exc}")
         return admin
+
+    def budget(self, gateway: spend.GatewaySpend) -> spend.Budget:
+        return spend.Budget(
+            self.settings.monthly_budget, gateway.month_to_date if gateway.answered else None
+        )
 
     def units(self) -> list[str]:
         return operations.unit_names(agents_module.configured_names(self.settings.agents_config))
@@ -189,6 +196,19 @@ def _number(value: object) -> str:
     return f"{value:,}" if isinstance(value, int) else str(value)
 
 
+def _money(value: object) -> str:
+    """An amount in the gateway's currency (LiteLLM prices in US dollars)."""
+    if not isinstance(value, int | float):
+        return "—"
+    if 0 < value < 0.01:
+        return "<$0.01"
+    return f"${value:,.2f}"
+
+
+def _percent(value: object) -> str:
+    return f"{value:.0%}" if isinstance(value, int | float) else "—"
+
+
 def _orcid(principal_id: object) -> str | None:
     """The iD if `principal_id` is an ORCID iD URI, for a short label."""
     text = str(principal_id or "")
@@ -206,7 +226,14 @@ def build_templates() -> Jinja2Templates:
     )
     templates = Jinja2Templates(env=env)
     env.filters.update(
-        when=_when, ago=_ago, short=_short, pretty=_pretty, number=_number, orcid=_orcid
+        when=_when,
+        ago=_ago,
+        short=_short,
+        pretty=_pretty,
+        number=_number,
+        orcid=_orcid,
+        money=_money,
+        percent=_percent,
     )
     env.globals.update(statuses=STATUSES)
     return templates
@@ -239,8 +266,12 @@ def build_app(admin: Admin) -> Starlette:
     def fresh(request: Request) -> bool:
         return request.query_params.get("fresh") == "1"
 
+    def gateway(request: Request) -> spend.GatewaySpend:
+        return admin.gateway.get(fresh=fresh(request))
+
     def overview(request: Request) -> Response:
         found = admin.usage.get(fresh=fresh(request))
+        spent = gateway(request)
         return page(
             request,
             "overview.html",
@@ -249,6 +280,23 @@ def build_app(admin: Admin) -> Starlette:
             agents=admin.agents.get(fresh=fresh(request)),
             about=admin.about.get(fresh=fresh(request)),
             peak=max([n for _, n in found.per_day] + [1]),
+            gateway=spent,
+            budget=admin.budget(spent),
+            tokens_30=found.tokens_since(30),
+        )
+
+    def spend_page(request: Request) -> Response:
+        found = admin.usage.get(fresh=fresh(request))
+        spent = gateway(request)
+        return page(
+            request,
+            "spend.html",
+            usage=found,
+            gateway=spent,
+            budget=admin.budget(spent),
+            estimate=spend.estimate(found, spent.prices),
+            tokens_30=found.tokens_since(30),
+            peak=max([n for _, n in spent.per_day] + [0.01]),
         )
 
     def operations_page(request: Request) -> Response:
@@ -305,6 +353,8 @@ def build_app(admin: Admin) -> Starlette:
         return page(
             request,
             "person.html",
+            cost=spend.cost_of_runs(runs, gateway(request).prices),
+            prices=bool(gateway(request).prices),
             person=person,
             runs=runs[:PAGE_SIZE],
             run_count=len(runs),
@@ -358,6 +408,7 @@ def build_app(admin: Admin) -> Starlette:
         envelope = admin.runs.get(invocation_id)
         if envelope is None:
             raise HTTPException(404, "no run with that identifier")
+        row = usage.run_row(envelope)
         children = [
             {
                 "invocation_id": d.get("delegated_invocation_id"),
@@ -370,6 +421,9 @@ def build_app(admin: Admin) -> Starlette:
         return page(
             request,
             "run.html",
+            cost=spend.cost_of(row["calls"], gateway(request).prices),
+            calls=row["calls"],
+            prices=bool(gateway(request).prices),
             envelope=envelope,
             request_doc=admin.runs.get_request(invocation_id),
             where=admin.runs.where(invocation_id),
@@ -392,6 +446,8 @@ def build_app(admin: Admin) -> Starlette:
         return page(
             request,
             "project.html",
+            cost=spend.cost_of_runs(runs, gateway(request).prices),
+            prices=bool(gateway(request).prices),
             summary=summary,
             events=events,
             runs=runs[:PAGE_SIZE],
@@ -438,6 +494,7 @@ def build_app(admin: Admin) -> Starlette:
         Route("/person", person_page, methods=["GET"]),
         Route("/runs", runs_page, methods=["GET"]),
         Route("/runs/{invocation_id}", run_page, methods=["GET"]),
+        Route("/spend", spend_page, methods=["GET"]),
         Route("/projects", projects_page, methods=["GET"]),
         Route("/projects/{project_id}", project_page, methods=["GET"]),
         Route("/config", config_page, methods=["GET"]),

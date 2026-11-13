@@ -13,13 +13,14 @@ import httpx
 import pytest
 from starlette.testclient import TestClient
 
-from dd_admin import config_files, operations, usage
+from dd_admin import config_files, operations, spend, usage
 from dd_admin.app import Admin, build_app, is_loopback_host
 from dd_admin.cache import Cached
 from dd_admin.cli import loopback, main
 from dd_admin.settings import AdminSettings
 from dd_admin.system import Done, System
 from dd_harness.projects import ProjectStore
+from dd_harness.settings import SettingsError
 from dd_harness.store import RunStore
 from dd_harness.testing.doubles import AbstainingStub
 from dd_harness.testing.serving import asgi_client_factory
@@ -33,6 +34,40 @@ SHA = "a" * 40
 OLD = "b" * 40
 STUB_URL = "http://stub.agents.test"
 DOWN_URL = "http://down.agents.test"
+GATEWAY = "http://127.0.0.1:4000"
+GATEWAY_KEY = "sk-viewer-not-to-be-shown"
+SONNET = "claude-sonnet-5-5"
+
+
+def model_info() -> dict[str, Any]:
+    """`/model/info` as LiteLLM answers it: one priced model, one without prices."""
+    return {
+        "data": [
+            {
+                "model_name": SONNET,
+                "litellm_params": {"model": f"anthropic/{SONNET}"},
+                "model_info": {"input_cost_per_token": 3e-6, "output_cost_per_token": 15e-6},
+            },
+            {"model_name": "gpt", "litellm_params": {"model": "openai/x"}, "model_info": {}},
+            {
+                "model_name": "llama-local",
+                "litellm_params": {"model": "ollama_chat/llama3.1"},
+                "model_info": {"input_cost_per_token": 0, "output_cost_per_token": 0},
+            },
+        ]
+    }
+
+
+def spend_row(at: datetime, cost: float, key: str = "advisor-standards") -> dict[str, Any]:
+    return {
+        "startTime": at.isoformat(),
+        "model_group": SONNET,
+        "prompt_tokens": 1000,
+        "completion_tokens": 100,
+        "spend": cost,
+        "request_tags": [f"agent:{key}", "User-Agent: Anthropic/Python"],
+        "metadata": {"user_api_key_alias": key},
+    }
 
 
 @dataclass
@@ -67,6 +102,14 @@ class FakeSystem(System):
         }
     )
     commands: list[tuple[str, ...]] = field(default_factory=list)
+    # The gateway's spend logs, as pages; None for a gateway that does not answer.
+    spend_pages: list[list[dict[str, Any]]] | None = field(
+        default_factory=lambda: [
+            [spend_row(datetime.now(UTC) - timedelta(hours=1), 0.75)],
+            [spend_row(datetime.now(UTC) - timedelta(hours=2), 0.25, key="orchestrator")],
+        ]
+    )
+    sent_headers: list[dict[str, str]] = field(default_factory=list)
 
     def run(self, *cmd: str, timeout_s: float = 60.0) -> Done:
         self.commands.append(cmd)
@@ -87,8 +130,24 @@ class FakeSystem(System):
             return Done(0, f"2026-11-12T10:00:00+0000 vm {cmd[2]}[1]: started\n")
         return Done(127, "", "not here")
 
-    def get_json(self, url: str) -> object | None:
-        return self.about if url.endswith("/api/about") else None
+    def get_json(self, url: str, headers: Any = None) -> object | None:
+        if url.endswith("/api/about"):
+            return self.about
+        if not url.startswith(GATEWAY):
+            return None
+        self.sent_headers.append(dict(headers or {}))
+        if self.spend_pages is None:
+            return None
+        if url.endswith("/model/info"):
+            return model_info()
+        if "/spend/logs/v2?" in url:
+            page = int(httpx.URL(url).params["page"])
+            return {
+                "data": self.spend_pages[page - 1],
+                "total_pages": len(self.spend_pages),
+                "total_is_capped": False,
+            }
+        return None
 
 
 def client_factory(base_url: str, timeout_s: float) -> httpx.AsyncClient:
@@ -112,7 +171,21 @@ def stores(tmp_path: Path) -> tuple[Path, Path, dict[str, str]]:
     project_id = project_store.create(acted_for=ada, caused_by=new_invocation_id(), title="Looms")
     first = stored_envelope("c1", project_id=project_id, principal_id=ADA)
     first["acting_for"]["name"] = "Ada Lovelace"
-    first["telemetry"] = {"input_tokens": 10, "output_tokens": 4}
+    first["telemetry"] = {
+        "model_id": SONNET,
+        "input_tokens": 2000,
+        "output_tokens": 400,
+        "model_calls": [
+            {
+                "model_provider": "anthropic",
+                "model_id": SONNET,
+                "called_at": first["completed_at"],
+                "prompt_digest": "c" * 64,
+                "input_tokens": 2000,
+                "output_tokens": 400,
+            }
+        ],
+    }
     run_store.append(first)
     failed = stored_envelope(principal_id=BEN, status="failed")
     failed["acting_for"]["name"] = "Ben Franklin"
@@ -176,6 +249,23 @@ def client(
     return TestClient(build_app(admin), base_url="http://localhost:8200")
 
 
+@pytest.fixture
+def gateway_client(
+    stores: tuple[Path, Path, dict[str, str]], system: FakeSystem, tmp_path: Path
+) -> TestClient:
+    """The admin service with the LLM gateway configured and a budget of $1.10."""
+    key = tmp_path / "litellm-key"
+    key.write_text(GATEWAY_KEY + "\n")
+    settings = AdminSettings(
+        runs=stores[0],
+        projects=stores[1],
+        litellm_url=GATEWAY,
+        litellm_key_file=key,
+        monthly_budget=1.10,
+    )
+    return TestClient(build_app(Admin.open(settings, system)), base_url="http://localhost:8200")
+
+
 # --- Reaching it ---------------------------------------------------------------------------------
 
 
@@ -212,7 +302,18 @@ def test_every_page_carries_headers_that_keep_it_private(client: TestClient) -> 
 
 
 @pytest.mark.parametrize(
-    "path", ["/", "/operations", "/agents", "/people", "/runs", "/projects", "/config", "/feedback"]
+    "path",
+    [
+        "/",
+        "/operations",
+        "/agents",
+        "/people",
+        "/runs",
+        "/spend",
+        "/projects",
+        "/config",
+        "/feedback",
+    ],
 )
 def test_every_page_answers_get_and_nothing_that_could_change_state(
     client: TestClient, path: str
@@ -305,6 +406,164 @@ def test_a_store_that_cannot_be_read_is_shown_not_raised() -> None:
     assert found.runs == [] and any("disk on fire" in e for e in found.errors)
 
 
+# --- Spend ---------------------------------------------------------------------------------------
+
+
+def test_without_a_gateway_spend_shows_run_tokens_and_names_the_setting(
+    client: TestClient,
+) -> None:
+    page = client.get("/spend").text
+    assert "DD_ADMIN_LITELLM_URL" in page
+    assert "Ada Lovelace" in page and "Looms" in page and SONNET in page
+    assert "$" not in page.split("<main", 1)[1].split("Amounts are in", 1)[0]
+
+
+def test_with_a_gateway_spend_shows_its_figures_and_the_estimates(
+    gateway_client: TestClient, system: FakeSystem
+) -> None:
+    page = gateway_client.get("/spend").text
+    assert "$1.00" in page  # 0.75 + 0.25, over both pages of the spend logs
+    assert "advisor-standards" in page and "orchestrator" in page
+    assert "$0.01" in page  # Ada's run: 2000 at $3/M plus 400 at $15/M is $0.012
+    assert all(h == {"Authorization": f"Bearer {GATEWAY_KEY}"} for h in system.sent_headers)
+    assert system.sent_headers
+
+
+def test_the_gateway_key_reaches_no_page(gateway_client: TestClient) -> None:
+    for path in ("/", "/spend", "/config", "/people", "/person?id=" + ADA):
+        assert GATEWAY_KEY not in gateway_client.get(path).text, path
+
+
+def test_the_overview_tile_follows_the_budget(gateway_client: TestClient) -> None:
+    # $1.00 of $1.10 is past 80 %, unless the month began within the last two hours.
+    page = gateway_client.get("/").text
+    assert 'class="tile warn" href="/spend"' in page or 'class="tile good" href="/spend"' in page
+
+
+def test_a_gateway_that_does_not_answer_is_named_and_the_page_still_shows(
+    gateway_client: TestClient, system: FakeSystem
+) -> None:
+    system.spend_pages = None
+    response = gateway_client.get("/spend", params={"fresh": "1"})
+    assert response.status_code == 200
+    assert GATEWAY in response.text and "Ada Lovelace" in response.text
+
+
+def test_a_person_project_and_run_show_their_estimated_cost(
+    gateway_client: TestClient, stores: tuple[Path, Path, dict[str, str]]
+) -> None:
+    for path in (
+        f"/person?id={ADA}",
+        f"/projects/{stores[2]['project']}",
+        f"/runs/{stores[2]['first']}",
+    ):
+        page = gateway_client.get(path).text
+        assert "Estimated cost" in page and "$0.01" in page, path
+
+
+def test_spend_logs_are_summed_by_month_day_model_and_key() -> None:
+    now = datetime(2026, 11, 12, 12, tzinfo=UTC)
+    rows = [
+        spend_row(now - timedelta(hours=1), 1.0),
+        spend_row(now - timedelta(days=5), 2.0, key="orchestrator"),  # 7 November
+        spend_row(now - timedelta(days=20), 4.0),  # 23 October: last 30 days, not this month
+        spend_row(now - timedelta(days=45), 8.0),  # neither
+        {"startTime": "not a time", "spend": 16.0},
+    ]
+    found = spend.summarise(rows, now)
+    assert found.month_to_date == 3.0 and found.last_30_days == 7.0
+    assert found.requests_30_days == 3
+    assert len(found.per_day) == usage.DAYS_CHARTED and found.per_day[-1] == ("2026-11-12", 1.0)
+    assert dict(found.by_model)[SONNET].cost == 7.0
+    assert dict(found.by_key)["advisor-standards"].cost == 5.0
+    assert [name for name, _ in found.by_key] == ["advisor-standards", "orchestrator"]
+
+
+def test_a_call_is_named_by_its_agent_tag_when_its_key_has_no_alias() -> None:
+    row = spend_row(datetime(2026, 11, 12, tzinfo=UTC), 1.0)
+    row["metadata"] = {}
+    found = spend.summarise([row], datetime(2026, 11, 12, 12, tzinfo=UTC))
+    assert [name for name, _ in found.by_key] == ["agent:advisor-standards"]
+
+
+def test_prices_are_found_by_name_upstream_name_and_dated_suffix() -> None:
+    prices = spend.Prices.from_model_info(model_info())
+    for name in (SONNET, f"anthropic/{SONNET}", f"{SONNET}-20261001"):
+        assert prices.lookup(name) == spend.Price(3e-6, 15e-6), name
+    assert prices.lookup("gpt") is None  # listed without prices
+    assert prices.lookup("llama3.1") == spend.Price(0.0, 0.0)  # free is a price
+    assert prices.lookup("claude-opus-5-5") is None
+
+
+def test_tokens_on_an_unpriced_model_are_counted_as_unpriced_not_free() -> None:
+    prices = spend.Prices.from_model_info(model_info())
+    line = spend.cost_of([(SONNET, 1_000_000, 0), ("mystery", 10, 5)], prices)
+    assert line.cost == pytest.approx(3.0)
+    assert line.unpriced_tokens == 15 and line.input_tokens == 1_000_010
+
+
+def test_a_runs_tokens_by_model_fall_back_to_its_totals() -> None:
+    calls = [{"model_id": SONNET, "input_tokens": 3, "output_tokens": 1}] * 2
+    assert usage.model_calls({"model_calls": calls}) == [(SONNET, 3, 1), (SONNET, 3, 1)]
+    totals = {"model_id": "m", "input_tokens": 7, "output_tokens": 2, "model_calls": []}
+    assert usage.model_calls(totals) == [("m", 7, 2)]
+    assert usage.model_calls({"input_tokens": None}) == []
+
+
+def test_estimates_group_by_person_and_project(tmp_path: Path) -> None:
+    store = RunStore(tmp_path / "runs")
+    now = datetime(2026, 11, 12, 12, tzinfo=UTC)
+    for principal, days_ago in ((ADA, 1), (ADA, 2), (BEN, 3), (BEN, 40)):
+        envelope = stored_envelope(principal_id=principal, project_id=None)
+        envelope["completed_at"] = (now - timedelta(days=days_ago)).isoformat()
+        envelope["telemetry"] = {"model_id": SONNET, "input_tokens": 1000, "output_tokens": 0}
+        store.append(envelope)
+    found = spend.estimate(
+        usage.count(store, None, now=now), spend.Prices.from_model_info(model_info())
+    )
+    by_person = {k: line for k, _, line in found.by_person}
+    assert by_person[ADA].cost == pytest.approx(0.006) and by_person[BEN].cost == pytest.approx(
+        0.003
+    )
+    assert found.by_person[0][0] == ADA
+    assert found.priced and found.total.input_tokens == 3000
+
+
+@pytest.mark.parametrize(
+    ("limit", "spent", "state"),
+    [
+        (None, 5.0, "none"),
+        (10.0, None, "none"),
+        (10.0, 5.0, "good"),
+        (10.0, 8.0, "warn"),
+        (10.0, 10.0, "over"),
+    ],
+)
+def test_budget_states(limit: float | None, spent: float | None, state: str) -> None:
+    assert spend.Budget(limit, spent).state == state
+
+
+def test_a_budget_that_is_not_a_positive_number_is_refused() -> None:
+    for value in ("-5", "0", "lots", "inf", "nan"):
+        with pytest.raises(SettingsError):
+            AdminSettings.from_env({"DD_ADMIN_MONTHLY_BUDGET": value})
+    assert AdminSettings.from_env({"DD_ADMIN_MONTHLY_BUDGET": "250"}).monthly_budget == 250.0
+
+
+def test_the_gateway_key_defaults_to_the_units_credential(tmp_path: Path) -> None:
+    env = {"DD_ADMIN_LITELLM_URL": GATEWAY + "/", "CREDENTIALS_DIRECTORY": str(tmp_path)}
+    assert AdminSettings.from_env(env).litellm_key_file is None
+    (tmp_path / "litellm-key").write_text(GATEWAY_KEY)
+    found = AdminSettings.from_env(env)
+    assert found.litellm_key_file == tmp_path / "litellm-key" and found.litellm_url == GATEWAY
+
+
+def test_a_gateway_without_a_key_is_named_not_called() -> None:
+    system = FakeSystem()
+    found = spend.read_gateway(AdminSettings(litellm_url=GATEWAY), system)
+    assert found.configured and found.error and not system.sent_headers
+
+
 # --- Operations ----------------------------------------------------------------------------------
 
 
@@ -390,7 +649,16 @@ def test_redact_leaves_comments_and_other_settings() -> None:
 def test_with_nothing_configured_every_page_still_answers() -> None:
     system = FakeSystem(about=None)
     client = TestClient(build_app(Admin.open(AdminSettings(), system)), base_url="http://localhost")
-    for path in ("/", "/operations", "/agents", "/people", "/runs", "/projects", "/config"):
+    for path in (
+        "/",
+        "/operations",
+        "/agents",
+        "/people",
+        "/runs",
+        "/spend",
+        "/projects",
+        "/config",
+    ):
         response = client.get(path)
         assert response.status_code == 200, path
     assert "DD_ADMIN_DOCTOR" in client.get("/operations").text

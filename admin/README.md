@@ -9,6 +9,9 @@ what an operator otherwise reads from several commands:
   class and models, and the card itself.
 - **People, runs and projects:** everyone a run acted for or who created a project, and every run
   and project in the stores, across all people.
+- **Spend:** what the LLM gateway (`deploy/llm-gateway/`) says the month's and the last 30
+  days' model calls cost, against an optional budget, and the tokens each run recorded, priced at
+  the gateway's prices, by model, agent, person and project.
 - **Configuration:** the settings files under `/etc/data-director`, with any value whose name says
   it is a secret hidden, and the command that changes each.
 - **Feedback:** where the app's feedback goes (GitHub issues).

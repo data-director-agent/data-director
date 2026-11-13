@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status, person, run_table %}
+{% from "_macros.html" import status, person, run_table, bar_chart %}
 {% block title %}Overview{% endblock %}
 {% block heading %}Overview{% endblock %}
 {% block content %}
@@ -48,27 +48,14 @@
     <span class="tile-value">{{ usage.projects_since(30) | number }}</span>
     <span class="tile-sub">{{ usage.projects | length | number }} in all</span>
   </a>
+  {% include "_spend_tile.html" %}
 </section>
 
 {% for error in usage.errors %}<div class="banner bad" role="alert">{{ error }}</div>{% endfor %}
 
 <section class="panel">
   <h2>Runs per day, last 30 days</h2>
-  <figure class="chart">
-    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="Runs per day for the last 30 days; the table below has the figures">
-      {% for day, n in usage.per_day %}
-        {% set h = (n / peak * 76) if n else 0 %}
-        <rect class="bar{% if not n %} zero{% endif %}" x="{{ loop.index0 * 10 + 1 }}" y="{{ 78 - h }}" width="8" height="{{ h if n else 1 }}" rx="1"><title>{{ day }}: {{ n }} run{{ 's' if n != 1 }}</title></rect>
-      {% endfor %}
-      <line class="baseline" x1="0" y1="79.5" x2="300" y2="79.5"/>
-    </svg>
-  </figure>
-  <p class="axis"><span>{{ usage.per_day[0][0] }}</span><span>{{ usage.per_day[-1][0] }}</span></p>
-  <details class="as-table"><summary>As a table</summary>
-    <table><thead><tr><th scope="col">Day</th><th scope="col">Runs</th></tr></thead><tbody>
-    {% for day, n in usage.per_day %}<tr><td>{{ day }}</td><td class="num">{{ n }}</td></tr>{% endfor %}
-    </tbody></table>
-  </details>
+  {{ bar_chart(usage.per_day, peak, "runs") }}
 </section>
 
 <div class="two">
@@ -84,9 +71,6 @@
       </tbody>
     </table>
     {% else %}<p class="empty">No runs yet.</p>{% endif %}
-    {% if usage.input_tokens or usage.output_tokens %}
-      <p class="muted">Model tokens recorded on runs: {{ usage.input_tokens | number }} in, {{ usage.output_tokens | number }} out.</p>
-    {% endif %}
   </section>
   <section class="panel">
     <h2>Recently active</h2>

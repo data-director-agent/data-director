@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% from "_macros.html" import person, bar_chart, line_cells %}
+{% block title %}Spend{% endblock %}
+{% block heading %}Spend{% endblock %}
+{% block content %}
+{% set priced = estimate.priced %}
+<section class="tiles" aria-label="At a glance">
+  {% include "_spend_tile.html" %}
+  <div class="tile">
+    <span class="tile-label">Spend, last 30 days</span>
+    {% if gateway.answered %}
+      <span class="tile-value">{{ gateway.last_30_days | money }}</span>
+      <span class="tile-sub">{{ gateway.requests_30_days | number }} model call{{ "s" if gateway.requests_30_days != 1 }} through the gateway</span>
+    {% else %}
+      <span class="tile-value small">Not known</span>
+      <span class="tile-sub">needs the gateway</span>
+    {% endif %}
+  </div>
+  <div class="tile">
+    <span class="tile-label">Tokens on runs, 30 days</span>
+    <span class="tile-value">{{ (tokens_30[0] + tokens_30[1]) | number }}</span>
+    <span class="tile-sub">{{ tokens_30[0] | number }} in · {{ tokens_30[1] | number }} out</span>
+  </div>
+  <div class="tile{% if priced and estimate.total.unpriced_tokens %} warn{% endif %}">
+    <span class="tile-label">Estimated from runs, 30 days</span>
+    {% if priced %}
+      <span class="tile-value">{{ estimate.total.cost | money }}</span>
+      <span class="tile-sub">{% if estimate.total.unpriced_tokens %}{{ estimate.total.unpriced_tokens | number }} tokens unpriced{% else %}every model priced{% endif %}</span>
+    {% else %}
+      <span class="tile-value small">No prices</span>
+      <span class="tile-sub">needs the gateway</span>
+    {% endif %}
+  </div>
+</section>
+
+{% for error in usage.errors %}<div class="banner bad" role="alert">{{ error }}</div>{% endfor %}
+{% if not gateway.configured %}
+  <div class="banner">Spend from the LLM gateway: not shown here, as <code>DD_ADMIN_LITELLM_URL</code> is not set, so only the tokens runs recorded are shown, without prices. To show spend, run the agents through the gateway and give this service a read-only gateway key (<code>deploy/llm-gateway/README.md</code>, "The admin service's Spend page").</div>
+{% elif gateway.error %}
+  <div class="banner bad" role="alert">The LLM gateway's spend is not shown: {{ gateway.error }}.</div>
+{% endif %}
+{% if gateway.capped %}
+  <div class="banner warn" role="alert">The gateway returned only part of its spend logs for this window (it caps a query at 10,000 calls), so its figures here are too low. <code>deploy/llm-gateway/scripts/admin.py export</code> reads them by narrower windows.</div>
+{% endif %}
+{% if budget.state == "over" %}
+  <div class="banner bad" role="alert">This month's spend, {{ gateway.month_to_date | money }}, has reached the budget of {{ budget.limit | money }} (<code>DD_ADMIN_MONTHLY_BUDGET</code>). The budget is not enforced here: the gateway's key, user and team budgets stop calls.</div>
+{% elif budget.state == "warn" %}
+  <div class="banner warn" role="alert">This month's spend is {{ budget.share | percent }} of the budget of {{ budget.limit | money }}.</div>
+{% endif %}
+
+{% if gateway.answered %}
+<section class="panel">
+  <h2>Spend per day, last 30 days</h2>
+  {{ bar_chart(gateway.per_day, peak, "spend", money=True) }}
+</section>
+
+<div class="two">
+  <section class="panel">
+    <h2>By model, last 30 days</h2>
+    <p class="muted">As the gateway priced each call.</p>
+    {% if gateway.by_model %}
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Model</th><th scope="col" class="num">Calls</th><th scope="col" class="num">Tokens in</th><th scope="col" class="num">Tokens out</th><th scope="col" class="num">Spend</th></tr></thead>
+      <tbody>
+      {% for name, line in gateway.by_model %}
+        <tr><td class="mono">{{ name }}</td><td class="num">{{ line.requests | number }}</td>{{ line_cells(line, True) }}</tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="empty">No calls through the gateway.</p>{% endif %}
+  </section>
+  <section class="panel">
+    <h2>By gateway key, last 30 days</h2>
+    <p class="muted">One key per agent, as <code>deploy/llm-gateway/README.md</code> sets them up.</p>
+    {% if gateway.by_key %}
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Key</th><th scope="col" class="num">Calls</th><th scope="col" class="num">Tokens in</th><th scope="col" class="num">Tokens out</th><th scope="col" class="num">Spend</th></tr></thead>
+      <tbody>
+      {% for name, line in gateway.by_key %}
+        <tr><td class="mono">{{ name }}</td><td class="num">{{ line.requests | number }}</td>{{ line_cells(line, True) }}</tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="empty">No calls through the gateway.</p>{% endif %}
+  </section>
+</div>
+{% endif %}
+
+<section class="panel">
+  <h2>From the runs, last 30 days</h2>
+  <p class="muted">The tokens each run's agent reported{% if priced %}, priced at the gateway's prices: an estimate. It differs from the gateway's figures when an agent calls a model without the gateway, when something other than these agents uses the gateway, and by discounts such as cached input{% endif %}.{% if priced and estimate.total.unpriced_tokens %} <span class="muted">*</span> includes tokens on a model the gateway does not price.{% endif %}</p>
+  <div class="two">
+    <div>
+      <h3>By model</h3>
+      {% if estimate.by_model %}
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Model</th><th scope="col" class="num">Tokens in</th><th scope="col" class="num">Tokens out</th>{% if priced %}<th scope="col" class="num">Estimate</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for name, line in estimate.by_model %}<tr><td class="mono">{{ name }}</td>{{ line_cells(line, priced) }}</tr>{% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}<p class="empty">No run recorded any tokens.</p>{% endif %}
+    </div>
+    <div>
+      <h3>By agent</h3>
+      {% if estimate.by_agent %}
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Agent</th><th scope="col" class="num">Tokens in</th><th scope="col" class="num">Tokens out</th>{% if priced %}<th scope="col" class="num">Estimate</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for name, line in estimate.by_agent %}<tr><td><a href="/runs?agent={{ name | urlencode }}">{{ name }}</a></td>{{ line_cells(line, priced) }}</tr>{% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}<p class="empty">No run recorded any tokens.</p>{% endif %}
+    </div>
+  </div>
+  <div class="two">
+    <div>
+      <h3>By person</h3>
+      {% if estimate.by_person %}
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Person</th><th scope="col" class="num">Tokens in</th><th scope="col" class="num">Tokens out</th>{% if priced %}<th scope="col" class="num">Estimate</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for principal_id, name, line in estimate.by_person[:20] %}<tr><td>{{ person(name, principal_id) }}</td>{{ line_cells(line, priced) }}</tr>{% endfor %}
+        </tbody>
+      </table></div>
+      {% if estimate.by_person | length > 20 %}<p class="muted">The 20 who used most; <a href="/people">everyone</a>.</p>{% endif %}
+      {% else %}<p class="empty">Nobody's runs recorded any tokens.</p>{% endif %}
+    </div>
+    <div>
+      <h3>By project</h3>
+      {% if estimate.by_project %}
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Project</th><th scope="col" class="num">Tokens in</th><th scope="col" class="num">Tokens out</th>{% if priced %}<th scope="col" class="num">Estimate</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for project_id, title, line in estimate.by_project[:20] %}<tr><td><a href="/projects/{{ project_id }}">{{ title }}</a></td>{{ line_cells(line, priced) }}</tr>{% endfor %}
+        </tbody>
+      </table></div>
+      {% if estimate.by_project | length > 20 %}<p class="muted">The 20 that used most; <a href="/projects">every project</a>.</p>{% endif %}
+      {% else %}<p class="empty">No project's runs recorded any tokens.</p>{% endif %}
+    </div>
+  </div>
+</section>
+<p class="muted">Amounts are in the gateway's currency, US dollars, at the prices it holds (<code>deploy/llm-gateway/config.yaml</code>). What a provider bills can differ; reconcile with its own usage reports (<code>deploy/llm-gateway/background.md</code>).</p>
+{% endblock %}

@@ -111,6 +111,47 @@ A call paid for by a person's own account goes from the broker straight to their
 never passes through the gateway, which would otherwise see their key. The gateway's spend reports
 therefore show only what the deployment pays for.
 
+## The admin service's Spend page
+
+The deployment's admin service ([docs/guide/operations/admin.md](../../docs/guide/operations/admin.md))
+shows this gateway's spend for the month and the last 30 days, by day, model and key, beside the
+tokens each run recorded, priced at the gateway's prices, by agent, person and project. It needs a
+read-only key: the `proxy_admin_viewer` role, with a budget of 0, so it can make no model call.
+
+1. Create the key (this writes it to `monitoring/litellm_key`):
+   ```bash
+   scripts/admin.py metrics-key --user-id dd-admin
+   ```
+2. On the VM, install it where only root can read it, then remove the copy:
+   ```bash
+   sudo install -d -m 0700 /etc/data-director/credentials/admin
+   ```
+   ```bash
+   sudo install -m 0600 monitoring/litellm_key /etc/data-director/credentials/admin/litellm-key
+   ```
+   ```bash
+   rm monitoring/litellm_key
+   ```
+3. Have systemd pass it to the admin service, which reads it from its credentials directory:
+   ```bash
+   sudo systemctl edit data-director-admin
+   ```
+   and add
+   ```ini
+   [Service]
+   LoadCredential=litellm-key:/etc/data-director/credentials/admin/litellm-key
+   ```
+4. Name the gateway, and a monthly budget to show spend against if you want one, in
+   `/etc/data-director/admin.env`, then restart the service:
+   ```bash
+   printf 'DD_ADMIN_LITELLM_URL=http://127.0.0.1:4000\nDD_ADMIN_MONTHLY_BUDGET=200\n' | sudo tee -a /etc/data-director/admin.env
+   ```
+   ```bash
+   sudo systemctl restart data-director-admin
+   ```
+
+The page's budget is shown, not enforced; the budgets that stop calls are the gateway's own.
+
 ## Day-to-day admin
 
 `scripts/admin.py` reads `LITELLM_MASTER_KEY` from `.env`, and `LITELLM_URL` (default `http://localhost:4000`) from the environment.

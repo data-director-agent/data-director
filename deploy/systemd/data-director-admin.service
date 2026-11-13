@@ -35,7 +35,10 @@ Environment=DD_ADMIN_ETC=/etc/data-director
 Environment=DD_ADMIN_SYSTEMD=yes
 # The doctor as the live release has it, run with the release's Python (which has PyYAML).
 Environment="DD_ADMIN_DOCTOR=/opt/data-director/current/.venv/bin/python /opt/data-director/current/scripts/dd.py --target vm doctor --json"
-# Settings of its own, if an operator needs any (docs/guide/operations/admin.md).
+# Settings of its own, if an operator needs any (docs/guide/operations/admin.md). For the Spend page,
+# DD_ADMIN_LITELLM_URL there and a drop-in that loads the gateway's read-only key, which only an
+# operator who runs the gateway adds (deploy/llm-gateway/README.md):
+#   LoadCredential=litellm-key:/etc/data-director/credentials/admin/litellm-key
 EnvironmentFile=-/etc/data-director/admin.env
 ExecStart=/opt/data-director/current/.venv/bin/dd-admin serve --host 127.0.0.1 --port 8200
 Restart=on-failure

@@ -34,3 +34,36 @@
 {% macro unset(variable, what) -%}
   <div class="banner">{{ what }}: not shown here, as <code>{{ variable }}</code> is not set. On the VM the service's unit sets it (<code>deploy/systemd/data-director-admin.service</code>).</div>
 {%- endmacro %}
+
+
+{% macro amount(value, money) -%}
+  {{ value | money if money else value | number }}
+{%- endmacro %}
+
+{% macro bar_chart(per_day, peak, what, money=False) -%}
+  <figure class="chart">
+    <svg viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="{{ what | capitalize }} per day for the last {{ per_day | length }} days; the table below has the figures">
+      {% for day, n in per_day %}
+        {% set h = (n / peak * 76) if n else 0 %}
+        <rect class="bar{% if not n %} zero{% endif %}" x="{{ loop.index0 * 10 + 1 }}" y="{{ 78 - h }}" width="8" height="{{ h if n else 1 }}" rx="1"><title>{{ day }}: {{ amount(n, money) }}{% if not money %} {{ what }}{% endif %}</title></rect>
+      {% endfor %}
+      <line class="baseline" x1="0" y1="79.5" x2="300" y2="79.5"/>
+    </svg>
+  </figure>
+  {% if per_day %}<p class="axis"><span>{{ per_day[0][0] }}</span><span>{{ per_day[-1][0] }}</span></p>{% endif %}
+  <details class="as-table"><summary>As a table</summary>
+    <table><thead><tr><th scope="col">Day</th><th scope="col" class="num">{{ what | capitalize }}</th></tr></thead><tbody>
+    {% for day, n in per_day %}<tr><td>{{ day }}</td><td class="num">{{ amount(n, money) }}</td></tr>{% endfor %}
+    </tbody></table>
+  </details>
+{%- endmacro %}
+
+{% macro cost(line, priced) -%}
+  {% if not priced %}<span class="muted">no prices: the gateway is not configured or did not answer</span>
+  {% else %}{{ line.cost | money }}{% if line.unpriced_tokens %} <span class="muted">and {{ line.unpriced_tokens | number }} unpriced tokens</span>{% endif %} <span class="muted">(estimate)</span>{% endif %}
+{%- endmacro %}
+
+{% macro line_cells(line, priced) -%}
+  <td class="num">{{ line.input_tokens | number }}</td><td class="num">{{ line.output_tokens | number }}</td>
+  {% if priced %}<td class="num">{% if line.unpriced_tokens and not line.cost %}<span class="muted">unpriced</span>{% else %}{{ line.cost | money }}{% if line.unpriced_tokens %}<span class="muted">*</span>{% endif %}{% endif %}</td>{% endif %}
+{%- endmacro %}
