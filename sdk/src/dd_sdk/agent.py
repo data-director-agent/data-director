@@ -365,12 +365,18 @@ class RunContext:
     `dd_sdk.serve` binds it to the grant the harness sent with the request
     (docs/specs/orchestration.md). It is None for every other agent, and for a delegation agent run
     where the harness has no callback address (the CLI).
+
+    `model_grant` is the model grant the conductor minted for this invocation, if the agent's card
+    declares `models` and the harness is configured to mint one (docs/specs/model-accounts.md). It
+    is opaque: the agent never parses it, and the SDK's model adapters send it to the broker with
+    each call (`dd_sdk.model.bind_grant`).
     """
 
     tracer: Tracer
     input_ref: str
     input_hash: str
     delegate: Delegate | None = None
+    model_grant: str | None = None
 
 
 @runtime_checkable

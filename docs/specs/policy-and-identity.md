@@ -93,8 +93,10 @@ them.
     (`agents/advisor-standards/tests/test_key_not_stored.py`,
     `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`,
     which run against a cassette with a sentinel key). The broker keeps a person's key out of
-    its answers, logs and records (`broker/tests/test_broker_key_not_leaked.py`); agents do not
-    call it yet ([A person's own model account](model-accounts.md), invariant 1, TODO(#808)).
+    its answers, logs and records (`broker/tests/test_broker_key_not_leaked.py`), and an agent's
+    broker credential and model grant reach no record
+    (`agents/advisor-documentation/tests/test_grant_not_stored.py`,
+    [A person's own model account](model-accounts.md), invariants 1 and 6).
 18. **A model client is always given its key explicitly**, read once when the agent's factory
     builds it (`sdk/src/dd_sdk/credentials.py`). The provider SDK's own credential chain, such as
     a saved command-line login, is never searched, and no key is read during a run. A model grant
@@ -211,7 +213,9 @@ file and restarting that agent's service; nothing else changes. When a profile l
 their own account, an agent's model calls go to the model broker instead, with the agent's own
 broker credential and the run's grant; the deployment's key, if the profile keeps it as the
 fallback, is then the broker's, not the agent's
-([A person's own model account](model-accounts.md), invariant 14, TODO(#808)).
+([A person's own model account](model-accounts.md), invariant 14). An agent calls through the
+broker when `DD_MODEL_BROKER_URL` is set, and then holds no provider key
+(`dd_sdk.credentials.model_endpoint`).
 
 ## Rationale
 

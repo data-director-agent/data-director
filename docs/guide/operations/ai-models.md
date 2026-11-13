@@ -204,6 +204,8 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `ANTHROPIC_API_KEY_FILE: cannot read …` / `… is empty` | The file is missing, unreadable or empty. |
 | `no model key` on the VM, after a key was put in place by hand | `data-director apply` (or `install.sh`) left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo data-director secret list` shows it as a `PROBLEM`. |
 | `DD_ORCHESTRATOR_EFFORT=…`, `DD_TITLE_MODEL=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
+| `set DD_MODEL_BROKER_URL or ANTHROPIC_API_KEY, not both` | The agent calls through the [model broker](model-broker.md), which holds the key, so it may hold none itself. |
+| `no model broker credential` | `DD_MODEL_BROKER_URL` is set without `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE`. |
 
 If the credential file is missing, systemd refuses to start the unit at all, since the unit
 declares `LoadCredential=`. That is why the orchestrator's unit is enabled only once its key is

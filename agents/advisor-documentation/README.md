@@ -141,7 +141,9 @@ drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7)
 |---|---|
 | `DD_DOCUMENTATION_WRITER` | `template` (default): no prose, no suggestions and no key; `anthropic`: Claude writes the prose and suggests definitions and units. |
 | `DD_MODEL_ID` | The model the Anthropic writer calls. |
-| `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The Anthropic writer's key. |
+| `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The Anthropic writer's key, unless it calls through the model broker. |
+| `DD_MODEL_BROKER_URL` | The [model broker](../../docs/guide/operations/model-broker.md), if the writer calls through it in place of the provider. |
+| `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE` | The agent's own broker credential, with `DD_MODEL_BROKER_URL`. |
 
 The Anthropic writer needs the package's `anthropic` extra. With it, the agent's card declares a
 `hosted` model, so in a project it runs only where the profile's `hosted_models` lists

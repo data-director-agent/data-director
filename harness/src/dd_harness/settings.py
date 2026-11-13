@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import importlib
 import os
-from collections.abc import Callable, Iterable, MutableMapping
+from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -36,6 +36,7 @@ from dd_harness.identity import (
     OidcProvider,
     OperatorAssertion,
 )
+from dd_harness.model_grants import GrantKeyError, GrantMinter
 from dd_harness.policy import load_profile
 from dd_harness.projects import Projects, ProjectStore
 from dd_harness.registry import Registered, Registry
@@ -43,6 +44,15 @@ from dd_harness.sources import Sources
 from dd_harness.storage import ProjectStorage, RunStorage
 from dd_harness.store import RunStore
 from dd_sdk.contract.models import Principal, PrincipalKind
+from dd_sdk.credentials import ConfigError, api_key
+
+# The three settings a harness that mints model grants needs (docs/specs/model-accounts.md, The
+# grant), each as `NAME` (development) or `NAME_FILE` (deployment, a systemd credential).
+MODEL_GRANT_SETTINGS = (
+    "DD_MODEL_GRANT_SIGNING_KEY",
+    "DD_MODEL_BROKER_SUBJECT_KEY",
+    "DD_PSEUDONYM_SECRET",
+)
 
 
 class SettingsError(ValueError):
@@ -61,6 +71,29 @@ def load_env_file(path: Path, environ: MutableMapping[str, str] = os.environ) ->
         if value is not None:
             environ.setdefault(key, value)
     return True
+
+
+def grant_minter(env: Mapping[str, str]) -> GrantMinter | None:
+    """The minter for model grants, or None if the deployment mints none
+    (docs/specs/model-accounts.md).
+
+    `DD_MODEL_GRANT_SIGNING_KEY` is the harness's private signing key, `DD_MODEL_BROKER_SUBJECT_KEY`
+    the broker's public P-256 key and `DD_PSEUDONYM_SECRET` the secret the pseudonym is keyed with.
+    All three, or none: some but not all, or one that is unusable, is a `SettingsError` in one line
+    that names the setting, never its value.
+    """
+    given = [name for name in MODEL_GRANT_SETTINGS if env.get(name) or env.get(f"{name}_FILE")]
+    if not given:
+        return None
+    if missing := [name for name in MODEL_GRANT_SETTINGS if name not in given]:
+        raise SettingsError(
+            f"model grants need {', '.join(MODEL_GRANT_SETTINGS)}; {', '.join(missing)} unset"
+        )
+    try:
+        signing, subject, secret = (api_key(env, name) for name in MODEL_GRANT_SETTINGS)
+        return GrantMinter.from_material(signing, subject, secret)
+    except (ConfigError, GrantKeyError) as exc:
+        raise SettingsError(str(exc)) from None
 
 
 def _path(variable: str, default: Path | None) -> Path:
@@ -294,6 +327,9 @@ class Settings:
     # caller.
     oidc_issuer: str | None = None
     oidc_client_id: str | None = None
+    # Mints a model grant for each invocation of a model-backed agent
+    # (docs/specs/model-accounts.md). None mints none, and agents' calls are paid as before.
+    model_grants: GrantMinter | None = None
 
     def principal(self) -> Principal:
         """The configured principal. Raises `IdentityError` if it is unset or malformed."""
@@ -322,6 +358,7 @@ class Settings:
             principal_kind=os.environ.get("DD_PRINCIPAL_KIND") or PrincipalKind.PERSON.value,
             oidc_issuer=os.environ.get("DD_OIDC_ISSUER") or None,
             oidc_client_id=os.environ.get("DD_OIDC_CLIENT_ID") or None,
+            model_grants=grant_minter(os.environ),
         )
 
 
@@ -341,6 +378,7 @@ def build_conductor(settings: Settings, *, agents: Iterable[Registered] = ()) ->
         profile=load_profile(settings.profile),  # a bad profile stops start-up, not a request
         write_crate=settings.write_crate,
         sources=Sources.from_config(settings.sources_config),
+        model_grants=settings.model_grants,
     )
 
 

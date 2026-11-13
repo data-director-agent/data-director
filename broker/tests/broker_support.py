@@ -1,5 +1,6 @@
-"""Doubles for the broker's tests: a stand-in for the harness that signs model grants (the harness
-does not yet, TODO(#808)), agent credentials, and a broker built from them."""
+"""Doubles for the broker's tests: a stand-in for the harness that signs model grants as
+`dd_harness.model_grants` does (the broker does not depend on the harness), agent credentials, and
+a broker built from them."""
 
 from __future__ import annotations
 

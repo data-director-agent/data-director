@@ -54,7 +54,7 @@ META_TRACEPARENT = "traceparent"
 META_DELEGATE_URL = "dd.delegate_url"
 META_DELEGATION_TOKEN = "dd.delegation_token"
 # META_MODEL_GRANT (imported above, docs/specs/model-accounts.md): the model grant for one
-# invocation of a model-backed agent, minted by the conductor (TODO(#808)).
+# invocation of a model-backed agent, minted by the conductor.
 
 ARTIFACT_NAME = "agent-result"
 # The harness's answer to a delegated request: one text part holding the envelope as the JSON

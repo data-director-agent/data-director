@@ -29,6 +29,8 @@ from anthropic.types.beta import (
 )
 
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
+from dd_sdk.credentials import ModelEndpoint
+from dd_sdk.model_anthropic import anthropic_client
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_EFFORT = "high"
@@ -71,7 +73,8 @@ class Model(Protocol):
 
 
 class AnthropicModel:
-    """Claude through the Messages API. Give a `client` (tests) or an `api_key`."""
+    """Claude through the Messages API. Give a `client` (tests) or an `endpoint`
+    (`dd_sdk.credentials.model_endpoint`): the provider, or the model broker."""
 
     def __init__(
         self,
@@ -79,12 +82,12 @@ class AnthropicModel:
         *,
         model_id: str = DEFAULT_MODEL,
         effort: str = DEFAULT_EFFORT,
-        api_key: str | None = None,
+        endpoint: ModelEndpoint | None = None,
     ) -> None:
         if client is None:
-            if not api_key:
-                raise ValueError("AnthropicModel needs a client or an api_key")
-            client = anthropic.Anthropic(api_key=api_key)
+            if endpoint is None:
+                raise ValueError("AnthropicModel needs a client or an endpoint")
+            client = anthropic_client(endpoint)
         self._client = client
         self.model_id = model_id
         self.effort = effort

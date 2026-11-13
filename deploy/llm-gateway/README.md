@@ -101,7 +101,7 @@ on 127.0.0.1:4000, which is clear of the app (7860), the workbench (8000) and th
 
 When a profile lets people use their own AI accounts, agents call the
 [model broker](../../docs/guide/operations/model-broker.md) and no longer hold a provider key or a
-gateway key (TODO(#808)). The broker then pays for the deployment's calls as well. Give the gateway
+gateway key. The broker then pays for the deployment's calls as well. Give the gateway
 key to the broker instead of to each agent, and point it at the gateway with
 `DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000`. Make that one key with a tag such as
 `--tags service:model-broker`. The gateway's budgets and spend reports keep covering the

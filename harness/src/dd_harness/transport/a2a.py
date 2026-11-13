@@ -137,6 +137,8 @@ class ConductorExecutor(AgentExecutor):
                 )
             )
             return
+        # Only the delegation token and the trace parent are read. A model grant a caller puts here
+        # is ignored: the conductor mints every grant itself (docs/specs/model-accounts.md).
         metadata = MessageToDict(message.metadata) if message.HasField("metadata") else {}
         token = metadata.get(META_DELEGATION_TOKEN)
         try:

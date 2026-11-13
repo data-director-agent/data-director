@@ -9,11 +9,18 @@ turns a `ModelRequest` into the provider's request and its response into a `Mode
 
 `dd_sdk.model_anthropic.AnthropicModel` is the adapter for Claude, and `dd_sdk.testing.FakeModel`
 the one for tests. This module imports no provider's SDK.
+
+While an agent runs, `dd_sdk.serve` binds the model grant the conductor sent to the run
+(`bind_grant`), and every client the SDK builds sends it to the model broker with each call
+(`current_grant`, docs/specs/model-accounts.md). An agent's own code never handles the grant, so a
+client that is not given the run context still sends the right one.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Protocol, overload
 
@@ -26,6 +33,24 @@ from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
 
 # The most a reply may run to, in tokens, unless the agent says otherwise.
 DEFAULT_MAX_TOKENS = 4096
+
+# The model grant of the run in progress in this context, if the conductor sent one.
+_GRANT: ContextVar[str | None] = ContextVar("dd_model_grant", default=None)
+
+
+@contextmanager
+def bind_grant(grant: str | None) -> Iterator[None]:
+    """Make `grant` the current run's model grant until the block ends."""
+    token = _GRANT.set(grant)
+    try:
+        yield
+    finally:
+        _GRANT.reset(token)
+
+
+def current_grant() -> str | None:
+    """The model grant of the run in progress, or None outside a run or when none was sent."""
+    return _GRANT.get()
 
 
 @dataclass(frozen=True)
