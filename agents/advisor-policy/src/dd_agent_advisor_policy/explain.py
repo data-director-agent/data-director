@@ -22,6 +22,7 @@ from dd_agent_advisor_policy.records import PolicyRecord
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation, now
 from dd_sdk.credentials import ModelEndpoint
+from dd_sdk.model_account import record_account
 from dd_sdk.model_anthropic import anthropic_client
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import chat_span, record_tokens
@@ -183,6 +184,8 @@ class AnthropicExplainer:
             )
             usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
             record_tokens(span, usage.input_tokens, usage.output_tokens)
+            # Whose account paid, as the model broker said (docs/specs/model-accounts.md).
+            record_account(span)
         calls.record(
             prompt,
             # The model the response names, which may be more exact than the one asked for.

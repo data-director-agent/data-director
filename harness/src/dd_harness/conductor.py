@@ -106,6 +106,7 @@ from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.evidence import input_hash as compute_input_hash
+from dd_sdk.model_account import accounted
 from dd_sdk.model_grant import Account
 from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import (
@@ -597,11 +598,12 @@ class Conductor:
                 sent = request.model_copy(update={"project_id": None})
                 watch.started(steps.AGENT)
                 try:
-                    # An in-process agent records its spans in this trace already.
+                    # An in-process agent records its spans in this trace already. Like a served
+                    # one, it ends abstained if a person's own model account is refused.
                     received = (
                         agent.call(sent, ctx, sent_grant, model_grant=model_grant)
                         if isinstance(agent, RemoteAgent)
-                        else Received(agent.run(typed_request(spec, sent), ctx))
+                        else Received(accounted(lambda: agent.run(typed_request(spec, sent), ctx)))
                     )
                 except Exception as exc:  # noqa: BLE001 — converted to a failed outcome by design
                     result = AgentResult(

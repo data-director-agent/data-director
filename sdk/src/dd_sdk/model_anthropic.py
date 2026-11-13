@@ -11,13 +11,15 @@ own credential chain is never used (docs/specs/policy-and-identity.md).
 `AnthropicModel` or its own code. Given the model broker's endpoint (`dd_sdk.credentials.
 model_endpoint`), the client sends the agent's broker credential where it would send a key, and
 the current run's model grant (`dd_sdk.model.current_grant`) as `X-DD-Model-Grant` with each call
-(docs/specs/model-accounts.md).
+(docs/specs/model-accounts.md). It reads whose account paid from each answer
+(`dd_sdk.model_account.report`), so the call's record says so.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from dd_sdk import model_account
 from dd_sdk.credentials import ModelEndpoint
 from dd_sdk.model import ModelRequest, ModelResponse, Usage, current_grant
 from dd_sdk.model_grant import HEADER_GRANT
@@ -31,7 +33,8 @@ PROVIDER = "anthropic"
 
 def anthropic_client(endpoint: ModelEndpoint, *, http_client: Any = None) -> anthropic.Anthropic:
     """A Messages API client for `endpoint`. Through the broker, every request carries the current
-    run's model grant. `http_client` replaces the client's own HTTP client, for tests."""
+    run's model grant, and every answer says whose account paid. `http_client` replaces the
+    client's own HTTP client, for tests."""
     import anthropic as _anthropic
 
     options: dict[str, Any] = {"api_key": endpoint.api_key, "base_url": endpoint.base_url}
@@ -39,6 +42,15 @@ def anthropic_client(endpoint: ModelEndpoint, *, http_client: Any = None) -> ant
         options["http_client"] = http_client
     if not endpoint.brokered:
         return _anthropic.Anthropic(**options)
+
+    # The hook runs in the thread and context that made the call, so the call's record reads it.
+    def payer(response: Any) -> None:
+        model_account.report(response.headers)
+
+    if http_client is None:
+        http_client = _anthropic.DefaultHttpxClient()
+    http_client.event_hooks["response"] = [*http_client.event_hooks["response"], payer]
+    options["http_client"] = http_client
 
     class Brokered(_anthropic.Anthropic):
         # The client reads its default headers afresh for every request, so the grant is the one

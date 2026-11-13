@@ -186,7 +186,9 @@ def _write_crate(
 
 def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:
     """One `CreateAction` per model call, with the model as instrument and the prompt, named by
-    digest and not included, as object (docs/specs/disclosure.md)."""
+    digest and not included, as object (docs/specs/disclosure.md). Whose account paid, `own` or
+    `deployment` and never whose, is the action's `model_account` property
+    (docs/specs/model-accounts.md)."""
     models: dict[tuple[str, str], SoftwareApplication] = {}
     for n, call in enumerate(envelope["telemetry"].get("model_calls", []), start=1):
         key = (call["model_provider"], call["model_id"])
@@ -223,6 +225,23 @@ def _add_model_calls(crate: ROCrate, envelope: dict[str, Any]) -> None:
             "startTime": call["called_at"],
             "actionStatus": {"@id": "http://schema.org/CompletedActionStatus"},
         }
+        account = call.get("model_account")
+        if account:
+            properties["additionalProperty"] = crate.add(
+                ContextEntity(
+                    crate,
+                    f"#model-account-{account}",
+                    properties={
+                        "@type": "PropertyValue",
+                        "name": "model_account",
+                        "value": account,
+                        "description": (
+                            "Whose account paid for the call: a person's own or the deployment's. "
+                            "Never whose."
+                        ),
+                    },
+                )
+            )
         crate.add_action(
             models[key],
             identifier=f"#{envelope['invocation_id']}-model-call-{n}",

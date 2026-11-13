@@ -29,6 +29,8 @@ from enum import StrEnum
 from typing import Any
 from urllib.parse import urlsplit
 
+from dd_sdk.contract.models import ModelAccount
+
 # Where the conductor puts the grant in the A2A request's metadata, beside `dd.input_ref` and
 # `traceparent` (dd_sdk.wire re-exports it). It is never written to the envelope, a span or a
 # store (invariant 6).
@@ -98,11 +100,9 @@ class Account(StrEnum):
     DEPLOYMENT = "deployment"
 
 
-class Payer(StrEnum):
-    """Whose account paid for one call, as the broker reports it and a run records it."""
-
-    OWN = "own"
-    DEPLOYMENT = "deployment"
+# Whose account paid for one call, as the broker reports it and a run records it
+# (`ModelCall.model_account`). One enumeration, so the header and the record cannot disagree.
+Payer = ModelAccount
 
 
 def origin(url: str) -> str:

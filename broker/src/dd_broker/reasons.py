@@ -3,8 +3,9 @@
 
 The broker answers every refusal with one of these codes in the `X-DD-Reason` header and in the
 error body, and never with a provider's own error text, which might echo a key. The three
-`model-account-*` codes are the run outcomes of invariant 10; recording them in the contract is
-TODO(#809).
+`model-account-*` codes are the run outcomes of invariant 10: the agent's SDK turns each into
+the `ReasonCode` of the same name in snake case, and the run ends `abstained`
+(`dd_sdk.model_account`).
 """
 
 from __future__ import annotations

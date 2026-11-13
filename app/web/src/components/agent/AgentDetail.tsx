@@ -25,12 +25,15 @@ export function AgentDetail({
   agent,
   orchestrator,
   behindSection,
+  ownAccounts = false,
 }: {
   agent: AgentView;
   /** The deployment's orchestrator, if it has one. */
   orchestrator?: AgentView | undefined;
   /** What the directory calls the section of agents behind the scenes, if it shows one. */
   behindSection?: string | undefined;
+  /** Whether this deployment lets the signed-in person use their own AI account. */
+  ownAccounts?: boolean;
 }) {
   const headingId = `agent-${agent.id}-heading`;
   return (
@@ -56,7 +59,7 @@ export function AgentDetail({
           )}
         </p>
       )}
-      <CapabilitiesPanel agent={agent} />
+      <CapabilitiesPanel agent={agent} ownAccounts={ownAccounts} />
       <details className="agent-technical">
         <summary>Technical details: what its agent card declares</summary>
         <AgentSpecView spec={agent} withIdentity />

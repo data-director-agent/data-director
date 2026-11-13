@@ -678,3 +678,13 @@ def test_a_cached_value_is_made_again_once_it_is_old() -> None:
     clock[0] = 61
     assert cached.get() == 2
     assert cached.get(fresh=True) == 3
+
+
+def test_a_call_a_persons_own_account_paid_for_is_not_the_deployments_spend() -> None:
+    """docs/specs/model-accounts.md, invariant 9: a run records whose account paid."""
+    own = {"model_id": SONNET, "input_tokens": 3, "output_tokens": 1, "model_account": "own"}
+    ours = {**own, "model_account": "deployment"}
+    assert usage.model_calls({"model_calls": [own, ours]}) == [(SONNET, 3, 1)]
+    # A run paid for wholly by the person's own account does not fall back to its totals.
+    telemetry = {"model_id": SONNET, "input_tokens": 3, "output_tokens": 1, "model_calls": [own]}
+    assert usage.model_calls(telemetry) == []

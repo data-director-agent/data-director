@@ -54,7 +54,8 @@ whom an invocation acts for, and how that is established, is in
    `dd_sdk/tracing.py`. Agents use its span helpers and never spell a name or key themselves.
    Changing either changes this spec. The span names are `invoke_agent`, `policy_gate`,
    `retrieval`, `chat`, `execute_tool` and `delegate`; the owned attributes are those in
-   `OWNED_ATTRIBUTES`.
+   `OWNED_ATTRIBUTES`. Among them, `dd.model_account` on a `chat` span says whose account paid for
+   the call, `own` or `deployment`, never whose ([A person's own model account](model-accounts.md)).
 10. The linter and the provenance writer read only owned attributes, from a plain span record,
     never OpenTelemetry SDK objects. Any other attribute on a span (such as `dd.tool_name`) is
     informational and nothing in Data Director depends on it.

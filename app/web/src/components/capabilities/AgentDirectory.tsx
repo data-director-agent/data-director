@@ -45,9 +45,12 @@ function AgentOption({ agent, orchestrator }: { agent: AgentView; orchestrator?:
 export function AgentDirectory({
   directory,
   initial,
+  ownAccounts = false,
 }: {
   directory: Directory;
   initial?: string | undefined;
+  /** Whether this deployment lets the signed-in person use their own AI account. */
+  ownAccounts?: boolean;
 }) {
   const orchestrator = directory.agents.find((a) => a.id === directory.orchestratorId);
   const behind = directory.agents.filter((a) => a !== orchestrator);
@@ -114,6 +117,7 @@ export function AgentDirectory({
               agent={agent}
               orchestrator={orchestrator}
               behindSection={behind.length > 0 ? BEHIND_SECTION : undefined}
+              ownAccounts={ownAccounts}
             />
           )}
         </div>

@@ -15,6 +15,8 @@ export type {
   Envelope,
   EvidenceItem,
   GroundingRef,
+  ModelAccount,
+  ModelCall,
   Outcome,
   OutcomeStatus,
   Problem,

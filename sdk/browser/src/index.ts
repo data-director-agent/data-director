@@ -50,9 +50,12 @@ export type {
   Envelope,
   EvidenceItem,
   GroundingRef,
+  ModelAccount,
+  ModelCall,
   Outcome,
   OutcomeStatus,
   Problem,
+  Telemetry,
 } from "./payload/types";
 export { evidenceAnchor, evidenceKey } from "./payload/evidence";
 export { type Context, isEmpty, makeContext, recorders } from "./payload/context";

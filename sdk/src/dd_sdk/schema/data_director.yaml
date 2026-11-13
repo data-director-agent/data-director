@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.9.11
+version: 0.10.0
 license: MIT
 
 prefixes:
@@ -669,6 +669,8 @@ classes:
       (docs/specs/disclosure.md). model_id is the model the provider's response named, which may
       be more exact than the one configured. prompt_digest identifies the messages sent: the
       harness keeps them beside the run, never in the envelope, and checks that they hash to it.
+      model_account says whose account paid for the call, never whose key
+      (docs/specs/model-accounts.md).
     class_uri: prov:Activity
     slots:
       - model_provider
@@ -677,6 +679,7 @@ classes:
       - prompt_digest
       - input_tokens
       - output_tokens
+      - model_account
     slot_usage:
       model_id:
         required: true
@@ -1603,6 +1606,12 @@ slots:
     range: integer
   output_tokens:
     range: integer
+  model_account:
+    description: >-
+      Whose account paid for a model call, as the model broker reports it: a person's own or the
+      deployment's. Never names the account, its key or its holder. Absent only in runs recorded
+      before contract 0.10.0.
+    range: ModelAccount
   energy_estimate_j:
     range: float
   energy_method:
@@ -1690,6 +1699,22 @@ enums:
         description: The institutional profile requires approval for this action class.
       outside_agent_scope:
         description: The request asked for something this agent does not do.
+      model_account_missing:
+        description: >-
+          The profile requires the person's own model account and they have none
+          (docs/specs/model-accounts.md).
+      model_account_rejected:
+        description: The provider refused the person's own model account's key.
+      model_account_limit:
+        description: The provider reported a quota or rate limit on the person's own model account.
+
+  ModelAccount:
+    description: Whose account paid for a model call (docs/specs/model-accounts.md).
+    permissible_values:
+      own:
+        description: The person's own model account, through the model broker.
+      deployment:
+        description: The deployment's model account.
 
   Derivation:
     permissible_values:

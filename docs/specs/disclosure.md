@@ -29,8 +29,8 @@ document should have been drafted with a model is a matter for policy
 1. **An agent reports each model call it makes.** An agent that calls a language model returns
    one `ModelCall` per call, with the provider, the model the response named, when the call was
    made, the token counts and the `dd-prompt-json-v1` digest of what it sent (`dd_sdk.prompts`).
-   Once own model accounts are built, a call also says whether a person's own account or the
-   deployment's paid for it, and never whose ([A person's own model account](model-accounts.md), invariant 9, TODO(#809)).
+   A call also says whether a person's own account or the deployment's paid for it, and never
+   whose (`model_account`, [A person's own model account](model-accounts.md), invariant 9).
    The conductor puts the calls in the envelope's `telemetry.model_calls`
    (`test_a_model_call_is_in_the_envelope_and_its_prompt_beside_it_only`,
    `test_each_model_call_is_recorded_with_what_it_was_sent`,

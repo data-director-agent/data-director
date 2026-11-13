@@ -58,9 +58,8 @@ when the agents call their models through it. The page keeps two figures apart:
   tokens were for, so the person, project and run pages show it too. It differs from the
   gateway's figure when an agent calls a model without the gateway, when something else uses the
   gateway, and by discounts such as cached input. Tokens on a model the gateway has no price for
-  are counted as unpriced, not as free. When people may use their own model accounts, the
-  estimate also prices calls their own accounts paid for, which the gateway never sees; runs do
-  not yet record whose account paid (TODO(#809)).
+  are counted as unpriced, not as free. A call a person's own model account paid for, as the run
+  records it (`model_account: own`), is left out of the estimate, as it is of the gateway's figure.
 
 Without the gateway the page still shows the tokens runs recorded, without prices.
 `DD_ADMIN_MONTHLY_BUDGET` sets a budget that the overview and the page show the month's spend
