@@ -85,9 +85,13 @@ class FakeHarness:
         pseudonym: str = PSEUDONYM,
         lifetime: int = 300,
         issued_at: int | None = None,
+        providers: Sequence[str] = ("anthropic",),
+        base_urls: Sequence[str] = (),
     ) -> dict[str, Any]:
+        """A grant's claims as `GrantMinter.mint` makes them: a grant that may use a person's own
+        account names the providers and base URL origins the profile allows it."""
         now = int(time.time()) if issued_at is None else issued_at
-        return {
+        claims: dict[str, Any] = {
             "aud": BROKER_AUDIENCE,
             "iat": now,
             "exp": now + lifetime,
@@ -97,6 +101,10 @@ class FakeHarness:
             "dd_account": account.value,
             "dd_subject": self.seal_subject(pseudonym),
         }
+        if account is not Account.DEPLOYMENT:
+            claims["dd_providers"] = list(providers)
+            claims["dd_base_urls"] = list(base_urls)
+        return claims
 
     def sign(self, claims: dict[str, Any], key: RSAKey | None = None) -> str:
         key = key or self.signing_key

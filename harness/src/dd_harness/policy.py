@@ -17,6 +17,8 @@ from typing import Any
 
 import yaml
 
+from dd_sdk.model_grant import Account, origin
+
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
 # a rule is in force when it is not (docs/specs/policy-and-identity.md).
 PROFILE_KEYS = frozenset(
@@ -28,6 +30,7 @@ PROFILE_KEYS = frozenset(
         "actions_requiring_approval",
         "orchestrator",
         "hosted_models",
+        "model_accounts",
     }
 )
 
@@ -41,6 +44,149 @@ DEFAULT_HOSTED_MODELS = frozenset({"inventory"})
 
 class PolicyError(Exception):
     """A profile could not be loaded or is malformed. Configuration error, so it raises."""
+
+
+# `model_accounts` (docs/specs/model-accounts.md, The profile). `own`: whether people may, or must,
+# use their own model account; `fallback`: whether the deployment pays for someone who has none.
+OWN_SETTINGS = ("off", "allowed", "required")
+FALLBACK_SETTINGS = ("deployment", "none")
+# The providers a person's own account may be with: those the broker can serve. OpenAI-compatible
+# accounts arrive with TODO(#811).
+OWN_PROVIDERS = ("anthropic",)
+_MODEL_ACCOUNTS_KEYS = frozenset({"own", "fallback", "providers"})
+_PROVIDER_KEYS = frozenset({"provider", "base_urls"})
+_BASE_URL_KEYS = frozenset({"url", "local"})
+
+
+@dataclass(frozen=True)
+class OwnBaseUrl:
+    """An origin a person's own account may name as its base URL. `local` says the steward
+    declares the endpoint local, so it does not count as `hosted` (`hosted_models`)."""
+
+    origin: str
+    local: bool = False
+
+
+@dataclass(frozen=True)
+class OwnProvider:
+    """A provider a person's own account may be with, and the base URLs it may name. Without a
+    base URL the account calls the provider itself, which is always `hosted`."""
+
+    provider: str
+    base_urls: tuple[OwnBaseUrl, ...] = ()
+
+
+@dataclass(frozen=True)
+class ModelAccounts:
+    """Whose account pays for model calls (docs/specs/model-accounts.md, The profile). The
+    conductor turns it into each grant's account, and the broker enforces the grant."""
+
+    own: str = "off"
+    fallback: str | None = None
+    providers: tuple[OwnProvider, ...] = ()
+
+    @property
+    def account(self) -> Account:
+        """The account every grant under this profile names."""
+        if self.own == "off":
+            return Account.DEPLOYMENT
+        if self.own == "allowed" and self.fallback == "deployment":
+            return Account.OWN_OR_DEPLOYMENT
+        return Account.OWN
+
+    @property
+    def provider_names(self) -> tuple[str, ...]:
+        return tuple(p.provider for p in self.providers)
+
+    @property
+    def base_urls(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(u.origin for p in self.providers for u in p.base_urls))
+
+    @property
+    def hosted(self) -> bool:
+        """Whether a person's own account may call a model the profile does not declare local:
+        the provider's own endpoint, or a base URL without `local: true`."""
+        if self.own == "off":
+            return False
+        # A provider's own endpoint is always hosted, and an account with no base URL calls it.
+        return any(not p.base_urls or not all(u.local for u in p.base_urls) for p in self.providers)
+
+    @classmethod
+    def from_value(cls, value: Any) -> ModelAccounts:
+        """Read the profile's `model_accounts`. Raises `TypeError` or `ValueError` for anything a
+        steward could misread as being in force: a profile holds only what is enforced."""
+        if value is None:
+            return cls()
+        if not isinstance(value, dict):
+            raise TypeError("model_accounts must be a mapping")
+        _only(value, _MODEL_ACCOUNTS_KEYS, "model_accounts")
+        written_own = value.get("own", "off")
+        # YAML 1.1 reads an unquoted `off` as false, and a steward writes `own: off`.
+        own = "off" if written_own is False else str(written_own)
+        if own not in OWN_SETTINGS:
+            raise ValueError(
+                f"model_accounts.own is {own!r}; it is one of {', '.join(OWN_SETTINGS)}"
+            )
+        if own == "off":
+            # Nothing would apply a fallback or a provider list, so neither may be written.
+            if extra := sorted(set(value) & {"fallback", "providers"}):
+                raise ValueError(
+                    f"model_accounts.own is off, so {' and '.join(extra)} would not be enforced"
+                )
+            return cls()
+        fallback = value.get("fallback")
+        if fallback not in FALLBACK_SETTINGS:
+            raise ValueError(
+                f"model_accounts.fallback must be one of {', '.join(FALLBACK_SETTINGS)} "
+                "when own accounts are on"
+            )
+        if own == "required" and fallback == "deployment":
+            raise ValueError(
+                "model_accounts.own is required, so fallback cannot be deployment; use none"
+            )
+        written = value.get("providers")
+        if not isinstance(written, list) or not written:
+            raise ValueError("model_accounts.providers must list at least one provider")
+        providers = tuple(_provider(entry) for entry in written)
+        if len({p.provider for p in providers}) != len(providers):
+            raise ValueError("model_accounts.providers names a provider more than once")
+        return cls(own=own, fallback=str(fallback), providers=providers)
+
+
+def _only(mapping: dict[str, Any], keys: frozenset[str], where: str) -> None:
+    if unknown := sorted(set(map(str, mapping)) - keys):
+        raise ValueError(
+            f"{where} has keys nothing enforces: {', '.join(unknown)}; "
+            f"they are {', '.join(sorted(keys))}"
+        )
+
+
+def _provider(entry: Any) -> OwnProvider:
+    if not isinstance(entry, dict):
+        raise TypeError("each of model_accounts.providers must be a mapping")
+    _only(entry, _PROVIDER_KEYS, "a model_accounts provider")
+    name = str(entry.get("provider") or "")
+    if name not in OWN_PROVIDERS:
+        raise ValueError(
+            f"model_accounts names provider {name!r}; a person's own account may be with "
+            f"{', '.join(OWN_PROVIDERS)}"
+        )
+    urls = entry.get("base_urls") or []
+    if not isinstance(urls, list):
+        raise TypeError("model_accounts base_urls must be a list")
+    base_urls: list[OwnBaseUrl] = []
+    for url in urls:
+        if not isinstance(url, dict):
+            raise TypeError("each model_accounts base URL must be a mapping with a url")
+        _only(url, _BASE_URL_KEYS, "a model_accounts base URL")
+        local = url.get("local", False)
+        if not isinstance(local, bool):
+            raise TypeError("a model_accounts base URL's local must be true or false")
+        try:
+            base_urls.append(OwnBaseUrl(origin(str(url.get("url") or "")), local))
+        except ValueError as exc:
+            raise ValueError(f"model_accounts base URL: {exc}") from None
+    return OwnProvider(name, tuple(base_urls))
 
 
 @dataclass(frozen=True)
@@ -59,6 +205,8 @@ class Profile:
     # The classes of project content that may be given to an agent whose card declares a
     # `hosted` model (docs/specs/projects.md, invariant 8).
     hosted_models: frozenset[str] = DEFAULT_HOSTED_MODELS
+    # Whose account pays for model calls (docs/specs/model-accounts.md). Off unless written.
+    model_accounts: ModelAccounts = ModelAccounts()
 
     @property
     def ref(self) -> str:
@@ -100,6 +248,7 @@ class Profile:
                 orchestrator=None if orchestrator is None else str(orchestrator),
                 description=str(data.get("description") or "").strip(),
                 hosted_models=frozenset(str(c) for c in hosted),
+                model_accounts=ModelAccounts.from_value(data.get("model_accounts")),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc
@@ -150,7 +299,14 @@ def gate(profile: Profile, agent_id: str, declared_action_class: str) -> GateDec
 def withheld(profile: Profile, hostings: Iterable[str], given: Iterable[str]) -> list[str]:
     """The classes of project content in `given` that may not go to an agent whose models are
     hosted as `hostings`, sorted; empty if the agent calls no hosted model
-    (docs/specs/projects.md, invariant 8)."""
-    if "hosted" not in set(hostings):
+    (docs/specs/projects.md, invariant 8).
+
+    Where the profile lets a person's own account pay, a model-backed agent's call may go to that
+    account's endpoint, which counts as `hosted` unless the profile declares it local
+    (docs/specs/model-accounts.md, The profile)."""
+    declared = set(hostings)
+    if declared and profile.model_accounts.hosted:
+        declared.add("hosted")
+    if "hosted" not in declared:
         return []
     return sorted(set(given) - profile.hosted_models)

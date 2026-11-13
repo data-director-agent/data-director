@@ -37,10 +37,11 @@ harness mints grants and publishes its keys (`dd_harness.model_grants`), and eve
 agent can call through the broker (`dd_sdk.credentials.model_endpoint`,
 `dd_sdk.model_anthropic.anthropic_client`). Enrolment is built: the harness signs the ticket
 (`GrantMinter.enrolment_ticket`), the app issues it, the broker serves the browser
-(`dd_broker.enrolment`), and the Profile page holds the form. Recording and the reason codes
-TODO(#809); the profile key TODO(#810); OpenAI-compatible accounts TODO(#811). Until those land,
-every grant says the deployment pays, and every model call is paid for by the deployment, as it is
-today.
+(`dd_broker.enrolment`), and the Profile page holds the form. The profile key is built: the
+conductor reads `model_accounts` when it mints a grant (`dd_harness.policy.ModelAccounts`), and the
+broker enforces what the grant says. Recording and the reason codes TODO(#809); OpenAI-compatible
+accounts TODO(#811). The shipped profiles turn own accounts off, so every grant says the
+deployment pays, and every model call is paid for by the deployment, as it is today.
 
 The governing rule is the one in [Policy and identity](policy-and-identity.md): **the party being
 governed does not state the facts the governance rests on.** Neither an agent nor a request chooses
@@ -100,8 +101,10 @@ the broker checks that decision.
     Adding these reason codes raises the contract version ([Contract](contract.md), TODO(#809)).
 11. **The profile decides; the default changes nothing.** Whether people may use their own
     account, whether they must, and whether the deployment's key is the fallback are profile
-    settings that the conductor and the broker enforce. The shipped profile turns own accounts off
-    (TODO(#810)).
+    settings that the conductor and the broker enforce. The shipped profiles turn own accounts off
+    (`harness/tests/test_harness.py`, `harness/tests/test_model_grants.py`). A profile that turns
+    them on is refused unless the harness mints grants, and the app offers a person no account of
+    their own unless the profile lets one pay (`app/tests/test_model_account.py`).
 12. **A provider is never substituted silently.** A call is served by the provider and model the
     grant allows, or it is refused. Choosing a different model for a person's account is a
     profile mapping the run records, never a guess the broker makes (TODO(#811)).
@@ -113,9 +116,9 @@ the broker checks that decision.
     own. Only the broker applies the grant's account setting; an agent never chooses who pays and
     holds no provider key of its own. The broker applies the account setting
     (`broker/tests/test_broker_calls.py`). An agent configured to call through the broker refuses
-    to start with a provider key beside its broker credential (`sdk/tests/test_model_broker.py`);
-    until the profile key exists, which agents call through the broker is the operator's choice
-    (TODO(#810)).
+    to start with a provider key beside its broker credential (`sdk/tests/test_model_broker.py`).
+    The conductor cannot yet tell whether an agent calls through the broker, so which agents do is
+    the operator's choice (TODO(#819)).
 
 ## Boundaries and contracts
 
@@ -234,6 +237,8 @@ against the harness's published keys. Its claims are:
 - the invocation's identifier;
 - the models allowed: the card's `models` that the profile permits, and only those;
 - which account to use (`own`, `own-or-deployment` or `deployment`);
+- for a grant that may use a person's own account, the providers and the base URL origins the
+  profile lets that account use;
 - issue and expiry times.
 
 `dd_sdk.model_grant` fixes the format:
@@ -241,7 +246,13 @@ against the harness's published keys. Its claims are:
 - **Signature:** RS256 or ES256, and no other algorithm.
 - **Audience:** `urn:data-director:model-broker`.
 - **Claims:** `dd_agent`, `dd_invocation`, `dd_models`, `dd_account` and `dd_subject`, beside
-  `aud`, `iat` and `exp`.
+  `aud`, `iat` and `exp`. A grant whose `dd_account` is `own` or `own-or-deployment` also carries
+  `dd_providers`, a non-empty list of provider names, and `dd_base_urls`, a list of origins
+  (`https://host[:port]`, lower case, default port left out, as `dd_sdk.model_grant.origin` writes
+  them); a grant the deployment pays for carries neither. The broker refuses a person's own
+  account whose provider is not in `dd_providers` (`account-unsupported`), and one whose base URL's
+  origin is not in `dd_base_urls` (`base-url-refused`), and does not fall back to the deployment's
+  key for either.
 - **The sealed pseudonym:** a compact JWE in `dd_subject`, made with `ECDH-ES+A256KW` and
   `A256GCM` to the broker's P-256 key.
 
@@ -276,9 +287,22 @@ refuses to start if a provider key is set beside it (`dd_sdk.credentials.model_e
 
 **The profile.** One key, `model_accounts`, with three settings:
 
-- `own`: `off`, `allowed` or `required`;
-- `fallback`: `deployment` or `none`;
-- `providers`: the providers, and the allow-listed base URLs, that a person's own account may use.
+- `own`: `off`, `allowed` or `required`; `off` when the key is absent;
+- `fallback`: `deployment` or `none`, required unless `own` is `off`;
+- `providers`: the providers, and the allow-listed base URLs, that a person's own account may use,
+  required unless `own` is `off`. Each entry names a `provider` (`anthropic` until TODO(#811)) and
+  may list `base_urls`, each a `url` and an optional `local: true`.
+
+```yaml
+model_accounts:
+  own: allowed
+  fallback: deployment
+  providers:
+    - provider: anthropic
+      base_urls:
+        - url: https://llm.example.ac.uk
+          local: true
+```
 
 The conductor turns the first two into the grant's account setting:
 
@@ -290,11 +314,20 @@ The conductor turns the first two into the grant's account setting:
 | `required` | `none` | `own` | The run ends with `model-account-missing`. |
 
 `required` with `fallback: deployment` contradicts itself, so a profile that combines them is
-refused when it is loaded (TODO(#810)).
+refused when it is loaded. So is a `fallback` or `providers` beside `own: off`, a provider the
+broker cannot serve, a base URL that is not a plain `https` URL, and any other key: each would tell
+a steward a rule is in force when nothing enforces it ([Policy and identity](policy-and-identity.md),
+invariant 4). A profile that turns own accounts on stops the harness at start-up unless it mints
+grants, since nothing else would carry the decision to the broker.
 
 It sits beside `hosted_models` ([Policy and identity](policy-and-identity.md), The profile
 vocabulary), which still governs what project content may go to a `hosted` model. A person's own
-endpoint counts as `hosted` unless the operator declares its base URL local.
+endpoint counts as `hosted` unless the profile declares its base URL `local`. The conductor cannot
+know in advance which endpoint a person's account will use, so while own accounts are on, every
+model-backed agent's models count as `hosted` unless every endpoint the profile allows is declared
+local. A provider's own endpoint, used by an entry without `base_urls`, is never local. The
+operator's broker allow-list (`DD_BROKER_ALLOWED_BASE_URLS`) must also name an origin before the
+broker sends a key there.
 
 **What the person sees.** The About tab for a model-backed agent shows the models its card
 declares, as today. To the signed-in person it also shows the label of their own account, if the

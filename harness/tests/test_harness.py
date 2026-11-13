@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from dd_harness import grounding
+from dd_harness import grounding, policy
 from dd_harness import testing as fakes
 from dd_harness.conductor import DuplicateInvocation
 from dd_harness.policy import PolicyError, gate, load_profile
@@ -51,6 +51,7 @@ from dd_sdk.evidence import (
     content_hash,
     input_hash,
 )
+from dd_sdk.model_grant import Account
 from dd_sdk.schema import gen
 from dd_sdk.tracing import records_from_jsonl
 
@@ -158,6 +159,33 @@ def test_hosted_models_defaults_to_the_inventory_alone(
     assert load_profile(path).hosted_models == expected
 
 
+def test_the_base_urls_a_grant_carries_are_each_named_once(tmp_path: Path) -> None:
+    accounts = load_profile(
+        _accounts(
+            tmp_path,
+            "model_accounts:\n  own: allowed\n  fallback: none\n  providers:\n"
+            "    - provider: anthropic\n      base_urls:\n"
+            "        - {url: 'https://LLM.example.ac.uk/v1'}\n"
+            "        - {url: 'https://llm.example.ac.uk:443'}\n",
+        )
+    ).model_accounts
+    assert accounts.base_urls == ("https://llm.example.ac.uk",)
+
+
+def test_a_profile_that_is_not_a_mapping_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text("- profile_id: accounts\n", encoding="utf-8")
+    with pytest.raises(PolicyError, match="not a mapping"):
+        load_profile(path)
+
+
+def test_an_agent_must_map_to_an_action_class(tmp_path: Path) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: accounts\nagents: [inventory]\n", encoding="utf-8")
+    with pytest.raises(PolicyError):
+        load_profile(path)
+
+
 @pytest.mark.requirement("DD-POLICY")
 @pytest.mark.parametrize(
     ("written", "match"),
@@ -174,6 +202,114 @@ def test_hosted_models_names_only_classes_of_project_content(
     path.write_text("profile_id: hosted\nagents: {}\n" + written, encoding="utf-8")
     with pytest.raises(PolicyError, match=match):
         load_profile(path)
+
+
+def _accounts(tmp_path: Path, written: str) -> Path:
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: accounts\nagents: {}\n" + written, encoding="utf-8")
+    return path
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_model_accounts_are_off_unless_the_profile_turns_them_on(tmp_path: Path) -> None:
+    for written in ("", "model_accounts:\n  own: off\n"):
+        accounts = load_profile(_accounts(tmp_path, written)).model_accounts
+        assert accounts.own == "off"
+        assert accounts.account is Account.DEPLOYMENT
+        assert not accounts.hosted
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    ("own", "fallback", "expected"),
+    [
+        ("allowed", "deployment", Account.OWN_OR_DEPLOYMENT),
+        ("allowed", "none", Account.OWN),
+        ("required", "none", Account.OWN),
+    ],
+)
+def test_model_accounts_decide_the_grants_account(
+    tmp_path: Path, own: str, fallback: str, expected: Account
+) -> None:
+    """docs/specs/model-accounts.md, The profile."""
+    path = _accounts(
+        tmp_path,
+        f"model_accounts:\n  own: {own}\n  fallback: {fallback}\n"
+        "  providers:\n    - provider: anthropic\n",
+    )
+    accounts = load_profile(path).model_accounts
+    assert accounts.account is expected
+    assert accounts.provider_names == ("anthropic",)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
+    "written",
+    [
+        "model_accounts: allowed\n",
+        "model_accounts:\n  own: sometimes\n",
+        "model_accounts:\n  own: off\n  fallback: deployment\n",
+        "model_accounts:\n  own: off\n  providers: [{provider: anthropic}]\n",
+        "model_accounts:\n  own: allowed\n  providers: [{provider: anthropic}]\n",
+        "model_accounts:\n  own: required\n  fallback: deployment\n"
+        "  providers: [{provider: anthropic}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: []\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [{provider: openai}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic}, {provider: anthropic}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, base_urls: [{url: 'http://x.example'}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, base_urls: [{url: 'https://x.example', local: 2}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, models: [x]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [anthropic]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, base_urls: 'https://x.example'}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, base_urls: ['https://x.example']}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  budget: 10\n"
+        "  providers: [{provider: anthropic}]\n",
+    ],
+)
+def test_model_accounts_a_steward_could_misread_are_refused(tmp_path: Path, written: str) -> None:
+    """A setting nothing would enforce, or one that contradicts itself, stops the profile loading
+    (docs/specs/policy-and-identity.md, invariant 4)."""
+    with pytest.raises(PolicyError):
+        load_profile(_accounts(tmp_path, written))
+
+
+@pytest.mark.requirement("DD-POLICY", "C13.5")
+@pytest.mark.parametrize(
+    ("base_urls", "hosted"),
+    [
+        ("", True),
+        ("    base_urls: [{url: 'https://llm.example.ac.uk'}]\n", True),
+        ("    base_urls: [{url: 'https://llm.example.ac.uk/v1', local: true}]\n", False),
+        (
+            "    base_urls:\n      - {url: 'https://llm.example.ac.uk', local: true}\n"
+            "      - {url: 'https://other.example.org'}\n",
+            True,
+        ),
+    ],
+)
+def test_an_own_endpoint_counts_as_hosted_unless_declared_local(
+    tmp_path: Path, base_urls: str, hosted: bool
+) -> None:
+    """docs/specs/model-accounts.md, The profile; docs/specs/projects.md, invariant 8."""
+    profile = load_profile(
+        _accounts(
+            tmp_path,
+            "hosted_models: [inventory]\nmodel_accounts:\n  own: allowed\n  fallback: none\n"
+            "  providers:\n  - provider: anthropic\n" + base_urls,
+        )
+    )
+    assert profile.model_accounts.hosted is hosted
+    kept = policy.withheld(profile, ["local"], ["inventory", "documentation"])
+    assert kept == (["documentation"] if hosted else [])
+    # An agent that calls no model is never given a grant, so nothing changes for it.
+    assert policy.withheld(profile, [], ["documentation"]) == []
 
 
 @pytest.mark.requirement("DD-POLICY", "C13.2")

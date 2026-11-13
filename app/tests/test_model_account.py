@@ -22,7 +22,7 @@ from starlette.testclient import TestClient
 from support import JSON_HEADERS, check_fixture, configure_env, dist_dir, with_standards
 
 from dd_app.app import build_app
-from dd_app.config import settings_from_env
+from dd_app.config import EXAMPLE_PROFILE, settings_from_env
 from dd_app.governance import Governance
 from dd_app.model_accounts import BROKER_URL_VARIABLE, broker_path
 from dd_broker.agents import AgentCredentials
@@ -126,10 +126,31 @@ def grant_env(keys: GrantKeys) -> dict[str, str]:
     )
 
 
+# What a profile adds to let people's own accounts pay (docs/specs/model-accounts.md).
+OWN_ACCOUNTS = """
+model_accounts:
+  own: allowed
+  fallback: deployment
+  providers:
+    - provider: anthropic
+"""
+
+
 def make_deployment(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, grants: bool, broker: str | None
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    grants: bool,
+    broker: str | None,
+    own: bool = True,
 ) -> Deployment:
     configure_env(monkeypatch, tmp_path)
+    if own:
+        profile = tmp_path / "profile.yaml"
+        profile.write_text(
+            EXAMPLE_PROFILE.read_text(encoding="utf-8") + OWN_ACCOUNTS, encoding="utf-8"
+        )
+        monkeypatch.setenv("DD_PROFILE", str(profile))
     idp = FakeIdentityProvider()
     monkeypatch.delenv("DD_PRINCIPAL_ID")
     monkeypatch.delenv("DD_PRINCIPAL_NAME")
@@ -229,11 +250,15 @@ def test_nobody_signed_in_is_issued_no_ticket(deployment: Deployment) -> None:
     assert answer.status_code == 401
 
 
-@pytest.mark.parametrize(("grants", "broker"), [(True, None), (False, BROKER_PATH)])
+@pytest.mark.parametrize(
+    ("grants", "broker", "own"),
+    [(True, None, True), (False, BROKER_PATH, False), (True, BROKER_PATH, False)],
+)
 def test_a_deployment_that_does_not_offer_own_accounts_issues_no_ticket(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, grants: bool, broker: str | None
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, grants: bool, broker: str | None, own: bool
 ) -> None:
-    deployed = make_deployment(monkeypatch, tmp_path, grants=grants, broker=broker)
+    """Without grants, without the broker, or with a profile that keeps own accounts off."""
+    deployed = make_deployment(monkeypatch, tmp_path, grants=grants, broker=broker, own=own)
     try:
         browser = deployed.browser()
         sign_in(deployed, browser)

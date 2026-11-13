@@ -216,7 +216,13 @@ def build_app(
         raise IdentityError("the app signs people in, so it must act for whom it signed in")
 
     minter = governance.conductor.model_grants
-    model_accounts = minter is not None and model_broker_path is not None
+    # A person may add their own model account only where the profile lets one pay
+    # (docs/specs/model-accounts.md, The profile) and the deployment can carry that to the broker.
+    model_accounts = (
+        minter is not None
+        and model_broker_path is not None
+        and governance.conductor.profile.model_accounts.own != "off"
+    )
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
         """`handler`, given the principal the request acts for; a request with none is refused
@@ -1135,7 +1141,7 @@ def build_app(
     async def model_account_ticket(request: Request, acting_for: Principal) -> Response:
         # The ticket names the person only by their pseudonym, sealed to the broker. The key
         # itself goes from the browser to the broker and never comes here.
-        if minter is None or model_broker_path is None:
+        if not model_accounts or minter is None or model_broker_path is None:
             return _problem(
                 404,
                 "model-accounts-unavailable",

@@ -42,10 +42,12 @@ from dd_sdk.model_grant import (
     CLAIM_ACCOUNT,
     CLAIM_AGENT,
     CLAIM_AUDIENCE,
+    CLAIM_BASE_URLS,
     CLAIM_EXPIRES,
     CLAIM_INVOCATION,
     CLAIM_ISSUED_AT,
     CLAIM_MODELS,
+    CLAIM_PROVIDERS,
     CLAIM_PURPOSE,
     CLAIM_SUBJECT,
     CLAIM_TICKET_ID,
@@ -156,13 +158,23 @@ class GrantMinter:
         account: Account,
         acting_for: Principal,
         lifetime_s: float,
+        providers: Iterable[str] = (),
+        base_urls: Iterable[str] = (),
     ) -> str:
         """A grant for one invocation of `agent_id` to call `models`, paid for as `account` says,
         for `acting_for`. It expires `lifetime_s` from now, rounded down: no later than the
-        invocation's timeout."""
+        invocation's timeout. A grant that may use a person's own account names the `providers`
+        and `base_urls` (origins) the profile lets that account use; one the deployment pays for
+        names neither."""
         allowed = list(dict.fromkeys(models))
         if not allowed:
             raise ValueError("a model grant needs at least one model")
+        own_providers = list(dict.fromkeys(providers))
+        own_base_urls = list(dict.fromkeys(base_urls))
+        if account is Account.DEPLOYMENT and (own_providers or own_base_urls):
+            raise ValueError("a grant the deployment pays for names no own account's provider")
+        if account is not Account.DEPLOYMENT and not own_providers:
+            raise ValueError("a grant that may use a person's own account needs a provider")
         issued_at = int(self.clock())
         lifetime = max(1, math.floor(lifetime_s))
         claims = {
@@ -175,6 +187,9 @@ class GrantMinter:
             CLAIM_ACCOUNT: account.value,
             CLAIM_SUBJECT: self._seal(self.pseudonym(acting_for)),
         }
+        if account is not Account.DEPLOYMENT:
+            claims[CLAIM_PROVIDERS] = own_providers
+            claims[CLAIM_BASE_URLS] = own_base_urls
         return jwt.encode(
             {"alg": self.algorithm, "kid": self.signing_key.kid, "typ": "JWT"},
             claims,

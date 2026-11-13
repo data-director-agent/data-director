@@ -22,9 +22,11 @@ from dd_harness.model_grants import (
     jwks_routes,
     signing_key,
 )
+from dd_harness.policy import PolicyError
 from dd_harness.settings import MODEL_GRANT_SETTINGS, SettingsError, grant_minter
 from dd_harness.testing import (
     HARNESS_URL,
+    PERMISSIVE,
     TEST_PRINCIPAL,
     GrantKeys,
     ScriptedAgent,
@@ -298,6 +300,71 @@ def test_a_model_backed_agent_is_sent_a_grant_for_its_invocation(
     assert (claims.agent, claims.invocation) == ("fake.none", env.invocation_id)
     assert claims.models == (MODEL,)
     assert claims.expires_at - claims.issued_at <= TIMEOUT_S
+
+
+def _own_profile(tmp_path: Path, own: str, fallback: str | None, base_urls: str = "") -> Path:
+    path = tmp_path / "own.yaml"
+    written = PERMISSIVE.read_text(encoding="utf-8") + f"model_accounts:\n  own: {own}\n"
+    if fallback is not None:
+        written += f"  fallback: {fallback}\n  providers:\n    - provider: anthropic\n{base_urls}"
+    path.write_text(written, encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("own", "fallback", "account"),
+    [
+        ("off", None, Account.DEPLOYMENT),
+        ("allowed", "deployment", Account.OWN_OR_DEPLOYMENT),
+        ("allowed", "none", Account.OWN),
+        ("required", "none", Account.OWN),
+    ],
+)
+def test_the_profile_decides_whose_account_the_grant_names(
+    keys: GrantKeys, tmp_path: Path, own: str, fallback: str | None, account: Account
+) -> None:
+    """docs/specs/model-accounts.md, The profile: the conductor turns `model_accounts` into the
+    grant's account, and names the providers and base URLs a person's own account may use."""
+    seen: list[RunContext] = []
+    profile = _own_profile(
+        tmp_path, own, fallback, "      base_urls: [{url: 'https://llm.example.ac.uk/v1'}]\n"
+    )
+    conductor = make_conductor(
+        tmp_path / "runs", model_backed(seen), model_grants=keys.minter(), profile=profile
+    )
+
+    conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [ctx] = seen
+    assert ctx.model_grant is not None
+    claims = ModelGrantClaims.from_claims(keys.open(ctx.model_grant).claims)
+    assert claims.account is account
+    if account is Account.DEPLOYMENT:
+        assert (claims.providers, claims.base_urls) == ((), ())
+    else:
+        assert claims.providers == ("anthropic",)
+        assert claims.base_urls == ("https://llm.example.ac.uk",)
+
+
+def test_own_accounts_without_model_grants_stop_the_conductor(tmp_path: Path) -> None:
+    """Without grants nothing would carry the profile's decision to the broker."""
+    with pytest.raises(PolicyError, match="model_accounts"):
+        make_conductor(tmp_path, profile=_own_profile(tmp_path, "allowed", "deployment"))
+
+
+def test_a_grant_for_an_own_account_names_its_providers(keys: GrantKeys) -> None:
+    minter = keys.minter()
+    common: dict[str, Any] = {
+        "agent_id": "fake.none",
+        "invocation_id": "inv-1",
+        "models": [MODEL],
+        "acting_for": TEST_PRINCIPAL,
+        "lifetime_s": TIMEOUT_S,
+    }
+    with pytest.raises(ValueError):
+        minter.mint(account=Account.OWN, **common)
+    with pytest.raises(ValueError):
+        minter.mint(account=Account.DEPLOYMENT, providers=["anthropic"], **common)
 
 
 def test_an_agent_that_declares_no_model_is_sent_no_grant(keys: GrantKeys, tmp_path: Path) -> None:

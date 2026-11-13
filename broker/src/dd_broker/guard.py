@@ -24,6 +24,8 @@ from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from urllib.parse import urlsplit, urlunsplit
 
+from dd_sdk.model_grant import origin as grant_origin
+
 Resolver = Callable[[str, int], Sequence[str]]
 
 
@@ -59,22 +61,10 @@ def system_resolver(host: str, port: int) -> list[str]:
 def origin(url: str) -> str:
     """`https://host[:port]`, lower case, with the default port left out. Raises `BaseUrlRefused`
     for anything that is not a plain `https` URL."""
-    parts = urlsplit(url.strip())
-    if parts.scheme != "https":
-        raise BaseUrlRefused("a base URL must use https")
-    if not parts.hostname:
-        raise BaseUrlRefused("a base URL must name a host")
-    if parts.username is not None or parts.password is not None:
-        raise BaseUrlRefused("a base URL must not carry user information")
-    if parts.query or parts.fragment:
-        raise BaseUrlRefused("a base URL must not carry a query or a fragment")
     try:
-        port = parts.port
+        return grant_origin(url)
     except ValueError as exc:
-        raise BaseUrlRefused("a base URL's port is not a number") from exc
-    host = parts.hostname.lower()
-    shown = f"[{host}]" if ":" in host else host
-    return f"https://{shown}" if port in (None, 443) else f"https://{shown}:{port}"
+        raise BaseUrlRefused(str(exc)) from None
 
 
 def _is_public(address: str) -> bool:

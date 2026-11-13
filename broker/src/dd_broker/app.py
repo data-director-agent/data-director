@@ -54,7 +54,14 @@ from dd_broker.grants import (
     fetch_file,
     fetch_url,
 )
-from dd_broker.guard import BaseUrlRefused, Resolver, Target, check_base_url, system_resolver
+from dd_broker.guard import (
+    BaseUrlRefused,
+    Resolver,
+    Target,
+    check_base_url,
+    origin,
+    system_resolver,
+)
 from dd_broker.reasons import Reason, Refused
 from dd_broker.seal import SealError
 from dd_broker.settings import BrokerSettings
@@ -153,12 +160,17 @@ def _choose(broker: Broker, grant: VerifiedGrant) -> _Payment:
             log.error("a sealed key does not open; check the key-encryption key")
             raise Refused(500, Reason.BROKER_ERROR) from None
         if own is not None:
-            if own.provider != anthropic.PROVIDER:
-                # A different provider is never substituted (invariant 12). Serving an
-                # OpenAI-compatible account is TODO(#811).
+            if own.provider != anthropic.PROVIDER or own.provider not in grant.claims.providers:
+                # A different provider is never substituted (invariant 12), and an account the
+                # profile does not allow is never used. Serving an OpenAI-compatible account is
+                # TODO(#811).
                 raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
             if own.base_url:
                 try:
+                    # The profile's allow-list, carried by the grant, and the operator's must both
+                    # name the origin.
+                    if origin(own.base_url) not in grant.claims.base_urls:
+                        raise BaseUrlRefused("the base URL is not one the profile allows")
                     target = check_base_url(
                         own.base_url,
                         broker.allowed_base_urls,

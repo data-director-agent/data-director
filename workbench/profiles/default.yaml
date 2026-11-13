@@ -1,6 +1,6 @@
 # Default institutional profile. See README.md in this directory for what each key means.
 profile_id: default
-version: 7
+version: 8
 description: Development profile for the workbench; enables every in-tree agent, requires approval for writes.
 
 # Each agent that may run, and the action class the steward assigns it. An agent whose card
@@ -28,6 +28,11 @@ agents:
 hosted_models:
   - inventory
   - documentation
+
+# Whether people may use their own model account to pay for model calls
+# (docs/specs/model-accounts.md). Off: the deployment pays for every call, as before.
+model_accounts:
+  own: off
 
 actions_requiring_approval:
   - deposit

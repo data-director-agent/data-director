@@ -269,6 +269,43 @@ def test_a_base_url_off_the_allow_list_is_refused(harness: FakeHarness, broker: 
     assert reason(response) == "base-url-refused"
 
 
+@pytest.mark.parametrize("account", [Account.OWN, Account.OWN_OR_DEPLOYMENT])
+def test_an_account_with_a_provider_the_profile_does_not_allow_is_refused(
+    harness: FakeHarness, broker: Broker, sent: list[Sent], account: Account
+) -> None:
+    enrol(broker)
+    grant = harness.grant(account=account, providers=["openai-compatible"])
+    with client(broker) as http:
+        response = http.post(MESSAGES, json=message_body(), headers=call_headers(grant))
+
+    # Refused, not paid for by the deployment instead (invariant 10).
+    assert response.status_code == 403
+    assert reason(response) == "account-unsupported"
+    assert sent == []
+
+
+def test_a_base_url_the_operator_allows_but_the_profile_does_not_is_refused(
+    harness: FakeHarness, tmp_path: Path, sent: list[Sent]
+) -> None:
+    broker = make_broker(
+        harness, tmp_path / "broker.sqlite3", allowed=["https://models.example.ac.uk"]
+    )
+    broker.store.put(
+        PSEUDONYM,
+        "anthropic",
+        OWN_KEY,
+        label="anthropic …1111",
+        base_url="https://models.example.ac.uk/proxy",
+    )
+    grant = harness.grant(account=Account.OWN_OR_DEPLOYMENT)
+    with client(broker) as http:
+        response = http.post(MESSAGES, json=message_body(), headers=call_headers(grant))
+
+    assert response.status_code == 403
+    assert reason(response) == "base-url-refused"
+    assert sent == []
+
+
 @pytest.mark.vcr
 def test_the_anthropic_client_works_through_the_broker(
     harness: FakeHarness, broker: Broker
@@ -362,8 +399,9 @@ def test_an_allowed_base_url_is_called_at_the_address_that_was_checked(
         label="anthropic …1111",
         base_url="https://models.example.ac.uk/proxy",
     )
+    grant = harness.grant(base_urls=["https://models.example.ac.uk"])
     with client(broker) as http:
-        response = http.post(MESSAGES, json=message_body(), headers=call_headers(harness.grant()))
+        response = http.post(MESSAGES, json=message_body(), headers=call_headers(grant))
 
     assert response.status_code == 200
     (request,) = seen
