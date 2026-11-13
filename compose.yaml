@@ -403,6 +403,9 @@ services:
       - node-modules:/workspace/app/web/node_modules
     environment:
       DD_APP_URL: http://app:7860
+      # /broker/enrolment/ goes to the model broker, when its profile is up and the app sets
+      # DD_APP_MODEL_BROKER_URL=/broker (config/local/app.env).
+      DD_BROKER_URL: http://model-broker:8300
     command: npm run dev -- --host 0.0.0.0
     ports: ["127.0.0.1:${DD_WEB_HOST_PORT:-5173}:5173"]
 

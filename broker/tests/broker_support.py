@@ -19,12 +19,15 @@ from starlette.testclient import TestClient
 
 from dd_broker.agents import AgentCredentials, digest
 from dd_broker.app import Broker, build_app
-from dd_broker.grants import GrantVerifier, HarnessKeys
+from dd_broker.grants import GrantVerifier, HarnessKeys, TicketVerifier
+from dd_broker.store import Store
 from dd_sdk.model_grant import (
     BROKER_AUDIENCE,
     HEADER_GRANT,
     SUBJECT_ENCRYPTION,
     SUBJECT_KEY_ALGORITHM,
+    TICKET_PURPOSE,
+    TICKET_TYPE,
     Account,
 )
 
@@ -105,6 +108,34 @@ class FakeHarness:
     def verifier(self) -> GrantVerifier:
         return GrantVerifier(self.keys(), self.subject_key)
 
+    def ticket_claims(
+        self,
+        *,
+        pseudonym: str = PSEUDONYM,
+        lifetime: int = 120,
+        issued_at: int | None = None,
+        jti: str | None = None,
+    ) -> dict[str, Any]:
+        now = int(time.time()) if issued_at is None else issued_at
+        return {
+            "aud": BROKER_AUDIENCE,
+            "iat": now,
+            "exp": now + lifetime,
+            "jti": jti or os.urandom(12).hex(),
+            "dd_purpose": TICKET_PURPOSE,
+            "dd_subject": self.seal_subject(pseudonym),
+        }
+
+    def ticket(self, typ: str = TICKET_TYPE, **kwargs: Any) -> str:
+        """An enrolment ticket as `GrantMinter.enrolment_ticket` signs one."""
+        key = self.signing_key
+        return jwt.encode(
+            {"alg": "RS256", "kid": key.kid, "typ": typ}, self.ticket_claims(**kwargs), key
+        )
+
+    def tickets(self, store: Store) -> TicketVerifier:
+        return TicketVerifier(self.keys(), self.subject_key, store)
+
 
 def agents() -> AgentCredentials:
     return AgentCredentials(
@@ -126,11 +157,11 @@ def make_broker(
     kek: bytes | None = None,
     allowed: Sequence[str] = (),
 ) -> Broker:
-    from dd_broker.store import Store
-
+    store = Store(store_path, kek or key_encryption_key())
     return Broker(
-        store=Store(store_path, kek or key_encryption_key()),
+        store=store,
         verifier=harness.verifier(),
+        tickets=harness.tickets(store),
         agents=agents(),
         deployment_key=deployment_key,
         deployment_base_url=deployment_base_url,

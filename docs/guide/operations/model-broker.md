@@ -6,14 +6,13 @@ for agents. No agent, and neither the app nor the harness, ever holds a person's
 is in [A person's own model account](../../specs/model-accounts.md).
 
 !!! warning "Alpha, and off by default"
-    The harness can sign model grants and agents can call through the broker, but:
+    The harness can sign model grants, agents can call through the broker, and a person can add
+    their own key on the Profile page, but the profile has no `model_accounts` setting yet
+    (TODO(#810)), so every grant says the deployment pays.
 
-    - A person cannot yet enrol a key from the Profile page (TODO(#807)).
-    - The profile has no `model_accounts` setting yet (TODO(#810)), so every grant says the
-      deployment pays.
-
-    Until those land, every call is paid for by the deployment, as before. Turning the broker on
-    now only moves the deployment's key from the agents to the broker.
+    Until that lands, every call is paid for by the deployment, as before. Turning the broker on
+    now only moves the deployment's key from the agents to the broker, and lets people add a key
+    that is not yet used.
 
 ## What it does
 
@@ -93,6 +92,22 @@ With all three set, the app publishes the public half of the signing key at
 JSON to a file and name it with `DD_BROKER_HARNESS_JWKS_FILE`. With none set, no grant is minted.
 With only some set, the app stops at start-up.
 
+### The Profile page: adding one's own key
+
+A person adds, replaces or removes their key on the Profile page. The browser sends the key to the
+broker, not to the app, on the app's own site: NGINX passes `/broker/enrolment/` on to the broker
+on `127.0.0.1:8300`, and nothing else of the broker's
+([`deploy/nginx/data-director.conf`](../../../deploy/nginx/data-director.conf)). To turn the page's
+account section on, set the three harness secrets above and, in `/etc/data-director/app.env`:
+
+```bash
+DD_APP_MODEL_BROKER_URL=/broker
+```
+
+Each request from the page carries a ticket the app issued for the person signed in, good for one
+request and two minutes. The broker checks a new key with one free call to the provider, listing
+one model, and stores it only if the provider accepts it.
+
 ### The agents: calling through the broker
 
 An agent calls through the broker when its environment sets:
@@ -148,4 +163,6 @@ uv run dd-model-broker serve
 
 It reads the settings listed in `dd_broker.settings`. Docker Compose runs it with the
 `model-broker` profile. Its secrets are files in `config/local/credentials/model-broker/`, and its
-settings are in `config/local/model-broker.env`.
+settings are in `config/local/model-broker.env`. The Vite dev server passes `/broker/enrolment/`
+on to it (`DD_BROKER_URL`, by default `http://127.0.0.1:8300`), so the Profile page works there
+once `config/local/app.env` sets `DD_APP_MODEL_BROKER_URL=/broker`.

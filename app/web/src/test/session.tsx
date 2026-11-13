@@ -13,6 +13,7 @@ export const DEVELOPMENT: Session = {
     assurance: "asserted",
   },
   expiresAt: null,
+  modelAccounts: false,
 };
 
 export const SIGNED_OUT: Session = {
@@ -20,6 +21,7 @@ export const SIGNED_OUT: Session = {
   issuer: "https://sandbox.orcid.org",
   principal: null,
   expiresAt: null,
+  modelAccounts: false,
 };
 
 export function signedIn(expiresAt = new Date(Date.now() + 8 * 3600_000).toISOString()): Session {
@@ -33,6 +35,7 @@ export function signedIn(expiresAt = new Date(Date.now() + 8 * 3600_000).toISOSt
       vouchedBy: "https://sandbox.orcid.org",
     },
     expiresAt,
+    modelAccounts: false,
   };
 }
 

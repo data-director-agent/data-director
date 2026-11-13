@@ -186,7 +186,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
     known and when the session ends, and says that nothing more is kept but the facts a person
     chooses, in a project, from their public record. It makes no request to the provider and the
-    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
+    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`). Where the
+    deployment offers it, the page also holds the person's own AI account, which it reads from and
+    sends to the model broker alone ([A person's own model account](model-accounts.md),
+    `app/web/src/components/profile/ModelAccount.test.tsx`, `app/web/e2e/profile.spec.ts`).
 21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
     `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -341,7 +344,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
   its process, so there is nothing in it to call a model. A person adding their own model account
   sends the key from the browser straight to the model broker with an enrolment ticket; the app
-  issues the ticket and never sees the key ([A person's own model account](model-accounts.md), TODO(#807)).
+  issues the ticket and never sees the key ([A person's own model account](model-accounts.md),
+  `app/tests/test_model_account.py`).
 - **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). The harness
   streams a run's stages, its checks' reports and cancelling; the app does not serve that stream
   yet. A run is one request that answers when it has ended, so stages are read back, not watched,

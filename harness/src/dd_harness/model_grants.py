@@ -8,6 +8,11 @@ sealed value. The claim names and algorithms are those `dd_sdk.model_grant` fixe
 verifies them (`dd_broker.grants`). `GrantMinter.jwks` is the public half of the signing key, which
 the harness publishes for the broker.
 
+`GrantMinter.enrolment_ticket` signs the grant's sibling with the same key: a single-use ticket
+that lets the browser read, add or remove the signed-in person's own model account at the broker
+(docs/specs/model-accounts.md, Enrolment). It names the person by the same sealed pseudonym, and
+nothing else.
+
 A grant holds no key, no principal and no project content. The conductor passes it to the agent in
 the A2A request's metadata and nowhere else (invariant 6).
 """
@@ -18,6 +23,7 @@ import hashlib
 import hmac
 import json
 import math
+import secrets
 import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
@@ -40,9 +46,14 @@ from dd_sdk.model_grant import (
     CLAIM_INVOCATION,
     CLAIM_ISSUED_AT,
     CLAIM_MODELS,
+    CLAIM_PURPOSE,
     CLAIM_SUBJECT,
+    CLAIM_TICKET_ID,
     SUBJECT_ENCRYPTION,
     SUBJECT_KEY_ALGORITHM,
+    TICKET_LIFETIME_S,
+    TICKET_PURPOSE,
+    TICKET_TYPE,
     Account,
 )
 
@@ -169,6 +180,28 @@ class GrantMinter:
             claims,
             self.signing_key,
         )
+
+    def enrolment_ticket(
+        self, *, acting_for: Principal, lifetime_s: float = TICKET_LIFETIME_S
+    ) -> tuple[str, int]:
+        """A single-use ticket for `acting_for` to make one request to the broker's enrolment
+        interface, and the time it expires. It names them only by their sealed pseudonym."""
+        issued_at = int(self.clock())
+        expires_at = issued_at + max(1, math.floor(lifetime_s))
+        claims = {
+            CLAIM_AUDIENCE: BROKER_AUDIENCE,
+            CLAIM_ISSUED_AT: issued_at,
+            CLAIM_EXPIRES: expires_at,
+            CLAIM_TICKET_ID: secrets.token_urlsafe(16),
+            CLAIM_PURPOSE: TICKET_PURPOSE,
+            CLAIM_SUBJECT: self._seal(self.pseudonym(acting_for)),
+        }
+        token = jwt.encode(
+            {"alg": self.algorithm, "kid": self.signing_key.kid, "typ": TICKET_TYPE},
+            claims,
+            self.signing_key,
+        )
+        return token, expires_at
 
     def _seal(self, pseudonym: str) -> str:
         # A fresh ephemeral key and IV each time, so no two grants carry the same value.

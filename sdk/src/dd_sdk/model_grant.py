@@ -12,6 +12,13 @@ the conductor's job (`dd_harness.model_grants`). Verifying is the broker's own c
 
 `ModelGrantClaims.from_claims` checks that a verified claim set has the shape below. It does not
 check a signature, an audience or a time; the broker does that before calling it.
+
+The enrolment ticket (docs/specs/model-accounts.md, Enrolment) is the grant's sibling: a token the
+harness signs with the same key, for the browser to present to the broker when a person reads, adds
+or removes their own account. It names the person only by their pseudonym, sealed to the broker as
+in a grant, and carries a `jti` so that the broker accepts it once. Its JOSE `typ` and its
+`dd_purpose` claim keep a ticket from passing as a grant, and a grant from passing as a ticket.
+`EnrolmentTicketClaims.from_claims` checks its shape.
 """
 
 from __future__ import annotations
@@ -48,6 +55,16 @@ CLAIM_INVOCATION = "dd_invocation"
 CLAIM_MODELS = "dd_models"
 CLAIM_ACCOUNT = "dd_account"
 CLAIM_SUBJECT = "dd_subject"
+CLAIM_TICKET_ID = "jti"
+CLAIM_PURPOSE = "dd_purpose"
+
+# The enrolment ticket's JOSE `typ` header and `dd_purpose` value. A grant's `typ` is `JWT`.
+TICKET_TYPE = "dd-enrolment+jwt"
+TICKET_PURPOSE = "enrolment"
+# A ticket is good for one request to the broker, sent within this many seconds of its issue.
+TICKET_LIFETIME_S = 120
+# Claims that only a grant carries; a ticket that has any of them is refused.
+_GRANT_ONLY_CLAIMS = (CLAIM_AGENT, CLAIM_INVOCATION, CLAIM_MODELS, CLAIM_ACCOUNT)
 
 # HTTP headers between an agent's adapter and the broker. The agent's own broker credential
 # travels where its provider client already sends an API key (`x-api-key` or
@@ -76,8 +93,23 @@ class Payer(StrEnum):
 
 
 class ModelGrantError(ValueError):
-    """A claim set does not have the model grant's shape. The message names the claim, never a
-    claim's value."""
+    """A claim set does not have the model grant's (or the enrolment ticket's) shape. The message
+    names the claim, never a claim's value."""
+
+
+def _text(claims: Mapping[str, Any], name: str, token: str) -> str:
+    value = claims.get(name)
+    if not isinstance(value, str) or not value:
+        raise ModelGrantError(f"the {token}'s {name} is missing or not a string")
+    return value
+
+
+def _number(claims: Mapping[str, Any], name: str, token: str) -> int:
+    value = claims.get(name)
+    # bool is an int in Python; a time is never true or false.
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ModelGrantError(f"the {token}'s {name} is missing or not an integer")
+    return value
 
 
 @dataclass(frozen=True)
@@ -96,18 +128,13 @@ class ModelGrantClaims:
     @classmethod
     def from_claims(cls, claims: Mapping[str, Any]) -> ModelGrantClaims:
         def text(name: str) -> str:
-            value = claims.get(name)
-            if not isinstance(value, str) or not value:
-                raise ModelGrantError(f"the grant's {name} is missing or not a string")
-            return value
+            return _text(claims, name, "grant")
 
         def number(name: str) -> int:
-            value = claims.get(name)
-            # bool is an int in Python; a time is never true or false.
-            if not isinstance(value, int) or isinstance(value, bool):
-                raise ModelGrantError(f"the grant's {name} is missing or not an integer")
-            return value
+            return _number(claims, name, "grant")
 
+        if CLAIM_PURPOSE in claims:
+            raise ModelGrantError(f"a grant carries no {CLAIM_PURPOSE}")
         models = claims.get(CLAIM_MODELS)
         if (
             not isinstance(models, list)
@@ -129,6 +156,36 @@ class ModelGrantClaims:
             models=tuple(models),
             account=account,
             subject=text(CLAIM_SUBJECT),
+            issued_at=issued_at,
+            expires_at=expires_at,
+        )
+
+
+@dataclass(frozen=True)
+class EnrolmentTicketClaims:
+    """The claims of an enrolment ticket whose signature has been checked."""
+
+    audience: str
+    ticket_id: str
+    subject: str
+    issued_at: int
+    expires_at: int
+
+    @classmethod
+    def from_claims(cls, claims: Mapping[str, Any]) -> EnrolmentTicketClaims:
+        if claims.get(CLAIM_PURPOSE) != TICKET_PURPOSE:
+            raise ModelGrantError(f"the ticket's {CLAIM_PURPOSE} is not {TICKET_PURPOSE}")
+        for name in _GRANT_ONLY_CLAIMS:
+            if name in claims:
+                raise ModelGrantError(f"a ticket carries no {name}")
+        issued_at = _number(claims, CLAIM_ISSUED_AT, "ticket")
+        expires_at = _number(claims, CLAIM_EXPIRES, "ticket")
+        if expires_at <= issued_at:
+            raise ModelGrantError("the ticket expires before it is issued")
+        return cls(
+            audience=_text(claims, CLAIM_AUDIENCE, "ticket"),
+            ticket_id=_text(claims, CLAIM_TICKET_ID, "ticket"),
+            subject=_text(claims, CLAIM_SUBJECT, "ticket"),
             issued_at=issued_at,
             expires_at=expires_at,
         )

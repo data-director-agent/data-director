@@ -25,6 +25,8 @@ export interface Session {
   principal: SessionPrincipal | null;
   /** When the session ends if nothing more is done in it (ISO 8601), or null. */
   expiresAt: string | null;
+  /** Whether a person may add their own model account on the Profile page (docs/specs/model-accounts.md). */
+  modelAccounts: boolean;
 }
 
 export interface RawSession {
@@ -37,6 +39,7 @@ export interface RawSession {
     vouched_by?: string;
   } | null;
   expires_at: string | null;
+  model_accounts?: boolean;
 }
 
 export interface SessionApi {
@@ -59,6 +62,7 @@ export function fromRaw(raw: RawSession): Session {
         }
       : null,
     expiresAt: raw.expires_at,
+    modelAccounts: raw.model_accounts ?? false,
   };
 }
 

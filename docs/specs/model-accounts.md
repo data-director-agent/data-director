@@ -35,7 +35,9 @@ It does not cover:
 The broker is built (`broker/`), with the grant's format in the SDK (`dd_sdk.model_grant`). The
 harness mints grants and publishes its keys (`dd_harness.model_grants`), and every model-backed
 agent can call through the broker (`dd_sdk.credentials.model_endpoint`,
-`dd_sdk.model_anthropic.anthropic_client`). Enrolment is TODO(#807); recording and the reason codes
+`dd_sdk.model_anthropic.anthropic_client`). Enrolment is built: the harness signs the ticket
+(`GrantMinter.enrolment_ticket`), the app issues it, the broker serves the browser
+(`dd_broker.enrolment`), and the Profile page holds the form. Recording and the reason codes
 TODO(#809); the profile key TODO(#810); OpenAI-compatible accounts TODO(#811). Until those land,
 every grant says the deployment pays, and every model call is paid for by the deployment, as it is
 today.
@@ -49,18 +51,20 @@ the broker checks that decision.
 
 1. **Only the broker holds a person's key.** The browser sends the key once, to the broker. The
    app, the harness, the conductor and every agent never receive it, and no A2A message, grant,
-   envelope, span, evidence item, crate, export, log line or error message carries it. Planned
-   test: a sentinel key enrolled through the browser, then a run, then a search for the sentinel in
-   every record and log (TODO(#807)). The broker's part is tested: a sentinel key, which the
-   provider's error answers quote back, appears in no answer, log line or record of the broker's
-   (`broker/tests/test_broker_key_not_leaked.py`).
+   envelope, span, evidence item, crate, export, log line or error message carries it. A sentinel
+   key enrolled with a ticket the app issued, then a run, appears in nothing the app is sent or
+   answers, in no log line and in no file the app or the harness keeps
+   (`app/tests/test_model_account.py`). The broker's part is tested: a sentinel key, which the
+   provider's answers quote back when it is called and when it is enrolled, appears in no answer,
+   log line or record of the broker's (`broker/tests/test_broker_key_not_leaked.py`).
 2. **A key is sealed at rest.** The broker encrypts each key with authenticated encryption under a
    key-encryption key that only the broker's process can read, supplied as a systemd credential. The
    record's pseudonym is bound to the ciphertext as associated data, so a sealed key moved to
    another person's record does not open (`dd_broker.seal`, `broker/tests/test_broker_seal.py`).
 3. **The broker knows a person only by a pseudonym.** The pseudonym is a keyed hash of the
    principal's identifier under a secret the harness holds. The broker never receives an ORCID iD,
-   a name or a session (TODO(#807)).
+   a name or a session: a grant and an enrolment ticket name the person only by the pseudonym,
+   sealed to the broker (`harness/tests/test_model_grants.py`, `app/tests/test_model_account.py`).
 4. **A grant is not a key.** A model grant authorises one invocation of one agent to call the
    models that agent's card declares and the profile allows, for the person the run acts for. It
    expires no later than that invocation's timeout. It is useless to any other agent, for any
@@ -173,8 +177,9 @@ key never passes through the gateway, which would otherwise see the key.
 **Enrolment.** A signed-in person adds, replaces or removes their account on the Profile page.
 The steps are:
 
-1. The app asks the harness for an enrolment ticket. The ticket is short-lived, single-use, signed
-   by the harness and addressed to the broker, and it names the pseudonym.
+1. The app asks the harness for an enrolment ticket (`POST /api/model-account/ticket`, for the
+   person signed in). The ticket is short-lived, single-use, signed by the harness and addressed to
+   the broker, and it names the pseudonym.
 2. The browser sends the key, and for an OpenAI-compatible account the base URL, to the broker
    together with the ticket. The key never passes through the app.
 3. The broker checks the key with one inexpensive call to the provider. If the key works, the
@@ -185,6 +190,39 @@ The page shows the label and the person's token use, and nothing else. Removing 
 the sealed record at once. A run in progress makes no further calls on that account: its next
 call ends the run with `model-account-missing`, or is paid for by the deployment only if the grant
 allows `own-or-deployment`, and the run records that it was (invariants 9–10).
+
+The ticket is the grant's sibling, signed with the same key and checked against the same published
+keys (`dd_sdk.model_grant`):
+
+- **Header:** `typ` is `dd-enrolment+jwt`, where a grant's is `JWT`, so neither passes for the
+  other.
+- **Claims:** `aud` (the broker's, as in a grant), `iat`, `exp`, `jti`, `dd_purpose` (`enrolment`)
+  and `dd_subject` (the pseudonym, sealed to the broker as in a grant). It carries none of a
+  grant's other claims.
+- **Lifetime:** 120 seconds. The broker accepts each `jti` once, and remembers it until the ticket
+  has expired.
+
+The page asks for a fresh ticket for each request it makes of the broker. The broker's enrolment
+interface is `/enrolment/account`, with the ticket as `Authorization: Bearer`:
+
+| Request | What the broker does | Its answer |
+|---|---|---|
+| `GET` | Reads the account's label and the person's token use for the last 30 days. | `{account, usage}`; `account` is `null` if they have none. |
+| `PUT` `{provider, key}` | Checks the key by listing one model, which costs no tokens, and stores it only if the provider accepts it. | `{account, usage}`, or a status and `{reason}`. |
+| `DELETE` | Erases the sealed record. | `204`. |
+
+A key that fails is answered `422` with `model-account-rejected`, `429` with `model-account-limit`,
+or `502` with `provider-unreachable` or `provider-error`, and is not stored. A ticket that is
+missing, invalid, expired or used is answered `401` with `ticket-missing`, `ticket-invalid`,
+`ticket-expired` or `ticket-used`. Every answer is `Cache-Control: no-store`. The page puts each
+reason in plain words.
+
+The browser reaches the broker on the app's own origin: the reverse proxy passes
+`/broker/enrolment/` on to the broker's `/enrolment/`, and nothing else of the broker's
+([`deploy/nginx/data-director.conf`](../../deploy/nginx/data-director.conf)). So the broker needs
+no cross-origin rules, and its interface for agents stays on the host's private network. The app's
+`DD_APP_MODEL_BROKER_URL` names that path, and must be a path. Without it, or without the harness
+minting grants, the app issues no ticket and the page offers no account.
 
 **The grant.** A JWT signed by the harness with an asymmetric key, which the broker verifies
 against the harness's published keys. Its claims are:

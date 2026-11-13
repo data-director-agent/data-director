@@ -1,14 +1,16 @@
 """The broker's records: sealed keys and token counts, by pseudonym (docs/specs/model-accounts.md).
 
-One SQLite file holds two tables:
+One SQLite file holds three tables:
 
 - `accounts`: one row per person who has enrolled a key. The key itself is sealed
   (`dd_broker.seal`); the label is what the Profile page shows (the provider, the account's name
   if the provider gives one, and the last four characters of the key).
 - `usage`: input and output tokens per pseudonym, day, payer, provider and model.
+- `tickets`: the identifiers of enrolment tickets already used, each until shortly after it
+  expires, so that a ticket is accepted once.
 
 No prompt and no reply is ever written here. Removing an account deletes its row at once.
-Enrolment over HTTP is TODO(#807); it will call `put` and `remove`.
+Enrolment (`dd_broker.enrolment`) calls `put`, `label` and `remove`.
 """
 
 from __future__ import annotations
@@ -44,6 +46,10 @@ CREATE TABLE IF NOT EXISTS usage (
     output_tokens INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (pseudonym, day, payer, provider, model)
 );
+CREATE TABLE IF NOT EXISTS tickets (
+    jti TEXT PRIMARY KEY,
+    expires INTEGER NOT NULL
+);
 """
 
 
@@ -55,6 +61,15 @@ class OwnAccount:
     base_url: str | None
     label: str
     key: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class AccountLabel:
+    """What the Profile page may show of a person's account: never the key."""
+
+    provider: str
+    label: str
+    created: datetime
 
 
 @dataclass(frozen=True)
@@ -129,6 +144,29 @@ class Store:
         key = unseal(self._kek, pseudonym, Sealed(nonce=nonce, ciphertext=ciphertext))
         return OwnAccount(provider=provider, base_url=base_url, label=label, key=key)
 
+    def label(self, pseudonym: str) -> AccountLabel | None:
+        """The person's account as the page shows it, without unsealing the key."""
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT provider, label, created FROM accounts WHERE pseudonym = ?",
+                (pseudonym,),
+            ).fetchone()
+        if row is None:
+            return None
+        provider, label, created = row
+        return AccountLabel(provider=provider, label=label, created=datetime.fromisoformat(created))
+
+    def use_ticket(self, jti: str, expires: int, *, now: float | None = None) -> bool:
+        """Record an enrolment ticket as used. False if it was used before. Tickets that have
+        expired are forgotten, since they are refused for their time anyway."""
+        current = int(now if now is not None else datetime.now(UTC).timestamp())
+        with self._connect() as db:
+            db.execute("DELETE FROM tickets WHERE expires < ?", (current,))
+            cursor = db.execute(
+                "INSERT OR IGNORE INTO tickets (jti, expires) VALUES (?, ?)", (jti, expires)
+            )
+        return cursor.rowcount > 0
+
     def remove(self, pseudonym: str) -> bool:
         """Erase a person's account at once. Whether there was one."""
         with self._connect() as db:
@@ -166,12 +204,13 @@ class Store:
                 ),
             )
 
-    def usage(self, pseudonym: str) -> list[Usage]:
+    def usage(self, pseudonym: str, *, since: date | None = None) -> list[Usage]:
+        """The person's token counts, by day, payer, provider and model, from `since` on."""
         with self._connect() as db:
             rows = db.execute(
                 "SELECT day, payer, provider, model, input_tokens, output_tokens FROM usage"
-                " WHERE pseudonym = ? ORDER BY day, payer, provider, model",
-                (pseudonym,),
+                " WHERE pseudonym = ? AND day >= ? ORDER BY day, payer, provider, model",
+                (pseudonym, (since or date.min).isoformat()),
             ).fetchall()
         return [
             Usage(
