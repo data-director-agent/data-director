@@ -2,7 +2,7 @@
 # names another (docs/specs/policy-and-identity.md, docs/specs/system.md). Keys are as in workbench/profiles/README.md.
 # TODO(#225): how a steward edits and reviews this profile in a deployment (#41).
 profile_id: data-director-app
-version: 8
+version: 9
 description: Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.
 
 agents:
@@ -32,6 +32,11 @@ orchestrator: orchestrator.stub
 hosted_models:
   - inventory
   - documentation
+
+# Whether people may use their own model account to pay for model calls
+# (docs/specs/model-accounts.md). Off: the deployment pays for every call, as before.
+model_accounts:
+  own: off
 
 actions_requiring_approval:
   - deposit

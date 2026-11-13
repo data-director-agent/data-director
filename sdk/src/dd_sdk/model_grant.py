@@ -27,6 +27,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
+from urllib.parse import urlsplit
 
 # Where the conductor puts the grant in the A2A request's metadata, beside `dd.input_ref` and
 # `traceparent` (dd_sdk.wire re-exports it). It is never written to the envelope, a span or a
@@ -55,6 +56,11 @@ CLAIM_INVOCATION = "dd_invocation"
 CLAIM_MODELS = "dd_models"
 CLAIM_ACCOUNT = "dd_account"
 CLAIM_SUBJECT = "dd_subject"
+# Only in a grant that may use a person's own account: the providers that account may be with, and
+# the origins (scheme, host and port) it may name as a base URL. The profile's `model_accounts`
+# decides both, and the broker refuses an own account outside them.
+CLAIM_PROVIDERS = "dd_providers"
+CLAIM_BASE_URLS = "dd_base_urls"
 CLAIM_TICKET_ID = "jti"
 CLAIM_PURPOSE = "dd_purpose"
 
@@ -64,7 +70,14 @@ TICKET_PURPOSE = "enrolment"
 # A ticket is good for one request to the broker, sent within this many seconds of its issue.
 TICKET_LIFETIME_S = 120
 # Claims that only a grant carries; a ticket that has any of them is refused.
-_GRANT_ONLY_CLAIMS = (CLAIM_AGENT, CLAIM_INVOCATION, CLAIM_MODELS, CLAIM_ACCOUNT)
+_GRANT_ONLY_CLAIMS = (
+    CLAIM_AGENT,
+    CLAIM_INVOCATION,
+    CLAIM_MODELS,
+    CLAIM_ACCOUNT,
+    CLAIM_PROVIDERS,
+    CLAIM_BASE_URLS,
+)
 
 # HTTP headers between an agent's adapter and the broker. The agent's own broker credential
 # travels where its provider client already sends an API key (`x-api-key` or
@@ -92,6 +105,28 @@ class Payer(StrEnum):
     DEPLOYMENT = "deployment"
 
 
+def origin(url: str) -> str:
+    """A base URL's origin as a grant's `dd_base_urls` and the broker's allow-list name it:
+    `https://host[:port]`, lower case, with the default port left out. Raises `ValueError` for
+    anything that is not a plain `https` URL; the message never quotes the URL."""
+    parts = urlsplit(url.strip())
+    if parts.scheme != "https":
+        raise ValueError("a base URL must use https")
+    if not parts.hostname:
+        raise ValueError("a base URL must name a host")
+    if parts.username is not None or parts.password is not None:
+        raise ValueError("a base URL must not carry user information")
+    if parts.query or parts.fragment:
+        raise ValueError("a base URL must not carry a query or a fragment")
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise ValueError("a base URL's port is not a number") from exc
+    host = parts.hostname.lower()
+    shown = f"[{host}]" if ":" in host else host
+    return f"https://{shown}" if port in (None, 443) else f"https://{shown}:{port}"
+
+
 class ModelGrantError(ValueError):
     """A claim set does not have the model grant's (or the enrolment ticket's) shape. The message
     names the claim, never a claim's value."""
@@ -102,6 +137,17 @@ def _text(claims: Mapping[str, Any], name: str, token: str) -> str:
     if not isinstance(value, str) or not value:
         raise ModelGrantError(f"the {token}'s {name} is missing or not a string")
     return value
+
+
+def _texts(claims: Mapping[str, Any], name: str, *, empty: bool) -> tuple[str, ...]:
+    value = claims.get(name)
+    if (
+        not isinstance(value, list)
+        or (not value and not empty)
+        or not all(isinstance(v, str) and v for v in value)
+    ):
+        raise ModelGrantError(f"the grant's {name} is not a list of strings")
+    return tuple(value)
 
 
 def _number(claims: Mapping[str, Any], name: str, token: str) -> int:
@@ -124,6 +170,10 @@ class ModelGrantClaims:
     subject: str
     issued_at: int
     expires_at: int
+    # The providers and base URL origins a person's own account may use; empty for a grant the
+    # deployment pays for.
+    providers: tuple[str, ...] = ()
+    base_urls: tuple[str, ...] = ()
 
     @classmethod
     def from_claims(cls, claims: Mapping[str, Any]) -> ModelGrantClaims:
@@ -146,6 +196,17 @@ class ModelGrantClaims:
             account = Account(text(CLAIM_ACCOUNT))
         except ValueError as exc:
             raise ModelGrantError(f"the grant's {CLAIM_ACCOUNT} is not a known account") from exc
+        providers: tuple[str, ...] = ()
+        base_urls: tuple[str, ...] = ()
+        if account is Account.DEPLOYMENT:
+            # A grant the deployment pays for says nothing about a person's own account.
+            for name in (CLAIM_PROVIDERS, CLAIM_BASE_URLS):
+                if name in claims:
+                    raise ModelGrantError(f"a grant the deployment pays for carries no {name}")
+        else:
+            providers = _texts(claims, CLAIM_PROVIDERS, empty=False)
+            if CLAIM_BASE_URLS in claims:
+                base_urls = _texts(claims, CLAIM_BASE_URLS, empty=True)
         issued_at, expires_at = number(CLAIM_ISSUED_AT), number(CLAIM_EXPIRES)
         if expires_at <= issued_at:
             raise ModelGrantError("the grant expires before it is issued")
@@ -158,6 +219,8 @@ class ModelGrantClaims:
             subject=text(CLAIM_SUBJECT),
             issued_at=issued_at,
             expires_at=expires_at,
+            providers=providers,
+            base_urls=base_urls,
         )
 
 

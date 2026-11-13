@@ -6,13 +6,11 @@ for agents. No agent, and neither the app nor the harness, ever holds a person's
 is in [A person's own model account](../../specs/model-accounts.md).
 
 !!! warning "Alpha, and off by default"
-    The harness can sign model grants, agents can call through the broker, and a person can add
-    their own key on the Profile page, but the profile has no `model_accounts` setting yet
-    (TODO(#810)), so every grant says the deployment pays.
-
-    Until that lands, every call is paid for by the deployment, as before. Turning the broker on
-    now only moves the deployment's key from the agents to the broker, and lets people add a key
-    that is not yet used.
+    The shipped profiles set `model_accounts: {own: off}`, so every grant says the deployment pays
+    and every call is paid for by the deployment, as before. Turning the broker on with that
+    profile only moves the deployment's key from the agents to the broker. People's own accounts
+    pay only once the steward turns them on in the profile
+    ([Institutional profiles](../../../workbench/profiles/README.md)).
 
 ## What it does
 
@@ -92,13 +90,26 @@ With all three set, the app publishes the public half of the signing key at
 JSON to a file and name it with `DD_BROKER_HARNESS_JWKS_FILE`. With none set, no grant is minted.
 With only some set, the app stops at start-up.
 
+### The profile: turning own accounts on
+
+The steward decides, in the profile's `model_accounts`, whether people may or must use their own
+account and whether the deployment pays for someone who has none
+([Institutional profiles](../../../workbench/profiles/README.md)). A profile that turns own
+accounts on stops the app at start-up unless the three secrets above are set, since without grants
+nothing would carry that decision to the broker. Raise the profile's `version` with the change.
+
+Every model-backed agent must then call through the broker (below). The harness cannot yet check
+that it does: an agent left with its own provider key would ignore the grant, and the deployment
+would pay (TODO(#819)).
+
 ### The Profile page: adding one's own key
 
 A person adds, replaces or removes their key on the Profile page. The browser sends the key to the
 broker, not to the app, on the app's own site: NGINX passes `/broker/enrolment/` on to the broker
 on `127.0.0.1:8300`, and nothing else of the broker's
 ([`deploy/nginx/data-director.conf`](../../../deploy/nginx/data-director.conf)). To turn the page's
-account section on, set the three harness secrets above and, in `/etc/data-director/app.env`:
+account section on, turn own accounts on in the profile, set the three harness secrets above and,
+in `/etc/data-director/app.env`:
 
 ```bash
 DD_APP_MODEL_BROKER_URL=/broker
@@ -145,7 +156,8 @@ the gateway.
 ### Custom endpoints
 
 A person's own account may one day name an OpenAI-compatible endpoint (TODO(#811)). The broker
-sends a key only to an `https` origin listed in `DD_BROKER_ALLOWED_BASE_URLS`. It refuses one that
+sends a key only to an `https` origin that both the profile's `model_accounts` (carried in the
+grant) and `DD_BROKER_ALLOWED_BASE_URLS` list. It refuses one that
 resolves to a private, loopback or link-local address, unless that origin is also in
 `DD_BROKER_PRIVATE_BASE_URLS`. It checks the address after resolving the name and connects to the
 address it checked.

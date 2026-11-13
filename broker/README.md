@@ -21,8 +21,9 @@ The broker:
 - refuses a custom base URL unless the operator allow-listed it, and one that resolves to a
   private or reserved address unless the operator said so (`dd_broker.guard`).
 
-It is alpha and off by default: until the profile turns own accounts on (TODO(#810)) every call is
-paid for by the deployment, as before. The harness mints the grants (`dd_harness.model_grants`)
+It is alpha and off by default: until the profile's `model_accounts` turns own accounts on, every
+call is paid for by the deployment, as before. When it does, the grant names the providers and
+base URL origins the profile allows, and the broker refuses a person's account outside them. The harness mints the grants (`dd_harness.model_grants`)
 and every model-backed agent can call through the broker (`dd_sdk.credentials.model_endpoint`). A
 person adds, replaces or removes their own key from the app's Profile page through the broker's
 enrolment interface, with a single-use ticket the app issues (`dd_broker.enrolment`).

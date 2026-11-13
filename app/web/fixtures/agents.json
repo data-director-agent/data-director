@@ -471,9 +471,9 @@
   ],
   "incompatible": {},
   "profile": {
-    "digest": "03384ae5eb31b460ce1c6206fa310eea3e4b5b04bad03cc4f0309a24972c6f89",
+    "digest": "fa6c441b3f1f2def045c65c747c52919b250b892f28654b716faf34ec943fae1",
     "orchestrator": "orchestrator.stub",
-    "ref": "profile:data-director-app@v8"
+    "ref": "profile:data-director-app@v9"
   },
   "unavailable": {}
 }

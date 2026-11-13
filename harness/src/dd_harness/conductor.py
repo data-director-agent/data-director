@@ -198,6 +198,17 @@ class Conductor:
     _parents: ThreadPoolExecutor | None = field(default=None, repr=False)
     _parents_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
+    def __post_init__(self) -> None:
+        # A profile that lets people's own accounts pay is in force only if grants carry that
+        # to the broker (docs/specs/policy-and-identity.md, invariant 4).
+        if self.profile.model_accounts.own != "off" and self.model_grants is None:
+            raise policy.PolicyError(
+                f"profile {self.profile.profile_id!r} sets model_accounts.own to "
+                f"{self.profile.model_accounts.own}, but the harness mints no model grants; set "
+                "DD_MODEL_GRANT_SIGNING_KEY, DD_MODEL_BROKER_SUBJECT_KEY and DD_PSEUDONYM_SECRET "
+                "(docs/specs/model-accounts.md)"
+            )
+
     async def ainvoke(
         self,
         request: InvocationRequest,
@@ -332,15 +343,20 @@ class Conductor:
         spec = agent.spec
         if self.model_grants is None or not spec.models or not isinstance(agent, RemoteAgent):
             return None
+        # Who pays is the profile's decision, never the agent's or the request's; the broker
+        # enforces what the grant says.
+        accounts = self.profile.model_accounts
+        account = accounts.account
+        own = account is not Account.DEPLOYMENT
         return self.model_grants.mint(
             agent_id=spec.agent_id,
             invocation_id=request.invocation_id,
             models=(model.model for model in spec.models),
-            # Who pays follows the profile's `model_accounts` once there is one, TODO(#810). Until
-            # then the deployment pays for every call, as it does without a broker.
-            account=Account.DEPLOYMENT,
+            account=account,
             acting_for=acting_for,
             lifetime_s=agent.timeout_s,
+            providers=accounts.provider_names if own else (),
+            base_urls=accounts.base_urls if own else (),
         )
 
     def _issue_grant(self, request: InvocationRequest, acting_for: Principal) -> Grant:

@@ -124,8 +124,9 @@ propose the change in its payload and the conductor is to perform it after appro
 (TODO(#72)).
 
 **The profile vocabulary** is the identifier, version, description, the agent-to-class mapping,
-the classes requiring approval, the optional orchestrator, `hosted_models` and, once enforced,
-`model_accounts` (whether people may or must use their own model account, TODO(#810);
+the classes requiring approval, the optional orchestrator, `hosted_models` and `model_accounts`
+(whether people may or must use their own model account, whether the deployment pays for someone
+who has none, and which providers and base URLs their account may use;
 [A person's own model account](model-accounts.md)). A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
