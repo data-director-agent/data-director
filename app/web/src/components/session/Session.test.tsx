@@ -259,6 +259,7 @@ describe("the session API", () => {
         vouchedBy: "https://orcid.org",
       },
       expiresAt: "2026-10-29T18:00:00Z",
+      modelAccounts: false,
     });
   });
 

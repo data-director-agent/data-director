@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from broker_support import (
     AGENT_CREDENTIAL,
@@ -18,6 +19,8 @@ from broker_support import (
     make_broker,
     message_body,
 )
+
+from dd_broker.enrolment import ACCOUNT_PATH
 
 # Distinctive enough that finding it anywhere means it leaked. The cassette's error answers quote
 # it, as a careless provider might.
@@ -61,5 +64,45 @@ def test_a_persons_key_appears_in_no_answer_log_or_record(
     for text in (caplog.text, captured.out, captured.err):
         assert SENTINEL not in text
         assert AGENT_CREDENTIAL not in text
+    for path in (tmp_path / "store").iterdir():
+        assert SENTINEL.encode() not in path.read_bytes()
+
+
+def test_a_key_enrolled_through_the_browser_appears_in_no_answer_log_or_record(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture[str]
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    statuses = iter([401, 429, 200])
+
+    def provider(request: httpx.Request) -> httpx.Response:
+        # A careless provider quotes the key back, in failure and in success.
+        return httpx.Response(next(statuses), text=f"key {SENTINEL} is not valid")
+
+    harness = FakeHarness()
+    broker = make_broker(
+        harness, tmp_path / "store" / "broker.sqlite3", transport=httpx.MockTransport(provider)
+    )
+    answers = []
+    with client(broker) as http:
+        for _ in range(3):
+            answers.append(
+                http.put(
+                    ACCOUNT_PATH,
+                    json={"provider": "anthropic", "key": SENTINEL},
+                    headers={"authorization": f"Bearer {harness.ticket()}"},
+                )
+            )
+        answers.append(
+            http.get(ACCOUNT_PATH, headers={"authorization": f"Bearer {harness.ticket()}"})
+        )
+
+    assert [a.status_code for a in answers] == [422, 429, 200, 200]
+    for answer in answers:
+        assert SENTINEL not in answer.text
+        assert SENTINEL not in str(answer.headers)
+        assert PSEUDONYM not in answer.text
+    captured = capsys.readouterr()
+    for text in (caplog.text, captured.out, captured.err):
+        assert SENTINEL not in text
     for path in (tmp_path / "store").iterdir():
         assert SENTINEL.encode() not in path.read_bytes()

@@ -21,6 +21,11 @@ class Reason(StrEnum):
     GRANT_EXPIRED = "grant-expired"
     GRANT_AGENT_MISMATCH = "grant-agent-mismatch"
     MODEL_NOT_GRANTED = "model-not-granted"
+    # The enrolment ticket.
+    TICKET_MISSING = "ticket-missing"
+    TICKET_INVALID = "ticket-invalid"
+    TICKET_EXPIRED = "ticket-expired"
+    TICKET_USED = "ticket-used"
     # The request.
     REQUEST_INVALID = "request-invalid"
     STREAMING_UNSUPPORTED = "streaming-unsupported"

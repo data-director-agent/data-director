@@ -1431,6 +1431,7 @@ dev = [
     { name = "data-director-agent-example-hello" },
     { name = "data-director-agent-orchestrator-stub" },
     { name = "data-director-inventory" },
+    { name = "data-director-model-broker" },
 ]
 
 [package.metadata]
@@ -1453,6 +1454,7 @@ dev = [
     { name = "data-director-agent-example-hello", editable = "agents/example-hello" },
     { name = "data-director-agent-orchestrator-stub", editable = "agents/orchestrator-stub" },
     { name = "data-director-inventory", editable = "inventory" },
+    { name = "data-director-model-broker", editable = "broker" },
 ]
 
 [[package]]

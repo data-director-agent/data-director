@@ -57,7 +57,10 @@ delegation agent's callback under a live grant and nothing else (docs/specs/orch
 the configured OpenID Connect provider, `POST /api/sign-out` ends their session, and
 `GET /api/session` says who is signed in, until when, and whether this server signs anyone in
 (docs/specs/policy-and-identity.md, `dd_harness.signin`); `POST /api/session` says the same and
-keeps the session going.
+keeps the session going. Both also say whether a person may add their own model account.
+`POST /api/model-account/ticket` issues the person signed in a single-use enrolment ticket and
+names where the browser takes it: the model broker, which alone receives their key
+(docs/specs/model-accounts.md, Enrolment).
 Every other path serves the shell built from `app/web` (`npm run build` writes `app/web/dist`).
 The app stops at start-up, with one line, if a setting is wrong or the shell has not been built.
 
@@ -71,6 +74,8 @@ with no provider configured is a development server: every request acts for the 
 
 Serves on http://127.0.0.1:7860 by default; `DD_APP_HOST` and `DD_APP_PORT` change the address,
 and `DD_HARNESS_URL` the address the agents call back on, if they reach the app by another.
+`DD_APP_MODEL_BROKER_URL` (a path on the app's origin, such as `/broker`) turns on adding one's own
+model account, when the harness also mints model grants (`dd_app.model_accounts`).
 A GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a
 token (`DD_FEEDBACK_GITHUB_TOKEN`, or `_FILE`) turns problem reports on, into `DD_FEEDBACK_REPO`.
 """
@@ -117,6 +122,7 @@ from dd_app.governance import (
     UnknownConversationError,
     principal_summary,
 )
+from dd_app.model_accounts import broker_path
 from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
@@ -190,6 +196,7 @@ def build_app(
     build: Mapping[str, str | None] | None = None,
     sign_in: SignIn | None = None,
     orcid_transport: httpx.BaseTransport | None = None,
+    model_broker_path: str | None = None,
 ) -> Starlette:
     """The server. `web_dist` must hold a built shell (its `index.html`).
 
@@ -197,6 +204,8 @@ def build_app(
     stand in for GitHub and for the build's identity. `sign_in` signs people in; its
     authenticator must be `governance.authenticator`. Without it, the server signs nobody in.
     `orcid_transport` lets a test stand in for ORCID's public API (`dd_harness.orcid`).
+    `model_broker_path` is where the browser reaches the model broker (`dd_app.model_accounts`);
+    with it and a harness that mints model grants, a person may add their own model account.
     """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
@@ -205,6 +214,9 @@ def build_app(
         )
     if sign_in is not None and governance.authenticator is not sign_in.authenticator:
         raise IdentityError("the app signs people in, so it must act for whom it signed in")
+
+    minter = governance.conductor.model_grants
+    model_accounts = minter is not None and model_broker_path is not None
 
     def signed_in(handler: Handler) -> Callable[[Request], Awaitable[Response]]:
         """`handler`, given the principal the request acts for; a request with none is refused
@@ -1100,10 +1112,15 @@ def build_app(
                     "issuer": None,
                     "principal": _principal(operator),
                     "expires_at": None,
+                    "model_accounts": model_accounts,
                 }
             )
         session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
-        body: dict[str, Any] = {"signs_in": True, "issuer": sign_in.issuer}
+        body: dict[str, Any] = {
+            "signs_in": True,
+            "issuer": sign_in.issuer,
+            "model_accounts": model_accounts,
+        }
         if session is None:
             return JSONResponse({**body, "principal": None, "expires_at": None})
         expires_at = datetime.fromtimestamp(sign_in.store.expires_at(session), UTC)
@@ -1113,6 +1130,28 @@ def build_app(
                 "principal": _principal(session.principal),
                 "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
             }
+        )
+
+    async def model_account_ticket(request: Request, acting_for: Principal) -> Response:
+        # The ticket names the person only by their pseudonym, sealed to the broker. The key
+        # itself goes from the browser to the broker and never comes here.
+        if minter is None or model_broker_path is None:
+            return _problem(
+                404,
+                "model-accounts-unavailable",
+                "Own model accounts are not offered here",
+                "This deployment does not let people add their own model account.",
+            )
+        ticket, expires = minter.enrolment_ticket(acting_for=acting_for)
+        return JSONResponse(
+            {
+                "ticket": ticket,
+                "broker_url": model_broker_path,
+                "expires_at": datetime.fromtimestamp(expires, UTC)
+                .isoformat()
+                .replace("+00:00", "Z"),
+            },
+            headers={"Cache-Control": "no-store"},
         )
 
     async def begin_sign_in(request: Request) -> Response:
@@ -1319,6 +1358,7 @@ def build_app(
             Route("/server-status", server_status, methods=["GET"]),
             Route("/api/feedback", signed_in(send_feedback), methods=["POST"]),
             Route("/api/session", get_session, methods=["GET", "POST"]),
+            Route("/api/model-account/ticket", signed_in(model_account_ticket), methods=["POST"]),
             Route("/api/sign-in", begin_sign_in, methods=["GET"]),
             Route(CALLBACK_PATH, finish_sign_in, methods=["GET"]),
             Route("/api/sign-out", sign_out, methods=["POST"]),
@@ -1479,6 +1519,7 @@ def main() -> int:
             feedback_source=feedback.source_from_env(os.environ, feedback_repo),
             feedback_repo=feedback_repo,
             sign_in=sign_in,
+            model_broker_path=broker_path(os.environ),
         )
         if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))

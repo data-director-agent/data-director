@@ -1,0 +1,25 @@
+{
+  "account": {
+    "created": "2026-11-13T12:00:00+00:00",
+    "label": "Anthropic ····7f3a",
+    "provider": "anthropic"
+  },
+  "usage": [
+    {
+      "day": "2026-11-13",
+      "input_tokens": 5120,
+      "model": "claude-haiku-5-5",
+      "output_tokens": 840,
+      "payer": "own",
+      "provider": "anthropic"
+    },
+    {
+      "day": "2026-11-13",
+      "input_tokens": 18240,
+      "model": "claude-sonnet-5-5",
+      "output_tokens": 2310,
+      "payer": "own",
+      "provider": "anthropic"
+    }
+  ]
+}

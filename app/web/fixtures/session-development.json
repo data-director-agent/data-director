@@ -1,6 +1,7 @@
 {
   "expires_at": null,
   "issuer": null,
+  "model_accounts": false,
   "principal": {
     "assurance": "asserted",
     "name": "Josiah Carberry",

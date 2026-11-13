@@ -24,7 +24,8 @@ broker never returns or logs a provider's error text, a request body, a key or a
 no prompt and no reply. A rejected or limited own key never falls back to the deployment's key:
 that would silently change who pays (invariant 10).
 
-The enrolment interface for the browser is TODO(#807). OpenAI-compatible calls are TODO(#811).
+`GET`, `PUT` and `DELETE /enrolment/account` are the enrolment interface for the browser
+(`dd_broker.enrolment`). OpenAI-compatible calls are TODO(#811).
 """
 
 from __future__ import annotations
@@ -43,9 +44,16 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_broker import anthropic
+from dd_broker import anthropic, enrolment
 from dd_broker.agents import AgentCredentials
-from dd_broker.grants import GrantVerifier, HarnessKeys, VerifiedGrant, fetch_file, fetch_url
+from dd_broker.grants import (
+    GrantVerifier,
+    HarnessKeys,
+    TicketVerifier,
+    VerifiedGrant,
+    fetch_file,
+    fetch_url,
+)
 from dd_broker.guard import BaseUrlRefused, Resolver, Target, check_base_url, system_resolver
 from dd_broker.reasons import Reason, Refused
 from dd_broker.seal import SealError
@@ -80,6 +88,7 @@ _ERROR_TYPES = {
 class Broker:
     store: Store
     verifier: GrantVerifier
+    tickets: TicketVerifier
     agents: AgentCredentials
     deployment_key: str | None = field(default=None, repr=False)
     deployment_base_url: str | None = None
@@ -95,9 +104,12 @@ class Broker:
             if settings.harness_jwks_url
             else fetch_file(settings.harness_jwks_file)  # type: ignore[arg-type]
         )
+        store = Store(settings.store, settings.key_encryption_key)
+        keys = HarnessKeys(fetch)
         return cls(
-            store=Store(settings.store, settings.key_encryption_key),
-            verifier=GrantVerifier(HarnessKeys(fetch), settings.subject_key),
+            store=store,
+            verifier=GrantVerifier(keys, settings.subject_key),
+            tickets=TicketVerifier(keys, settings.subject_key, store),
             agents=settings.agents,
             deployment_key=settings.deployment_key,
             deployment_base_url=settings.deployment_base_url,
@@ -259,12 +271,16 @@ def build_app(broker: Broker) -> Starlette:
             log.info("refused reason=%s status=%d", refused.reason.value, refused.status)
             return refusal(refused.status, refused.reason)
 
+    async def account(request: Request) -> Response:
+        return await enrolment.account(broker.store, broker.tickets, clients[0], request)
+
     async def healthz(request: Request) -> Response:
         return JSONResponse({"status": "ok"})
 
     return Starlette(
         routes=[
             Route("/anthropic/v1/messages", messages, methods=["POST"]),
+            Route(enrolment.ACCOUNT_PATH, account, methods=["GET", "PUT", "DELETE"]),
             Route("/healthz", healthz, methods=["GET"]),
         ],
         lifespan=lifespan,

@@ -23,8 +23,10 @@ The broker:
 
 It is alpha and off by default: until the profile turns own accounts on (TODO(#810)) every call is
 paid for by the deployment, as before. The harness mints the grants (`dd_harness.model_grants`)
-and every model-backed agent can call through the broker (`dd_sdk.credentials.model_endpoint`). The
-browser's enrolment interface is TODO(#807); OpenAI-compatible accounts are TODO(#811).
+and every model-backed agent can call through the broker (`dd_sdk.credentials.model_endpoint`). A
+person adds, replaces or removes their own key from the app's Profile page through the broker's
+enrolment interface, with a single-use ticket the app issues (`dd_broker.enrolment`).
+OpenAI-compatible accounts are TODO(#811).
 
 ```bash
 uv run dd-model-broker serve        # 127.0.0.1:8300; settings in dd_broker.settings

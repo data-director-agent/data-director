@@ -34,6 +34,8 @@ dev = [
   "data-director-agent-advisor-metadata",
   "data-director-agent-advisor-documentation",
   "data-director-inventory",
+  # The model broker, in process, for the enrolment flow (tests/test_model_account.py).
+  "data-director-model-broker",
 ]
 
 [tool.hatch.build.targets.wheel]

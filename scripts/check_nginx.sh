@@ -3,7 +3,8 @@
 # the app on 127.0.0.1:7860 and the workbench on 127.0.0.1:8000, and check that the proxy does
 # what the config says: HTTP redirected to HTTPS, TLS 1.3 alone, HSTS, no password of its own (the
 # app and the workbench sign people in), /a2a, the agent card and /server-status closed, the forwarded headers set,
-# the body size limit, and port 8443 reaching the workbench and nothing else. The "NGINX reverse proxy" job in
+# the body size limit, port 8443 reaching the workbench and nothing else, and /broker/enrolment/
+# alone reaching the model broker on 127.0.0.1:8300. The "NGINX reverse proxy" job in
 # .github/workflows/ci.yml runs it.
 #
 # It changes /etc/nginx and /etc/letsencrypt, so run it as root on a throwaway Debian or Ubuntu
@@ -55,11 +56,13 @@ class Echo(BaseHTTPRequestHandler):
 
 workbench = HTTPServer(("127.0.0.1", 8000), Echo)
 threading.Thread(target=workbench.serve_forever, daemon=True).start()
+broker = HTTPServer(("127.0.0.1", 8300), Echo)
+threading.Thread(target=broker.serve_forever, daemon=True).start()
 HTTPServer(("127.0.0.1", 7860), Echo).serve_forever()
 PY
 upstream=$!
 trap 'kill "$upstream"' EXIT
-bash "$src/deploy/wait-for-ports.sh" 10 7860 8000
+bash "$src/deploy/wait-for-ports.sh" 10 7860 8000 8300
 
 nginx -t
 if [[ -s /run/nginx.pid ]] && kill -0 "$(cat /run/nginx.pid)" 2>/dev/null; then
@@ -105,6 +108,15 @@ grep -q '^Upstream: 7860' <<<"$headers" || fail "port 443 does not reach the app
 if curl -s -H 'Host: elsewhere.example' http://127.0.0.1/ | grep -qi 'welcome to nginx'; then
   fail "the packaged default site still answers"
 fi
+
+# The model broker's enrolment interface, and nothing else of the broker's.
+headers=$(curl -sk "$url/broker/enrolment/account")
+grep -q '^Upstream: 8300' <<<"$headers" || fail "/broker/enrolment/ does not reach the broker"
+grep -q '^Upstream: 7860' <<<"$(curl -sk "$url/broker/anthropic/v1/messages")" ||
+  fail "a broker path other than /enrolment/ is passed to the broker"
+expect 413 "an enrolment body over 4 kB" \
+  -H 'Content-Type: application/json' --data-binary @<(head -c 8000 /dev/zero | tr '\0' a) \
+  "$url/broker/enrolment/account"
 
 # The workbench, on port 8443.
 workbench=https://127.0.0.1:8443

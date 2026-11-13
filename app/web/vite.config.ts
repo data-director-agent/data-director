@@ -10,6 +10,9 @@ const AGENT_VIEW = fileURLToPath(new URL("../../sdk/browser", import.meta.url));
 
 // The app's Python server (`uv run data-director`) serves /api; `npm run dev` proxies to it.
 const API = process.env.DD_APP_URL ?? "http://127.0.0.1:7860";
+// The model broker's enrolment interface, at /broker/enrolment on the page's own origin as nginx
+// serves it (docs/specs/model-accounts.md, Enrolment). Only that path is passed on.
+const BROKER = process.env.DD_BROKER_URL ?? "http://127.0.0.1:8300";
 
 export default defineConfig({
   plugins: [react()],
@@ -17,7 +20,13 @@ export default defineConfig({
   // React for the whole page, the app's.
   resolve: { dedupe: ["react", "react-dom"] },
   server: {
-    proxy: { "/api": API },
+    proxy: {
+      "/api": API,
+      "/broker/enrolment/": {
+        target: BROKER,
+        rewrite: (path: string) => path.replace(/^\/broker/, ""),
+      },
+    },
     fs: { allow: [searchForWorkspaceRoot(process.cwd()), INVENTORY, AGENT_VIEW] },
   },
   build: {

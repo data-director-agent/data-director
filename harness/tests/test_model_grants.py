@@ -49,8 +49,12 @@ from dd_sdk.contract.models import (
 from dd_sdk.model_grant import (
     BROKER_AUDIENCE,
     META_MODEL_GRANT,
+    TICKET_LIFETIME_S,
+    TICKET_TYPE,
     Account,
+    EnrolmentTicketClaims,
     ModelGrantClaims,
+    ModelGrantError,
 )
 
 MODEL = "claude-test"
@@ -127,6 +131,33 @@ def test_no_two_grants_carry_the_same_sealed_pseudonym(keys: GrantKeys) -> None:
         return keys.open(grant).claims
 
     first, second = mint(), mint()
+    assert first["dd_subject"] != second["dd_subject"]
+
+
+def test_an_enrolment_ticket_names_only_the_sealed_pseudonym(keys: GrantKeys) -> None:
+    ticket, expires_at = keys.minter().enrolment_ticket(acting_for=TEST_PRINCIPAL)
+    opened = keys.open(ticket)
+
+    claims = EnrolmentTicketClaims.from_claims(opened.claims)
+    assert claims.audience == BROKER_AUDIENCE
+    assert claims.expires_at == expires_at
+    assert 0 < claims.expires_at - claims.issued_at <= TICKET_LIFETIME_S
+    assert opened.header["typ"] == TICKET_TYPE
+    assert opened.header["kid"] == keys.signing_key.kid
+    assert opened.pseudonym == keys.minter().pseudonym(TEST_PRINCIPAL)
+    assert opened.pseudonym not in ticket
+    assert TEST_PRINCIPAL.principal_id not in json.dumps(opened.claims)
+    # A ticket is no grant.
+    with pytest.raises(ModelGrantError):
+        ModelGrantClaims.from_claims(opened.claims)
+
+
+def test_every_ticket_is_a_different_ticket(keys: GrantKeys) -> None:
+    minter = keys.minter()
+    first, second = (
+        keys.open(minter.enrolment_ticket(acting_for=TEST_PRINCIPAL)[0]).claims for _ in range(2)
+    )
+    assert first["jti"] != second["jti"]
     assert first["dd_subject"] != second["dd_subject"]
 
 
