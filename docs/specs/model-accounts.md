@@ -32,10 +32,11 @@ It does not cover:
 - spending limits, which a person sets with their provider, and the deployment's own spend
   ([`deploy/llm-gateway`](../../deploy/llm-gateway/README.md)).
 
-None of this is built yet. The broker is TODO(#806); enrolment TODO(#807); the grant and the
-agent's adapter TODO(#808); recording and the reason codes TODO(#809); the profile key TODO(#810);
-OpenAI-compatible accounts TODO(#811). Until those land, every model call is paid for by the
-deployment, as it is today.
+The broker is built (`broker/`), with the grant's format in the SDK (`dd_sdk.model_grant`), but
+nothing calls it yet. Enrolment is TODO(#807); minting the grant, the harness's published keys and
+the agent's adapter TODO(#808); recording and the reason codes TODO(#809); the profile key
+TODO(#810); OpenAI-compatible accounts TODO(#811). Until those land, every model call is paid for
+by the deployment, as it is today.
 
 The governing rule is the one in [Policy and identity](policy-and-identity.md): **the party being
 governed does not state the facts the governance rests on.** Neither an agent nor a request chooses
@@ -48,11 +49,13 @@ the broker checks that decision.
    app, the harness, the conductor and every agent never receive it, and no A2A message, grant,
    envelope, span, evidence item, crate, export, log line or error message carries it. Planned
    test: a sentinel key enrolled through the browser, then a run, then a search for the sentinel in
-   every record and log (TODO(#806), TODO(#807)).
+   every record and log (TODO(#807)). The broker's part is tested: a sentinel key, which the
+   provider's error answers quote back, appears in no answer, log line or record of the broker's
+   (`broker/tests/test_broker_key_not_leaked.py`).
 2. **A key is sealed at rest.** The broker encrypts each key with authenticated encryption under a
    key-encryption key that only the broker's process can read, supplied as a systemd credential. The
    record's pseudonym is bound to the ciphertext as associated data, so a sealed key moved to
-   another person's record does not open (TODO(#806)).
+   another person's record does not open (`dd_broker.seal`, `broker/tests/test_broker_seal.py`).
 3. **The broker knows a person only by a pseudonym.** The pseudonym is a keyed hash of the
    principal's identifier under a secret the harness holds. The broker never receives an ORCID iD,
    a name or a session (TODO(#807)).
@@ -72,7 +75,8 @@ the broker checks that decision.
 7. **The broker checks every call.** It refuses a call unless the grant's signature is the
    harness's, the grant is addressed to the broker and has not expired, the calling agent proves
    it is the agent the grant names using its own credential, and the model asked for is one the
-   grant allows (TODO(#806)).
+   grant allows (`dd_broker.grants`, `broker/tests/test_broker_grants.py`,
+   `broker/tests/test_broker_calls.py`).
 8. **The agent's own credential is read once, at start-up.** An agent that calls through the
    broker holds a broker credential of its own, supplied like any key
    ([Policy and identity](policy-and-identity.md), invariants 18–19). A missing or malformed
@@ -98,7 +102,9 @@ the broker checks that decision.
 14. **Only the broker decides who pays.** When the profile turns own accounts on, every model call
     goes through the broker, which then holds the deployment's provider keys as well as people's
     own. Only the broker applies the grant's account setting; an agent never chooses who pays and
-    holds no provider key of its own (TODO(#806)).
+    holds no provider key of its own. The broker applies the account setting
+    (`broker/tests/test_broker_calls.py`); agents still hold their own provider keys until they
+    call through it (TODO(#808)).
 
 ## Boundaries and contracts
 
@@ -119,6 +125,43 @@ the OpenAI chat completions API. Agents therefore keep their adapters, with a di
 and credential. Provider HTTP is plumbing ([Dependencies](dependencies.md)): the broker uses the
 provider SDKs or an OpenAI-compatible client, and may send the deployment's own calls through the
 LiteLLM gateway. Checking the grant is governance and is the broker's own code.
+
+**The broker's interface for agents.** An agent's provider client points at the broker in place of
+the provider. For the Anthropic Messages API that is `POST /anthropic/v1/messages`. The client
+sends the agent's own broker credential where it would send an API key (`x-api-key` or
+`Authorization: Bearer`), and the grant as `X-DD-Model-Grant`. The broker does these checks and
+steps in order:
+
+1. It authenticates the agent.
+2. It verifies the grant for that agent.
+3. It refuses a model the grant does not allow, and a streamed request.
+4. It chooses the account from the grant alone:
+
+   | The grant's account | The person has an account | The person has none |
+   |---|---|---|
+   | `own` | Their key | Refused, `model-account-missing` |
+   | `own-or-deployment` | Their key | The deployment's key |
+   | `deployment` | The deployment's key | The deployment's key |
+
+5. It forwards the request body unchanged.
+
+The broker returns the provider's answer unchanged, with `X-DD-Model-Account` (`own` or
+`deployment`) and `X-DD-Model-Provider`. The model that served the call is in the answer itself.
+A refusal or a provider error is reduced to a status and a reason code, which the broker sends in
+`X-DD-Reason` and in an error body of the provider's shape:
+
+| What happened | The status | The reason code |
+|---|---|---|
+| The provider refuses a person's own key | 403 | `model-account-rejected` |
+| The provider reports a quota or rate limit on it | 429 | `model-account-limit` |
+
+Neither falls back to the deployment's key. The header names, claim names and account values are
+in `dd_sdk.model_grant`; the reason codes are in `dd_broker.reasons`.
+
+The deployment's own calls go to `DD_BROKER_DEPLOYMENT_BASE_URL` when it is set, normally the
+[LiteLLM gateway](../../deploy/llm-gateway/README.md), with a gateway key in place of the provider
+key. The gateway's budgets and spend reports then cover them as before. A call on a person's own
+key never passes through the gateway, which would otherwise see the key.
 
 **Enrolment.** A signed-in person adds, replaces or removes their account on the Profile page.
 The steps are:
@@ -147,6 +190,19 @@ against the harness's published keys. Its claims are:
 - the models allowed: the card's `models` that the profile permits, and only those;
 - which account to use (`own`, `own-or-deployment` or `deployment`);
 - issue and expiry times.
+
+`dd_sdk.model_grant` fixes the format:
+
+- **Signature:** RS256 or ES256, and no other algorithm.
+- **Audience:** `urn:data-director:model-broker`.
+- **Claims:** `dd_agent`, `dd_invocation`, `dd_models`, `dd_account` and `dd_subject`, beside
+  `aud`, `iat` and `exp`.
+- **The sealed pseudonym:** a compact JWE in `dd_subject`, made with `ECDH-ES+A256KW` and
+  `A256GCM` to the broker's P-256 key.
+
+The broker allows 30 seconds of clock skew. The harness's signing key and its published keys
+arrive with the grant's minting (TODO(#808)). Until then the broker reads the keys from a URL or a
+file that the operator names.
 
 It holds no key, no principal and no project content. The conductor passes it as `dd.model_grant`
 in the A2A request's metadata, beside `dd.input_ref` and `traceparent`. The SDK exposes it to the

@@ -15,6 +15,8 @@ NODE_MAJOR=22
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 USER_NAME=datadirector
+# The model broker's own user (deploy/systemd/data-director-model-broker.service).
+BROKER_USER=data-director-broker
 ROOT=/opt/data-director
 STATE=/var/lib/data-director
 ETC=/etc/data-director
@@ -100,6 +102,15 @@ new_file "$ETC/workbench.env" "$SRC/config/examples/workbench.env"
 # hands it to the one unit that loads it (LoadCredential=).
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
 install -d -o root -g root -m 0700 "$ETC/credentials" "$ETC/credentials/app"
+# The model broker runs as a user of its own, which no other service shares, and reads its secrets
+# from its own credentials directory (docs/guide/operations/model-broker.md). Its unit is installed
+# below but not enabled: own model accounts are off until an operator turns them on.
+if ! id "$BROKER_USER" &>/dev/null; then
+  useradd --system --no-create-home --home-dir /var/lib/data-director-model-broker \
+    --shell /usr/sbin/nologin "$BROKER_USER"
+fi
+install -d -o root -g root -m 0700 "$ETC/credentials/model-broker"
+new_file "$ETC/model-broker.env" "$SRC/config/examples/model-broker.env"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
 new_file "$ETC/backup.env" "$SRC/deploy/backup.env.example"
 # Backups hold every secret, so their directory is root's alone.

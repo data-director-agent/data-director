@@ -10,6 +10,9 @@ data-director-workbench.service Security.Delegate # As for the app.
 data-director-workbench.service Security.UMaskOW # As for the app.
 data-director-admin.service Security.Delegate # As for the app.
 data-director-admin.service Security.UMaskOW # As for the app.
+data-director-model-broker.service InvalidSetting # As for the app: LoadCredential= is in systemd 250 and later.
+data-director-model-broker.service Security.Delegate # As for the app.
+data-director-model-broker.service Security.UMaskOW # UMask=0077 is not world-writable; systemdlint misreads it.
 data-director-admin.service Security.SupplementaryGroups # systemd-journal, to read the deployment's units' journals; read access only.
 data-director-agent@.service Security.Delegate # As for the app.
 data-director-agent@.service Security.UMaskOW # As for the app.
