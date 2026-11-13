@@ -8,7 +8,7 @@
  * Projects spec's rule, stated here so that the researcher knows it when deciding.
  */
 
-import { Check } from "lucide-react";
+import { Check, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 
 import { INVENTORY_GUIDE, withEdits, type AttachedInventory } from "../../conversation/inventory";
@@ -21,11 +21,18 @@ export function InventoryReviewDialog({
   pending,
   onAttach,
   onDiscard,
+  attachLabel = "Attach this inventory",
+  attachIcon = Check,
+  isPending = false,
 }: {
   /** The inventory read from the file, not yet attached; null when there is none to check. */
   pending: AttachedInventory | null;
   onAttach: (attached: AttachedInventory) => void;
   onDiscard: () => void;
+  /** What the confirming button says, where the inventory is saved rather than attached. */
+  attachLabel?: string;
+  attachIcon?: LucideIcon;
+  isPending?: boolean;
 }) {
   // A new inventory starts with nothing changed.
   const [choice, setChoice] = useState<{ for: AttachedInventory | null; history: EditHistory }>(
@@ -46,10 +53,11 @@ export function InventoryReviewDialog({
             <Button onPress={onDiscard}>Cancel</Button>
             <Button
               variant="primary"
-              icon={Check}
+              icon={attachIcon}
+              isPending={isPending}
               onPress={() => onAttach(withEdits(pending, history.present))}
             >
-              Attach this inventory
+              {attachLabel}
             </Button>
           </>
         )
