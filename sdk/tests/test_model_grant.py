@@ -44,6 +44,15 @@ def test_a_well_formed_claim_set_is_read() -> None:
     assert grant.base_urls == ("https://models.example.ac.uk",)
 
 
+def test_an_own_grant_may_name_no_base_url() -> None:
+    grant = ModelGrantClaims.from_claims(claims(dd_base_urls=None))
+    assert grant.providers == ("anthropic",) and grant.base_urls == ()
+
+
+def test_an_origin_keeps_an_ipv6_host_in_brackets() -> None:
+    assert origin("https://[::1]:8443/x") == "https://[::1]:8443"
+
+
 def test_a_deployment_grant_names_no_own_account() -> None:
     grant = ModelGrantClaims.from_claims(
         claims(dd_account="deployment", dd_providers=None, dd_base_urls=None)
@@ -80,7 +89,14 @@ def test_an_origin_is_written_one_way(url: str, expected: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "url", ["http://models.example.ac.uk", "https://u:p@models.example.ac.uk", "https://x/?q=1"]
+    "url",
+    [
+        "http://models.example.ac.uk",
+        "https://u:p@models.example.ac.uk",
+        "https://x/?q=1",
+        "https:///v1",
+        "https://models.example.ac.uk:port",
+    ],
 )
 def test_an_origin_is_only_a_plain_https_url(url: str) -> None:
     with pytest.raises(ValueError):

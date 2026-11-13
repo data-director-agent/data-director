@@ -159,6 +159,33 @@ def test_hosted_models_defaults_to_the_inventory_alone(
     assert load_profile(path).hosted_models == expected
 
 
+def test_the_base_urls_a_grant_carries_are_each_named_once(tmp_path: Path) -> None:
+    accounts = load_profile(
+        _accounts(
+            tmp_path,
+            "model_accounts:\n  own: allowed\n  fallback: none\n  providers:\n"
+            "    - provider: anthropic\n      base_urls:\n"
+            "        - {url: 'https://LLM.example.ac.uk/v1'}\n"
+            "        - {url: 'https://llm.example.ac.uk:443'}\n",
+        )
+    ).model_accounts
+    assert accounts.base_urls == ("https://llm.example.ac.uk",)
+
+
+def test_a_profile_that_is_not_a_mapping_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text("- profile_id: accounts\n", encoding="utf-8")
+    with pytest.raises(PolicyError, match="not a mapping"):
+        load_profile(path)
+
+
+def test_an_agent_must_map_to_an_action_class(tmp_path: Path) -> None:
+    path = tmp_path / "profile.yaml"
+    path.write_text("profile_id: accounts\nagents: [inventory]\n", encoding="utf-8")
+    with pytest.raises(PolicyError):
+        load_profile(path)
+
+
 @pytest.mark.requirement("DD-POLICY")
 @pytest.mark.parametrize(
     ("written", "match"),
@@ -237,6 +264,11 @@ def test_model_accounts_decide_the_grants_account(
         "  providers: [{provider: anthropic, base_urls: [{url: 'https://x.example', local: 2}]}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
         "  providers: [{provider: anthropic, models: [x]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [anthropic]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, base_urls: 'https://x.example'}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: anthropic, base_urls: ['https://x.example']}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n  budget: 10\n"
         "  providers: [{provider: anthropic}]\n",
     ],
