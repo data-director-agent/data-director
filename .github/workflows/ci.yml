@@ -242,7 +242,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          flags: sdk,harness,workbench,app,admin,agents,inventory
+          flags: sdk,harness,workbench,app,admin,broker,agents,inventory
           fail_ci_if_error: false
 
   # CONFORMANCE.md is decided by the register, the review record, the report script and the outcome

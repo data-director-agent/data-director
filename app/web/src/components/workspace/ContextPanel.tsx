@@ -19,6 +19,7 @@ import { type ProjectSummary, type SavedInventory, useProjectApi } from "../../p
 import { type DocumentsRead, documentHref, latestOf } from "../../project/drafted";
 import { Link } from "../../route";
 import { InventoryChip } from "../conversation/InventoryChip";
+import { AddInventory } from "../inventory/AddInventory";
 import { InventoryEditDialog } from "../inventory/InventoryEditDialog";
 import { documentName } from "../../project/name";
 import { STATES } from "../project/DocumentFacts";
@@ -191,10 +192,20 @@ export function ContextPanel({
               </p>
             ) : (
               <p>
-                No inventory of the dataset&apos;s files yet. Attach one to a message so that
-                agents can describe the files. <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
+                No inventory of the dataset&apos;s files yet. Add one so that agents can describe
+                the files. <a href={INVENTORY_GUIDE}>How do I make an inventory?</a>
               </p>
             )}
+            <p>
+              <AddInventory
+                projectId={projectId}
+                replacing={Boolean(inventory)}
+                onSaved={(next) => {
+                  setSaved({ projectId, inventory: next });
+                  onInventorySaved?.();
+                }}
+              />
+            </p>
           </section>
           <ProjectDocuments projectId={projectId} read={documents} />
         </>

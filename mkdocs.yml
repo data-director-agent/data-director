@@ -93,6 +93,7 @@ nav:
       - Configuration: operations/configuration.md
       - The data-director command: operations/commands.md
       - The admin service: operations/admin.md
+      - The model broker: operations/model-broker.md
       - Deploying to a VM: /deploy/README.md
       - LLM gateway: /deploy/llm-gateway/README.md
       - LLM gateway background: /deploy/llm-gateway/background.md
@@ -138,6 +139,8 @@ nav:
           - Configuration examples: /app/config/examples/README.md
       - Admin:
           - /admin/README.md
+      - Model broker:
+          - /broker/README.md
       - Inventory:
           - /inventory/README.md
           - Inventory library (TypeScript): /inventory/browser/README.md
@@ -170,6 +173,7 @@ nav:
       - Workbench: /workbench/CHANGELOG.md
       - App: /app/CHANGELOG.md
       - Admin: /admin/CHANGELOG.md
+      - Model broker: /broker/CHANGELOG.md
       - Inventory: /inventory/CHANGELOG.md
       - Agents:
           - /agents/*/CHANGELOG.md

@@ -27,6 +27,7 @@ from starlette.applications import Starlette
 
 from dd_harness.conductor import Conductor
 from dd_harness.identity import OperatorAssertion
+from dd_harness.model_grants import GrantMinter
 from dd_harness.policy import load_profile
 from dd_harness.registry import Registry
 from dd_harness.remote import RemoteAgent
@@ -107,6 +108,7 @@ def make_conductor(
     crate: bool = False,
     remote: bool = True,
     profile: Path = PERMISSIVE,
+    model_grants: GrantMinter | None = None,
 ) -> Conductor:
     """A conductor over `agents`, each reached over in-process A2A unless `remote` is False,
     governed by the institutional profile at `profile`.
@@ -114,6 +116,7 @@ def make_conductor(
     A remote conductor also serves its own A2A routes in memory at `HARNESS_URL` and sets them
     as the delegation callback, so delegation runs over the wire as it does in production. Those
     routes act for `TEST_PRINCIPAL`; a test invokes the conductor with `acting_for=TEST_PRINCIPAL`.
+    `model_grants` mints a model grant for each model-backed agent (`GrantKeys.minter`).
     """
     harness_app: dict[str, Any] = {}
 
@@ -128,6 +131,7 @@ def make_conductor(
         store=run_storage(runs_dir),
         profile=load_profile(profile),
         write_crate=crate,
+        model_grants=model_grants,
     )
     if remote:
         _card, routes = a2a_routes(conductor, OperatorAssertion(TEST_PRINCIPAL), HARNESS_URL)

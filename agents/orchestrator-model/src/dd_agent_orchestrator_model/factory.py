@@ -35,7 +35,7 @@ from dd_agent_orchestrator_model.model import DEFAULT_EFFORT, DEFAULT_MODEL, EFF
 from dd_agent_orchestrator_model.title import DEFAULT_TITLE_MODEL, AnthropicTitler
 from dd_sdk import serve
 from dd_sdk.agent import ModelUse
-from dd_sdk.credentials import ConfigError, api_key
+from dd_sdk.credentials import ConfigError, model_endpoint
 
 
 def _count(env: Mapping[str, str], name: str, default: int, minimum: int) -> int:
@@ -67,12 +67,14 @@ def build(env: Mapping[str, str] | None = None) -> ModelOrchestrator:
             "with DD_TITLE_MODEL_ID"
         )
     title_model_id = None if titles == "none" else env.get("DD_TITLE_MODEL_ID", DEFAULT_TITLE_MODEL)
-    key = api_key(env)
+    endpoint = model_endpoint(env)
     agent = ModelOrchestrator(
-        AnthropicModel(model_id=model_id, effort=effort, api_key=key),
+        AnthropicModel(model_id=model_id, effort=effort, endpoint=endpoint),
         history_turns=_count(env, "DD_ORCHESTRATOR_HISTORY", DEFAULT_HISTORY_TURNS, 0),
         max_delegations=_count(env, "DD_ORCHESTRATOR_MAX_DELEGATIONS", DEFAULT_MAX_DELEGATIONS, 1),
-        titler=(AnthropicTitler(model_id=title_model_id, api_key=key) if title_model_id else None),
+        titler=(
+            AnthropicTitler(model_id=title_model_id, endpoint=endpoint) if title_model_id else None
+        ),
     )
     models = [ModelUse("anthropic", model_id, "hosted")]
     if title_model_id and title_model_id != model_id:

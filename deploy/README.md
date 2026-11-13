@@ -40,6 +40,7 @@ on loopback alone and is reached through an SSH tunnel.
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
 | `systemd/data-director-admin.service` | The admin service (`dd-admin serve`), on 127.0.0.1:8200 only, read-only. Part of the target; `install.sh` enables it. |
+| `systemd/data-director-model-broker.service` | The model broker (`dd-model-broker serve`), on 127.0.0.1:8300, as its own user `data-director-broker`. Installed but not enabled ([The model broker](#the-model-broker)). |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): each agent `deployment.yaml` runs. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
@@ -76,6 +77,9 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
+| `/etc/data-director/credentials/model-broker/` | The model broker's secrets, readable by root alone; systemd hands them to the broker's unit only. |
+| `/etc/data-director/model-broker.env` | The model broker's settings (`config/examples/model-broker.env`). |
+| `/var/lib/data-director-model-broker/` | The model broker's store of sealed keys and token counts, readable by its user alone. |
 | `/etc/data-director/admin.env` | The admin service's overrides, if any (optional; [docs/guide/operations/admin.md](../docs/guide/operations/admin.md)). |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
 | `/etc/data-director/backup.env` | `backup.sh`'s settings (`deploy/backup.env.example`). |
@@ -201,6 +205,13 @@ ssh -N -L 8200:127.0.0.1:8200 you@data-director.example.ac.uk   # then open http
 `install.sh` enables it; it needs no setting. It changes nothing, and names the command for each
 change. [The admin service](../docs/guide/operations/admin.md) in the operations guide says what
 it reads and how.
+
+## The model broker
+
+The model broker (`broker/README.md`) lets a person's own AI account pay for model calls. It is
+alpha and nothing calls it yet, so `install.sh` creates its user, its credentials directory and its
+settings file, but does not enable it. [The model broker](../docs/guide/operations/model-broker.md)
+in the operations guide says how to turn it on. Its store is not yet backed up (TODO(#814)).
 
 ## Day to day
 

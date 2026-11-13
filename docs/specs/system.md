@@ -14,6 +14,7 @@ fixes what the word "harness" names.
 | `workbench/` | `data-director-workbench` | The development way in to the harness: CLI, viewer, evaluation, and a development configuration. Not deployed. |
 | `app/` | `data-director-app` | The Data Director app that researchers use. A way in to the harness. |
 | `admin/` | `data-director-admin` | A read-only view of one deployment for its operators: its health, agents, settings, and the runs and projects in its stores across every person. Listens on loopback only, with no sign-in. Not a way in: it runs nothing. |
+| `broker/` | `data-director-model-broker` | The model broker: holds people's own model keys, sealed, and makes model calls for an agent that presents a model grant ([A person's own model account](model-accounts.md)). A separate service that runs as its own user. Not a way in. |
 | `agents/<name>/` | `data-director-agent-<name>` | One package and one A2A service per agent ([Agents](agents.md)). |
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
 
@@ -45,6 +46,7 @@ The contract, transport, grounding and the app's own process boundary are specif
    - `workbench` and `app` depend on `harness` and `sdk`, and on nothing else in the workspace;
    - `admin` depends on `harness` and `sdk`, and on nothing else in the workspace; no member
      depends on it;
+   - `broker` depends on `sdk` only; no member depends on it;
    - each agent depends on `sdk` only;
    - `inventory` depends on no other member.
 
@@ -53,8 +55,9 @@ The contract, transport, grounding and the app's own process boundary are specif
    Import Linter contracts in the root `pyproject.toml` (`uv run lint-imports`, CI) fail an
    import, direct or indirect, that runs against the direction above: the layers `sdk`,
    `harness`, then `workbench`, `app`, `admin` and each agent, with no agent importing another,
-   `admin` importing neither the app, the workbench nor an agent, nothing importing `admin`, and
-   `inventory` importing no member. A known exception is an `ignore_imports` entry naming the
+   `admin` importing neither the app, the workbench nor an agent, nothing importing `admin`,
+   `broker` importing no member but `sdk` and nothing importing `broker`, and `inventory`
+   importing no member. A known exception is an `ignore_imports` entry naming the
    issue that removes it. `scripts/check_boundaries.py` (CI) fails code that imports a member it
    does not declare, and `scripts/check_wheels.py` (CI) installs each built wheel alone and
    imports it. Invariants 2 and 3 test the two edges most likely to be added by mistake.
@@ -121,6 +124,10 @@ who write agents. The app must not depend on it.
 **Agents are separate services.** The harness reaches each agent over A2A at a URL from
 configuration, so an agent can be served from this repository or from anywhere else; the
 mechanics are in [Agents](agents.md) and [Transport and tracing](transport.md).
+
+**The model broker is a service of its own**, beside the harness rather than in it, because it
+holds people's own model keys and nothing else may (`broker/`,
+[A person's own model account](model-accounts.md)).
 
 **Documents are kept with what they describe.** A package's own design notes are in its
 `docs/`; what governs every package (the specs, contract, glossary, requirements register and

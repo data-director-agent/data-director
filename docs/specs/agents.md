@@ -74,7 +74,8 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
 **What an agent owns.** Its domain logic, its input and payload classes
 ([Contract](contract.md)), its grounding mode ([Evidence and grounding](grounding.md)), its own
 configuration (read from its own `DD_<AGENT>_*` variables, never from the harness's settings), its
-model credentials ([Policy and identity](policy-and-identity.md)), and its system prompt as a file
+model credentials ([Policy and identity](policy-and-identity.md)), or its own model broker
+credential when a person's own account pays ([A person's own model account](model-accounts.md)), and its system prompt as a file
 beside the code that sends it. It decides an outcome, a payload and the evidence it rests on.
 
 **What an agent never does.** It does not fill identifiers, timestamps, telemetry, the grounding

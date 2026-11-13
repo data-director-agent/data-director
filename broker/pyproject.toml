@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-model-broker"
+# Alpha: holds people's own model keys and makes their calls; off unless the profile turns own
+# accounts on (docs/specs/model-accounts.md).
+version = "0.1.0-alpha.0"
+description = "Data Director model broker: holds people's own model keys, sealed, and makes model calls for agents that present a model grant"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+dependencies = [
+  "data-director-sdk>=0.2.0a0",
+  "cryptography>=45",
+  "httpx>=0.28",
+  "joserfc>=1.0",
+  "starlette>=1.8.0",
+  "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+dd-model-broker = "dd_broker.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_broker"]
+
+[dependency-groups]
+# The tests drive the broker with the real Anthropic client, as an agent's adapter does.
+dev = ["anthropic>=1.15.0,<2.6"]

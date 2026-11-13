@@ -140,6 +140,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
+    An inventory may also be added to a project without a conversation: the project's page and the
+    workspace's Project panel offer **Add an inventory** (**Replace the inventory** where the project
+    holds one) beside **Make an inventory**. The file goes through the same check as one attached to
+    a message, and only **Add this inventory** sends it, to `POST /api/projects/{id}/inventory`; a
+    refusal is said and the check stays open, and cancelling stores nothing
+    (`app/web/src/components/inventory/AddInventory.test.tsx`).
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
@@ -333,7 +339,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   calls no model.
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
-  its process, so there is nothing in it to call a model.
+  its process, so there is nothing in it to call a model. A person adding their own model account
+  sends the key from the browser straight to the model broker with an enrolment ticket; the app
+  issues the ticket and never sees the key ([A person's own model account](model-accounts.md), TODO(#807)).
 - **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). The harness
   streams a run's stages, its checks' reports and cancelling; the app does not serve that stream
   yet. A run is one request that answers when it has ended, so stages are read back, not watched,

@@ -68,11 +68,12 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from dd_harness import grounding, policy, project_access, project_facts, shacl
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
+from dd_harness.model_grants import GrantMinter
 from dd_harness.observe import RunObserver, Watch
 from dd_harness.progress import ENTRY_BY_MODEL
 from dd_harness.projects import TITLE_BY_MODEL, ProjectError, UnknownProjectError
 from dd_harness.provenance import process_run_crate
-from dd_harness.registry import Registry
+from dd_harness.registry import Registered, Registry
 from dd_harness.remote import Received, RemoteAgent
 from dd_harness.storage import (
     CRATE,
@@ -105,6 +106,7 @@ from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.delegate import DelegationGrant
 from dd_sdk.evidence import envelope_hash
 from dd_sdk.evidence import input_hash as compute_input_hash
+from dd_sdk.model_grant import Account
 from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import (
     ATTR_OUTCOME,
@@ -182,6 +184,9 @@ class Conductor:
     # The projects runs may belong to (docs/specs/projects.md). None (most tests, the workbench
     # without DD_PROJECTS_DIR) means no run is in a project.
     projects: ProjectStorage | None = None
+    # Mints the model grant each invocation of a model-backed agent is sent
+    # (docs/specs/model-accounts.md). None (the default) mints none.
+    model_grants: GrantMinter | None = None
     _grants: dict[str, Grant] = field(default_factory=dict, repr=False)
     _grants_lock: threading.Condition = field(default_factory=threading.Condition, repr=False)
     _running: set[str] = field(default_factory=set, repr=False)
@@ -313,6 +318,30 @@ class Conductor:
         with self._grants_lock:
             grant.delegations.append(record)
         return envelope
+
+    def _model_grant(
+        self, agent: Registered, request: InvocationRequest, acting_for: Principal
+    ) -> str | None:
+        """The model grant for this invocation, or None (docs/specs/model-accounts.md).
+
+        Minted afresh for every invocation of a remote agent whose card declares `models`,
+        delegated children included, and only here: a request cannot carry one. It expires with
+        the agent's transport timeout, and is passed to the agent alone: it never enters the
+        envelope, a span or a store (invariant 6).
+        """
+        spec = agent.spec
+        if self.model_grants is None or not spec.models or not isinstance(agent, RemoteAgent):
+            return None
+        return self.model_grants.mint(
+            agent_id=spec.agent_id,
+            invocation_id=request.invocation_id,
+            models=(model.model for model in spec.models),
+            # Who pays follows the profile's `model_accounts` once there is one, TODO(#810). Until
+            # then the deployment pays for every call, as it does without a broker.
+            account=Account.DEPLOYMENT,
+            acting_for=acting_for,
+            lifetime_s=agent.timeout_s,
+        )
 
     def _issue_grant(self, request: InvocationRequest, acting_for: Principal) -> Grant:
         grant = Grant(
@@ -546,6 +575,7 @@ class Conductor:
                 ):
                     grant = self._issue_grant(request, acting_for)
                     sent_grant = DelegationGrant(url=self.harness_url, token=grant.token)
+                model_grant = self._model_grant(agent, request, acting_for)
                 ctx = RunContext(tracer=tracer, input_ref=input_ref, input_hash=input_hash)
                 # The agent is never told which project it works in (docs/specs/projects.md).
                 sent = request.model_copy(update={"project_id": None})
@@ -553,7 +583,7 @@ class Conductor:
                 try:
                     # An in-process agent records its spans in this trace already.
                     received = (
-                        agent.call(sent, ctx, sent_grant)
+                        agent.call(sent, ctx, sent_grant, model_grant=model_grant)
                         if isinstance(agent, RemoteAgent)
                         else Received(agent.run(typed_request(spec, sent), ctx))
                     )

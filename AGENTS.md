@@ -19,7 +19,8 @@ Put code in the package whose job it is, not the one you have open; the full tab
 - `app/`: the app people use. `workbench/`: development client for agent authors. Both are
   clients of the harness, hold no governance, and nothing else depends on them; the app never
   depends on the workbench. `admin/`: the operators' read-only view of a deployment, on loopback
-  only; it reads the stores and runs nothing, and nothing depends on it.
+  only; it reads the stores and runs nothing, and nothing depends on it. `broker/`: the model
+  broker, its own service, which holds people's own model keys; depends only on `sdk/`.
 - `inventory/`: `dd-inventory`, depends on no other member. `scripts/`: repository tooling.
 - `sdk/browser/`: `@data-director/agent-view`, the TypeScript and React library every front end
   uses to show an agent card, its extensions and its payloads. Put card and payload rendering

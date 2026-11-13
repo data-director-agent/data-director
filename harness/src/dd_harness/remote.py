@@ -40,6 +40,7 @@ from dd_sdk.wire import (
     EXTENSION_URI,
     META_INPUT_HASH,
     META_INPUT_REF,
+    META_MODEL_GRANT,
     META_TRACEPARENT,
     WireError,
     reply_from_document,
@@ -115,8 +116,16 @@ class RemoteAgent:
         )
 
     def call(
-        self, request: InvocationRequest, ctx: RunContext, grant: DelegationGrant | None = None
+        self,
+        request: InvocationRequest,
+        ctx: RunContext,
+        grant: DelegationGrant | None = None,
+        *,
+        model_grant: str | None = None,
     ) -> Received:
+        """Send `request` to the agent. `grant` is a delegation agent's callback; `model_grant` the
+        grant for its model calls (docs/specs/model-accounts.md). Both travel only in the A2A
+        message's metadata."""
         carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)  # the conductor's current span
         metadata = {
@@ -126,6 +135,8 @@ class RemoteAgent:
         }
         if grant is not None:  # a delegation agent's callback (docs/specs/orchestration.md)
             metadata |= grant.metadata()
+        if model_grant is not None:
+            metadata[META_MODEL_GRANT] = model_grant
         try:
             body = asyncio.run(self._send(to_document(request), metadata))
         except (httpx.HTTPError, TimeoutError) as exc:

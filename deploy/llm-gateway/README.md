@@ -97,6 +97,20 @@ of its own; without the gateway, limits are set per provider workspace
 on 127.0.0.1:4000, which is clear of the app (7860), the workbench (8000) and the agents
 (8101–8117).
 
+### With the model broker
+
+When a profile lets people use their own AI accounts, agents call the
+[model broker](../../docs/guide/operations/model-broker.md) and no longer hold a provider key or a
+gateway key. The broker then pays for the deployment's calls as well. Give the gateway
+key to the broker instead of to each agent, and point it at the gateway with
+`DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000`. Make that one key with a tag such as
+`--tags service:model-broker`. The gateway's budgets and spend reports keep covering the
+deployment's calls. It no longer breaks them down by agent, because every call arrives on one key.
+
+A call paid for by a person's own account goes from the broker straight to their provider. It
+never passes through the gateway, which would otherwise see their key. The gateway's spend reports
+therefore show only what the deployment pays for.
+
 ## The admin service's Spend page
 
 The deployment's admin service ([docs/guide/operations/admin.md](../../docs/guide/operations/admin.md))

@@ -37,6 +37,7 @@ import {
 } from "../../project/api";
 import { documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
+import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
 import { DepositPanel } from "./DepositPanel";
@@ -241,6 +242,15 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
             />
           </p>
         )}
+        <p className="project-inventory-actions">
+          <AddInventory
+            projectId={projectId}
+            replacing={project?.inventory != null}
+            onSaved={(saved) => {
+              setProject((p) => (p ? { ...p, inventory: saved } : p));
+            }}
+          />
+        </p>
         <p className="hint">
           Check each draft before it goes into the deposit package. Approve it as it is, edit it and
           approve your version, or reject it. A decision cannot be changed once it is made; a newer

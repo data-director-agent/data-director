@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from dd_sdk.agent import RunContext
+from dd_sdk.credentials import ModelEndpoint
 from dd_sdk.model import Model, call
 from dd_sdk.model import Usage as Usage
 from dd_sdk.model_anthropic import PROVIDER as PROVIDER
@@ -138,17 +139,18 @@ class AnthropicWriter:
         self,
         client: anthropic.Anthropic | None = None,
         model_id: str = DEFAULT_MODEL,
-        api_key: str | None = None,
+        endpoint: ModelEndpoint | None = None,
         *,
         model: Model | None = None,
     ) -> None:
-        """Give a `model` (`dd_sdk.testing.FakeModel` in tests), a `client`, or an `api_key`
-        (`dd_sdk.credentials.api_key`). The key is always passed explicitly, so the provider
-        SDK's own credential chain is never used (docs/specs/policy-and-identity.md)."""
+        """Give a `model` (`dd_sdk.testing.FakeModel` in tests), a `client`, or an `endpoint`
+        (`dd_sdk.credentials.model_endpoint`): the provider with its key, or the model broker
+        with the agent's credential. Either is passed explicitly, so the provider SDK's own
+        credential chain is never used (docs/specs/policy-and-identity.md)."""
         if model is None:
-            if client is None and not api_key:
-                raise ValueError("AnthropicWriter needs a model, a client or an api_key")
-            model = AnthropicModel(model_id, api_key=api_key, client=client)
+            if client is None and endpoint is None:
+                raise ValueError("AnthropicWriter needs a model, a client or an endpoint")
+            model = AnthropicModel(model_id, endpoint=endpoint, client=client)
         self._model = model
         self.model_id: str | None = model.model_id
 
