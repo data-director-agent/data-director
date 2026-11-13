@@ -78,7 +78,7 @@
          ]
       },
       "data_kinds": {
-         "description": "What the data is, e.g. interview transcripts or household survey microdata.",
+         "description": "What the data is, each in one to three words, e.g. interview transcripts, survey microdata or time series. A repository matches a kind only if its record has every word, so a long description (e.g. environmental data logger time series) matches none.",
          "items": {
             "type": "string"
          },
@@ -118,6 +118,14 @@
             }
          ],
          "description": "The researcher's institution. Its repositories are offered as a fallback, after those of the dataset's discipline and before generalist ones, and none is removed, so give the themes as if it were not set."
+      },
+      "country": {
+         "description": "The country of the researcher's institution, as an ISO 3166-1 alpha-3 code (e.g. GBR), as re3data writes it. A repository that already matches ranks a little higher when operated in this country; it adds no repository to the shortlist on its own. Unset, it is the country re3data records for the affiliation's institution, where re3data lists one.",
+         "pattern": "^[A-Z]{3}$",
+         "type": [
+            "string",
+            "null"
+         ]
       }
    },
    "required": [

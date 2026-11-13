@@ -25,6 +25,7 @@ from starlette.testclient import TestClient
 from support import (
     APP_URL,
     FIXTURES,
+    JSON_HEADERS,
     check_fixture,
     configure_env,
     dist_dir,
@@ -51,7 +52,7 @@ from dd_harness.conductor import Conductor
 from dd_harness.identity import IdentityError, OperatorAssertion
 from dd_harness.policy import load_profile
 from dd_harness.project_access import Role
-from dd_harness.projects import ProjectStore
+from dd_harness.projects import PROJECT_CREATED, TITLE_MAX_LENGTH, ProjectStore
 from dd_harness.registry import Registry, load_config
 from dd_harness.remote import RemoteAgent, RemoteAgentError
 from dd_harness.settings import SettingsError
@@ -573,7 +574,7 @@ def normalised_conversation(body: Any) -> Any:
 
 
 def start(client: TestClient) -> str:
-    response = client.post("/api/conversations")
+    response = client.post("/api/conversations", headers=JSON_HEADERS)
     assert response.status_code == 201
     conversation_id: str = response.json()["conversation_id"]
     assert response.headers["location"] == f"/api/conversations/{conversation_id}"
@@ -670,14 +671,14 @@ def test_each_turn_is_shown_the_turns_before_it(in_projects: tuple[Governance, A
 
 
 @pytest.mark.requirement("DD-CONVERSATION")
-def test_a_choice_question_is_answered_by_choosing(in_projects: tuple[Governance, Any]):
+def test_a_question_is_answered_in_the_form(in_projects: tuple[Governance, Any]):
     governance, app = in_projects
     client = TestClient(app)
     conversation_id = start(client)
     first = turn(client, conversation_id, "hi")
     assert first.status_code == 200
     asked = first.json()["envelope"]
-    question = asked["payload"]["reply_question"]
+    (question,) = asked["payload"]["reply_questions"]
     assert [o["option_value"] for o in question["question_options"]] == ["1", "2", "3"]
     check_fixture(
         "conversation-question.json",
@@ -685,31 +686,32 @@ def test_a_choice_question_is_answered_by_choosing(in_projects: tuple[Governance
     )
 
     def answer(values: list[str], to: str = asked["invocation_id"], **kw: Any) -> Any:
+        given = {"answered_key": question["question_key"], "answer_values": values, **kw}
         return turn(
             client,
             conversation_id,
             "Data already collected, being prepared for sharing",
             asked["invocation_id"],
-            choice_answer={"answer_to": to, "answer_values": values, **kw},
+            reply_answers={"answer_to": to, "given_answers": [given]},
         )
 
     refused = answer(["9"])
     assert refused.status_code == 400
     assert "not an option of the question: 9" in refused.json()["detail"]
     assert answer(["1", "2"]).status_code == 400  # one answer only
-    assert answer(["2"], answer_other="ours").status_code == 400  # no answer in words
+    assert answer(["2"], answer_words="ours").status_code == 400  # no answer in words
     from_elsewhere = answer(["2"], to="0190a000-0000-7000-8000-000000000000")
     assert "latest turn" in from_elsewhere.json()["detail"]
-    assert answer(["2"], answer_to_typo=True).status_code == 400  # not a ChoiceAnswer
+    assert answer(["2"], answer_to_typo=True).status_code == 400  # not a QuestionAnswer
     assert len(client.get(f"/api/conversations/{conversation_id}").json()["turns"]) == 1
 
     answered = answer(["2"])
     assert answered.status_code == 200, answered.json()
     envelope = answered.json()["envelope"]
     stored = governance.conductor.store.get_request(envelope["invocation_id"]) or {}
-    assert stored["input"]["choice_answer"] == {
+    assert stored["input"]["reply_answers"] == {
         "answer_to": asked["invocation_id"],
-        "answer_values": ["2"],
+        "given_answers": [{"answered_key": question["question_key"], "answer_values": ["2"]}],
     }
     assert envelope["outcome"]["statement"].startswith("Listed the steps from entry point 2")
     # The answer reads as a normal message in the history; the question is written after the
@@ -743,7 +745,9 @@ def a_file_inventory(*paths: str) -> dict[str, Any]:
 
 def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governance, dist: Path):
     client = TestClient(build_app(governance, dist))
-    first, second = (client.post("/api/conversations").json() for _ in range(2))
+    first, second = (
+        client.post("/api/conversations", headers=JSON_HEADERS).json() for _ in range(2)
+    )
     assert first["project_id"] != second["project_id"]
     store = governance.projects
     assert store is not None
@@ -758,7 +762,7 @@ def test_a_conversation_is_started_in_a_project_of_its_own(governance: Governanc
 
 def test_a_conversation_is_started_in_the_project_it_names(governance: Governance, dist: Path):
     client = TestClient(build_app(governance, dist))
-    first = client.post("/api/conversations").json()
+    first = client.post("/api/conversations", headers=JSON_HEADERS).json()
     response = client.post("/api/conversations", json={"project_id": first["project_id"]})
     assert response.status_code == 201
     second = response.json()
@@ -878,10 +882,59 @@ def test_what_the_researcher_left_out_of_an_inventory_is_kept_nowhere(
     )
 
 
+def test_a_member_revises_the_projects_inventory_outside_a_turn(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    monkeypatch.setattr(governance, "role", lambda _project_id, _principal: Role.MEMBER)
+    url = f"/api/projects/{project_id}/inventory"
+
+    first = client.post(url, json={"inventory": a_file_inventory("a.csv")})
+    assert first.status_code == 201, first.json()
+    assert first.json()["revises"] is None
+    revised = a_file_inventory("a.csv")
+    revised["inventory_files"][0] |= {"file_description": "Readings", "file_role": "data"}
+    second = client.post(url, json={"inventory": revised})
+    assert second.status_code == 201, second.json()
+    assert second.json()["revises"] == first.json()["digest"]
+    added = store.events(project_id)[-1]
+    assert added["caused_by"] == f"POST {url}"
+    assert client.get(url).json() == revised
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"inventory": {"schema_class": "FileInventory"}},
+        {"inventory": ["a.csv"]},
+        ["a.csv"],
+    ],
+)
+def test_a_revision_that_is_not_an_inventory_is_refused(
+    in_projects: tuple[Governance, Any], body: Any
+):
+    governance, app = in_projects
+    client = TestClient(app)
+    store = governance.projects
+    assert store is not None
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    refused = client.post(f"/api/projects/{project_id}/inventory", json=body)
+    assert refused.status_code == 400
+    assert store.inventory(project_id) is None
+    unknown = client.post(
+        f"/api/projects/{uuid.uuid4()}/inventory", json={"inventory": a_file_inventory("a")}
+    )
+    assert unknown.status_code == 404
+
+
 def test_a_project_without_an_inventory_serves_none(in_projects: tuple[Governance, Any]):
     _governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     none = client.get(f"/api/projects/{started['project_id']}/inventory")
     assert (none.status_code, none.json()["title"]) == (404, "No inventory")
     unknown = client.get(f"/api/projects/{uuid.uuid4()}/inventory")
@@ -901,7 +954,7 @@ def test_an_inventory_that_is_refused_leaves_no_trace_and_nothing_runs(
 ):
     governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     response = turn(client, started["conversation_id"], "hello", inventory=inventory)
     assert response.status_code == 400
     assert detail in response.json()["detail"]
@@ -994,7 +1047,7 @@ def test_a_document_that_is_refused_leaves_no_trace_and_nothing_runs(
 ):
     governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     # Sent with an inventory the project would keep: that is refused with it.
     response = turn(
         client,
@@ -1023,7 +1076,7 @@ def test_a_document_needs_a_project_to_keep_it(delegating: tuple[Governance, Any
 def test_a_project_serves_only_the_documents_it_holds(in_projects: tuple[Governance, Any]):
     _governance, app = in_projects
     client = TestClient(app)
-    started = client.post("/api/conversations").json()
+    started = client.post("/api/conversations", headers=JSON_HEADERS).json()
     project_id = started["project_id"]
     assert client.get(f"/api/projects/{project_id}/documentation").json() == []
     none = client.get(f"/api/projects/{project_id}/documentation/{'0' * 64}")
@@ -1064,6 +1117,69 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
         "My logger data",
     )
     check_fixture("projects.json", normalised_conversation(response.json()))
+
+
+def test_a_person_creates_a_project_with_no_conversation(in_projects: tuple[Governance, Any]):
+    """Docs/specs/app.md, rule 27: **New project** creates the project on its own, for the person
+    signed in, and it is listed before it holds anything."""
+    governance, app = in_projects
+    store = governance.projects
+    assert store is not None
+    client = TestClient(app)
+
+    named = client.post("/api/projects", json={"title": "  Soil cores  "})
+    assert named.status_code == 201
+    body = named.json()
+    assert body["title"] == "Soil cores"
+    assert body["title_source"] == "researcher"
+    assert body["created_by"]["principal_id"] == TEST_PRINCIPAL.principal_id
+    assert body["conversations"] == []
+    (created,) = store.events(body["project_id"])
+    assert created["event"] == PROJECT_CREATED
+    assert created["caused_by"] == "POST /api/projects"
+    check_fixture("project-created.json", normalised_conversation(body))
+
+    for unnamed in ({}, {"title": "   "}, {"title": None}):
+        response = client.post("/api/projects", json=unnamed)
+        assert response.status_code == 201
+        assert response.json()["title"] is None
+
+    # Listed as created, the one created last first; a project the app made for a
+    # conversation and nothing else is still left out.
+    store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    listed = client.get("/api/projects").json()
+    assert len(listed) == 4
+    assert listed[-1] == body
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"not json",
+        b"[]",
+        b'{"title": 3}',
+        b'{"name": "Soil cores"}',
+        b'{"title": "Soil cores", "acted_for": "someone"}',
+        json.dumps({"title": "x" * (TITLE_MAX_LENGTH + 1)}).encode(),
+    ],
+)
+def test_a_project_is_not_created_from_a_malformed_body(
+    in_projects: tuple[Governance, Any], content: bytes
+):
+    governance, app = in_projects
+    store = governance.projects
+    assert store is not None
+    response = TestClient(app).post("/api/projects", content=content, headers=JSON_HEADERS)
+    assert response.status_code == 400
+    assert response.json()["title"] == "Data Director could not create this project"
+    assert store.projects() == []
+
+
+def test_a_server_that_keeps_no_projects_creates_none(delegating: tuple[Governance, Any]):
+    _governance, app = delegating
+    response = TestClient(app).post("/api/projects", json={})
+    assert response.status_code == 404
+    assert response.json()["type"].endswith("project-not-found")
 
 
 def test_projects_are_paged_the_one_created_last_first(
@@ -1121,6 +1237,7 @@ def test_every_project_route_answers_someone_elses_project_as_one_that_does_not_
         "document_id": str(uuid.UUID(int=0x0190_0000_0000_7000_8000_0000_0000_0000)),
         "digest": "a" * 64,
         "step_id": "anything",
+        "question_id": "intake.entry",
     }
 
     checked = []
@@ -1261,7 +1378,7 @@ def test_a_cancelled_turn_still_comes_before_the_next(delegating: tuple[Governan
         (
             {"input": {}},
             "only `agent_id`, `message_text`, `follows`, `inventory`, `documentation` and "
-            "`choice_answer`",
+            "`reply_answers`",
         ),
         ({"message_text": 3}, "as strings"),
         ({"follows": 3}, "must give `follows`"),
@@ -1325,7 +1442,9 @@ def test_a_turn_goes_only_to_the_orchestrator_the_profile_names(
 
 def test_a_turn_that_is_not_json_is_refused(governance: Governance, dist: Path):
     client = TestClient(build_app(governance, dist))
-    response = client.post(f"/api/conversations/{start(client)}/turns", content=b"{")
+    response = client.post(
+        f"/api/conversations/{start(client)}/turns", content=b"{", headers=JSON_HEADERS
+    )
     assert response.status_code == 400
 
 
@@ -1395,3 +1514,48 @@ def test_a_conversation_and_its_delegations_are_its_starters_alone(
             )
         )
     assert len(governance.runs(OTHER).items) == 2
+
+
+# #728: the session cookie is `SameSite=Lax`, which a same-site, cross-origin form still
+# rides, so a request that changes state must declare JSON, which such a form cannot.
+def _state_changing_routes(app: Any) -> list[tuple[str, str]]:
+    found = []
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/api/"):
+            continue
+        for method in sorted(getattr(route, "methods", None) or ()):
+            if method in {"POST", "PUT", "PATCH", "DELETE"}:
+                found.append((method, re.sub(r"\{[^}]+\}", "x", path)))
+    return found
+
+
+def test_every_state_changing_api_route_refuses_a_body_that_is_not_json(
+    governance: Governance, dist: Path
+):
+    app = build_app(governance, dist)
+    routes = _state_changing_routes(app)
+    assert ("POST", "/api/runs") in routes and ("PUT", "/api/projects/x/title") in routes
+    client = TestClient(app)
+    for method, path in routes:
+        for headers in (
+            {"content-type": "text/plain"},
+            {"content-type": "application/x-www-form-urlencoded"},
+            {"content-type": "multipart/form-data; boundary=b"},
+            {},
+        ):
+            response = client.request(method, path, content=b'{"a": 1}', headers=headers)
+            assert response.status_code == 415, (method, path, headers)
+            assert response.headers["content-type"].startswith("application/problem+json")
+        bodyless = client.request(method, path, headers={"content-type": "text/plain"})
+        assert bodyless.status_code == 415, (method, path)
+
+
+def test_a_json_request_with_a_charset_is_not_refused_for_its_type(
+    governance: Governance, dist: Path
+):
+    client = TestClient(build_app(governance, dist))
+    response = client.post(
+        "/api/runs", content=b"[]", headers={"content-type": "Application/JSON; charset=utf-8"}
+    )
+    assert response.status_code == 400

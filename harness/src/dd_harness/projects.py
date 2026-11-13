@@ -38,6 +38,9 @@ stored (`dd_harness.progress`, docs/specs/orchestration.md). The researcher's ow
 events: `entry_chosen` (`choose_entry`, the last counts) and `step_marked` (`mark_step`: done,
 skipped, or open again). An orchestrator's model may also record an `entry_chosen` it worked out
 from what the researcher said, saying so in `entry_source`, until the researcher chooses one.
+The intake's answers are events too (`answer_intake`, `dismiss_intake`, rule 20): an answer to the
+entry question is an `entry_chosen`, any other an `intake_answered`, and a dismissal an
+`intake_dismissed`. Where the intake stands is derived, like progress (`dd_harness.intake`).
 
 A project may have a title, so that a person can tell projects apart. A person gives it when
 creating the project or renames it later; while no person has, an orchestrator's model may name
@@ -49,6 +52,14 @@ text, under which the text is kept as a blob (`add_documentation`). Only plain t
 within `DOCUMENTATION_MAX_BYTES` are kept, and a name is a file name, never a path. Attaching the
 same text again under the same name records nothing new in `documentation`, which lists each
 document once, the one added first first.
+
+A researcher may keep facts from their own public ORCID record in the project
+(`dd_harness.orcid`): a `researcher_added` event names their iD, when the record was read, and the
+digest of the `ResearcherRecord` they chose, kept as a blob in its `dd-input-json-v1` canonical
+bytes (`add_researcher`). A person keeps only their own record, and keeping it again replaces what
+they kept before. `researcher_withdrawn` (`withdraw_researcher`) stops it being given to agents;
+like every event, what was kept stays in the log. `researchers` gives the records that stand, the
+one kept first first, which the conductor puts into a `Message` and a `DraftRequest`.
 
 A conversation started from a project is a `conversation_started` event; `project_of` says which
 project a conversation was started in, from what the logs hold when asked.
@@ -63,13 +74,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
+from dd_harness import intake
 from dd_harness import progress as flow
 from dd_harness.project_files import FileProjectLog
 from dd_harness.requirements import RE3DATA_ID, Requirements, RequirementsError
@@ -86,10 +98,12 @@ from dd_sdk.contract.models import (
     FileInventory,
     OutcomeStatus,
     Principal,
+    ResearcherRecord,
     new_invocation_id,
     now,
 )
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
+from dd_sdk.intake import ENTRY as ENTRY_QUESTION
 
 if TYPE_CHECKING:
     from dd_harness.storage import ProjectLog, ProjectSection
@@ -99,6 +113,8 @@ PROJECT_RENAMED = "project_renamed"
 CONVERSATION_STARTED = "conversation_started"
 INVENTORY_ADDED = "inventory_added"
 DOCUMENTATION_ADDED = "documentation_added"
+RESEARCHER_ADDED = "researcher_added"
+RESEARCHER_WITHDRAWN = "researcher_withdrawn"
 REPOSITORY_CHOSEN = "repository_chosen"
 DOCUMENT_VERSION_ADDED = "document_version_added"
 DOCUMENT_VERSION_DECIDED = "document_version_decided"
@@ -384,8 +400,9 @@ class Projects:
     def summary(self, project_id: str) -> dict[str, Any]:
         """What a list of projects shows of one: its latest title and who gave it (`title_source`:
         `researcher`, `model`, or None while it has none), who created it and when, the latest
-        inventory and repository chosen, how many conversations were started in it, and how many
-        documents it has whose latest version is in each state. Raises `UnknownProjectError`."""
+        inventory and repository chosen, how many conversations were started in it, how many
+        documents it has whose latest version is in each state, where it is in the process flow,
+        and whether its intake is pending, complete or dismissed. Raises `UnknownProjectError`."""
         events = self.events(project_id)
         created = events[0]
         title, title_source = _title(events)
@@ -405,6 +422,7 @@ class Projects:
                 "file_count": inventory["file_count"],
                 "inventory_made_at": inventory["inventory_made_at"],
                 "added_at": inventory["at"],
+                "revises": inventory.get("revises"),
             }
             if inventory
             else None,
@@ -419,6 +437,7 @@ class Projects:
             "conversation_count": sum(1 for e in events if e["event"] == CONVERSATION_STARTED),
             "documents": states,
             "progress": flow.describe(events),
+            "intake": intake.state(events),
         }
 
     def exists(self, project_id: str) -> bool:
@@ -432,7 +451,8 @@ class Projects:
         acted_for: Principal,
         caused_by: str,
     ) -> str:
-        """Add a `FileInventory` to the project. Returns its digest.
+        """Add a `FileInventory` to the project. Returns its digest. When the project already
+        holds one, the event names its digest as `revises`, found in the log, never given.
 
         Raises `ProjectError` for an unknown project or a document the class schema refuses."""
         self._require(project_id)
@@ -443,18 +463,17 @@ class Projects:
         digest = input_hash(document)
         self._keep_blob(project_id, digest, canonicalise(document, INPUT_CANONICALISATION))
         files = document.get("inventory_files") or []
-        self._append(
-            project_id,
-            INVENTORY_ADDED,
-            acted_for,
-            caused_by,
-            {
-                "digest": digest,
-                "canonicalisation": INPUT_CANONICALISATION,
-                "file_count": len(files),
-                "inventory_made_at": document["inventory_made_at"],
-            },
-        )
+        detail: dict[str, Any] = {
+            "digest": digest,
+            "canonicalisation": INPUT_CANONICALISATION,
+            "file_count": len(files),
+            "inventory_made_at": document["inventory_made_at"],
+        }
+        with self._section(project_id) as section:
+            previous = [e for e in section.events() if e["event"] == INVENTORY_ADDED]
+            if previous:
+                detail["revises"] = previous[-1]["digest"]
+            section.append([self._event(project_id, INVENTORY_ADDED, acted_for, caused_by, detail)])
         return digest
 
     def add_documentation(
@@ -513,6 +532,72 @@ class Projects:
         if digest not in held:
             return None
         return self._blob(project_id, digest).decode("utf-8")
+
+    def add_researcher(
+        self,
+        project_id: str,
+        record: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep `record`, a `ResearcherRecord` of what a person chose from their public ORCID
+        record, in the project. Returns its digest.
+
+        Raises `ProjectError` for an unknown project, a document that is not a `ResearcherRecord`,
+        or a record of anyone but the person `acted_for` names: a person keeps only their own."""
+        self._require(project_id)
+        document = dict(record)
+        try:
+            ResearcherRecord.model_validate(document)
+        except ValueError as exc:  # pydantic's ValidationError is a ValueError
+            raise ProjectError(f"not a ResearcherRecord: {exc}") from exc
+        if document["orcid_id"] != acted_for.principal_id:
+            raise ProjectError("a person keeps only their own ORCID record")
+        digest = input_hash(document)
+        self._keep_blob(project_id, digest, canonicalise(document, INPUT_CANONICALISATION))
+        self._append(
+            project_id,
+            RESEARCHER_ADDED,
+            acted_for,
+            caused_by,
+            {
+                "orcid_id": document["orcid_id"],
+                "digest": digest,
+                "canonicalisation": INPUT_CANONICALISATION,
+                "record_retrieved_at": document["record_retrieved_at"],
+            },
+        )
+        return digest
+
+    def withdraw_researcher(
+        self, project_id: str, orcid_id: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Stop giving agents the record the person `orcid_id` names kept. Raises `ProjectError`
+        for an unknown project, a record the project does not hold, or anyone withdrawing a
+        record but their own."""
+        if orcid_id != acted_for.principal_id:
+            raise ProjectError("a person withdraws only their own ORCID record")
+        if orcid_id not in self._researcher_digests(project_id):
+            raise ProjectError("the project holds no ORCID record of theirs")
+        self._append(project_id, RESEARCHER_WITHDRAWN, acted_for, caused_by, {"orcid_id": orcid_id})
+
+    def researchers(self, project_id: str) -> list[dict[str, Any]] | None:
+        """The `ResearcherRecord` each person kept and has not withdrawn, the one kept first
+        first; None while there is none. Raises `UnknownProjectError` for an unknown project."""
+        held = self._researcher_digests(project_id)
+        records = [json.loads(self._blob(project_id, digest)) for digest in held.values()]
+        return records or None
+
+    def _researcher_digests(self, project_id: str) -> dict[str, str]:
+        """The digest of the record that stands for each iD, in the order first kept."""
+        held: dict[str, str] = {}
+        for event in self.events(project_id):
+            if event["event"] == RESEARCHER_ADDED:
+                held[event["orcid_id"]] = event["digest"]
+            elif event["event"] == RESEARCHER_WITHDRAWN:
+                held.pop(event["orcid_id"], None)
+        return held
 
     def choose_repository(
         self,
@@ -611,10 +696,50 @@ class Projects:
             {"step_id": step_id, "mark": mark},
         )
 
+    def answer_intake(
+        self,
+        project_id: str,
+        question_id: str,
+        answer_values: Sequence[str],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> None:
+        """Record the researcher's answer to an intake question (docs/specs/projects.md, rule 20):
+        for the entry question, an `entry_chosen` of the entry point chosen; for any other, an
+        `intake_answered`. The answer is checked against its question as a turn's answer is,
+        and must be to a question asked from the project's entry point. Raises
+        `UnknownProjectError` for an unknown project and `ProjectError` for an answer that fails
+        the check, recording nothing."""
+        with self._section(project_id) as section:
+            entry = flow.entry_chosen(section.events())
+            if problem := intake.answer_problem(question_id, answer_values, entry):
+                raise ProjectError(problem)
+            if question_id == ENTRY_QUESTION:
+                kind = flow.ENTRY_CHOSEN
+                detail: dict[str, Any] = {
+                    "entry": int(answer_values[0]),
+                    "entry_source": flow.ENTRY_BY_RESEARCHER,
+                }
+            else:
+                kind = flow.INTAKE_ANSWERED
+                detail = {"question_id": question_id, "answer_values": list(answer_values)}
+            section.append([self._event(project_id, kind, acted_for, caused_by, detail)])
+
+    def dismiss_intake(self, project_id: str, *, acted_for: Principal, caused_by: str) -> None:
+        """Record the researcher dismissing the intake, an `intake_dismissed`; an answer recorded
+        later opens it again. Raises `UnknownProjectError` for an unknown project."""
+        self._append(project_id, flow.INTAKE_DISMISSED, acted_for, caused_by, {})
+
     def progress(self, project_id: str) -> dict[str, Any]:
         """The entry point chosen and each step the log shows started, done or skipped. Raises
         `UnknownProjectError`."""
         return flow.describe(self.events(project_id))
+
+    def intake(self, project_id: str) -> dict[str, Any]:
+        """Where the project's intake stands, its questions with their current answers and the
+        project's progress (`dd_harness.intake.describe`). Raises `UnknownProjectError`."""
+        return intake.describe(self.events(project_id))
 
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:
         """Record a run's `Document` payload as a proposed version (docs/specs/projects.md,

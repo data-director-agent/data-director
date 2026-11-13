@@ -6,7 +6,10 @@ a `metadata_record`, it drafts a project document (docs/specs/projects.md): a Da
 DataCite's JSON form, with `conforms_to` set to the chosen repository's (docs/specs/deposit.md).
 Every property the repository's requirements list is written, with its qualifier, and its value
 left null for the researcher. The mock fills only what holds for any deposit, that the resource
-is a dataset, and what the inventory states: the files' formats and sizes.
+is a dataset, what the inventory states, the files' formats and sizes, and what the project's
+researchers kept from their public ORCID records (docs/specs/projects.md): each researcher as a
+creator, with their iD and current employers, their keywords as subjects, and their grants as
+funding references, wherever the repository asks for those properties.
 
 It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
 vocabulary, maps nothing between schemas (R6) and calls no model, so its grounding mode is `none`
@@ -28,6 +31,8 @@ from dd_sdk import serve
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    Affiliation,
+    AffiliationKind,
     Derivation,
     Document,
     DocumentKind,
@@ -42,6 +47,8 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     ReasonCode,
     RepositoryRequirements,
+    ResearcherFunding,
+    ResearcherRecord,
 )
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
 
@@ -54,9 +61,13 @@ MEDIA_TYPE = "application/json"
 # no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
     "This is a mock: it writes the properties the repository asks for and fills none that only "
-    "you can, uses no controlled vocabularies, maps nothing between schemas, and reads neither an "
-    "earlier version nor the reason given for a decision on it."
+    "you can, beyond what you kept from your ORCID record; it uses no controlled vocabularies, "
+    "maps nothing between schemas, and reads neither an earlier version nor the reason given for "
+    "a decision on it."
 )
+# DataCite's names for the identifier schemes ORCID gives funders in.
+FUNDER_SCHEMES = {"FUNDREF": "Crossref Funder ID", "ROR": "ROR", "GRID": "GRID", "ISNI": "ISNI"}
+SCHEME_URIS = {"ROR": "https://ror.org", "GRID": "https://www.grid.ac", "ISNI": "https://isni.org"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,8 +98,9 @@ class MetadataLibrarian:
         title="Metadata Librarian",
         description=(
             "Mock. Drafts a project's metadata record in DataCite's JSON form, with every property "
-            "the chosen repository requires or recommends, filling only the resource type and the "
-            "formats and sizes the file inventory gives. The researcher writes the rest."
+            "the chosen repository requires or recommends, filling only the resource type, the "
+            "formats and sizes the file inventory gives, and the creators, subjects and funding "
+            "the researchers kept from their ORCID records. The researcher writes the rest."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
@@ -126,6 +138,7 @@ class MetadataLibrarian:
             )
 
         record, filled = self._record(requirements, asked.inventory)
+        filled += _from_researchers(record, asked.researchers)
         required = sum(f.obligation == Obligation.REQUIRED for f in requirements.fields)
         statement = (
             f"Mock: a DataCite record for {requirements.repository_name} with the "
@@ -191,6 +204,76 @@ class MetadataLibrarian:
                 del record["formats"]
         record["schemaVersion"] = requirements.conforms_to
         return record, filled
+
+
+def _from_researchers(record: dict[str, Any], researchers: list[ResearcherRecord]) -> list[str]:
+    """Fill the creators, subjects and funding references the repository asks for from what the
+    project's researchers kept of their ORCID records; returns the properties filled. A property
+    the record does not have, because the repository does not ask for it, is left out."""
+    filled: list[str] = []
+    if not researchers:
+        return filled
+    if "creators" in record:
+        record["creators"] = [_creator(r) for r in researchers]
+        filled.append("creators")
+    keywords = list(dict.fromkeys(k for r in researchers for k in r.keywords))
+    if "subjects" in record and keywords:
+        # The researchers' own words, after the entries the repository's vocabularies ask for.
+        asked = [s for s in record["subjects"] if s.get("subjectScheme")]
+        record["subjects"] = [*asked, *({"subject": k} for k in keywords)]
+        filled.append("subjects")
+    fundings = [f for r in researchers for f in r.fundings]
+    if "fundingReferences" in record and fundings:
+        record["fundingReferences"] = [_funding(f) for f in fundings]
+        filled.append("fundingReferences")
+    return filled
+
+
+def _creator(researcher: ResearcherRecord) -> dict[str, Any]:
+    """One researcher as a DataCite creator: their name, if they kept it (else null, for them to
+    write), their ORCID iD, and the employers they kept that they still work for."""
+    creator: dict[str, Any] = {
+        "name": researcher.researcher_name,
+        "nameType": "Personal",
+        "nameIdentifiers": [
+            {
+                "nameIdentifier": researcher.orcid_id,
+                "nameIdentifierScheme": "ORCID",
+                "schemeUri": "https://orcid.org",
+            }
+        ],
+    }
+    current = [
+        a
+        for a in researcher.affiliations
+        if a.affiliation_kind == AffiliationKind.EMPLOYMENT and a.end_year is None
+    ]
+    if current:
+        creator["affiliation"] = [_affiliation(a) for a in current]
+    return creator
+
+
+def _affiliation(affiliation: Affiliation) -> dict[str, Any]:
+    entry: dict[str, Any] = {"name": affiliation.organisation_name}
+    scheme = (affiliation.organisation_identifier_scheme or "").upper()
+    if affiliation.organisation_identifier:
+        entry["affiliationIdentifier"] = affiliation.organisation_identifier
+        entry["affiliationIdentifierScheme"] = affiliation.organisation_identifier_scheme
+        if scheme in SCHEME_URIS:
+            entry["schemeUri"] = SCHEME_URIS[scheme]
+    return entry
+
+
+def _funding(funding: ResearcherFunding) -> dict[str, Any]:
+    entry: dict[str, Any] = {"funderName": funding.funder_name}
+    if funding.funder_identifier:
+        entry["funderIdentifier"] = funding.funder_identifier
+        scheme = (funding.funder_identifier_scheme or "").upper()
+        entry["funderIdentifierType"] = FUNDER_SCHEMES.get(scheme, "Other")
+    if funding.award_identifier:
+        entry["awardNumber"] = funding.award_identifier
+    entry["awardTitle"] = funding.funding_title
+    return entry
 
 
 def _abstain(reason: ReasonCode, statement: str) -> AgentResult:

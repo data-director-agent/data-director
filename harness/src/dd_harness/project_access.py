@@ -41,8 +41,9 @@ class Action(StrEnum):
 
     # Read the project, start a conversation in it, add a turn to any of its conversations.
     READ = "read"
-    # Add an inventory or documentation, edit a document as a new proposed version, answer a
-    # draft's questions, mark progress, choose a repository, validate, build a package.
+    # Add an inventory, documentation or their own ORCID facts, edit a document as a new proposed
+    # version, answer a draft's questions, mark progress, choose a repository, validate, build a
+    # package.
     CONTRIBUTE = "contribute"
     # Approve or reject a document version.
     DECIDE = "decide"

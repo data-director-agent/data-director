@@ -9,6 +9,8 @@
     uv run scripts/dd.py doctor    # check everything and name the fix for each problem; changes nothing
     uv run scripts/dd.py apply     # make the instance what deployment.yaml says (--check: only say)
     uv run scripts/dd.py secret set AGENT SECRET | remove AGENT SECRET | list
+    uv run scripts/dd.py backup    # VM: back up the settings, secrets and stores now
+    uv run scripts/dd.py restore [--force] BACKUP   # VM: put a backup back (deploy/README.md)
 
 On a VM deployed with deploy/install.sh, which installs this as `data-director`:
 
@@ -39,6 +41,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from ddtool.backup import run_script
 from ddtool.common import DevError
 from ddtool.deployment import Place, apply
 from ddtool.doctor import doctor
@@ -74,7 +77,14 @@ def main(argv: list[str] | None = None) -> int:
     start_cmd.add_argument(
         "--no-reload", action="store_true", help="do not restart an agent when its files change"
     )
-    commands.add_parser("doctor", help="check everything and name each fix; change nothing")
+    doctor_cmd = commands.add_parser(
+        "doctor", help="check everything and name each fix; change nothing"
+    )
+    doctor_cmd.add_argument(
+        "--json",
+        action="store_true",
+        help="on a VM, print the report as one JSON document (what the admin service reads)",
+    )
     apply_cmd = commands.add_parser(
         "apply", help="make the instance what deployment.yaml says: profile, units, credentials"
     )
@@ -85,6 +95,16 @@ def main(argv: list[str] | None = None) -> int:
         "secret", help="set, remove or list an agent's secrets, such as its model key"
     )
     secret_cmd.add_argument("args", nargs=argparse.REMAINDER, metavar="set|remove|list ...")
+    commands.add_parser(
+        "backup", help="VM: back up the settings, secrets and stores now (deploy/README.md)"
+    )
+    restore_cmd = commands.add_parser(
+        "restore", help="VM: put a backup back, before deploy/install.sh starts it all again"
+    )
+    restore_cmd.add_argument(
+        "--force", action="store_true", help="set aside or replace stores that hold something"
+    )
+    restore_cmd.add_argument("backup", help="the backup's directory, such as /var/backups/...")
     args = parser.parse_args(argv)
     target = args.target or ("vm" if detect(System(), Vm()) else "dev")
     try:
@@ -99,13 +119,23 @@ def main(argv: list[str] | None = None) -> int:
             return start(
                 agents_only=args.agents_only, web=not args.no_web, reload=not args.no_reload
             )
+        if args.command == "backup":
+            return run_script(target, "backup", [])
+        if args.command == "restore":
+            return run_script(
+                target, "restore", [*(["--force"] if args.force else []), args.backup]
+            )
         if args.command == "secret":
             return secret(target, args.args)
         if args.command == "apply":
             vm = Vm()
             place = Place.vm(vm) if target == "vm" else Place.dev()
             return apply(System(), place, vm if target == "vm" else None, check=args.check)
-        return vm_doctor() if target == "vm" else doctor()
+        if target == "vm":
+            return vm_doctor(as_json=args.json)
+        if args.json:
+            raise DevError("doctor --json reports on a VM; run it there, or without --json")
+        return doctor()
     except DevError as exc:
         print(f"dd.py: {exc}", file=sys.stderr)
         return 1

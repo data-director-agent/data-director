@@ -22,6 +22,9 @@
       "field_type": {
          "@id": "https://w3id.org/data-director/field_type"
       },
+      "file_description": {
+         "@id": "http://purl.org/dc/terms/description"
+      },
       "file_fields": {
          "@id": "https://w3id.org/data-director/file_fields",
          "@type": "@id"
@@ -37,6 +40,9 @@
       },
       "file_pronom_ids": {
          "@id": "https://w3id.org/data-director/file_pronom_ids"
+      },
+      "file_role": {
+         "@id": "https://w3id.org/data-director/file_role"
       },
       "file_sha256": {
          "@id": "http://spdx.org/rdf/terms#checksumValue"

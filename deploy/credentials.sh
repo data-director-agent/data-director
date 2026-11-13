@@ -31,7 +31,7 @@ credential_variable() { # credential_variable SECRET
 }
 
 is_agent() { # is_agent NAME
-  [[ "$1" != app && "$1" =~ ^[a-z0-9-]+$ && -f "$AGENTS_DIR/$1.env" ]]
+  [[ "$1" != app && "$1" != model-broker && "$1" =~ ^[a-z0-9-]+$ && -f "$AGENTS_DIR/$1.env" ]]
 }
 
 # Why FILE cannot be used as a secret, or nothing if it can.
@@ -101,7 +101,7 @@ sync_all_credentials() {
   for dir in "$CREDENTIALS"/*/; do
     [[ -d "$dir" ]] || continue
     agent="$(basename "$dir")"
-    [[ "$agent" == app ]] && continue
+    [[ "$agent" == app || "$agent" == model-broker ]] && continue
     seen[$agent]=1
     if ! is_agent "$agent"; then
       echo "$CREDENTIALS/$agent: no deployed agent of that name (deploy/agents/$agent.env); its secrets are not loaded" >&2

@@ -19,6 +19,7 @@ only its own agent can read.
 | A model key, or the app's ORCID client secret | `/etc/data-director/credentials/<name>/`, root-only, loaded as a systemd credential; an agent's is put there by `sudo data-director secret set` | `config/local/credentials/`, named by `ANTHROPIC_API_KEY_FILE` in the agent's own file | That agent |
 | An agent's port | `deploy/agents/<name>.env` in the release | `scripts/run-agents.sh` | The unit, and `agents.yaml` |
 | The deployment's own behaviour (repository, branch, releases kept) | `/etc/data-director/deploy.env` | none | `deploy.sh` |
+| The admin service's overrides, if any | `/etc/data-director/admin.env` (optional; [the admin service](admin.md)) | none: settings in the environment | The admin service |
 
 The app and the harness hold no model key ([Policy and identity](../../specs/policy-and-identity.md)), so the first two rows never contain one.
 
@@ -52,7 +53,10 @@ deployment, with the redirect URI `https://<your host>/api/sign-in/callback`, th
 | `DD_SESSION_IDLE_S`, `DD_SESSION_LIFETIME_S` | Optional: a session ends after 8 hours unused or 7 days at most |
 
 Sign-in needs HTTPS. Sessions are held in memory, so restarting the app signs everyone out. The
-app asks ORCID for the iD and the name only, and keeps no token. A deployment made with
+app asks ORCID for the iD and the name only, and keeps no token. A researcher may choose, on a
+project's page, facts from their own public ORCID record for its agents; the app then reads that
+record from ORCID's public API (`pub.orcid.org`, or `pub.sandbox.orcid.org` for the sandbox
+issuer), so the host must be able to reach it. It needs no credential. A deployment made with
 `deploy/install.sh` always signs people in: the installer fills `DD_APP_PUBLIC_URL`, waits for the
 other settings and the secret (`/etc/data-director/credentials/app/orcid-client-secret`, which the
 app's unit loads), and sets up no site password ([Deploying to a VM](../../../deploy/README.md)).

@@ -157,6 +157,14 @@ CLI, transports or viewer, this agent will show it.
    `README.md` and its row in the table above say plainly that it is alpha. There is no separate
    prototype tree for this: an experimental agent is a normal package under `agents/`, just marked
    by its version. Bump it to an ordinary `0.1.0`-style version once it is no longer experimental.
+
+   An advisor moving from a mock to a model (a model-backed alpha) declares `input_only`, drops
+   the "Mock." prefix and defaults to a `template` writer that calls no model. Build it to the
+   conventions in [Model-backed personas](../docs/specs/agents.md#model-backed-personas): a
+   deterministic shell around the model, checked structured output, a recorder for each value a
+   model may write, a fake client in its tests, and an evaluation set before it leaves alpha.
+   Reviewers check it against
+   [Reviewing a model-backed agent](../docs/guide/developer-guide/reviewing-a-model-backed-agent.md).
 5. **Add it to the workspace.** Add the distribution to the `dependencies` and
    `[tool.uv.sources]` of the root `pyproject.toml`, then run `uv sync --all-packages`. A package
    that lives outside this repository skips this step; it only has to be served.

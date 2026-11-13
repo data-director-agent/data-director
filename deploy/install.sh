@@ -15,6 +15,8 @@ NODE_MAJOR=22
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
 USER_NAME=datadirector
+# The model broker's own user (deploy/systemd/data-director-model-broker.service).
+BROKER_USER=data-director-broker
 ROOT=/opt/data-director
 STATE=/var/lib/data-director
 ETC=/etc/data-director
@@ -34,7 +36,9 @@ step() { echo; echo "==> $*"; }
 step "Packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
-apt-get install -y -q git curl jq ca-certificates gnupg nginx certbot python3-certbot-nginx
+# postgresql-client: pg_dump and pg_restore, which back up and restore a store kept in a database.
+apt-get install -y -q git curl jq ca-certificates gnupg nginx certbot python3-certbot-nginx \
+  postgresql-client
 
 if ! node --version 2>/dev/null | grep -qE "^v(2[2-9]|[3-9][0-9])\."; then
   step "Node $NODE_MAJOR (NodeSource)"
@@ -61,6 +65,13 @@ install -m 0755 /dev/stdin /usr/local/bin/data-director <<WRAPPER
 #!/bin/sh
 exec /usr/local/bin/uv run --quiet --script "$SRC/scripts/dd.py" --target vm "\$@"
 WRAPPER
+
+step "The backup script"
+# data-director-backup.service runs this copy, installed by root from the clone like the units, so
+# that a commit to the branch cannot change what runs as root (deploy/README.md, "Backups").
+install -d -m 0755 /usr/local/lib/data-director
+install -m 0755 "$SRC/deploy/backup.sh" /usr/local/lib/data-director/backup.sh
+install -m 0644 "$SRC/deploy/stores.sh" /usr/local/lib/data-director/stores.sh
 
 step "User and directories"
 if ! id "$USER_NAME" &>/dev/null; then
@@ -91,7 +102,20 @@ new_file "$ETC/workbench.env" "$SRC/config/examples/workbench.env"
 # hands it to the one unit that loads it (LoadCredential=).
 install -d -o root -g "$USER_NAME" -m 0750 "$ETC/agents"
 install -d -o root -g root -m 0700 "$ETC/credentials" "$ETC/credentials/app"
+# The model broker runs as a user of its own, which no other service shares, and reads its secrets
+# from its own credentials directory (docs/guide/operations/model-broker.md). Its unit is installed
+# below but not enabled: own model accounts are off until an operator turns them on.
+if ! id "$BROKER_USER" &>/dev/null; then
+  useradd --system --no-create-home --home-dir /var/lib/data-director-model-broker \
+    --shell /usr/sbin/nologin "$BROKER_USER"
+fi
+install -d -o root -g root -m 0700 "$ETC/credentials/model-broker"
+new_file "$ETC/model-broker.env" "$SRC/config/examples/model-broker.env"
 new_file "$ETC/deploy.env" "$SRC/deploy/deploy.env.example"
+new_file "$ETC/backup.env" "$SRC/deploy/backup.env.example"
+# Backups hold every secret, so their directory is root's alone.
+backups="$(sed -n 's/^DD_BACKUP_DIR=//p' "$ETC/backup.env" | tail -n 1)"
+install -d -o root -g root -m 0700 "${backups:-/var/backups/data-director}"
 # What this instance runs: `data-director apply`, below, makes it so (scripts/ddtool/deployment.py).
 if [[ ! -e "$ETC/deployment.yaml" ]]; then
   new_file "$ETC/deployment.yaml" "$SRC/config/examples/deployment.yaml"
@@ -190,8 +214,15 @@ if [[ ! -L "$ROOT/current" ]]; then
   rm -f "$ROOT/first-deploy.sh"
 fi
 
-step "Enabling the services and the deployment timer"
-systemctl enable --now data-director.target data-director-deploy.timer
+step "Enabling the services, the deployment timer and the backup timer"
+systemctl enable --now data-director.target data-director-deploy.timer data-director-backup.timer
+
+step "Admin service, on the VM's loopback only, port 8200"
+# Read-only and with no sign-in, so it listens on 127.0.0.1 alone and NGINX does not serve it;
+# operators reach it through an SSH tunnel (docs/guide/operations/admin.md). It needs nothing set.
+systemctl enable --now data-director-admin.service
+echo "The admin service is http://127.0.0.1:8200/ on this VM. From your machine:"
+echo "  ssh -N -L 8200:127.0.0.1:8200 <you>@$domain   then open http://localhost:8200"
 
 step "Workbench, for admins, at https://$domain:8443/"
 # The workbench uses the app's ORCID client and is reached on port 8443. install.sh fills what it
@@ -223,4 +254,4 @@ fi
 
 echo
 echo "Done. The site is https://$domain/ and people sign in with ORCID."
-echo "Check the deployment at any time with: sudo data-director doctor"
+echo "Check the deployment at any time with: sudo data-director doctor, or the admin service."

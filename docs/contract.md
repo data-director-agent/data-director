@@ -148,11 +148,13 @@ names the agent, version and run it came from. The history is part of the input,
 hash covers everything the agent was shown. The agent replies with a `Reply` payload
 (`reply_text`, `reply_derivation`).
 
-A `Reply` may ask one question with a fixed set of options (`reply_question`, a
-`ChoiceQuestion`), which the app shows as choices. The researcher's next `Message` may answer it
-with a `ChoiceAnswer` (`choice_answer`): the run it answers, the values chosen and any answer in
-their own words, beside the same answer in `message_text`. The researcher may also ignore it and
-type; nothing waits for the answer.
+A `Reply` may ask a series of up to eight questions (`reply_questions`, each a `Question`),
+which the app puts to the researcher one at a time as form fields: a choice from a fixed set of
+options (`choice`), a line in their own words (`short_text`) or a few sentences (`long_text`). The
+researcher's next `Message` may answer them together with `ReplyAnswers` (`reply_answers`): the
+run it answers and, for each question answered, its key, the values chosen and any answer in
+their own words, beside the same answers in `message_text`. Any question may be skipped, and the
+researcher may also ignore them all and type; nothing waits for the answers.
 
 The harness keeps no separate conversation store: `dd_harness.conversations` reads each one back
 from the stored runs. In the workbench, `GET /conversations` lists conversations and

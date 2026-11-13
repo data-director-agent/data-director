@@ -39,6 +39,10 @@ RECORDS = (
 )
 
 
+# The app refuses a request that changes state unless it declares JSON, body or not (#728).
+JSON_HEADERS = {"content-type": "application/json"}
+
+
 def pin_export(root: Path) -> Path:
     """A `sources.yaml` pinning a re3data export of `RECORDS`, as `dd-re3data fetch` builds."""
     root.mkdir(parents=True, exist_ok=True)
@@ -78,7 +82,7 @@ def _changed_keys(old: Any, new: Any, where: str = "") -> list[str]:
     return [] if old == new else [where or "."]
 
 
-def check_fixture(name: str, body: dict[str, Any]) -> None:
+def check_fixture(name: str, body: Any) -> None:
     """`body` is what the fixture `name` holds; compared as JSON, so layout does not matter."""
     path = FIXTURES / name
     text = json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"

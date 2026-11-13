@@ -1,13 +1,25 @@
 {
    "$comment": "Generated from data_director.yaml by `uv run dd-gen-schema`. Do not edit.",
    "$defs": {
+      "FileRole": {
+         "description": "What part a file plays in a dataset, as the researcher states it (docs/specs/projects.md).",
+         "enum": [
+            "data",
+            "documentation",
+            "code",
+            "other"
+         ],
+         "title": "FileRole",
+         "type": "string"
+      },
       "IdentificationMethod": {
          "description": "How a file's format was identified, from strongest to weakest (docs/specs/projects.md).",
          "enum": [
             "signature",
             "container",
             "extension",
-            "none"
+            "none",
+            "researcher"
          ],
          "title": "IdentificationMethod",
          "type": "string"
@@ -49,7 +61,7 @@
             },
             "file_identified_by": {
                "$ref": "#/$defs/IdentificationMethod",
-               "description": "How the PRONOM identifiers were arrived at."
+               "description": "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none."
             },
             "file_fields": {
                "description": "For a table, its fields as a Frictionless Table Schema inferred from a sample of rows.",
@@ -60,6 +72,24 @@
                   "array",
                   "null"
                ]
+            },
+            "file_description": {
+               "description": "What the file is, in the researcher's words. The inventory command never fills it; a researcher states it beside the facts the command found (docs/specs/projects.md).",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "file_role": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileRole"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "What part the file plays in the dataset, as the researcher states it. Unset means not stated, not data."
             }
          },
          "required": [

@@ -82,15 +82,21 @@ nav:
       - Running an agent: user-guide/running-an-agent.md
       - Making an inventory: user-guide/making-an-inventory.md
       - Attaching a document: user-guide/attaching-a-document.md
+      - Using your ORCID record: user-guide/orcid-facts.md
       - Understanding outcomes: user-guide/outcomes.md
       - What is recorded: user-guide/records.md
+      - Depositing your data: user-guide/depositing.md
       - Giving feedback: user-guide/feedback.md
   - Operations:
       - operations/index.md
       - AI models: operations/ai-models.md
       - Configuration: operations/configuration.md
       - The data-director command: operations/commands.md
+      - The admin service: operations/admin.md
+      - The model broker: operations/model-broker.md
       - Deploying to a VM: /deploy/README.md
+      - LLM gateway: /deploy/llm-gateway/README.md
+      - LLM gateway background: /deploy/llm-gateway/background.md
       - Institutional profiles: /workbench/profiles/README.md
       - Repository requirements: /app/config/repositories/README.md
   - Developer guide:
@@ -98,6 +104,7 @@ nav:
       - Your first contribution: developer-guide/first-contribution.md
       - Setting up: developer-guide/setup.md
       - Writing an agent: developer-guide/writing-an-agent.md
+      - Reviewing a model-backed agent: developer-guide/reviewing-a-model-backed-agent.md
       - Documentation: developer-guide/documentation.md
       - Contributing: /CONTRIBUTING.md
       - Working in the repository: /AGENTS.md
@@ -131,6 +138,10 @@ nav:
       - App:
           - /app/README.md
           - Configuration examples: /app/config/examples/README.md
+      - Admin:
+          - /admin/README.md
+      - Model broker:
+          - /broker/README.md
       - Inventory:
           - /inventory/README.md
           - Inventory library (TypeScript): /inventory/browser/README.md
@@ -162,6 +173,8 @@ nav:
       - Harness: /harness/CHANGELOG.md
       - Workbench: /workbench/CHANGELOG.md
       - App: /app/CHANGELOG.md
+      - Admin: /admin/CHANGELOG.md
+      - Model broker: /broker/CHANGELOG.md
       - Inventory: /inventory/CHANGELOG.md
       - Agents:
           - /agents/*/CHANGELOG.md

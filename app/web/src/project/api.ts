@@ -12,6 +12,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { createContext, useContext } from "react";
 
+import type { Question } from "../conversation/question";
 import type { ProjectProgress, StepMark } from "../flow/types";
 import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
@@ -253,6 +254,10 @@ export interface RepositoryRequirements {
   max_file_size?: number;
   max_item_size?: number;
   warnings: string[];
+  /** What the sets' sources leave open, each naming the issue that will settle it. */
+  unconfirmed?: string[];
+  /** Where the repository is, from its override; absent without one. */
+  repository_url?: string;
 }
 
 /**
@@ -273,6 +278,92 @@ export interface ProjectSummary {
   repository: ChosenRepository | null;
   documents: Record<VersionState, number>;
   conversations: ProjectConversation[];
+  /** Whether the project's intake still has a question to ask, has none left, or was dismissed;
+   * derived from the project log (docs/specs/projects.md, rule 20). */
+  intake?: "pending" | "complete" | "dismissed";
+}
+
+/** An identifier from another scheme, as an ORCID record gives it, such as a DOI. */
+export interface ExternalIdentifier {
+  identifier_type: string;
+  identifier_value: string;
+  identifier_url?: string;
+}
+
+export interface Affiliation {
+  put_code: string;
+  affiliation_kind: string;
+  organisation_name: string;
+  organisation_identifier?: string;
+  organisation_identifier_scheme?: string;
+  department?: string;
+  role_title?: string;
+  start_year?: number;
+  end_year?: number;
+}
+
+export interface ResearcherWork {
+  put_code: string;
+  work_title: string;
+  work_type?: string;
+  publication_year?: number;
+  journal_title?: string;
+  work_identifiers?: ExternalIdentifier[];
+}
+
+export interface ResearcherFunding {
+  put_code: string;
+  funding_title: string;
+  funding_type?: string;
+  funder_name: string;
+  funder_identifier?: string;
+  funder_identifier_scheme?: string;
+  award_identifier?: string;
+  start_year?: number;
+  end_year?: number;
+}
+
+/**
+ * What a researcher's public ORCID record offers, or what they kept of it in a project
+ * (docs/specs/projects.md). Never an email address.
+ */
+export interface ResearcherRecord {
+  orcid_id: string;
+  researcher_name?: string;
+  other_names?: string[];
+  biography?: string;
+  keywords?: string[];
+  country?: string[];
+  researcher_links?: { link_title?: string; link_url: string }[];
+  external_identifiers?: ExternalIdentifier[];
+  affiliations?: Affiliation[];
+  works?: ResearcherWork[];
+  works_omitted?: number;
+  fundings?: ResearcherFunding[];
+  record_retrieved_at: string;
+  record_source: string;
+}
+
+/** The sections of a record kept whole, and those chosen item by item, by put-code. */
+export const RECORD_SECTIONS = [
+  "researcher_name",
+  "other_names",
+  "biography",
+  "keywords",
+  "country",
+  "researcher_links",
+  "external_identifiers",
+] as const;
+export type RecordSection = (typeof RECORD_SECTIONS)[number];
+export const RECORD_ITEMS = ["affiliations", "works", "fundings"] as const;
+export type RecordItems = (typeof RECORD_ITEMS)[number];
+
+/** What a person ticked: never the facts, which the server reads from ORCID again. */
+export interface KeepChoice {
+  sections: RecordSection[];
+  affiliations: string[];
+  works: string[];
+  fundings: string[];
 }
 
 export interface ProjectApi {
@@ -291,6 +382,8 @@ export interface ProjectApi {
   ): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
+  /** Adds `inventory` as the project's latest, revising the one it holds; answers with what it then holds. */
+  saveInventory(projectId: string, inventory: unknown): Promise<SavedInventory>;
   /** The repository chosen for the project, or null if none has been. */
   repository(projectId: string, signal?: AbortSignal): Promise<RepositoryRequirements | null>;
   /** Where the project is in the process flow, derived anew by the harness. */
@@ -299,6 +392,12 @@ export interface ProjectApi {
   chooseEntry(projectId: string, entry: number): Promise<ProjectProgress>;
   /** Record a step marked done, skipped or open again; answers with the progress anew. */
   markStep(projectId: string, stepId: string, mark: StepMark): Promise<ProjectProgress>;
+  /** Where the project's intake stands, with its next question. */
+  intake(projectId: string, signal?: AbortSignal): Promise<ProjectIntake>;
+  /** Record the researcher's answer to one intake question; answers with the intake anew. */
+  answerIntake(projectId: string, questionId: string, values: string[]): Promise<ProjectIntake>;
+  /** Record the intake dismissed; answers with the intake anew. */
+  dismissIntake(projectId: string): Promise<ProjectIntake>;
   /** Choose a repository by its re3data identifier; answers with the requirements it resolved
    * to. A change is a new choice, and the last one counts. */
   chooseRepository(projectId: string, re3dataId: string): Promise<RepositoryRequirements>;
@@ -306,6 +405,48 @@ export interface ProjectApi {
   validate(projectId: string): Promise<Validation>;
   /** Validates the project and, if it is valid, builds its deposit package; else `PackageRefused`. */
   buildPackage(projectId: string): Promise<BuiltPackage>;
+  /** What the signed-in person's own public ORCID record offers; nothing is kept. */
+  orcidRecord(signal?: AbortSignal): Promise<ResearcherRecord>;
+  /** The ORCID facts the project's researchers kept, which agents in the project are given. */
+  researchers(projectId: string, signal?: AbortSignal): Promise<ResearcherRecord[]>;
+  /** Keep what the person ticked of their own record; answers with the project's records. */
+  keepResearcher(projectId: string, keep: KeepChoice): Promise<ResearcherRecord[]>;
+  /** Stop agents being given what the person kept; answers with the records that stand. */
+  withdrawResearcher(projectId: string): Promise<ResearcherRecord[]>;
+}
+
+/** Whether the project's intake still has a question to ask, has none left, or was dismissed. */
+export type IntakeState = "pending" | "complete" | "dismissed";
+
+/** One intake question asked from the project's entry point, with its current answer. */
+export interface IntakeQuestion {
+  /** The intake's stable id, `intake.<name>`, which an answer is posted to. */
+  question_id: string;
+  question: Question;
+  /** The values of the latest answer, or null while it has none. */
+  answer_values: string[] | null;
+}
+
+/**
+ * Where a project's intake stands, derived by the harness from the project log on every read
+ * (docs/specs/app.md, rule 25): the next question, every question asked from the entry point
+ * with its answer, and the project's progress, whose entry point and suggested step the card
+ * names once the intake is complete.
+ */
+export interface ProjectIntake {
+  state: IntakeState;
+  next: string | null;
+  questions: IntakeQuestion[];
+  progress: ProjectProgress;
+}
+
+/** What a project holds of its inventory once one is saved: `revises` names the one it replaced. */
+export interface SavedInventory {
+  digest: string;
+  file_count: number;
+  inventory_made_at: string;
+  added_at: string;
+  revises: string | null;
 }
 
 /**
@@ -341,6 +482,10 @@ function projectPath(projectId: string): string {
 
 function progressPath(projectId: string): string {
   return `${projectPath(projectId)}/progress`;
+}
+
+function post(body: unknown): RequestInit {
+  return { ...put(body), method: "POST" };
 }
 
 function put(body: unknown): RequestInit {
@@ -381,6 +526,15 @@ export const httpProjectApi: ProjectApi = {
       ),
     );
   },
+  async saveInventory(projectId, inventory) {
+    return json(
+      await fetch(`${projectPath(projectId)}/inventory`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ inventory }),
+      }),
+    );
+  },
   async repository(projectId, signal) {
     const response = await fetch(`${projectPath(projectId)}/repository`, signal ? { signal } : {});
     if (response.status === 404) {
@@ -400,6 +554,20 @@ export const httpProjectApi: ProjectApi = {
       await fetch(`${progressPath(projectId)}/steps/${encodeURIComponent(stepId)}`, put({ mark })),
     );
   },
+  async intake(projectId, signal) {
+    return json(await fetch(`${projectPath(projectId)}/intake`, signal ? { signal } : {}));
+  },
+  async answerIntake(projectId, questionId, values) {
+    return json(
+      await fetch(
+        `${projectPath(projectId)}/intake/${encodeURIComponent(questionId)}`,
+        post({ answer_values: values }),
+      ),
+    );
+  },
+  async dismissIntake(projectId) {
+    return json(await fetch(`${projectPath(projectId)}/intake/dismiss`, post({})));
+  },
   async chooseRepository(projectId, re3dataId) {
     return json(
       await fetch(
@@ -409,10 +577,33 @@ export const httpProjectApi: ProjectApi = {
     );
   },
   async validate(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/validation`, { method: "POST" }));
+    return json(await fetch(`${projectPath(projectId)}/validation`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      }));
   },
   async buildPackage(projectId) {
-    return json(await fetch(`${projectPath(projectId)}/package`, { method: "POST" }));
+    return json(await fetch(`${projectPath(projectId)}/package`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      }));
+  },
+  async orcidRecord(signal) {
+    return json(await fetch("/api/researcher/orcid", signal ? { signal } : {}));
+  },
+  async researchers(projectId, signal) {
+    return json(await fetch(`${projectPath(projectId)}/researchers`, signal ? { signal } : {}));
+  },
+  async keepResearcher(projectId, keep) {
+    return json(await fetch(`${projectPath(projectId)}/researchers/me`, put({ keep })));
+  },
+  async withdrawResearcher(projectId) {
+    return json(
+      await fetch(`${projectPath(projectId)}/researchers/me`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+      }),
+    );
   },
   async decide(projectId, documentId, request) {
     return json(

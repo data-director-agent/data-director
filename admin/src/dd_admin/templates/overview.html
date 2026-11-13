@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status, person, run_table, bar_chart %}
+{% block title %}Overview{% endblock %}
+{% block heading %}Overview{% endblock %}
+{% block content %}
+<section class="tiles" aria-label="At a glance">
+  <a class="tile {% if doctor.configured and not doctor.error %}{% if doctor.problems %}bad{% else %}good{% endif %}{% endif %}" href="/operations">
+    <span class="tile-label">Health</span>
+    {% if not doctor.configured %}
+      <span class="tile-value small">Doctor not configured</span>
+    {% elif doctor.error %}
+      <span class="tile-value small">Doctor did not report</span>
+    {% elif doctor.problems %}
+      <span class="tile-value">{{ doctor.problems | length }}</span><span class="tile-sub">problem{{ "s" if doctor.problems | length != 1 }}</span>
+    {% else %}
+      <span class="tile-value small">All good</span>
+    {% endif %}
+  </a>
+  <a class="tile" href="/operations">
+    <span class="tile-label">Running</span>
+    {% if about %}
+      <span class="tile-value small mono">{{ about.commit | short(10) if about.commit else "unknown" }}</span>
+      <span class="tile-sub">app {{ about.app_version }}</span>
+    {% else %}
+      <span class="tile-value small">App not answering</span>
+    {% endif %}
+  </a>
+  <a class="tile {% if agents.agents %}{% if agents.agents | rejectattr('state', 'eq', 'up') | list %}warn{% else %}good{% endif %}{% endif %}" href="/agents">
+    <span class="tile-label">Agents up</span>
+    {% if agents.configured %}
+      <span class="tile-value">{{ agents.agents | selectattr('state', 'eq', 'up') | list | length }}<span class="of"> / {{ agents.agents | length }}</span></span>
+    {% else %}
+      <span class="tile-value small">Not configured</span>
+    {% endif %}
+  </a>
+  <a class="tile" href="/people">
+    <span class="tile-label">People active, 30 days</span>
+    <span class="tile-value">{{ usage.active_people(30) | number }}</span>
+    <span class="tile-sub">{{ usage.people | length | number }} in all</span>
+  </a>
+  <a class="tile" href="/runs">
+    <span class="tile-label">Runs, 7 days</span>
+    <span class="tile-value">{{ usage.runs_since(7) | number }}</span>
+    <span class="tile-sub">{{ usage.runs_since(30) | number }} in 30 days · {{ usage.runs | length | number }} in all</span>
+  </a>
+  <a class="tile" href="/projects">
+    <span class="tile-label">Projects, 30 days</span>
+    <span class="tile-value">{{ usage.projects_since(30) | number }}</span>
+    <span class="tile-sub">{{ usage.projects | length | number }} in all</span>
+  </a>
+  {% include "_spend_tile.html" %}
+</section>
+
+{% for error in usage.errors %}<div class="banner bad" role="alert">{{ error }}</div>{% endfor %}
+
+<section class="panel">
+  <h2>Runs per day, last 30 days</h2>
+  {{ bar_chart(usage.per_day, peak, "runs") }}
+</section>
+
+<div class="two">
+  <section class="panel">
+    <h2>Outcomes</h2>
+    {% if usage.by_status %}
+    <table>
+      <thead><tr><th scope="col">Outcome</th><th scope="col" class="num">Runs</th></tr></thead>
+      <tbody>
+      {% for name, n in usage.by_status.most_common() %}
+        <tr><td><a href="/runs?status={{ name | urlencode }}">{{ status(name) }}</a></td><td class="num">{{ n | number }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="empty">No runs yet.</p>{% endif %}
+  </section>
+  <section class="panel">
+    <h2>Recently active</h2>
+    {% if usage.people %}
+    <table>
+      <thead><tr><th scope="col">Person</th><th scope="col">Last seen</th></tr></thead>
+      <tbody>
+      {% for p in usage.people[:8] %}
+        <tr><td>{{ person(p.name, p.principal_id) }}</td><td class="nowrap">{{ p.last_seen | ago(now) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="empty">Nobody yet.</p>{% endif %}
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Latest runs</h2>
+  {{ run_table(usage.runs[:10]) }}
+  <p><a href="/runs">All runs</a></p>
+</section>
+{% endblock %}

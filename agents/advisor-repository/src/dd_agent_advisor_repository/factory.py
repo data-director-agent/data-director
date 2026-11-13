@@ -34,7 +34,7 @@ from dd_agent_advisor_repository.live import FairsharingLive
 from dd_agent_advisor_repository.snapshot import FairsharingSnapshot, Re3dataRegistry
 from dd_sdk import serve
 from dd_sdk.agent import ModelUse
-from dd_sdk.credentials import ConfigError, api_key
+from dd_sdk.credentials import ConfigError, model_endpoint
 
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
@@ -43,7 +43,7 @@ def build_explainer(env: Mapping[str, str]) -> Explainer:
         return TemplateExplainer()
     if choice == "anthropic":
         return AnthropicExplainer(
-            model_id=env.get("DD_MODEL_ID", DEFAULT_MODEL), api_key=api_key(env)
+            model_id=env.get("DD_MODEL_ID", DEFAULT_MODEL), endpoint=model_endpoint(env)
         )
     raise ConfigError(f"DD_REPOSITORY_EXPLAINER={choice!r}: expected template or anthropic")
 

@@ -23,7 +23,7 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
    outcome and problem details, grounding and evidence, telemetry, delegation and the principal,
    and the few classes the harness, the project record or the deposit package read without
    knowing the agent (conversation turns, `Message` with the `InventorySummary` the conductor fills
-   in and a `ChoiceAnswer`, `Reply` with a `ChoiceQuestion`, `Document` with its
+   in and its `ReplyAnswers`, `Reply` with its `Question`s, `Document` with its
    `DocumentQuestion`s, `FileInventory`, `RequirementSet`, the drafters' `DraftRequest` with
    `CurrentVersion`, `DraftAnswer` and `RepositoryRequirements`, and the
    enums they use). No agent's own input or payload class is added to it.
@@ -106,23 +106,33 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 21. An envelope records each model call an agent reports in `telemetry.model_calls`, and names
     the call's prompt by its `dd-prompt-json-v1` digest only. The prompt itself never enters the
     envelope, the trace or the crate; the run store keeps it ([Disclosure](disclosure.md)).
+    Recording whose account paid for each call (`own` or `deployment`) and the reason codes
+    `model-account-missing`, `model-account-rejected` and `model-account-limit` are specified in
+    [A person's own model account](model-accounts.md) and not built yet; adding the reason codes
+    raises the contract version, TODO(#809).
 22. A `Reply` may carry `conversation_title`, one line of at most 80 characters that a person can
     tell the conversation apart by. A model writes it from the researcher's first message, on a
     conversation's first turn only; an agent that sets it declares it model-derived, and a later
     turn, or a rule-based agent, leaves it out. The harness reads it to name the conversation
     ([Orchestration](orchestration.md)) and checks nothing else about it.
-23. A `Reply` may carry one `ChoiceQuestion` (`reply_question`): a prompt and 2 to 12 options,
-    each a string value with a label and optional help, whether several may be chosen, and whether
-    the researcher may answer in their own words. Option values are unique within the question and
-    are strings, because A2A carries numbers as doubles. A `Message` may carry a `ChoiceAnswer`
-    (`choice_answer`) naming the invocation whose reply asked, the values chosen and any answer in
-    the researcher's own words; `message_text` says the same in words. The option bounds are in
-    the Pydantic model, not the schema: a card carries class schemas over A2A, which would turn the
-    bounds into doubles and break the schema digest (#333). The harness checks an answer against
-    its question before the turn runs (`dd_harness.conversations.answer_problem`,
+23. A `Reply` may carry a series of 1 to 8 `Question`s (`reply_questions`), which the app puts
+    to the researcher one at a time. Each has a key unique within the reply (`question_key`), a
+    prompt, optional help and a kind (`QuestionKind`): `choice`, with 2 to 12 options, each a
+    string value with a label and optional help, whether several may be chosen, and whether the
+    researcher may answer in their own words instead; or `short_text` (one line, at most 200
+    characters) or `long_text` (at most 4000 characters), answered in their own words and with no
+    options. Option values are unique within the question and are strings, because A2A carries
+    numbers as doubles. A `Message` may carry `ReplyAnswers` (`reply_answers`) naming the
+    invocation whose reply asked and giving one `QuestionAnswer` for each question answered: its
+    key, the values chosen and any answer in the researcher's own words (`answer_words`); a
+    question skipped has none, and at least one is given. `message_text` says the same in words.
+    The bounds are in the Pydantic model, not the schema: a card carries class schemas over A2A,
+    which would turn them into doubles and break the schema digest (#333). The harness checks the
+    answers against the questions before the turn runs (`dd_harness.conversations.answer_problem`,
     `sdk/tests/test_contract.py`, `harness/tests/test_conversations.py`). The project intake asks
-    its questions as `ChoiceQuestion`s too, outside any reply; its answers go to the project, not
-    a turn, so they carry no `ChoiceAnswer` and the core schema does not change for them
+    its questions as `Question`s of kind `choice` too, outside any reply; its answers go to the
+    project, not a turn, so they carry no `ReplyAnswers` and the core schema does not change for
+    them
     ([Orchestration](orchestration.md), invariant 20).
 24. A `Document` may carry `document_questions`, one `DocumentQuestion` for each gap the version
     leaves: an identifier unique within the document (`q-` and 16 hexadecimal digits, derived

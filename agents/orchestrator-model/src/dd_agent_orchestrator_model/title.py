@@ -24,6 +24,8 @@ import anthropic
 
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import CONVERSATION_TITLE_MAX, now
+from dd_sdk.credentials import ModelEndpoint
+from dd_sdk.model_anthropic import anthropic_client
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
 
@@ -125,21 +127,21 @@ def titled(titler: Titler, message_text: str, ctx: RunContext, calls: ModelCallL
 
 
 class AnthropicTitler:
-    """Claude through the Messages API. Give a `client` (tests) or an `api_key`, which is passed
-    explicitly so the SDK's own credential chain is never searched
-    (docs/specs/policy-and-identity.md)."""
+    """Claude through the Messages API. Give a `client` (tests) or an `endpoint`
+    (`dd_sdk.credentials.model_endpoint`), whose credential is passed explicitly so the SDK's own
+    credential chain is never searched (docs/specs/policy-and-identity.md)."""
 
     def __init__(
         self,
         client: anthropic.Anthropic | None = None,
         *,
         model_id: str = DEFAULT_TITLE_MODEL,
-        api_key: str | None = None,
+        endpoint: ModelEndpoint | None = None,
     ) -> None:
         if client is None:
-            if not api_key:
-                raise ValueError("AnthropicTitler needs a client or an api_key")
-            client = anthropic.Anthropic(api_key=api_key)
+            if endpoint is None:
+                raise ValueError("AnthropicTitler needs a client or an endpoint")
+            client = anthropic_client(endpoint)
         self._client = client
         self.model_id = model_id
 

@@ -27,9 +27,11 @@ runs. [Configuration](configuration.md) maps every setting to its home.
 
 | Command | Does | Changes anything |
 |---|---|---|
-| `doctor` | Checks the whole instance against the [configuration](configuration.md) map and names the fix for each problem: a missing key, a unit that is not running, a profile that has fallen behind. | No |
+| `doctor` | Checks the whole instance against the [configuration](configuration.md) map and names the fix for each problem: a missing key, a unit that is not running, a profile that has fallen behind, a backup that is too old, a disk filling up. On a VM, `--json` prints the report as one JSON document, which [the admin service](admin.md) shows. | No |
 | `apply` | Makes the instance what `deployment.yaml` says. `apply --check` says what would change. It refuses to run the model-backed orchestrator before its key is in place, and says which command supplies it. | Yes; `--check` does not |
 | `secret set AGENT SECRET` | Stores a secret for one agent, such as `orchestrator-model anthropic-api-key`, prompting for the value without showing it. `remove` takes it away and `list` shows which agent has which secret, by size and never by value. See [AI models](ai-models.md#supply-a-key). | `set` and `remove`: yes |
+| `backup` | VM only. Backs up the settings, the secrets and every store now, as the nightly timer does. See [Backups](../../../deploy/README.md#backups). | Writes a backup; stops the app for seconds while a store kept in files is copied |
+| `restore [--force] BACKUP` | VM only. Checks a backup, then puts back the settings, secrets and stores, ahead of `deploy/install.sh`. It refuses a store that already holds something unless given `--force`. See [Restore on a clean VM](../../../deploy/README.md#restore-on-a-clean-vm). | Yes |
 | `setup` | Development only. Asks for your settings, writes `config/local/`, installs and builds. `--yes` accepts every default and `--no-install` writes the settings only. | Yes |
 | `start` | Development only. Applies `config/local/deployment.yaml`, then runs the agents, the app and the shell's dev server. `--agents-only`, `--no-web` and `--no-reload` narrow it. | Yes |
 

@@ -165,19 +165,21 @@ classes:
       far. The history is part of the input, so the input hash covers everything the agent saw.
       In a project that holds an inventory, the conductor adds what it is (docs/specs/projects.md);
       in any project, it adds the entry point chosen, the progress the project log shows and the
-      project's title, if it has one (docs/specs/orchestration.md).
+      project's title, if it has one (docs/specs/orchestration.md). It adds the researcher facts
+      people in the project chose to keep from their public ORCID records (docs/specs/projects.md).
     slots:
       - schema_class
       - message_text
       - history
       - project_inventory
-      - choice_answer
+      - reply_answers
       - project_entry
       - project_progress
       - project_title
       - project_title_by_researcher
       - project_documentation
       - project_entry_by_researcher
+      - project_researchers
 
   ConversationTurn:
     description: >-
@@ -190,15 +192,24 @@ classes:
       - turn_agent_version
       - turn_invocation_id
 
-  ChoiceAnswer:
+  ReplyAnswers:
     description: >-
-      The researcher's answer to the choice question the turn before asked: the values they
-      chose and any text they gave in place of an option. The app checks it against that question
-      before it sends the turn (docs/specs/orchestration.md).
+      The researcher's answers to the questions the turn before asked, given together: one
+      QuestionAnswer for each question answered, none for a question skipped. The app checks them
+      against those questions before it sends the turn (docs/specs/orchestration.md).
     slots:
       - answer_to
+      - given_answers
+
+  QuestionAnswer:
+    description: >-
+      The researcher's answer to one question of a reply, named by its question_key: the values of
+      the options chosen, for a choice question, and the answer in their own words, for a text
+      question or where a choice question allows it.
+    slots:
+      - answered_key
       - answer_values
-      - answer_other
+      - answer_words
 
   StepProgress:
     description: >-
@@ -232,6 +243,82 @@ classes:
       - documentation_size
       - documentation_added_at
 
+  ResearcherRecord:
+    description: >-
+      What one researcher in a project chose to keep from their public ORCID record: only the
+      sections and items they ticked, in ORCID's own words, never edited by a person or a model.
+      The conductor fills the project's records into a Message and a DraftRequest so that an
+      agent can draft creators, affiliations, subjects and funding from them
+      (docs/specs/projects.md). Email addresses are never kept, even public ones.
+    slots:
+      - orcid_id
+      - researcher_name
+      - other_names
+      - biography
+      - keywords
+      - country
+      - researcher_links
+      - external_identifiers
+      - affiliations
+      - works
+      - works_omitted
+      - fundings
+      - record_retrieved_at
+      - record_source
+
+  ResearcherLink:
+    description: A web page the researcher lists on their ORCID record, such as a personal page.
+    slots:
+      - link_title
+      - link_url
+
+  ExternalIdentifier:
+    description: >-
+      An identifier from another scheme, as an ORCID record gives it: for a researcher, such as a
+      Scopus Author ID; for a work, such as a DOI.
+    slots:
+      - identifier_type
+      - identifier_value
+      - identifier_url
+
+  Affiliation:
+    description: >-
+      One affiliation on an ORCID record: an employment, an education or another kind, with the
+      organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold).
+    slots:
+      - put_code
+      - affiliation_kind
+      - organisation_name
+      - organisation_identifier
+      - organisation_identifier_scheme
+      - department
+      - role_title
+      - start_year
+      - end_year
+
+  ResearcherWork:
+    description: One work on an ORCID record, such as a journal article or a dataset.
+    slots:
+      - put_code
+      - work_title
+      - work_type
+      - publication_year
+      - journal_title
+      - work_identifiers
+
+  ResearcherFunding:
+    description: One grant or award on an ORCID record, with its funder.
+    slots:
+      - put_code
+      - funding_title
+      - funding_type
+      - funder_name
+      - funder_identifier
+      - funder_identifier_scheme
+      - award_identifier
+      - start_year
+      - end_year
+
   FileInventory:
     description: >-
       The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md):
@@ -256,6 +343,8 @@ classes:
       - file_pronom_ids
       - file_identified_by
       - file_fields
+      - file_description
+      - file_role
 
   RequirementSet:
     description: >-
@@ -281,6 +370,7 @@ classes:
       - max_item_size
       - licences
       - guidance
+      - unconfirmed
     slot_usage:
       version:
         description: The version of the set, raised on every change.
@@ -321,6 +411,8 @@ classes:
       - max_item_size
       - licences
       - warnings
+      - unconfirmed
+      - repository_url
     slot_usage:
       re3data_id:
         description: The repository's re3data identifier, such as r3d100012124.
@@ -361,7 +453,8 @@ classes:
       current_version, the latest version of the project's document of that kind, or of the
       document redraft_document names, so a redraft is that document's next version. The answers
       a person recorded to the current version's questions are filled in by the conductor in the
-      same way (docs/specs/drafting.md).
+      same way (docs/specs/drafting.md), and so are the researcher facts people in the project
+      chose to keep from their public ORCID records (docs/specs/projects.md).
     slots:
       - schema_class
       - document_kind
@@ -371,6 +464,7 @@ classes:
       - current_version
       - draft_answers
       - redraft_document
+      - researchers
     slot_usage:
       document_kind:
         description: The kind of document to draft.
@@ -466,25 +560,30 @@ classes:
       - reply_text
       - reply_derivation
       - conversation_title
-      - reply_question
+      - reply_questions
       - new_project_title
       - new_project_entry
 
-  ChoiceQuestion:
+  Question:
     description: >-
-      A question with a fixed set of options that a conversational agent asks the researcher in
-      its reply, to be answered by choosing rather than typing. One or several options may be
-      chosen, and where question_other is true the researcher may answer in their own words
-      instead. Option values are unique within the question. Asking never suspends the run: the
-      researcher may ignore the question and type (docs/specs/orchestration.md).
+      One question a conversational agent asks the researcher in its reply, shown as a form field
+      and answered with the reply's other questions in the next turn. A choice question has a
+      fixed set of options, of which one or several may be chosen, and where question_other is
+      true the researcher may answer in their own words instead; option values are unique within
+      the question. A short or long text question is answered in the researcher's own words and
+      has no options. Asking never suspends the run: the researcher may skip a question, or
+      ignore them all and type (docs/specs/orchestration.md).
     slots:
+      - question_key
       - question_prompt
+      - question_kind
+      - question_help
       - question_options
       - question_multiple
       - question_other
 
   ChoiceOption:
-    description: One option of a choice question.
+    description: One option of a choice question (a Question of kind choice).
     slots:
       - option_value
       - option_label
@@ -846,6 +945,154 @@ slots:
     description: When the document was added to the project.
     range: datetime
     required: true
+  project_researchers:
+    description: >-
+      The researcher facts the conversation's project holds, one record for each person who kept
+      some, filled by the conductor and never by the caller. Absent when the run is in no project,
+      or nobody in its project kept any.
+    range: ResearcherRecord
+    multivalued: true
+    inlined_as_list: true
+  researchers:
+    description: >-
+      The researcher facts the project holds, one record for each person who kept some. In a
+      project the conductor fills them and a caller leaves them out; outside a project, the
+      caller sends them, as it does the other facts.
+    range: ResearcherRecord
+    multivalued: true
+    inlined_as_list: true
+  orcid_id:
+    description: The researcher's ORCID iD, as its URL, such as https://orcid.org/0000-0002-1825-0097.
+    range: uri
+    required: true
+  researcher_name:
+    description: >-
+      The researcher's name as their ORCID record gives it: the credit name, else the given and
+      family names. Absent when they keep their name private or did not keep it.
+  other_names:
+    description: Other names the researcher is known by, as their ORCID record lists them.
+    multivalued: true
+  biography:
+    description: The researcher's biography, as their ORCID record gives it.
+  keywords:
+    description: The researcher's own keywords for their research, as their ORCID record lists them.
+    multivalued: true
+  country:
+    description: A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code.
+    multivalued: true
+  researcher_links:
+    description: The web pages the researcher's ORCID record lists.
+    range: ResearcherLink
+    multivalued: true
+    inlined_as_list: true
+  link_title:
+    description: The name the researcher gave the page.
+  link_url:
+    description: The page's address.
+    range: uri
+    required: true
+  external_identifiers:
+    description: The researcher's identifiers in other schemes, as their ORCID record lists them.
+    range: ExternalIdentifier
+    multivalued: true
+    inlined_as_list: true
+  identifier_type:
+    description: The scheme, in ORCID's words, such as doi or Scopus Author ID.
+    required: true
+  identifier_value:
+    description: The identifier within its scheme.
+    required: true
+  identifier_url:
+    description: The identifier as a URL, where the record gives one.
+    range: uri
+  affiliations:
+    description: The researcher's affiliations they kept, the current ones first.
+    range: Affiliation
+    multivalued: true
+    inlined_as_list: true
+  put_code:
+    description: >-
+      ORCID's identifier for the item within the record, by which a researcher chose to keep it.
+    required: true
+  affiliation_kind:
+    description: What kind of affiliation the item is.
+    range: AffiliationKind
+    required: true
+  organisation_name:
+    description: The organisation's name.
+    required: true
+  organisation_identifier:
+    description: >-
+      The organisation's identifier, where ORCID gives one: a URL for ROR, else as given.
+  organisation_identifier_scheme:
+    description: >-
+      The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD.
+      Present exactly when organisation_identifier is.
+  department:
+    description: The department within the organisation.
+  role_title:
+    description: The researcher's role or degree.
+  start_year:
+    description: The year it started.
+    range: integer
+  end_year:
+    description: The year it ended; absent while it continues.
+    range: integer
+  works:
+    description: >-
+      The researcher's works they kept, the most recent first: at most 50 are offered, so that
+      an agent's input stays bounded.
+    range: ResearcherWork
+    multivalued: true
+    inlined_as_list: true
+  works_omitted:
+    description: >-
+      How many works the record held beyond the 50 offered. Absent when none were left out.
+    range: integer
+  work_title:
+    description: The work's title.
+    required: true
+  work_type:
+    description: The work's type, in ORCID's words, such as journal-article or data-set.
+  publication_year:
+    description: The year the work was published.
+    range: integer
+  journal_title:
+    description: Where the work was published, such as a journal's name.
+  work_identifiers:
+    description: The work's identifiers, such as its DOI.
+    range: ExternalIdentifier
+    multivalued: true
+    inlined_as_list: true
+  fundings:
+    description: The researcher's grants and awards they kept, the current ones first.
+    range: ResearcherFunding
+    multivalued: true
+    inlined_as_list: true
+  funding_title:
+    description: The grant's or award's title.
+    required: true
+  funding_type:
+    description: The kind of funding, in ORCID's words, such as grant or award.
+  funder_name:
+    description: The funder's name.
+    required: true
+  funder_identifier:
+    description: The funder's identifier, where ORCID gives one, such as a Crossref Funder ID.
+  funder_identifier_scheme:
+    description: >-
+      The scheme of funder_identifier, in ORCID's words, such as FUNDREF or ROR. Present exactly
+      when funder_identifier is.
+  award_identifier:
+    description: The grant number or award identifier, where the record gives one.
+  record_retrieved_at:
+    description: When the record was read from ORCID's public API.
+    range: datetime
+    required: true
+  record_source:
+    description: The public API address the record was read from.
+    range: uri
+    required: true
   project_entry_by_researcher:
     description: >-
       Whether the researcher chose the project's entry point, so that a model's would be refused;
@@ -912,29 +1159,47 @@ slots:
       none. Only an agent that declares it model-derived sets it.
     # 1 to 3, checked by the SDK's model: a bound is not in the schema (#333).
     range: integer
-  reply_question:
+  reply_questions:
     description: >-
-      A question with fixed options the reply asks, at most one; absent when the reply asks
-      nothing or asks in prose.
-    range: ChoiceQuestion
-    inlined: true
+      The questions the reply asks, in the order they are put to the researcher one at a time;
+      between 1 and 8, with unique question_key values. Absent when the reply asks nothing or
+      asks in prose.
+    range: Question
+    multivalued: true
+    inlined_as_list: true
+    # No cardinality bounds, for the reason given at question_options (#333).
+  question_key:
+    description: >-
+      The question's identifier within its reply, which an answer names: a lower-case letter,
+      then up to 39 lower-case letters, digits and hyphens.
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,39}$"
   question_prompt:
     description: The question, as a short line a person reads before the options.
     required: true
+  question_kind:
+    description: How the question is answered.
+    range: QuestionKind
+    required: true
+  question_help:
+    description: One or two sentences shown under the question to help the researcher answer it.
   question_options:
-    description: The options, in the order they are shown; between 2 and 12, with unique values.
+    description: >-
+      The options of a choice question, in the order they are shown; between 2 and 12, with
+      unique values. Absent for a text question.
     range: ChoiceOption
     multivalued: true
     inlined_as_list: true
-    required: true
     # No minimum_cardinality or maximum_cardinality: a card carries class schemas over A2A, which
     # turns their integers into doubles and so breaks the schema digest (#333). The Pydantic model
     # holds the bounds.
   question_multiple:
-    description: True when several options may be chosen; one only otherwise.
+    description: True when several options may be chosen; one only otherwise. Choice questions only.
     range: boolean
   question_other:
-    description: True when the researcher may answer in their own words instead of an option.
+    description: >-
+      True when the researcher may answer in their own words instead of an option. Choice
+      questions only.
     range: boolean
   option_value:
     description: >-
@@ -946,21 +1211,35 @@ slots:
     required: true
   option_help:
     description: One sentence that helps the researcher tell this option from the others.
-  choice_answer:
+  reply_answers:
     description: >-
-      The researcher's answer to the choice question the previous turn asked, when they answered
-      by choosing. message_text still carries the answer as prose.
-    range: ChoiceAnswer
+      The researcher's answers to the questions the previous turn asked, when they answered them
+      in the form. message_text still carries the answers as prose.
+    range: ReplyAnswers
     inlined: true
   answer_to:
-    description: The invocation whose reply asked the question.
+    description: The invocation whose reply asked the questions.
     required: true
     pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-  answer_values:
-    description: The values of the options chosen; empty when the researcher answered in their own words.
+  given_answers:
+    description: One answer for each question answered, in the order asked; at least one.
+    range: QuestionAnswer
     multivalued: true
-  answer_other:
-    description: The researcher's own answer, given in place of an option where the question allows it.
+    inlined_as_list: true
+    required: true
+  answered_key:
+    description: The question_key of the question answered.
+    required: true
+    pattern: "^[a-z][a-z0-9-]{0,39}$"
+  answer_values:
+    description: >-
+      The values of the options chosen, for a choice question; empty when the researcher answered
+      in their own words, and always empty for a text question.
+    multivalued: true
+  answer_words:
+    description: >-
+      The researcher's answer in their own words: the whole answer to a text question, or an
+      answer given in place of an option where a choice question allows it.
   document_kind:
     range: DocumentKind
     required: true
@@ -1147,7 +1426,9 @@ slots:
       - https://www.nationalarchives.gov.uk/PRONOM/
     multivalued: true
   file_identified_by:
-    description: How the PRONOM identifiers were arrived at.
+    description: >-
+      How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the
+      researcher where the command found several matches or none.
     range: IdentificationMethod
     required: true
   file_fields:
@@ -1155,6 +1436,16 @@ slots:
     range: TableField
     multivalued: true
     inlined_as_list: true
+  file_description:
+    description: >-
+      What the file is, in the researcher's words. The inventory command never fills it; a
+      researcher states it beside the facts the command found (docs/specs/projects.md).
+    slot_uri: dcterms:description
+  file_role:
+    description: >-
+      What part the file plays in the dataset, as the researcher states it. Unset means not stated,
+      not data.
+    range: FileRole
   requirement_set_id:
     description: Identifies the requirement set, such as datacite-4 or orda.
     required: true
@@ -1201,6 +1492,17 @@ slots:
     description: The pages the set's values were taken from, so that a steward can check them.
     range: uri
     multivalued: true
+  unconfirmed:
+    description: >-
+      What the set's sources leave open, each a short statement naming the issue that will settle
+      it, such as "Whether ORDA's form makes any other field mandatory (#385)". Shown to the
+      person depositing; in a merged set, the standard's first, then the override's.
+    multivalued: true
+  repository_url:
+    description: >-
+      Where the chosen repository is, taken from its override's url; absent when the deployment
+      has no override for it.
+    range: uri
   property:
     description: The schema's property, such as DataCite's titles or types.resourceTypeGeneral.
     required: true
@@ -1328,6 +1630,22 @@ enums:
         description: Only the file name's extension was matched; the content was not recognised.
       none:
         description: Nothing matched.
+      researcher:
+        description: >-
+          The researcher chose the format: one of several PRONOM matches the command found, or a
+          media type where nothing matched.
+
+  FileRole:
+    description: What part a file plays in a dataset, as the researcher states it (docs/specs/projects.md).
+    permissible_values:
+      data:
+        description: The research data itself.
+      documentation:
+        description: Describes the data, such as a README, codebook or protocol.
+      code:
+        description: Software that made, cleaned or analyses the data.
+      other:
+        description: Anything else.
 
   OutcomeStatus:
     description: >-
@@ -1455,6 +1773,17 @@ enums:
           An identity provider vouched for the principal, and the harness verified its signed
           statement. vouched_by names the provider's issuer.
 
+  AffiliationKind:
+    description: The kinds of affiliation an ORCID record holds.
+    permissible_values:
+      employment:
+      education:
+      qualification:
+      invited_position:
+      distinction:
+      membership:
+      service:
+
   StepState:
     description: How far a process-flow step has gone; a step with none of these states is open.
     permissible_values:
@@ -1466,6 +1795,16 @@ enums:
           researcher marked the step done.
       skipped:
         description: The researcher marked the step as not applying to this project, or not wanted.
+
+  QuestionKind:
+    description: How a question a reply asks is answered, and so which form field shows it.
+    permissible_values:
+      choice:
+        description: By choosing one or several of fixed options, or in own words where allowed.
+      short_text:
+        description: In the researcher's own words, on one line of at most 200 characters.
+      long_text:
+        description: In the researcher's own words, in up to 4000 characters over several lines.
 
   TurnRole:
     description: Who spoke in a conversation turn.

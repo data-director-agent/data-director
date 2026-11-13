@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import person, run_table, cost as cost_of %}
+{% block title %}{{ summary.title or "Untitled project" }}{% endblock %}
+{% block heading %}{{ summary.title or "Untitled project" }}{% endblock %}
+{% block content %}
+{% set by = summary.created_by or {} %}
+<p><a href="/projects">← Projects</a></p>
+<section class="panel">
+  <dl class="facts">
+    <dt>Project</dt><dd class="mono">{{ summary.project_id }}</dd>
+    <dt>Created by</dt><dd>{{ person(by.name, by.principal_id) }}</dd>
+    <dt>Created</dt><dd>{{ summary.created_at | when }}</dd>
+    <dt>Intake</dt><dd>{{ summary.intake }}</dd>
+    {% if summary.progress %}<dt>Process flow</dt><dd>entry {{ summary.progress.entry or "not chosen" }}{% if summary.progress.suggested %} · next {{ summary.progress.suggested }}{% endif %}</dd>{% endif %}
+    <dt>Inventory</dt><dd>{% if summary.inventory %}{{ summary.inventory.file_count }} files, added {{ summary.inventory.added_at | when }}{% else %}none{% endif %}</dd>
+    <dt>Repository</dt><dd>{{ summary.repository.repository_name if summary.repository else "none chosen" }}</dd>
+    <dt>Model tokens</dt><dd>{{ cost.input_tokens | number }} in, {{ cost.output_tokens | number }} out, on its runs</dd>
+    {% if cost.input_tokens or cost.output_tokens %}<dt>Estimated cost</dt><dd>{{ cost_of(cost, prices) }}</dd>{% endif %}
+    {% set d = summary.documents or {} %}
+    <dt>Documents</dt><dd>{{ d.approved or 0 }} approved · {{ d.proposed or 0 }} proposed · {{ d.rejected or 0 }} rejected</dd>
+  </dl>
+</section>
+<section class="panel">
+  <h2>Events</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th scope="col">When</th><th scope="col">Event</th><th scope="col">By</th><th scope="col">Detail</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      {% set who = e.acted_for or {} %}
+      <tr>
+        <td class="nowrap">{{ e.at | when }}</td>
+        <td class="mono">{{ e.event }}</td>
+        <td>{{ person(who.name, who.principal_id) }}</td>
+        <td><details><summary>Show</summary><pre class="json small">{{ e | pretty }}</pre></details></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+<section class="panel">
+  <h2>Runs in this project</h2>
+  {{ run_table(runs) }}
+  {% if run_count > runs | length %}<p><a href="/runs?project={{ summary.project_id }}">All {{ run_count }} runs</a></p>{% endif %}
+</section>
+{% endblock %}

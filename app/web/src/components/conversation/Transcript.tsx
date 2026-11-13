@@ -24,7 +24,7 @@ import type {
   InventorySource,
   InventorySummary,
 } from "../../conversation/inventory";
-import { type ChoiceAnswer, replyOwnText, replyQuestion } from "../../conversation/question";
+import { type ReplyAnswers, replyOwnText, replyQuestions } from "../../conversation/question";
 import type { Conversation, ConversationTurn } from "../../conversation/types";
 import {
   type ProjectDocument,
@@ -42,7 +42,7 @@ import { ModelTag } from "../capabilities/ModelDisclosure";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
 import { DocumentCard } from "./DocumentCard";
-import { AskedQuestion, ChoiceQuestion } from "./ChoiceQuestion";
+import { AskedQuestions, QuestionSeries } from "./QuestionSeries";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
 import { Pending } from "./Pending";
@@ -180,8 +180,8 @@ export function Transcript({
     inventory?: AttachedInventory | null;
     document?: AttachedDocument | null;
   } | null;
-  /** Sends the answer to the latest turn's choice question; without it, none can be answered. */
-  onAnswer?: (answer: ChoiceAnswer, text: string) => void;
+  /** Sends the answers to the latest turn's questions; without it, none can be answered. */
+  onAnswer?: (answers: ReplyAnswers, text: string) => void;
   /** Takes the project's documents after the researcher answers a draft's questions; without
    * it, no draft's questions can be answered. */
   onDocumentAnswered?: (value: ProjectDocuments) => void;
@@ -211,10 +211,10 @@ export function Transcript({
                 documents,
               )
             : [];
-        const question = replyQuestion(turn.envelope);
+        const questions = replyQuestions(turn.envelope);
         const latest = index === conversation.turns.length - 1;
         const next = conversation.turns[index + 1];
-        const answer = next ? (conversation.inputs[next.invocation_id]?.choice_answer ?? null) : null;
+        const answers = next ? (conversation.inputs[next.invocation_id]?.reply_answers ?? null) : null;
         const shortlists = [turn.envelope, ...turn.children]
           .map((envelope) => ({ envelope, shortlist: shortlistOf(envelope) }))
           .filter(({ shortlist }) => shortlist.length > 0);
@@ -257,18 +257,22 @@ export function Transcript({
           <div className="markdown">
             <Markdown>{replyText(conversation, turn)}</Markdown>
           </div>
-          {question &&
+          {questions.length > 0 &&
             (latest && onAnswer ? (
-              // Kept while a message is sent, disabled, so a failed send keeps the choice.
-              <ChoiceQuestion
+              // Kept while a message is sent, disabled, so a failed send keeps the answers.
+              <QuestionSeries
                 key={turn.invocation_id}
-                question={question}
+                questions={questions}
                 askedBy={turn.invocation_id}
+                askedByName={turn.agent_id}
                 onAnswer={onAnswer}
                 disabled={pending !== null}
               />
             ) : (
-              <AskedQuestion question={question} answer={answer?.answer_to === turn.invocation_id ? answer : null} />
+              <AskedQuestions
+                questions={questions}
+                answers={answers?.answer_to === turn.invocation_id ? answers : null}
+              />
             ))}
           <OutcomeNote envelope={turn.envelope} />
           {projectId && drafted.length > 0 && (

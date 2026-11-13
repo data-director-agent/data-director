@@ -83,3 +83,22 @@ def test_main_reports_and_exits(capsys: pytest.CaptureFixture[str]) -> None:
 def test_tool_branches_are_exempt(title: str, branch: str) -> None:
     assert cn.branch_problems(branch) != []
     assert cn.main(["--title", title, "--branch", branch]) == 0
+
+
+@pytest.mark.parametrize(
+    ("message", "ok"),
+    [
+        ("feat(app): history tab\n\nBody.\n\nCo-authored-by: A <a@example.org>\n", True),
+        ("# comment\nfix: a bug\n", True),
+        ("Merge branch 'main' into x\n", True),
+        ("fixup! feat: a thing\n", True),
+        ("Add a history tab\n", False),
+        ("feat: Add a history tab\n", False),
+        ("", False),
+    ],
+)
+def test_commit_message_subject(tmp_path: Path, message: str, ok: bool) -> None:
+    path = tmp_path / "COMMIT_EDITMSG"
+    path.write_text(message, encoding="utf-8")
+    assert (cn.message_problems(message) == []) is ok
+    assert (cn.main(["--message-file", str(path)]) == 0) is ok

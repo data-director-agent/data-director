@@ -1,0 +1,15 @@
+# Test overlay: swaps in config.test.yaml and adds a fake provider.
+#   docker compose -f compose.yaml -f compose.test.yaml up -d
+services:
+  litellm:
+    volumes: !override
+      - ./config.test.yaml:/app/config.yaml:ro
+    depends_on:
+      fake-upstream:
+        condition: service_started
+
+  fake-upstream:
+    image: ghcr.io/berriai/litellm:v1.109.0   # reuse the image just for its Python
+    entrypoint: ["python3", "/fake_upstream.py"]
+    volumes:
+      - ./scripts/testing/fake_upstream.py:/fake_upstream.py:ro

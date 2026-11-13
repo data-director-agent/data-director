@@ -1,74 +1,109 @@
 /**
- * A reply's choice question (docs/specs/app.md): radio buttons when one option may be chosen,
- * checkboxes when several may, and "Something else" with a text box where the question allows an
- * answer in the researcher's own words. The controls are grouped in a fieldset whose legend is the
- * question, and each option's help is its description.
+ * One question put to the researcher as a form field (docs/specs/app.md, rule 21): a choice
+ * question as radio buttons, or checkboxes when several options may be chosen, each option a card
+ * the whole of which can be clicked, with "Something else" and a text box where it allows an
+ * answer in their own words; a short text question as a one-line text box; a long text question
+ * as a text area with a count of the characters left. The question is a fieldset whose legend is
+ * the question, and its help is the fieldset's description.
  *
- * Only the latest turn's question can be answered. Sending it sends the labels chosen as the
- * message, beside the answer itself, which the harness checks against the question. The
- * researcher may ignore it and type in the message box instead. An earlier question is shown as
- * it was answered, marked with an icon and words, never by colour alone.
+ * A reply's questions (`QuestionSeries`) and the project intake's (`IntakeCard`) are both drawn
+ * with it.
  */
 
 import "./ChoiceQuestion.css";
 
-import { Check, SendHorizontal } from "lucide-react";
-import { type FormEvent, useId, useState } from "react";
+import { type Ref, useId } from "react";
 
 import {
-  type ChoiceAnswer,
-  type ChoiceQuestion as Question,
-  answerText,
+  LONG_TEXT_MAX,
+  type Question,
+  type QuestionAnswer,
+  SHORT_TEXT_MAX,
 } from "../../conversation/question";
-import { Button } from "../ui/Button";
+
+/** What the researcher has entered for one question so far. */
+export interface Draft {
+  values: string[];
+  words: string;
+}
+
+export const EMPTY: Draft = { values: [], words: "" };
 
 /** The value of "Something else", which no option has. */
-function otherValue(question: Question): string {
-  const taken = new Set(question.question_options.map((o) => o.option_value));
+export function otherValue(question: Question): string {
+  const taken = new Set((question.question_options ?? []).map((o) => o.option_value));
   let value = "other";
   while (taken.has(value)) value = `_${value}`;
   return value;
 }
 
-export function ChoiceQuestion({
+/** The answer a draft gives, or null if it gives none. */
+export function answerOf(question: Question, draft: Draft): QuestionAnswer | null {
+  const words = draft.words.trim();
+  if (question.question_kind !== "choice") {
+    return words ? { answered_key: question.question_key, answer_values: [], answer_words: words } : null;
+  }
+  const other = question.question_other ? otherValue(question) : null;
+  const choosingOther = other !== null && draft.values.includes(other);
+  const values = draft.values.filter((v) => v !== other);
+  if (values.length === 0 && !(choosingOther && words)) return null;
+  return {
+    answered_key: question.question_key,
+    answer_values: values,
+    ...(choosingOther && words ? { answer_words: words } : {}),
+  };
+}
+
+/** Why a draft cannot be kept as it is, or null if it can (an empty draft is a skip). */
+export function problemOf(question: Question, draft: Draft): string | null {
+  const other = question.question_other ? otherValue(question) : null;
+  if (question.question_kind === "choice" && other !== null && draft.values.includes(other)) {
+    if (!draft.words.trim()) return "Say what your answer is, or choose another option.";
+  }
+  return null;
+}
+
+/** One question's field: the controls, inside a fieldset whose legend is the question. */
+export function QuestionField({
   question,
-  askedBy,
-  onAnswer,
-  disabled = false,
+  draft,
+  onChange,
+  error,
+  legendRef,
+  lead,
 }: {
   question: Question;
-  /** The invocation whose reply asks it. */
-  askedBy: string;
-  onAnswer: (answer: ChoiceAnswer, text: string) => void;
-  disabled?: boolean;
+  draft: Draft;
+  onChange: (draft: Draft) => void;
+  error: string | null;
+  legendRef?: Ref<HTMLLegendElement>;
+  /** Words before the question in the legend, such as which of several it is. */
+  lead?: string;
 }) {
   const id = useId();
   const multiple = Boolean(question.question_multiple);
-  const other = question.question_other ? otherValue(question) : null;
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [words, setWords] = useState("");
-
-  const choosingOther = other !== null && chosen.includes(other);
-  const ready = chosen.length > 0 && (!choosingOther || words.trim() !== "");
+  const other = question.question_kind === "choice" && question.question_other ? otherValue(question) : null;
+  const choosingOther = other !== null && draft.values.includes(other);
+  const described = [question.question_help && `${id}-help`, `${id}-how`, error && `${id}-error`]
+    .filter(Boolean)
+    .join(" ");
 
   function toggle(value: string, checked: boolean) {
-    if (!multiple) setChosen([value]);
-    else setChosen((was) => (checked ? [...was, value] : was.filter((v) => v !== value)));
+    const values = !multiple ? [value] : checked ? [...draft.values, value] : draft.values.filter((v) => v !== value);
+    onChange({ ...draft, values });
   }
 
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!ready || disabled) return;
-    const answer: ChoiceAnswer = {
-      answer_to: askedBy,
-      answer_values: chosen.filter((v) => v !== other),
-      ...(choosingOther ? { answer_other: words.trim() } : {}),
-    };
-    onAnswer(answer, answerText(question, answer));
-  }
+  const how =
+    question.question_kind === "choice"
+      ? multiple
+        ? "Choose one or more."
+        : "Choose one."
+      : question.question_kind === "short_text"
+        ? "Answer in a line."
+        : "Answer in a few sentences.";
 
   const options = [
-    ...question.question_options.map((o) => ({
+    ...(question.question_options ?? []).map((o) => ({
       value: o.option_value,
       label: o.option_label,
       help: o.option_help ?? null,
@@ -77,18 +112,33 @@ export function ChoiceQuestion({
   ];
 
   return (
-    <form className="choice-question" onSubmit={submit} aria-labelledby={`${id}-legend`}>
-      <fieldset className="field" disabled={disabled}>
-        <legend id={`${id}-legend`}>{question.question_prompt}</legend>
-        <p className="hint">{multiple ? "Choose one or more." : "Choose one."} Or type a reply below instead.</p>
-        {options.map(({ value, label, help }) => (
+    <fieldset className={error ? "field field-invalid question-field" : "field question-field"} aria-describedby={described}>
+      <legend ref={legendRef} tabIndex={-1}>
+        {lead && <span className="question-lead">{lead}</span>}
+        {question.question_prompt}
+      </legend>
+      {question.question_help && (
+        <p className="hint" id={`${id}-help`}>
+          {question.question_help}
+        </p>
+      )}
+      <p className="hint" id={`${id}-how`}>
+        {how} Or type a reply below instead.
+      </p>
+      {error && (
+        <p id={`${id}-error`} className="field-error">
+          <span className="status status-danger">Error</span> {error}
+        </p>
+      )}
+      {question.question_kind === "choice" &&
+        options.map(({ value, label, help }) => (
           <div className="field-check choice-option" key={value}>
             <input
               type={multiple ? "checkbox" : "radio"}
               id={`${id}-${value}`}
               name={`${id}-choice`}
               value={value}
-              checked={chosen.includes(value)}
+              checked={draft.values.includes(value)}
               onChange={(e) => toggle(value, e.target.checked)}
               {...(help ? { "aria-describedby": `${id}-${value}-help` } : {})}
             />
@@ -102,56 +152,51 @@ export function ChoiceQuestion({
             </label>
           </div>
         ))}
-        {choosingOther && (
-          <div className="field choice-other">
-            <label htmlFor={`${id}-words`}>Your answer</label>
-            <input
-              type="text"
-              id={`${id}-words`}
-              maxLength={500}
-              value={words}
-              onChange={(e) => setWords(e.target.value)}
-            />
-          </div>
-        )}
-      </fieldset>
-      <Button type="submit" icon={SendHorizontal} isDisabled={!ready || disabled}>
-        Send answer
-      </Button>
-    </form>
-  );
-}
-
-/** An earlier question, read-only: its options, with the one or ones chosen marked. */
-export function AskedQuestion({
-  question,
-  answer,
-}: {
-  question: Question;
-  /** The answer the next turn sent, or null if the researcher typed a reply instead. */
-  answer: ChoiceAnswer | null;
-}) {
-  return (
-    <div className="choice-asked">
-      <p className="choice-asked-prompt">{question.question_prompt}</p>
-      <ul className="plain-list">
-        {question.question_options.map((o) => {
-          const picked = answer?.answer_values.includes(o.option_value) ?? false;
-          return (
-            <li key={o.option_value} className={picked ? "choice-picked" : undefined}>
-              {picked && <Check aria-hidden="true" size={16} />}
-              {o.option_label}
-              {picked && <span className="choice-picked-word"> (your choice)</span>}
-            </li>
-          );
-        })}
-        {answer?.answer_other && (
-          <li className="choice-picked">
-            <Check aria-hidden="true" size={16} />
-            In your own words: {answer.answer_other}
-          </li>
-        )}
-      </ul>
-    </div>
+      {choosingOther && (
+        <div className="field choice-other">
+          <label htmlFor={`${id}-words`}>Your answer</label>
+          <input
+            type="text"
+            id={`${id}-words`}
+            maxLength={SHORT_TEXT_MAX}
+            value={draft.words}
+            onChange={(e) => onChange({ ...draft, words: e.target.value })}
+            {...(error ? { "aria-invalid": true, "aria-describedby": `${id}-error` } : {})}
+          />
+        </div>
+      )}
+      {question.question_kind === "short_text" && (
+        <>
+          <label className="visually-hidden" htmlFor={`${id}-words`}>
+            Your answer
+          </label>
+          <input
+            type="text"
+            id={`${id}-words`}
+            maxLength={SHORT_TEXT_MAX}
+            value={draft.words}
+            onChange={(e) => onChange({ ...draft, words: e.target.value })}
+          />
+        </>
+      )}
+      {question.question_kind === "long_text" && (
+        <>
+          <label className="visually-hidden" htmlFor={`${id}-words`}>
+            Your answer
+          </label>
+          <textarea
+            id={`${id}-words`}
+            rows={5}
+            maxLength={LONG_TEXT_MAX}
+            value={draft.words}
+            aria-describedby={`${id}-count`}
+            onChange={(e) => onChange({ ...draft, words: e.target.value })}
+          />
+          <p className="hint" id={`${id}-count`}>
+            {LONG_TEXT_MAX - draft.words.length} characters left.
+          </p>
+        </>
+      )}
+    </fieldset>
   );
 }

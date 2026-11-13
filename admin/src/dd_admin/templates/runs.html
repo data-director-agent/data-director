@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import run_table %}
+{% block title %}Runs{% endblock %}
+{% block heading %}Runs{% endblock %}
+{% block content %}
+<form class="filters" method="get" action="/runs">
+  <label>Agent
+    <select name="agent">
+      <option value="">Any</option>
+      {% for a in agent_ids %}<option value="{{ a }}"{% if filters.agent == a %} selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Outcome
+    <select name="status">
+      <option value="">Any</option>
+      {% for s in statuses %}<option value="{{ s }}"{% if filters.status == s %} selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  {% for key in ["principal", "project", "conversation"] %}
+    {% if filters[key] %}<input type="hidden" name="{{ key }}" value="{{ filters[key] }}">{% endif %}
+  {% endfor %}
+  <button type="submit">Show</button>
+  {% if active %}<a href="/runs">Clear</a>{% endif %}
+</form>
+{% if filters.principal or filters.project or filters.conversation %}
+  <p class="muted">Only runs
+    {% if filters.principal %} for <span class="mono">{{ filters.principal }}</span>{% endif %}
+    {% if filters.project %} in project <a class="mono" href="/projects/{{ filters.project }}">{{ filters.project | short(13) }}</a>{% endif %}
+    {% if filters.conversation %} in conversation <span class="mono">{{ filters.conversation | short(13) }}</span>{% endif %}.
+  </p>
+{% endif %}
+<p class="muted">{{ total | number }} run{{ "s" if total != 1 }}, newest first.</p>
+{{ run_table(runs) }}
+{% if pages > 1 %}
+<nav class="pager" aria-label="Pages">
+  {% if previous %}<a href="{{ previous }}" rel="prev">← Newer</a>{% endif %}
+  <span>Page {{ number }} of {{ pages }}</span>
+  {% if next %}<a href="{{ next }}" rel="next">Older →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

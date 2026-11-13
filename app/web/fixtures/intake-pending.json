@@ -1,0 +1,37 @@
+{
+  "next": "intake.entry",
+  "progress": {
+    "entry": null,
+    "entry_source": null,
+    "steps": {},
+    "suggested": null
+  },
+  "questions": [
+    {
+      "answer_values": null,
+      "question": {
+        "question_key": "entry",
+        "question_kind": "choice",
+        "question_multiple": false,
+        "question_options": [
+          {
+            "option_label": "Starting a new project, before data collection begins",
+            "option_value": "1"
+          },
+          {
+            "option_label": "Data already collected, being prepared for sharing",
+            "option_value": "2"
+          },
+          {
+            "option_label": "Ready to deposit data into a repository",
+            "option_value": "3"
+          }
+        ],
+        "question_other": false,
+        "question_prompt": "Where are you with your research data?"
+      },
+      "question_id": "intake.entry"
+    }
+  ],
+  "state": "pending"
+}

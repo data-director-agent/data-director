@@ -90,8 +90,8 @@ whom an invocation acts for, and how that is established, is in
 20. An A2A server here, the harness's or an agent's, answers `message/send` alone. A2A's task
     methods (get, list, cancel, subscribe) are refused, a message may not name an earlier task,
     and a task is forgotten once it ends: callers are not authenticated to the task store, so a
-    task kept would give any caller another's request, reply and delegation grant
-    (`dd_sdk.serve.request_handler`;
+    task kept would give any caller another's request, reply and delegation grant, or a model
+    grant ([A person's own model account](model-accounts.md)) (`dd_sdk.serve.request_handler`;
     `harness/tests/test_server.py::test_no_caller_can_read_back_a_task_or_the_grant_it_carried`).
 
 ## Boundaries and contracts

@@ -61,13 +61,33 @@ this inventory**. If you select **Cancel**, nothing is attached.
 What you leave out is not sent or kept anywhere, not even its name. The inventory says only how
 many files and columns you left out, so that an agent does not assume they do not exist.
 
+You can also tell Data Director what the inventory command cannot know. Select **Describe** under
+a file to say what it is, and what part it plays: data, documentation, code or something else.
+When the command could not be sure of a file's format (it found several possible formats, only
+guessed from the name, or found none), you can choose the right one there too. Open a folder to
+set the part every file in it plays at once, and open a table under **Tables** to describe its
+columns. Agents use what you write when they describe your dataset, so it is kept and shown to
+them just as file names are: do not write anything there that you would not share. **Undo** and
+**Redo** step through your changes, and **Show** can narrow the list to the files worth a look.
+
 The inventory then shows as a chip naming how many files it lists and when it was made. Select
 **View inventory** on the chip to read it again. Write your request, such as "Please draft a
 README for this dataset", and send it. You can also send the inventory on its own.
 
 The conversation's project keeps the inventory, so you attach it once. Data Director gives it to
-the agents that need it. If your files change, make a new inventory and attach it: the latest one
-counts. The panel beside the conversation shows which inventory the project holds, with
+the agents that need it.
+
+## Changing it later
+
+In the panel beside the conversation, select **Edit inventory** to open the project's inventory
+again. You can leave out more, or describe more, and then select **Save as the project's
+inventory**. The project keeps the new version, and the earlier one stays in its history.
+
+If your files change, make a new inventory and choose it under **Replace with a new scan of the
+same folder**. What you said about each file is carried over to the new scan wherever the file is
+still there, and the app tells you which files are new, changed or gone. One thing cannot be
+carried over: anything you left out before was never kept, so it appears again in the new scan.
+Check the files marked **New in this scan** and leave them out again if you need to. The panel beside the conversation shows which inventory the project holds, with
 **View inventory** to read it again, and links to the documents agents have drafted.
 
 See [What the Data Director records](records.md) for who can see what you attach.

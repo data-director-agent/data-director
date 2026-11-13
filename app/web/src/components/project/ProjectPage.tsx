@@ -1,8 +1,9 @@
 /**
  * A project's documents (docs/specs/projects.md), as a list beside a reader: the list groups the
  * documents by state, those waiting for a decision first, and the reader shows the one chosen,
- * with the form to decide on it while it is undecided. The repository chosen, the statement of
- * how generative AI was used and the deposit package are the list's last entries.
+ * with the form to decide on it while it is undecided. The researcher facts kept from ORCID, the
+ * repository chosen, the statement of how generative AI was used and the deposit package are the
+ * list's last entries.
  *
  * What is open is in the address (`?doc=<id>`, and `&v=<n>` for an earlier version), so that it
  * can be linked and left with Back. With nothing chosen, the first document waiting for a decision
@@ -36,13 +37,23 @@ import {
 } from "../../project/api";
 import { documentName, projectName } from "../../project/name";
 import { Link } from "../../route";
+import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { DisclosurePanel } from "./DisclosurePanel";
 import { DepositPanel } from "./DepositPanel";
-import { DEPOSIT, DISCLOSURE, DocumentList, PANELS, REPOSITORY, stateOf } from "./DocumentList";
+import {
+  DEPOSIT,
+  DISCLOSURE,
+  DocumentList,
+  PANELS,
+  REPOSITORY,
+  RESEARCHERS,
+  stateOf,
+} from "./DocumentList";
 import { DocumentReader } from "./DocumentReader";
 import { ProjectRename } from "./ProjectRename";
 import { RepositoryPanel } from "./RepositoryPanel";
+import { ResearcherPanel } from "./ResearcherPanel";
 
 type Load =
   | { state: "loading" }
@@ -159,6 +170,7 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
     const unknown = chosen !== null && !PANELS.includes(chosen) && !document;
 
     const reader = () => {
+      if (chosen === RESEARCHERS) return <ResearcherPanel projectId={projectId} />;
       if (chosen === DISCLOSURE)
         return <DisclosurePanel projectId={projectId} revision={revision} />;
       if (chosen === REPOSITORY)
@@ -230,6 +242,15 @@ export function ProjectPage({ projectId, query = "" }: { projectId: string; quer
             />
           </p>
         )}
+        <p className="project-inventory-actions">
+          <AddInventory
+            projectId={projectId}
+            replacing={project?.inventory != null}
+            onSaved={(saved) => {
+              setProject((p) => (p ? { ...p, inventory: saved } : p));
+            }}
+          />
+        </p>
         <p className="hint">
           Check each draft before it goes into the deposit package. Approve it as it is, edit it and
           approve your version, or reject it. A decision cannot be changed once it is made; a newer

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset %}
+{% block title %}{{ agent.name }}{% endblock %}
+{% block heading %}{{ agent.described.title or agent.name }}{% endblock %}
+{% block content %}
+<p><a href="/agents">← Agents</a> · <a href="/runs?agent={{ agent.described.agent_id | urlencode }}">Its runs</a>{% if settings.systemd %} · <a href="/operations/journal/{{ unit }}">Its journal</a>{% endif %}</p>
+<section class="panel">
+  <dl class="facts">
+    <dt>Configured as</dt><dd>{{ agent.name }}</dd>
+    <dt>Address</dt><dd class="mono">{{ agent.url }}</dd>
+    <dt>Card</dt><dd><span class="pill a-{{ agent.state }}">{{ agent.state }}</span>{% if agent.reason %} {{ agent.reason }}{% endif %}</dd>
+    {% for key in ["agent_id", "version", "description", "action_class", "grounding_mode", "contract_version", "accepts", "payload", "serves", "models", "derivations"] %}
+      {% if agent.described[key] %}
+        <dt>{{ key | replace("_", " ") | capitalize }}</dt>
+        <dd>{% set v = agent.described[key] %}{% if v is string %}{{ v }}{% elif key == "models" %}{% for m in v %}{{ m.provider }} {{ m.model }} ({{ m.hosting }}){% if not loop.last %}; {% endif %}{% endfor %}{% elif v is mapping %}<pre class="json small">{{ v | pretty }}</pre>{% else %}{{ v | join(", ") }}{% endif %}</dd>
+      {% endif %}
+    {% endfor %}
+    <dt>Service</dt><dd class="mono">{{ unit }}</dd>
+  </dl>
+</section>
+{% if agent.card %}
+<section class="panel">
+  <h2>Agent card</h2>
+  <pre class="json">{{ agent.card | pretty }}</pre>
+</section>
+{% endif %}
+{% endblock %}

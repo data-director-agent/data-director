@@ -94,9 +94,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     (`{"project_id": …}`), or in a new project when it names none, acting for the person signed
     in. A project that does not exist, or that the person may not read, is refused with a 404 and
     nothing is started; a body with any other field is refused with a 400. A conversation names
-    its `project_id` and the inventory its project holds. The shell names the open conversation
-    in the address (`?conversation=`), so a reload or a link reopens it in its own project and a
-    message sent afterwards continues it. The app gives the conductor the same project store, so a turn's runs belong to the
+    its `project_id` and the inventory its project holds. The shell always names the project:
+    it starts a conversation only from a project's workspace (rule 27). A body that names none is
+    still accepted, for clients other than the shell. The shell names the open conversation in the
+    address (`/projects/{id}/conversation?conversation=`), so a reload or a link reopens it in its
+    own project and a message sent afterwards continues it. The app gives the conductor the same project store, so a turn's runs belong to the
     project and a drafter's documents are kept in it ([Projects](projects.md),
     `app/tests/test_app.py`).
 19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,
@@ -109,7 +111,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     sent to agents, that file and folder names and column headings are included and may
     themselves be sensitive, and that agents may show it to a hosted model
     ([Projects](projects.md), rule 8), then lays the inventory out as **View inventory** does
-    (below) with an Include checkbox on every file, folder and column. Nothing is attached until
+    (below) in the inventory editor: an Include checkbox on every file, folder and column, and,
+    behind a **Describe** disclosure on each file, what the researcher may state beside the facts
+    the command found (a description, the part the file plays, and a format where the command
+    matched several, guessed from the name or matched none), one choice of part for every file
+    of a folder, a description for each column, Undo and Redo, a status line counting what
+    changed, and a choice to show only the files worth a look ([Projects](projects.md)). The
+    editing is `@data-director/inventory`'s `edit` and `applyEdits`; the editor lays it out.
+    Nothing is attached until
     the researcher presses **Attach this inventory**; closing the dialog any other way discards
     it. What they untick is removed from the document before it is attached, and so is never
     sent or stored: a folder takes every file beneath it, a limitation that names a file left
@@ -131,6 +140,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     transcript shows the chip on the turn where the project's inventory changed, read from the
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
+    An inventory may also be added to a project without a conversation: the project's page and the
+    workspace's Project panel offer **Add an inventory** (**Replace the inventory** where the project
+    holds one) beside **Make an inventory**. The file goes through the same check as one attached to
+    a message, and only **Add this inventory** sends it, to `POST /api/projects/{id}/inventory`; a
+    refusal is said and the check stays open, and cancelling stores nothing
+    (`app/web/src/components/inventory/AddInventory.test.tsx`).
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
@@ -141,6 +156,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     while open and a search draws at most 200 matches, so an inventory of thousands of files
     stays usable; checkboxes and folders work by keyboard and are named for screen readers
     (`app/web/src/components/inventory/InventoryView.test.tsx`, `app/web/e2e/shell.spec.ts`).
+    Beside the project's chip, **Edit inventory** opens the same editor on the inventory the
+    project holds, and may read a new scan of the same dataset instead, onto which what the
+    researcher stated is carried by path, with what the scan added, changed and removed, and the
+    files they had described that it no longer lists. **Save as the project's inventory** sends
+    the result to `POST /api/projects/{id}/inventory`, which adds it as the project's latest; the
+    store records which inventory it revises ([Projects](projects.md))
+    (`app/web/src/components/inventory/InventoryEditor.test.tsx`, `app/tests/test_app.py`).
     A supporting document is attached in the same way: a turn may carry `documentation`, an
     object giving its `name`, `media_type` and `text`, which the server adds to the
     conversation's project before the turn runs ([Projects](projects.md)). With one, the message
@@ -162,19 +184,27 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/conversation/Transcript.test.tsx`, `app/web/e2e/shell.spec.ts`).
 20. **The profile page shows only what the session holds.** `/profile`, reached from the name in
     the banner, shows the name and iD the identity provider gave at sign-in, how the person is
-    known and when the session ends, and says that nothing more is kept. It makes no request to
-    the provider and the app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
-21. **A choice question is answered by choosing, and may be ignored.** A reply's
-    `reply_question` is drawn beneath the reply: on the latest turn as radio buttons, or
-    checkboxes where several may be chosen, each option a card the whole of which can be clicked
-    (the control stays visible and ticked beside an accent bar), in a fieldset whose legend is the question, with
-    "Something else" and a text box where the question allows an answer in words; on earlier turns
-    read-only, the option chosen marked with an icon and words, never by colour alone. A new reply
-    that asks one is announced in the polite live region. Sending the answer sends the labels
-    chosen as `message_text` beside a `choice_answer`; the server refuses an answer the harness's
-    `answer_problem` rejects, and nothing runs. The message box stays usable, so the researcher may
-    type instead (`app/tests/test_app.py`,
-    `app/web/src/components/conversation/ChoiceQuestion.test.tsx`, `e2e/shell.spec.ts`).
+    known and when the session ends, and says that nothing more is kept but the facts a person
+    chooses, in a project, from their public record. It makes no request to the provider and the
+    app asks for no wider scope (`app/web/src/components/profile/ProfilePage.test.tsx`).
+21. **A reply's questions are answered one at a time in a form, and may be ignored.** A reply's
+    `reply_questions` are drawn beneath the reply. On the latest turn each question is a fieldset
+    whose legend is the question and whose description is its help: a choice question as radio
+    buttons, or checkboxes where several may be chosen, each option a card the whole of which can
+    be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
+    and a text box where the question allows an answer in words; a short text question as a
+    one-line text box; a long text question as a text area that counts the characters left. A lone
+    question is answered and sent in place. A series shows one question at a time, saying in
+    words which of how many it is beside a progress bar, with Back, Skip and Next; Next with
+    nothing entered says to answer or skip. After the last question it lists the answers to check,
+    each with a button to change it, and Send answers, which needs at least one answer. Moving to
+    another question moves the focus to its legend, and to the list's heading at the end. On
+    earlier turns the questions are read-only, each answer marked with an icon and words, never by
+    colour alone, and a skipped question says so. A new reply that asks is announced in the polite
+    live region. Sending sends the answers in words as `message_text` beside `reply_answers`; the
+    server refuses answers the harness's `answer_problem` rejects, and nothing runs. The message
+    box stays usable, so the researcher may type instead (`app/tests/test_app.py`,
+    `app/web/src/components/conversation/QuestionSeries.test.tsx`, `e2e/shell.spec.ts`).
 22. **The policy page shows the profile the gate holds runs to.** `/policy`, in the main navigation
     and linked from each place that names the policy, is drawn from `GET /api/policy`: the
     profile's reference, description, digest and orchestrator, each agent it enables with the
@@ -214,13 +244,19 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     from the project log, never from a second record. A deployment that turns sign-in on starts
     from an empty run store ([Policy and identity](policy-and-identity.md)), so no run is left
     without an owner (`app/tests/test_sign_in.py`, `app/tests/test_app.py`).
+    The admin service is not the app and is outside this rule: it shows an operator every
+    person's runs, on the VM's loopback only ([Policy and identity](policy-and-identity.md),
+    "The admin service").
 25. **A new project's conversation opens with the intake, and the researcher may always pass it
     by.** While a project's intake is pending ([Orchestration](orchestration.md), invariant 20),
-    its conversation opens with Data Director's card before any turn. The card holds a greeting and
-    the next question, drawn as in rule 21. It is announced in the polite live region and has a
+    its workspace (`/projects/{id}/conversation`) opens with Data Director's card before any turn.
+    The new-project workflow (rule 27) opens that workspace, so a new project's card is the first
+    thing in it. The card holds a greeting and the next question, drawn as in rule 21. It is announced in the polite live region and has a
     "Skip these questions" button.
     - `GET /api/projects/{id}/intake` reads the next question, or says the intake is complete or
-      dismissed.
+      dismissed. It carries `state`, `next` (the next question's id, or null), every question
+      asked from the project's entry point with its current `answer_values`, and the project's
+      `progress` (`dd_harness.intake.describe`).
     - `POST /api/projects/{id}/intake/{question_id}` records an answer (`{"answer_values": […]}`).
       It answers with the next question, or, once the intake is complete, with the phase the
       project starts at and the suggested step, both from the project summary.
@@ -233,7 +269,52 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the project, not a turn: no orchestrator runs for it, and the history holds none of it. Its
     answers reach the orchestrator through the project's entry point and step states. The phase
     tracker offers "Answer the setup questions again", which shows the card with the current
-    answers chosen. Not built yet, TODO(#668).
+    answers chosen and records only an answer that changed. The card's Skip passes one question
+    by for that visit only, recording nothing, so it is asked again when the workspace next opens;
+    "Skip these questions" records the dismissal. The card's questions are drawn by
+    `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
+    `app/web/src/components/conversation/IntakeCard.test.tsx`).
+26. **Researcher facts are chosen on the project's page, with nothing ticked.** The project's page
+    lists **Researchers** beside the repository, the disclosure and the deposit package. It shows
+    each record the project's researchers kept and, for the signed-in person's own, a button to
+    withdraw it. **Bring in facts from your ORCID record** reads their public record and offers
+    each section, and each affiliation, work and funding, as a checkbox, none ticked, with a
+    button to tick or untick all of a group; **Keep the ticked facts** sends only what is ticked,
+    by section and put-code, and the page then shows what the server kept. The panel says that the
+    facts go to the project's agents, and to a hosted model only where the deployment allows it,
+    and that an email address is never read
+    (`app/web/src/components/project/ResearcherPanel.test.tsx`, `app/tests/test_researcher_facts.py`,
+    [Projects](projects.md), invariant 27).
+27. **The shell opens on the person's projects, and a project is started on purpose.** Where the
+    app keeps projects, `/` is the Projects page: the person's projects, as `GET /api/projects`
+    lists them, each with **Open conversations**. A person with no project is told in a sentence
+    what a project keeps, and given **New project** as the page's one action. The shell's
+    addresses are:
+    - `/`: the Projects page;
+    - `/projects/{id}`: the project's documents (rule 2);
+    - `/projects/{id}/conversation`: the project's workspace, with the open conversation
+      (`?conversation=`) and run (`?run=`) as query parameters.
+
+    Opening a project's workspace address makes that project the active one. An address from
+    before this rule, `/?conversation={id}`, is replaced by the conversation's project address,
+    and `/projects` by `/`, so old links still open. Where the app keeps no projects, `/` is the
+    conversation, as before.
+
+    **New project**, on the Projects page and in the project switcher, opens a dialog with one
+    optional field, the project's name, and **Create project** and **Cancel**. Creating sends
+    `POST /api/projects`, whose body is `{}` or `{"title": …}`. The server creates the project
+    for the person signed in, with the route as its cause (`caused_by: "POST /api/projects"`),
+    and answers `201` with the project's summary as `GET /api/projects` lists it. A title is
+    checked as `PUT /api/projects/{id}/title` checks one, and a blank title is none. A body that
+    is not an object, or that has any other field, is refused with a 400. A title the harness
+    refuses is refused with a 400 too, and nothing is created in either case. Where the app keeps
+    no projects, the route answers 404, as every project route does there. Once the project is
+    created, it becomes active and the shell goes to its workspace, where the intake card shows
+    (rule 25). A project created this way is listed on the Projects page before it holds
+    anything; one the server created for a conversation that named no project is listed once it
+    does (`app/tests/test_app.py`). A refusal or failure is said in the dialog, which keeps what
+    was typed. Not built yet: the addresses and landing page, TODO(#764); the dialog,
+    TODO(#765).
 
 ## Boundaries and contracts
 
@@ -258,7 +339,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   calls no model.
 - **Signing in, whom a run acts for, and model credentials** are in
   [Policy and identity](policy-and-identity.md). The app never holds a model key: no agent runs in
-  its process, so there is nothing in it to call a model.
+  its process, so there is nothing in it to call a model. A person adding their own model account
+  sends the key from the browser straight to the model broker with an enrolment ticket; the app
+  issues the ticket and never sees the key ([A person's own model account](model-accounts.md), TODO(#807)).
 - **Run events to the browser** are AG-UI ([Transport and tracing](transport.md)). The harness
   streams a run's stages, its checks' reports and cancelling; the app does not serve that stream
   yet. A run is one request that answers when it has ended, so stages are read back, not watched,
@@ -356,20 +439,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **A shell drawn from manifests.** The earlier app was built around one agent, so each new agent
   needed new page code. Drawing from the manifest makes the shell general, and the multi-agent
   fixture keeps it so.
-- **Conversation first.** The Blueprint puts the chat interface first, and a person should not
-  have to choose an agent before saying what they need.
-- **Projects first in the navigation, the conversation first on arrival.** The project is the unit
-  of work ([Projects](projects.md)): its conversations, inventory, documents and decisions belong
-  to it, so the projects page (`/projects`) is the first item in the main navigation, and a
-  project's own page is marked as under it. A person still lands on the conversation, and their
-  first message starts a project, so nobody has to make or choose a project before saying what
-  they need. The app starts projects untitled, so the list names each by its first
-  conversation's title.
+- **Conversation first, within a project.** The Blueprint puts the chat interface first, and a
+  person should not have to choose an agent before saying what they need. In a project's
+  workspace the conversation is at the centre, and nothing else has to be chosen first.
+- **Projects first, on arrival and in the navigation.** The project is the unit of work
+  ([Projects](projects.md)): its conversations, inventory, documents and decisions belong to it.
+  So a person lands on their projects (`/`), the Projects page is the first item in the main
+  navigation, and a project's own pages are marked as under it. Starting a project is one press
+  and an optional name, and it lets Data Director speak first: the intake (rule 25) places the
+  project in the process flow before the researcher types anything. A returning researcher sees
+  every project and what waits in each (documents to review) before choosing where to work. A
+  project left unnamed is listed by its first conversation's title.
 - **One project at a time.** The shell works in one active project: the workspace header names it
   switches to another or to **New project**, and links to the project's page (**Project details**), the left-hand list shows only its
   conversations, **New conversation** starts another thread in it, and the right panel describes
-  it. With no project active, the first message starts one, which becomes active. Opening a
-  project from the projects page, or its documents page, makes it active; switching closes the
+  it. The workspace's address names its project, so a link opens the right one. Opening a
+  project from the Projects page, or its documents page, makes it active; switching closes the
   open conversation. Which project is active is a convenience of the browser, kept in
   `localStorage`, and a remembered project the server no longer lists is dropped.
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
@@ -423,6 +508,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   special rule for model keys in the app's process and a second agent list for deployment.
 - **The directory as the home page, with the conversation as one more page.** It makes a person
   choose an agent first.
+- **Arriving on the conversation, with the first message starting a project.** Nobody had to make
+  a project before saying what they needed. But a project did not exist until the researcher had
+  typed, so Data Director could not speak first, and the intake had no project to belong to.
+  Researchers also met projects only afterwards, as something the app had made for them, although
+  projects are what keep their inventory, documents and decisions.
+- **Projects only when none is active, else the active project's workspace.** It saves a press
+  for someone working in one project. But what a person sees on arrival would depend on what
+  their browser remembered, and the documents waiting in other projects would stay out of view.
 - **The shell routing messages to sub-agents.** That puts a policy decision in the shell, and its
   hand-offs would not be recorded as delegations on any envelope.
 - **A fallback orchestrator: one named in code, the first listed, or the only `delegation`
@@ -478,7 +571,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - TODO(#72, #73): the review gate, and how the conversation docks once there is a working
   surface. A suspended child's card says it is waiting for review.
 - TODO(#160): the project's current phase in the workspace.
-- TODO(#668): the intake card, its routes and the tracker's way back to it (rule 25).
+- TODO(#761): the Projects page as the landing page and the new-project workflow (rule 27).
 - TODO(#67): no agent declares limits, reliability or data handling yet.
 - TODO(#141): listing runs and conversations reads the whole run store; an index by principal
   comes with the run record (#653).

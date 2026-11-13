@@ -67,15 +67,18 @@ async function session(response: Response): Promise<Session> {
   return fromRaw((await response.json()) as RawSession);
 }
 
+// The server refuses a request that changes state unless it declares JSON, body or not (#728).
+const JSON_HEADERS = { "content-type": "application/json" };
+
 export const httpSessionApi: SessionApi = {
   async get(signal) {
     return session(await fetch("/api/session", signal ? { signal } : {}));
   },
   async stay() {
-    return session(await fetch("/api/session", { method: "POST" }));
+    return session(await fetch("/api/session", { method: "POST", headers: JSON_HEADERS }));
   },
   async signOut() {
-    const response = await fetch("/api/sign-out", { method: "POST" });
+    const response = await fetch("/api/sign-out", { method: "POST", headers: JSON_HEADERS });
     if (!response.ok) throw new Error(`the server answered ${response.status}`);
   },
 };

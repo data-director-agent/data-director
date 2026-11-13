@@ -10,7 +10,12 @@ dd:RequirementSet a sh:NodeShape ;
     rdfs:comment "What a deposit must or should have (docs/specs/deposit.md). A standard's set covers any record in one metadata standard and names it in re3data_names; a repository override adds what one repository asks and names it in re3data_id. The harness merges the two for the repository a researcher chose, checks the project against the result, and gives it to the drafters. Kept as YAML in the deployment's configuration, not sent by agents." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "The pages the set's values were taken from, so that a steward can check them." ;
+    sh:property [ sh:description "Where the standard or the repository is described." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path schema1:url ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them." ;
             sh:nodeKind sh:IRI ;
             sh:order 15 ;
             sh:path dd:guidance ],
@@ -20,6 +25,11 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 12 ;
             sh:path dd:max_file_size ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path dd:unconfirmed ],
         [ sh:class dd:RequirementField ;
             sh:description "The metadata properties the set requires or recommends." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -95,12 +105,7 @@ dd:RequirementSet a sh:NodeShape ;
             sh:description "A standard's set only: the metadataStandardName values in re3data that select it." ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
-            sh:path dd:re3data_names ],
-        [ sh:description "Where the standard or the repository is described." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:IRI ;
-            sh:order 4 ;
-            sh:path schema1:url ] ;
+            sh:path dd:re3data_names ] ;
     sh:targetClass dd:RequirementSet .
 
 dd:RequirementField a sh:NodeShape ;

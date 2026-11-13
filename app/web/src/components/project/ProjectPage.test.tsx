@@ -56,13 +56,21 @@ function fakeApi(overrides: Partial<ProjectApi> = {}): ProjectApi {
     decide: () => Promise.resolve(decided("approved")),
     answer: () => Promise.resolve(PROJECT),
     inventory: () => Promise.resolve(null),
+    saveInventory: () => Promise.reject(new Error("not saved in this test")),
     repository: () => Promise.resolve(REPOSITORY),
     progress: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
     chooseEntry: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
     markStep: () => Promise.resolve({ entry: null, steps: {}, suggested: null }),
+    intake: () => Promise.reject(new Error("no intake in these tests")),
+    answerIntake: () => Promise.reject(new Error("no intake in these tests")),
+    dismissIntake: () => Promise.reject(new Error("no intake in these tests")),
     validate: () => Promise.reject(new Error("not checked in this test")),
     buildPackage: () => Promise.reject(new Error("not built in this test")),
     chooseRepository: () => Promise.reject(new Error("no repository in these tests")),
+    orcidRecord: () => Promise.reject(new Error("no ORCID record in these tests")),
+    researchers: () => Promise.resolve([]),
+    keepResearcher: () => Promise.reject(new Error("nothing kept in these tests")),
+    withdrawResearcher: () => Promise.resolve([]),
     ...overrides,
   };
 }
@@ -379,7 +387,7 @@ describe("ProjectPage", () => {
       "href",
       "https://www.re3data.org/repository/r3d100012124",
     );
-    expect(within(panel).getByText("orda@v2")).toBeVisible();
+    expect(within(panel).getByText("orda@v3")).toBeVisible();
     expect(
       within(panel).getByRole("heading", { name: "Metadata the record must have" }),
     ).toBeVisible();

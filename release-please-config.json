@@ -46,6 +46,20 @@
         "app/tests"
       ]
     },
+    "admin": {
+      "component": "admin",
+      "release-type": "python",
+      "exclude-paths": [
+        "admin/tests"
+      ]
+    },
+    "broker": {
+      "component": "model-broker",
+      "release-type": "python",
+      "exclude-paths": [
+        "broker/tests"
+      ]
+    },
     "agents/orchestrator-stub": {
       "component": "agent-orchestrator-stub",
       "release-type": "python",

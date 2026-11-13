@@ -14,7 +14,9 @@ and a supporting document's text for the project to keep, answered as a run is, 
 them from the run store (docs/specs/orchestration.md, #130).
 `GET /api/projects` lists the projects the person signed in may read, the one created last first
 and a page at a time, each with what it holds and the conversations started in it
-(docs/specs/projects.md, docs/specs/app.md, docs/specs/storage.md "Listing").
+(docs/specs/projects.md, docs/specs/app.md, docs/specs/storage.md "Listing"); `POST /api/projects`
+creates one for the person signed in, with no conversation, named by the optional `title` it is
+sent, and answers `201` with its summary as the list shows it (docs/specs/app.md, rule 27).
 `GET /api/projects/{id}/documents` reads a project's documents, each version's state and the
 rule for when a decision needs a reason; `POST /api/projects/{id}/documents/{document_id}/decisions`
 approves or rejects the latest version, or approves an edit of it, for the person signed in, and
@@ -24,6 +26,9 @@ the latest version asks, for the next draft to place as supplied, and answers `4
 version is no longer the latest or does not ask them (docs/specs/drafting.md).
 `GET /api/projects/{id}/inventory` is the inventory the project holds, as it was added, for the
 researcher to read; it answers `404` when there is none.
+`POST /api/projects/{id}/inventory` adds `{"inventory": …}` to the project as its latest, for
+the person signed in: the researcher's revision of the one it holds, or a new scan
+(docs/specs/projects.md). It answers `201` with what the project then holds of it.
 `GET /api/projects/{id}/documentation` lists the documents attached to the project, without their
 text, and `GET /api/projects/{id}/documentation/{digest}` is one document's text, `404` when the
 project holds none with that digest (docs/specs/projects.md).
@@ -31,6 +36,12 @@ project holds none with that digest (docs/specs/projects.md).
 and `404` when none has been; `PUT` on it chooses one by its re3data identifier, which the pinned
 re3data export resolves to the repository's name and declared standards, for the person signed in,
 and answers with the requirements it resolved to and their warnings (docs/specs/deposit.md).
+`GET /api/projects/{id}/intake` says whether the project's intake is pending, complete or
+dismissed, with its next question and each question asked from the project's entry point and its
+current answer; `POST /api/projects/{id}/intake/{question_id}` records the person's answer to one
+(`{"answer_values": […]}`), refused with `400` when malformed and `409` when the harness rejects
+it, and `POST /api/projects/{id}/intake/dismiss` passes the intake by; both answer with the intake
+read anew (docs/specs/app.md, rule 25).
 `GET /api/projects/{id}/disclosure` says how each approved document came about and what
 generative AI was used, as a statement and as a PROV-O graph (docs/specs/disclosure.md).
 `POST /api/projects/{id}/validation` validates the project against the requirements recorded
@@ -99,16 +110,19 @@ from dd_app.about import about
 from dd_app.config import EXAMPLES_DIR, WEB_DIST, settings_from_env
 from dd_app.github_auth import TokenSource
 from dd_app.governance import (
+    CREATED_BY_ROUTE,
     AttachedDocument,
     Governance,
     TurnConflictError,
     UnknownConversationError,
     principal_summary,
 )
+from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
 from dd_harness.disclosure import disclose
 from dd_harness.identity import IdentityError, Unauthenticated
+from dd_harness.model_grants import jwks_routes
 from dd_harness.policy import PolicyError
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import (
@@ -127,7 +141,7 @@ from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
 from dd_harness.transport.paging import PagingError, page_params, page_response
-from dd_sdk.contract.models import ChoiceAnswer, Principal
+from dd_sdk.contract.models import Principal, ReplyAnswers, now
 from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
 from dd_sdk.contract.validate import ContractViolation
 from dd_sdk.credentials import ConfigError
@@ -143,8 +157,12 @@ FEEDBACK_REFUSED = "Data Director could not file this report"
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
 PROGRESS_REFUSED = "Data Director could not record where the project is"
+INTAKE_REFUSED = "Data Director could not record this answer"
 TITLE_REFUSED = "Data Director could not rename this project"
+CREATE_REFUSED = "Data Director could not create this project"
 REPOSITORY_REFUSED = "Data Director could not record this repository"
+RESEARCHER_REFUSED = "Data Director could not keep these ORCID facts"
+INVENTORY_REFUSED = "Data Director could not add this inventory"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7860
 UNTRUSTED_WARNING = (
@@ -171,12 +189,14 @@ def build_app(
     feedback_client: httpx.AsyncClient | None = None,
     build: Mapping[str, str | None] | None = None,
     sign_in: SignIn | None = None,
+    orcid_transport: httpx.BaseTransport | None = None,
 ) -> Starlette:
     """The server. `web_dist` must hold a built shell (its `index.html`).
 
     Problem reports are on when `feedback_source` is given; `feedback_client` and `build` let a test
     stand in for GitHub and for the build's identity. `sign_in` signs people in; its
     authenticator must be `governance.authenticator`. Without it, the server signs nobody in.
+    `orcid_transport` lets a test stand in for ORCID's public API (`dd_harness.orcid`).
     """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
@@ -191,6 +211,8 @@ def build_app(
         with `401` (docs/specs/policy-and-identity.md), and never given a default."""
 
         async def endpoint(request: Request) -> Response:
+            if (refused := _requires_json(request)) is not None:
+                return refused
             try:
                 principal = governance.authenticator.principal_for(request.headers)
             except Unauthenticated as exc:
@@ -310,12 +332,12 @@ def build_app(
             "follows",
             "inventory",
             "documentation",
-            "choice_answer",
+            "reply_answers",
         }
         if extra := sorted(set(body) - allowed):
             return _refused(
                 "A turn takes only `agent_id`, `message_text`, `follows`, `inventory`, "
-                f"`documentation` and `choice_answer`, not {extra}."
+                f"`documentation` and `reply_answers`, not {extra}."
             )
         agent_id, message_text = body.get("agent_id"), body.get("message_text")
         if not isinstance(agent_id, str) or not isinstance(message_text, str):
@@ -346,13 +368,14 @@ def build_app(
         if not message_text.strip() and inventory is None and documentation is None:
             return _refused("The message is empty.")
         answer = None
-        if body.get("choice_answer") is not None:
+        if body.get("reply_answers") is not None:
             try:
-                answer = ChoiceAnswer.model_validate(body["choice_answer"])
+                answer = ReplyAnswers.model_validate(body["reply_answers"])
             except ValueError:
                 return _refused(
-                    "`choice_answer` must name the turn it answers (`answer_to`) and give "
-                    "`answer_values`, a list of strings, and optionally `answer_other`."
+                    "`reply_answers` must name the turn it answers (`answer_to`) and give "
+                    "`given_answers`: for each question answered, its `answered_key`, the "
+                    "`answer_values` chosen and optionally `answer_words`."
                 )
         if await run_in_threadpool(governance.conversation, conversation_id, acting_for) is None:
             return _no_conversation(conversation_id)
@@ -415,6 +438,37 @@ def build_app(
         page = await run_in_threadpool(lambda: governance.projects_for(reader, **paging))
         return page_response(request, page)
 
+    async def create_project(request: Request, person: Principal) -> Response:
+        """A project of its own, with no conversation, named by the optional `title` the body
+        gives (docs/specs/app.md, rule 27). Whom it is created for is whom the authenticator
+        names, never the body. Answers `201` with its summary as `GET /api/projects` lists it."""
+        store = governance.projects
+        if store is None:
+            return _problem(
+                404, "project-not-found", "No such project", "This server keeps no projects."
+            )
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", CREATE_REFUSED)
+        if not isinstance(body, dict):
+            return _refused("The body must be an object.", CREATE_REFUSED)
+        extra = sorted(set(body) - {"title"})
+        if extra:
+            return _refused(f"Unexpected field(s): {', '.join(extra)}.", CREATE_REFUSED)
+        title = body.get("title")
+        if title is not None and not isinstance(title, str):
+            return _refused("`title` is the project's name, or left out.", CREATE_REFUSED)
+
+        def create() -> dict[str, Any]:
+            project_id = store.create(acted_for=person, caused_by=CREATED_BY_ROUTE, title=title)
+            return {**store.summary(project_id), "conversations": []}
+
+        try:
+            return JSONResponse(await run_in_threadpool(create), status_code=201)
+        except ProjectError as exc:
+            return _refused(str(exc), CREATE_REFUSED)
+
     async def get_documents(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
         if governance.projects is None:
@@ -439,6 +493,38 @@ def build_app(
                 404, "inventory-not-found", "No inventory", f"Project {project_id!r} has none."
             )
         return JSONResponse(found)
+
+    async def add_inventory(request: Request, person: Principal) -> Response:
+        """A revised or new inventory for the project, outside a turn. The store checks it against
+        the `FileInventory` class schema and records which inventory it revises; whom it acts for
+        is whom the authenticator names, never the body."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", INVENTORY_REFUSED)
+        inventory = body.get("inventory") if isinstance(body, dict) else None
+        if not isinstance(inventory, dict):
+            return _refused(
+                "`inventory` must be the object `dd-inventory` wrote.", INVENTORY_REFUSED
+            )
+
+        def add() -> dict[str, Any]:
+            store.add_inventory(
+                project_id, inventory, acted_for=person, caused_by=f"POST {request.url.path}"
+            )
+            held: dict[str, Any] = store.summary(project_id)["inventory"]
+            return held
+
+        try:
+            return JSONResponse(await run_in_threadpool(add), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _refused(str(exc), INVENTORY_REFUSED)
 
     async def list_documentation(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -468,6 +554,92 @@ def build_app(
                 f"Project {project_id!r} holds no document {digest!r}.",
             )
         return PlainTextResponse(found)
+
+    def read_orcid(person: Principal) -> dict[str, Any]:
+        """`person`'s own public ORCID record as a `ResearcherRecord`: only their own iD is ever
+        read, and only when they ask (docs/specs/policy-and-identity.md)."""
+        issuer = orcid.issuer_of(person)
+        raw = orcid.fetch_record(person.principal_id, issuer, transport=orcid_transport)
+        return orcid.normalise(
+            raw,
+            principal_id=person.principal_id,
+            retrieved_at=now(),
+            source=orcid.record_url(person.principal_id, issuer),
+        )
+
+    async def get_orcid_record(request: Request, person: Principal) -> Response:
+        """What the signed-in person's public ORCID record offers, to choose from. Nothing is
+        kept: keeping is `keep_researcher`, which reads the record again."""
+        try:
+            return JSONResponse(await run_in_threadpool(read_orcid, person))
+        except orcid.OrcidError as exc:
+            return _problem(409, "no-orcid-record", "No ORCID record to read", str(exc))
+        except orcid.OrcidUnavailableError as exc:
+            return _orcid_unavailable(str(exc))
+
+    async def list_researchers(request: Request, _: Principal) -> Response:
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            return JSONResponse(await run_in_threadpool(store.researchers, project_id) or [])
+        except UnknownProjectError:
+            return _no_project(project_id)
+
+    async def keep_researcher(request: Request, person: Principal) -> Response:
+        """Keep in the project what the person ticked of their own public ORCID record. The body
+        names a choice (`{"keep": {"sections": [...], "works": [put-codes], ...}}`), never the
+        facts: the record is read again and only what it holds is kept, so the project holds
+        ORCID's own words (docs/specs/projects.md). Answers with the project's records."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", RESEARCHER_REFUSED)
+        keep = body.get("keep") if isinstance(body, dict) else None
+        if not isinstance(keep, dict):
+            return _refused("`keep` names the sections and items to keep.", RESEARCHER_REFUSED)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def add() -> list[dict[str, Any]]:
+            chosen = orcid.select(read_orcid(person), keep)
+            store.add_researcher(project_id, chosen, acted_for=person, caused_by=caused_by)
+            return store.researchers(project_id) or []
+
+        try:
+            return JSONResponse(await run_in_threadpool(add), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except orcid.OrcidUnavailableError as exc:
+            return _orcid_unavailable(str(exc))
+        except (orcid.OrcidError, ProjectError) as exc:
+            return _refused(str(exc), RESEARCHER_REFUSED)
+
+    async def withdraw_researcher(request: Request, person: Principal) -> Response:
+        """Stop giving agents the ORCID facts the person kept in the project. Answers with the
+        project's records that stand."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def withdraw() -> list[dict[str, Any]]:
+            store.withdraw_researcher(
+                project_id, person.principal_id, acted_for=person, caused_by=caused_by
+            )
+            return store.researchers(project_id) or []
+
+        try:
+            return JSONResponse(await run_in_threadpool(withdraw))
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _problem(404, "researcher-not-found", "Nothing of yours to withdraw", str(exc))
 
     async def get_disclosure(request: Request, _: Principal) -> Response:
         project_id = request.path_params["project_id"]
@@ -526,6 +698,70 @@ def build_app(
             return _no_project(project_id)
         except ProjectError as exc:
             return _refused(str(exc), PROGRESS_REFUSED)
+
+    async def get_intake(request: Request, _: Principal) -> Response:
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            return JSONResponse(await run_in_threadpool(store.intake, project_id))
+        except UnknownProjectError:
+            return _no_project(project_id)
+
+    async def answer_intake(request: Request, person: Principal) -> Response:
+        """The researcher's answer to one intake question (docs/specs/app.md, rule 25), recorded
+        for whom the authenticator names, never the body. A malformed body is refused with `400`
+        and an answer the harness rejects with `409`, recording nothing; otherwise the server
+        answers with where the intake then stands: the next question, or the progress the card
+        names once it is complete."""
+        project_id = request.path_params["project_id"]
+        question_id = request.path_params["question_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        try:
+            body = await request.json()
+        except ValueError:
+            return _refused("The body is not JSON.", INTAKE_REFUSED)
+        values = body.get("answer_values") if isinstance(body, dict) else None
+        if not isinstance(values, list) or not all(isinstance(v, str) for v in values):
+            return _refused(
+                "The body is an object whose `answer_values` is a list of option values.",
+                INTAKE_REFUSED,
+            )
+        caused_by = f"{request.method} {request.url.path}"
+
+        def record() -> dict[str, Any]:
+            store.answer_intake(
+                project_id, question_id, values, acted_for=person, caused_by=caused_by
+            )
+            return store.intake(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(record), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
+        except ProjectError as exc:
+            return _problem(409, "intake-answer-refused", INTAKE_REFUSED, str(exc))
+
+    async def dismiss_intake(request: Request, person: Principal) -> Response:
+        """The researcher passing the intake by (docs/specs/app.md, rule 25); an answer recorded
+        later opens it again. Answers with where the intake then stands."""
+        project_id = request.path_params["project_id"]
+        store = governance.projects
+        if store is None:
+            return _no_project(project_id)
+        caused_by = f"{request.method} {request.url.path}"
+
+        def dismiss() -> dict[str, Any]:
+            store.dismiss_intake(project_id, acted_for=person, caused_by=caused_by)
+            return store.intake(project_id)
+
+        try:
+            return JSONResponse(await run_in_threadpool(dismiss), status_code=201)
+        except UnknownProjectError:
+            return _no_project(project_id)
 
     async def rename_project(request: Request, person: Principal) -> Response:
         """A person's name for the project, which a model's never replaces
@@ -852,6 +1088,8 @@ def build_app(
         return JSONResponse(created, status_code=201)
 
     async def get_session(request: Request) -> Response:
+        if (refused := _requires_json(request)) is not None:
+            return refused
         # `GET` says when the session ends and does not keep it going; `POST` keeps it going,
         # which is what the shell's "Stay signed in" sends (WCAG 2.2.1).
         if sign_in is None:
@@ -920,6 +1158,8 @@ def build_app(
         return response
 
     async def sign_out(request: Request) -> Response:
+        if (refused := _requires_json(request)) is not None:
+            return refused
         response = Response(status_code=204)
         if sign_in is not None:
             if session_id := cookie(request.headers, SESSION_COOKIE):
@@ -954,6 +1194,7 @@ def build_app(
                 methods=["POST"],
             ),
             Route("/api/projects", signed_in(list_projects), methods=["GET"]),
+            Route("/api/projects", signed_in(create_project), methods=["POST"]),
             Route(
                 "/api/projects/{project_id}/title",
                 in_project(Action.CONTRIBUTE, rename_project),
@@ -970,6 +1211,11 @@ def build_app(
                 methods=["GET"],
             ),
             Route(
+                "/api/projects/{project_id}/inventory",
+                in_project(Action.CONTRIBUTE, add_inventory),
+                methods=["POST"],
+            ),
+            Route(
                 "/api/projects/{project_id}/documentation",
                 in_project(Action.READ, list_documentation),
                 methods=["GET"],
@@ -978,6 +1224,21 @@ def build_app(
                 "/api/projects/{project_id}/documentation/{digest}",
                 in_project(Action.READ, get_documentation),
                 methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/researchers",
+                in_project(Action.READ, list_researchers),
+                methods=["GET"],
+            ),
+            Route(
+                "/api/projects/{project_id}/researchers/me",
+                in_project(Action.CONTRIBUTE, keep_researcher),
+                methods=["PUT"],
+            ),
+            Route(
+                "/api/projects/{project_id}/researchers/me",
+                in_project(Action.CONTRIBUTE, withdraw_researcher),
+                methods=["DELETE"],
             ),
             Route(
                 "/api/projects/{project_id}/disclosure",
@@ -1010,6 +1271,22 @@ def build_app(
                 methods=["PUT"],
             ),
             Route(
+                "/api/projects/{project_id}/intake",
+                in_project(Action.READ, get_intake),
+                methods=["GET"],
+            ),
+            # Before the route below, which would read `dismiss` as a question.
+            Route(
+                "/api/projects/{project_id}/intake/dismiss",
+                in_project(Action.CONTRIBUTE, dismiss_intake),
+                methods=["POST"],
+            ),
+            Route(
+                "/api/projects/{project_id}/intake/{question_id}",
+                in_project(Action.CONTRIBUTE, answer_intake),
+                methods=["POST"],
+            ),
+            Route(
                 "/api/projects/{project_id}/validation",
                 in_project(Action.CONTRIBUTE, validate_project),
                 methods=["POST"],
@@ -1034,6 +1311,7 @@ def build_app(
                 in_project(Action.CONTRIBUTE, answer),
                 methods=["POST"],
             ),
+            Route("/api/researcher/orcid", signed_in(get_orcid_record), methods=["GET"]),
             Route("/api/examples", signed_in(list_examples), methods=["GET"]),
             Route("/api/process-flow", signed_in(get_process_flow), methods=["GET"]),
             Route("/api/policy", signed_in(get_policy), methods=["GET"]),
@@ -1045,6 +1323,9 @@ def build_app(
             Route(CALLBACK_PATH, finish_sign_in, methods=["GET"]),
             Route("/api/sign-out", sign_out, methods=["POST"]),
             *delegation,
+            # The harness's public keys for model grants, when it mints them
+            # (docs/specs/model-accounts.md).
+            *jwks_routes(governance.conductor.model_grants),
             Route("/activity", shell, methods=["GET"]),
             Route("/agents", shell, methods=["GET"]),
             Route("/policy", shell, methods=["GET"]),
@@ -1090,6 +1371,30 @@ def examples(directory: Path) -> list[dict[str, Any]]:
     return found
 
 
+_CHANGES_STATE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _requires_json(request: Request) -> Response | None:
+    """`415` for a request that changes state and does not declare `application/json`, else `None`.
+
+    A cross-origin page cannot send that type without a CORS preflight, which the app never
+    answers, whereas a form can send `text/plain` or form-encoded bodies with the session cookie
+    from a same-site origin that `SameSite=Lax` does not stop. The type is required whether or not
+    there is a body, since a form with no fields posts too (#728).
+    """
+    if request.method not in _CHANGES_STATE:
+        return None
+    media_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if media_type == "application/json":
+        return None
+    return _problem(
+        415,
+        "unsupported-media-type",
+        "The request must be JSON",
+        "A request that changes state must declare Content-Type: application/json.",
+    )
+
+
 def _problem(status: int, slug: str, title: str, detail: str, **extra: Any) -> Response:
     """An RFC 9457 problem; `extra` are its extension members."""
     return JSONResponse(
@@ -1114,6 +1419,10 @@ def _no_project(project_id: str) -> Response:
 
 def _refused(detail: str, title: str = "Data Director could not start this run") -> Response:
     return _problem(400, "request-refused", title, detail)
+
+
+def _orcid_unavailable(detail: str) -> Response:
+    return _problem(502, "orcid-unavailable", "ORCID could not be reached", detail)
 
 
 def _unauthenticated(detail: str) -> Response:

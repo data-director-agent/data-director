@@ -40,6 +40,8 @@ the default home for anything.
 | Test doubles and helpers that any way in or any agent can use | `harness/` (`dd_harness.testing`) |
 | One agent's logic, schema, data, scripts, sample inputs, evaluation cases and tests; prototypes too, marked alpha by their version (`agents/README.md`) | `agents/<name>/` (sample inputs are still in `workbench/samples/` until TODO(#275) moves them) |
 | The app people use: its server, configuration (`app/config/`) and browser shell (`app/web`, React and TypeScript, Node 22 or later; [The app](docs/specs/app.md), designed from `docs/ui/best-practices.md`) | `app/` |
+| The operators' read-only view of a deployment, on loopback only ([The admin service](docs/guide/operations/admin.md)) | `admin/` |
+| The model broker, which holds people's own model keys and makes their model calls ([A person's own model account](docs/specs/model-accounts.md)) | `broker/` |
 | The development client for agent authors: the `workbench` CLI, viewer and its development configuration | `workbench/` |
 | `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
 | Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
@@ -224,16 +226,36 @@ with "To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environme
 failure comes from repository settings, not from the change: the organisation owner sets
 `PROJECT_TOKEN` as the workflow's header comment describes.
 
+## Pre-commit hooks
+
+`.pre-commit-config.yaml` holds the fast checks, so that they fail on your machine rather than in
+CI. Install them once per clone:
+
+```sh
+uv tool install pre-commit && pre-commit install
+```
+
+Before each commit they fix trailing whitespace, final newlines and line endings; check YAML, TOML
+and JSON parse, and that no merge marker, private key or file over 1 MB is committed; check file
+modes against shebangs; run Ruff (lint with fixes, then format, at the version in `uv.lock`);
+check each to-do marker names an issue (`scripts/check_todos.py`); re-lock `uv.lock` (below);
+lint the workflows with actionlint and zizmor (offline); and refuse a commit made directly on
+`main`. A `commit-msg` hook holds each commit subject to the pull request title rule
+(`scripts/check_names.py`): a Conventional Commit, `type(scope): summary`. The title itself is
+still checked in CI, as it is the one squash-merged onto `main`.
+
+Run them all over the tree with `pre-commit run --all-files`. Generated and recorded files
+(`uv.lock`, lock files, `schema/generated/`, test data, cassettes) and `docs/blueprint/` are left
+alone. mypy, pytest, the architecture checks and the app/web npm scripts take minutes and need the
+full environment, so they are not hooks: CI runs them. CI's "Pre-commit hooks" job runs the hooks
+too, for anyone who has not installed them. Dependabot keeps the hook revisions current.
+
 ## Keeping `uv.lock` current
 
 `uv.lock` records every workspace package's version and dependencies, so any branch that changes
 a `pyproject.toml` changes it too, and two such branches conflict. The `uv-lock` pre-commit hook
 re-locks whenever a `pyproject.toml` changes, so the lock never lags behind and CI's locked check
-never fails for that reason. Install it once:
-
-```sh
-uv tool install pre-commit && pre-commit install
-```
+never fails for that reason.
 
 Never resolve a `uv.lock` conflict by hand. Take the base branch's file and lock again:
 

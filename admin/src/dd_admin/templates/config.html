@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset %}
+{% block title %}Configuration{% endblock %}
+{% block heading %}Configuration{% endblock %}
+{% block content %}
+<p class="muted">The settings this deployment runs with. Nothing here can be changed from this page: each file names the command that changes it. Secrets are kept in <code>/etc/data-director/credentials/</code>, which only root may read (<code>sudo data-director secret list</code>), and are never shown.</p>
+<section class="panel">
+  <h2>Live</h2>
+  <dl class="facts">
+    <dt>Run store</dt><dd class="mono">{{ runs_location or "not set (DD_RUNS_DIR)" }}</dd>
+    <dt>Project store</dt><dd class="mono">{{ projects_location or "not set (DD_PROJECTS_DIR)" }}</dd>
+    <dt>Agents</dt><dd class="mono">{{ settings.agents_config or "not set (DD_AGENTS_CONFIG)" }}</dd>
+    {% if about %}
+      <dt>Profile</dt><dd>{% if about.profile %}{{ about.profile.id }} v{{ about.profile.version }} · orchestrator {{ about.profile.orchestrator }} · <span class="mono">{{ about.profile.digest | short(12) }}</span>{% else %}—{% endif %}</dd>
+      {% if about.unavailable %}<dt>Unavailable agents</dt><dd>{{ about.unavailable | join(", ") }}</dd>{% endif %}
+      {% if about.incompatible %}<dt>Incompatible agents</dt><dd>{{ about.incompatible | join(", ") }}</dd>{% endif %}
+      <dt>Feedback</dt><dd>{{ "on" if about.feedback_enabled else "off" }}</dd>
+    {% endif %}
+  </dl>
+</section>
+{% if files is none %}
+  {{ unset("DD_ADMIN_ETC", "The settings files") }}
+{% else %}
+  {% for f in files %}
+  <section class="panel file">
+    <h2 class="mono">/etc/data-director/{{ f.name }}</h2>
+    <p>{{ f.about }}.</p>
+    <p class="fix"><span>To change:</span> <code>{{ f.change }}</code></p>
+    {% if f.text is none %}
+      <p class="muted">Missing, or this service's user may not read it.</p>
+    {% elif f.text.strip() %}
+      <pre class="config">{{ f.text }}</pre>
+    {% else %}
+      <p class="muted">Empty.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+{% endif %}
+{% endblock %}

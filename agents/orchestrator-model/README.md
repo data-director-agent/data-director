@@ -95,7 +95,9 @@ Read at start-up by `factory.build`. A bad value stops the service with one line
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY_FILE` | none: required | The model key, which only this process holds. |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY_FILE` | none: required without the broker | The model key, which only this process holds. |
+| `DD_MODEL_BROKER_URL` | unset | The [model broker](../../docs/guide/operations/model-broker.md), if the agent calls through it in place of the provider. It then holds no provider key. |
+| `DD_MODEL_BROKER_CREDENTIAL` / `DD_MODEL_BROKER_CREDENTIAL_FILE` | none: required with the broker | The agent's own broker credential. |
 | `DD_MODEL_ID` | `claude-sonnet-5-5` | The model it calls. |
 | `DD_ORCHESTRATOR_EFFORT` | `high` | `low`, `medium`, `high`, `xhigh` or `max`. |
 | `DD_ORCHESTRATOR_HISTORY` | `20` | Earlier turns sent to the model. `0` sends only the current message. |

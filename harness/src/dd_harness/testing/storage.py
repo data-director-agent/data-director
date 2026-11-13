@@ -46,6 +46,8 @@ from dd_harness.projects import (
     PROJECT_RENAMED,
     PROJECT_VALIDATED,
     REJECTED,
+    RESEARCHER_ADDED,
+    RESEARCHER_WITHDRAWN,
     ChangeRefusedError,
     Decision,
     ProjectError,
@@ -525,6 +527,58 @@ def check_refused_documentation_leaves_no_trace(make: MakeProjectStorage) -> Non
     assert store.documentation(project_id) == []
 
 
+def _researcher_record(orcid_id: str, **sections: Any) -> dict[str, Any]:
+    return {
+        "orcid_id": orcid_id,
+        "record_retrieved_at": "2026-11-10T12:00:00+00:00",
+        "record_source": f"https://pub.orcid.org/v3.0/{orcid_id.rsplit('/', 1)[-1]}/record",
+        **sections,
+    }
+
+
+def check_a_researchers_own_record_stands_until_withdrawn(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.researchers(project_id) is None
+    me = TEST_PRINCIPAL.principal_id
+
+    def keep(**sections: Any) -> str:
+        record = _researcher_record(me, **sections)
+        return store.add_researcher(project_id, record, acted_for=TEST_PRINCIPAL, caused_by="check")
+
+    keep(researcher_name="Josiah Carberry")
+    keep(researcher_name="Josiah Carberry", keywords=["psychoceramics"])
+    held = store.researchers(project_id)
+    assert held is not None and len(held) == 1
+    assert held[0]["keywords"] == ["psychoceramics"]
+    assert make("projects").researchers(project_id) == held
+    store.withdraw_researcher(project_id, me, acted_for=TEST_PRINCIPAL, caused_by="check")
+    assert store.researchers(project_id) is None
+    kinds = [e["event"] for e in store.events(project_id)]
+    assert kinds == [PROJECT_CREATED, RESEARCHER_ADDED, RESEARCHER_ADDED, RESEARCHER_WITHDRAWN]
+
+
+def check_a_person_keeps_only_their_own_record(make: MakeProjectStorage) -> None:
+    store = make("projects")
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
+    someone = "https://orcid.org/0000-0002-1694-233X"
+    refused = [
+        _researcher_record(someone, researcher_name="Someone Else"),
+        {"orcid_id": TEST_PRINCIPAL.principal_id},
+        _researcher_record(TEST_PRINCIPAL.principal_id, works=[{"work_title": "No put-code"}]),
+    ]
+    for record in refused:
+        with _raises(ProjectError, f"keeping {record}"):
+            store.add_researcher(project_id, record, acted_for=TEST_PRINCIPAL, caused_by="check")
+    with _raises(ProjectError, "withdrawing another person's record"):
+        store.withdraw_researcher(project_id, someone, acted_for=TEST_PRINCIPAL, caused_by="check")
+    with _raises(ProjectError, "withdrawing a record the project does not hold"):
+        store.withdraw_researcher(
+            project_id, TEST_PRINCIPAL.principal_id, acted_for=TEST_PRINCIPAL, caused_by="check"
+        )
+    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
+
+
 def check_an_unknown_project_is_refused(make: MakeProjectStorage) -> None:
     store = make("projects")
     for project_id in (NOWHERE, "../escape", "", "a/b"):
@@ -954,6 +1008,10 @@ PROJECT_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
         check_documentation_is_kept_by_digest_and_listed_once
     ),
     "refused documentation leaves no trace": check_refused_documentation_leaves_no_trace,
+    "a researcher's own record stands until withdrawn": (
+        check_a_researchers_own_record_stands_until_withdrawn
+    ),
+    "a person keeps only their own record": check_a_person_keeps_only_their_own_record,
 }
 
 

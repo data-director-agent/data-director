@@ -13,6 +13,11 @@ is lower-case words joined by hyphens, optionally grouped with slashes (`ci-fast
 
     uv run python scripts/check_names.py --title "feat(app): history tab" --branch app-history
 
+    uv run python scripts/check_names.py --message-file .git/COMMIT_EDITMSG
+
+`--message-file` checks the first line of a commit message as a title; it is what the
+`commit-msg` pre-commit hook runs, so a commit subject is a Conventional Commit before it is ever
+pushed. Merge, fixup, squash and amend commits are skipped, as they never reach `main` as written.
 Either option may be left out. Pull requests from Dependabot's and release-please's branches are
 exempt: their titles and branch names are fixed by the tool. It prints one line per problem and
 exits 1 if there is any.
@@ -23,6 +28,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from pathlib import Path
 
 # The Conventional Commits types this repository uses (the Angular set). release-please makes a
 # release for `feat` and `fix`, and for any type with `!`.
@@ -97,16 +103,31 @@ def branch_problems(branch: str) -> list[str]:
     return problems
 
 
+# Subjects git writes itself, or that `git rebase --autosquash` folds away before merge.
+GENERATED_SUBJECTS = ("Merge ", "fixup! ", "squash! ", "amend! ")
+
+
+def message_problems(message: str) -> list[str]:
+    """What is wrong with the subject of commit message `message`; empty if nothing."""
+    subject = next((x for x in message.splitlines() if x and not x.startswith("#")), "")
+    if subject.startswith(GENERATED_SUBJECTS):
+        return []
+    return title_problems(subject)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--title", help="the pull request title")
     parser.add_argument("--branch", help="the pull request's head branch")
+    parser.add_argument("--message-file", help="a commit message file; its subject is the title")
     args = parser.parse_args(argv)
     if args.branch is not None and args.branch.startswith(EXEMPT_BRANCHES):
         return 0
     problems = []
     if args.title is not None:
         problems += title_problems(args.title)
+    if args.message_file is not None:
+        problems += message_problems(Path(args.message_file).read_text(encoding="utf-8"))
     if args.branch is not None:
         problems += branch_problems(args.branch)
     for problem in problems:

@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import AsyncIterator, Mapping
+import threading
+import time
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
@@ -37,10 +39,10 @@ from dd_harness.storage import GROUNDING, SOURCES, ProjectStorage
 from dd_harness.transport.paging import PAGE_SIZE, PAGE_SIZE_MAX
 from dd_sdk.contract.models import (
     UUID7_PATTERN,
-    ChoiceAnswer,
     Envelope,
     InvocationRequest,
     Principal,
+    ReplyAnswers,
     new_invocation_id,
 )
 
@@ -53,8 +55,14 @@ INVENTORY_ONLY_TEXT = "I have attached an inventory of my dataset's files."
 DOCUMENTATION_ONLY_TEXT = "I have attached a document about my dataset."
 # What a turn says when the researcher attached both and wrote nothing.
 BOTH_ONLY_TEXT = "I have attached an inventory of my dataset's files and a document about it."
+# The cause recorded for a project a person creates on purpose (`POST /api/projects`), which is
+# listed before it holds anything (docs/specs/app.md, rule 27).
+CREATED_BY_ROUTE = "POST /api/projects"
 # What `GET /api/projects` says of each conversation in a project.
 LISTED_CONVERSATION = ("conversation_id", "title", "started_at", "last_completed_at", "turns")
+# How long `GET /api/about`, which is open to anyone, waits between retries of the agents still
+# missing: a caller with no session must not make the server read their cards on every request.
+ABOUT_REFRESH_INTERVAL_S = 30.0
 
 
 @dataclass(frozen=True)
@@ -125,6 +133,13 @@ class Governance:
     # One lock per conversation, held from reading its history until its turn is stored, with
     # the number of turns holding or waiting for it; the entry goes when that reaches nought.
     _turn_locks: dict[str, tuple[asyncio.Lock, int]] = field(default_factory=dict, repr=False)
+    # How often `deployment` may retry the missing agents, and the clock it reads (a test's own).
+    about_refresh_interval_s: float = ABOUT_REFRESH_INTERVAL_S
+    clock: Callable[[], float] = field(default=time.monotonic, repr=False)
+    # When `deployment` last refreshed, held while it does so: a request that finds it held
+    # answers from what the registry last saw instead of waiting.
+    _about_refreshed_at: float | None = field(default=None, repr=False)
+    _about_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     @classmethod
     def create(
@@ -202,7 +217,7 @@ class Governance:
         follows: str | None,
         acting_for: Principal,
         inventory: Mapping[str, Any] | None = None,
-        answer: ChoiceAnswer | None = None,
+        answer: ReplyAnswers | None = None,
         documentation: AttachedDocument | None = None,
     ) -> dict[str, Any]:
         """One turn of a conversation, start to finish (`POST /api/conversations/{id}/turns`): a
@@ -219,9 +234,9 @@ class Governance:
         the project would refuse is refused before the inventory is added, so a refused turn adds
         neither. With either attached, `message_text` may be blank.
 
-        A turn may carry the researcher's `answer` to the choice question the latest turn asked,
-        beside `message_text`, which says the same in words. The harness checks it against that
-        question (`conversations.answer_problem`); one it refuses raises `ValueError` and nothing
+        A turn may carry the researcher's `answer` to the questions the latest turn asked, beside
+        `message_text`, which says the same in words. The harness checks it against those
+        questions (`conversations.answer_problem`); one it refuses raises `ValueError` and nothing
         is run (docs/specs/app.md).
 
         The history is built here from the stored turns, never taken from the caller, so the
@@ -288,7 +303,7 @@ class Governance:
                 "history": found["history"],
             }
             if answer is not None:
-                message["choice_answer"] = answer.model_dump(mode="json", exclude_none=True)
+                message["reply_answers"] = answer.model_dump(mode="json", exclude_none=True)
             run = asyncio.ensure_future(
                 self.invoke(
                     InvocationRequest(
@@ -427,8 +442,9 @@ class Governance:
         """A page of the projects `principal` may read, the one created last first
         (`GET /api/projects`): each project's summary, with the conversations started in it that
         have a turn, most recently active first, so that the shell can name a project the app
-        created untitled. A project with nothing in it yet (no conversation with a turn, no
-        inventory and no document) is not listed, as a conversation with no turn is not. The
+        created untitled. A project the app created for a conversation, with nothing in it yet (no
+        conversation with a turn, no inventory and no document), is not listed, as a conversation
+        with no turn is not; one a person created with `POST /api/projects` is. The
         cursor is the last listed project; one that names no project the person may read names
         an empty page."""
         check_limit(limit)
@@ -453,6 +469,7 @@ class Governance:
                 not listed
                 and summary["inventory"] is None
                 and not any(summary["documents"].values())
+                and self.projects.events(project_id)[0]["caused_by"] != CREATED_BY_ROUTE
             ):
                 continue
             if len(found) == limit:
@@ -571,6 +588,22 @@ class Governance:
             "acting_for": principal_summary(acting_for),
         }
 
+    def _refresh_about(self) -> None:
+        """Retry the agents still missing, unless that was done within the interval or is being
+        done now."""
+        if not self._about_lock.acquire(blocking=False):
+            return
+        try:
+            now = self.clock()
+            last = self._about_refreshed_at
+            if last is not None and now - last < self.about_refresh_interval_s:
+                return
+            # Stamped first, so a refresh that fails is not retried at once either.
+            self._about_refreshed_at = now
+            self.conductor.registry.refresh()
+        finally:
+            self._about_lock.release()
+
     def policy(self) -> dict[str, Any]:
         """The rules the policy gate holds every run to (`GET /api/policy`), for the policy page.
 
@@ -606,10 +639,14 @@ class Governance:
         The profile the conductor holds runs to, and which configured agents it reaches. An agent
         is named by its entry in the agent configuration, never with its address or the reason it
         is missing: the answer is public, and a reason can carry an internal address.
+
+        The answer is open to callers with no session, so it retries the missing agents at most
+        once every `about_refresh_interval_s`, and otherwise answers from what the registry last
+        saw (#726). A request that arrives while another is refreshing does not wait for it.
         """
         profile = self.conductor.profile
         registry = self.conductor.registry
-        registry.refresh()  # retries only the agents still missing, as `agents` does
+        self._refresh_about()
         return {
             "profile": {
                 "id": profile.profile_id,

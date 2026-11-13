@@ -1,8 +1,94 @@
 # Install once with `uv tool install pre-commit && pre-commit install` (CONTRIBUTING.md).
+# Run every hook over the whole tree with `pre-commit run --all-files`; CI does the same ("Hooks").
+#
+# Only fast checks live here. mypy, pytest, the architecture checks and the app/web npm scripts need
+# the full environment and take minutes, so CI runs them (.github/workflows/ci.yml).
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+# Written by tools or recorded from elsewhere, never edited by hand: the hooks leave them as they are.
+exclude: >-
+  (?x)^(
+    uv\.lock
+    |.*/package-lock\.json
+    |.*/schema/generated/.*
+    |.*/tests/data/.*
+    |.*/cassettes/.*
+    |.*\.har\.zip
+    |docs/blueprint/.*
+  )$
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      # mkdocs.yml names Python objects with !!python tags, which a safe load refuses.
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-toml
+      # tsconfig files are JSON with comments.
+      - id: check-json
+        exclude: (^|/)tsconfig[^/]*\.json$
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+      # Every change reaches main through a pull request (CONTRIBUTING.md).
+      - id: no-commit-to-branch
+        args: [--branch, main]
+
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.13.4
+    rev: 0.13.7
     hooks:
       # Re-lock whenever a pyproject.toml changes, so uv.lock never lags behind it (CI runs with
       # UV_LOCKED). Locking from the current state keeps lock diffs small, and so conflicts rare.
       - id: uv-lock
+
+  - repo: local
+    hooks:
+      # Ruff from uv.lock, so the hooks and the CI lint job always run the same version.
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --only-dev ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: ruff-format
+        name: ruff format
+        entry: uv run --only-dev ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      # Each to-do marker names the issue that will resolve it (AGENTS.md, "Writing").
+      - id: check-todos
+        name: to-do markers name an issue
+        entry: uv run --no-project --python 3.14 scripts/check_todos.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      # A pull request is squash-merged under its title, which release-please reads as a
+      # Conventional Commit. Holding every commit subject to the same rule (scripts/check_names.py)
+      # catches a bad one before it is pushed; the pull request title is still checked by CI.
+      - id: conventional-commit
+        name: commit subject is a Conventional Commit
+        entry: python3 scripts/check_names.py --message-file
+        language: system
+        stages: [commit-msg]
+
+  # The workflows, as the CI "Workflows" job checks them. Keep actionlint on the tag CI runs.
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.32.0
+    hooks:
+      # Offline: the online audits need a GitHub token, and the CI job runs them.
+      - id: zizmor
+        args: [--persona=regular, --offline]

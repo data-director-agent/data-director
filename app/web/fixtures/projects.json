@@ -22,11 +22,13 @@
       "proposed": 0,
       "rejected": 0
     },
+    "intake": "pending",
     "inventory": {
       "added_at": "2026-01-01T00:00:00Z",
       "digest": "0000000000000000000000000000000000000000000000000000000000000003",
       "file_count": 1,
-      "inventory_made_at": "2026-01-01T00:00:00Z"
+      "inventory_made_at": "2026-01-01T00:00:00Z",
+      "revises": null
     },
     "progress": {
       "entry": null,

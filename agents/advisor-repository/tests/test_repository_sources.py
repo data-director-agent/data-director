@@ -375,3 +375,24 @@ def test_preparing_the_source_fetches_into_the_cache_it_is_given(
     monkeypatch.setattr(registry, "fetch", refuse)
     with pytest.raises(SourceBuildError, match="re3data: the export is not the pinned one"):
         registry.SOURCE.prepare(None)
+
+
+def test_the_fairsharing_snapshot_holds_every_record_the_fixture_cites() -> None:
+    """Which FAIRsharing records the snapshot holds is a rule, not a hand-kept list
+    (`scripts/build_fairsharing_snapshot.py --cited-by`): those the fixture's repositories cite,
+    compared ignoring case."""
+    cited = {r.fairsharing_id.casefold() for r in registry.records(FIXTURE) if r.fairsharing_id}
+    held = {fid.casefold() for fid in FairsharingSnapshot().records}
+    assert cited <= held, sorted(cited - held)
+
+
+def test_a_fairsharing_record_is_found_by_its_identifier_in_any_case(tmp_path: Path) -> None:
+    line = dict(json.loads(FAIRSHARING_SNAPSHOT.read_text(encoding="utf-8").splitlines()[0]))
+    line.update(fairsharing_id="FAIRsharing.AbC123", doi="10.25504/FAIRsharing.AbC123")
+    path = tmp_path / "snapshot.jsonl"
+    path.write_text(json.dumps(line) + "\n", encoding="utf-8")
+    snapshot = FairsharingSnapshot(path)
+    for cited in ("FAIRsharing.AbC123", "FAIRsharing.abc123", "fairsharing.ABC123"):
+        found = snapshot.fetch(cited)
+        assert found is not None and found.fairsharing_id == "FAIRsharing.AbC123", cited
+    assert snapshot.fetch("FAIRsharing.abc124") is None

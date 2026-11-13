@@ -19,7 +19,7 @@ import { RunRefused } from "../run/api";
 import type { Problem } from "../run/types";
 import { checkSignedIn } from "../session/api";
 import type { AttachedDocument } from "./documentation";
-import type { ChoiceAnswer } from "./question";
+import type { ReplyAnswers } from "./question";
 import type { Conversation, ConversationSummary } from "./types";
 
 /** A conversation the server started, and the project it was started in, if it keeps them. */
@@ -38,7 +38,7 @@ export interface ConversationApi {
     follows: string | null,
     inventory?: FileInventory | null,
     signal?: AbortSignal,
-    answer?: ChoiceAnswer | null,
+    answer?: ReplyAnswers | null,
     document?: AttachedDocument | null,
   ): Promise<void>;
   list(signal?: AbortSignal): Promise<ConversationSummary[]>;
@@ -89,12 +89,8 @@ export const httpConversationApi: ConversationApi = {
       await request("/api/conversations", {
         ...init(signal),
         method: "POST",
-        ...(projectId === null
-          ? {}
-          : {
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ project_id: projectId }),
-            }),
+        headers: { "content-type": "application/json" },
+        ...(projectId === null ? {} : { body: JSON.stringify({ project_id: projectId }) }),
       }),
     );
     return { conversation_id: created.conversation_id, project_id: created.project_id ?? null };
@@ -110,7 +106,7 @@ export const httpConversationApi: ConversationApi = {
           message_text: messageText,
           follows,
           ...(inventory ? { inventory } : {}),
-          ...(answer ? { choice_answer: answer } : {}),
+          ...(answer ? { reply_answers: answer } : {}),
           ...(document
             ? {
                 documentation: {

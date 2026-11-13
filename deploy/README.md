@@ -14,6 +14,7 @@ connects to it, so it needs no inbound access but HTTP(S) and no deploy key.
                                               └─ switch /opt/data-director/current, restart
  browser ──HTTPS──▶ NGINX ──▶ app (ORCID sign-in) 127.0.0.1:7860 ──▶ agents 127.0.0.1:8101–8117
  admin ──HTTPS :8443──▶ NGINX ──▶ workbench (ORCID, admins only) 127.0.0.1:8000 ──┘
+ operator ──SSH tunnel──▶ admin service (read-only, no NGINX) 127.0.0.1:8200
 ```
 
 The app signs people in with ORCID, and each run acts for the person who signed in
@@ -22,7 +23,8 @@ a request without a session. The app and agents listen on loopback only ([Agents
 it that way: a request that reaches an agent directly carries no sign-in.
 
 The [workbench](#the-workbench) runs beside the app as a service of its own, on port 8443, for
-admins only.
+admins only. The [admin service](#the-admin-service), a read-only view of the deployment, listens
+on loopback alone and is reached through an SSH tunnel.
 
 ## What is here
 
@@ -37,12 +39,17 @@ admins only.
 | `systemd/data-director.target` | The app and the agents, started and restarted together. It names no agent: `apply` writes which agents it starts. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
+| `systemd/data-director-admin.service` | The admin service (`dd-admin serve`), on 127.0.0.1:8200 only, read-only. Part of the target; `install.sh` enables it. |
+| `systemd/data-director-model-broker.service` | The model broker (`dd-model-broker serve`), on 127.0.0.1:8300, as its own user `data-director-broker`. Installed but not enabled ([The model broker](#the-model-broker)). |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): each agent `deployment.yaml` runs. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
 | `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify` and systemdlint; run it before changing one. CI runs it. |
 | `systemd-lint-baseline.txt` | The systemdlint findings accepted, each with its reason. A new finding fails the check; so does a line that no longer matches one. |
+| `backup.sh`, `restore.sh`, `stores.sh` | Back up the settings, secrets and stores, and put them back on a clean VM; `stores.sh` finds where each store is kept. See [Backups](#backups). |
+| `backup.env.example` | `backup.sh`'s settings: where backups go and how many days they are kept. |
+| `systemd/data-director-backup.{service,timer}` | Runs `backup.sh`, as root, every night. |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
 | `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
 
@@ -70,7 +77,14 @@ process ([The app](../docs/specs/app.md)).
 | `/etc/data-director/agents.env` | Settings every agent service shares. |
 | `/etc/data-director/agents/<name>.env` | One agent service's own settings (`DD_STANDARDS_*`, a model id). |
 | `/etc/data-director/credentials/` | Agents' secrets (`<agent>/<secret>`, put there by `secret.sh`) and the app's (`app/`), readable by root alone. Never put a key or secret in an `.env` file. |
+| `/etc/data-director/credentials/model-broker/` | The model broker's secrets, readable by root alone; systemd hands them to the broker's unit only. |
+| `/etc/data-director/model-broker.env` | The model broker's settings (`config/examples/model-broker.env`). |
+| `/var/lib/data-director-model-broker/` | The model broker's store of sealed keys and token counts, readable by its user alone. |
+| `/etc/data-director/admin.env` | The admin service's overrides, if any (optional; [docs/guide/operations/admin.md](../docs/guide/operations/admin.md)). |
 | `/etc/data-director/deploy.env` | `deploy.sh`'s settings. |
+| `/etc/data-director/backup.env` | `backup.sh`'s settings (`deploy/backup.env.example`). |
+| `/var/backups/data-director/<time>/` | One backup each, root's alone ([Backups](#backups)). |
+| `/usr/local/lib/data-director/` | `backup.sh` and `stores.sh` as `install.sh` installed them from the clone; the backup unit runs these. |
 | `/var/lib/data-director/.sign-in` | Marks that the run store has started afresh for sign-in (see the upgrade below). |
 
 ## Set up the VM
@@ -177,6 +191,28 @@ The workbench is restarted with the app on each deployment, but `deploy.sh` chec
 health: a workbench that fails to start does not roll the release back. `journalctl -u
 data-director-workbench` says why.
 
+## The admin service
+
+The admin service (`admin/README.md`) is a read-only web view of the deployment: what the doctor
+finds, the releases, each service's state and journal, the agents' cards, the settings (secret
+values hidden), and every person's runs and projects. It has no sign-in, so it listens on
+127.0.0.1:8200 alone and NGINX does not serve it. Reach it through an SSH tunnel:
+
+```bash
+ssh -N -L 8200:127.0.0.1:8200 you@data-director.example.ac.uk   # then open http://localhost:8200
+```
+
+`install.sh` enables it; it needs no setting. It changes nothing, and names the command for each
+change. [The admin service](../docs/guide/operations/admin.md) in the operations guide says what
+it reads and how.
+
+## The model broker
+
+The model broker (`broker/README.md`) lets a person's own AI account pay for model calls. It is
+alpha and nothing calls it yet, so `install.sh` creates its user, its credentials directory and its
+settings file, but does not enable it. [The model broker](../docs/guide/operations/model-broker.md)
+in the operations guide says how to turn it on. Its store is not yet backed up (TODO(#814)).
+
 ## Day to day
 
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
@@ -199,7 +235,11 @@ It checks:
 - that each agent that calls a model has its key;
 - the sign-in settings and the ORCID secret, and that no key sits in a file every agent reads;
 - the profile, orchestrator and unreachable agents the app reports on `/api/about`;
-- the NGINX site.
+- the NGINX site;
+- the stores and their backups: that the backup timer is active, that the last backup succeeded
+  and the newest is under two days old, that the file systems holding `/var/lib/data-director`
+  and the backups have at least 10% free (and room for another backup), and that each database a
+  store names answers with this release's schema (`dd-harness storage status`).
 
 Run without `sudo`, it checks what that user can read and says what it skipped. The commands
 below are what it reads.
@@ -210,6 +250,7 @@ journalctl -u data-director-deploy -n 50                # what each pass did
 sudo systemctl start data-director-deploy.service       # look now
 journalctl -u data-director -u 'data-director-agent@*' -f   # the app and agents
 journalctl -u data-director-workbench -f                # the workbench
+journalctl -u data-director-admin -f                    # the admin service
 readlink /opt/data-director/current                     # which commit is linked
 curl -s http://127.0.0.1:7860/api/about                 # which commit is running
 ```
@@ -408,6 +449,120 @@ directory, an empty file, a name that is not lower-case words joined by hyphens)
 reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is running;
 `install.sh` rewrites every agent's, so a secret put in place by hand takes effect when it runs.
 
+## Backups
+
+Every night `data-director-backup.timer` runs `backup.sh` as root. It writes one directory,
+`/var/backups/data-director/<UTC time>/`, that holds everything needed to rebuild the deployment
+on another VM:
+
+| File | What it holds |
+|---|---|
+| `config.tar.gz` | `/etc/data-director`: `deployment.yaml`, every `.env`, and **every secret** in `credentials/` |
+| `units.tar.gz` | The systemd drop-ins (`/etc/systemd/system/data-director*.d`), such as a feedback key's |
+| `state.tar.gz` | `/var/lib/data-director/.sign-in`, and any runs set aside before sign-in |
+| `store-<name>.tar.gz` | Each store kept in a directory: `runs`, `projects`, `workbench-runs` |
+| `db-<name>.pgdump` | Each database a store names (`pg_dump --format=custom`), once per database |
+| `MANIFEST`, `SHA256SUMS` | Where each store was, the release that ran, and a checksum of each file |
+
+Each store is backed up from where the services keep it: the directory the unit sets, or the
+`DD_RUNS_DIR` and `DD_PROJECTS_DIR` that `app.env` and `workbench.env` give in its place, a
+directory or a `postgresql://` URL ([Storage](../docs/specs/storage.md)). Python and npm caches in
+`/var/lib/data-director` and the releases are not backed up: a release is rebuilt from `main`.
+
+A store in a directory is copied while the app and the workbench are stopped, because the file
+backends append to their logs as they run; they are started again as soon as the copy is done,
+usually within seconds, and also if the copy fails. A database is dumped while it runs. A backup
+appears under its final name only when it is whole.
+
+```bash
+sudo data-director backup                                    # back up now
+ls /var/backups/data-director                                # the backups, oldest first
+journalctl -u data-director-backup -n 50                     # what each night did
+systemctl list-timers data-director-backup.timer             # when it next runs
+```
+
+### How long backups are kept
+
+`DD_BACKUP_KEEP_DAYS` in `/etc/data-director/backup.env`, 30 by default, is how many days a backup
+is kept; the newest is never deleted. `DD_BACKUP_DIR` there moves the backups elsewhere.
+
+A backup holds the personal data in the stores: who signed in, what they wrote, and the runs made
+for them ([#156](https://github.com/data-director-agent/data-director/issues/156)). A person's
+data deleted from the stores stays in the backups until the last one that holds it is deleted, so
+the retention period bounds how long deletion takes. Choose it with the data protection officer of
+the hosting institution and say it in the privacy notice. TODO(#156): the period and what
+deletion means for a backup are not decided yet.
+
+### Keep a copy off the VM
+
+A backup on the VM's own disk does not survive the loss of the VM. Copy each one somewhere else
+that is as well protected as the VM, since a backup holds every secret: the ORCID client's, each
+model key and the feedback key. For example, from a host that may log in to the VM:
+
+```bash
+rsync -a --delete admin@data-director.example.ac.uk:/var/backups/data-director/ /srv/backups/data-director/
+```
+
+Whoever holds a copy holds the secrets: after one is lost, rotate them
+([AI models](../docs/guide/operations/ai-models.md), [Problem reports](#problem-reports)).
+
+### A store in PostgreSQL
+
+`install.sh` installs `postgresql-client`, whose `pg_dump` must be of the server's major version or
+newer; on Ubuntu, take a newer one from the PostgreSQL project's apt repository if the server is
+newer than the distribution's. `backup.sh` reaches the database with the `postgresql://` URL and the
+`PG*` settings (`PGHOST`, `PGPASSFILE`, …) in the same file as the store's setting, as the app does.
+It dumps the whole database the URL names, so give the deployment a database of its own.
+
+## Restore on a clean VM
+
+To move a deployment, or to rebuild it after losing the VM, on a new Ubuntu VM:
+
+1. Point the site's DNS name at the new VM, then set it up as in [Set up the VM](#set-up-the-vm),
+   steps 1 and 2, with the same `--domain`; certbot needs the name to reach the new VM.
+   `install.sh` stops, asking for the ORCID client: leave that, since the backup holds it.
+
+2. Copy the backup onto the VM, as root, and restore it:
+
+   ```bash
+   sudo install -d -m 0700 /var/backups/data-director
+   sudo rsync -a /srv/backups/data-director/20261110T024300Z /var/backups/data-director/   # or scp
+   sudo data-director restore /var/backups/data-director/20261110T024300Z
+   ```
+
+   `restore` checks every file against `SHA256SUMS` before it changes anything, and refuses a
+   damaged backup. It puts back `/etc/data-director`, the drop-ins, the sign-in marker and each
+   store, where the restored settings say it is kept, and starts nothing. It refuses to write over
+   a store that already holds something; `--force` moves such a directory aside to
+   `<store>.before-restore-<time>`, and drops and replaces a database's tables.
+
+   For a store in PostgreSQL, the database must exist and be reachable with the restored
+   settings before `restore` runs, with the same name and owner as before; for a server on the VM:
+
+   ```bash
+   sudo apt-get install -y postgresql
+   sudo -u postgres createuser dd && sudo -u postgres createdb --owner dd dd
+   ```
+
+3. Run the installer again. It finds the restored ORCID client, builds and starts the current release of `main`, and enables
+   the timers. The sign-in marker is restored, so it does not set the restored runs aside.
+
+   ```bash
+   sudo deploy/install.sh --domain data-director.example.ac.uk
+   sudo data-director doctor
+   ```
+
+   A store in PostgreSQL restored from an older release has an older schema; `doctor` says so,
+   and `dd-harness storage migrate` from the live release, run as the service user, brings it up
+   to date ([Storage](../docs/specs/storage.md)).
+
+4. Sign in, and check that a project and a run from before the backup are there.
+
+People signed in before are signed out, as after any restart. Anything stored after the backup was
+made is not on the new VM.
+
+Try this once on a spare VM before it is needed, and after any change to `backup.sh`.
+
 ## Changing the deployment
 
 - **`deploy.sh` and `wait-for-ports.sh`** run from the live release, so a change to them is
@@ -415,7 +570,7 @@ reported. `secret.sh` rewrites the one agent's drop-in and restarts it if it is 
   ships it. A `deploy.sh` that cannot finish a pass blocks its own replacement; recover with
   `deploy.sh --bootstrap` from a release that has the fix
   ([The app shows an old commit](#the-app-shows-an-old-commit)).
-- **The units and the NGINX site** are installed by root, not from the release, so that a commit
+- **The units, the NGINX site and `backup.sh`** are installed by root, not from the release, so that a commit
   to `main` cannot change whom the services run as. After merging a change to them, pull the
   clone and run `sudo deploy/install.sh --domain …` again. `deploy.sh` logs a warning while the
   installed units differ from the live release's.

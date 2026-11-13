@@ -12,7 +12,8 @@ named. This spec covers four things that make that true:
 - **signing in**, by which a person establishes who they are through OpenID Connect, with ORCID
   as the first provider (C1);
 - **model credentials**: where an API key for a hosted model lives, and what may never carry it
-  (C1, C2).
+  (C1, C2). A person's own model account, held by the model broker rather than by an agent, is in
+  [A person's own model account](model-accounts.md).
 
 It does not cover who may see or continue a project or a conversation ([Projects](projects.md)),
 the app's process boundary ([The app](app.md)), or how a delegation grant is issued
@@ -58,7 +59,9 @@ them.
 9. **A delegated child acts for its parent's principal**, carried on the grant, whoever sends the
    callback (`test_a_child_acts_for_its_parent_whoever_sends_the_callback`).
 10. **An agent is not told whom it acts for.** Neither the run context nor the A2A request to an
-    agent carries the principal.
+    agent carries the principal. A model grant names only a pseudonym sealed to the broker, which
+    the agent cannot read
+    ([A person's own model account](model-accounts.md), invariants 3–4).
 11. **No anonymous fallback.** With neither a provider nor an operator principal configured, the
     CLI, the servers and the evaluation refuse to start (`harness/tests/test_identity.py`,
     `harness/tests/test_server.py`, `app/tests/test_app.py`).
@@ -75,18 +78,31 @@ them.
     `HttpOnly`, `Secure` and `SameSite=Lax`; the server keeps only a hash of it. No ID, access or
     refresh token is kept once verified, in the session, the run store or the browser
     (`test_no_token_reaches_the_run_store`, `test_the_session_cookie_is_opaque_and_kept_from_script`).
+    `SameSite=Lax` does not stop a same-site, cross-origin form, so a `POST`, `PUT`, `PATCH` or
+    `DELETE` to `/api` is refused with `415` unless it declares `application/json`, body or not,
+    which a cross-origin page cannot send without a CORS preflight the app never answers
+    (`test_every_state_changing_api_route_refuses_a_body_that_is_not_json`).
 15. **Only the `openid` scope is requested**, so no email address is asked for or held
     (`test_the_app_asks_for_openid_alone_and_authenticates_with_its_secret`).
 16. **Two routes are two principals.** Accounts are never linked by matching email addresses or
     names.
-17. **Only the calling agent's process holds a model key.** The app, the harness and the conductor
-    never hold one, and no A2A message, grant, envelope, span, evidence item, crate or export
-    carries one (`agents/advisor-standards/tests/test_key_not_stored.py`,
+17. **Only the calling agent's process holds the deployment's model key, and only the model broker
+    holds a person's own.** When the profile turns own accounts on, the broker holds the
+    deployment's key as well, and agents hold only a broker credential. The app, the harness and the conductor never hold one, and no A2A
+    message, grant, envelope, span, evidence item, crate or export carries one
+    (`agents/advisor-standards/tests/test_key_not_stored.py`,
     `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`,
-    which run against a cassette with a sentinel key).
+    which run against a cassette with a sentinel key). The broker keeps a person's key out of
+    its answers, logs and records (`broker/tests/test_broker_key_not_leaked.py`), and an agent's
+    broker credential and model grant reach no record
+    (`agents/advisor-documentation/tests/test_grant_not_stored.py`,
+    [A person's own model account](model-accounts.md), invariants 1 and 6).
 18. **A model client is always given its key explicitly**, read once when the agent's factory
     builds it (`sdk/src/dd_sdk/credentials.py`). The provider SDK's own credential chain, such as
-    a saved command-line login, is never searched, and no key is read during a run.
+    a saved command-line login, is never searched, and no key is read during a run. A model grant
+    is not a key: it is minted by the conductor for one invocation of one agent, allows only the
+    models that agent declares, and expires with the run
+    ([A person's own model account](model-accounts.md), invariant 4).
 19. **A credential misconfiguration stops the agent at start-up**, in one line that names the
     variable or path and never the value, before any port opens; the agent's unit does not
     restart on that exit status (`sdk/tests/test_credentials.py`, `deploy/systemd/`).
@@ -108,12 +124,15 @@ propose the change in its payload and the conductor is to perform it after appro
 (TODO(#72)).
 
 **The profile vocabulary** is the identifier, version, description, the agent-to-class mapping,
-the classes requiring approval, the optional orchestrator and `hosted_models`. A change to which orchestrator is
+the classes requiring approval, the optional orchestrator, `hosted_models` and, once enforced,
+`model_accounts` (whether people may or must use their own model account, TODO(#810);
+[A person's own model account](model-accounts.md)). A change to which orchestrator is
 named raises the profile's version. Approved repositories (R1), persistent identifier systems
 (R7) and registry access return as keys only together with the agent or check that enforces them.
-`hosted_models` lists the classes of project content (`inventory`, `documentation`) that may go
-to an agent whose card declares a `hosted` model; without it only `inventory` may
-([Projects](projects.md), invariant 8). It covers project content the conductor gives, not what a
+`hosted_models` lists the classes of project content (`inventory`, `documentation`,
+`researcher`) that may go to an agent whose card declares a `hosted` model; without it only
+`inventory` may ([Projects](projects.md), invariant 8). Researcher facts the profile does not list
+are left out of such an agent's input rather than refused. It covers project content the conductor gives, not what a
 caller or a person sends, such as a conversation's text (TODO(#40)). The rights and licensing part of a profile is to be expressed in ODRL
 when repository selection or deposit needs it.
 
@@ -138,6 +157,14 @@ opening a session, and every request is checked against the list, so an admin ta
 refused at once. TODO(#154): the list stands in for an administrator role until people have
 roles.
 
+**The admin service.** The admin service (`admin/`) shows an operator every person's runs and
+projects, and the deployment's settings with secret values hidden. It has no sign-in of its own:
+it listens on the VM's loopback only, NGINX does not serve it, and it refuses a request whose
+`Host` is not a loopback name. Whoever can open an SSH session to the VM can reach it, through a
+tunnel, and could read the same stores and files there already; SSH access is its credential. It
+reads and never writes, and acts for nobody: it starts no run. TODO(#154): when people have roles,
+decide whether the administrator role signs in to it.
+
 **Signing in.** The app is the relying party and a confidential client running the
 authorisation-code flow. The flow and the sessions are the harness's (`dd_harness.signin`,
 `dd_harness.sessions`), so any way in that signs people in runs the same checks; the way in serves
@@ -148,7 +175,13 @@ and checks both; binds `state` to the browser that started it, so a callback car
 browser opens no session; and verifies the ID token's signature against the issuer's published
 keys (RS256 only, so a token cannot choose a weaker algorithm), its issuer, audience, expiry and
 nonce. PKCE is to be added if ORCID advertises it; a confidential client checking `state` and
-`nonce` does not depend on it. Nothing calls ORCID's API, so a free public API client suffices.
+`nonce` does not depend on it. Sign-in calls no ORCID API, so a free public API client suffices.
+
+**A person's public ORCID record** is read only when that person asks, from ORCID's public API,
+which needs no credential and returns only what the holder made public, and only for their own
+iD: the one ORCID vouched for at sign-in, or on a development server the operator's asserted iD
+URL (`dd_harness.orcid.issuer_of`). What they keep of it in a project, and how it reaches agents,
+is in [Projects](projects.md), invariant 27. An email address is never read from it.
 
 **The principal.** Its identifier is an absolute IRI: for ORCID, the iD URL; for staff without an
 iD and for roles, a `mailto:` IRI or a URN. Its kind is `person` or `accountable_role`, the latter
@@ -176,7 +209,13 @@ provider follows the same rule under its own variable name. Each agent's manifes
 model it sends data to (provider, model, `hosted` or `local`) and names no credential
 ([Agents](agents.md)); the app's agent directory shows the list. The declaration is the deployment's
 configuration as the agent reports it, not proof. Rotating a key means replacing the credential
-file and restarting that agent's service; nothing else changes.
+file and restarting that agent's service; nothing else changes. When a profile lets people use
+their own account, an agent's model calls go to the model broker instead, with the agent's own
+broker credential and the run's grant; the deployment's key, if the profile keeps it as the
+fallback, is then the broker's, not the agent's
+([A person's own model account](model-accounts.md), invariant 14). An agent calls through the
+broker when `DD_MODEL_BROKER_URL` is set, and then holds no provider key
+(`dd_sdk.credentials.model_endpoint`).
 
 ## Rationale
 
@@ -193,7 +232,9 @@ file and restarting that agent's service; nothing else changes.
   stub that honestly records `asserted` was preferred to no record, and the place where real
   authentication enters was built first so that adding it changed nothing else.
 - **The agent is not told** because no agent needs to know whom it acts for to do its work, and
-  personal data goes only where the record needs it.
+  personal data goes only where the record needs it. Researcher facts a person keeps in a project
+  ([Projects](projects.md), invariant 27) do not tell it: they are the project's researchers, the
+  same for every run in it, and the record needs them as its creators.
 - **The record says who vouched**, so a reader can weigh an identity claim by who made it. No
   published vocabulary has a term meaning exactly this, so the contract mints `dd:vouched_by` and
   the crate carries it as `vouchedBy`, referencing an `Organization` entity for the issuer.
@@ -206,6 +247,9 @@ file and restarting that agent's service; nothing else changes.
 - **The key stays with the agent**, read once and passed explicitly, so the configuration alone
   says which credential a run used, a missing key fails start-up rather than every run, and a key
   in one agent's settings reaches no other agent and never the process that serves the web page.
+  A person's own key cannot follow that rule, since it is chosen per run, so it stays with one
+  service built to hold it, and the run records whose account paid
+  ([A person's own model account](model-accounts.md), Rationale).
 
 ## Rejected alternatives
 
@@ -242,8 +286,11 @@ file and restarting that agent's service; nothing else changes.
 - **Key hygiene.** A deployment may give several agents one key, but should give each its own, so
   one can be revoked alone and the provider's usage reports show each agent. A spending limit is
   set on the provider's side per workspace, not per key.
-- **Privacy.** Nothing beyond the iD and a display name is held about a person who signs in.
-  Personal data the app holds about its users is TODO(#156).
+- **Privacy.** Sign-in holds nothing beyond the iD and a display name. The only other personal
+  data held about a person is what they choose to keep in a project from their own public ORCID
+  record, which they may withdraw from agents but which stays in the project's log
+  ([Projects](projects.md), invariant 27). Retention of personal data the app holds about its
+  users is TODO(#156).
 - **Availability.** Sessions are held in the app's memory, which suits one server process:
   restarting the app signs everyone out.
 - **Accessibility.** The session time-out warning meets WCAG 2.2.1.

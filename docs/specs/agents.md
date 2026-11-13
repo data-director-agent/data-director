@@ -61,13 +61,21 @@ is in [`harness/docs/registry.md`](../../harness/docs/registry.md).
     says in `limitations` what it does not yet do. Each mock's own tests check the prefix. A mock
     substantiates no Blueprint requirement; its tests may be marked only with the project's own
     contract requirements (`DD-*`) that the harness enforces on every agent.
+14. A model-backed alpha advisor sits between a mock and a persona. It has a pre-release version,
+    its grounding mode is `input_only`, and its description does not begin "Mock.". Its default
+    writer is `template`, which calls no model, so it runs and its tests pass with no key; it
+    declares a model in `AgentSpec.models` only when one is configured. Its payload says in
+    `limitations` what it still does not do. Like a mock, it substantiates no Blueprint
+    requirement until it leaves alpha. Each such advisor's own tests check that its description
+    has no "Mock." prefix; nothing yet checks the rest of this rule across the roster.
 
 ## Boundaries and contracts
 
 **What an agent owns.** Its domain logic, its input and payload classes
 ([Contract](contract.md)), its grounding mode ([Evidence and grounding](grounding.md)), its own
 configuration (read from its own `DD_<AGENT>_*` variables, never from the harness's settings), its
-model credentials ([Policy and identity](policy-and-identity.md)), and its system prompt as a file
+model credentials ([Policy and identity](policy-and-identity.md)), or its own model broker
+credential when a person's own account pays ([A person's own model account](model-accounts.md)), and its system prompt as a file
 beside the code that sends it. It decides an outcome, a payload and the evidence it rests on.
 
 **What an agent never does.** It does not fill identifiers, timestamps, telemetry, the grounding
@@ -133,8 +141,57 @@ the phase tracker show the whole intended design before each persona is built. A
 are a sketch, not a published format; its real implementation is its own piece of work and may
 replace them. The orchestrators tell the researcher when a result came from a mock.
 
+A mock may next become a model-backed alpha (invariant 14): a basic agent with a system prompt,
+built to the conventions in [Model-backed personas](#model-backed-personas), before it becomes a
+fully designed persona. Not every mock should. A model helps where the task is reading language or
+judgement; where the work is exact, the next step is retrieval, not a model. The review of the
+roster for #353 found:
+
+| Agent | Next step |
+|---|---|
+| `advisor.ethics`, `advisor.dmp` | Model-backed alpha first: the rules are the weak point and the task is reading language. |
+| `advisor.rights`, `advisor.metadata` | Model-backed alpha, choosing from a closed set (rights) or suggesting beside a value (metadata). |
+| `advisor.fairness` | Model-backed alpha for its recommendations only; little gain until it retrieves. |
+| `advisor.quality` | Stays rule-based; it overlaps the FAIR Assessor (#18). |
+| `advisor.linking`, `advisor.files` | Stay deterministic: identifier syntax, checksums and format lookup are exact. Their next step is retrieval (#360, #354). |
+| `orchestrator.stub`, `example.hello` | Stay deterministic by design. |
+
 What a persona that drafts project documents may infer, ask and write is in
 [Drafting documents](drafting.md).
+
+## Model-backed personas
+
+Every advisor that calls a model, from its alpha onwards, is built the same way, so that adding
+tools or an evaluation later changes the agent without rewriting it. `advisor-documentation/` is
+the worked example of the `template` default and the declared model (`factory.py`, `prose.py`).
+
+1. **Deterministic shell, model core.** Input checks, abstentions, scores and anything exact
+   (checksums, licence ids, the shape of a schema) stay in code; the model does judgement and
+   language. A content problem the shell finds is an outcome with a reason code, before any
+   model is called.
+2. **Structured output.** The model replies against a schema derived from the payload class. A
+   checker validates every reply before it is used, and records what it dropped and why.
+3. **Safety by construction.** Where a miss is harmful, the model may add to the rules' output
+   but not remove from it. Where invention is harmful, it chooses from a closed set the code
+   supplies. Where the researcher must write a value, it suggests beside that value and never
+   writes it ([Drafting documents](drafting.md)).
+4. **Provenance per value.** Each field a model may write names a `Derivation` recorder in
+   `recorded_in` (invariant 8), so a template fallback is shown as what it was. Each call is
+   made with `dd_sdk.model.call`, which opens the `chat` span, records the call's tokens and
+   records it with `dd_sdk.prompts.ModelCallLog`; the card declares the model as a
+   `dd_sdk.agent.ModelUse`. The provider is an adapter behind `dd_sdk.model.Model`
+   (`dd_sdk.model_anthropic.AnthropicModel` for Claude), so an agent imports no provider's
+   SDK.
+5. **Prompts are code.** The system prompt is `system_prompt.md` beside the module that sends it.
+   A change to a prompt is a change to the agent's behaviour and is reviewed as one.
+6. **Tests use a fake model.** An agent's suite exercises the model path with
+   `dd_sdk.testing.FakeModel`, or a fake of its own in its `testing` module; CI never needs a
+   key.
+7. **An evaluation before alpha ends.** An advisor leaves alpha only with an evaluation set that
+   includes false-negative cases: the flags, discrepancies or options it must not miss
+   ([Evaluation and conformance](evaluation.md)).
+8. **Tools come later and are composable.** Whether and how a persona uses MCP servers and Agent
+   Skills is undecided: TODO(#694).
 
 ## Rationale
 
@@ -154,6 +211,10 @@ What a persona that drafts project documents may infer, ask and write is in
 - **Personas.** A role a person recognises is easier for a researcher to trust and for a data
   steward to assess. A narrow role keeps each agent's sources, failure modes and evaluation
   separate. Naming steps that no agent serves makes the whole intended design visible.
+- **A model-backed alpha.** It shows a persona's model-backed design to researchers early without
+  claiming it is validated. The `template` default keeps CI and deployments without a key
+  working, and keeping exact work in a deterministic shell keeps it testable and lets a failed
+  or rejected model reply fall back to rule output.
 
 ## Rejected alternatives
 

@@ -1,6 +1,6 @@
 /**
  * The project's documents, grouped by the state of each one's latest version, those waiting for
- * a decision first, then the repository chosen, the statement of how generative AI was used and
+ * a decision first, then the researcher facts kept from ORCID, the repository chosen, the statement of how generative AI was used and
  * the deposit package. Each entry is a link, so it can be opened in a new tab and left with Back;
  * the open one is marked as the current page.
  */
@@ -15,6 +15,7 @@ import {
   Package,
   Sparkles,
   Table,
+  UserRound,
 } from "lucide-react";
 
 import type { ProjectDocument, VersionState } from "../../project/api";
@@ -37,8 +38,9 @@ const GROUPS: { state: VersionState; heading: string }[] = [
 export const DISCLOSURE = "disclosure";
 export const REPOSITORY = "repository";
 export const DEPOSIT = "deposit";
+export const RESEARCHERS = "researchers";
 /** The entries that are not documents, each opening a panel of its own. */
-export const PANELS: readonly string[] = [REPOSITORY, DISCLOSURE, DEPOSIT];
+export const PANELS: readonly string[] = [RESEARCHERS, REPOSITORY, DISCLOSURE, DEPOSIT];
 
 /** The state of a document's latest version. */
 export function stateOf(document: ProjectDocument): VersionState | undefined {
@@ -111,6 +113,12 @@ export function DocumentList({
       <section className="document-group">
         <h2 className="document-group-heading">About the documents</h2>
         <ul className="plain-list">
+          <Entry
+            to={hrefFor(RESEARCHERS)}
+            icon={UserRound}
+            label="Researchers"
+            current={selected === RESEARCHERS}
+          />
           <Entry
             to={hrefFor(REPOSITORY)}
             icon={Landmark}

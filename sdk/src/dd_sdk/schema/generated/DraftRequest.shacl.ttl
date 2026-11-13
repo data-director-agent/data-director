@@ -9,7 +9,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dd:DraftRequest a sh:NodeShape ;
-    rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md)." ;
+    rdfs:comment "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:class dd:CurrentVersion ;
@@ -43,6 +43,11 @@ dd:DraftRequest a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path dd:metadata_record ],
+        [ sh:class dd:ResearcherRecord ;
+            sh:description "The researcher facts the project holds, one record for each person who kept some. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:researchers ],
         [ sh:datatype xsd:string ;
             sh:description "The project document to redraft, by its document_id, where the project holds more than one of the kind asked for. Without it the conductor gives the latest. In a project the conductor refuses a document that is not the project's or is of another kind; outside a project it is removed." ;
             sh:maxCount 1 ;
@@ -62,6 +67,68 @@ dd:DraftRequest a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:inventory ] ;
     sh:targetClass dd:DraftRequest .
+
+dd:Affiliation a sh:NodeShape ;
+    rdfs:comment "One affiliation on an ORCID record: an employment, an education or another kind, with the organisation and, where ORCID gives one, its identifier (ROR, GRID, Ringgold)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The researcher's role or degree." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:role_title ],
+        [ sh:datatype xsd:string ;
+            sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:put_code ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
+        [ sh:datatype xsd:string ;
+            sh:description "The department within the organisation." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:department ],
+        [ sh:description "What kind of affiliation the item is." ;
+            sh:in ( "employment" "education" "qualification" "invited_position" "distinction" "membership" "service" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 1 ;
+            sh:path dd:affiliation_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The organisation's identifier, where ORCID gives one: a URL for ROR, else as given." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:organisation_identifier ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The year it ended; absent while it continues." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:end_year ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The year it started." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:start_year ],
+        [ sh:datatype xsd:string ;
+            sh:description "The organisation's name." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:organisation_name ] ;
+    sh:targetClass dd:Affiliation .
 
 dd:ApprovedMetadataRecord a sh:NodeShape ;
     rdfs:comment "The project's metadata record as a person approved it: the version named by the last approval of a metadata_record document in the project (docs/specs/projects.md). A drafter treats what it holds as supplied, given by a person (docs/specs/drafting.md)." ;
@@ -111,13 +178,6 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 4 ;
             sh:path dd:version_state ],
-        [ sh:datatype xsd:string ;
-            sh:description "The media type of document_text, such as text/markdown or application/json." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dcterms:format ],
         [ sh:class dd:DocumentVersionRef ;
             sh:description "The version, by its document and number." ;
             sh:maxCount 1 ;
@@ -125,6 +185,13 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 0 ;
             sh:path dd:version_ref ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of document_text, such as text/markdown or application/json." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcterms:format ],
         [ sh:datatype xsd:string ;
             sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
             sh:maxCount 1 ;
@@ -165,7 +232,12 @@ dd:FileInventory a sh:NodeShape ;
     rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:class dd:InventoryFile ;
+            sh:description "Every file under the dataset's root folder that the command read, sorted by path." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path dd:inventory_files ],
+        [ sh:datatype xsd:string ;
             sh:description "The version of the command that made the inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -203,19 +275,20 @@ dd:FileInventory a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path prov:generatedAtTime ],
-        [ sh:class dd:InventoryFile ;
-            sh:description "Every file under the dataset's root folder that the command read, sorted by path." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path dd:inventory_files ] ;
+            sh:path prov:generatedAtTime ] ;
     sh:targetClass dd:FileInventory .
 
 dd:InventoryFile a sh:NodeShape ;
     rdfs:comment "One file of a dataset, as the inventory command found it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none." ;
+            sh:in ( "signature" "container" "extension" "none" "researcher" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path dd:file_identified_by ],
+        [ sh:datatype xsd:string ;
             sh:description "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown." ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
@@ -225,12 +298,6 @@ dd:InventoryFile a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 6 ;
             sh:path dd:file_fields ],
-        [ sh:description "How the PRONOM identifiers were arrived at." ;
-            sh:in ( "signature" "container" "extension" "none" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 5 ;
-            sh:path dd:file_identified_by ],
         [ sh:datatype xsd:integer ;
             sh:description "The file's size in bytes." ;
             sh:maxCount 1 ;
@@ -246,12 +313,23 @@ dd:InventoryFile a sh:NodeShape ;
             sh:order 2 ;
             sh:path spdx:checksumValue ;
             sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:description "What part the file plays in the dataset, as the researcher states it. Unset means not stated, not data." ;
+            sh:in ( "data" "documentation" "code" "other" ) ;
+            sh:maxCount 1 ;
+            sh:order 8 ;
+            sh:path dd:file_role ],
         [ sh:datatype xsd:string ;
             sh:description "The file's media type (MIME type), when it could be told." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dcat:mediaType ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the file is, in the researcher's words. The inventory command never fills it; a researcher states it beside the facts the command found (docs/specs/projects.md)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dcterms:description ],
         [ sh:datatype xsd:string ;
             sh:description "The file's path relative to the dataset's root folder, with forward slashes. Never an absolute path, which would say where the data live." ;
             sh:maxCount 1 ;
@@ -267,11 +345,22 @@ dd:RepositoryRequirements a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:integer ;
+            sh:description "An override only: the largest file the repository accepts, in bytes." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:max_file_size ],
+        [ sh:datatype xsd:integer ;
             sh:description "An override only: the largest deposit the repository accepts, in bytes." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 9 ;
             sh:path dd:max_item_size ],
+        [ sh:description "Where the chosen repository is, taken from its override's url; absent when the deployment has no override for it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dd:repository_url ],
         [ sh:datatype xsd:string ;
             sh:description "What the researcher calls the repository chosen, such as ORDA." ;
             sh:maxCount 1 ;
@@ -306,6 +395,11 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
             sh:path dd:media_types ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the set's sources leave open, each a short statement naming the issue that will settle it, such as \"Whether ORDA's form makes any other field mandatory (#385)\". Shown to the person depositing; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:unconfirmed ],
         [ sh:class dd:RequirementField ;
             sh:description "The metadata properties the set requires or recommends." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -326,13 +420,7 @@ dd:RepositoryRequirements a sh:NodeShape ;
             sh:description "An override only: the licences the repository offers, each an SPDX identifier or the URL of the repository's own terms." ;
             sh:nodeKind sh:Literal ;
             sh:order 10 ;
-            sh:path dd:licences ],
-        [ sh:datatype xsd:integer ;
-            sh:description "An override only: the largest file the repository accepts, in bytes." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 8 ;
-            sh:path dd:max_file_size ] ;
+            sh:path dd:licences ] ;
     sh:targetClass dd:RepositoryRequirements .
 
 dd:RequirementField a sh:NodeShape ;
@@ -392,6 +480,213 @@ dd:RequirementSetUse a sh:NodeShape ;
             sh:pattern "^[0-9a-f]{64}$" ] ;
     sh:targetClass dd:RequirementSetUse .
 
+dd:ResearcherFunding a sh:NodeShape ;
+    rdfs:comment "One grant or award on an ORCID record, with its funder." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The year it ended; absent while it continues." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:end_year ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of funder_identifier, in ORCID's words, such as FUNDREF or ROR. Present exactly when funder_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:funder_identifier_scheme ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's identifier, where ORCID gives one, such as a Crossref Funder ID." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:funder_identifier ],
+        [ sh:datatype xsd:string ;
+            sh:description "The kind of funding, in ORCID's words, such as grant or award." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:funding_type ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's name." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:funder_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:put_code ],
+        [ sh:datatype xsd:string ;
+            sh:description "The grant number or award identifier, where the record gives one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:award_identifier ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The year it started." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:start_year ],
+        [ sh:datatype xsd:string ;
+            sh:description "The grant's or award's title." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:funding_title ] ;
+    sh:targetClass dd:ResearcherFunding .
+
+dd:ResearcherLink a sh:NodeShape ;
+    rdfs:comment "A web page the researcher lists on their ORCID record, such as a personal page." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The page's address." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 1 ;
+            sh:path dd:link_url ],
+        [ sh:datatype xsd:string ;
+            sh:description "The name the researcher gave the page." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:link_title ] ;
+    sh:targetClass dd:ResearcherLink .
+
+dd:ResearcherRecord a sh:NodeShape ;
+    rdfs:comment "What one researcher in a project chose to keep from their public ORCID record: only the sections and items they ticked, in ORCID's own words, never edited by a person or a model. The conductor fills the project's records into a Message and a DraftRequest so that an agent can draft creators, affiliations, subjects and funding from them (docs/specs/projects.md). Email addresses are never kept, even public ones." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The researcher's biography, as their ORCID record gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:biography ],
+        [ sh:datatype xsd:string ;
+            sh:description "A country the researcher's ORCID record names, as an ISO 3166-1 alpha-2 code." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:country ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:works_omitted ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the record was read from ORCID's public API." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:record_retrieved_at ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:researcher_name ],
+        [ sh:class dd:Affiliation ;
+            sh:description "The researcher's affiliations they kept, the current ones first." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:affiliations ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's own keywords for their research, as their ORCID record lists them." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:keywords ],
+        [ sh:description "The researcher's ORCID iD, as its URL, such as https://orcid.org/0000-0002-1825-0097." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 0 ;
+            sh:path dd:orcid_id ],
+        [ sh:class dd:ResearcherWork ;
+            sh:description "The researcher's works they kept, the most recent first: at most 50 are offered, so that an agent's input stays bounded." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 9 ;
+            sh:path dd:works ],
+        [ sh:datatype xsd:string ;
+            sh:description "Other names the researcher is known by, as their ORCID record lists them." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:other_names ],
+        [ sh:class dd:ExternalIdentifier ;
+            sh:description "The researcher's identifiers in other schemes, as their ORCID record lists them." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path dd:external_identifiers ],
+        [ sh:class dd:ResearcherLink ;
+            sh:description "The web pages the researcher's ORCID record lists." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path dd:researcher_links ],
+        [ sh:class dd:ResearcherFunding ;
+            sh:description "The researcher's grants and awards they kept, the current ones first." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 11 ;
+            sh:path dd:fundings ],
+        [ sh:description "The public API address the record was read from." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 13 ;
+            sh:path dd:record_source ] ;
+    sh:targetClass dd:ResearcherRecord .
+
+dd:ResearcherWork a sh:NodeShape ;
+    rdfs:comment "One work on an ORCID record, such as a journal article or a dataset." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:put_code ],
+        [ sh:class dd:ExternalIdentifier ;
+            sh:description "The work's identifiers, such as its DOI." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path dd:work_identifiers ],
+        [ sh:datatype xsd:string ;
+            sh:description "The work's title." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:work_title ],
+        [ sh:datatype xsd:string ;
+            sh:description "The work's type, in ORCID's words, such as journal-article or data-set." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:work_type ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The year the work was published." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:publication_year ],
+        [ sh:datatype xsd:string ;
+            sh:description "Where the work was published, such as a journal's name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:journal_title ] ;
+    sh:targetClass dd:ResearcherWork .
+
 dd:TableField a sh:NodeShape ;
     rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs)." ;
     sh:closed true ;
@@ -440,4 +735,29 @@ dd:DocumentVersionRef a sh:NodeShape ;
             sh:order 1 ;
             sh:path dd:version ] ;
     sh:targetClass dd:DocumentVersionRef .
+
+dd:ExternalIdentifier a sh:NodeShape ;
+    rdfs:comment "An identifier from another scheme, as an ORCID record gives it: for a researcher, such as a Scopus Author ID; for a work, such as a DOI." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The identifier as a URL, where the record gives one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path dd:identifier_url ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme, in ORCID's words, such as doi or Scopus Author ID." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:identifier_type ],
+        [ sh:datatype xsd:string ;
+            sh:description "The identifier within its scheme." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:identifier_value ] ;
+    sh:targetClass dd:ExternalIdentifier .
 

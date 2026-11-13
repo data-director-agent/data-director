@@ -80,6 +80,33 @@ def test_the_log_is_appended_to_and_the_latest_inventory_wins(store: ProjectStor
     assert sorted(b.name for b in blobs) == sorted({input_hash(first), input_hash(second)})
 
 
+def test_a_new_inventory_names_the_one_it_revises(store: ProjectStore) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    first = inventory("a.csv")
+    second = inventory("a.csv")
+    second["inventory_files"][0] |= {
+        "file_description": "Soil readings by site",
+        "file_role": "data",
+        "file_identified_by": "researcher",
+    }
+    store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="test")
+    assert store.summary(project_id)["inventory"]["revises"] is None
+    store.add_inventory(project_id, second, acted_for=TEST_PRINCIPAL, caused_by="test")
+    added = [e for e in store.events(project_id) if e["event"] == INVENTORY_ADDED]
+    assert "revises" not in added[0]
+    assert added[1]["revises"] == added[0]["digest"]
+    assert store.summary(project_id)["inventory"]["revises"] == added[0]["digest"]
+    assert store.inventory(project_id) == second
+
+
+def test_an_inventory_with_a_role_outside_the_vocabulary_is_refused(store: ProjectStore) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    document = inventory("a.csv")
+    document["inventory_files"][0]["file_role"] = "secret"
+    with pytest.raises(ProjectError, match="not a FileInventory"):
+        store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
+
+
 def test_what_is_not_a_file_inventory_is_refused_and_nothing_is_recorded(
     store: ProjectStore,
 ) -> None:

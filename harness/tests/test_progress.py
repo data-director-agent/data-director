@@ -20,6 +20,7 @@ from dd_harness.projects import (
     ProjectStore,
 )
 from dd_harness.testing import TEST_PRINCIPAL
+from dd_sdk.intake import NO, NOT_SURE, YES, question
 from dd_sdk.process_flow import OUT_OF_SCOPE
 
 
@@ -215,3 +216,49 @@ def test_the_store_refuses_an_entry_point_from_anyone_else(store: ProjectStore) 
             source="agent",  # type: ignore[arg-type]
         )
     assert store.progress(project)["entry"] is None
+
+
+# The intake's answers are the weakest word (docs/specs/projects.md, rule 20).
+
+
+def chose(entry: int) -> dict[str, Any]:
+    return {"event": progress.ENTRY_CHOSEN, "entry": entry}
+
+
+def answered(question_id: str, *values: str) -> dict[str, Any]:
+    return {"event": progress.INTAKE_ANSWERED, "question_id": question_id, "answer_values": values}
+
+
+def test_only_no_to_an_intake_question_skips_its_steps() -> None:
+    no = progress.step_states([chose(2), answered("intake.sensitive", NO)])
+    assert set(no) == question("intake.sensitive").skips([NO])
+    assert set(no.values()) == {"skipped"}
+    for value in (YES, NOT_SURE):
+        assert progress.step_states([chose(2), answered("intake.sensitive", value)]) == {}
+
+
+def test_the_latest_answer_to_an_intake_question_counts() -> None:
+    events = [chose(1), answered("intake.dmp", NO), answered("intake.dmp", YES)]
+    assert progress.step_states(events) == {}
+    assert progress.step_states([*events, answered("intake.dmp", NO)]) == {
+        "governance.dmp": "skipped"
+    }
+
+
+@pytest.mark.parametrize("mark", ["open", "done"])
+def test_a_researchers_mark_overrides_an_intake_skip(mark: str) -> None:
+    events = [chose(1), answered("intake.dmp", NO), marked("governance.dmp", mark)]
+    assert progress.step_states(events).get("governance.dmp", "open") == mark
+
+
+def test_work_the_log_shows_overrides_an_intake_skip() -> None:
+    events = [chose(3), answered("intake.repository-mandated", NO), {"event": REPOSITORY_CHOSEN}]
+    states = progress.step_states([*events, marked("repository.mandated", "open")])
+    assert "repository.mandated" not in states
+    assert progress.step_states(events)["repository.recommend"] == "done"
+
+
+def test_an_intake_answer_counts_only_from_an_entry_point_that_asks_it() -> None:
+    events = [chose(2), answered("intake.dmp", NO)]
+    assert "governance.dmp" in progress.step_states(events)
+    assert "governance.dmp" not in progress.step_states([*events, chose(3)])

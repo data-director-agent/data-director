@@ -17,10 +17,12 @@ A message no rule matches may name one of the Blueprint's three entry points (§
 collection, data collected and being prepared for sharing, or ready to deposit. The reply then lists
 every step from that entry's phase to the last, with the agents whose manifest entry serves the
 step, and says "no agent yet" with the step's requirement where none does
-(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, it asks which
-entry applies, as a choice question (`Reply.reply_question`) whose values are the entry numbers; a
-`Message.choice_answer` naming one is read before any rule. Otherwise it reads only the current
-message: `Message.history` is covered by the input hash, and used only to tell a first turn.
+(docs/specs/orchestration.md). On a first turn that names neither a rule nor an entry, and only
+when the project has no entry point (a researcher outside a project has none), it asks which
+entry applies, as a choice question (`Reply.reply_questions`, keyed `entry`) whose values are the
+entry numbers; a `Message.reply_answers` choosing one is read before any rule. Otherwise it reads
+only the current message: `Message.history` is covered by the input hash, and used only to tell a
+first turn.
 
 In a project, the conductor says which entry point the researcher chose and how far each step has
 gone (`Message.project_entry`, `Message.project_progress`), derived from the project log on every
@@ -57,7 +59,6 @@ from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     ChoiceOption,
-    ChoiceQuestion,
     Derivation,
     EvidenceItem,
     GroundingMode,
@@ -67,6 +68,8 @@ from dd_sdk.contract.models import (
     OpenInput,
     Outcome,
     OutcomeStatus,
+    Question,
+    QuestionKind,
     ReasonCode,
     Reply,
 )
@@ -149,9 +152,22 @@ def entry_named(text: str, entries: list[EntryRule]) -> Entry | None:
     return next((e.entry for e in entries if e.pattern.search(text)), None)
 
 
-def entry_question() -> ChoiceQuestion:
+ENTRY_KEY = "entry"
+NEXT_STEP_KEY = "next-step"
+
+
+def chosen(message: Message, key: str) -> str | None:
+    """The one option the researcher chose in answer to the question keyed `key`, if any."""
+    given = message.reply_answers.given_answers if message.reply_answers else []
+    values = [a.answer_values for a in given if a.answered_key == key]
+    return values[0][0] if values and len(values[0]) == 1 else None
+
+
+def entry_question() -> Question:
     """Which entry point applies, as a choice question whose values are the entry numbers."""
-    return ChoiceQuestion(
+    return Question(
+        question_key=ENTRY_KEY,
+        question_kind=QuestionKind.CHOICE,
         question_prompt="Where are you with your research data?",
         question_options=[
             ChoiceOption(
@@ -164,11 +180,11 @@ def entry_question() -> ChoiceQuestion:
 
 def entry_chosen(message: Message) -> Entry | None:
     """The entry point the researcher chose in answer to `entry_question`, if they chose one."""
-    answer = message.choice_answer
-    if answer is None or len(answer.answer_values) != 1:
+    value = chosen(message, ENTRY_KEY)
+    if value is None:
         return None
     try:
-        return entry(int(answer.answer_values[0]))
+        return entry(int(value))
     except KeyError, ValueError:
         return None
 
@@ -180,10 +196,7 @@ OTHER_STEPS = 3
 
 def step_chosen(message: Message) -> str | None:
     """The step the researcher chose in answer to `next_question`, if they chose one."""
-    answer = message.choice_answer
-    if answer is None or len(answer.answer_values) != 1:
-        return None
-    value = answer.answer_values[0]
+    value = chosen(message, NEXT_STEP_KEY)
     return value if value in STEP_IDS else None
 
 
@@ -197,7 +210,7 @@ def states_of(message: Message) -> dict[str, str]:
     return {p.step_id: p.step_state.value for p in message.project_progress or []}
 
 
-def next_question(steps: list[ProgressStep], start: Entry | None) -> ChoiceQuestion | None:
+def next_question(steps: list[ProgressStep], start: Entry | None) -> Question | None:
     """The suggested step and up to `OTHER_STEPS` other open or started ones, as a choice whose
     values are step ids; None when fewer than two are left to offer."""
     first = suggested_next(steps, start)
@@ -214,7 +227,9 @@ def next_question(steps: list[ProgressStep], start: Entry | None) -> ChoiceQuest
             offered.append(s)
     if len(offered) < 2:
         return None
-    return ChoiceQuestion(
+    return Question(
+        question_key=NEXT_STEP_KEY,
+        question_kind=QuestionKind.CHOICE,
         question_prompt="What would you like to do next?",
         question_options=[
             ChoiceOption(
@@ -282,7 +297,7 @@ class DirectorStub:
         payload=ClassSchema.of(Reply),
         derivations={
             "reply_text": Derived(Derivation.TEMPLATE, recorded_in="reply_derivation"),
-            "reply_question": Derived(Derivation.TEMPLATE),
+            "reply_questions": Derived(Derivation.TEMPLATE),
         },
     )
 
@@ -545,7 +560,7 @@ class DirectorStub:
 
 
 def _template_reply(
-    text: str, statement: str, ctx: RunContext, question: ChoiceQuestion | None = None
+    text: str, statement: str, ctx: RunContext, question: Question | None = None
 ) -> AgentResult:
     """A reply this agent writes itself, resting on the input alone."""
     return AgentResult(
@@ -556,7 +571,7 @@ def _template_reply(
         payload=Reply(
             reply_text=text,
             reply_derivation=Derivation.TEMPLATE,
-            reply_question=question,
+            reply_questions=[question] if question is not None else None,
             grounded_on=[GroundingRef(source_id=ctx.input_ref, content_hash=ctx.input_hash)],
         ),
         evidence=[_input_evidence(ctx)],

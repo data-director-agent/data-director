@@ -13,7 +13,7 @@ name: CI
 #     as three jobs side by side so that the slowest, not their sum, sets how long the run takes
 #   Deployment: the NGINX reverse proxy in deploy/nginx, set up as install.sh does, and the
 #     systemd units in deploy/systemd
-#   Repository: links, citation file, workflows, sign-off, dependency review
+#   Repository: pre-commit hooks, links, citation file, workflows, sign-off, dependency review
 #
 # The jobs that test the Python workspace do not wait for one another: each restores the built
 # sources and the Playwright browser from the cache (.github/actions/), so the longest single job
@@ -202,6 +202,11 @@ jobs:
       - run: uv sync --all-packages --all-extras
       # Sources agents build outside git, from the cache the `sources` job filled.
       - uses: ./.github/actions/built-sources # zizmor: ignore[self-repository]
+      # pg_dump and pg_restore of the service's major version, for the backup round trip
+      # (scripts/tests/test_backup.py), which skips with an older pg_dump; the runner's is older.
+      - run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          scripts/retry.sh sudo apt-get install -y -q postgresql-client-17
       # --record-mode=none --block-network come from pyproject addopts: no cassette, no call.
       # The JSON report is handed to the conformance job, which decides CONFORMANCE.md from it.
       # Coverage is measured over the same session (pyproject.toml, [tool.coverage]); the report
@@ -237,7 +242,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          flags: sdk,harness,workbench,app,agents,inventory
+          flags: sdk,harness,workbench,app,admin,broker,agents,inventory
           fail_ci_if_error: false
 
   # CONFORMANCE.md is decided by the register, the review record, the report script and the outcome
@@ -479,6 +484,24 @@ jobs:
 
   # --- Repository ------------------------------------------------------------------------------
 
+  hooks:
+    name: Pre-commit hooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      # The hooks in .pre-commit-config.yaml, for every contributor whether or not they installed
+      # them. Skipped here: the branch rule (pushes to main), the lock (UV_LOCKED holds every job
+      # to it), Ruff (the lint job) and zizmor (the workflows job runs it online).
+      - env:
+          SKIP: no-commit-to-branch,uv-lock,ruff-check,ruff-format,zizmor
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
   docs:
     name: Links and citation file
     runs-on: ubuntu-latest
@@ -563,6 +586,7 @@ jobs:
       - web-e2e
       - nginx
       - systemd
+      - hooks
       - docs
       - workflows
       - dependency-review

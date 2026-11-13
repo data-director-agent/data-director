@@ -1,0 +1,101 @@
+{
+  "affiliations": [
+    {
+      "affiliation_kind": "employment",
+      "department": "Psychoceramics",
+      "organisation_identifier": "https://ror.org/05gq02987",
+      "organisation_identifier_scheme": "ROR",
+      "organisation_name": "Brown University",
+      "put_code": "101",
+      "role_title": "Professor of Psychoceramics",
+      "start_year": 1979
+    },
+    {
+      "affiliation_kind": "education",
+      "end_year": 1965,
+      "organisation_identifier": "https://ror.org/05gq02987",
+      "organisation_identifier_scheme": "ROR",
+      "organisation_name": "Brown University",
+      "put_code": "111",
+      "role_title": "PhD",
+      "start_year": 1960
+    }
+  ],
+  "biography": "Josiah Carberry is a fictitious person used as an example.",
+  "country": [
+    "US"
+  ],
+  "external_identifiers": [
+    {
+      "identifier_type": "Scopus Author ID",
+      "identifier_url": "https://www.scopus.com/authid/detail.uri?authorId=7004530145",
+      "identifier_value": "7004530145"
+    }
+  ],
+  "fundings": [
+    {
+      "award_identifier": "NSF-1234567",
+      "funder_identifier": "https://doi.org/10.13039/100000001",
+      "funder_identifier_scheme": "FUNDREF",
+      "funder_name": "National Science Foundation",
+      "funding_title": "Fractures in Ionian pottery",
+      "funding_type": "grant",
+      "put_code": "301",
+      "start_year": 2019
+    }
+  ],
+  "keywords": [
+    "psychoceramics",
+    "ionian philology"
+  ],
+  "orcid_id": "https://orcid.org/0000-0002-1825-0097",
+  "other_names": [
+    "J. S. Carberry"
+  ],
+  "record_retrieved_at": "2026-11-10T12:00:00+00:00",
+  "record_source": "https://pub.orcid.org/v3.0/0000-0002-1825-0097/record",
+  "researcher_links": [
+    {
+      "link_title": "Wikipedia",
+      "link_url": "https://en.wikipedia.org/wiki/Josiah_S._Carberry"
+    }
+  ],
+  "researcher_name": "Josiah Carberry",
+  "works": [
+    {
+      "journal_title": "Journal of Psychoceramics",
+      "publication_year": 2021,
+      "put_code": "202",
+      "work_identifiers": [
+        {
+          "identifier_type": "doi",
+          "identifier_url": "https://doi.org/10.5555/87654321",
+          "identifier_value": "10.5555/87654321"
+        }
+      ],
+      "work_title": "Cracked pottery: a dataset",
+      "work_type": "data-set"
+    },
+    {
+      "journal_title": "Journal of Psychoceramics",
+      "publication_year": 2008,
+      "put_code": "201",
+      "work_identifiers": [
+        {
+          "identifier_type": "doi",
+          "identifier_url": "https://doi.org/10.5555/12345678",
+          "identifier_value": "10.5555/12345678"
+        }
+      ],
+      "work_title": "The Psychoceramics of Cracked Pots",
+      "work_type": "journal-article"
+    },
+    {
+      "journal_title": "Journal of Psychoceramics",
+      "publication_year": 1990,
+      "put_code": "203",
+      "work_title": "Untitled notes",
+      "work_type": "other"
+    }
+  ]
+}

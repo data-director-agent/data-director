@@ -15,7 +15,7 @@ backend.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
@@ -233,6 +233,27 @@ class ProjectStorage(Protocol):
         """The text of the project's document with this digest, or None."""
         ...
 
+    def add_researcher(
+        self,
+        project_id: str,
+        record: Mapping[str, Any],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Keep a person's own `ResearcherRecord`; returns its digest."""
+        ...
+
+    def withdraw_researcher(
+        self, project_id: str, orcid_id: str, *, acted_for: Principal, caused_by: str
+    ) -> None:
+        """Stop giving agents the record a person kept."""
+        ...
+
+    def researchers(self, project_id: str) -> list[dict[str, Any]] | None:
+        """The `ResearcherRecord`s that stand, the one kept first first; None while none."""
+        ...
+
     def choose_repository(
         self,
         project_id: str,
@@ -266,8 +287,28 @@ class ProjectStorage(Protocol):
         """Record a step marked done, skipped or open."""
         ...
 
+    def answer_intake(
+        self,
+        project_id: str,
+        question_id: str,
+        answer_values: Sequence[str],
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> None:
+        """Record an answer to an intake question, checked against the question."""
+        ...
+
+    def dismiss_intake(self, project_id: str, *, acted_for: Principal, caused_by: str) -> None:
+        """Record the intake dismissed."""
+        ...
+
     def progress(self, project_id: str) -> dict[str, Any]:
         """The entry point chosen and the step states, derived from the log."""
+        ...
+
+    def intake(self, project_id: str) -> dict[str, Any]:
+        """Where the intake stands and its questions with their current answers."""
         ...
 
     def record_draft(self, project_id: str, envelope: Envelope) -> DocumentVersionRef:

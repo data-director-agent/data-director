@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-admin"
+# Alpha: read-only, loopback only (README.md).
+version = "0.1.0-alpha.0"
+description = "Data Director admin: a read-only view of a deployment for its operators, on loopback only"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+dependencies = [
+  "data-director-harness>=0.2.0a0",
+  "data-director-sdk>=0.2.0a0",
+  "httpx>=0.28",
+  "jinja2>=3.1.6",
+  "starlette>=1.8.0",
+  "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+dd-admin = "dd_admin.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_admin"]
