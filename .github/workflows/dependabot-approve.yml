@@ -1,19 +1,26 @@
-name: Dependabot approve
+name: Dependabot approve and auto-merge
 
-# Approves Dependabot pull requests that carry only patch updates, so that the "CI passed" gate and
-# the ruleset, not a person's review, decide when they merge. Minor and major updates are left for
-# a person to review. This workflow approves; it does not merge.
+# Approves Dependabot pull requests that carry only patch updates and turns on auto-merge for them,
+# so that the "CI passed" gate and the ruleset, not a person's review, decide when they merge. The
+# pull request joins the merge queue only once every required check is green; if one fails, it
+# stays open for a person. Minor and major updates are left for a person to review.
+#
+# This covers version updates (weekly, after the 7-day cooldown in dependabot.yml) and security
+# updates (immediate) alike, because both arrive as Dependabot pull requests. Needs "Allow
+# auto-merge" in the repository settings.
 on: pull_request
 
 permissions: {}
 
 jobs:
   approve:
-    name: Approve patch updates
+    name: Approve and auto-merge patch updates
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'data-director-agent/data-director'
     permissions:
+      # Auto-merge is a write to the repository, not only to the pull request.
+      contents: write
       pull-requests: write
     steps:
       - name: Dependabot metadata
@@ -24,6 +31,13 @@ jobs:
       - name: Approve the pull request
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Squash is the only method the repository allows (CONTRIBUTING.md, "Merging").
+      - name: Enable auto-merge
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
