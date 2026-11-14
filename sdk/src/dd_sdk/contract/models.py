@@ -423,9 +423,53 @@ class InventoryFile(Frozen):
     file_role: FileRole | None = None
 
 
+PART_FOLDER_PATTERN = r"^[^/]+(/[^/]+)*$"
+
+
+class InventoryPart(Frozen):
+    """One scan of one folder in an inventory made of several (docs/specs/projects.md)."""
+
+    part_folder: str = Field(pattern=PART_FOLDER_PATTERN)
+    part_tool: str
+    part_tool_version: str
+    part_identified_with: str | None = None
+    part_made_at: datetime
+    part_limitations: list[str] = Field(default_factory=list)
+
+
+def _within(path: str, folder: str) -> bool:
+    return path == folder or path.startswith(folder + "/")
+
+
+def inventory_part_problems(inventory: Any) -> list[str]:
+    """What is wrong with a `FileInventory` document's parts, which its schema cannot say: a
+    folder with a `.` or `..` segment, a folder that is another's or lies inside another's, and a
+    file under no part's folder. Empty for a document without parts, or with nothing wrong.
+
+    Reads the document as JSON, so the store can call it on a document its schema accepted."""
+    parts = inventory.get("inventory_parts") if isinstance(inventory, dict) else None
+    if not parts:
+        return []
+    folders = [str(p.get("part_folder", "")) for p in parts if isinstance(p, dict)]
+    problems = [
+        f"part folder {f!r} has a . or .. segment"
+        for f in folders
+        if any(segment in {".", ".."} for segment in f.split("/"))
+    ]
+    for i, a in enumerate(folders):
+        for b in folders[i + 1 :]:
+            if _within(a, b) or _within(b, a):
+                problems.append(f"part folders {a!r} and {b!r} overlap")
+    for file in inventory.get("inventory_files") or []:
+        path = str(file.get("file_path", "")) if isinstance(file, dict) else ""
+        if not any(path.startswith(f + "/") for f in folders):
+            problems.append(f"{path!r} is under no part's folder")
+    return problems
+
+
 class FileInventory(Frozen):
     """The facts about a dataset's files a project holds in place of the files
-    (docs/specs/projects.md)."""
+    (docs/specs/projects.md). Made of `inventory_parts` when it covers more than one folder."""
 
     schema_class: Literal["FileInventory"] = "FileInventory"
     inventory_files: list[InventoryFile] = Field(default_factory=list)
@@ -434,6 +478,14 @@ class FileInventory(Frozen):
     inventory_identified_with: str | None = None
     inventory_made_at: datetime
     inventory_limitations: list[str] = Field(default_factory=list)
+    inventory_parts: list[InventoryPart] | None = None
+
+    @model_validator(mode="after")
+    def _parts_cover_the_files(self) -> FileInventory:
+        problems = inventory_part_problems(self.model_dump(mode="json"))
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
 
 
 class OpenInput(Frozen):

@@ -35,6 +35,7 @@ from dd_sdk.contract.models import (
     GroundingRef,
     IdentificationMethod,
     InventoryFile,
+    InventoryPart,
     InvocationRequest,
     Message,
     Obligation,
@@ -60,6 +61,7 @@ from dd_sdk.contract.models import (
     TurnRole,
     VersionState,
     input_source_id,
+    inventory_part_problems,
     invocation_source_id,
     new_invocation_id,
     to_document,
@@ -958,6 +960,59 @@ def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
     assert ClassSchema.of(DraftRequest).errors({**document, "project_id": "x"})
     bare = {"schema_class": "DraftRequest", "document_kind": "readme"}
     assert ClassSchema.of(DraftRequest).errors(bare) == []
+
+
+def test_an_inventory_of_parts_puts_every_file_under_one_part_folder() -> None:
+    """An inventory may be made of several folders' scans (docs/specs/projects.md). Each file lies
+    under exactly one part's folder, and no folder is inside another."""
+
+    def entry(path: str) -> InventoryFile:
+        return InventoryFile(
+            file_path=path,
+            file_size=1,
+            file_sha256="0" * 64,
+            file_identified_by=IdentificationMethod.EXTENSION,
+        )
+
+    def part(folder: str) -> InventoryPart:
+        return InventoryPart(
+            part_folder=folder,
+            part_tool="dd-inventory",
+            part_tool_version="0.1.0",
+            part_made_at=datetime(2026, 10, 30, tzinfo=UTC),
+        )
+
+    made = {
+        "inventory_tool": "dd-inventory",
+        "inventory_tool_version": "0.1.0",
+        "inventory_made_at": datetime(2026, 10, 30, tzinfo=UTC),
+    }
+    inventory = FileInventory(
+        **made,
+        inventory_files=[entry("instrument/run1.csv"), entry("lab/a.csv")],
+        inventory_parts=[part("instrument"), part("lab")],
+    )
+    document = inventory.model_dump(mode="json", exclude_none=True)
+    assert ClassSchema.of(FileInventory).errors(document) == []
+    assert inventory_part_problems(document) == []
+    assert FileInventory.model_validate(document) == inventory
+    for files, folders in (
+        (["lab/a.csv", "lab/2024/b.csv"], ["lab", "lab/2024"]),
+        (["elsewhere/a.csv"], ["lab"]),
+        (["lab/a.csv"], ["lab", "lab"]),
+    ):
+        with pytest.raises(ValueError):
+            FileInventory(
+                **made,
+                inventory_files=[entry(f) for f in files],
+                inventory_parts=[part(f) for f in folders],
+            )
+    for folder in ("/lab", "lab/", "a//b", ""):
+        with pytest.raises(ValueError):
+            part(folder)
+    for folder in ("..", "a/./b"):
+        bad = document | {"inventory_parts": [part(folder).model_dump(mode="json")]}
+        assert inventory_part_problems(bad)
 
 
 def test_a_file_inventory_is_a_core_input_that_holds_facts_about_files_not_their_content() -> None:

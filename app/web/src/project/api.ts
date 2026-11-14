@@ -442,13 +442,17 @@ export interface ProjectIntake {
   progress: ProjectProgress;
 }
 
-/** What a project holds of its inventory once one is saved: `revises` names the one it replaced. */
+/**
+ * What a project holds of its inventory once one is saved: `revises` names the one it replaced,
+ * and `part_count` how many folders it is made of, when it is made of parts.
+ */
 export interface SavedInventory {
   digest: string;
   file_count: number;
   inventory_made_at: string;
   added_at: string;
   revises: string | null;
+  part_count: number | null;
 }
 
 /**

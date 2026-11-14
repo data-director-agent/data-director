@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.10.0
+version: 0.10.1
 license: MIT
 
 prefixes:
@@ -332,6 +332,20 @@ classes:
       - inventory_identified_with
       - inventory_made_at
       - inventory_limitations
+      - inventory_parts
+
+  InventoryPart:
+    description: >-
+      One scan of one folder, mounted at a folder name in an inventory made of several
+      (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder,
+      and a part is replaced whole when its folder is scanned again.
+    slots:
+      - part_folder
+      - part_tool
+      - part_tool_version
+      - part_identified_with
+      - part_made_at
+      - part_limitations
 
   InventoryFile:
     description: One file of a dataset, as the inventory command found it.
@@ -1377,7 +1391,9 @@ slots:
   name:
     required: true
   inventory_files:
-    description: Every file under the dataset's root folder that the command read, sorted by path.
+    description: >-
+      Every file the command read, sorted by path: under the dataset's root folder, or, in an
+      inventory made of parts, under each part's folder.
     range: InventoryFile
     multivalued: true
     inlined_as_list: true
@@ -1400,10 +1416,45 @@ slots:
   inventory_limitations:
     description: What the inventory left out or could not do, such as files it skipped.
     multivalued: true
+  inventory_parts:
+    description: >-
+      The scans the inventory is made of, when it is made of more than one folder. Absent, the
+      inventory is one scan of one folder and its paths are relative to that folder. Present,
+      every file's path begins with one part's folder; inventory_made_at is the latest part's,
+      inventory_tool and inventory_tool_version are those of that part, and
+      inventory_limitations holds every part's limitations, each beginning with its folder.
+    range: InventoryPart
+    multivalued: true
+    inlined_as_list: true
+  part_folder:
+    description: >-
+      The folder name the part is mounted at, such as instrument or raw/2024: relative, with
+      forward slashes, and no empty, . or .. segment. Every file of the part has a path that
+      begins with it and a slash. No part's folder is another's or lies inside another's.
+    required: true
+    pattern: "^[^/]+(/[^/]+)*$"
+  part_tool:
+    description: The command that scanned the part's folder, such as dd-inventory.
+    slot_uri: prov:wasGeneratedBy
+    required: true
+  part_tool_version:
+    description: The version of the command that scanned the part's folder.
+    required: true
+  part_identified_with:
+    description: What identified the formats of the part's files, as inventory_identified_with.
+  part_made_at:
+    description: When the part's folder was scanned.
+    slot_uri: prov:generatedAtTime
+    range: datetime
+    required: true
+  part_limitations:
+    description: What the scan of the part's folder left out or could not do.
+    multivalued: true
   file_path:
     description: >-
-      The file's path relative to the dataset's root folder, with forward slashes. Never an
-      absolute path, which would say where the data live.
+      The file's path relative to the dataset's root folder, with forward slashes; in an
+      inventory made of parts, it begins with its part's folder. Never an absolute path, which
+      would say where the data live.
     required: true
     pattern: "^[^/]"
   file_size:

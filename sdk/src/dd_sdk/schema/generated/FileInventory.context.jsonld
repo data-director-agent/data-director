@@ -7,6 +7,9 @@
       "InventoryFile": {
          "@id": "https://w3id.org/data-director/InventoryFile"
       },
+      "InventoryPart": {
+         "@id": "https://w3id.org/data-director/InventoryPart"
+      },
       "TableField": {
          "@id": "https://w3id.org/data-director/TableField"
       },
@@ -64,6 +67,10 @@
          "@id": "http://www.w3.org/ns/prov#generatedAtTime",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
       },
+      "inventory_parts": {
+         "@id": "https://w3id.org/data-director/inventory_parts",
+         "@type": "@id"
+      },
       "inventory_tool": {
          "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
       },
@@ -73,6 +80,25 @@
       "linkml": "https://w3id.org/linkml/",
       "name": {
          "@id": "https://w3id.org/data-director/name"
+      },
+      "part_folder": {
+         "@id": "https://w3id.org/data-director/part_folder"
+      },
+      "part_identified_with": {
+         "@id": "https://w3id.org/data-director/part_identified_with"
+      },
+      "part_limitations": {
+         "@id": "https://w3id.org/data-director/part_limitations"
+      },
+      "part_made_at": {
+         "@id": "http://www.w3.org/ns/prov#generatedAtTime",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "part_tool": {
+         "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
+      },
+      "part_tool_version": {
+         "@id": "https://w3id.org/data-director/part_tool_version"
       },
       "prov": "http://www.w3.org/ns/prov#",
       "schema": "http://schema.org/",

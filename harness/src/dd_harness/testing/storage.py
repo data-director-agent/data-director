@@ -71,6 +71,7 @@ from dd_sdk.contract.models import (
     FileInventory,
     IdentificationMethod,
     InventoryFile,
+    InventoryPart,
     Principal,
     new_invocation_id,
 )
@@ -418,6 +419,28 @@ def file_inventory(*paths: str) -> dict[str, Any]:
     ).model_dump(mode="json", exclude_none=True)
 
 
+def file_inventory_of_parts(parts: dict[str, list[str]]) -> dict[str, Any]:
+    """A `FileInventory` document made of one part per folder in `parts`, listing each folder's
+    paths under it. Built as a document, not a model, so a test can make one the store refuses."""
+    files = [
+        {**file_inventory(f"{folder}/{path}")["inventory_files"][0]}
+        for folder, paths in parts.items()
+        for path in paths
+    ]
+    document = file_inventory()
+    document["inventory_files"] = sorted(files, key=lambda f: f["file_path"])
+    document["inventory_parts"] = [
+        InventoryPart(
+            part_folder=folder,
+            part_tool=document["inventory_tool"],
+            part_tool_version=document["inventory_tool_version"],
+            part_made_at=datetime(2026, 10, 30, tzinfo=UTC),
+        ).model_dump(mode="json", exclude_none=True)
+        for folder in parts
+    ]
+    return document
+
+
 def drafted_readme() -> Envelope:
     """A succeeded run whose payload is a first draft of a README, from the document stub run
     through a conductor of its own."""
@@ -463,7 +486,8 @@ def check_a_refused_change_records_nothing(make: MakeProjectStorage) -> None:
     project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="check")
     absolute = file_inventory("data.csv")
     absolute["inventory_files"][0]["file_path"] = "/home/someone/data.csv"
-    for document in ({"schema_class": "FileList", "files": []}, absolute):
+    overlapping = file_inventory_of_parts({"raw": ["a.csv"], "raw/2024": ["b.csv"]})
+    for document in ({"schema_class": "FileList", "files": []}, absolute, overlapping):
         with _raises(ProjectError, "not a FileInventory"):
             store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="check")
     with _raises(ProjectError, "a title too long"):

@@ -86,6 +86,7 @@ from dd_harness.testing.storage import (
     check_run_storage,
     check_shared_record,
     file_inventory,
+    file_inventory_of_parts,
 )
 
 __all__ = [
@@ -129,6 +130,7 @@ __all__ = [
     "document_request",
     "fact_check_over",
     "file_inventory",
+    "file_inventory_of_parts",
     "grant_token",
     "in_process",
     "input_evidence",

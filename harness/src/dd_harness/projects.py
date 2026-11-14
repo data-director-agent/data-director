@@ -99,6 +99,7 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
     Principal,
     ResearcherRecord,
+    inventory_part_problems,
     new_invocation_id,
     now,
 )
@@ -423,6 +424,7 @@ class Projects:
                 "inventory_made_at": inventory["inventory_made_at"],
                 "added_at": inventory["at"],
                 "revises": inventory.get("revises"),
+                "part_count": inventory.get("part_count"),
             }
             if inventory
             else None,
@@ -454,10 +456,11 @@ class Projects:
         """Add a `FileInventory` to the project. Returns its digest. When the project already
         holds one, the event names its digest as `revises`, found in the log, never given.
 
-        Raises `ProjectError` for an unknown project or a document the class schema refuses."""
+        Raises `ProjectError` for an unknown project, a document the class schema refuses, or one
+        whose parts overlap or leave a file under no part's folder."""
         self._require(project_id)
         document = dict(inventory)
-        errors = self._inventory_schema.errors(document)
+        errors = self._inventory_schema.errors(document) or inventory_part_problems(document)
         if errors:
             raise ProjectError(f"not a FileInventory: {'; '.join(errors)}")
         digest = input_hash(document)
@@ -469,6 +472,8 @@ class Projects:
             "file_count": len(files),
             "inventory_made_at": document["inventory_made_at"],
         }
+        if parts := document.get("inventory_parts"):
+            detail["part_count"] = len(parts)
         with self._section(project_id) as section:
             previous = [e for e in section.events() if e["event"] == INVENTORY_ADDED]
             if previous:

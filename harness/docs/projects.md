@@ -57,6 +57,7 @@ the database, where finding a conversation's project is an indexed query
 | `file_count` | How many files the inventory lists. |
 | `inventory_made_at` | When `dd-inventory` made it. |
 | `revises` | The digest of the inventory the project held before, when it held one: this one revises it. The store finds it in the log; no caller gives it. |
+| `part_count` | How many parts the inventory is made of, when it is made of parts (`inventory_parts`); absent for an inventory of one folder. |
 
 `researcher_added` keeps the facts a person chose from their own public ORCID record
 ([Projects](../../docs/specs/projects.md), invariant 27). It also gives:
@@ -118,8 +119,10 @@ log that `project_access.roles` folds, TODO(#389).
 What a project holds of its research data is a `FileInventory`, made by
 [`dd-inventory`](../../inventory/README.md) where the data live, and never the files. The store
 checks an inventory against the core class schema before adding it, so a document of another
-class, or one that gives an absolute path, is refused and nothing is recorded. The latest
-inventory added is the project's inventory.
+class, or one that gives an absolute path, is refused and nothing is recorded. So is an inventory
+made of parts whose folders overlap, or with a file under no part's folder
+(`dd_sdk.contract.models.inventory_part_problems`). The latest inventory added is the project's
+inventory: updating one part of it is a whole new inventory, with the other parts as they were.
 
 ```console
 $ export DD_PROJECTS_DIR=… DD_PRINCIPAL_ID=… DD_PRINCIPAL_NAME=…

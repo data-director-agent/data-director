@@ -417,6 +417,12 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 10 ;
             sh:path dd:works_omitted ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:researcher_name ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the record was read from ORCID's public API." ;
             sh:maxCount 1 ;
@@ -424,12 +430,6 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 12 ;
             sh:path dd:record_retrieved_at ],
-        [ sh:datatype xsd:string ;
-            sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:researcher_name ],
         [ sh:class dd:Affiliation ;
             sh:description "The researcher's affiliations they kept, the current ones first." ;
             sh:nodeKind sh:BlankNodeOrIRI ;

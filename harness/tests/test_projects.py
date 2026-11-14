@@ -36,7 +36,7 @@ from dd_harness.projects import (
 )
 from dd_harness.requirements import RequirementsError, load_requirements
 from dd_harness.sources import SourceConfigError, Sources
-from dd_harness.testing import TEST_PRINCIPAL, file_inventory
+from dd_harness.testing import TEST_PRINCIPAL, file_inventory, file_inventory_of_parts
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash, input_hash
 
 inventory = file_inventory
@@ -97,6 +97,51 @@ def test_a_new_inventory_names_the_one_it_revises(store: ProjectStore) -> None:
     assert added[1]["revises"] == added[0]["digest"]
     assert store.summary(project_id)["inventory"]["revises"] == added[0]["digest"]
     assert store.inventory(project_id) == second
+
+
+def test_an_inventory_of_parts_is_one_inventory_and_says_how_many_parts(
+    store: ProjectStore,
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    first = file_inventory_of_parts({"lab": ["a.csv"], "instrument": ["run1.csv"]})
+    store.add_inventory(project_id, first, acted_for=TEST_PRINCIPAL, caused_by="test")
+    # Updating one part is a whole new inventory with the other part as it was.
+    second = file_inventory_of_parts({"lab": ["a.csv"], "instrument": ["run1.csv", "run2.csv"]})
+    store.add_inventory(project_id, second, acted_for=TEST_PRINCIPAL, caused_by="test")
+    added = [e for e in store.events(project_id) if e["event"] == INVENTORY_ADDED]
+    assert [e["part_count"] for e in added] == [2, 2]
+    assert added[1]["revises"] == added[0]["digest"]
+    assert store.inventory(project_id) == second
+    summary = store.summary(project_id)["inventory"]
+    assert summary["part_count"] == 2 and summary["file_count"] == 3
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        file_inventory_of_parts({"raw": ["a.csv"], "raw/2024": ["b.csv"]}),
+        file_inventory_of_parts({"raw": ["a.csv"], "raw ": ["b.csv"]})
+        | {
+            "inventory_parts": [
+                {
+                    "part_folder": "raw",
+                    "part_tool": "t",
+                    "part_tool_version": "1",
+                    "part_made_at": "2026-10-30T00:00:00Z",
+                }
+            ]
+        },
+        file_inventory_of_parts({"a/../b": ["c.csv"]}),
+    ],
+    ids=["overlapping folders", "a file under no part", "a .. segment"],
+)
+def test_an_inventory_whose_parts_do_not_cover_its_files_is_refused(
+    store: ProjectStore, document: dict[str, Any]
+) -> None:
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    with pytest.raises(ProjectError, match="not a FileInventory"):
+        store.add_inventory(project_id, document, acted_for=TEST_PRINCIPAL, caused_by="t")
+    assert [e["event"] for e in store.events(project_id)] == [PROJECT_CREATED]
 
 
 def test_an_inventory_with_a_role_outside_the_vocabulary_is_refused(store: ProjectStore) -> None:

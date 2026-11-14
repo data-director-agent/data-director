@@ -12,11 +12,11 @@ dd:FileInventory a sh:NodeShape ;
     rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:InventoryFile ;
-            sh:description "Every file under the dataset's root folder that the command read, sorted by path." ;
+    sh:property [ sh:class dd:InventoryPart ;
+            sh:description "The scans the inventory is made of, when it is made of more than one folder. Absent, the inventory is one scan of one folder and its paths are relative to that folder. Present, every file's path begins with one part's folder; inventory_made_at is the latest part's, inventory_tool and inventory_tool_version are those of that part, and inventory_limitations holds every part's limitations, each beginning with its folder." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 1 ;
-            sh:path dd:inventory_files ],
+            sh:order 7 ;
+            sh:path dd:inventory_parts ],
         [ sh:datatype xsd:string ;
             sh:description "The version of the command that made the inventory." ;
             sh:maxCount 1 ;
@@ -42,6 +42,11 @@ dd:FileInventory a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path prov:wasGeneratedBy ],
+        [ sh:class dd:InventoryFile ;
+            sh:description "Every file the command read, sorted by path: under the dataset's root folder, or, in an inventory made of parts, under each part's folder." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path dd:inventory_files ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -68,6 +73,14 @@ dd:InventoryFile a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 5 ;
             sh:path dd:file_identified_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file's path relative to the dataset's root folder, with forward slashes; in an inventory made of parts, it begins with its part's folder. Never an absolute path, which would say where the data live." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:file_path ;
+            sh:pattern "^[^/]" ],
         [ sh:datatype xsd:string ;
             sh:description "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown." ;
             sh:nodeKind sh:Literal ;
@@ -109,16 +122,54 @@ dd:InventoryFile a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
-            sh:path dcterms:description ],
+            sh:path dcterms:description ] ;
+    sh:targetClass dd:InventoryFile .
+
+dd:InventoryPart a sh:NodeShape ;
+    rdfs:comment "One scan of one folder, mounted at a folder name in an inventory made of several (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder, and a part is replaced whole when its folder is scanned again." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The command that scanned the part's folder, such as dd-inventory." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path prov:wasGeneratedBy ],
         [ sh:datatype xsd:string ;
-            sh:description "The file's path relative to the dataset's root folder, with forward slashes. Never an absolute path, which would say where the data live." ;
+            sh:description "What the scan of the part's folder left out or could not do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:part_limitations ],
+        [ sh:datatype xsd:string ;
+            sh:description "The version of the command that scanned the part's folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:part_tool_version ],
+        [ sh:datatype xsd:string ;
+            sh:description "What identified the formats of the part's files, as inventory_identified_with." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:part_identified_with ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the part's folder was scanned." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path prov:generatedAtTime ],
+        [ sh:datatype xsd:string ;
+            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path dd:file_path ;
-            sh:pattern "^[^/]" ] ;
-    sh:targetClass dd:InventoryFile .
+            sh:path dd:part_folder ;
+            sh:pattern "^[^/]+(/[^/]+)*$" ] ;
+    sh:targetClass dd:InventoryPart .
 
 dd:TableField a sh:NodeShape ;
     rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs)." ;

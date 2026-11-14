@@ -76,7 +76,8 @@ intended design, and each part says where it is not built yet.
 4. **Every event names the principal it acted for and what caused it.** An event caused by a run
    names the run's `invocation_id`, as a draft's `document_version_added` does
    (`harness/tests/test_project_runs.py`); others name the command a person ran or the request.
-5. **The latest counts.** The project's inventory is the one added last; its repository is the one
+5. **The latest counts.** The project's inventory is the one added last, whether it was made of one
+   folder or of several (`inventory_parts`); its repository is the one
    chosen last; its metadata record is the version of a `metadata_record` document a person
    approved last, and a version proposed or rejected since does not displace it. Earlier ones stay
    in the log (`harness/tests/test_projects.py`, `dd_harness.testing.storage`).
@@ -275,7 +276,7 @@ intended design, and each part says where it is not built yet.
 
 ## Boundaries and contracts
 
-**The core contract** ([Contract](contract.md)) holds `FileInventory`, `InventorySummary`, `Document`, `DocumentKind`, `DraftRequest`,
+**The core contract** ([Contract](contract.md)) holds `FileInventory` (with `InventoryPart`), `InventorySummary`, `Document`, `DocumentKind`, `DraftRequest`,
 `ResearcherRecord` and the version reference, because the conductor, the app and the package builder must read them
 from any agent without knowing the agent. A document's content is always text with a media type;
 a metadata record is serialised, and `conforms_to` names the schema it follows. Checking a record
@@ -320,11 +321,32 @@ inventory is attached and when a project's inventory is revised.
 A revision is a whole new `inventory_added` event: the project's latest inventory is the one it
 holds, and the earlier ones stay in the log. When the project already holds one, the store
 records the digest it replaces as `revises`, which no caller can give. A researcher may revise
-the inventory the project holds, or replace it with a new scan of the same dataset, onto which
-what they stated is carried by path (`carryOver`); a format they chose carries over only to a file
-whose digest is unchanged. What was left out of the earlier inventory cannot carry over, since it
-was never kept: a new scan lists it again, the editor marks every file new in the scan, and the
-researcher leaves it out again.
+the inventory the project holds, or update it with a new scan, onto which what they stated is
+carried by path (`carryOver`); a format they chose carries over only to a file whose digest is
+unchanged. What was left out of the earlier inventory cannot carry over, since it was never kept:
+a new scan lists it again, the editor marks every file new in the scan, and the researcher
+leaves it out again.
+
+**An inventory of several folders.** A dataset is not always under one folder on one machine:
+part may be on a lab server, part on an instrument's computer, part with a colleague. The
+project still holds one inventory, made of **parts** (`inventory_parts`): each part is one scan
+of one folder, mounted at a folder name (`part_folder`), with its own tool, version, time and
+limitations. Every file's path begins with its part's folder, no folder is another's or lies
+inside another's, and the store refuses an inventory that breaks either rule
+(`inventory_part_problems`), recording nothing. An inventory without parts is one scan of one
+folder, as every inventory was before parts. The top-level `inventory_made_at`, `inventory_tool`
+and `inventory_tool_version` are the latest part's, and `inventory_limitations` holds every
+part's, each beginning with its folder, so a reader that knows nothing of parts reads the
+inventory as before.
+
+A researcher **updates** a folder by scanning it again, which replaces that part whole and keeps
+the others as they were, or **adds** a folder with a scan of a folder the inventory does not
+have. Either is a whole new inventory, with `revises`, carried over as above; only the scanned
+part's files can be new, changed or gone. A part is never merged file by file. The first time a
+folder is added to an inventory without parts, the researcher names the folder it already has,
+and its paths, and what they stated about them, move under that name. `dd-inventory` given
+several folders makes an inventory of one part per folder. Replacing the whole inventory with
+another remains possible.
 A page for a project's members, and keeping what a person typed when a turn or edit is
 refused as stale, are TODO(#391).
 
@@ -426,6 +448,11 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   goes into the package, and every document in it names who approved it and when.
 - **Shared projects**, because research data are rarely managed by one person, and colleagues must
   see the same inventory, documents, decisions and conversations.
+- **One inventory per project, made of parts.** A project builds one deposit package, so it needs
+  one account of its files: one set of paths for agents, one input hash for what they saw, and
+  one list to check the package's limits against. The data, though, are often in more than one
+  place and the inventory command runs only where they are, so a scan of each folder is a part
+  of the one inventory, updated on its own by whoever holds that folder.
 - **Deleting as an event.** The log stays the audit trail and invariant 2 stays true. A mistaken
   deletion is recoverable, and no second store holds what a deletion hid. Hiding is what the app
   can promise today; erasing is a different promise that waits on the rules for provenance and
@@ -449,6 +476,12 @@ store, and writes to neither ([Disclosure](disclosure.md)).
   inventory, would have to be an agent invocation for nothing gained.
 - **A mixin that each agent's payload class includes.** The harness would have to know every
   agent's class to find the text.
+- **Several independent inventories in a project.** Every agent, check and package would have to
+  ask which one, or combine them, and none would be the project's account of its files. Data in
+  more than one place are parts of one inventory instead.
+- **Merging a new scan into the inventory file by file.** A scan of part of the data cannot tell
+  a file that is gone from one that was not scanned. A part is replaced whole, so a file missing
+  from its folder's new scan is gone.
 - **One document of each kind per project.** It cannot hold a README for each folder, and the kind
   would stand in for an identity.
 - **A metadata record as a JSON object in the payload.** One class would have two shapes of
