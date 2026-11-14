@@ -10,7 +10,7 @@ requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 # anthropic 2.3 moves to httpx2; the cassette replay in tests needs vcrpy 9 to patch it.
-dependencies = ["data-director-sdk>=0.2.0a0", "anthropic>=1.15.0,<2.6"]
+dependencies = ["data-director-sdk>=0.2.0a0", "anthropic>=1.15.0,<2.7"]
 
 [project.scripts]
 dd-orchestrator-model = "dd_agent_orchestrator_model.factory:main"
