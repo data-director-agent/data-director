@@ -153,6 +153,7 @@ describe("Frame", () => {
         harness_version: "0.1.0",
         commit: "abcdef0123456789",
         feedback_enabled: false,
+        privacy_notice_url: null,
       }),
     );
     const { container } = render(
@@ -167,6 +168,55 @@ describe("Frame", () => {
       await within(footer).findByText("v0.3.0 (abcdef0)"),
     ).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("links the operator's privacy notice in the footer when there is one", async () => {
+    const api = withAbout(() =>
+      Promise.resolve({
+        app_version: "0.3.0",
+        harness_version: "0.1.0",
+        commit: "abcdef0123456789",
+        feedback_enabled: false,
+        privacy_notice_url: "https://example.ac.uk/data-director/privacy",
+      }),
+    );
+    const { container } = render(
+      <FeedbackApiContext.Provider value={api}>
+        <Frame current="/">
+          <p>Content</p>
+        </Frame>
+      </FeedbackApiContext.Provider>,
+    );
+    const footer = screen.getByRole("contentinfo");
+    expect(
+      await within(footer).findByRole("link", { name: "Privacy notice" }),
+    ).toHaveAttribute("href", "https://example.ac.uk/data-director/privacy");
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("shows no privacy link when the operator has set no notice", async () => {
+    const api = withAbout(() =>
+      Promise.resolve({
+        app_version: "0.3.0",
+        harness_version: "0.1.0",
+        commit: "abcdef0123456789",
+        feedback_enabled: false,
+        privacy_notice_url: null,
+      }),
+    );
+    render(
+      <FeedbackApiContext.Provider value={api}>
+        <Frame current="/">
+          <p>Content</p>
+        </Frame>
+      </FeedbackApiContext.Provider>,
+    );
+    const footer = screen.getByRole("contentinfo");
+    // The build line arrives with the same answer, so once it is there the link would be too.
+    expect(await within(footer).findByText("v0.3.0 (abcdef0)")).toBeInTheDocument();
+    expect(
+      within(footer).queryByRole("link", { name: /privacy/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("leaves the footer empty when the build cannot be read", async () => {

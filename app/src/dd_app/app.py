@@ -51,7 +51,8 @@ validation when it is not; `GET /api/projects/{id}/packages/{digest}` is a packa
 log records as built, as a zip (docs/specs/deposit.md).
 `POST /a2a` and `GET /.well-known/agent-card.json` are the conductor's A2A routes, which accept a
 delegation agent's callback under a live grant and nothing else (docs/specs/orchestration.md, #129).
-`GET /api/about` names the build (version and commit) and says whether reports can be filed;
+`GET /api/about` names the build (version and commit), says whether reports can be filed and gives
+the operator's privacy notice (`DD_PRIVACY_NOTICE_URL`) if there is one;
 `POST /api/feedback` files a problem report or feature request as a GitHub issue
 (docs/specs/app.md). `GET /api/sign-in` and `GET /api/sign-in/callback` sign a person in through
 the configured OpenID Connect provider, `POST /api/sign-out` ends their session, and
@@ -123,6 +124,7 @@ from dd_app.governance import (
     principal_summary,
 )
 from dd_app.model_accounts import broker_path
+from dd_app.privacy import notice_url
 from dd_harness import orcid
 from dd_harness.conductor import UnknownAgent
 from dd_harness.deposit import PackageRefusedError, build_package, check
@@ -197,6 +199,7 @@ def build_app(
     sign_in: SignIn | None = None,
     orcid_transport: httpx.BaseTransport | None = None,
     model_broker_path: str | None = None,
+    privacy_notice_url: str | None = None,
 ) -> Starlette:
     """The server. `web_dist` must hold a built shell (its `index.html`).
 
@@ -206,6 +209,8 @@ def build_app(
     `orcid_transport` lets a test stand in for ORCID's public API (`dd_harness.orcid`).
     `model_broker_path` is where the browser reaches the model broker (`dd_app.model_accounts`);
     with it and a harness that mints model grants, a person may add their own model account.
+    `privacy_notice_url` is the operator's privacy notice (`dd_app.privacy`), which `GET /api/about`
+    gives so that the footer can link to it; without it the footer has no link.
     """
     if not (web_dist / "index.html").is_file():
         raise ShellNotBuiltError(
@@ -1057,7 +1062,12 @@ def build_app(
     async def get_about(request: Request) -> Response:
         deployment = await run_in_threadpool(governance.deployment)
         return JSONResponse(
-            {**identity, **deployment, "feedback_enabled": feedback_source is not None}
+            {
+                **identity,
+                **deployment,
+                "feedback_enabled": feedback_source is not None,
+                "privacy_notice_url": privacy_notice_url,
+            }
         )
 
     async def send_feedback(request: Request, reporter: Principal) -> Response:
@@ -1526,6 +1536,7 @@ def main() -> int:
             feedback_repo=feedback_repo,
             sign_in=sign_in,
             model_broker_path=broker_path(os.environ),
+            privacy_notice_url=notice_url(os.environ),
         )
         if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))

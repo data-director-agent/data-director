@@ -431,6 +431,16 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   checks compare these with what was configured. The answer carries no address and no reason an
   agent is missing, because a reason can name an internal address; the signed-in
   `GET /api/agents` gives those.
+- **The footer links to the operator's privacy notice, if there is one.** The app holds a
+  person's name, ORCID iD, conversations and projects for its operator, who decides why and how
+  and so owes them a privacy notice. `GET /api/about` gives its address as `privacy_notice_url`
+  (`null` when none is set), from `DD_PRIVACY_NOTICE_URL`, which `apply` writes from
+  `privacy_notice` in `deployment.yaml` and removes when that is unset. The address is an
+  absolute `https` URL: anything else stops the app at start-up, so a wrong setting never becomes
+  a link. With none set the footer shows no link. It does not fall back to the project's notice,
+  which covers only the documentation site and the project's work on GitHub, and so would
+  mislead. The address is deliberately not in the profile: it is not policy, and a change to it
+  must not change the profile's digest, which every stored run records.
 - **Problem reports** go to one repository, named in the app's configuration, as an issue of type
   Bug, Feature or Task with the label `area: app`. The person needs no GitHub account. The app
   files them as a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and

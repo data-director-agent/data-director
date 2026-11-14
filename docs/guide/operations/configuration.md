@@ -11,7 +11,7 @@ only its own agent can read.
 
 | What | On a server | In development | Read by |
 |---|---|---|---|
-| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`) and, on a server, the units that start the agents |
+| What the instance runs: its name, the orchestrator (`model` or `stub`), agents disabled, and the address of its [privacy notice](privacy.md) | `/etc/data-director/deployment.yaml`, then `sudo data-director apply` | `config/local/deployment.yaml` ([example](../../../config/examples/deployment.yaml)), applied by `dd.py start` | `apply`, which writes the profile (`profile.yaml` beside it, named by `DD_PROFILE`), sets or removes `DD_PRIVACY_NOTICE_URL` in `app.env` and, on a server, the units that start the agents |
 | The ORCID client, the app's address, problem reports (and the operator, on a development server) | `/etc/data-director/app.env` | `config/local/app.env` ([example](../../../config/examples/app.env)) | The app |
 | The workbench's ORCID client, address and admins | `/etc/data-director/workbench.env` ([example](../../../config/examples/workbench.env)) | none: a local workbench signs nobody in | The workbench |
 | Settings every agent shares | `/etc/data-director/agents.env` | `config/local/agents.env` ([example](../../../config/examples/agents.env)) | Every agent |

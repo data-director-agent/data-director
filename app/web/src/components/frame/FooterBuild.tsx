@@ -1,8 +1,10 @@
 /**
- * The build's identity in the footer: the version and the short commit the app was deployed from.
+ * What the footer learns from the server: the build's identity (the version and the short commit
+ * the app was deployed from) and a link to the operator's privacy notice, when it has one.
  *
- * It says nothing while the build is unknown or the server cannot be asked, since a footer is no
- * place for an error.
+ * It says nothing while the server cannot be asked, since a footer is no place for an error, and
+ * shows no privacy link unless the operator set one: the project's own notice covers its website,
+ * not an instance, so there is nothing to fall back to (docs/specs/app.md).
  */
 
 import { useEffect, useState } from "react";
@@ -24,8 +26,17 @@ export function FooterBuild() {
 
   if (!about) return null;
   return (
-    <p className="app-footer-build" title={about.commit ?? undefined}>
-      Build <code>{describeBuild(about)}</code>
-    </p>
+    <>
+      {about.privacy_notice_url ? (
+        <p className="app-footer-privacy">
+          <a href={about.privacy_notice_url} target="_blank" rel="noreferrer">
+            Privacy notice
+          </a>
+        </p>
+      ) : null}
+      <p className="app-footer-build" title={about.commit ?? undefined}>
+        Build <code>{describeBuild(about)}</code>
+      </p>
+    </>
   );
 }

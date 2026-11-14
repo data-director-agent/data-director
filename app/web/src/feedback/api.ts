@@ -19,6 +19,8 @@ export interface About {
   harness_version: string | null;
   commit: string | null;
   feedback_enabled: boolean;
+  /** The operator's privacy notice for this instance, or null if it has set none. */
+  privacy_notice_url: string | null;
 }
 
 export interface Report {

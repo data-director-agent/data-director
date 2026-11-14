@@ -783,6 +783,7 @@ for (const scheme of ["light", "dark"] as const) {
           harness_version: "0.1.0",
           commit: "abcdef0123456789",
           feedback_enabled: true,
+          privacy_notice_url: null,
         },
       }),
     );

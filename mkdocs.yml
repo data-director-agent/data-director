@@ -92,6 +92,7 @@ nav:
       - operations/index.md
       - AI models: operations/ai-models.md
       - Configuration: operations/configuration.md
+      - Privacy notice: operations/privacy.md
       - The data-director command: operations/commands.md
       - The admin service: operations/admin.md
       - The model broker: operations/model-broker.md

@@ -12,3 +12,9 @@ orchestrator: stub
 
 # Agents in app/config/agents.yaml not to run, by name, such as advisor-policy.
 disabled: []
+
+# Where your institution's privacy notice for this instance is, an https address. The app links to
+# it from every page's footer. Unset, the footer has no link. The app holds people's names, ORCID
+# iDs, conversations and projects for you, so you owe them a notice of your own; the project's
+# does not cover an instance (docs/guide/operations/privacy.md).
+# privacy_notice: https://example.ac.uk/data-director/privacy

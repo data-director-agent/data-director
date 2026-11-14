@@ -5,7 +5,7 @@ management team, a service owner or a systems administrator. It is not for resea
 app (see the [user guide](../user-guide/index.md)) or for people who write agents (see the
 [developer guide](../developer-guide/index.md)).
 
-An operator decides three things that a user and a developer do not:
+An operator decides four things that a user and a developer do not:
 
 - **What the instance runs and may do.** `deployment.yaml` says which agents run and which
   orchestrator the home page converses with, and `sudo data-director apply` makes it so
@@ -15,6 +15,9 @@ An operator decides three things that a user and a developer do not:
 - **What leaves the institution.** An agent that calls a hosted AI model sends it part of the
   user's input. [AI models](ai-models.md) says which agents do, what they send, and how to choose
   and supply a model.
+- **What to tell the people whose data it holds.** The app keeps names, ORCID iDs, conversations
+  and projects for your institution, which owes them a notice of its own.
+  [Privacy notice](privacy.md) says what to cover and how to link the app to it.
 - **Who holds which secret.** Model keys and the ORCID client's secret each
   have one place to live. [Configuration](configuration.md) lists them.
 
@@ -24,6 +27,7 @@ An operator decides three things that a user and a developer do not:
 |---|---|
 | [AI models](ai-models.md) | Choose a model, supply a key, turn on the model-backed agents, and check what an instance sends to a provider. |
 | [Configuration](configuration.md) | Find where each setting lives, in development and on a server. |
+| [Privacy notice](privacy.md) | See what personal data the app holds, decide what your own notice must say and link the app's footer to it. |
 | [The `data-director` command](commands.md) | Check an instance (`doctor`), change what it runs (`apply`) and set a model key (`secret`). |
 | [The admin service](admin.md) | See the instance's health, agents, settings, people, runs and projects in a browser, over an SSH tunnel. |
 | [The model broker](model-broker.md) | Run the service that lets people's own AI accounts pay for model calls (alpha, off by default). |

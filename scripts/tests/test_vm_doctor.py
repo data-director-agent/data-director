@@ -387,6 +387,60 @@ def test_apply_again_changes_nothing_and_keeps_the_version(
     assert not system.calls  # no reload, no restart
 
 
+NOTICE = "https://example.ac.uk/data-director/privacy"
+
+
+def test_apply_writes_the_privacy_notice_to_app_env_and_leaves_the_profile_alone(vm: Vm) -> None:
+    profile = (vm.etc / "profile.yaml").read_text()
+    assert "DD_PRIVACY_NOTICE_URL" not in vm.app_env.read_text()  # unset: no setting
+    (vm.etc / "deployment.yaml").write_text(
+        f"name: test\norchestrator: stub\nprivacy_notice: {NOTICE}\n"
+    )
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+    assert f"DD_PRIVACY_NOTICE_URL={NOTICE}" in vm.app_env.read_text()
+    assert f"DD_PROFILE={vm.etc / 'profile.yaml'}" in vm.app_env.read_text()  # kept
+    # A display address is not policy: the profile and so its digest and version are unchanged.
+    assert (vm.etc / "profile.yaml").read_text() == profile
+
+
+def test_apply_again_with_a_privacy_notice_changes_nothing(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (vm.etc / "deployment.yaml").write_text(
+        f"name: test\norchestrator: stub\nprivacy_notice: {NOTICE}\n"
+    )
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+    capsys.readouterr()
+    assert apply(FakeVm(), Place.vm(vm), vm, check=True) == 0
+    assert "Nothing to change." in capsys.readouterr().out
+
+
+def test_removing_the_privacy_notice_removes_the_setting_and_nothing_else(vm: Vm) -> None:
+    (vm.etc / "deployment.yaml").write_text(
+        f"name: test\norchestrator: stub\nprivacy_notice: {NOTICE}\n"
+    )
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+    before = vm.app_env.read_text()
+    assert "DD_PRIVACY_NOTICE_URL" in before
+    (vm.etc / "deployment.yaml").write_text("name: test\norchestrator: stub\n")
+    assert apply(FakeVm(), Place.vm(vm), vm) == 0
+    after = vm.app_env.read_text()
+    assert "DD_PRIVACY_NOTICE_URL" not in after
+    assert after == before.replace(f"DD_PRIVACY_NOTICE_URL={NOTICE}\n", "")
+
+
+def test_doctor_reports_a_privacy_notice_not_yet_applied(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (vm.etc / "deployment.yaml").write_text(
+        f"name: test\norchestrator: stub\nprivacy_notice: {NOTICE}\n"
+    )
+    status, out = check(FakeVm(), vm, capsys)
+    assert status == 1
+    assert says(out, "problem", "DD_PRIVACY_NOTICE_URL")
+    assert says(out, "fix", "data-director apply")
+
+
 def test_the_model_orchestrator_is_refused_without_its_key(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -455,6 +509,9 @@ def test_doctor_reports_a_deployment_not_yet_applied(
     ("text", "message"),
     [
         ("name: x\norchestrator: clever\n", "orchestrator is model or stub"),
+        ("name: x\nprivacy_notice: http://example.ac.uk/p\n", "privacy_notice is the address"),
+        ("name: x\nprivacy_notice: javascript:alert(1)\n", "privacy_notice is the address"),
+        ("name: x\nprivacy_notice: [https://example.ac.uk/p]\n", "privacy_notice is the address"),
         ("name: x\ncolour: blue\n", "unknown key colour"),
         ("name: Not A Name\n", "lower-case words"),
         ("name: x\ndisabled: [advisor-nobody]\n", "advisor-nobody, not in agents.yaml"),

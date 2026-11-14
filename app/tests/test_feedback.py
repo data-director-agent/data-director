@@ -95,6 +95,16 @@ def test_about_says_whether_reports_are_on(governance: Governance, dist: Path) -
     assert off.get("/api/about").json()["feedback_enabled"] is False
 
 
+def test_about_gives_the_operators_privacy_notice_only_when_one_is_set(
+    governance: Governance, dist: Path
+) -> None:
+    unset, _ = client_for(governance, dist)
+    assert unset.get("/api/about").json()["privacy_notice_url"] is None
+    url = "https://example.ac.uk/data-director/privacy"
+    app = build_app(governance, dist, build=BUILD, privacy_notice_url=url)
+    assert TestClient(app).get("/api/about").json()["privacy_notice_url"] == url
+
+
 def test_about_names_the_build_and_the_profile_it_runs_to(
     governance: Governance, dist: Path
 ) -> None:
