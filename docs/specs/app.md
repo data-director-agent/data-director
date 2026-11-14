@@ -157,9 +157,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     stays usable; checkboxes and folders work by keyboard and are named for screen readers
     (`app/web/src/components/inventory/InventoryView.test.tsx`, `app/web/e2e/shell.spec.ts`).
     Beside the project's chip, **Edit inventory** opens the same editor on the inventory the
-    project holds, and may read a new scan of the same dataset instead, onto which what the
-    researcher stated is carried by path, with what the scan added, changed and removed, and the
-    files they had described that it no longer lists. **Save as the project's inventory** sends
+    project holds. Under **Update with a new scan**, the researcher chooses which folder a new
+    scan is of: the folder the inventory was made from, one of its folders, or a folder it does
+    not have yet, which is added beside the others (naming, the first time, the folder it already
+    has). Only that folder is replaced (`withPart`); what the researcher stated is carried by
+    path, with what the scan added, changed and removed, and the files they had described that
+    it no longer lists ([Projects](projects.md)). **Save as the project's inventory** sends
     the result to `POST /api/projects/{id}/inventory`, which adds it as the project's latest; the
     store records which inventory it revises ([Projects](projects.md))
     (`app/web/src/components/inventory/InventoryEditor.test.tsx`, `app/tests/test_app.py`).

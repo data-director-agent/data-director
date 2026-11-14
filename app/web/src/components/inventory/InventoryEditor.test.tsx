@@ -113,6 +113,7 @@ describe("InventoryEditDialog", () => {
     inventory_made_at: STORED.inventory_made_at,
     added_at: "2026-11-10T10:00:00+00:00",
     revises: "d1",
+    part_count: null,
   };
 
   it("saves the project's inventory as edited, and only once it changed", async () => {
@@ -135,7 +136,7 @@ describe("InventoryEditDialog", () => {
     renderDialog({ inventory: () => Promise.resolve(STORED), saveInventory });
     await userEvent.click(screen.getByRole("button", { name: "Edit inventory" }));
     const dialog = await screen.findByRole("dialog");
-    const input = await within(dialog).findByLabelText("Replace with a new scan of the same folder");
+    const input = await within(dialog).findByLabelText("New scan");
     await userEvent.upload(input, new File([JSON.stringify(RESCAN)], "scan.json", { type: "application/json" }));
     expect(await within(dialog).findByRole("region", { name: "What the new scan changed" })).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Save as the project's inventory" }));
@@ -150,7 +151,7 @@ describe("InventoryEditDialog", () => {
     const onSaved = renderDialog({ inventory: () => Promise.resolve(STORED), saveInventory });
     await userEvent.click(screen.getByRole("button", { name: "Edit inventory" }));
     const dialog = await screen.findByRole("dialog");
-    const input = await within(dialog).findByLabelText("Replace with a new scan of the same folder");
+    const input = await within(dialog).findByLabelText("New scan");
     await userEvent.upload(input, new File(["{}"], "scan.json", { type: "application/json" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(/not an inventory/);
     await userEvent.click(within(dialog).getByRole("checkbox", { name: "Include old.csv" }));
@@ -158,6 +159,75 @@ describe("InventoryEditDialog", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(/answered 400/);
     expect(onSaved).not.toHaveBeenCalled();
     expect(within(dialog).getByRole("checkbox", { name: "Include old.csv" })).not.toBeChecked();
+  });
+
+  function upload(input: HTMLElement, inventory: FileInventory) {
+    return userEvent.upload(input, new File([JSON.stringify(inventory)], "scan.json", { type: "application/json" }));
+  }
+
+  it("adds a folder beside the one the inventory was made from", async () => {
+    const saveInventory = vi.fn<ProjectApi["saveInventory"]>().mockResolvedValue(saved);
+    renderDialog({ inventory: () => Promise.resolve(STORED), saveInventory });
+    await userEvent.click(screen.getByRole("button", { name: "Edit inventory" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.selectOptions(
+      await within(dialog).findByLabelText("Scan of"),
+      "A folder the inventory does not have yet",
+    );
+    const input = within(dialog).getByLabelText("New scan");
+    expect(input).toBeDisabled();
+    await userEvent.type(within(dialog).getByLabelText("Name of the new folder"), "instrument");
+    await userEvent.type(within(dialog).getByLabelText("Name for the folder the inventory already has"), "lab");
+    expect(input).toBeEnabled();
+    await upload(input, { ...RESCAN, inventory_files: [file("run1.csv")] });
+    const changed = await within(dialog).findByRole("region", { name: "What the new scan changed" });
+    expect(within(changed).getByText(/1 file is new/)).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save as the project's inventory" }));
+    await waitFor(() => expect(saveInventory).toHaveBeenCalled());
+    const sent = saveInventory.mock.calls[0]?.[1] as FileInventory;
+    expect(sent.inventory_parts?.map((p) => p.part_folder)).toEqual(["instrument", "lab"]);
+    expect(sent.inventory_files?.map((f) => f.file_path)).toEqual([
+      "instrument/run1.csv",
+      "lab/old.csv",
+      "lab/readings.csv",
+    ]);
+    expect(sent.inventory_files?.find((f) => f.file_path === "lab/readings.csv")?.file_description).toBe(
+      "Soil readings by site",
+    );
+  });
+
+  it("updates one folder and keeps the others as they were", async () => {
+    const stored: FileInventory = {
+      ...STORED,
+      inventory_files: [file("instrument/run1.csv"), file("lab/readings.csv", { file_description: "Soil" })],
+      inventory_parts: ["instrument", "lab"].map((part_folder) => ({
+        part_folder,
+        part_tool: "dd-inventory",
+        part_tool_version: "0.1.0",
+        part_made_at: STORED.inventory_made_at,
+      })),
+    };
+    const saveInventory = vi.fn<ProjectApi["saveInventory"]>().mockResolvedValue(saved);
+    renderDialog({ inventory: () => Promise.resolve(stored), saveInventory });
+    await userEvent.click(screen.getByRole("button", { name: "Edit inventory" }));
+    const dialog = await screen.findByRole("dialog");
+    const folder = await within(dialog).findByLabelText("Scan of");
+    expect(within(folder).queryByText("The folder the inventory was made from")).toBeNull();
+    await userEvent.selectOptions(folder, "instrument");
+    await upload(within(dialog).getByLabelText("New scan"), {
+      ...RESCAN,
+      inventory_files: [file("run1.csv"), file("run2.csv")],
+    });
+    await within(dialog).findByRole("region", { name: "What the new scan changed" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save as the project's inventory" }));
+    await waitFor(() => expect(saveInventory).toHaveBeenCalled());
+    const sent = saveInventory.mock.calls[0]?.[1] as FileInventory;
+    expect(sent.inventory_files?.map((f) => f.file_path)).toEqual([
+      "instrument/run1.csv",
+      "instrument/run2.csv",
+      "lab/readings.csv",
+    ]);
+    expect(sent.inventory_files?.[2]?.file_description).toBe("Soil");
   });
 
   it("says so when the project's inventory cannot be read", async () => {

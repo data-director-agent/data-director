@@ -28,6 +28,7 @@ const SAVED: SavedInventory = {
   inventory_made_at: INVENTORY.inventory_made_at,
   added_at: "2026-11-10T10:00:00+00:00",
   revises: null,
+  part_count: null,
 };
 
 function renderAdd(api: Partial<ProjectApi>, onSaved = vi.fn()) {

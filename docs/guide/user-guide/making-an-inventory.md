@@ -83,11 +83,24 @@ In the panel beside the conversation, select **Edit inventory** to open the proj
 again. You can leave out more, or describe more, and then select **Save as the project's
 inventory**. The project keeps the new version, and the earlier one stays in its history.
 
-If your files change, make a new inventory and choose it under **Replace with a new scan of the
-same folder**. What you said about each file is carried over to the new scan wherever the file is
-still there, and the app tells you which files are new, changed or gone. One thing cannot be
-carried over: anything you left out before was never kept, so it appears again in the new scan.
-Check the files marked **New in this scan** and leave them out again if you need to. The panel beside the conversation shows which inventory the project holds, with
+If your files change, make a new inventory of the folder that changed and choose it under
+**Update with a new scan**: say under **Scan of** which folder it is, then choose the file as
+**New scan**. Only that folder is replaced. What you said about each file is carried over to the
+new scan wherever the file is still there, and the app tells you which files are new, changed or
+gone. One thing cannot be carried over: anything you left out before was never kept, so it
+appears again in the new scan. Check the files marked **New in this scan** and leave them out
+again if you need to.
+
+### Data in more than one place
+
+If your dataset is in several folders, perhaps on different computers or with different
+colleagues, the project's inventory can be made of several folders. Make an inventory of each
+folder where it is. Then, under **Update with a new scan**, choose **A folder the inventory does
+not have yet**, give the folder a name, and choose its file. The first time, you also name the
+folder the inventory already has. Each file is then listed under its folder's name, and each
+folder can be updated later on its own, by whoever holds it. If the folders are on one computer,
+you can make one inventory of them all at once by naming each folder to the command:
+`dd-inventory raw processed -o inventory.json`. The panel beside the conversation shows which inventory the project holds, with
 **View inventory** to read it again, and links to the documents agents have drafted.
 
 See [What the Data Director records](records.md) for who can see what you attach.
