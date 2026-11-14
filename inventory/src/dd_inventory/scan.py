@@ -15,7 +15,7 @@ import hashlib
 import os
 import re
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import version
@@ -149,6 +149,92 @@ def make_inventory(
         "inventory_identified_with": identifier.description,
         "inventory_made_at": made_at,
         "inventory_limitations": limitations,
+    }
+
+
+def part_folder_problem(folder: str) -> str | None:
+    """Why `folder` cannot name a part of an inventory, or `None` when it can: it is relative,
+    with forward slashes, and has no empty, `.` or `..` segment."""
+    segments = folder.split("/")
+    if not folder or any(s in {"", ".", ".."} for s in segments):
+        return f"{folder!r} cannot name a folder of the inventory"
+    return None
+
+
+def make_inventory_of(
+    parts: Mapping[str, Path],
+    *,
+    identifier: Identifier | None = None,
+    now: datetime | None = None,
+    runtime: str | _Detect | None = DETECT,
+    on_file: Callable[[FileProgress], None] | None = None,
+) -> dict[str, Any]:
+    """The `FileInventory` of several folders, one part each (docs/specs/projects.md): `parts`
+    maps the name each folder is listed under to the folder. Every path begins with its part's
+    name; each part keeps its own tool, time and limitations, and the inventory's limitations
+    are theirs, each after `In <name>: `.
+
+    Raises `ValueError` for a name that cannot be a part's, or names of which one is inside
+    another, and `NotADirectoryError` for a folder that is not one."""
+    names = list(parts)
+    for name in names:
+        if problem := part_folder_problem(name):
+            raise ValueError(problem)
+    for i, a in enumerate(names):
+        for b in names[i + 1 :]:
+            if a == b or a.startswith(b + "/") or b.startswith(a + "/"):
+                raise ValueError(f"the folders {a!r} and {b!r} overlap")
+    if isinstance(runtime, _Detect):
+        runtime = detect_runtime()
+    unavailable = None
+    if identifier is None:
+        identifier, unavailable = default_identifier()
+    roots = {name: folder.resolve() for name, folder in parts.items()}
+    for folder in roots.values():
+        if not folder.is_dir():
+            raise NotADirectoryError(folder)
+    total = sum(len(_walk(folder)[0]) for folder in roots.values())
+    done = 0
+    files: list[dict[str, Any]] = []
+    made: list[dict[str, Any]] = []
+    for name in sorted(roots):
+
+        def progress(p: FileProgress, name: str = name) -> None:
+            nonlocal done
+            done += 1
+            if on_file is not None:
+                on_file(FileProgress(path=f"{name}/{p.path}", size=p.size, done=done, total=total))
+
+        scan = make_inventory(
+            roots[name], identifier=identifier, now=now, runtime=runtime, on_file=progress
+        )
+        if unavailable:
+            scan["inventory_limitations"].insert(
+                0, f"{unavailable}; formats were guessed from file extensions only."
+            )
+        files += [{**f, "file_path": f"{name}/{f['file_path']}"} for f in scan["inventory_files"]]
+        made.append(
+            {
+                "part_folder": name,
+                "part_tool": scan["inventory_tool"],
+                "part_tool_version": scan["inventory_tool_version"],
+                "part_identified_with": scan["inventory_identified_with"],
+                "part_made_at": scan["inventory_made_at"],
+                "part_limitations": scan["inventory_limitations"],
+            }
+        )
+    latest = max(made, key=lambda p: p["part_made_at"])
+    return {
+        "schema_class": SCHEMA_CLASS,
+        "inventory_files": sorted(files, key=lambda f: f["file_path"]),
+        "inventory_tool": latest["part_tool"],
+        "inventory_tool_version": latest["part_tool_version"],
+        "inventory_identified_with": latest["part_identified_with"],
+        "inventory_made_at": latest["part_made_at"],
+        "inventory_limitations": [
+            f"In {p['part_folder']}: {s}" for p in made for s in p["part_limitations"]
+        ],
+        "inventory_parts": made,
     }
 
 

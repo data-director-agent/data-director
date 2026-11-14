@@ -335,9 +335,11 @@ limitations. Every file's path begins with its part's folder, no folder is anoth
 inside another's, and the store refuses an inventory that breaks either rule
 (`inventory_part_problems`), recording nothing. An inventory without parts is one scan of one
 folder, as every inventory was before parts. The top-level `inventory_made_at`, `inventory_tool`
-and `inventory_tool_version` are the latest part's, and `inventory_limitations` holds every
-part's, each beginning with its folder, so a reader that knows nothing of parts reads the
-inventory as before.
+and `inventory_tool_version` are the latest part's, and `inventory_limitations` holds those that
+concern no one part (such as how much a folder left out whole held), then every part's, each
+after `In <folder>: `, so a reader that knows nothing of parts reads the inventory as before.
+What a researcher leaves out of a part is counted with that part, so the count stays when another
+folder is updated.
 
 A researcher **updates** a folder by scanning it again, which replaces that part whole and keeps
 the others as they were, or **adds** a folder with a scan of a folder the inventory does not

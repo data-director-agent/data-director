@@ -16,11 +16,11 @@ from typing import Any
 import pytest
 from packaging.version import Version
 
-from dd_inventory import FileProgress, cli, identify, make_inventory, scan
+from dd_inventory import FileProgress, cli, identify, make_inventory, make_inventory_of, scan
 from dd_inventory.identify import ExtensionIdentifier, FidoUnavailableError
 from dd_inventory.tables import TableError
 from dd_sdk.contract.classes import ClassSchema
-from dd_sdk.contract.models import FileInventory
+from dd_sdk.contract.models import FileInventory, inventory_part_problems
 
 Inventory = dict[str, Any]
 FIXTURE = Path(__file__).parent / "data" / "soil-survey"
@@ -259,3 +259,53 @@ def test_a_runtime_version_is_made_a_valid_label(monkeypatch: pytest.MonkeyPatch
     assert scan.detect_runtime() == "pyodide.0.29.0.dev"
     monkeypatch.setitem(sys.modules, "pyodide", None)  # cannot be imported
     assert scan.detect_runtime() == "emscripten"
+
+
+def test_several_folders_make_one_inventory_with_a_part_for_each(
+    dataset: Path, tmp_path: Path
+) -> None:
+    other = tmp_path / "instrument"
+    other.mkdir()
+    (other / "run1.csv").write_text("t,v\n1,2\n", encoding="utf-8")
+    seen: list[FileProgress] = []
+    inventory = make_inventory_of(
+        {"lab": dataset, "instrument": other},
+        now=datetime(2026, 11, 1, tzinfo=UTC),
+        on_file=seen.append,
+    )
+    assert ClassSchema.of(FileInventory).errors(inventory) == []
+    assert inventory_part_problems(inventory) == []
+    FileInventory.model_validate(inventory)
+    paths = [f["file_path"] for f in inventory["inventory_files"]]
+    assert paths == sorted(paths)
+    assert "instrument/run1.csv" in paths
+    alone = make_inventory(dataset, now=datetime(2026, 11, 1, tzinfo=UTC))
+    assert {p for p in paths if p.startswith("lab/")} == {
+        "lab/" + f["file_path"] for f in alone["inventory_files"]
+    }
+    assert [p["part_folder"] for p in inventory["inventory_parts"]] == ["instrument", "lab"]
+    assert all(
+        s.startswith(("In instrument: ", "In lab: ")) for s in inventory["inventory_limitations"]
+    )
+    assert [p.done for p in seen] == list(range(1, len(paths) + 1))
+    assert {p.total for p in seen} == {len(paths)}
+
+
+@pytest.mark.parametrize("names", [["raw", "raw/2024"], ["a/../b", "c"], ["", "c"], ["/abs", "c"]])
+def test_folder_names_that_overlap_or_climb_are_refused(names: list[str], dataset: Path) -> None:
+    with pytest.raises(ValueError):
+        make_inventory_of(dict(zip(names, [dataset, dataset], strict=True)))
+
+
+def test_the_command_takes_several_folders_and_names_them(dataset: Path, tmp_path: Path) -> None:
+    other = tmp_path / "copy" / "soil-survey"
+    shutil.copytree(dataset, other)
+    out = tmp_path / "inventory.json"
+    # Two folders of the same name need names of their own.
+    assert cli.main([str(dataset), str(other), "-o", str(out)]) == cli.EXIT_USAGE
+    assert cli.main([str(dataset), str(other), "--as", "2024"]) == cli.EXIT_USAGE
+    args = [str(dataset), str(other), "--as", "2024", "--as", "2025", "-o", str(out)]
+    assert cli.main(args) == cli.EXIT_OK
+    written = json.loads(out.read_text("utf-8"))
+    assert [p["part_folder"] for p in written["inventory_parts"]] == ["2024", "2025"]
+    assert ClassSchema.of(FileInventory).errors(written) == []

@@ -22,6 +22,17 @@ later be shown to be the files described.
 $ uv run dd-inventory path/to/dataset -o inventory.json
 ```
 
+Given several folders, it makes one inventory with a part for each
+([Projects](https://github.com/data-director-agent/data-director/blob/main/docs/specs/projects.md)):
+each folder's files are listed under its name, and each part keeps its own tool, time and
+limitations. Two folders of the same name need names of their own, given with `--as` once for
+each folder, in order. `make_inventory_of` does the same from Python.
+
+```console
+$ uv run dd-inventory raw processed -o inventory.json
+$ uv run dd-inventory /lab/2024 /instrument/2024 --as lab --as instrument -o inventory.json
+```
+
 The package installs two names for the same command, `dd-inventory` and `data-director-inventory`,
 so that `uvx data-director-inventory path/to/dataset` works. It is published to [PyPI](https://pypi.org/p/data-director-inventory) and, for trying a release first, TestPyPI ([RELEASING.md](https://github.com/data-director-agent/data-director/blob/main/RELEASING.md)).
 

@@ -12,12 +12,7 @@ dd:FileInventory a sh:NodeShape ;
     rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dd:InventoryPart ;
-            sh:description "The scans the inventory is made of, when it is made of more than one folder. Absent, the inventory is one scan of one folder and its paths are relative to that folder. Present, every file's path begins with one part's folder; inventory_made_at is the latest part's, inventory_tool and inventory_tool_version are those of that part, and inventory_limitations holds every part's limitations, each beginning with its folder." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 7 ;
-            sh:path dd:inventory_parts ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "The version of the command that made the inventory." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -42,6 +37,11 @@ dd:FileInventory a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path prov:wasGeneratedBy ],
+        [ sh:class dd:InventoryPart ;
+            sh:description "The scans the inventory is made of, when it is made of more than one folder. Absent, the inventory is one scan of one folder and its paths are relative to that folder. Present, every file's path begins with one part's folder; inventory_made_at is the latest part's, inventory_tool and inventory_tool_version are those of that part, and inventory_limitations holds any that concern no one part, then every part's limitations, each after \"In <folder>: \"." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path dd:inventory_parts ],
         [ sh:class dd:InventoryFile ;
             sh:description "Every file the command read, sorted by path: under the dataset's root folder, or, in an inventory made of parts, under each part's folder." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
