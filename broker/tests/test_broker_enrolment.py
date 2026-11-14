@@ -155,7 +155,7 @@ def test_an_openai_compatible_key_is_checked_at_its_allowed_base_url(
     assert answer.status_code == 200
     account = answer.json()["account"]
     assert account["provider"] == "openai-compatible"
-    assert "llm.example.ac.uk" in account["label"]
+    assert account["label"] == f"llm.example.ac.uk ····{KEY[-4:]}"
     # Checked at the address the guard resolved, with the host kept for TLS.
     [check] = seen
     assert (check.method, check.url.path) == ("GET", "/v1/models")
