@@ -11,7 +11,6 @@ import pytest
 
 from dd_agent_example_hello.agent import HelloWorld
 from dd_agent_orchestrator_model.agent import ModelOrchestrator
-from dd_agent_orchestrator_model.model import ModelTurn
 from dd_agent_orchestrator_model.title import TITLE_PROMPT, clean, title_prompt
 from dd_harness.conductor import Conductor
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
@@ -25,7 +24,7 @@ from dd_sdk.contract.models import (
     Reply,
     TurnRole,
 )
-from dd_sdk.model import ModelRequest, ModelResponse, Usage
+from dd_sdk.model import ModelRequest, ModelResponse, Usage, message_json
 from dd_sdk.prompts import prompt_digest
 
 MODEL = "claude-test"
@@ -37,17 +36,11 @@ class OneReply:
     """The reply model, answering "Hello." without delegating."""
 
     model_id: str = MODEL
+    provider: str = "fake"
+    hosting: Literal["hosted", "local"] = "hosted"
 
-    def turn(self, messages: Any, tools: Any, *, use_tools: bool) -> ModelTurn:
-        return ModelTurn(
-            text="Hello.",
-            tool_calls=[],
-            stop_reason="end_turn",
-            content=[{"type": "text", "text": "Hello."}],
-            model_id=MODEL,
-            input_tokens=100,
-            output_tokens=10,
-        )
+    def send(self, request: ModelRequest) -> ModelResponse:
+        return ModelResponse("Hello.", model_id=MODEL, usage=Usage(100, 10))
 
 
 @dataclass
@@ -65,7 +58,7 @@ class ScriptedTitler:
 
     def send(self, request: ModelRequest) -> ModelResponse:
         self.sent.append(
-            {"system": request.system, "messages": [dict(m) for m in request.messages]}
+            {"system": request.system, "messages": [message_json(m) for m in request.messages]}
         )
         if self.error is not None:
             raise self.error

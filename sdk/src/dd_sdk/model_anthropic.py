@@ -17,11 +17,24 @@ the current run's model grant (`dd_sdk.model.current_grant`) as `X-DD-Model-Gran
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from dd_sdk import model_account
 from dd_sdk.credentials import ModelEndpoint
-from dd_sdk.model import ModelRequest, ModelResponse, Usage, current_grant
+from dd_sdk.model import (
+    AssistantMessage,
+    ModelCallError,
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    Replay,
+    StopReason,
+    ToolCall,
+    ToolResults,
+    Usage,
+    current_grant,
+)
 from dd_sdk.model_grant import HEADER_GRANT
 
 if TYPE_CHECKING:
@@ -29,6 +42,10 @@ if TYPE_CHECKING:
 
 # Who serves the model, as an agent's card names it (`dd_sdk.agent.ModelUse`).
 PROVIDER = "anthropic"
+# The efforts Claude accepts (`output_config.effort`).
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+# The beta that lets the API route a declined request to another model (`fallbacks`).
+FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
 def anthropic_client(endpoint: ModelEndpoint, *, http_client: Any = None) -> anthropic.Anthropic:
@@ -66,9 +83,69 @@ def anthropic_client(endpoint: ModelEndpoint, *, http_client: Any = None) -> ant
     return Brokered(**options)
 
 
+def _error(exc: Exception) -> ModelCallError | None:
+    """`exc` as a `ModelCallError` if it is the client's failure to get an answer."""
+    try:
+        import anthropic as _anthropic
+    except ImportError:  # pragma: no cover - a client was given without the package
+        return None
+    if isinstance(exc, _anthropic.APIStatusError):
+        return ModelCallError(f"the Messages API answered {exc.status_code}: {exc.message}")
+    if isinstance(exc, _anthropic.APIConnectionError):
+        return ModelCallError(f"the Messages API could not be reached: {exc}")
+    return None
+
+
+def _messages(messages: Sequence[ModelMessage]) -> list[dict[str, Any]]:
+    """The conversation in the Messages API's format."""
+    out: list[dict[str, Any]] = []
+    for message in messages:
+        if isinstance(message, AssistantMessage):
+            if message.replay is not None and message.replay.provider == PROVIDER:
+                # Thinking blocks go back as they came.
+                content = [dict(block) for block in message.replay.content]
+            else:
+                content = [{"type": "text", "text": message.text}] if message.text else []
+                content += [
+                    {"type": "tool_use", "id": c.id, "name": c.name, "input": dict(c.input)}
+                    for c in message.tool_calls
+                ]
+            out.append({"role": "assistant", "content": content})
+        elif isinstance(message, ToolResults):
+            out.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": r.call_id,
+                            "content": r.content,
+                            "is_error": r.is_error,
+                        }
+                        for r in message.results
+                    ],
+                }
+            )
+        else:
+            out.append(dict(message))
+    return out
+
+
+_STOPS: dict[str, StopReason] = {
+    "tool_use": "tool_use",
+    "max_tokens": "max_tokens",
+    "refusal": "refusal",
+}
+
+
 class AnthropicModel:
     """Claude, by model id. Give a `client` (tests), an `endpoint`
-    (`dd_sdk.credentials.model_endpoint`) or an `api_key`."""
+    (`dd_sdk.credentials.model_endpoint`) or an `api_key`.
+
+    An agent with a long tool loop (the orchestrator) asks for three more things: an `effort`
+    (`EFFORTS`), `fallback`, which lets the API route a declined request to another model by
+    the refusal's category, and `cache_system`, which caches the fixed system prompt across
+    calls. Without them the request is the plain Messages API call."""
 
     provider = PROVIDER
     # Claude is served by Anthropic, or by the gateway the broker forwards to on its behalf.
@@ -81,6 +158,9 @@ class AnthropicModel:
         api_key: str | None = None,
         endpoint: ModelEndpoint | None = None,
         client: anthropic.Anthropic | None = None,
+        effort: str | None = None,
+        fallback: bool = False,
+        cache_system: bool = False,
     ) -> None:
         if client is None:
             if endpoint is None:
@@ -90,32 +170,83 @@ class AnthropicModel:
             client = anthropic_client(endpoint)
         self._client = client
         self.model_id = model_id
+        self.effort = effort
+        self.fallback = fallback
+        self.cache_system = cache_system
 
     def send(self, request: ModelRequest) -> ModelResponse:
+        system: Any = request.system
+        if self.cache_system:
+            system = [
+                {"type": "text", "text": request.system, "cache_control": {"type": "ephemeral"}}
+            ]
         kwargs: dict[str, Any] = {
             "model": self.model_id,
             "max_tokens": request.max_tokens,
-            "system": request.system,
-            "messages": [dict(m) for m in request.messages],
+            "system": system,
+            "messages": _messages(request.messages),
         }
+        if request.tools:
+            kwargs["tools"] = [t.to_json() for t in request.tools]
+            kwargs["tool_choice"] = {"type": request.tool_choice}
+        output_config: dict[str, Any] = {}
+        if self.effort is not None:
+            output_config["effort"] = self.effort
         if request.schema is not None:
             import anthropic as _anthropic
 
             # Structured output: the reply is constrained to the schema, adapted to what the
             # API accepts (closed objects, supported keywords).
-            kwargs["output_config"] = {
-                "format": {
-                    "type": "json_schema",
-                    "schema": _anthropic.transform_schema(request.schema),
-                }
+            output_config["format"] = {
+                "type": "json_schema",
+                "schema": _anthropic.transform_schema(request.schema),
             }
-        response = self._client.messages.create(**kwargs)
+        if output_config:
+            kwargs["output_config"] = output_config
+        try:
+            if self.fallback:
+                response = self._client.beta.messages.create(
+                    **kwargs, betas=[FALLBACK_BETA], fallbacks="default"
+                )
+            else:
+                response = self._client.messages.create(**kwargs)
+        except Exception as exc:
+            if (error := _error(exc)) is not None:
+                raise error from exc
+            raise
         usage = getattr(response, "usage", None)
+        content = list(response.content)
+        tool_calls = tuple(
+            ToolCall(b.id, b.name, dict(b.input)) for b in content if b.type == "tool_use"
+        )
+        details = getattr(response, "stop_details", None)
         return ModelResponse(
-            text="".join(block.text for block in response.content if block.type == "text"),
+            text="".join(block.text for block in content if block.type == "text"),
             refused=response.stop_reason == "refusal",
             model_id=getattr(response, "model", None),
-            usage=Usage(
-                getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
+            usage=Usage(_input_tokens(usage), getattr(usage, "output_tokens", None)),
+            tool_calls=tool_calls,
+            stop=_STOPS.get(str(response.stop_reason), "end_turn"),
+            replay=(
+                Replay(
+                    PROVIDER,
+                    tuple(
+                        b.model_dump(mode="json", by_alias=True, exclude_none=True) for b in content
+                    ),
+                )
+                if request.tools
+                else None
             ),
+            refusal_category=getattr(details, "category", None) if details else None,
         )
+
+
+def _input_tokens(usage: Any) -> int | None:
+    """The input the model read, cached input included."""
+    tokens = getattr(usage, "input_tokens", None)
+    if tokens is None:
+        return None
+    cached = (getattr(usage, "cache_read_input_tokens", None) or 0) + (
+        getattr(usage, "cache_creation_input_tokens", None) or 0
+    )
+    return int(tokens) + cached

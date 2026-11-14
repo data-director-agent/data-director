@@ -92,7 +92,8 @@ them.
     message, grant, envelope, span, evidence item, crate or export carries one
     (`agents/advisor-standards/tests/test_key_not_stored.py`,
     `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`,
-    which run against a cassette with a sentinel key). The broker keeps a person's key out of
+    which run against a cassette with a sentinel key, the orchestrator's also against an
+    OpenAI-compatible endpoint played by a mock transport). The broker keeps a person's key out of
     its answers, logs and records (`broker/tests/test_broker_key_not_leaked.py`), and an agent's
     broker credential and model grant reach no record
     (`agents/advisor-documentation/tests/test_grant_not_stored.py`,

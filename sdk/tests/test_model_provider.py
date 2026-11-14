@@ -160,3 +160,56 @@ def test_anthropic_through_the_broker_holds_no_key() -> None:
     }
     model = configured_model(env, default_model="claude-default")
     assert isinstance(model, AnthropicModel)
+
+
+@pytest.mark.parametrize(
+    ("env", "effort"),
+    [
+        ({"ANTHROPIC_API_KEY": "k"}, "max"),
+        ({"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m", "OPENAI_API_KEY": "k"}, "high"),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "m",
+                "DD_MODEL_BASE_URL": LOCAL,
+            },
+            "low",
+        ),
+    ],
+)
+def test_an_effort_the_provider_names_is_sent(env: dict[str, str], effort: str) -> None:
+    model = configured_model(env, default_model="claude-default", effort=effort)
+    assert getattr(model, "effort", None) == effort
+
+
+@pytest.mark.parametrize(
+    ("env", "effort"),
+    [
+        ({"ANTHROPIC_API_KEY": "k"}, "extreme"),
+        ({"DD_MODEL_PROVIDER": "gemini", "DD_MODEL_ID": "m", "GEMINI_API_KEY": "k"}, "max"),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "m",
+                "DD_MODEL_BASE_URL": LOCAL,
+            },
+            "xhigh",
+        ),
+    ],
+)
+def test_an_effort_the_provider_does_not_name_stops_start_up(
+    env: dict[str, str], effort: str
+) -> None:
+    with pytest.raises(ConfigError, match="DD_TEST_EFFORT"):
+        configured_model(
+            env, default_model="claude-default", effort=effort, effort_setting="DD_TEST_EFFORT"
+        )
+
+
+def test_a_tool_loop_asks_claude_to_cache_and_fall_back() -> None:
+    model = configured_model({"ANTHROPIC_API_KEY": "k"}, default_model="c", tool_use=True)
+    assert isinstance(model, AnthropicModel)
+    assert model.fallback and model.cache_system
+    plain = configured_model({"ANTHROPIC_API_KEY": "k"}, default_model="c")
+    assert isinstance(plain, AnthropicModel)
+    assert not plain.fallback and not plain.cache_system

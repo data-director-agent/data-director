@@ -82,8 +82,11 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    researcher said as `Reply.new_project_entry`, which the conductor records (invariant 18), and
    the turn goes on. Nothing else is offered: no MCP server, no server tool
    (web search, web fetch, code execution), no Agent Skills; its package depends on and imports
-   nothing that could provide one.
-   (`agents/orchestrator-model/tests/test_orchestrator_only_delegates.py`)
+   nothing that could provide one. This holds on every provider: the tools are offered as
+   `dd_sdk.model.ToolSpec`s and the loop keeps its conversation in `dd_sdk.model`'s neutral
+   types, which each adapter translates, so the orchestrator imports no provider's client.
+   (`agents/orchestrator-model/tests/test_orchestrator_only_delegates.py`, for Claude's adapter
+   and the OpenAI-compatible one)
 9. **An orchestrator learns what it may invoke from the harness's manifest**, read through its
    grant, and keeps no list of agents of its own. The manifest lists every registered agent; the
    policy gate still refuses a child the profile does not enable, and the orchestrator relays that
@@ -93,9 +96,13 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
 10. **An orchestrator succeeds once it has replied, whatever its children's outcomes.** A failed
     child stays failed on its own envelope and in the parent's `delegations`, and the reply says
     what went wrong and what to try next. The parent fails only when it cannot reply at all: for
-    a model, when the API fails or the model declines.
+    a model, when the provider fails (`dd_sdk.model.ModelCallError`, such as an endpoint that
+    refuses tools) or the model declines. A model-backed orchestrator needs a model that calls
+    tools; a tool call whose input cannot be read runs nothing, is answered with an error and
+    counts against the turn's limit of delegations, so the loop ends whatever the model sends.
     (`test_a_failed_or_refused_child_is_reported_and_the_parent_succeeds`,
-    `test_a_declined_turn_fails_the_run`)
+    `test_a_declined_turn_fails_the_run`, `test_a_provider_that_does_not_answer_fails_the_run`,
+    `test_a_tool_call_whose_input_cannot_be_read_runs_nothing`)
 11. **The process flow is Blueprint data in the SDK and names no agent.** It holds the three entry
     points and six phases; each step has a stable id `<phase>.<step>` and the requirements its
     figure caption names, often none. Step ids are unique and never a requirement ID.

@@ -8,7 +8,7 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 
 | Agent | Calls a model | Default model | Needs a key |
 |---|---|---|---|
-| `orchestrator.model` | Always. It writes the replies in the app's conversation, and names each new conversation. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name | Yes: it does not start without one. |
+| `orchestrator.model` | Always. It writes the replies in the app's conversation, and names each new conversation. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name | Yes: it does not start without one, except on a local endpoint. |
 | `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=model`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.policy` | Only with `DD_POLICY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
@@ -25,9 +25,8 @@ Anthropic provider. The default model applies to Anthropic only; with any other 
 
 ## Choose a provider
 
-The four advisers above can call any provider below, set in the agent's own settings file with no
-code change. The model-backed orchestrator delegates through Anthropic's tool calls and supports
-only Anthropic for now (#831); any other `DD_MODEL_PROVIDER` stops it at start-up.
+The orchestrator and the four advisers above can call any provider below, set in the agent's own
+settings file with no code change.
 
 | `DD_MODEL_PROVIDER` | What it calls | Sends to | Key | Declared as |
 |---|---|---|---|---|
@@ -38,6 +37,21 @@ only Anthropic for now (#831); any other `DD_MODEL_PROVIDER` stops it at start-u
 
 Each key variable also has its `_FILE` form, as below. An agent holds only its own provider's key:
 a key set for another provider stops it at start-up.
+
+**The orchestrator on another provider.** The orchestrator delegates by calling tools, so its model
+must support tool calling (function calling) through the provider's API. Every provider above
+accepts tools; whether a given model uses them well is another matter, and
+[#833](https://github.com/data-director-agent/data-director/issues/833) records which provider and
+model combinations have been checked. An endpoint that refuses tools fails each turn with its own
+answer, which the run records as an agent error; a model that sends a tool call the orchestrator
+cannot read is told so, and the call counts against the turn's limit of delegations.
+
+- `DD_ORCHESTRATOR_EFFORT` is `low`, `medium`, `high`, `xhigh` or `max` for Claude (default
+  `high`). Any other provider takes `low`, `medium` or `high`, sent as `reasoning_effort`; unset,
+  it is sent none, and the provider's default applies. A model that does not reason may ignore it,
+  and a local server may refuse it.
+- The conversation title is written by `DD_TITLE_MODEL_ID` from the same provider: Claude Haiku
+  5.5 by default with Anthropic, and the orchestrator's own model with any other.
 
 **Local or hosted.** Whether a model is `local` is worked out from `DD_MODEL_BASE_URL`, not
 configured. It is `local` only when the host is `localhost` or an IP address that is loopback
@@ -187,9 +201,10 @@ runs no agent in its own process, so there is nothing to change in the app ([The
 
 `orchestrator: stub` is the rule-based `orchestrator.stub`, and `model` is `orchestrator.model`.
 The model-backed orchestrator runs only while it is the orchestrator, because it cannot start
-without a key.
+without a model to call.
 
-1. Give it its key. Its optional settings go in
+1. Give it its key. Its optional settings, such as another provider
+   ([Choose a provider](#choose-a-provider)), go in
    `/etc/data-director/agents/orchestrator-model.env`.
 
    ```bash
@@ -256,14 +271,14 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `ANTHROPIC_API_KEY_FILE=… is relative and CREDENTIALS_DIRECTORY is not set` | A relative path outside a systemd unit that loads the credential. |
 | `ANTHROPIC_API_KEY_FILE: cannot read …` / `… is empty` | The file is missing, unreadable or empty. |
 | `no model key` on the VM, after a key was put in place by hand | `data-director apply` (or `install.sh`) left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo data-director secret list` shows it as a `PROBLEM`. |
-| `DD_ORCHESTRATOR_EFFORT=…`, `DD_TITLE_MODEL=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
+| `DD_TITLE_MODEL=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
 | `DD_…_EXPLAINER=anthropic but DD_MODEL_PROVIDER is not` | The older value names Anthropic; set `model` to use another provider. |
 | `DD_MODEL_PROVIDER=…: expected one of …` | An unknown provider. |
 | `DD_MODEL_ID is required with DD_MODEL_PROVIDER=…` | Only Anthropic has a default model. |
 | `… is set but DD_MODEL_PROVIDER is …` | A key for a provider other than the configured one. Remove it. |
 | `DD_MODEL_BASE_URL is required …`, `… is for DD_MODEL_PROVIDER=openai-compatible only`, `… is not an http or https URL` | The base URL is missing, set for a named provider, or malformed. |
 | `no model key: … only a local DD_MODEL_BASE_URL may have none` | An `openai-compatible` endpoint that is not local, with no `DD_MODEL_API_KEY`. |
-| `DD_MODEL_PROVIDER=…: orchestrator.model … supports only anthropic` | The orchestrator was given another provider (#831). |
+| `DD_ORCHESTRATOR_EFFORT=…: DD_MODEL_PROVIDER=… accepts …` | An effort the provider does not name, such as `max` for a provider other than Anthropic. |
 | `DD_MODEL_BROKER_URL is set but the model broker serves only anthropic` | The broker forwards Anthropic's format only (#832). |
 | `set DD_MODEL_BROKER_URL or ANTHROPIC_API_KEY, not both` | The agent calls through the [model broker](model-broker.md), which holds the key, so it may hold none itself. |
 | `no model broker credential` | `DD_MODEL_BROKER_URL` is set without `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE`. |

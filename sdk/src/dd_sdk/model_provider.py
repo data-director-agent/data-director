@@ -20,6 +20,11 @@ Every other provider, and a hosted `openai-compatible` endpoint, must have its k
 **Hosting** is worked out from where the calls go, never stated by the operator, because the
 harness's rules on what an agent with a hosted model may be given read it (`hosting_of`).
 
+**Effort.** An agent that sets one (the orchestrator's `DD_ORCHESTRATOR_EFFORT`) passes it to
+`configured_model`, which refuses a value the provider does not name: `low`, `medium`, `high`,
+`xhigh` or `max` for Claude; `low`, `medium` or `high` (`reasoning_effort`) for the others, which a
+model that does not reason may ignore.
+
 **The model broker** (`DD_MODEL_BROKER_URL`, docs/specs/model-accounts.md) forwards Anthropic's
 format only, so it serves only `anthropic`.
 
@@ -37,7 +42,9 @@ from urllib.parse import urlsplit
 
 from dd_sdk.credentials import BROKER_URL, ConfigError, api_key, model_endpoint
 from dd_sdk.model import Model
+from dd_sdk.model_anthropic import EFFORTS as CLAUDE_EFFORTS
 from dd_sdk.model_anthropic import AnthropicModel
+from dd_sdk.model_openai import EFFORTS as OPENAI_EFFORTS
 from dd_sdk.model_openai import OpenAIModel
 
 PROVIDER = "DD_MODEL_PROVIDER"
@@ -52,19 +59,20 @@ type Hosting = Literal["hosted", "local"]
 @dataclass(frozen=True)
 class Provider:
     """One value of `DD_MODEL_PROVIDER`: the variable its key is read from, its endpoint (None:
-    Anthropic's own, or `DD_MODEL_BASE_URL` for `openai-compatible`), and the request field that
-    caps a reply's length."""
+    Anthropic's own, or `DD_MODEL_BASE_URL` for `openai-compatible`), the request field that
+    caps a reply's length, and the efforts it accepts."""
 
     name: str
     key: str
     base_url: str | None = None
     max_tokens_field: str = "max_tokens"
+    efforts: tuple[str, ...] = OPENAI_EFFORTS
 
 
 PROVIDERS = {
     p.name: p
     for p in (
-        Provider("anthropic", "ANTHROPIC_API_KEY"),
+        Provider("anthropic", "ANTHROPIC_API_KEY", efforts=CLAUDE_EFFORTS),
         Provider("openai", "OPENAI_API_KEY", "https://api.openai.com/v1", "max_completion_tokens"),
         Provider(
             "gemini", "GEMINI_API_KEY", "https://generativelanguage.googleapis.com/v1beta/openai/"
@@ -106,13 +114,34 @@ def _is_set(env: Mapping[str, str], name: str) -> bool:
     return bool((env.get(name) or "").strip() or env.get(f"{name}_FILE"))
 
 
-def configured_model(env: Mapping[str, str], *, default_model: str | None = None) -> Model:
+def provider_name(env: Mapping[str, str]) -> str:
+    """The provider `env` names, `anthropic` if none (not checked: `configured_model` checks)."""
+    return (env.get(PROVIDER) or DEFAULT_PROVIDER).strip()
+
+
+def configured_model(
+    env: Mapping[str, str],
+    *,
+    default_model: str | None = None,
+    effort: str | None = None,
+    effort_setting: str = "effort",
+    tool_use: bool = False,
+) -> Model:
     """The model `env` configures. `default_model` is the agent's model when the provider is
-    `anthropic` and `DD_MODEL_ID` is unset; no other provider has a default."""
-    name = (env.get(PROVIDER) or DEFAULT_PROVIDER).strip()
+    `anthropic` and `DD_MODEL_ID` is unset; no other provider has a default.
+
+    `effort`, if given, is sent with every call; a value the provider does not accept is a
+    `ConfigError` naming `effort_setting`, the agent's variable for it. `tool_use` is for an agent
+    whose model runs a tool loop: Claude then caches the system prompt and may fall back to
+    another model when it declines."""
+    name = provider_name(env)
     provider = PROVIDERS.get(name)
     if provider is None:
         raise ConfigError(f"{PROVIDER}={name!r}: expected one of {', '.join(PROVIDERS)}")
+    if effort is not None and effort not in provider.efforts:
+        raise ConfigError(
+            f"{effort_setting}={effort!r}: {PROVIDER}={name} accepts {', '.join(provider.efforts)}"
+        )
     if foreign := [
         other.key
         for other in PROVIDERS.values()
@@ -132,7 +161,13 @@ def configured_model(env: Mapping[str, str], *, default_model: str | None = None
         raise ConfigError(f"{BASE_URL} is for {PROVIDER}={COMPATIBLE} only; {name}'s is fixed")
 
     if name == DEFAULT_PROVIDER:
-        return AnthropicModel(model_id, endpoint=model_endpoint(env))
+        return AnthropicModel(
+            model_id,
+            endpoint=model_endpoint(env),
+            effort=effort,
+            fallback=tool_use,
+            cache_system=tool_use,
+        )
     if (env.get(BROKER_URL) or "").strip():
         # TODO(#832): forward the Chat Completions format through the broker.
         raise ConfigError(f"{BROKER_URL} is set but the model broker serves only anthropic")
@@ -158,6 +193,7 @@ def configured_model(env: Mapping[str, str], *, default_model: str | None = None
             hosting=hosting,
             base_url=base_url,
             api_key=key,
+            effort=effort,
         )
     assert provider.base_url is not None
     return OpenAIModel(
@@ -167,6 +203,7 @@ def configured_model(env: Mapping[str, str], *, default_model: str | None = None
         base_url=provider.base_url,
         api_key=api_key(env, provider.key),
         max_tokens_field=provider.max_tokens_field,
+        effort=effort,
     )
 
 
@@ -179,10 +216,7 @@ def optional_model(
     choice = (env.get(setting) or "template").strip()
     if choice == "template":
         return None
-    if (
-        choice == "anthropic"
-        and (env.get(PROVIDER) or DEFAULT_PROVIDER).strip() != DEFAULT_PROVIDER
-    ):
+    if choice == "anthropic" and provider_name(env) != DEFAULT_PROVIDER:
         raise ConfigError(f"{setting}=anthropic but {PROVIDER} is not: set {setting}=model")
     if choice not in ("model", "anthropic"):
         raise ConfigError(f"{setting}={choice!r}: expected template or model")

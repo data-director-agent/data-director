@@ -15,6 +15,17 @@ imports no provider's SDK.
 A model says who serves it and where (`provider`, `hosting`), so an agent declares what it sends
 data to from the model itself (`declared`), never from a value written beside it.
 
+**Tool calling.** An agent that lets a model call tools (the orchestrator, docs/specs/
+orchestration.md) offers them as `ToolSpec`s and keeps the conversation in this module's types,
+never one provider's: the model's turn is an `AssistantMessage` with its `ToolCall`s, and the
+agent answers with one `ToolResults` message. Each adapter translates them to and from its
+provider's format. Content a provider requires back as it was sent (Claude's thinking blocks, the
+signatures some OpenAI-compatible servers put on a tool call) travels in `AssistantMessage.replay`,
+which only an adapter for the same provider reads. The call's record holds the neutral form.
+
+A provider's failure to answer (an error status, no connection) is a `ModelCallError`, so an agent
+need not import the provider's package to handle it.
+
 While an agent runs, `dd_sdk.serve` binds the model grant the conductor sent to the run
 (`bind_grant`), and every client the SDK builds sends it to the model broker with each call
 (`current_grant`, docs/specs/model-accounts.md). An agent's own code never handles the grant, so a
@@ -26,7 +37,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal, Protocol, overload
 
 from pydantic import BaseModel, ValidationError
@@ -67,26 +78,137 @@ class Usage:
     output_tokens: int | None = None
 
 
+# Why a model stopped: it finished, it called tools, it ran out of room, or it declined.
+type StopReason = Literal["end_turn", "tool_use", "max_tokens", "refusal"]
+# Whether the model may call the tools it is offered on this call.
+type ToolChoice = Literal["auto", "none"]
+
+
+class ModelCallError(Exception):
+    """The provider did not answer: it returned an error status, or could not be reached. The
+    message names the status or the failure, never a key."""
+
+
+@dataclass(frozen=True)
+class ToolSpec:
+    """A tool the model is offered: its name, what it does, and the JSON Schema of its input."""
+
+    name: str
+    description: str
+    input_schema: Mapping[str, Any]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "description": self.description,
+            "input_schema": dict(self.input_schema),
+        }
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    """One call the model made. `problem` says why its input could not be read, if it could not
+    (an OpenAI-compatible server sends the input as text, which may not be a JSON object); the
+    agent answers such a call with an error rather than running it."""
+
+    id: str
+    name: str
+    input: Mapping[str, Any]
+    problem: str | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"id": self.id, "name": self.name, "input": dict(self.input)}
+        if self.problem is not None:
+            out["problem"] = self.problem
+        return out
+
+
+@dataclass(frozen=True)
+class ToolResult:
+    """The agent's answer to one `ToolCall`."""
+
+    call_id: str
+    content: str
+    is_error: bool = False
+
+    def to_json(self) -> dict[str, Any]:
+        return {"call_id": self.call_id, "content": self.content, "is_error": self.is_error}
+
+
+@dataclass(frozen=True)
+class Replay:
+    """A provider's own form of an assistant message, to be sent back to that provider as it
+    was returned."""
+
+    provider: str
+    content: Any
+
+
+@dataclass(frozen=True)
+class AssistantMessage:
+    """The model's turn, to append to the conversation before the next call."""
+
+    text: str
+    tool_calls: tuple[ToolCall, ...] = ()
+    replay: Replay | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"role": "assistant", "content": self.text}
+        if self.tool_calls:
+            out["tool_calls"] = [c.to_json() for c in self.tool_calls]
+        return out
+
+
+@dataclass(frozen=True)
+class ToolResults:
+    """The agent's answers to every tool call of one turn, sent back together."""
+
+    results: tuple[ToolResult, ...]
+
+    def to_json(self) -> dict[str, Any]:
+        return {"role": "tool", "results": [r.to_json() for r in self.results]}
+
+
+# One message of a conversation: a text message (`{"role": "user" | "assistant", "content": str}`),
+# the model's turn, or the agent's answers to its tool calls.
+type ModelMessage = Mapping[str, Any] | AssistantMessage | ToolResults
+
+
+def message_json(message: ModelMessage) -> dict[str, Any]:
+    """`message` as JSON, as the call's record keeps it."""
+    if isinstance(message, (AssistantMessage, ToolResults)):
+        return message.to_json()
+    return dict(message)
+
+
 @dataclass(frozen=True)
 class ModelRequest:
-    """What an adapter is asked to send: the system prompt, the messages, and the class the reply
-    must be an instance of, if the agent gave one."""
+    """What an adapter is asked to send: the system prompt, the messages, the class the reply
+    must be an instance of, if the agent gave one, and the tools the model is offered, if any."""
 
     system: str
-    messages: tuple[Mapping[str, Any], ...]
+    messages: tuple[ModelMessage, ...]
     schema: type[BaseModel] | None = None
     max_tokens: int = DEFAULT_MAX_TOKENS
+    tools: tuple[ToolSpec, ...] = ()
+    tool_choice: ToolChoice = "auto"
 
 
 @dataclass(frozen=True)
 class ModelResponse:
     """What an adapter returns: the reply's text, whether the model declined, the model the
-    response names (if it names one) and the tokens used."""
+    response names (if it names one) and the tokens used; with tools, the calls the model made,
+    why it stopped, and its own form of the turn to send back (`replay`). `refusal_category` is
+    the provider's reason for declining, if it gives one."""
 
     text: str
     refused: bool = False
     model_id: str | None = None
     usage: Usage = Usage()
+    tool_calls: tuple[ToolCall, ...] = ()
+    stop: StopReason = "end_turn"
+    replay: Replay | None = None
+    refusal_category: str | None = None
 
 
 class Model(Protocol):
@@ -111,7 +233,8 @@ def declared(model: Model) -> ModelUse:
 class ModelReply[T: BaseModel = BaseModel]:
     """One call's result. `parsed` is the reply as an instance of the schema, if one was given
     and the model did not decline; `model_id` is the model the response named, or the one asked
-    for; `calls` holds the call and what was sent."""
+    for; `calls` holds the call and what was sent. `tool_calls` and `stop` say what the model
+    called and why it stopped, and `message` is its turn, to append to the conversation."""
 
     text: str
     parsed: T | None
@@ -119,6 +242,10 @@ class ModelReply[T: BaseModel = BaseModel]:
     model_id: str
     usage: Usage
     calls: ModelCallLog
+    tool_calls: tuple[ToolCall, ...] = ()
+    stop: StopReason = "end_turn"
+    message: AssistantMessage = AssistantMessage("")
+    refusal_category: str | None = None
 
 
 class ModelOutputError(ValueError):
@@ -136,10 +263,12 @@ def call(
     ctx: RunContext,
     *,
     system: str,
-    messages: Sequence[Mapping[str, Any]],
+    messages: Sequence[ModelMessage],
     schema: None = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     calls: ModelCallLog | None = None,
+    tools: Sequence[ToolSpec] = (),
+    tool_choice: ToolChoice = "auto",
 ) -> ModelReply: ...
 
 
@@ -149,10 +278,12 @@ def call[T: BaseModel](
     ctx: RunContext,
     *,
     system: str,
-    messages: Sequence[Mapping[str, Any]],
+    messages: Sequence[ModelMessage],
     schema: type[T],
     max_tokens: int = DEFAULT_MAX_TOKENS,
     calls: ModelCallLog | None = None,
+    tools: Sequence[ToolSpec] = (),
+    tool_choice: ToolChoice = "auto",
 ) -> ModelReply[T]: ...
 
 
@@ -161,22 +292,31 @@ def call[T: BaseModel](
     ctx: RunContext,
     *,
     system: str,
-    messages: Sequence[Mapping[str, Any]],
+    messages: Sequence[ModelMessage],
     schema: type[T] | None = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     calls: ModelCallLog | None = None,
+    tools: Sequence[ToolSpec] = (),
+    tool_choice: ToolChoice = "auto",
 ) -> ModelReply[T]:
     """Make one model call and record it.
 
     The call is recorded in `calls` if given, so a run that calls a model more than once keeps
-    one log, or else in a new log for `model.provider`. Raises `ModelOutputError` if a `schema`
-    was given and the reply is not an instance of it; whatever the provider's client raises
-    propagates, after the span has recorded it.
+    one log, or else in a new log for `model.provider`. `tools` are offered to the model, which
+    may call them unless `tool_choice` is `none`. Raises `ModelOutputError` if a `schema` was
+    given and the reply is not an instance of it, and `ModelCallError` (from the adapter) if the
+    provider did not answer, after the span has recorded it.
     """
-    request = ModelRequest(system, tuple(messages), schema, max_tokens)
-    # What is sent, kept by digest with the run (docs/specs/disclosure.md). Sampling parameters
-    # and the schema are not part of the prompt.
-    sent = {"system": system, "messages": [dict(m) for m in request.messages]}
+    request = ModelRequest(system, tuple(messages), schema, max_tokens, tuple(tools), tool_choice)
+    # What is sent, kept by digest with the run (docs/specs/disclosure.md), in the neutral form.
+    # Sampling parameters and the schema are not part of the prompt; the tools are.
+    sent: dict[str, Any] = {
+        "system": system,
+        "messages": [message_json(m) for m in request.messages],
+    }
+    if request.tools:
+        sent["tools"] = [t.to_json() for t in request.tools]
+        sent["tool_choice"] = tool_choice
     log = calls if calls is not None else ModelCallLog(model.provider)
     with chat_span(ctx.tracer, model.model_id) as span:
         called_at = now()
@@ -196,7 +336,19 @@ def call[T: BaseModel](
         output_tokens=usage.output_tokens,
         account=account,
     )
-    reply: ModelReply[T] = ModelReply(response.text, None, response.refused, model_id, usage, log)
+    stop: StopReason = "refusal" if response.refused else response.stop
+    reply: ModelReply[T] = ModelReply(
+        response.text,
+        None,
+        response.refused,
+        model_id,
+        usage,
+        log,
+        tool_calls=response.tool_calls,
+        stop=stop,
+        message=AssistantMessage(response.text, response.tool_calls, response.replay),
+        refusal_category=response.refusal_category,
+    )
     if schema is None or response.refused:
         return reply
     try:
@@ -205,4 +357,4 @@ def call[T: BaseModel](
         raise ModelOutputError(
             f"the reply is not a {schema.__name__}: {error.error_count()} error(s)", reply
         ) from error
-    return ModelReply(response.text, parsed, False, model_id, usage, log)
+    return replace(reply, parsed=parsed)

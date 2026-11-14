@@ -279,6 +279,42 @@ def test_a_key_loaded_by_the_drop_in_is_enough(vm: Vm, capsys: pytest.CaptureFix
     assert status == 0, out
 
 
+def test_the_orchestrator_on_another_provider_names_that_providers_secret(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm(answering={8101, 8106, 8107})
+    system.units["data-director-agent@orchestrator-model.service"] = {
+        "ActiveState": "active",
+        "UnitFileState": "enabled",
+        "NRestarts": "0",
+    }
+    settings = vm.agent_env("orchestrator-model")
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text("DD_MODEL_PROVIDER=openai\nDD_MODEL_ID=gpt-test\n")
+    status, out = check(system, vm, capsys)
+    assert status == 1
+    assert says(out, "fix", "data-director secret set orchestrator-model openai-api-key")
+
+
+def test_the_orchestrator_on_an_openai_compatible_endpoint_may_have_no_key(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm(answering={8101, 8106, 8107})
+    system.units["data-director-agent@orchestrator-model.service"] = {
+        "ActiveState": "active",
+        "UnitFileState": "enabled",
+        "NRestarts": "0",
+    }
+    settings = vm.agent_env("orchestrator-model")
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text(
+        "DD_MODEL_PROVIDER=openai-compatible\nDD_MODEL_ID=llama3.3\n"
+        "DD_MODEL_BASE_URL=http://localhost:11434/v1\n"
+    )
+    status, out = check(system, vm, capsys)
+    assert status == 0, out
+
+
 def test_an_agent_the_app_cannot_reach_is_a_problem(
     vm: Vm, capsys: pytest.CaptureFixture[str]
 ) -> None:

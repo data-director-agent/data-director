@@ -48,7 +48,7 @@ def test_the_entry_point_the_model_worked_out_is_recorded_and_the_journey_matche
     assert ENTRY_TOOL in tool_names(model.sent[0])
     # Before it is recorded, the note suggests no step.
     assert "Suggested next" not in model.sent[0]["messages"][-1]["content"]
-    [result] = model.sent[1]["messages"][-1]["content"]
+    [result] = model.sent[1]["messages"][-1]["results"]
     assert result["is_error"] is False
     assert env.payload_as(Reply).new_project_entry == 2
     where = projects_of(conductor).progress(project)
@@ -101,7 +101,7 @@ def test_once_the_researcher_chose_the_tool_is_not_offered_and_a_call_is_refused
     env = turn(conductor, conversation_id)
     assert ENTRY_TOOL not in tool_names(model.sent[0])
     assert "the researcher chose entry point 3" in model.sent[0]["messages"][-1]["content"]
-    [result] = model.sent[1]["messages"][-1]["content"]
+    [result] = model.sent[1]["messages"][-1]["results"]
     assert result["is_error"] is True
     assert env.payload_as(Reply).new_project_entry is None
     assert projects.progress(project)["entry"] == 3
@@ -112,7 +112,7 @@ def test_an_entry_point_that_is_not_the_flows_is_refused(tmp_path: Path) -> None
         model = ScriptedModel([call((ENTRY_TOOL, {"entry": given})), say("Hello.")])
         conductor, project, conversation_id = in_project(tmp_path / str(given), model)
         env = turn(conductor, conversation_id)
-        [result] = model.sent[1]["messages"][-1]["content"]
+        [result] = model.sent[1]["messages"][-1]["results"]
         assert result["is_error"] is True
         assert env.payload_as(Reply).new_project_entry is None
         assert projects_of(conductor).progress(project)["entry"] is None

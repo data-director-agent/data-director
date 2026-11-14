@@ -1354,8 +1354,7 @@ name = "data-director-agent-orchestrator-model"
 version = "0.1.1a4"
 source = { editable = "agents/orchestrator-model" }
 dependencies = [
-    { name = "anthropic" },
-    { name = "data-director-sdk" },
+    { name = "data-director-sdk", extra = ["anthropic", "openai"] },
 ]
 
 [package.dev-dependencies]
@@ -1369,10 +1368,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "anthropic", specifier = ">=1.15.0,<2.7" },
-    { name = "data-director-sdk", editable = "sdk" },
-]
+requires-dist = [{ name = "data-director-sdk", extras = ["anthropic", "openai"], editable = "sdk" }]
 
 [package.metadata.requires-dev]
 dev = [

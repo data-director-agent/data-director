@@ -57,7 +57,7 @@ def test_the_model_names_an_unnamed_project_and_carries_on(tmp_path: Path) -> No
     assert NAME_TOOL in tool_names(model.sent[0])
     # The first message says the project has no name; the tool is answered and the turn goes on.
     assert "no name yet" in model.sent[0]["messages"][-1]["content"]
-    [result] = model.sent[1]["messages"][-1]["content"]
+    [result] = model.sent[1]["messages"][-1]["results"]
     assert result["is_error"] is False
     reply = env.payload_as(Reply)
     assert reply.new_project_title == NAME
@@ -115,7 +115,7 @@ def test_a_name_called_when_not_offered_or_empty_is_refused(tmp_path: Path) -> N
     model = ScriptedModel([call((NAME_TOOL, {"name": "  "})), say("Hello.")])
     conductor, project, conversation_id = in_project(tmp_path, model)
     env = turn(conductor, conversation_id)
-    [result] = model.sent[1]["messages"][-1]["content"]
+    [result] = model.sent[1]["messages"][-1]["results"]
     assert result["is_error"] is True
     assert env.payload_as(Reply).new_project_title is None
     assert conductor.projects is not None
@@ -124,7 +124,7 @@ def test_a_name_called_when_not_offered_or_empty_is_refused(tmp_path: Path) -> N
     model = ScriptedModel([call((NAME_TOOL, {"name": NAME})), say("Hello.")])
     conductor, project, conversation_id = in_project(tmp_path / "named", model, title="Mine")
     env = turn(conductor, conversation_id)
-    [result] = model.sent[1]["messages"][-1]["content"]
+    [result] = model.sent[1]["messages"][-1]["results"]
     assert result["is_error"] is True
     assert env.payload_as(Reply).new_project_title is None
     assert conductor.projects is not None

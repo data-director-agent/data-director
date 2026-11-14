@@ -19,10 +19,21 @@ a local endpoint that needs no key.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
-from dd_sdk.model import ModelRequest, ModelResponse, Usage
+from dd_sdk.model import (
+    AssistantMessage,
+    ModelCallError,
+    ModelRequest,
+    ModelResponse,
+    Replay,
+    StopReason,
+    ToolCall,
+    ToolResults,
+    Usage,
+)
 
 if TYPE_CHECKING:
     import openai
@@ -75,13 +86,75 @@ def openai_client(base_url: str, api_key: str | None, *, http_client: Any = None
     )
 
 
+# Why the model stopped, by the response's `finish_reason`.
+_STOPS: dict[str, StopReason] = {
+    "tool_calls": "tool_use",
+    "function_call": "tool_use",
+    "length": "max_tokens",
+    "content_filter": "refusal",
+}
+# The efforts the Chat Completions API names (`reasoning_effort`).
+EFFORTS = ("low", "medium", "high")
+
+
+def _error(exc: Exception) -> ModelCallError | None:
+    """`exc` as a `ModelCallError` if it is the client's failure to get an answer."""
+    try:
+        import openai as _openai
+    except ImportError:  # pragma: no cover - a client was given without the package
+        return None
+    if isinstance(exc, _openai.APIStatusError):
+        return ModelCallError(f"the endpoint answered {exc.status_code}: {exc.message}")
+    if isinstance(exc, _openai.APIConnectionError):
+        return ModelCallError(f"the endpoint could not be reached: {exc}")
+    return None
+
+
+def _assistant(message: AssistantMessage) -> dict[str, Any]:
+    """The model's turn rebuilt in the Chat Completions format."""
+    out: dict[str, Any] = {"role": "assistant", "content": message.text or None}
+    if message.tool_calls:
+        out["tool_calls"] = [
+            {
+                "id": c.id,
+                "type": "function",
+                "function": {"name": c.name, "arguments": json.dumps(dict(c.input))},
+            }
+            for c in message.tool_calls
+        ]
+    elif out["content"] is None:
+        out["content"] = ""
+    return out
+
+
+def _tool_call(call: Any) -> tuple[ToolCall, dict[str, Any]]:
+    """One tool call of a response, and the call as it goes back, its arguments as sent and any
+    field the server added (such as a signature it requires back) kept."""
+    function = call.function
+    arguments = function.arguments or ""
+    back: dict[str, Any] = {
+        **(getattr(call, "model_extra", None) or {}),
+        "id": call.id,
+        "type": "function",
+        "function": {"name": function.name, "arguments": arguments},
+    }
+    try:
+        given = json.loads(arguments) if arguments.strip() else {}
+    except ValueError:
+        given = None
+    if not isinstance(given, dict):
+        return ToolCall(call.id, function.name, {}, "the arguments are not a JSON object"), back
+    return ToolCall(call.id, function.name, given), back
+
+
 class OpenAIModel:
     """A model behind an OpenAI-compatible endpoint. Give a `client` (tests) or a `base_url`, and
     the `api_key` if the endpoint needs one.
 
     `provider` and `hosting` are what the agent's card declares (`dd_sdk.model.declared`).
     `max_tokens_field` is the request field that caps the reply: OpenAI's own API wants
-    `max_completion_tokens`, and most other servers `max_tokens`."""
+    `max_completion_tokens`, and most other servers `max_tokens`. `effort`, if given, is sent as
+    `reasoning_effort` (`EFFORTS`)."""
 
     def __init__(
         self,
@@ -92,6 +165,7 @@ class OpenAIModel:
         base_url: str | None = None,
         api_key: str | None = None,
         max_tokens_field: str = "max_tokens",
+        effort: str | None = None,
         client: openai.OpenAI | None = None,
     ) -> None:
         if client is None:
@@ -102,19 +176,54 @@ class OpenAIModel:
         self.model_id = model_id
         self.provider = provider
         self.hosting: Literal["hosted", "local"] = hosting
+        self.effort = effort
         self._max_tokens_field = max_tokens_field
 
-    def send(self, request: ModelRequest) -> ModelResponse:
+    def _messages(self, request: ModelRequest) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = [{"role": "system", "content": request.system}]
         for sent in request.messages:
-            if not isinstance(sent.get("content"), str):
-                raise TypeError("OpenAIModel sends text messages only")
-            messages.append(dict(sent))
+            if isinstance(sent, AssistantMessage):
+                if sent.replay is not None and sent.replay.provider == self.provider:
+                    messages.append(dict(sent.replay.content))
+                else:
+                    messages.append(_assistant(sent))
+            elif isinstance(sent, ToolResults):
+                # The format has no error flag, so an error says so in its content.
+                messages.extend(
+                    {
+                        "role": "tool",
+                        "tool_call_id": r.call_id,
+                        "content": f"Error: {r.content}" if r.is_error else r.content,
+                    }
+                    for r in sent.results
+                )
+            else:
+                if not isinstance(sent.get("content"), str):
+                    raise TypeError("OpenAIModel sends text messages, tool calls and results only")
+                messages.append(dict(sent))
+        return messages
+
+    def send(self, request: ModelRequest) -> ModelResponse:
         kwargs: dict[str, Any] = {
             "model": self.model_id,
-            "messages": messages,
+            "messages": self._messages(request),
             self._max_tokens_field: request.max_tokens,
         }
+        if request.tools:
+            kwargs["tools"] = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t.name,
+                        "description": t.description,
+                        "parameters": dict(t.input_schema),
+                    },
+                }
+                for t in request.tools
+            ]
+            kwargs["tool_choice"] = request.tool_choice
+        if self.effort is not None:
+            kwargs["reasoning_effort"] = self.effort
         if request.schema is not None:
             from openai.lib import type_to_response_format_param
 
@@ -122,14 +231,39 @@ class OpenAIModel:
             # `dd_sdk.model.call` parses the text, so a reply that is not an instance is recorded
             # before it is refused.
             kwargs["response_format"] = type_to_response_format_param(request.schema)
-        response = self._client.chat.completions.create(**kwargs)
-        reply = response.choices[0].message if response.choices else None
+        try:
+            response = self._client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            if (error := _error(exc)) is not None:
+                raise error from exc
+            raise
+        choice = response.choices[0] if response.choices else None
+        reply = choice.message if choice else None
         usage = getattr(response, "usage", None)
+        text = (reply.content or "") if reply else ""
+        parsed = [_tool_call(c) for c in (getattr(reply, "tool_calls", None) or [])]
+        tool_calls = tuple(call for call, _ in parsed)
+        refused = bool(reply and getattr(reply, "refusal", None))
+        stop = _STOPS.get(str(getattr(choice, "finish_reason", None)), "end_turn")
+        if tool_calls and stop == "end_turn":
+            # Some servers end a turn of tool calls with `stop`.
+            stop = "tool_use"
+        replay = None
+        if request.tools:
+            back: dict[str, Any] = {"role": "assistant", "content": text or None}
+            if parsed:
+                back["tool_calls"] = [b for _, b in parsed]
+            elif back["content"] is None:
+                back["content"] = ""
+            replay = Replay(self.provider, back)
         return ModelResponse(
-            text=(reply.content or "") if reply else "",
-            refused=bool(reply and getattr(reply, "refusal", None)),
+            text=text,
+            refused=refused or stop == "refusal",
             model_id=getattr(response, "model", None) or None,
             usage=Usage(
                 getattr(usage, "prompt_tokens", None), getattr(usage, "completion_tokens", None)
             ),
+            tool_calls=tool_calls,
+            stop="refusal" if refused else stop,
+            replay=replay,
         )

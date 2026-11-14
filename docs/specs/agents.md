@@ -185,7 +185,11 @@ the worked example of the `template` default and the declared model (`factory.py
    any OpenAI-compatible endpoint), built from the agent's settings by
    `dd_sdk.model_provider.configured_model`, or `optional_model` where a `template` default
    stands in for it; so an agent imports no provider's SDK and runs on any provider the SDK
-   supports with no code change ([Policy and identity](policy-and-identity.md)).
+   supports with no code change ([Policy and identity](policy-and-identity.md)). An agent whose
+   model calls tools passes them to `call` as `dd_sdk.model.ToolSpec`s and keeps its
+   conversation in the seam's neutral types (`AssistantMessage`, `ToolResults`); content a
+   provider requires back unchanged travels in `AssistantMessage.replay`
+   ([Orchestration](orchestration.md), invariant 8).
 5. **Prompts are code.** The system prompt is `system_prompt.md` beside the module that sends it.
    A change to a prompt is a change to the agent's behaviour and is reviewed as one.
 6. **Tests use a fake model.** An agent's suite exercises the model path with

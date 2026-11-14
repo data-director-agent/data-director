@@ -272,11 +272,11 @@ class Doctor:
                 report.skip(str(vm.agent_env(agent.name)))
                 own = {}
             provider = own.get("DD_MODEL_PROVIDER") or "anthropic"
-            needs = agent.name in MODEL_BACKED or (
-                own.get(MODEL_SWITCHES.get(agent.name, ""), "template") in ("model", "anthropic")
+            needs = (
+                agent.name in MODEL_BACKED
+                or own.get(MODEL_SWITCHES.get(agent.name, ""), "template") in ("model", "anthropic")
                 # A local OpenAI-compatible endpoint may need no key; the agent says at start-up.
-                and provider != "openai-compatible"
-            )
+            ) and provider != "openai-compatible"
             # The secret's name gives the variable the agent reads it from (deploy/credentials.sh).
             secret = (
                 PROVIDER_KEYS.get(provider, PROVIDER_KEYS["anthropic"]).lower().replace("_", "-")
