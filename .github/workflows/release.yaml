@@ -34,6 +34,11 @@ jobs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       # Set only when this run released the app; the image is tagged with it (images.yml).
       app_version: ${{ steps.release.outputs['app--release_created'] == 'true' && steps.release.outputs['app--version'] || '' }}
+      # Set only when this run created releases: the commit they were tagged on. release-please
+      # works from the tip of main, not from the commit that started this run, so when two pushes
+      # land together the run for the earlier one can create the releases, and its github.sha is
+      # then not the release commit. A release PR is one merge, so every path shares the one SHA.
+      release_sha: ${{ steps.release.outputs.releases_created == 'true' && steps.release.outputs[format('{0}--sha', fromJSON(steps.release.outputs.paths_released)[0])] || '' }}
     steps:
       # A token other than GITHUB_TOKEN, so that CI runs on the release PRs it opens.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -165,7 +170,8 @@ jobs:
     # actionlint 1.7.12 (ci.yml) does not yet accept the `$/` form zizmor prefers.
     uses: ./.github/workflows/zenodo.yml # zizmor: ignore[self-repository]
     with:
-      ref: ${{ github.sha }}
+      # The commit the releases were tagged on (see release_sha above), not necessarily this run's.
+      ref: ${{ needs.release-please.outputs.release_sha || github.sha }}
 
   # The production image, tagged with the app's version, when the app was released (#223).
   images:

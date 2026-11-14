@@ -135,7 +135,10 @@ of its own.
 - `release.yaml` calls `.github/workflows/zenodo.yml` when merging the release pull request
   creates at least one release. One merge makes one version, however many packages it released.
 - `zenodo.yml` zips the merge commit with `git archive` and runs `scripts/zenodo.py release`, which
-  makes a new version, replaces its file with the zip and publishes it.
+  makes a new version, replaces its file with the zip and publishes it. The merge commit is the one
+  release-please tagged the releases on (the `release_sha` output of `release.yaml`), which is not
+  always the commit that started the run: when two pushes land on `main` together, the run for the
+  earlier one can create the releases.
 - The record's metadata comes from `CITATION.cff`: title, abstract, authors, keywords, licence and
   references. The description also records the commit and every package's version from
   `.release-please-manifest.json`. Correct the metadata there, not in Zenodo, since the next
@@ -145,6 +148,11 @@ of its own.
 - If the job fails, run **Zenodo** from the Actions tab with the release commit as `ref`. It
   carries on with a draft the failed run left; once a version is published, running it again
   publishes another, so check Zenodo first.
+- If the job says `ZENODO_TOKEN is not set`, the secret is missing from the `zenodo` environment
+  (Settings, Environments, zenodo). Add it there and run **Zenodo** again. If Zenodo answers
+  `403 Permission denied` (or 401), it does not accept the token: make a new one, with the scopes
+  `deposit:write` and `deposit:actions`, from the Zenodo account that owns the record, and replace
+  the secret.
 
 `uv run scripts/zenodo.py release --archive <zip> --dry-run` prints the metadata without calling
 Zenodo.
