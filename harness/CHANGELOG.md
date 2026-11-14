@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.2.0-alpha.5](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.4...harness-v0.2.0-alpha.5) (2026-11-14)
+
+
+### Features
+
+* **app:** add your own AI account from the profile page ([#818](https://github.com/data-director-agent/data-director/issues/818)) ([ad98bfc](https://github.com/data-director-agent/data-director/commit/ad98bfc372874ca74346dafd1a8ae789afadb1d2))
+* **app:** attach a supporting document to a conversation turn ([#707](https://github.com/data-director-agent/data-director/issues/707)) ([1e40b77](https://github.com/data-director-agent/data-director/commit/1e40b777d0749d54092c4b0cdc2c169eef8342b7))
+* **app:** each person sees only their own runs and conversations ([#657](https://github.com/data-director-agent/data-director/issues/657)) ([17a8b75](https://github.com/data-director-agent/data-director/commit/17a8b75f8c0461f0e5bf1abd24705d34e6693faf))
+* **app:** edit inventories to describe files and revise them ([#747](https://github.com/data-director-agent/data-director/issues/747)) ([427ffe5](https://github.com/data-director-agent/data-director/commit/427ffe588622f5c6af50334056dae7b3c6cfba41))
+* **app:** let researchers rename projects and the orchestrator name untitled ones ([#678](https://github.com/data-director-agent/data-director/issues/678)) ([1c3d875](https://github.com/data-director-agent/data-director/commit/1c3d875eb0339328bb0556c1997d02ad99f117e7))
+* **app:** say what to do after downloading the deposit package ([#742](https://github.com/data-director-agent/data-director/issues/742)) ([f2d9ad2](https://github.com/data-director-agent/data-director/commit/f2d9ad2b060516d979d82b347e25f5f6c8c04425))
+* **app:** show the intake card before a new project's first turn ([#776](https://github.com/data-director-agent/data-director/issues/776)) ([9f03a8b](https://github.com/data-director-agent/data-director/commit/9f03a8b1fa2b06e66fc8ce0da9dd02481b772ed0))
+* **dev:** keep runs and projects in postgresql in the compose stack ([#711](https://github.com/data-director-agent/data-director/issues/711)) ([5a4bc65](https://github.com/data-director-agent/data-director/commit/5a4bc65b112ea0621b05a59bf9413726965ae48d))
+* **harness:** add pagination for listing runs and conversations ([#715](https://github.com/data-director-agent/data-director/issues/715)) ([bc3b541](https://github.com/data-director-agent/data-director/commit/bc3b5411362e31b8dae01eb13fd671bc0e55af43))
+* **harness:** enforce the profile's model_accounts key ([#820](https://github.com/data-director-agent/data-director/issues/820)) ([3229145](https://github.com/data-director-agent/data-director/commit/3229145163e9ccf90cdc8176417373e9ed22f05a))
+* **harness:** keep runs and projects in postgresql ([#708](https://github.com/data-director-agent/data-director/issues/708)) ([3436209](https://github.com/data-director-agent/data-director/commit/3436209f605a7cdcc51a9ab7ded2163391818b06))
+* **harness:** list the projects a person may read from an index ([#724](https://github.com/data-director-agent/data-director/issues/724)) ([140db1f](https://github.com/data-director-agent/data-director/commit/140db1ff9d4b70bced5b36ad154d232dd2683d9d))
+* **harness:** mint a model grant for each model-backed invocation ([#817](https://github.com/data-director-agent/data-director/issues/817)) ([6042098](https://github.com/data-director-agent/data-director/commit/604209892028330c5eee74f58f04f15485ce4ee1))
+* **harness:** record intake answers and derive step states from them ([#768](https://github.com/data-director-agent/data-director/issues/768)) ([7e98d8e](https://github.com/data-director-agent/data-director/commit/7e98d8eb44d9ae7ce6bde70f65d879d051518fef))
+* **harness:** stream run stages, check reports and cancellation over ag-ui ([#709](https://github.com/data-director-agent/data-director/issues/709)) ([6a48a7f](https://github.com/data-director-agent/data-director/commit/6a48a7f9e210fc29d96d0e59d0b680f6fddc61e5))
+* **harness:** validate agent payloads against their SHACL shapes ([#654](https://github.com/data-director-agent/data-director/issues/654)) ([7406741](https://github.com/data-director-agent/data-director/commit/74067418e35de94175a76c3e9d66601c8875cbf1))
+* let agents ask a series of questions answered one at a time ([#739](https://github.com/data-director-agent/data-director/issues/739)) ([5332215](https://github.com/data-director-agent/data-director/commit/5332215e8f050dcf3b61fdccb11b63ad436e6d92))
+* let researchers give agents facts from their public ORCID record ([#760](https://github.com/data-director-agent/data-director/issues/760)) ([c312d78](https://github.com/data-director-agent/data-director/commit/c312d7882b157942a08ddbda905b85cad90bd6aa))
+
+
+### Bug Fixes
+
+* **app:** refuse project routes to anyone without a role in the project ([#658](https://github.com/data-director-agent/data-director/issues/658)) ([9dd4c6d](https://github.com/data-director-agent/data-director/commit/9dd4c6d5da045c01b1e9fbc28cf915173b5da01e))
+* **harness:** record a refusal before raising and find conversations started elsewhere ([#666](https://github.com/data-director-agent/data-director/issues/666)) ([f00c9b9](https://github.com/data-director-agent/data-director/commit/f00c9b92d8f31757e655817e0f3f960e92551671))
+* **harness:** stop A2A callers reading back other people's tasks ([#730](https://github.com/data-director-agent/data-director/issues/730)) ([6d415c6](https://github.com/data-director-agent/data-director/commit/6d415c660abb318b37d4c38798fcab0875964d2d))
+* **orchestration:** record the entry point Data Director works out ([#706](https://github.com/data-director-agent/data-director/issues/706)) ([7781b37](https://github.com/data-director-agent/data-director/commit/7781b3738ba64bdda89af7d225ba0e1d4a970438))
+
+
+### Performance Improvements
+
+* **harness:** pool connections in the postgresql backend ([#729](https://github.com/data-director-agent/data-director/issues/729)) ([b416706](https://github.com/data-director-agent/data-director/commit/b416706f81e0a65c7a32c7fc2af6a576d69540f2))
+
+
+### Documentation
+
+* **specs:** choose postgresql as the record for runs and projects ([#653](https://github.com/data-director-agent/data-director/issues/653)) ([6a47870](https://github.com/data-director-agent/data-director/commit/6a47870a2dfe01713b0b370418d25c0dade4515d))
+
 ## [0.2.0-alpha.4](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.3...harness-v0.2.0-alpha.4) (2026-11-07)
 
 

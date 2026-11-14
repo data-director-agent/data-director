@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-advisor-standards-v0.1.1-alpha.3...agent-advisor-standards-v0.1.1-alpha.4) (2026-11-14)
+
+
+### Features
+
+* **harness:** mint a model grant for each model-backed invocation ([#817](https://github.com/data-director-agent/data-director/issues/817)) ([6042098](https://github.com/data-director-agent/data-director/commit/604209892028330c5eee74f58f04f15485ce4ee1))
+* **harness:** validate agent payloads against their SHACL shapes ([#654](https://github.com/data-director-agent/data-director/issues/654)) ([7406741](https://github.com/data-director-agent/data-director/commit/74067418e35de94175a76c3e9d66601c8875cbf1))
+
 ## [0.1.1-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-advisor-standards-v0.1.1-alpha.2...agent-advisor-standards-v0.1.1-alpha.3) (2026-11-07)
 
 

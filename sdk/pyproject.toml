@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-sdk"
-version = "0.2.0-alpha.4"
+version = "0.2.0-alpha.5"
 description = "Data Director agent SDK: the invocation contract, evidence hashing, trace helpers and the A2A agent server"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -26,7 +26,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # The Claude adapter behind the model seam (dd_sdk.model_anthropic, docs/specs/dependencies.md).
-anthropic = ["anthropic>=1.15.0,<2.7"]
+anthropic = ["anthropic>=1.15.0,<2.6"]
 
 [project.scripts]
 # Regenerates JSON Schema from LinkML; needs the workspace's development dependencies (docs/specs/contract.md).
