@@ -7,8 +7,13 @@ records the call and its prompt in a `ModelCallLog` (docs/specs/disclosure.md), 
 refusal, and, when the agent gives an output schema, parses the reply against it. The adapter only
 turns a `ModelRequest` into the provider's request and its response into a `ModelResponse`.
 
-`dd_sdk.model_anthropic.AnthropicModel` is the adapter for Claude, and `dd_sdk.testing.FakeModel`
-the one for tests. This module imports no provider's SDK.
+`dd_sdk.model_anthropic.AnthropicModel` is the adapter for Claude, `dd_sdk.model_openai.OpenAIModel`
+the one for any OpenAI-compatible endpoint, and `dd_sdk.testing.FakeModel` the one for tests.
+`dd_sdk.model_provider.configured_model` builds the adapter an agent's settings name. This module
+imports no provider's SDK.
+
+A model says who serves it and where (`provider`, `hosting`), so an agent declares what it sends
+data to from the model itself (`declared`), never from a value written beside it.
 
 While an agent runs, `dd_sdk.serve` binds the model grant the conductor sent to the run
 (`bind_grant`), and every client the SDK builds sends it to the model broker with each call
@@ -22,11 +27,11 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any, Protocol, overload
+from typing import Any, Literal, Protocol, overload
 
 from pydantic import BaseModel, ValidationError
 
-from dd_sdk.agent import RunContext
+from dd_sdk.agent import ModelUse, RunContext
 from dd_sdk.contract.models import now
 from dd_sdk.model_account import record_account
 from dd_sdk.prompts import ModelCallLog
@@ -86,12 +91,20 @@ class ModelResponse:
 
 class Model(Protocol):
     """The adapter for one provider and one model. `provider` is who serves the model, as the
-    agent's card names it (`dd_sdk.agent.ModelUse`); `model_id` the model asked for."""
+    agent's card names it (`dd_sdk.agent.ModelUse`); `model_id` the model asked for; `hosting`
+    whether it runs on the provider's service or on the institution's own
+    (docs/specs/policy-and-identity.md)."""
 
     provider: str
     model_id: str
+    hosting: Literal["hosted", "local"]
 
     def send(self, request: ModelRequest) -> ModelResponse: ...
+
+
+def declared(model: Model) -> ModelUse:
+    """What an agent's card declares about `model`: the provider, the model and the hosting."""
+    return ModelUse(model.provider, model.model_id, model.hosting)
 
 
 @dataclass(frozen=True)

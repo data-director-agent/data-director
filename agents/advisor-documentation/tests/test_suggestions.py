@@ -17,8 +17,8 @@ from dd_agent_advisor_documentation.prose import (
     MAX_SUGGESTION,
     SUGGEST_PROMPT,
     SUGGESTED_COLUMNS,
-    AnthropicWriter,
     Ask,
+    ModelWriter,
     check_suggestions,
 )
 from dd_harness.conductor import Conductor
@@ -33,6 +33,7 @@ from dd_sdk.contract.models import (
     DraftRequest,
     OutcomeStatus,
 )
+from dd_sdk.model_anthropic import AnthropicModel
 
 DICTIONARY = "soil-survey.data-dictionary.draft.json"
 
@@ -215,7 +216,7 @@ def test_in_a_project_a_suggestion_counts_only_once_a_person_records_it(
 
     def conductor_with(reply: dict[str, str]) -> Conductor:
         editor = DocumentationEditor(
-            writer=AnthropicWriter(client=StubClient(reply), model_id=MODEL)  # type: ignore[arg-type]
+            writer=ModelWriter(AnthropicModel(MODEL, client=StubClient(reply)))  # type: ignore[arg-type]
         )
         conductor = make_conductor(runs_dir, editor)
         conductor.projects = projects
@@ -281,7 +282,7 @@ def make_conductor_template(runs_dir: Path, projects: ProjectStore) -> Conductor
 
 def test_no_model_call_when_no_definition_or_unit_is_asked() -> None:
     client = StubClient({})
-    writer = AnthropicWriter(client=client, model_id=MODEL)  # type: ignore[arg-type]
+    writer = ModelWriter(AnthropicModel(MODEL, client=client))  # type: ignore[arg-type]
     asks = [Ask("q-" + "0" * 16, "a.csv", "age_yrs", "missing_values")]
     got = writer.suggest({}, asks, None)  # type: ignore[arg-type]
     assert got.answers == {} and got.model_id is None and client.sent == []

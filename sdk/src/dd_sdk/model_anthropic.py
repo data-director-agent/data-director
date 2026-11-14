@@ -17,7 +17,7 @@ the current run's model grant (`dd_sdk.model.current_grant`) as `X-DD-Model-Gran
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from dd_sdk import model_account
 from dd_sdk.credentials import ModelEndpoint
@@ -71,6 +71,8 @@ class AnthropicModel:
     (`dd_sdk.credentials.model_endpoint`) or an `api_key`."""
 
     provider = PROVIDER
+    # Claude is served by Anthropic, or by the gateway the broker forwards to on its behalf.
+    hosting: Literal["hosted", "local"] = "hosted"
 
     def __init__(
         self,

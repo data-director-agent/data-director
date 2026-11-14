@@ -49,6 +49,13 @@ def test_the_defaults() -> None:
         {**KEY, "DD_ORCHESTRATOR_HISTORY": "-1"},
         {**KEY, "DD_ORCHESTRATOR_MAX_DELEGATIONS": "0"},
         {**KEY, "DD_TITLE_MODEL": "claude-haiku-5-5"},
+        # It delegates through Anthropic's tool calls, so another provider stops it (#831).
+        {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m", "OPENAI_API_KEY": "k"},
+        {
+            "DD_MODEL_PROVIDER": "openai-compatible",
+            "DD_MODEL_ID": "m",
+            "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+        },
     ],
 )
 def test_a_bad_setting_is_a_configuration_error(env: dict[str, str]) -> None:

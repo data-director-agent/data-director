@@ -3,16 +3,18 @@
 `build` assembles the agent from its own environment variables (documented in
 `config/examples/agents.env`):
 
-- `DD_DOCUMENTATION_WRITER`: `template` (default), which writes no prose, or `anthropic`, which
-  has a model write the README's prose from the project's facts (`prose.py`).
-- `DD_MODEL_ID`: the model the Anthropic writer calls.
-- `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the Anthropic
-  writer's key, read at start-up (`dd_sdk.credentials`, docs/specs/policy-and-identity.md).
+- `DD_DOCUMENTATION_WRITER`: `template` (default), which writes no prose, or `model`, which has a
+  model write the README's prose from the project's facts (`prose.py`). `anthropic`, its older
+  name, still works.
+- With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
+  by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
+  (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
 
-An unknown value, or the Anthropic writer with no key, is a configuration error (`ConfigError`),
-and `dd-advisor-documentation serve` stops at start-up. With the Anthropic writer the spec declares
-the model it sends the project's facts to (`AgentSpec.models`), which is what the profile's rules
-on project content for hosted models read (docs/specs/projects.md, invariant 8).
+An unknown value, or an unusable model setting, is a configuration error (`ConfigError`), and
+`dd-advisor-documentation serve` stops at start-up. With the model writer the spec declares the
+model it sends the project's facts to, and whether it is hosted (`AgentSpec.models`), which is
+what the profile's rules on project content for hosted models read (docs/specs/projects.md,
+invariant 8).
 """
 
 from __future__ import annotations
@@ -24,25 +26,18 @@ from dataclasses import replace
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_documentation.prose import (
     DEFAULT_MODEL,
-    PROVIDER,
-    AnthropicWriter,
+    ModelWriter,
     TemplateWriter,
     Writer,
 )
 from dd_sdk import serve
-from dd_sdk.agent import ModelUse
-from dd_sdk.credentials import ConfigError, model_endpoint
+from dd_sdk.model import declared
+from dd_sdk.model_provider import optional_model
 
 
 def build_writer(env: Mapping[str, str]) -> Writer:
-    choice = env.get("DD_DOCUMENTATION_WRITER", "template")
-    if choice == "template":
-        return TemplateWriter()
-    if choice == "anthropic":
-        return AnthropicWriter(
-            model_id=env.get("DD_MODEL_ID", DEFAULT_MODEL), endpoint=model_endpoint(env)
-        )
-    raise ConfigError(f"DD_DOCUMENTATION_WRITER={choice!r}: expected template or anthropic")
+    model = optional_model(env, "DD_DOCUMENTATION_WRITER", default_model=DEFAULT_MODEL)
+    return TemplateWriter() if model is None else ModelWriter(model)
 
 
 def build(env: Mapping[str, str] | None = None) -> DocumentationEditor:
@@ -50,8 +45,8 @@ def build(env: Mapping[str, str] | None = None) -> DocumentationEditor:
     env = os.environ if env is None else env
     writer = build_writer(env)
     agent = DocumentationEditor(writer=writer)
-    if writer.model_id:
-        agent.spec = replace(agent.spec, models=(ModelUse(PROVIDER, writer.model_id, "hosted"),))
+    if isinstance(writer, ModelWriter):
+        agent.spec = replace(agent.spec, models=(declared(writer.model),))
     return agent
 
 

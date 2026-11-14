@@ -9,6 +9,7 @@ span, the token counts and the `ModelCallLog` are the real ones.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from typing import Literal
 
 from dd_sdk.model import ModelRequest, ModelResponse, Usage
 
@@ -31,12 +32,16 @@ class FakeModel:
         model_id: str = "fake-model",
         answered_by: str | None = None,
         usage: Usage = FAKE_USAGE,
+        hosting: Literal["hosted", "local"] = "hosted",
     ) -> None:
-        """`answered_by` is the model the response names, if not `model_id`."""
+        """`answered_by` is the model the response names, if not `model_id`. `hosting` is
+        `hosted` unless a test says otherwise, the stricter case for the harness's rules on
+        project content."""
         self._replies = replies
         self._refuse = refuse
         self.provider = provider
         self.model_id = model_id
+        self.hosting = hosting
         self._answered_by = answered_by
         self._usage = usage
         self.sent: list[ModelRequest] = []

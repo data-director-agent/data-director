@@ -24,7 +24,15 @@ EXAMPLE_PRINCIPAL = {
     "DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097",
     "DD_PRINCIPAL_NAME": "Josiah Carberry",
 }
-KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
+# Each model provider's key variable, by `DD_MODEL_PROVIDER` (dd_sdk.model_provider.PROVIDERS).
+PROVIDER_KEYS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "openai-compatible": "DD_MODEL_API_KEY",
+}
+# Every variable a model key may be given in, which only the agent's own file may set.
+KEY_VARS = tuple(v for key in PROVIDER_KEYS.values() for v in (key, f"{key}_FILE"))
 # Agents that stop at start-up without a model key, so `start` skips them when they have none.
 MODEL_BACKED = {"orchestrator-model"}
 NODE_MAJOR = 22  # the oldest Node the shell's toolchain supports (README, "Quick start")

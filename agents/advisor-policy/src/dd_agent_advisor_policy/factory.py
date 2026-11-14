@@ -7,14 +7,15 @@
   records. `live` searches FAIRsharing, which needs an account (`FAIRSHARING_LOGIN`, and
   `FAIRSHARING_PASSWORD` or `FAIRSHARING_PASSWORD_FILE`), and falls back to the snapshot,
   marked stale, when the route fails.
-- `DD_POLICY_EXPLAINER`: `template` (default) or `anthropic`.
-- `DD_MODEL_ID`: the model the Anthropic explainer calls.
-- `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the Anthropic
-  explainer's key, read at start-up (`dd_sdk.credentials`, docs/specs/policy-and-identity.md).
+- `DD_POLICY_EXPLAINER`: `template` (default) or `model`, which has a model write the rationale
+  (`anthropic`, its older name, still works).
+- With `model`: `DD_MODEL_PROVIDER` (`anthropic` by default), `DD_MODEL_ID` (Claude Sonnet 5.5
+  by default for Anthropic), `DD_MODEL_BASE_URL` and the provider's key, read at start-up
+  (`dd_sdk.model_provider`, docs/specs/policy-and-identity.md).
 
-An unknown value, live retrieval with no account, or the Anthropic explainer with no key is a
-configuration error (`ConfigError`), and `dd-advisor-policy serve` stops at start-up. With the
-Anthropic explainer the spec declares the model it sends data to (`AgentSpec.models`).
+An unknown value, live retrieval with no account, or an unusable model setting is a
+configuration error (`ConfigError`), and `dd-advisor-policy serve` stops at start-up. With
+the model explainer the spec declares the model it sends data to (`AgentSpec.models`).
 """
 
 from __future__ import annotations
@@ -26,26 +27,21 @@ from dataclasses import replace
 from dd_agent_advisor_policy.agent import PolicyAgent
 from dd_agent_advisor_policy.explain import (
     DEFAULT_MODEL,
-    AnthropicExplainer,
     Explainer,
+    ModelExplainer,
     TemplateExplainer,
 )
 from dd_agent_advisor_policy.live import PolicyLive
 from dd_agent_advisor_policy.snapshot import PolicySnapshot
 from dd_sdk import serve
-from dd_sdk.agent import ModelUse
-from dd_sdk.credentials import ConfigError, api_key, model_endpoint
+from dd_sdk.credentials import ConfigError, api_key
+from dd_sdk.model import declared
+from dd_sdk.model_provider import optional_model
 
 
 def build_explainer(env: Mapping[str, str]) -> Explainer:
-    choice = env.get("DD_POLICY_EXPLAINER", "template")
-    if choice == "template":
-        return TemplateExplainer()
-    if choice == "anthropic":
-        return AnthropicExplainer(
-            model_id=env.get("DD_MODEL_ID", DEFAULT_MODEL), endpoint=model_endpoint(env)
-        )
-    raise ConfigError(f"DD_POLICY_EXPLAINER={choice!r}: expected template or anthropic")
+    model = optional_model(env, "DD_POLICY_EXPLAINER", default_model=DEFAULT_MODEL)
+    return TemplateExplainer() if model is None else ModelExplainer(model)
 
 
 def build(env: Mapping[str, str] | None = None) -> PolicyAgent:
@@ -71,10 +67,8 @@ def build(env: Mapping[str, str] | None = None) -> PolicyAgent:
         )
     else:
         raise ConfigError(f"DD_POLICY_RETRIEVAL={choice!r}: expected snapshot or live")
-    if isinstance(explainer, AnthropicExplainer) and explainer.model_id:
-        agent.spec = replace(
-            agent.spec, models=(ModelUse("anthropic", explainer.model_id, "hosted"),)
-        )
+    if isinstance(explainer, ModelExplainer):
+        agent.spec = replace(agent.spec, models=(declared(explainer.model),))
     return agent
 
 

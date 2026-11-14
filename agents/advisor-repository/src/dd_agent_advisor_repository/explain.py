@@ -5,9 +5,10 @@ and returns one rationale per candidate. It cannot add, remove or reorder candid
 a judgement. If a model's rationale names a re3data or FAIRsharing identifier it was not given,
 the template rationale is used instead and the substitution is noted in the text.
 
-`TemplateExplainer` is the default and needs no credentials. `AnthropicExplainer` is selected
-with `DD_REPOSITORY_EXPLAINER=anthropic` and is the only importer of the `anthropic` SDK
-(docs/specs/dependencies.md). It is sent registry text and the needs, never research data.
+`TemplateExplainer` is the default and needs no credentials. `ModelExplainer` is selected
+with `DD_REPOSITORY_EXPLAINER=model` and calls whichever model the agent's settings name, through
+the SDK's model seam (`dd_sdk.model`, `dd_sdk.model_provider`).
+It is sent registry text and the needs, never research data.
 """
 
 from __future__ import annotations
@@ -15,21 +16,16 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 from dd_agent_advisor_repository.assess import Assessment
 from dd_agent_advisor_repository.classes import CandidateBasis, RepositoryNeeds
 from dd_agent_advisor_repository.records import DatabaseRecord, Re3dataRecord
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.models import Derivation, now
-from dd_sdk.credentials import ModelEndpoint
-from dd_sdk.model_account import record_account
-from dd_sdk.model_anthropic import anthropic_client
+from dd_sdk.contract.models import Derivation
+from dd_sdk.model import Model, call
+from dd_sdk.model import Usage as Usage
 from dd_sdk.prompts import ModelCallLog
-from dd_sdk.tracing import chat_span, record_tokens
-
-if TYPE_CHECKING:
-    import anthropic
 
 
 @dataclass(frozen=True)
@@ -47,12 +43,6 @@ class Item:
 class Rationale:
     text: str
     derivation: Derivation
-
-
-@dataclass
-class Usage:
-    input_tokens: int | None = None
-    output_tokens: int | None = None
 
 
 @dataclass(frozen=True)
@@ -107,32 +97,18 @@ class TemplateExplainer:
 
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
-# Who serves the model, as the agent's card names it (factory.py).
-PROVIDER = "anthropic"
 
 # What the model is told it may and may not do; the prose is a Markdown file beside this module.
 SYSTEM_PROMPT = Path(__file__).with_name("system_prompt.md").read_text(encoding="utf-8").strip()
 
 
-class AnthropicExplainer:
-    """Explains with Claude. Emits one `chat` span carrying model id and token counts."""
+class ModelExplainer:
+    """Explains with the model the agent's settings name (`dd_sdk.model_provider`). The call goes
+    through `dd_sdk.model.call`, which records its `chat` span, its tokens and its prompt."""
 
-    def __init__(
-        self,
-        client: anthropic.Anthropic | None = None,
-        model_id: str = DEFAULT_MODEL,
-        endpoint: ModelEndpoint | None = None,
-    ) -> None:
-        """Give a `client` (tests) or an `endpoint` (`dd_sdk.credentials.model_endpoint`): the
-        provider with its key, or the model broker with the agent's credential. Either is passed
-        explicitly, so the SDK's own credential chain is never used
-        (docs/specs/policy-and-identity.md, docs/specs/model-accounts.md)."""
-        if client is None:
-            if endpoint is None:
-                raise ValueError("AnthropicExplainer needs a client or an endpoint")
-            client = anthropic_client(endpoint)
-        self._client = client
-        self.model_id: str | None = model_id
+    def __init__(self, model: Model) -> None:
+        self.model = model
+        self.model_id: str | None = model.model_id
 
     def _prompt(self, needs: RepositoryNeeds, items: list[Item]) -> str:
         lines = [
@@ -160,32 +136,13 @@ class AnthropicExplainer:
     def explain(self, needs: RepositoryNeeds, items: list[Item], ctx: RunContext) -> Explanation:
         if not items:
             return Explanation([], Usage())
-        assert self.model_id is not None
-        # What is sent, kept by digest with the run (docs/specs/disclosure.md).
-        content = self._prompt(needs, items)
-        prompt = {"system": SYSTEM_PROMPT, "messages": [{"role": "user", "content": content}]}
-        calls = ModelCallLog(PROVIDER)
-        with chat_span(ctx.tracer, self.model_id) as span:
-            called_at = now()
-            response = self._client.messages.create(
-                model=self.model_id,
-                max_tokens=4096,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": content}],
-            )
-            usage = Usage(response.usage.input_tokens, response.usage.output_tokens)
-            record_tokens(span, usage.input_tokens, usage.output_tokens)
-            # Whose account paid, as the model broker said (docs/specs/model-accounts.md).
-            record_account(span)
-        calls.record(
-            prompt,
-            # The model the response names, which may be more exact than the one asked for.
-            getattr(response, "model", None) or self.model_id,
-            called_at=called_at,
-            input_tokens=usage.input_tokens,
-            output_tokens=usage.output_tokens,
+        reply = call(
+            self.model,
+            ctx,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": self._prompt(needs, items)}],
         )
-        if response.stop_reason == "refusal":
+        if reply.refused:
             return Explanation(
                 [
                     Rationale(
@@ -194,11 +151,10 @@ class AnthropicExplainer:
                     )
                     for item in items
                 ],
-                usage,
-                calls,
+                reply.usage,
+                reply.calls,
             )
-        text = "".join(block.text for block in response.content if block.type == "text")
-        return Explanation(self._parse(text, items), usage, calls)
+        return Explanation(self._parse(reply.text, items), reply.usage, reply.calls)
 
     def _parse(self, text: str, items: list[Item]) -> list[Rationale]:
         numbered: dict[int, str] = {}

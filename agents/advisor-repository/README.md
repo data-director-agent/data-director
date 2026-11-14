@@ -101,7 +101,7 @@ repository or makes a judgement:
   read as a preference. Certification carries no weight,
   because Figure 3 says paid certification must not outweigh free evaluation.
 - **Credit.** Every statement ends by crediting re3data and naming the export it read.
-- **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=anthropic`, a model
+- **Explanation.** The template is the default. With `DD_REPOSITORY_EXPLAINER=model`, a model
   writes the rationale only, from `system_prompt.md`, and is sent registry text and the needs,
   never research data.
 
@@ -110,8 +110,8 @@ repository or makes a judgement:
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read: `snapshot` (the
   default) or `live`. The live route is public and needs no account; when it fails the agent falls
   back to the snapshot, marked stale. re3data is always read from the pinned registry.
-- `DD_REPOSITORY_EXPLAINER`: `template` (the default) or `anthropic`, with `DD_MODEL_ID` and the
-  key as for the standards advisor ([Policy and identity](../../docs/specs/policy-and-identity.md)).
+- `DD_REPOSITORY_EXPLAINER`: `template` (the default) or `model`, with the provider, model and
+  key as for the standards advisor ([AI models](../../docs/guide/operations/ai-models.md)) ([Policy and identity](../../docs/specs/policy-and-identity.md)).
 
 ## Sources
 

@@ -6,6 +6,8 @@
 - `ANTHROPIC_API_KEY` (development) or `ANTHROPIC_API_KEY_FILE` (deployment): the key, read at
   start-up (`dd_sdk.credentials`, docs/specs/policy-and-identity.md). There is no default: this
   agent is a model.
+- `DD_MODEL_PROVIDER`: `anthropic`, the only provider this agent supports, since it delegates
+  through Anthropic's tool calls; any other value stops it at start-up.
 - `DD_MODEL_ID`: the model it calls. Claude Sonnet 5.5 by default;
   a deployment may name a smaller or a more capable one.
 - `DD_ORCHESTRATOR_EFFORT`: `low`, `medium`, `high` (default), `xhigh` or `max`.
@@ -32,10 +34,13 @@ from dd_agent_orchestrator_model.agent import (
     ModelOrchestrator,
 )
 from dd_agent_orchestrator_model.model import DEFAULT_EFFORT, DEFAULT_MODEL, EFFORTS, AnthropicModel
-from dd_agent_orchestrator_model.title import DEFAULT_TITLE_MODEL, AnthropicTitler
+from dd_agent_orchestrator_model.title import DEFAULT_TITLE_MODEL
 from dd_sdk import serve
 from dd_sdk.agent import ModelUse
 from dd_sdk.credentials import ConfigError, model_endpoint
+from dd_sdk.model import declared
+from dd_sdk.model_anthropic import AnthropicModel as AnthropicTitleModel
+from dd_sdk.model_provider import PROVIDER
 
 
 def _count(env: Mapping[str, str], name: str, default: int, minimum: int) -> int:
@@ -54,6 +59,13 @@ def _count(env: Mapping[str, str], name: str, default: int, minimum: int) -> int
 def build(env: Mapping[str, str] | None = None) -> ModelOrchestrator:
     """The factory `main` serves. `env` defaults to the process environment."""
     env = os.environ if env is None else env
+    provider = (env.get(PROVIDER) or "anthropic").strip()
+    if provider != "anthropic":
+        # TODO(#831): tool calling through the SDK's model seam, for every provider.
+        raise ConfigError(
+            f"{PROVIDER}={provider!r}: orchestrator.model delegates through Anthropic's tool "
+            "calls, so it supports only anthropic"
+        )
     effort = env.get("DD_ORCHESTRATOR_EFFORT", DEFAULT_EFFORT)
     if effort not in EFFORTS:
         raise ConfigError(
@@ -68,17 +80,16 @@ def build(env: Mapping[str, str] | None = None) -> ModelOrchestrator:
         )
     title_model_id = None if titles == "none" else env.get("DD_TITLE_MODEL_ID", DEFAULT_TITLE_MODEL)
     endpoint = model_endpoint(env)
+    titler = AnthropicTitleModel(title_model_id, endpoint=endpoint) if title_model_id else None
     agent = ModelOrchestrator(
         AnthropicModel(model_id=model_id, effort=effort, endpoint=endpoint),
         history_turns=_count(env, "DD_ORCHESTRATOR_HISTORY", DEFAULT_HISTORY_TURNS, 0),
         max_delegations=_count(env, "DD_ORCHESTRATOR_MAX_DELEGATIONS", DEFAULT_MAX_DELEGATIONS, 1),
-        titler=(
-            AnthropicTitler(model_id=title_model_id, endpoint=endpoint) if title_model_id else None
-        ),
+        titler=titler,
     )
     models = [ModelUse("anthropic", model_id, "hosted")]
-    if title_model_id and title_model_id != model_id:
-        models.append(ModelUse("anthropic", title_model_id, "hosted"))
+    if titler is not None and titler.model_id != model_id:
+        models.append(declared(titler))
     agent.spec = replace(agent.spec, models=tuple(models))
     return agent
 

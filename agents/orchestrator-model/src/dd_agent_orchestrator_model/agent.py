@@ -51,8 +51,9 @@ the intake, the phase tracker or the model, the prompt tells the model not to as
 the first turn, and to suggest the step the note names (invariant 15).
 
 On a conversation's first turn (an empty `Message.history`), once the model has replied, a
-`Titler` names the conversation from the researcher's message (`title.py`). The title is
-`Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it out.
+second model, the titler, names the conversation from the researcher's message (`title.py`). The
+title is `Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it
+out.
 """
 
 from __future__ import annotations
@@ -66,7 +67,7 @@ from typing import Any
 
 from dd_agent_orchestrator_model.model import Model, ModelError, ModelTurn, ToolCall
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
-from dd_agent_orchestrator_model.title import Titler, clean, titled
+from dd_agent_orchestrator_model.title import clean, titled
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
@@ -93,6 +94,9 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
+
+# The title model is called through the SDK's model seam; the reply model is this package's own.
+from dd_sdk.model import Model as TitleModel
 from dd_sdk.model_account import record_account
 from dd_sdk.process_flow import ENTRIES, progress, requirements_of, suggested_next
 from dd_sdk.process_flow import entry as flow_entry
@@ -464,7 +468,7 @@ class ModelOrchestrator:
         *,
         history_turns: int = DEFAULT_HISTORY_TURNS,
         max_delegations: int = DEFAULT_MAX_DELEGATIONS,
-        titler: Titler | None = None,
+        titler: TitleModel | None = None,
     ) -> None:
         self.model = model
         # Names a conversation on its first turn; None writes no title.

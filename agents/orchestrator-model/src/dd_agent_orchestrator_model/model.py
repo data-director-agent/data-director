@@ -1,5 +1,7 @@
-"""The orchestrator's way to the model that replies. With `title.py`, which names a conversation,
-it is the only importer of `anthropic` (docs/specs/dependencies.md).
+"""The orchestrator's way to the model that replies. It is the package's only importer of
+`anthropic` (docs/specs/dependencies.md); `title.py` calls its model through the SDK's model seam.
+The loop speaks Anthropic's tool calls, so this agent supports only Anthropic until tool calling
+is part of the seam (TODO(#831)).
 
 `Model.turn` sends the conversation so far, with the tools the run built from the manifest, and
 returns one `ModelTurn`: the text, the tool calls, why the model stopped, and the assistant

@@ -10,7 +10,7 @@ import dd_agent_advisor_standards
 from dd_agent_advisor_standards import factory
 from dd_agent_advisor_standards.agent import StandardsAgent
 from dd_agent_advisor_standards.classes import DatasetProfile, Recommendations
-from dd_agent_advisor_standards.explain import AnthropicExplainer, TemplateExplainer
+from dd_agent_advisor_standards.explain import ModelExplainer, TemplateExplainer
 from dd_agent_advisor_standards.fairsharing.live import LiveBackend
 from dd_agent_advisor_standards.fairsharing.snapshot import DEFAULT_SNAPSHOT, SnapshotBackend
 from dd_agent_advisor_standards.testing import make_conductor
@@ -45,7 +45,7 @@ def test_the_anthropic_explainer_takes_the_configured_model() -> None:
             "ANTHROPIC_API_KEY": "unused",
         }
     )
-    assert isinstance(agent.explainer, AnthropicExplainer)
+    assert isinstance(agent.explainer, ModelExplainer)
     assert agent.explainer.model_id == "m-test"
     assert agent.spec.models == (ModelUse("anthropic", "m-test", "hosted"),)
     assert StandardsAgent.spec.models == ()
@@ -91,3 +91,40 @@ def test_an_input_class_it_did_not_declare_is_refused(runs_dir: Path) -> None:
 def test_its_classes_are_generated_from_its_own_linkml() -> None:
     source = Path(dd_agent_advisor_standards.__file__).parent / "schema" / "standards.yaml"
     assert gen.stale(source) == [], f"run `uv run dd-gen-schema {source}`"
+
+
+@pytest.mark.parametrize(
+    ("settings", "declared"),
+    [
+        (
+            {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m-1", "OPENAI_API_KEY": "k"},
+            ("openai", "m-1", "hosted"),
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "llama",
+                "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+            },
+            ("localhost:11434", "llama", "local"),
+        ),
+    ],
+)
+def test_the_model_can_come_from_another_provider(
+    settings: dict[str, str], declared: tuple[str, str, str]
+) -> None:
+    pytest.importorskip("openai")
+    agent = factory.build({"DD_STANDARDS_EXPLAINER": "model", **settings})
+    assert [(m.provider, m.model, m.hosting) for m in agent.spec.models] == [declared]
+
+
+def test_the_older_anthropic_setting_names_only_anthropic() -> None:
+    with pytest.raises(ConfigError):
+        factory.build(
+            {
+                "DD_STANDARDS_EXPLAINER": "anthropic",
+                "DD_MODEL_PROVIDER": "openai",
+                "DD_MODEL_ID": "m-1",
+                "OPENAI_API_KEY": "k",
+            }
+        )

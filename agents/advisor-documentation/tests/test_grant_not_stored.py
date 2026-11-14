@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 
 from dd_agent_advisor_documentation import factory
-from dd_agent_advisor_documentation.prose import AnthropicWriter
+from dd_agent_advisor_documentation.prose import ModelWriter
 from dd_harness.testing import TEST_PRINCIPAL, GrantKeys, make_conductor, request
 from dd_sdk.agent import describe
 from dd_sdk.contract.models import (
@@ -23,7 +23,7 @@ from dd_sdk.contract.models import (
     to_document,
 )
 from dd_sdk.credentials import ConfigError, model_endpoint
-from dd_sdk.model_anthropic import anthropic_client
+from dd_sdk.model_anthropic import AnthropicModel, anthropic_client
 from dd_sdk.model_grant import HEADER_GRANT, ModelGrantClaims
 
 SAMPLES = Path(__file__).with_name("data")
@@ -77,11 +77,13 @@ def test_the_grant_and_the_credential_reach_no_stored_record(runs_dir: Path) -> 
     # Built as `main` builds it: the credential is read once, from the environment.
     built = factory.build(ENV)
     broker = Broker()
-    built.writer = AnthropicWriter(
-        client=anthropic_client(
-            model_endpoint(ENV), http_client=httpx.Client(transport=httpx.MockTransport(broker))
-        ),
-        model_id=MODEL,
+    built.writer = ModelWriter(
+        AnthropicModel(
+            MODEL,
+            client=anthropic_client(
+                model_endpoint(ENV), http_client=httpx.Client(transport=httpx.MockTransport(broker))
+            ),
+        )
     )
     keys = GrantKeys()
     conductor = make_conductor(runs_dir, built, crate=True, model_grants=keys.minter())

@@ -205,18 +205,37 @@ VM, each agent's credentials drop-in is written from the files present in its di
 a file `<secret>` is loaded as a credential of that name, and the agent is told its name in
 `<SECRET>_FILE`. systemd does not start a unit whose credential file is missing, and an
 agent whose model is optional must start without one, so a drop-in never names a file that is not
-there. Another
-provider follows the same rule under its own variable name. Each agent's manifest declares each
+there.
+
+**Model providers.** An agent names its provider in `DD_MODEL_PROVIDER` (`anthropic` by default,
+`openai`, `gemini`, or `openai-compatible` with `DD_MODEL_BASE_URL`), and holds that provider's key
+alone, under the provider's own variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`,
+`DD_MODEL_API_KEY`) and by the rule above. A key set for any other provider is a configuration
+error, so no key lies unused where an agent can read it. The key is given to the provider's
+client explicitly, and nothing the client would read from the environment for itself (a key, a
+base URL, an organisation or extra headers) reaches the endpoint. Only an `openai-compatible`
+endpoint that is local may be called without a key; for it, leaving both variables unset is the
+deliberate choice of no key, and a hosted endpoint without one is a configuration error
+(`dd_sdk.model_provider`).
+
+Each agent's manifest declares each
 model it sends data to (provider, model, `hosted` or `local`) and names no credential
 ([Agents](agents.md)); the app's agent directory shows the list. The declaration is the deployment's
-configuration as the agent reports it, not proof. Rotating a key means replacing the credential
+configuration as the agent reports it, not proof. Hosting is worked out, never stated by the
+operator: a model is `local` only when its endpoint's host is `localhost` or a loopback, private or
+link-local address written as an IP literal, and `hosted` otherwise, including every named
+provider and any host name, which is not resolved. A mistake in this rule can only call a local
+model hosted, which withholds more from it under the profile's `hosted_models`. For
+`openai-compatible` the declared provider is the endpoint's host and port. Rotating a key means replacing the credential
 file and restarting that agent's service; nothing else changes. When a profile lets people use
 their own account, an agent's model calls go to the model broker instead, with the agent's own
 broker credential and the run's grant; the deployment's key, if the profile keeps it as the
 fallback, is then the broker's, not the agent's
 ([A person's own model account](model-accounts.md), invariant 14). An agent calls through the
 broker when `DD_MODEL_BROKER_URL` is set, and then holds no provider key
-(`dd_sdk.credentials.model_endpoint`).
+(`dd_sdk.credentials.model_endpoint`). The broker forwards Anthropic's format only, so an agent
+whose provider is not `anthropic` and that is given `DD_MODEL_BROKER_URL` stops at start-up
+(TODO(#832)).
 
 ## Rationale
 

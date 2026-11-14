@@ -179,9 +179,13 @@ the worked example of the `template` default and the declared model (`factory.py
    `recorded_in` (invariant 8), so a template fallback is shown as what it was. Each call is
    made with `dd_sdk.model.call`, which opens the `chat` span, records the call's tokens and
    records it with `dd_sdk.prompts.ModelCallLog`; the card declares the model as a
-   `dd_sdk.agent.ModelUse`. The provider is an adapter behind `dd_sdk.model.Model`
-   (`dd_sdk.model_anthropic.AnthropicModel` for Claude), so an agent imports no provider's
-   SDK.
+   `dd_sdk.agent.ModelUse` made from the model itself (`dd_sdk.model.declared`), never written
+   beside it. The provider is an adapter behind `dd_sdk.model.Model`
+   (`dd_sdk.model_anthropic.AnthropicModel` for Claude, `dd_sdk.model_openai.OpenAIModel` for
+   any OpenAI-compatible endpoint), built from the agent's settings by
+   `dd_sdk.model_provider.configured_model`, or `optional_model` where a `template` default
+   stands in for it; so an agent imports no provider's SDK and runs on any provider the SDK
+   supports with no code change ([Policy and identity](policy-and-identity.md)).
 5. **Prompts are code.** The system prompt is `system_prompt.md` beside the module that sends it.
    A change to a prompt is a change to the agent's behaviour and is reviewed as one.
 6. **Tests use a fake model.** An agent's suite exercises the model path with

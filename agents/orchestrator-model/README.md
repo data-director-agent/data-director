@@ -95,6 +95,7 @@ Read at start-up by `factory.build`. A bad value stops the service with one line
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `DD_MODEL_PROVIDER` | `anthropic` | The only provider this agent supports: it delegates through Anthropic's tool calls (#831). Any other value stops it at start-up. |
 | `ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY_FILE` | none: required without the broker | The model key, which only this process holds. |
 | `DD_MODEL_BROKER_URL` | unset | The [model broker](../../docs/guide/operations/model-broker.md), if the agent calls through it in place of the provider. It then holds no provider key. |
 | `DD_MODEL_BROKER_CREDENTIAL` / `DD_MODEL_BROKER_CREDENTIAL_FILE` | none: required with the broker | The agent's own broker credential. |

@@ -12,8 +12,9 @@ authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = ["data-director-sdk>=0.2.0a0", "httpx>=0.28", "pydantic>=2.14.1,<3", "rank-bm25>=0.2.2"]
 
 [project.optional-dependencies]
-# The SDK builds the Claude client (dd_sdk.model_anthropic.anthropic_client).
-anthropic = ["data-director-sdk[anthropic]"]
+# The SDK's model adapters, which the model-backed writer or explainer calls through
+# (dd_sdk.model_provider): Claude, and any OpenAI-compatible endpoint.
+model = ["data-director-sdk[anthropic,openai]"]
 
 [project.scripts]
 dd-advisor-policy = "dd_agent_advisor_policy.factory:main"

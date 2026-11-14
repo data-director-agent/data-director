@@ -13,7 +13,7 @@ import pytest
 
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_documentation.factory import build
-from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT, AnthropicWriter, check
+from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT, ModelWriter, check
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.models import (
     Derivation,
@@ -25,6 +25,7 @@ from dd_sdk.contract.models import (
     OutcomeStatus,
 )
 from dd_sdk.credentials import ConfigError
+from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.testing import FakeModel
 
 SAMPLES = Path(__file__).with_name("data")
@@ -64,7 +65,7 @@ def draft(
     runs_dir: Path, client: StubClient, asked: DraftRequest | None = None
 ) -> tuple[Envelope, bool]:
     asked = asked or sample("soil-survey.readme.draft.json")
-    editor = DocumentationEditor(writer=AnthropicWriter(client=client, model_id=MODEL))  # type: ignore[arg-type]
+    editor = DocumentationEditor(writer=ModelWriter(AnthropicModel(MODEL, client=client)))  # type: ignore[arg-type]
     conductor = make_conductor(runs_dir, editor)
     env = conductor.invoke(request("advisor.documentation", asked), acting_for=TEST_PRINCIPAL)
     return env, conductor.grounding_reports[env.invocation_id].passed
@@ -213,7 +214,7 @@ def test_the_call_and_its_prompt_are_recorded(runs_dir: Path) -> None:
 
 def test_the_writer_calls_any_model_through_the_sdk_seam(runs_dir: Path) -> None:
     model = FakeModel(json.dumps({"overview": OVERVIEW}), model_id=MODEL)
-    editor = DocumentationEditor(writer=AnthropicWriter(model=model))
+    editor = DocumentationEditor(writer=ModelWriter(model))
     conductor = make_conductor(runs_dir, editor)
     asked = sample("soil-survey.readme.draft.json")
     env = conductor.invoke(request("advisor.documentation", asked), acting_for=TEST_PRINCIPAL)
@@ -233,3 +234,40 @@ def test_the_factory_defaults_to_the_template_and_declares_a_configured_model() 
     )
     (use,) = agent.spec.models
     assert (use.provider, use.model, use.hosting) == ("anthropic", MODEL, "hosted")
+
+
+@pytest.mark.parametrize(
+    ("settings", "declared"),
+    [
+        (
+            {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m-1", "OPENAI_API_KEY": "k"},
+            ("openai", "m-1", "hosted"),
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "llama",
+                "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+            },
+            ("localhost:11434", "llama", "local"),
+        ),
+    ],
+)
+def test_the_model_can_come_from_another_provider(
+    settings: dict[str, str], declared: tuple[str, str, str]
+) -> None:
+    pytest.importorskip("openai")
+    agent = build({"DD_DOCUMENTATION_WRITER": "model", **settings})
+    assert [(m.provider, m.model, m.hosting) for m in agent.spec.models] == [declared]
+
+
+def test_the_older_anthropic_setting_names_only_anthropic() -> None:
+    with pytest.raises(ConfigError):
+        build(
+            {
+                "DD_DOCUMENTATION_WRITER": "anthropic",
+                "DD_MODEL_PROVIDER": "openai",
+                "DD_MODEL_ID": "m-1",
+                "OPENAI_API_KEY": "k",
+            }
+        )

@@ -139,14 +139,16 @@ drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7)
 
 | Variable | Meaning |
 |---|---|
-| `DD_DOCUMENTATION_WRITER` | `template` (default): no prose, no suggestions and no key; `anthropic`: Claude writes the prose and suggests definitions and units. |
-| `DD_MODEL_ID` | The model the Anthropic writer calls. |
-| `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The Anthropic writer's key, unless it calls through the model broker. |
+| `DD_DOCUMENTATION_WRITER` | `template` (default): no prose, no suggestions and no key; `model`: a model writes the prose and suggests definitions and units. `anthropic`, the older value, still works. |
+| `DD_MODEL_PROVIDER` | `anthropic` (default), `openai`, `gemini` or `openai-compatible` ([AI models](../../docs/guide/operations/ai-models.md#choose-a-provider)). |
+| `DD_MODEL_ID` | The model the writer calls; Claude Sonnet 5.5 by default with Anthropic, required with any other provider. |
+| `DD_MODEL_BASE_URL` | The endpoint, with `openai-compatible` only. |
+| The provider's key, such as `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE` | The writer's key, unless it calls through the model broker or a local endpoint that needs none. |
 | `DD_MODEL_BROKER_URL` | The [model broker](../../docs/guide/operations/model-broker.md), if the writer calls through it in place of the provider. |
 | `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE` | The agent's own broker credential, with `DD_MODEL_BROKER_URL`. |
 
-The Anthropic writer needs the package's `anthropic` extra. With it, the agent's card declares a
-`hosted` model, so in a project it runs only where the profile's `hosted_models` lists
+The model writer needs the package's `model` extra. With a hosted model, the agent's card declares
+it `hosted`, so in a project it runs only where the profile's `hosted_models` lists
 `documentation` (docs/specs/projects.md, invariant 8): it is given the approved metadata record
 and people's answers. The shipped profiles list it. The CI evaluation runs the template path
 (TODO(#576)).

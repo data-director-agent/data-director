@@ -1,7 +1,7 @@
 # AI models
 
-Most of Data Director runs without a model. Five agents can call a hosted AI model, and an operator
-decides whether they do, which model they call, and whose key pays for it. This page covers those
+Most of Data Director runs without a model. Five agents can call an AI model, and an operator
+decides whether they do, which provider and model they call, and whose key pays for it. This page covers those
 decisions. [Policy and identity](../../specs/policy-and-identity.md) records why the key is handled as it is.
 
 ## Which agents call a model
@@ -9,18 +9,67 @@ decisions. [Policy and identity](../../specs/policy-and-identity.md) records why
 | Agent | Calls a model | Default model | Needs a key |
 |---|---|---|---|
 | `orchestrator.model` | Always. It writes the replies in the app's conversation, and names each new conversation. | `claude-sonnet-5-5`, and `claude-haiku-5-5` for the name | Yes: it does not start without one. |
-| `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=anthropic`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode. |
-| `advisor.policy` | Only with `DD_POLICY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
-| `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
-| `advisor.documentation` | Only with `DD_DOCUMENTATION_WRITER=anthropic`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode. |
+| `advisor.standards` | Only with `DD_STANDARDS_EXPLAINER=model`. The default, `template`, is deterministic. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
+| `advisor.policy` | Only with `DD_POLICY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
+| `advisor.repository` | Only with `DD_REPOSITORY_EXPLAINER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
+| `advisor.documentation` | Only with `DD_DOCUMENTATION_WRITER=model`. The default is `template`. | `claude-sonnet-5-5` | Only in that mode, and not for a local endpoint. |
 | Every other agent, such as `example.hello` and `orchestrator.stub` | Never. | none | No. |
 
 A new `deployment.yaml` names `orchestrator: stub`, the agent a researcher converses with, so a
 default installation sends nothing to a model provider. It becomes model-backed when you choose,
 below.
 
-The only provider supported today is Anthropic, and its models are hosted. A manifest can also
-declare a `local` model, but no agent in the repository uses one.
+`anthropic`, the older value of these four settings, still works and means `model` with the
+Anthropic provider. The default model applies to Anthropic only; with any other provider,
+`DD_MODEL_ID` must name one.
+
+## Choose a provider
+
+The four advisers above can call any provider below, set in the agent's own settings file with no
+code change. The model-backed orchestrator delegates through Anthropic's tool calls and supports
+only Anthropic for now (#831); any other `DD_MODEL_PROVIDER` stops it at start-up.
+
+| `DD_MODEL_PROVIDER` | What it calls | Sends to | Key | Declared as |
+|---|---|---|---|---|
+| `anthropic` (default) | Claude, through the Messages API | Anthropic | `ANTHROPIC_API_KEY` | `anthropic`, `hosted` |
+| `openai` | OpenAI's Chat Completions API | OpenAI | `OPENAI_API_KEY` | `openai`, `hosted` |
+| `gemini` | Gemini, through Google's OpenAI-compatible endpoint | Google | `GEMINI_API_KEY` | `gemini`, `hosted` |
+| `openai-compatible` | Any server that speaks the OpenAI Chat Completions API, at `DD_MODEL_BASE_URL`: Ollama, vLLM, llama.cpp, LM Studio, or a gateway such as [LiteLLM](../../../deploy/llm-gateway/README.md) | Whoever runs that server | `DD_MODEL_API_KEY`, which a local server may go without | the server's host and port, `local` or `hosted` |
+
+Each key variable also has its `_FILE` form, as below. An agent holds only its own provider's key:
+a key set for another provider stops it at start-up.
+
+**Local or hosted.** Whether a model is `local` is worked out from `DD_MODEL_BASE_URL`, not
+configured. It is `local` only when the host is `localhost` or an IP address that is loopback
+(`127.0.0.1`, `::1`), private (`10.x`, `172.16–31.x`, `192.168.x`, `fd…`) or link-local.
+Anything else is `hosted`, including a host name on the institution's own network, because a
+name is not looked up. A `hosted` model is subject to the profile's `hosted_models` rules below,
+so a server on the institution's network that you want treated as local must be named by its IP
+address. A model the agent reaches on loopback runs on the same host, and no project content
+leaves it.
+
+For example, an explainer on a local Ollama server:
+
+```bash
+DD_STANDARDS_EXPLAINER=model
+DD_MODEL_PROVIDER=openai-compatible
+DD_MODEL_BASE_URL=http://127.0.0.1:11434/v1
+DD_MODEL_ID=llama3.3
+```
+
+or on OpenAI:
+
+```bash
+DD_STANDARDS_EXPLAINER=model
+DD_MODEL_PROVIDER=openai
+DD_MODEL_ID=<an OpenAI model>
+```
+
+with its key given by `sudo data-director secret set advisor-standards openai-api-key`.
+
+The quality of an explainer's or writer's text depends on the model. Which provider and model
+combinations have been evaluated is not yet recorded (#833); after changing provider, read a few
+runs' output before relying on it.
 
 ## What a provider receives
 
@@ -58,7 +107,7 @@ built yet (#40).
 
 ## Choose a model
 
-`DD_MODEL_ID`, in the agent's own settings file, selects the model. Every model-backed agent defaults to
+`DD_MODEL_ID`, in the agent's own settings file, selects the model. With Anthropic, every model-backed agent defaults to
 `claude-sonnet-5-5`, which balances the quality of routing and wording against cost and latency.
 
 | If you want | Do |
@@ -89,8 +138,11 @@ do, and the key never appears in a run, a trace, a manifest or an export.
 | Variable | `ANTHROPIC_API_KEY_FILE`, relative to `config/local/credentials/` | `ANTHROPIC_API_KEY_FILE` |
 | Put it in | A file under `config/local/credentials/`, named in `config/local/agents/<name>.env`, which only that agent reads (`scripts/dd.py setup` does this) | `sudo data-director secret set <name> anthropic-api-key`, which keeps it in a root-only file under `/etc/data-director/credentials/<name>/` and loads it as a systemd credential |
 
-`ANTHROPIC_API_KEY` itself also works in an agent's own file. Set one variable or the other, never both. A command-line login on the host, such as
-`ant auth login`, is never used. Never put a key in `app.env` or `agents.env`, in
+Another provider's key works the same way under its own name: `openai-api-key`
+(`OPENAI_API_KEY_FILE`), `gemini-api-key` (`GEMINI_API_KEY_FILE`) or `dd-model-api-key`
+(`DD_MODEL_API_KEY_FILE`). `ANTHROPIC_API_KEY` itself also works in an agent's own file. Set one variable or the other, never both. A command-line login on the host, such as
+`ant auth login`, is never used, nor anything a provider's library would read from the
+environment for itself, such as `OPENAI_BASE_URL` or `OPENAI_CUSTOM_HEADERS`. Never put a key in `app.env` or `agents.env`, in
 `config/local/` or `/etc/data-director/`: every agent reads `agents.env`.
 
 **Give each agent its own key.** One key can then be revoked without disturbing the other, and
@@ -108,8 +160,9 @@ is, every model call uses the keys described here.
 1. Configure the advisor in `/etc/data-director/agents/advisor-standards.env`:
 
    ```bash
-   DD_STANDARDS_EXPLAINER=anthropic
+   DD_STANDARDS_EXPLAINER=model
    # DD_MODEL_ID=<another model, if you do not want the default>
+   # DD_MODEL_PROVIDER=<another provider; see "Choose a provider">
    ```
 
 2. From your clone of the repository, give it its key:
@@ -171,7 +224,7 @@ On a VM, `sudo data-director doctor` reports an agent turned on without its key,
 is not running, and the orchestrator the app converses with ([Deploying to a VM](../../../deploy/README.md), "Day to day").
 In development, `uv run scripts/dd.py doctor` does the same for `config/local/`.
 
-1. In the app, open the agent directory and the agent's page. It should name Anthropic and
+1. In the app, open the agent directory and the agent's page. It should name the provider and
    the model you chose.
 2. Have a short conversation on the home page. If the named agent is not running, is not
    permitted by the profile, or does not delegate, the page says so; it does not fall back to
@@ -204,6 +257,14 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `ANTHROPIC_API_KEY_FILE: cannot read …` / `… is empty` | The file is missing, unreadable or empty. |
 | `no model key` on the VM, after a key was put in place by hand | `data-director apply` (or `install.sh`) left the key out of the drop-in because it is not a non-empty regular file (a directory, say), and said so. `sudo data-director secret list` shows it as a `PROBLEM`. |
 | `DD_ORCHESTRATOR_EFFORT=…`, `DD_TITLE_MODEL=…`, or an unknown `DD_STANDARDS_*` value | An unrecognised setting. |
+| `DD_…_EXPLAINER=anthropic but DD_MODEL_PROVIDER is not` | The older value names Anthropic; set `model` to use another provider. |
+| `DD_MODEL_PROVIDER=…: expected one of …` | An unknown provider. |
+| `DD_MODEL_ID is required with DD_MODEL_PROVIDER=…` | Only Anthropic has a default model. |
+| `… is set but DD_MODEL_PROVIDER is …` | A key for a provider other than the configured one. Remove it. |
+| `DD_MODEL_BASE_URL is required …`, `… is for DD_MODEL_PROVIDER=openai-compatible only`, `… is not an http or https URL` | The base URL is missing, set for a named provider, or malformed. |
+| `no model key: … only a local DD_MODEL_BASE_URL may have none` | An `openai-compatible` endpoint that is not local, with no `DD_MODEL_API_KEY`. |
+| `DD_MODEL_PROVIDER=…: orchestrator.model … supports only anthropic` | The orchestrator was given another provider (#831). |
+| `DD_MODEL_BROKER_URL is set but the model broker serves only anthropic` | The broker forwards Anthropic's format only (#832). |
 | `set DD_MODEL_BROKER_URL or ANTHROPIC_API_KEY, not both` | The agent calls through the [model broker](model-broker.md), which holds the key, so it may hold none itself. |
 | `no model broker credential` | `DD_MODEL_BROKER_URL` is set without `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE`. |
 

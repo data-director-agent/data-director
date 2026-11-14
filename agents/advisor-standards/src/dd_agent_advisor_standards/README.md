@@ -13,21 +13,24 @@ returns `Recommendations`. Serve it with `uv run dd-advisor-standards serve --po
 | Variable | Values | Default |
 |---|---|---|
 | `DD_STANDARDS_RETRIEVAL` | `snapshot`, or `live` (falls back to the snapshot, marked stale) | `snapshot` |
-| `DD_STANDARDS_EXPLAINER` | `template` or `anthropic` | `template` |
-| `DD_MODEL_ID` | model id for the Anthropic explainer | `explain.DEFAULT_MODEL` (`claude-sonnet-5-5`) |
+| `DD_STANDARDS_EXPLAINER` | `template` or `model` (`anthropic`, the older value, still works) | `template` |
+| `DD_MODEL_PROVIDER` | `anthropic`, `openai`, `gemini` or `openai-compatible` | `anthropic` |
+| `DD_MODEL_ID` | the model the explainer calls; required with any provider but Anthropic | `explain.DEFAULT_MODEL` (`claude-sonnet-5-5`) with Anthropic |
+| `DD_MODEL_BASE_URL` | the endpoint, with `openai-compatible` only | none |
 | `DD_SNAPSHOT_PATH` | path to a snapshot JSONL file | `data/fairsharing/snapshot.jsonl` |
-| `ANTHROPIC_API_KEY` | the Anthropic explainer's key, in development | none |
-| `ANTHROPIC_API_KEY_FILE` | a file holding that key, in deployment; a relative path is under `$CREDENTIALS_DIRECTORY` | none |
+| `ANTHROPIC_API_KEY`, or the configured provider's (`OPENAI_API_KEY`, `GEMINI_API_KEY`, `DD_MODEL_API_KEY`) | the explainer's key, in development | none |
+| the same name with `_FILE` | a file holding that key, in deployment; a relative path is under `$CREDENTIALS_DIRECTORY` | none |
 
-An unknown value is a configuration error and stops the service at start-up. So is the Anthropic
-explainer without exactly one of the two key variables. The key is passed to the Anthropic client
-explicitly: the SDK's own credential chain, such as an `ant auth login`, is never used
+An unknown value is a configuration error and stops the service at start-up. So is the model
+explainer without exactly one of its provider's two key variables, except for a local
+`openai-compatible` endpoint, which may have none. The key is passed to the provider's client
+explicitly: the provider SDK's own credential chain, such as an `ant auth login`, is never used
 ([Policy and identity](../../../../docs/specs/policy-and-identity.md)). In development, put the key in `config/local/credentials/` and name it in
 `config/local/agents/advisor-standards.env`, which only this agent reads. In deployment, the key is loaded as a systemd credential (`deploy/README.md`).
 
-With the Anthropic explainer the advisor sends Anthropic the dataset profile's title,
+With the model explainer the advisor sends the provider the dataset profile's title,
 description, keywords, themes and field names and types, and the candidate records' names,
-descriptions and subjects (`AnthropicExplainer._prompt`). It never sends data values. Its
+descriptions and subjects (`ModelExplainer._prompt`). It never sends data values. Its
 manifest then declares the model (`models`), and the app's About tab names it. The app runs the
 advisor in its own process only with the template explainer. For the model, run it as a
 service.
@@ -56,7 +59,7 @@ that content (E1, [Evidence and grounding](../../../../docs/specs/grounding.md))
 - **Live search needs a FAIRsharing account** (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`);
   record fetch does not. No live-search cassette is committed, so that path is unsubstantiated in
   `CONFORMANCE.md` until someone with an account records one.
-- **The Anthropic explainer** (`DD_STANDARDS_EXPLAINER=anthropic`) is tested only against a
+- **The model explainer** (`DD_STANDARDS_EXPLAINER=model`) is tested only against a
   hand-written cassette (`tests/cassettes/test_key_not_stored/`), which shows that its key stays
   out of every stored record. No real reply has been recorded, so the quality of its rationales
   is unsubstantiated.

@@ -10,12 +10,13 @@ from dd_agent_advisor_standards import testing as fakes
 from dd_agent_advisor_standards.classes import DatasetProfile, RecommendationKind
 from dd_agent_advisor_standards.explain import (
     SYSTEM_PROMPT,
-    AnthropicExplainer,
+    ModelExplainer,
     TemplateExplainer,
     template_rationale,
 )
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import Derivation
+from dd_sdk.model_anthropic import AnthropicModel
 from dd_sdk.prompts import prompt_digest
 from dd_sdk.tracing import make_tracing
 
@@ -45,9 +46,9 @@ class _NoClient:
     pass
 
 
-def _explainer() -> AnthropicExplainer:
+def _explainer() -> ModelExplainer:
     pytest.importorskip("anthropic")
-    return AnthropicExplainer(client=_NoClient(), model_id="claude-opus-5")  # type: ignore[arg-type]
+    return ModelExplainer(AnthropicModel("claude-opus-5", client=_NoClient()))  # type: ignore[arg-type]
 
 
 @pytest.mark.requirement("DD-GROUNDING", "C14.1")
@@ -94,7 +95,7 @@ class _CountingClient:
 def test_each_call_returns_its_own_usage() -> None:
     """Usage travels with the call, so concurrent runs on one explainer cannot swap counts."""
     pytest.importorskip("anthropic")
-    ex = AnthropicExplainer(client=_CountingClient(), model_id="claude-opus-5")  # type: ignore[arg-type]
+    ex = ModelExplainer(AnthropicModel("claude-opus-5", client=_CountingClient()))  # type: ignore[arg-type]
     tracing = make_tracing()
     ctx = RunContext(tracer=tracing.tracer, input_ref="", input_hash="")
     first = ex.explain(DatasetProfile(), _items(), ctx)
@@ -123,7 +124,7 @@ def test_a_call_is_recorded_with_the_prompt_it_sent() -> None:
     (docs/specs/disclosure.md)."""
     pytest.importorskip("anthropic")
     client = _RecordingClient()
-    ex = AnthropicExplainer(client=client, model_id="claude-opus-5")  # type: ignore[arg-type]
+    ex = ModelExplainer(AnthropicModel("claude-opus-5", client=client))  # type: ignore[arg-type]
     tracing = make_tracing()
     ctx = RunContext(tracer=tracing.tracer, input_ref="", input_hash="")
     out = ex.explain(DatasetProfile(), _items(), ctx)

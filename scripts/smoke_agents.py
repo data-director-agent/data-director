@@ -52,7 +52,12 @@ PRINCIPAL = {"DD_PRINCIPAL_ID": "https://orcid.org/0000-0002-1825-0097", "DD_PRI
 # Each agent that needs a model key, by registry URL, with the name of its own env file
 # (workbench/agents/<name>.env, as scripts/run-agents.sh reads it).
 MODEL_BACKED = {"http://127.0.0.1:8107": "orchestrator-model"}
-KEY_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY_FILE")
+# Every variable a model key may be given in (dd_sdk.model_provider.PROVIDERS).
+KEY_VARS = tuple(
+    v
+    for key in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "DD_MODEL_API_KEY")
+    for v in (key, f"{key}_FILE")
+)
 
 # (agent, sample, outcome.status), as samples/README.md documents them.
 CASES = [

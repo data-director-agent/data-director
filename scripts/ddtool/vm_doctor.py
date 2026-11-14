@@ -17,6 +17,7 @@ from typing import Any
 from ddtool.common import (
     KEY_VARS,
     MODEL_BACKED,
+    PROVIDER_KEYS,
     Agent,
     DevError,
     compare_profile,
@@ -44,6 +45,13 @@ ADMIN_UNIT = "data-director-admin.service"
 SIGN_IN_SETTINGS = ("DD_OIDC_ISSUER", "DD_OIDC_CLIENT_ID", "DD_APP_PUBLIC_URL")
 OPERATOR_SETTINGS = ("DD_PRINCIPAL_ID", "DD_PRINCIPAL_NAME")
 MODEL_KEY = "anthropic-api-key"
+# The agents a model only helps, by the setting that turns their model on.
+MODEL_SWITCHES = {
+    "advisor-standards": "DD_STANDARDS_EXPLAINER",
+    "advisor-policy": "DD_POLICY_EXPLAINER",
+    "advisor-repository": "DD_REPOSITORY_EXPLAINER",
+    "advisor-documentation": "DD_DOCUMENTATION_WRITER",
+}
 BACKUP_UNIT = "data-director-backup.service"
 BACKUP_TIMER = "data-director-backup.timer"
 # A backup older than this means the nightly one has stopped (deploy/README.md, "Backups").
@@ -263,19 +271,25 @@ class Doctor:
             if own is None:
                 report.skip(str(vm.agent_env(agent.name)))
                 own = {}
+            provider = own.get("DD_MODEL_PROVIDER") or "anthropic"
             needs = agent.name in MODEL_BACKED or (
-                agent.name == "advisor-standards"
-                and own.get("DD_STANDARDS_EXPLAINER") == "anthropic"
+                own.get(MODEL_SWITCHES.get(agent.name, ""), "template") in ("model", "anthropic")
+                # A local OpenAI-compatible endpoint may need no key; the agent says at start-up.
+                and provider != "openai-compatible"
+            )
+            # The secret's name gives the variable the agent reads it from (deploy/credentials.sh).
+            secret = (
+                PROVIDER_KEYS.get(provider, PROVIDER_KEYS["anthropic"]).lower().replace("_", "-")
             )
             if (
                 on
                 and needs
-                and MODEL_KEY not in loaded_secrets(system, vm, agent.name)
+                and secret not in loaded_secrets(system, vm, agent.name)
                 and not any(own.get(var) for var in KEY_VARS)
             ):
                 report.problem(
                     f"{agent.name} calls a model but has no key",
-                    f"{self.tool} secret set {agent.name} {MODEL_KEY}",
+                    f"{self.tool} secret set {agent.name} {secret}",
                 )
         if system.is_root():
             for directory in sorted(p for p in vm.credentials.glob("*") if p.is_dir()):

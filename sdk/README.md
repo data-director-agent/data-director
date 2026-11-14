@@ -20,6 +20,8 @@ package.
 | `dd_sdk.prompts` | `ModelCallLog`: the model calls of one run and the prompts they name by digest ([Disclosure](../docs/specs/disclosure.md)). |
 | `dd_sdk.model` | `call`: one model call, with its `chat` span, token counts and `ModelCallLog` entry, through a `Model` adapter ([Agents](../docs/specs/agents.md)). |
 | `dd_sdk.model_anthropic` | `AnthropicModel`, the adapter for Claude; needs the `anthropic` extra ([Dependencies](../docs/specs/dependencies.md)). |
+| `dd_sdk.model_openai` | `OpenAIModel`, the adapter for any OpenAI-compatible Chat Completions endpoint (OpenAI, Gemini, Ollama, vLLM, llama.cpp, LM Studio, a gateway); needs the `openai` extra. |
+| `dd_sdk.model_provider` | `configured_model(env)` and `optional_model(env, setting)`: the model an agent's settings name (`DD_MODEL_PROVIDER`, `DD_MODEL_ID`, `DD_MODEL_BASE_URL`, the provider's key), and `hosting_of`, which works out whether an endpoint is `local` ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `dd_sdk.testing` | `FakeModel`, a `Model` for tests that needs no key. |
 | `dd_sdk.credentials` | `api_key(env)`: a model key, read once at start-up, and `ConfigError` ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `dd_sdk.sources` | `BuiltSource`, how an agent declares a source copy it builds outside git, and `dd-sources`, which prepares them all ([Evidence and grounding](../docs/specs/grounding.md)). |

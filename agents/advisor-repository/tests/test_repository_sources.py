@@ -17,7 +17,7 @@ from re3data_fixture import FIXTURE, build_fixture, session_registry
 
 from dd_agent_advisor_repository import assess, factory, registry
 from dd_agent_advisor_repository.classes import Affiliation, Answer
-from dd_agent_advisor_repository.explain import AnthropicExplainer, TemplateExplainer
+from dd_agent_advisor_repository.explain import ModelExplainer, TemplateExplainer
 from dd_agent_advisor_repository.live import FairsharingLive
 from dd_agent_advisor_repository.records import from_fairsharing_json, from_re3data_xml
 from dd_agent_advisor_repository.retrieve import Query, RegistryUnavailable, find_by_name
@@ -340,7 +340,7 @@ def test_live_retrieval_asks_fairsharing_and_keeps_its_snapshot_as_fallback() ->
 
 def test_the_model_explainer_is_declared_on_the_spec() -> None:
     agent = factory.build({"DD_REPOSITORY_EXPLAINER": "anthropic", "ANTHROPIC_API_KEY": "sk-test"})
-    assert isinstance(agent.explainer, AnthropicExplainer)
+    assert isinstance(agent.explainer, ModelExplainer)
     assert [m.provider for m in agent.spec.models] == ["anthropic"]
 
 
@@ -396,3 +396,40 @@ def test_a_fairsharing_record_is_found_by_its_identifier_in_any_case(tmp_path: P
         found = snapshot.fetch(cited)
         assert found is not None and found.fairsharing_id == "FAIRsharing.AbC123", cited
     assert snapshot.fetch("FAIRsharing.abc124") is None
+
+
+@pytest.mark.parametrize(
+    ("settings", "declared"),
+    [
+        (
+            {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "m-1", "OPENAI_API_KEY": "k"},
+            ("openai", "m-1", "hosted"),
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "llama",
+                "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+            },
+            ("localhost:11434", "llama", "local"),
+        ),
+    ],
+)
+def test_the_model_can_come_from_another_provider(
+    settings: dict[str, str], declared: tuple[str, str, str]
+) -> None:
+    pytest.importorskip("openai")
+    agent = factory.build({"DD_REPOSITORY_EXPLAINER": "model", **settings})
+    assert [(m.provider, m.model, m.hosting) for m in agent.spec.models] == [declared]
+
+
+def test_the_older_anthropic_setting_names_only_anthropic() -> None:
+    with pytest.raises(ConfigError):
+        factory.build(
+            {
+                "DD_REPOSITORY_EXPLAINER": "anthropic",
+                "DD_MODEL_PROVIDER": "openai",
+                "DD_MODEL_ID": "m-1",
+                "OPENAI_API_KEY": "k",
+            }
+        )

@@ -64,7 +64,8 @@ modules are not dependencies here.
 | `joserfc` | Harness, app | ID-token verification in `dd_harness.identity`; the RS256 JWT a GitHub App presents in `dd_app.github_auth` | Another JOSE library, or RS256 with `cryptography`. |
 | `ag-ui-protocol` | Harness | `dd_harness.transport.agui` | The seven pydantic event models the AG-UI binding sends, and an SSE encoder. |
 | `rank-bm25` (with numpy) | Retrieving agents | Each agent's `snapshot` module | About forty lines of BM25. |
-| `anthropic` | SDK (optional `anthropic` extra), which the Documentation Editor's extra installs; orchestrator (required) and retrieving advisers (optional extra) until they move to the SDK's model seam (#348) | `dd_sdk.model_anthropic`, the Claude adapter behind `dd_sdk.model`; `dd_agent_orchestrator_model.model`; each adviser's `explain` module | The rule-based orchestrator stub, an adviser's template explainer or the editor's template writer; another adapter behind `dd_sdk.model`; any HTTP client against the Messages API. |
+| `anthropic` | SDK (optional `anthropic` extra), which each model-backed adviser's `model` extra installs; orchestrator (required) until its tool calls move to the SDK's model seam (#831) | `dd_sdk.model_anthropic`, the Claude adapter behind `dd_sdk.model`; `dd_agent_orchestrator_model.model` | The rule-based orchestrator stub, an adviser's template explainer or the editor's template writer; another adapter behind `dd_sdk.model`; any HTTP client against the Messages API. |
+| `openai` | SDK (optional `openai` extra), which each model-backed adviser's `model` extra installs | `dd_sdk.model_openai`, the adapter behind `dd_sdk.model` for any OpenAI-compatible Chat Completions endpoint: OpenAI, Gemini, a local server or a gateway | Another adapter behind `dd_sdk.model`; an `httpx` call to `{base}/chat/completions`, which is one request and one response. |
 | `opf-fido` | `dd-inventory` | `dd_inventory.identify` | Media types from file extensions, with no PRONOM identifier. |
 | `frictionless` | `dd-inventory` | `dd_inventory.tables` | The researcher gives a table's fields by hand. |
 | `react`, `react-dom` | App shell | The shell's components | Preact with `preact/compat`. |
@@ -114,6 +115,13 @@ Which licences are acceptable is not yet decided or enforced: TODO(#82).
   pinned and built into a local registry, so every record it cites can be verified and a run
   makes no request to re3data. The API's search returns identifiers only, and each record cost
   one more request.
+- **`any-llm`, LiteLLM's SDK or `pydantic-ai` as the model layer.** Each puts its own abstraction
+  over many providers where `dd_sdk.model` already is one, and `any-llm` installs each provider's
+  SDK beneath it anyway. The OpenAI-compatible Chat Completions format is the shared, open
+  interface: OpenAI, Gemini, local servers (Ollama, vLLM, llama.cpp, LM Studio) and gateways all
+  serve it, so one adapter (`dd_sdk.model_openai`) reaches them. The LiteLLM proxy remains an
+  optional gateway a deployment may run (`deploy/llm-gateway/`). Open Responses, a newer open
+  specification, is not yet served as widely.
 - **Gradio and `pydantic-ai`** for the app. The app is a shell drawn from agent manifests
   ([The app](app.md)) and runs no agent in its own process.
 - **Vendoring** a library to keep the runtime tier short. A vendored copy is an unmaintained
