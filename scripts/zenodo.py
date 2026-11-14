@@ -85,7 +85,9 @@ class Client:
             with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
                 text = response.read().decode()
         except urllib.error.HTTPError as error:
-            detail = error.read().decode(errors="replace")
+            # An HTTPError owns its response body; close it rather than leave that to the GC.
+            with error:
+                detail = error.read().decode(errors="replace")
             message = f"{method} {url} returned {error.code}: {detail}"
             if error.code in (401, 403):
                 message += f"\n{TOKEN_HINT}"
