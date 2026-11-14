@@ -156,7 +156,7 @@ describe("ModelAccount", () => {
 
     expect(enrol).not.toHaveBeenCalled();
     expect(address).toHaveAttribute("aria-invalid", "true");
-    expect(address).toHaveAccessibleDescription(new RegExp(ORIGIN.replace(/\./g, "\\.")));
+    expect(address).toHaveAccessibleDescription(expect.stringContaining(ORIGIN));
   });
 
   it("has no accessibility violations with a choice of providers", async () => {
