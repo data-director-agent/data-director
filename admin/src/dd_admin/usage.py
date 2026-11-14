@@ -87,23 +87,30 @@ class Usage:
         return next((p for p in self.people if p.principal_id == principal_id), None)
 
 
+# Whose account paid for a call when it was a person's own (`ModelCall.model_account`).
+OWN = "own"
+
+
 def _int(value: object) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 0
 
 
 def model_calls(telemetry: dict[str, Any]) -> list[tuple[str, int, int]]:
-    """The run's tokens by model, as (model_id, in, out): one entry per call the agent reported
-    (docs/specs/disclosure.md), or the run's totals under its one model if it reported none."""
+    """The tokens the deployment paid for in a run, by model, as (model_id, in, out): one entry
+    per call the agent reported (docs/specs/disclosure.md), or the run's totals under its one
+    model if it reported none. A call a person's own model account paid for is left out
+    (docs/specs/model-accounts.md)."""
+    reported = [c for c in telemetry.get("model_calls") or [] if isinstance(c, dict)]
     calls = [
         (
             str(c.get("model_id") or "unknown"),
             _int(c.get("input_tokens")),
             _int(c.get("output_tokens")),
         )
-        for c in telemetry.get("model_calls") or []
-        if isinstance(c, dict)
+        for c in reported
+        if c.get("model_account") != OWN
     ]
-    if any(i or o for _, i, o in calls):
+    if any(_int(c.get("input_tokens")) or _int(c.get("output_tokens")) for c in reported):
         return calls
     totals = (_int(telemetry.get("input_tokens")), _int(telemetry.get("output_tokens")))
     if not any(totals):

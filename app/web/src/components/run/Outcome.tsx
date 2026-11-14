@@ -13,9 +13,9 @@ import { type Ref, useState } from "react";
 
 import { Copy, RotateCcw } from "lucide-react";
 import type { AgentView } from "../../manifest/normalise";
-import { OUTCOME, REASON } from "../../manifest/wording";
+import { MODEL_ACCOUNT, OUTCOME, REASON } from "../../manifest/wording";
 import { problemSlug } from "../../run/stages";
-import type { RunResult } from "../../run/types";
+import type { ModelCall, RunResult } from "../../run/types";
 import { NotBuilt } from "../NotBuilt";
 import { Button } from "../ui/Button";
 import { EvidencePanel } from "./EvidencePanel";
@@ -61,6 +61,25 @@ function Reason({ code }: { code: string | null | undefined }) {
         </>
       )}
     </dl>
+  );
+}
+
+/** Each model call the run recorded, and whose account paid for it, never whose. */
+function ModelCalls({ calls }: { calls: ModelCall[] }) {
+  if (calls.length === 0) return <dd>None</dd>;
+  return (
+    <dd>
+      <ul className="model-calls">
+        {calls.map((c, i) => (
+          <li key={`${c.prompt_digest}-${i}`}>
+            <code>{c.model_id}</code>, paid for by{" "}
+            {c.model_account
+              ? MODEL_ACCOUNT[c.model_account]
+              : "an account the run did not record"}
+          </li>
+        ))}
+      </ul>
+    </dd>
   );
 }
 
@@ -184,6 +203,8 @@ export function Outcome({
           <dd>
             <code>{envelope.grounding_mode}</code>
           </dd>
+          <dt>Model calls</dt>
+          <ModelCalls calls={envelope.telemetry?.model_calls ?? []} />
         </dl>
       </details>
     </section>

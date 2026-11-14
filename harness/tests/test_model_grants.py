@@ -43,13 +43,16 @@ from dd_sdk.agent import AgentResult, ModelUse, RunContext
 from dd_sdk.contract.models import (
     GroundingMode,
     InvocationRequest,
+    ModelAccount,
     OutcomeStatus,
     Principal,
     PrincipalKind,
+    ReasonCode,
     to_document,
 )
 from dd_sdk.model_grant import (
     BROKER_AUDIENCE,
+    HEADER_REASON,
     META_MODEL_GRANT,
     TICKET_LIFETIME_S,
     TICKET_TYPE,
@@ -58,6 +61,7 @@ from dd_sdk.model_grant import (
     ModelGrantClaims,
     ModelGrantError,
 )
+from dd_sdk.prompts import ModelCallLog
 
 MODEL = "claude-test"
 TIMEOUT_S = 30.0
@@ -439,6 +443,58 @@ def test_the_grant_is_not_kept_in_any_record(keys: GrantKeys, tmp_path: Path) ->
     for path in stored:
         assert grant.encode() not in path.read_bytes(), f"the grant is in {path}"
     assert grant not in json.dumps(to_document(env))
+
+
+# --- Whose account paid, and a refused account ---------------------------------------------------
+
+
+class _Answer:
+    def __init__(self, reason: str) -> None:
+        self.headers = {HEADER_REASON: reason}
+
+
+class _BrokerRefusedError(Exception):
+    """What a provider client raises for a broker's refusal: the answer is on `response`."""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__("the broker refused the call")
+        self.response = _Answer(reason)
+
+
+@pytest.mark.parametrize("remote", [True, False])
+def test_a_refused_own_account_ends_the_run_abstained_with_its_calls_recorded(
+    keys: GrantKeys, tmp_path: Path, remote: bool
+) -> None:
+    """docs/specs/model-accounts.md, invariants 9 and 10: the call made before the refusal is
+    recorded with whose account paid, in the envelope and the crate, and the run is an outcome."""
+
+    def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
+        calls = ModelCallLog("anthropic")
+        calls.record(
+            {"messages": [{"role": "user", "content": "hi"}]}, MODEL, account=ModelAccount.OWN
+        )
+        raise RuntimeError("the model could not be called") from _BrokerRefusedError(
+            "model-account-limit"
+        )
+
+    agent = ScriptedAgent(
+        GroundingMode.NONE, behaviour, models=(ModelUse("anthropic", MODEL, "hosted"),)
+    )
+    runs = tmp_path / "runs"
+    conductor = make_conductor(runs, agent, crate=True, remote=remote, model_grants=keys.minter())
+
+    env = conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    assert env.outcome.status is OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code is ReasonCode.MODEL_ACCOUNT_LIMIT
+    [made] = env.telemetry.model_calls
+    assert made.model_account is ModelAccount.OWN
+    crate = json.loads(
+        (runs / env.invocation_id / "crate" / "ro-crate-metadata.json").read_text(encoding="utf-8")
+    )
+    by_id = {e["@id"]: e for e in crate["@graph"]}
+    [action] = [e for e in crate["@graph"] if "additionalProperty" in e]
+    assert by_id[action["additionalProperty"]["@id"]]["value"] == ModelAccount.OWN.value
 
 
 # --- The published keys ------------------------------------------------------------------------

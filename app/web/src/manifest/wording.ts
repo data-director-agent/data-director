@@ -105,6 +105,24 @@ export const REASON: Record<string, { meaning: string; next: string }> = {
     meaning: "The request asks for something this agent does not do.",
     next: "Use another agent.",
   },
+  model_account_missing: {
+    meaning: "This deployment needs your own AI account for this agent, and none is added.",
+    next: "Add your AI account on your Profile page, then run it again.",
+  },
+  model_account_rejected: {
+    meaning: "Your AI provider refused your account's key.",
+    next: "Check the key with your provider, replace it on your Profile page, then run it again.",
+  },
+  model_account_limit: {
+    meaning: "Your AI provider reported a usage or rate limit on your account.",
+    next: "Wait and run it again, or raise the limit with your provider.",
+  },
+};
+
+/** Whose account paid for a model call (`ModelCall.model_account`), never whose. */
+export const MODEL_ACCOUNT: Record<"own" | "deployment", string> = {
+  own: "the own AI account of the person it acted for",
+  deployment: "this deployment's AI account",
 };
 
 export const STAGE_STATE: Record<

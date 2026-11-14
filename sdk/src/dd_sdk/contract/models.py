@@ -78,6 +78,18 @@ class ReasonCode(StrEnum):
     REQUIRES_HUMAN_JUDGEMENT = "requires_human_judgement"
     POLICY_REQUIRES_APPROVAL = "policy_requires_approval"
     OUTSIDE_AGENT_SCOPE = "outside_agent_scope"
+    # abstained: a person's own model account could not be used (docs/specs/model-accounts.md)
+    MODEL_ACCOUNT_MISSING = "model_account_missing"
+    MODEL_ACCOUNT_REJECTED = "model_account_rejected"
+    MODEL_ACCOUNT_LIMIT = "model_account_limit"
+
+
+class ModelAccount(StrEnum):
+    """Whose account paid for a model call: a person's own or the deployment's
+    (docs/specs/model-accounts.md)."""
+
+    OWN = "own"
+    DEPLOYMENT = "deployment"
 
 
 class Derivation(StrEnum):
@@ -724,7 +736,9 @@ class EvidenceItem(Frozen):
 
 class ModelCall(Frozen):
     """One call an agent made to a language model, as it reports it (docs/specs/disclosure.md).
-    `prompt_digest` names the messages sent; the harness keeps them beside the run."""
+    `prompt_digest` names the messages sent; the harness keeps them beside the run.
+    `model_account` says whose account paid, never whose key; it is absent only in runs recorded
+    before contract 0.10.0."""
 
     model_provider: str
     model_id: str
@@ -732,6 +746,7 @@ class ModelCall(Frozen):
     prompt_digest: str = Field(pattern=SHA256_PATTERN)
     input_tokens: int | None = None
     output_tokens: int | None = None
+    model_account: ModelAccount | None = None
 
 
 class Telemetry(Frozen):

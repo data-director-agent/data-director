@@ -35,6 +35,25 @@ export interface EvidenceItem {
   content?: Record<string, unknown> | null;
 }
 
+/** Whose account paid for a model call: a person's own or the deployment's, never whose. */
+export type ModelAccount = "own" | "deployment";
+
+/** One call an agent made to a language model. The prompt is named by digest, never included. */
+export interface ModelCall {
+  model_provider: string;
+  model_id: string;
+  called_at: string;
+  prompt_digest: string;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  /** Absent in runs recorded before contract 0.10.0. */
+  model_account?: ModelAccount | null;
+}
+
+export interface Telemetry {
+  model_calls?: ModelCall[] | null;
+}
+
 export interface Envelope {
   invocation_id: string;
   agent_id: string;
@@ -48,4 +67,5 @@ export interface Envelope {
   evidence?: EvidenceItem[] | null;
   problem?: Problem | null;
   requires_human_review?: boolean;
+  telemetry?: Telemetry | null;
 }

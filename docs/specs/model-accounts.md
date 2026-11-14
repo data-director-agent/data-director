@@ -39,9 +39,11 @@ agent can call through the broker (`dd_sdk.credentials.model_endpoint`,
 (`GrantMinter.enrolment_ticket`), the app issues it, the broker serves the browser
 (`dd_broker.enrolment`), and the Profile page holds the form. The profile key is built: the
 conductor reads `model_accounts` when it mints a grant (`dd_harness.policy.ModelAccounts`), and the
-broker enforces what the grant says. Recording and the reason codes TODO(#809); OpenAI-compatible
-accounts TODO(#811). The shipped profiles turn own accounts off, so every grant says the
-deployment pays, and every model call is paid for by the deployment, as it is today.
+broker enforces what the grant says. Recording whose account paid and the reason codes are built:
+the SDK reads the broker's answer (`dd_sdk.model_account`), and a refused account ends the run as
+an outcome. OpenAI-compatible accounts TODO(#811). The shipped profiles turn own accounts off, so
+every grant says the deployment pays, and every model call is paid for by the deployment, as it is
+today.
 
 The governing rule is the one in [Policy and identity](policy-and-identity.md): **the party being
 governed does not state the facts the governance rests on.** Neither an agent nor a request chooses
@@ -92,13 +94,24 @@ the broker checks that decision.
    credential stops the agent at start-up in one line (`dd_sdk.credentials.model_endpoint`,
    `sdk/tests/test_model_broker.py`).
 9. **Whose account paid is recorded, never whose key.** Every model call records `own` or
-   `deployment`, and the provider and model that served it as the broker reports them. The
-   credential, its label and the pseudonym never enter the record (TODO(#809)).
+   `deployment` (`ModelCall.model_account`, and `dd.model_account` on its `chat` span), and the
+   provider and model that served it as the broker reports them. The client the SDK builds for
+   the broker reads `X-DD-Model-Account` from each answer, so an agent that calls its client
+   directly records it too; a call that did not go through the broker was paid for by the
+   deployment. The Process Run Crate gives each call's `CreateAction` the same value as a
+   `PropertyValue` named `model_account`. The credential, its label and the pseudonym never enter
+   the record (`dd_sdk.model_account`, `sdk/tests/test_whose_account_paid.py`,
+   `harness/tests/test_model_grants.py`, `app/tests/test_model_account.py`).
 10. **A missing or failing account is an outcome.** If the profile requires a person's own account
-    and they have none, the run ends with `model-account-missing`. If the provider refuses the key,
-    it ends with `model-account-rejected`. If the provider reports a quota or rate limit, it ends
-    with `model-account-limit`. None of these is an exception, and none silently changes who pays.
-    Adding these reason codes raises the contract version ([Contract](contract.md), TODO(#809)).
+    and they have none, the run ends `abstained` with reason code `model_account_missing`. If the
+    provider refuses the key, it ends with `model_account_rejected`. If the provider reports a
+    quota or rate limit, it ends with `model_account_limit`. The broker sends each as the same
+    name in kebab case in `X-DD-Reason`; the SDK's agent server, and the conductor for an agent it
+    runs in process, find it on the exception the agent raised and end the run with the calls made
+    before it (`dd_sdk.model_account.accounted`). None of these is an exception, and none silently
+    changes who pays. Adding these reason codes raised the contract version to 0.10.0
+    ([Contract](contract.md); `sdk/tests/test_whose_account_paid.py`,
+    `harness/tests/test_model_grants.py`).
 11. **The profile decides; the default changes nothing.** Whether people may use their own
     account, whether they must, and whether the deployment's key is the fallback are profile
     settings that the conductor and the broker enforce. The shipped profiles turn own accounts off
@@ -170,7 +183,8 @@ A refusal or a provider error is reduced to a status and a reason code, which th
 | The provider reports a quota or rate limit on it | 429 | `model-account-limit` |
 
 Neither falls back to the deployment's key. The header names, claim names and account values are
-in `dd_sdk.model_grant`; the reason codes are in `dd_broker.reasons`.
+in `dd_sdk.model_grant`; the reason codes are in `dd_broker.reasons`. The run records the three
+`model-account-*` codes as the `ReasonCode` values of the same names in snake case (invariant 10).
 
 The deployment's own calls go to `DD_BROKER_DEPLOYMENT_BASE_URL` when it is set, normally the
 [LiteLLM gateway](../../deploy/llm-gateway/README.md), with a gateway key in place of the provider
@@ -191,7 +205,7 @@ The steps are:
 
 The page shows the label and the person's token use, and nothing else. Removing the account erases
 the sealed record at once. A run in progress makes no further calls on that account: its next
-call ends the run with `model-account-missing`, or is paid for by the deployment only if the grant
+call ends the run with `model_account_missing`, or is paid for by the deployment only if the grant
 allows `own-or-deployment`, and the run records that it was (invariants 9–10).
 
 The ticket is the grant's sibling, signed with the same key and checked against the same published
@@ -310,8 +324,8 @@ The conductor turns the first two into the grant's account setting:
 |---|---|---|---|
 | `off` | either | `deployment` | Not applicable. |
 | `allowed` | `deployment` | `own-or-deployment` | The deployment pays. |
-| `allowed` | `none` | `own` | The run ends with `model-account-missing`. |
-| `required` | `none` | `own` | The run ends with `model-account-missing`. |
+| `allowed` | `none` | `own` | The run ends with `model_account_missing`. |
+| `required` | `none` | `own` | The run ends with `model_account_missing`. |
 
 `required` with `fallback: deployment` contradicts itself, so a profile that combines them is
 refused when it is loaded. So is a `fallback` or `providers` beside `own: off`, a provider the
@@ -329,9 +343,11 @@ local. A provider's own endpoint, used by an entry without `base_urls`, is never
 operator's broker allow-list (`DD_BROKER_ALLOWED_BASE_URLS`) must also name an origin before the
 broker sends a key there.
 
-**What the person sees.** The About tab for a model-backed agent shows the models its card
-declares, as today. To the signed-in person it also shows the label of their own account, if the
-profile lets that agent use it. A stored run shows `own` or `deployment` for each call
+**What the person sees.** The agent page for a model-backed agent shows the models its card
+declares, as before. Where the profile lets people use their own accounts, it also shows the
+signed-in person the label of their own account, read from the broker with their own ticket, or
+points them to the Profile page if they have none. A stored run's "About this run" shows each
+model call and whether the person's own account or the deployment's paid for it
 ([Disclosure](disclosure.md)). Only the person whose account it is sees the label.
 
 ## Rationale

@@ -1331,9 +1331,18 @@
          "title": "Message",
          "type": "object"
       },
+      "ModelAccount": {
+         "description": "Whose account paid for a model call (docs/specs/model-accounts.md).",
+         "enum": [
+            "own",
+            "deployment"
+         ],
+         "title": "ModelAccount",
+         "type": "string"
+      },
       "ModelCall": {
          "additionalProperties": false,
-         "description": "One call an agent made to a language model, as the agent reports it (docs/specs/disclosure.md). model_id is the model the provider's response named, which may be more exact than the one configured. prompt_digest identifies the messages sent: the harness keeps them beside the run, never in the envelope, and checks that they hash to it.",
+         "description": "One call an agent made to a language model, as the agent reports it (docs/specs/disclosure.md). model_id is the model the provider's response named, which may be more exact than the one configured. prompt_digest identifies the messages sent: the harness keeps them beside the run, never in the envelope, and checks that they hash to it. model_account says whose account paid for the call, never whose key (docs/specs/model-accounts.md).",
          "properties": {
             "model_provider": {
                "description": "Who serves the model, as the agent's card names it (anthropic).",
@@ -1363,6 +1372,17 @@
                   "integer",
                   "null"
                ]
+            },
+            "model_account": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ModelAccount"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Whose account paid for a model call, as the model broker reports it: a person's own or the deployment's. Never names the account, its key or its holder. Absent only in runs recorded before contract 0.10.0."
             }
          },
          "required": [
@@ -1715,7 +1735,10 @@
             "capability_not_implemented",
             "requires_human_judgement",
             "policy_requires_approval",
-            "outside_agent_scope"
+            "outside_agent_scope",
+            "model_account_missing",
+            "model_account_rejected",
+            "model_account_limit"
          ],
          "title": "ReasonCode",
          "type": "string"
@@ -2716,5 +2739,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.9.11"
+   "version": "0.10.0"
 }

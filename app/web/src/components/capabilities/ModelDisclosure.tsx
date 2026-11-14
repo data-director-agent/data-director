@@ -3,10 +3,18 @@
  * one, from whom, and whether it runs remotely or locally), or no model at all. All of it is
  * read from the agent's manifest, as configured; a manifest that does not say is shown as not
  * declared, never as deterministic.
+ *
+ * Where this deployment lets people use their own AI account, the signed-in person also sees the
+ * label of their own account (docs/specs/model-accounts.md, What the person sees). The label is
+ * read from the model broker with the person's own ticket, so no one else is ever shown it.
  */
+
+import { useEffect, useState } from "react";
 
 import type { AgentView } from "../../manifest/normalise";
 import { HOSTING, PROVIDER } from "../../manifest/wording";
+import { type AccountLabel, useModelAccountApi } from "../../model-account/api";
+import { Link } from "../../route";
 
 type ModelFacts = Pick<AgentView, "models" | "modelsDeclared">;
 
@@ -60,5 +68,51 @@ export function Models({ agent }: { agent: ModelFacts }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+type Own =
+  | { state: "loading" }
+  | { state: "loaded"; account: AccountLabel | null }
+  | { state: "failed" };
+
+/** The signed-in person's own AI account, for an agent that calls a model. Shown to them alone. */
+export function OwnAccount() {
+  const api = useModelAccountApi();
+  const [own, setOwn] = useState<Own>({ state: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .read(controller.signal)
+      .then((value) => setOwn({ state: "loaded", account: value.account }))
+      .catch(() => {
+        if (!controller.signal.aborted) setOwn({ state: "failed" });
+      });
+    return () => controller.abort();
+  }, [api]);
+
+  if (own.state === "loading") return <p role="status">Reading your AI account…</p>;
+  if (own.state === "failed") {
+    return (
+      <p>
+        Your own AI account could not be read. It is on your{" "}
+        <Link to="/profile">Profile page</Link>.
+      </p>
+    );
+  }
+  if (own.account === null) {
+    return (
+      <p>
+        This deployment lets you use your own AI account for these calls, and you have not added
+        one. You can add it on your <Link to="/profile">Profile page</Link>.
+      </p>
+    );
+  }
+  return (
+    <p>
+      <strong>Your AI account:</strong> {own.account.label}. This deployment may use it for these
+      calls, and each run records whether it did. Only you see this.
+    </p>
   );
 }

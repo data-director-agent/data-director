@@ -93,6 +93,7 @@ from dd_sdk.contract.models import (
 )
 from dd_sdk.delegate import Delegated, DelegationRefused
 from dd_sdk.evidence import HASH_ALGORITHM, INPUT_CANONICALISATION
+from dd_sdk.model_account import record_account
 from dd_sdk.process_flow import ENTRIES, progress, requirements_of, suggested_next
 from dd_sdk.process_flow import entry as flow_entry
 from dd_sdk.prompts import ModelCallLog
@@ -525,6 +526,8 @@ class ModelOrchestrator:
                     # A server-side fallback answered.
                     span.set_attribute(ATTR_MODEL_ID, turn.model_id)
                 record_tokens(span, turn.input_tokens, turn.output_tokens)
+                # Whose account paid, as the model broker said (docs/specs/model-accounts.md).
+                record_account(span)
             calls.record(
                 prompt,
                 turn.model_id,

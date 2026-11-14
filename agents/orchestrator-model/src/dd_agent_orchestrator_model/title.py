@@ -25,6 +25,7 @@ import anthropic
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import CONVERSATION_TITLE_MAX, now
 from dd_sdk.credentials import ModelEndpoint
+from dd_sdk.model_account import record_account
 from dd_sdk.model_anthropic import anthropic_client
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
@@ -109,6 +110,7 @@ def titled(titler: Titler, message_text: str, ctx: RunContext, calls: ModelCallL
             if turn.model_id != titler.model_id:
                 span.set_attribute(ATTR_MODEL_ID, turn.model_id)
             record_tokens(span, turn.input_tokens, turn.output_tokens)
+            record_account(span)
     except Exception as exc:  # noqa: BLE001 — a title is never worth failing the turn for
         log.warning("no conversation title: %s", exc)
         return None

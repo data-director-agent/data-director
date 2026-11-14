@@ -324,6 +324,13 @@ def test_the_browser_enrols_with_the_broker_and_the_app_never_sees_the_key(
     for path in deployment.root.rglob("*"):
         if path.is_file():
             assert needle not in path.read_bytes(), path
+    # Nor does the label the person is shown leave the broker's store
+    # (docs/specs/model-accounts.md, invariant 9): a run records whose account paid, never which.
+    label = account["label"].encode()
+    broker_store = deployment.root / "broker"
+    for path in deployment.root.rglob("*"):
+        if path.is_file() and not path.is_relative_to(broker_store):
+            assert label not in path.read_bytes(), path
 
 
 def test_removing_the_account_erases_it(deployment: Deployment) -> None:

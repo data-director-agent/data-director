@@ -20,7 +20,8 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from dd_sdk.contract.models import ModelCall, now
+from dd_sdk import model_account
+from dd_sdk.contract.models import ModelAccount, ModelCall, now
 
 PROMPT_CANONICALISATION = "dd-prompt-json-v1"
 
@@ -54,10 +55,14 @@ class ModelCallLog:
         called_at: datetime | None = None,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
+        account: ModelAccount | None = None,
     ) -> ModelCall:
         """Record one call. `model_id` is the model the provider's response named, where it
-        names one. Returns the call recorded."""
+        names one. `account` is whose account paid; by default, what the broker said of the call
+        just answered (`dd_sdk.model_account`). Returns the call recorded."""
         digest = prompt_digest(prompt)
+        # Taken whether or not `account` is given, so that no later call inherits it.
+        reported = model_account.take()
         call = ModelCall(
             model_provider=self.provider,
             model_id=model_id,
@@ -65,10 +70,12 @@ class ModelCallLog:
             prompt_digest=digest,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            model_account=account or reported,
         )
         self._calls.append(call)
         # A round trip through JSON, so what is kept is what the digest covers.
         self._prompts[digest] = json.loads(json.dumps(prompt))
+        model_account.collect(call, self._prompts[digest])
         return call
 
     @property

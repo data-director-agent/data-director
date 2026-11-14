@@ -152,6 +152,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
         <AgentDirectory
           directory={state.value}
           initial={new URLSearchParams(query).get("agent") ?? undefined}
+          ownAccounts={session.value.modelAccounts && session.value.signsIn}
         />
       </>
     );

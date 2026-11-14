@@ -48,6 +48,7 @@ from dd_sdk.evidence import (
     INPUT_CANONICALISATION,
     content_hash,
 )
+from dd_sdk.model_account import record_account
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import chat_span, retrieval_span
 
@@ -251,7 +252,8 @@ class DocumentStub:
         media_type, text = _DRAFTS[kind]
         calls = ModelCallLog(MODEL_PROVIDER)
         if self.model_id is not None:
-            with chat_span(ctx.tracer, self.model_id):
+            with chat_span(ctx.tracer, self.model_id) as span:
+                record_account(span)
                 calls.record(
                     {
                         "system": "Draft the document asked for.",

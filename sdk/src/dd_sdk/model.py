@@ -28,6 +28,7 @@ from pydantic import BaseModel, ValidationError
 
 from dd_sdk.agent import RunContext
 from dd_sdk.contract.models import now
+from dd_sdk.model_account import record_account
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ID, chat_span, record_tokens
 
@@ -172,12 +173,15 @@ def call[T: BaseModel](
         # The model the response names, which may be more exact than the one asked for.
         model_id = response.model_id or model.model_id
         span.set_attribute(ATTR_MODEL_ID, model_id)
+        # Whose account paid, as the broker said (docs/specs/model-accounts.md).
+        account = record_account(span)
     log.record(
         sent,
         model_id,
         called_at=called_at,
         input_tokens=usage.input_tokens,
         output_tokens=usage.output_tokens,
+        account=account,
     )
     reply: ModelReply[T] = ModelReply(response.text, None, response.refused, model_id, usage, log)
     if schema is None or response.refused:

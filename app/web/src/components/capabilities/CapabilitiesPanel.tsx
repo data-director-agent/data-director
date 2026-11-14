@@ -8,9 +8,16 @@ import "./CapabilitiesPanel.css";
 
 import type { AgentView, GateStatus } from "../../manifest/normalise";
 import { className } from "../../manifest/wording";
-import { Models } from "./ModelDisclosure";
+import { Models, OwnAccount } from "./ModelDisclosure";
 
-export function CapabilitiesPanel({ agent }: { agent: AgentView }) {
+export function CapabilitiesPanel({
+  agent,
+  ownAccounts = false,
+}: {
+  agent: AgentView;
+  /** Whether this deployment lets the signed-in person use their own AI account. */
+  ownAccounts?: boolean;
+}) {
   return (
     <div className="panel">
       <dl className="facts">
@@ -29,6 +36,7 @@ export function CapabilitiesPanel({ agent }: { agent: AgentView }) {
 
       <h3>What powers it, and what it is given</h3>
       <Models agent={agent} />
+      {ownAccounts && agent.models.length > 0 && <OwnAccount />}
     </div>
   );
 }

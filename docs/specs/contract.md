@@ -106,10 +106,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
 21. An envelope records each model call an agent reports in `telemetry.model_calls`, and names
     the call's prompt by its `dd-prompt-json-v1` digest only. The prompt itself never enters the
     envelope, the trace or the crate; the run store keeps it ([Disclosure](disclosure.md)).
-    Recording whose account paid for each call (`own` or `deployment`) and the reason codes
-    `model-account-missing`, `model-account-rejected` and `model-account-limit` are specified in
-    [A person's own model account](model-accounts.md) and not built yet; adding the reason codes
-    raises the contract version, TODO(#809).
+    Each call records whose account paid for it, `own` or `deployment` (`model_account`), never
+    whose. A run whose person's own account cannot be used ends `abstained` with
+    `model_account_missing`, `model_account_rejected` or `model_account_limit`
+    ([A person's own model account](model-accounts.md), invariants 9 and 10;
+    `sdk/tests/test_whose_account_paid.py`). Adding them raised the contract version to 0.10.0.
 22. A `Reply` may carry `conversation_title`, one line of at most 80 characters that a person can
     tell the conversation apart by. A model writes it from the researcher's first message, on a
     conversation's first turn only; an agent that sets it declares it model-derived, and a later

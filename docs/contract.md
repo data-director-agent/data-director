@@ -120,6 +120,9 @@ proposal.
 | `failed` | The agent or the harness could not complete the run. | A `problem` in RFC 9457 Problem Details format. |
 | `suspended` | The run is waiting for something outside the harness. | A `problem` that says what must happen before it can resume. |
 
+A run that could not use the person's own AI account is `abstained` with `model_account_missing`,
+`model_account_rejected` or `model_account_limit` ([A person's own model account](specs/model-accounts.md)).
+
 A run that its caller cancelled is `failed` with problem type `run-cancelled`. Whatever the agent
 answered is not kept ([Transport and tracing](specs/transport.md)).
 

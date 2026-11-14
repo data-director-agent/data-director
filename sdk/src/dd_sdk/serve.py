@@ -64,6 +64,7 @@ from dd_sdk.agent import Agent, AgentResult, RunContext, describe, typed_request
 from dd_sdk.contract.models import InvocationRequest
 from dd_sdk.credentials import ConfigError
 from dd_sdk.model import bind_grant
+from dd_sdk.model_account import accounted
 from dd_sdk.tracing import make_tracing
 from dd_sdk.wire import (
     ARTIFACT_NAME,
@@ -137,8 +138,9 @@ def run_traced(
     If the harness sent a delegation grant (docs/specs/orchestration.md), the agent's context
     carries a `delegate` bound to it. If it sent a model grant (docs/specs/model-accounts.md), the
     context carries it and it is bound to the run (`dd_sdk.model.bind_grant`), so the SDK's model
-    clients send it to the broker. An exception from the agent propagates; the executor turns it
-    into a failed task.
+    clients send it to the broker. If the agent raises because the broker refused a person's own
+    model account, the run ends `abstained` with the reason code (`dd_sdk.model_account.accounted`).
+    Any other exception from the agent propagates; the executor turns it into a failed task.
     """
     tracing = make_tracing(service_name=agent.spec.agent_id)
     parent = TraceContextTextMapPropagator().extract(
@@ -150,24 +152,26 @@ def run_traced(
     token = otel_context.attach(parent)
     try:
         with bind_grant(model_grant):
-            result: AgentResult = agent.run(
-                typed_request(agent.spec, request),
-                RunContext(
-                    tracer=tracing.tracer,
-                    input_ref=str(metadata.get(META_INPUT_REF, "")),
-                    input_hash=str(metadata.get(META_INPUT_HASH, "")),
-                    delegate=(
-                        delegation.HarnessDelegate(
-                            grant=grant,
-                            parent=request,
-                            tracer=tracing.tracer,
-                            client_factory=delegate_client_factory,
-                        )
-                        if grant is not None
-                        else None
+            result: AgentResult = accounted(
+                lambda: agent.run(
+                    typed_request(agent.spec, request),
+                    RunContext(
+                        tracer=tracing.tracer,
+                        input_ref=str(metadata.get(META_INPUT_REF, "")),
+                        input_hash=str(metadata.get(META_INPUT_HASH, "")),
+                        delegate=(
+                            delegation.HarnessDelegate(
+                                grant=grant,
+                                parent=request,
+                                tracer=tracing.tracer,
+                                client_factory=delegate_client_factory,
+                            )
+                            if grant is not None
+                            else None
+                        ),
+                        model_grant=model_grant,
                     ),
-                    model_grant=model_grant,
-                ),
+                )
             )
     finally:
         otel_context.detach(token)

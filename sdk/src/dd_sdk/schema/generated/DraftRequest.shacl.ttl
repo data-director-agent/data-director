@@ -178,13 +178,6 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 4 ;
             sh:path dd:version_state ],
-        [ sh:class dd:DocumentVersionRef ;
-            sh:description "The version, by its document and number." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 0 ;
-            sh:path dd:version_ref ],
         [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
@@ -192,6 +185,13 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:class dd:DocumentVersionRef ;
+            sh:description "The version, by its document and number." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 0 ;
+            sh:path dd:version_ref ],
         [ sh:datatype xsd:string ;
             sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
             sh:maxCount 1 ;

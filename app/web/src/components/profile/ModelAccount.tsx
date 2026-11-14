@@ -107,10 +107,9 @@ export function ModelAccount() {
         encrypted. The rest of Data Director never sees it, and this page shows only its last four
         characters.
       </p>
-      {/* TODO(#810): say whether runs use the account once the profile can turn own accounts on. */}
       <p className="hint">
-        Until this deployment’s policy turns own accounts on, the deployment still pays for every
-        run.
+        Each run records whether your account or the deployment’s paid for each call to a model,
+        and never which account it was.
       </p>
 
       {load.state === "loading" && <p role="status">Reading your account…</p>}
