@@ -27,6 +27,7 @@ from dd_sdk.model import call
 from dd_sdk.model_account import refusal
 from dd_sdk.model_anthropic import AnthropicModel, anthropic_client
 from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_REASON, META_MODEL_GRANT
+from dd_sdk.model_openai import OpenAIModel, openai_client
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ACCOUNT, CHAT
 from dd_sdk.wire import reply_from_document
@@ -126,7 +127,7 @@ class Twice:
         )
 
 
-def run(agent: Twice) -> tuple[AgentResult, tuple[dict[str, Any], ...]]:
+def run(agent: Twice | ChatTwice) -> tuple[AgentResult, tuple[dict[str, Any], ...]]:
     request = InvocationRequest(agent_id=SPEC.agent_id, input=Message(message_text="Hello."))
     return reply_from_document(serve.run_traced(agent, request, {META_MODEL_GRANT: GRANT}))
 
@@ -187,3 +188,90 @@ def test_a_refusal_is_found_through_the_exceptions_an_agent_wraps_it_in() -> Non
         raise RuntimeError("the model could not be called") from caught.value
     except RuntimeError as wrapped:
         assert refusal(wrapped) is ReasonCode.MODEL_ACCOUNT_MISSING
+
+
+# --- The same through the Chat Completions format ----------------------------------------------
+
+COMPLETION = {
+    "id": "chatcmpl-1",
+    "object": "chat.completion",
+    "created": 0,
+    "model": "gpt-test",
+    "choices": [
+        {"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": "ok"}}
+    ],
+    "usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_tokens": 4},
+}
+
+
+class ChatBroker(Broker):
+    """`Broker`, answering in the Chat Completions format and its error shape."""
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        answer = next(self.answers)
+        if isinstance(answer, tuple):
+            status, reason = answer
+            return httpx.Response(
+                status,
+                headers={HEADER_REASON: reason, "x-should-retry": "false"},
+                json={"error": {"message": reason, "type": ERROR_TYPE[status], "code": reason}},
+            )
+        headers = {HEADER_ACCOUNT: answer.value} if answer is not None else {}
+        return httpx.Response(200, headers=headers, json=COMPLETION)
+
+
+class ChatTwice:
+    """Calls an `OpenAIModel` through the broker twice."""
+
+    spec = SPEC
+
+    def __init__(self, broker: ChatBroker) -> None:
+        import openai
+
+        self.model = OpenAIModel(
+            "gpt-test",
+            provider="openai",
+            hosting="hosted",
+            client=openai_client(
+                BROKER + "/openai",
+                CREDENTIAL,
+                brokered=True,
+                http_client=openai.DefaultHttpxClient(transport=httpx.MockTransport(broker)),
+            ),
+        )
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        log = ModelCallLog("openai")
+        for text in ("one", "two"):
+            call(
+                self.model,
+                ctx,
+                system="Be brief.",
+                messages=[{"role": "user", "content": text}],
+                calls=log,
+            )
+        return AgentResult(
+            outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."),
+            model_calls=log.calls,
+            prompts=log.prompts,
+        )
+
+
+def test_a_chat_call_records_whose_account_the_broker_said_paid() -> None:
+    result, spans = run(ChatTwice(ChatBroker(ModelAccount.OWN, ModelAccount.DEPLOYMENT)))
+    assert [c.model_account for c in result.model_calls] == [
+        ModelAccount.OWN,
+        ModelAccount.DEPLOYMENT,
+    ]
+    assert chat_accounts(spans)[0] == ModelAccount.OWN.value
+
+
+@pytest.mark.parametrize(("status", "reason", "code"), REFUSALS)
+def test_a_refused_own_account_ends_a_chat_run_abstained(
+    status: int, reason: str, code: ReasonCode
+) -> None:
+    result, _ = run(ChatTwice(ChatBroker(ModelAccount.OWN, (status, reason))))
+    assert result.outcome.status is OutcomeStatus.ABSTAINED
+    assert result.outcome.reason_code is code
+    [made] = result.model_calls
+    assert made.model_account is ModelAccount.OWN

@@ -1571,6 +1571,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "anthropic" },
+    { name = "openai" },
 ]
 
 [package.metadata]
@@ -1584,7 +1585,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "anthropic", specifier = ">=1.15.0,<2.7" }]
+dev = [
+    { name = "anthropic", specifier = ">=1.15.0,<2.7" },
+    { name = "openai", specifier = ">=3.40,<4" },
+]
 
 [[package]]
 name = "data-director-sdk"

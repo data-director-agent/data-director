@@ -27,7 +27,12 @@ base URL origins the profile allows, and the broker refuses a person's account o
 and every model-backed agent can call through the broker (`dd_sdk.credentials.model_endpoint`). A
 person adds, replaces or removes their own key from the app's Profile page through the broker's
 enrolment interface, with a single-use ticket the app issues (`dd_broker.enrolment`).
-OpenAI-compatible accounts are TODO(#811).
+
+It serves Anthropic's Messages API at `/anthropic/v1/messages`, and the OpenAI Chat Completions API
+at `/{provider}/chat/completions` for `openai`, `gemini` and `openai-compatible`
+(`dd_broker.chat_completions`). An account may be any of the four, with a base URL for
+`openai-compatible`. The Profile page and the profile's `providers` offer only Anthropic so far
+(TODO(#811)).
 
 ```bash
 uv run dd-model-broker serve        # 127.0.0.1:8300; settings in dd_broker.settings

@@ -14,7 +14,8 @@ variable or the path, never the key.
 `model_endpoint(env)` is where a model-backed agent sends its calls, and with what credential
 (docs/specs/model-accounts.md). With `DD_MODEL_BROKER_URL` set, the agent calls the model broker
 with its own broker credential, `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE`,
-and holds no provider key. Otherwise it calls the provider with its key, as above.
+and holds no provider key. The broker serves each provider below its own path, `/{provider}`,
+in that provider's request format. Otherwise the agent calls the provider with its key, as above.
 """
 
 from __future__ import annotations
@@ -26,7 +27,8 @@ from pathlib import Path
 BROKER_URL = "DD_MODEL_BROKER_URL"
 BROKER_CREDENTIAL = "DD_MODEL_BROKER_CREDENTIAL"
 PROVIDER_KEY = "ANTHROPIC_API_KEY"
-# Where the broker serves the Anthropic Messages API, below its base URL.
+# Where the broker serves the Anthropic Messages API, below its base URL. Every other provider is
+# served in the same way, below `/{provider}`.
 BROKER_ANTHROPIC_PATH = "/anthropic"
 
 
@@ -76,22 +78,24 @@ class ModelEndpoint:
         return f"ModelEndpoint(base_url={self.base_url!r})"
 
 
-def model_endpoint(env: Mapping[str, str]) -> ModelEndpoint:
-    """The endpoint a model-backed agent calls, read once at start-up.
+def model_endpoint(
+    env: Mapping[str, str], provider: str = "anthropic", key: str = PROVIDER_KEY
+) -> ModelEndpoint:
+    """The endpoint a model-backed agent calls for `provider`, read once at start-up.
 
-    With `DD_MODEL_BROKER_URL` set, the broker's Anthropic interface and the agent's broker
-    credential; a provider key set beside it is a `ConfigError`, because an agent that calls
-    through the broker holds none (docs/specs/model-accounts.md, invariant 14). Otherwise the
-    provider, with `api_key(env)`.
+    With `DD_MODEL_BROKER_URL` set, the broker's interface for that provider and the agent's
+    broker credential; the provider's key, `key`, set beside it is a `ConfigError`, because an
+    agent that calls through the broker holds none (docs/specs/model-accounts.md, invariant 14).
+    Otherwise the provider, with `api_key(env, key)`.
     """
     url = (env.get(BROKER_URL) or "").strip().rstrip("/")
     if not url:
-        return ModelEndpoint(api_key(env, PROVIDER_KEY))
+        return ModelEndpoint(api_key(env, key))
     if not url.startswith(("http://", "https://")):
         raise ConfigError(f"{BROKER_URL} is not an http or https URL")
-    if env.get(PROVIDER_KEY) or env.get(f"{PROVIDER_KEY}_FILE"):
+    if env.get(key) or env.get(f"{key}_FILE"):
         raise ConfigError(
-            f"set {BROKER_URL} or {PROVIDER_KEY}, not both: an agent that calls through the "
+            f"set {BROKER_URL} or {key}, not both: an agent that calls through the "
             "model broker holds no provider key"
         )
     try:
@@ -103,4 +107,4 @@ def model_endpoint(env: Mapping[str, str]) -> ModelEndpoint:
             f"no model broker credential: set {BROKER_CREDENTIAL} (development) or "
             f"{BROKER_CREDENTIAL}_FILE (deployment)"
         ) from exc
-    return ModelEndpoint(credential, url + BROKER_ANTHROPIC_PATH)
+    return ModelEndpoint(credential, f"{url}/{provider}")

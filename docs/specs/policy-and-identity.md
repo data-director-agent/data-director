@@ -234,9 +234,10 @@ broker credential and the run's grant; the deployment's key, if the profile keep
 fallback, is then the broker's, not the agent's
 ([A person's own model account](model-accounts.md), invariant 14). An agent calls through the
 broker when `DD_MODEL_BROKER_URL` is set, and then holds no provider key
-(`dd_sdk.credentials.model_endpoint`). The broker forwards Anthropic's format only, so an agent
-whose provider is not `anthropic` and that is given `DD_MODEL_BROKER_URL` stops at start-up
-(TODO(#832)).
+(`dd_sdk.credentials.model_endpoint`). The broker serves every provider in its own format, below
+its own path, so the declared provider is still the agent's own. Through the broker, an
+`openai-compatible` model is declared `openai-compatible` and `hosted`: the broker, not the agent,
+decides which endpoint serves it, and a person's endpoint is not known at start-up.
 
 ## Rationale
 

@@ -127,15 +127,23 @@ An agent calls through the broker when its environment sets:
 - `DD_MODEL_BROKER_CREDENTIAL_FILE`, a systemd credential holding the agent's broker credential
   (`DD_MODEL_BROKER_CREDENTIAL` in development).
 
-Remove its `ANTHROPIC_API_KEY` or `ANTHROPIC_API_KEY_FILE`: an agent that calls through the broker
-holds no provider key, and refuses to start with one. It also refuses to start without its
-credential. Each of the model-backed agents (`advisor.documentation`, `advisor.policy`,
+Remove its provider key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` or
+`DD_MODEL_API_KEY`, and their `_FILE` forms): an agent that calls through the broker holds no
+provider key, and refuses to start with one. It also refuses to start without its credential.
+Keep its `DD_MODEL_PROVIDER` and `DD_MODEL_ID`; for `openai-compatible`, remove
+`DD_MODEL_BASE_URL`, since the broker decides where the call goes. The broker serves each provider
+in its own format, below its own path (`/anthropic`, `/openai`, `/gemini`,
+`/openai-compatible`), and never serves a call with a provider other than the one the agent asked
+for. Each of the model-backed agents (`advisor.documentation`, `advisor.policy`,
 `advisor.repository`, `advisor.standards` and `orchestrator.model`) reads the same two settings.
 
 ### The deployment's own calls
 
 When own accounts are on, the broker also pays for the calls the deployment pays for, so that one
-service, not each agent, decides who pays. Give it the deployment's key with a drop-in:
+service, not each agent, decides who pays. Give it the deployment's key for each provider its
+agents use, read from the variable an agent would use: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or
+`GEMINI_API_KEY`. A call for a provider with no key is refused with
+`deployment-account-unavailable`. For Anthropic, with a drop-in:
 
 ```bash
 sudo systemctl edit data-director-model-broker.service
@@ -147,17 +155,24 @@ LoadCredential=anthropic-api-key:/etc/data-director/credentials/model-broker/ant
 Environment=ANTHROPIC_API_KEY_FILE=anthropic-api-key
 ```
 
+Other providers take the same two lines, with `openai-api-key` and `OPENAI_API_KEY_FILE`, or
+`gemini-api-key` and `GEMINI_API_KEY_FILE`.
+
 If the deployment runs the [LiteLLM gateway](../../../deploy/llm-gateway/README.md), use a gateway
-key in place of the provider key. Then set `DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000` in
+key in place of each provider key. Then set `DD_BROKER_DEPLOYMENT_BASE_URL=http://127.0.0.1:4000` in
 `model-broker.env`. The deployment's calls then go through the gateway, whose budgets and spend
-reports still apply. A call on a person's own key goes straight to their provider, never through
-the gateway.
+reports still apply: Anthropic's to its `/v1/messages`, and every other provider's to its
+`/v1/chat/completions`. The deployment pays for an `openai-compatible` call only through the
+gateway, with the gateway key in `DD_MODEL_API_KEY`. A call on a person's own key goes straight to
+their provider, never through the gateway.
 
 ### Custom endpoints
 
-A person's own account may one day name an OpenAI-compatible endpoint (TODO(#811)). The broker
-sends a key only to an `https` origin that both the profile's `model_accounts` (carried in the
-grant) and `DD_BROKER_ALLOWED_BASE_URLS` list. It refuses one that
+A person's own `openai-compatible` account names its endpoint's base URL when they add it. The
+Profile page and the profile's `providers` do not offer it yet (TODO(#811)). The broker checks
+the key there, and later sends calls there, only if the origin is `https` and on
+`DD_BROKER_ALLOWED_BASE_URLS`; for a call, the profile's `model_accounts` (carried in the grant)
+must list it as well. It refuses one that
 resolves to a private, loopback or link-local address, unless that origin is also in
 `DD_BROKER_PRIVATE_BASE_URLS`. It checks the address after resolving the name and connects to the
 address it checked.

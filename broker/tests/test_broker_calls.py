@@ -114,7 +114,7 @@ def test_own_or_deployment_falls_back_to_the_deployment(
 
     assert response.status_code == 200
     assert response.headers[HEADER_ACCOUNT] == "deployment"
-    assert [call.key for call in sent] == [broker.deployment_key]
+    assert [call.key for call in sent] == [broker.deployment_keys["anthropic"]]
     assert [u.payer.value for u in broker.store.usage(PSEUDONYM)] == ["deployment"]
 
 
@@ -130,7 +130,9 @@ def test_a_deployment_grant_goes_through_the_gateway(
 
     assert response.status_code == 200
     assert response.headers[HEADER_ACCOUNT] == "deployment"
-    assert [(call.url, call.key) for call in sent] == [(GATEWAY, broker.deployment_key)]
+    assert [(call.url, call.key) for call in sent] == [
+        (GATEWAY, broker.deployment_keys["anthropic"])
+    ]
 
 
 def test_an_own_grant_without_an_account_ends_with_model_account_missing(

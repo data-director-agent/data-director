@@ -38,6 +38,12 @@ settings file with no code change.
 Each key variable also has its `_FILE` form, as below. An agent holds only its own provider's key:
 a key set for another provider stops it at start-up.
 
+**Through the model broker.** Any provider above can be called through the
+[model broker](model-broker.md), which then holds the key: set `DD_MODEL_BROKER_URL` and the
+agent's broker credential in place of the key, and keep `DD_MODEL_PROVIDER` and `DD_MODEL_ID`. The
+broker decides where an `openai-compatible` call goes, so `DD_MODEL_BASE_URL` is not set, and the
+model is declared `openai-compatible`, `hosted`.
+
 **The orchestrator on another provider.** The orchestrator delegates by calling tools, so its model
 must support tool calling (function calling) through the provider's API. Every provider above
 accepts tools; whether a given model uses them well is another matter, and
@@ -279,8 +285,8 @@ names the variable or path and never the key. The unit is not restarted on that 
 | `DD_MODEL_BASE_URL is required …`, `… is for DD_MODEL_PROVIDER=openai-compatible only`, `… is not an http or https URL` | The base URL is missing, set for a named provider, or malformed. |
 | `no model key: … only a local DD_MODEL_BASE_URL may have none` | An `openai-compatible` endpoint that is not local, with no `DD_MODEL_API_KEY`. |
 | `DD_ORCHESTRATOR_EFFORT=…: DD_MODEL_PROVIDER=… accepts …` | An effort the provider does not name, such as `max` for a provider other than Anthropic. |
-| `DD_MODEL_BROKER_URL is set but the model broker serves only anthropic` | The broker forwards Anthropic's format only (#832). |
-| `set DD_MODEL_BROKER_URL or ANTHROPIC_API_KEY, not both` | The agent calls through the [model broker](model-broker.md), which holds the key, so it may hold none itself. |
+| `set DD_MODEL_BROKER_URL or ANTHROPIC_API_KEY, not both` (or another provider's key) | The agent calls through the [model broker](model-broker.md), which holds the key, so it may hold none itself. |
+| `set DD_MODEL_BROKER_URL or DD_MODEL_BASE_URL, not both` | Through the broker, the broker decides where an `openai-compatible` call goes. |
 | `no model broker credential` | `DD_MODEL_BROKER_URL` is set without `DD_MODEL_BROKER_CREDENTIAL` or `DD_MODEL_BROKER_CREDENTIAL_FILE`. |
 
 If the credential file is missing, systemd refuses to start the unit at all, since the unit

@@ -25,8 +25,12 @@ harness's rules on what an agent with a hosted model may be given read it (`host
 `xhigh` or `max` for Claude; `low`, `medium` or `high` (`reasoning_effort`) for the others, which a
 model that does not reason may ignore.
 
-**The model broker** (`DD_MODEL_BROKER_URL`, docs/specs/model-accounts.md) forwards Anthropic's
-format only, so it serves only `anthropic`.
+**The model broker** (`DD_MODEL_BROKER_URL`, docs/specs/model-accounts.md) serves every provider,
+each below its own path in its own format, so the agent holds its broker credential in place of
+the provider's key. The broker, not the agent, decides where an `openai-compatible` call goes, so
+`DD_MODEL_BASE_URL` is refused beside it, and the model is declared `hosted`: which endpoint a
+person's account names is not known at start-up, and calling a local model hosted only withholds
+more from it.
 
 Each problem is a `ConfigError` that names the variable, never a key, so the agent stops at
 start-up in one line (`dd_sdk.serve.main`).
@@ -169,8 +173,22 @@ def configured_model(
             cache_system=tool_use,
         )
     if (env.get(BROKER_URL) or "").strip():
-        # TODO(#832): forward the Chat Completions format through the broker.
-        raise ConfigError(f"{BROKER_URL} is set but the model broker serves only anthropic")
+        if base_url:
+            raise ConfigError(
+                f"set {BROKER_URL} or {BASE_URL}, not both: the model broker decides where an "
+                f"{COMPATIBLE} call goes"
+            )
+        endpoint = model_endpoint(env, name, provider.key)
+        return OpenAIModel(
+            model_id,
+            provider=name,
+            hosting="hosted",
+            base_url=endpoint.base_url,
+            api_key=endpoint.api_key,
+            max_tokens_field=provider.max_tokens_field,
+            effort=effort,
+            brokered=True,
+        )
 
     if name == COMPATIBLE:
         if not base_url:

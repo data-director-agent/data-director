@@ -1,7 +1,7 @@
 """Where the broker may send a person's key (docs/specs/model-accounts.md, Security).
 
-A person's own account may name a custom base URL: an OpenAI-compatible endpoint (TODO(#811)).
-Before the broker sends a key there, `check_base_url`:
+A person's own `openai-compatible` account names a custom base URL. Before the broker sends a key
+there, when it checks the key at enrolment and on every call, `check_base_url`:
 
 1. requires `https`, a host, and no user information, query or fragment;
 2. requires the URL's origin to be on the operator's allow-list;

@@ -12,8 +12,11 @@ Secrets, each as `NAME` or `NAME_FILE`:
   pseudonym sealed in each grant. Required.
 - `DD_BROKER_AGENT_CREDENTIALS`: JSON, `{"<agent id>": "<SHA-256 hex of its credential>"}`.
   Required.
-- `ANTHROPIC_API_KEY`: the deployment's key, or a LiteLLM gateway key when
-  `DD_BROKER_DEPLOYMENT_BASE_URL` is set. Without it, a call the deployment pays for is refused.
+- The deployment's key for each provider it pays for, or a LiteLLM gateway key when
+  `DD_BROKER_DEPLOYMENT_BASE_URL` is set: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+  `GEMINI_API_KEY`, and `DD_MODEL_API_KEY` for `openai-compatible`, which the deployment pays for
+  only through the gateway. Each is optional; a call the deployment would pay for, to a provider
+  without its key, is refused.
 
 Other settings:
 
@@ -38,6 +41,7 @@ from urllib.parse import urlsplit
 
 from joserfc.jwk import ECKey
 
+from dd_broker import anthropic, chat_completions
 from dd_broker.agents import AgentCredentials
 from dd_broker.grants import subject_key
 from dd_broker.guard import BaseUrlRefused, origin
@@ -50,7 +54,11 @@ AGENT_CREDENTIALS = "DD_BROKER_AGENT_CREDENTIALS"
 HARNESS_JWKS_URL = "DD_BROKER_HARNESS_JWKS_URL"
 HARNESS_JWKS_FILE = "DD_BROKER_HARNESS_JWKS_FILE"
 STORE = "DD_BROKER_STORE"
-DEPLOYMENT_KEY = "ANTHROPIC_API_KEY"
+# The variable each provider's deployment key is read from, by provider.
+DEPLOYMENT_KEYS = {
+    anthropic.PROVIDER: "ANTHROPIC_API_KEY",
+    **{name: p.deployment_key for name, p in chat_completions.PROVIDERS.items()},
+}
 DEPLOYMENT_BASE_URL = "DD_BROKER_DEPLOYMENT_BASE_URL"
 ALLOWED_BASE_URLS = "DD_BROKER_ALLOWED_BASE_URLS"
 PRIVATE_BASE_URLS = "DD_BROKER_PRIVATE_BASE_URLS"
@@ -68,7 +76,7 @@ class BrokerSettings:
     store: Path
     harness_jwks_url: str | None = None
     harness_jwks_file: Path | None = None
-    deployment_key: str | None = field(default=None, repr=False)
+    deployment_keys: Mapping[str, str] = field(default_factory=dict, repr=False)
     deployment_base_url: str | None = None
     allowed_base_urls: tuple[str, ...] = ()
     private_base_urls: tuple[str, ...] = ()
@@ -114,9 +122,11 @@ class BrokerSettings:
         if not store:
             raise SettingsError(f"set {STORE} to the broker's SQLite file")
 
-        deployment_key = None
-        if text(DEPLOYMENT_KEY) or text(f"{DEPLOYMENT_KEY}_FILE"):
-            deployment_key = secret(DEPLOYMENT_KEY)
+        deployment_keys = {
+            provider: secret(name)
+            for provider, name in DEPLOYMENT_KEYS.items()
+            if text(name) or text(f"{name}_FILE")
+        }
         deployment_base_url = text(DEPLOYMENT_BASE_URL) or None
         if deployment_base_url and urlsplit(deployment_base_url).scheme not in {"http", "https"}:
             raise SettingsError(f"{DEPLOYMENT_BASE_URL} is not an http(s) URL")
@@ -135,7 +145,7 @@ class BrokerSettings:
             store=Path(store),
             harness_jwks_url=jwks_url or None,
             harness_jwks_file=Path(jwks_file) if jwks_file else None,
-            deployment_key=deployment_key,
+            deployment_keys=deployment_keys,
             deployment_base_url=deployment_base_url.rstrip("/") if deployment_base_url else None,
             allowed_base_urls=origins(ALLOWED_BASE_URLS),
             private_base_urls=origins(PRIVATE_BASE_URLS),

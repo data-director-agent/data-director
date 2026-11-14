@@ -7,7 +7,7 @@ from __future__ import annotations
 import base64
 import os
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -160,6 +160,7 @@ def make_broker(
     store_path: Path,
     *,
     deployment_key: str | None = DEPLOYMENT_KEY,
+    deployment_keys: Mapping[str, str] | None = None,
     deployment_base_url: str | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
     kek: bytes | None = None,
@@ -171,7 +172,11 @@ def make_broker(
         verifier=harness.verifier(),
         tickets=harness.tickets(store),
         agents=agents(),
-        deployment_key=deployment_key,
+        deployment_keys=(
+            dict(deployment_keys)
+            if deployment_keys is not None
+            else ({"anthropic": deployment_key} if deployment_key else {})
+        ),
         deployment_base_url=deployment_base_url,
         allowed_base_urls=allowed,
         resolve=public_resolver,

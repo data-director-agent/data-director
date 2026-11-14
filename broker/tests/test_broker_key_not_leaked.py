@@ -106,3 +106,56 @@ def test_a_key_enrolled_through_the_browser_appears_in_no_answer_log_or_record(
         assert SENTINEL not in text
     for path in (tmp_path / "store").iterdir():
         assert SENTINEL.encode() not in path.read_bytes()
+
+
+def test_a_persons_key_appears_in_no_chat_completions_answer_log_or_record(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture[str]
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    statuses = iter([200, 401, 429])
+
+    def provider(request: httpx.Request) -> httpx.Response:
+        # A careless provider quotes the key back, in failure and in success.
+        status = next(statuses)
+        if status != 200:
+            return httpx.Response(status, json={"error": {"message": f"key {SENTINEL}"}})
+        return httpx.Response(
+            200,
+            json={
+                "model": "gpt-5.5",
+                "choices": [],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+            },
+        )
+
+    harness = FakeHarness()
+    broker = make_broker(
+        harness, tmp_path / "store" / "broker.sqlite3", transport=httpx.MockTransport(provider)
+    )
+    broker.store.put(PSEUDONYM, "openai", SENTINEL, label="OpenAI ····5f36")
+    grant = harness.grant(models=["gpt-5.5"], providers=["openai"])
+    answers = []
+    with client(broker) as http:
+        for _ in range(3):
+            answers.append(
+                http.post(
+                    "/openai/chat/completions",
+                    json={"model": "gpt-5.5", "messages": []},
+                    headers={
+                        "authorization": f"Bearer {AGENT_CREDENTIAL}",
+                        "X-DD-Model-Grant": grant,
+                    },
+                )
+            )
+
+    assert [a.status_code for a in answers] == [200, 403, 429]
+    for answer in answers:
+        assert SENTINEL not in answer.text
+        assert SENTINEL not in str(answer.headers)
+        assert PSEUDONYM not in str(answer.headers)
+    captured = capsys.readouterr()
+    for text in (caplog.text, captured.out, captured.err):
+        assert SENTINEL not in text
+        assert AGENT_CREDENTIAL not in text
+    for path in (tmp_path / "store").iterdir():
+        assert SENTINEL.encode() not in path.read_bytes()

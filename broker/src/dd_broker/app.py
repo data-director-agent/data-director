@@ -1,7 +1,10 @@
 """The broker's HTTP interface for agents (docs/specs/model-accounts.md).
 
-`POST /anthropic/v1/messages` takes an Anthropic Messages API request from an agent. In order,
-the broker:
+`POST /anthropic/v1/messages` takes an Anthropic Messages API request from an agent, and
+`POST /{provider}/chat/completions` an OpenAI Chat Completions request for `openai`, `gemini` or
+`openai-compatible` (`dd_broker.chat_completions`). The path names the provider the agent's card
+declares; the broker serves that provider or refuses, and never substitutes another
+(invariant 12). In order, the broker:
 
 1. authenticates the agent by its own broker credential (`x-api-key` or `Authorization: Bearer`);
 2. verifies the model grant in `X-DD-Model-Grant` for that agent (`dd_broker.grants`);
@@ -14,8 +17,10 @@ the broker:
    | `own-or-deployment` | their key | the deployment's key |
    | `deployment` | the deployment's key | the deployment's key |
 
-5. forwards the call, to the person's provider for their own key, or to the deployment's base URL
-   (the LiteLLM gateway when one is configured) for the deployment's;
+   A person's own account serves only the provider the path names, and only if the grant allows
+   that provider; otherwise the call is refused, `account-unsupported`.
+5. forwards the call, to the person's provider for their own key, or for the deployment's to its
+   base URL (the LiteLLM gateway when one is configured) or else the provider's own endpoint;
 6. returns the provider's answer unchanged, with `X-DD-Model-Account` (`own` or `deployment`) and
    `X-DD-Model-Provider`, and adds the tokens to the person's counts.
 
@@ -25,7 +30,7 @@ no prompt and no reply. A rejected or limited own key never falls back to the de
 that would silently change who pays (invariant 10).
 
 `GET`, `PUT` and `DELETE /enrolment/account` are the enrolment interface for the browser
-(`dd_broker.enrolment`). OpenAI-compatible calls are TODO(#811).
+(`dd_broker.enrolment`).
 """
 
 from __future__ import annotations
@@ -33,8 +38,9 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-from collections.abc import AsyncIterator, Collection, Mapping
+from collections.abc import AsyncIterator, Callable, Collection, Mapping
 from dataclasses import dataclass, field
+from types import ModuleType
 from typing import Any
 
 import httpx
@@ -44,7 +50,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_broker import anthropic, enrolment
+from dd_broker import anthropic, chat_completions, enrolment
 from dd_broker.agents import AgentCredentials
 from dd_broker.grants import (
     GrantVerifier,
@@ -97,7 +103,8 @@ class Broker:
     verifier: GrantVerifier
     tickets: TicketVerifier
     agents: AgentCredentials
-    deployment_key: str | None = field(default=None, repr=False)
+    # The deployment's key for each provider it pays for, by provider name.
+    deployment_keys: Mapping[str, str] = field(default_factory=dict, repr=False)
     deployment_base_url: str | None = None
     allowed_base_urls: Collection[str] = ()
     private_base_urls: Collection[str] = ()
@@ -118,7 +125,7 @@ class Broker:
             verifier=GrantVerifier(keys, settings.subject_key),
             tickets=TicketVerifier(keys, settings.subject_key, store),
             agents=settings.agents,
-            deployment_key=settings.deployment_key,
+            deployment_keys=settings.deployment_keys,
             deployment_base_url=settings.deployment_base_url,
             allowed_base_urls=settings.allowed_base_urls,
             private_base_urls=settings.private_base_urls,
@@ -143,6 +150,8 @@ def presented_credential(headers: Mapping[str, str]) -> str | None:
 
 
 def refusal(status: int, reason: Reason) -> JSONResponse:
+    """A refusal in Anthropic's error shape, so an agent's Anthropic client raises its usual
+    exception."""
     error_type = _ERROR_TYPES.get(status, "api_error")
     return JSONResponse(
         {"type": "error", "error": {"type": error_type, "message": reason.value}},
@@ -151,7 +160,45 @@ def refusal(status: int, reason: Reason) -> JSONResponse:
     )
 
 
-def _choose(broker: Broker, grant: VerifiedGrant) -> _Payment:
+def chat_refusal(status: int, reason: Reason) -> JSONResponse:
+    """A refusal in the Chat Completions error shape, so an agent's OpenAI client raises its
+    usual exception."""
+    return JSONResponse(
+        {
+            "error": {
+                "message": reason.value,
+                "type": _ERROR_TYPES.get(status, "api_error"),
+                "param": None,
+                "code": reason.value,
+            }
+        },
+        status_code=status,
+        headers={HEADER_REASON: reason.value},
+    )
+
+
+@dataclass(frozen=True)
+class _Format:
+    """One request format the broker forwards: the module that sends and counts its calls
+    (`send`, `usage`), and how a refusal is shaped."""
+
+    forwarding: ModuleType
+    refuse: Callable[[int, Reason], JSONResponse]
+
+
+_MESSAGES = _Format(anthropic, refusal)
+_CHAT = _Format(chat_completions, chat_refusal)
+
+
+def provider_endpoint(provider: str) -> str | None:
+    """A provider's own endpoint, or None if it has none (an OpenAI-compatible endpoint)."""
+    if provider == anthropic.PROVIDER:
+        return anthropic.BASE_URL
+    return chat_completions.PROVIDERS[provider].base_url
+
+
+def _choose(broker: Broker, grant: VerifiedGrant, provider: str) -> _Payment:
+    """Who pays for a call to `provider`, the provider the request's path names."""
     account = grant.claims.account
     if account in (Account.OWN, Account.OWN_OR_DEPLOYMENT):
         try:
@@ -160,10 +207,9 @@ def _choose(broker: Broker, grant: VerifiedGrant) -> _Payment:
             log.error("a sealed key does not open; check the key-encryption key")
             raise Refused(500, Reason.BROKER_ERROR) from None
         if own is not None:
-            if own.provider != anthropic.PROVIDER or own.provider not in grant.claims.providers:
+            if own.provider != provider or own.provider not in grant.claims.providers:
                 # A different provider is never substituted (invariant 12), and an account the
-                # profile does not allow is never used. Serving an OpenAI-compatible account is
-                # TODO(#811).
+                # profile does not allow is never used.
                 raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
             if own.base_url:
                 try:
@@ -180,14 +226,27 @@ def _choose(broker: Broker, grant: VerifiedGrant) -> _Payment:
                 except BaseUrlRefused:
                     raise Refused(403, Reason.BASE_URL_REFUSED) from None
             else:
-                target = Target(url=anthropic.BASE_URL)
+                endpoint = provider_endpoint(own.provider)
+                if endpoint is None:
+                    # An OpenAI-compatible account is stored with its base URL; one without is
+                    # not an account the broker can serve.
+                    raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
+                target = Target(url=endpoint)
             return _Payment(Payer.OWN, own.provider, target, own.key)
         if account is Account.OWN:
             raise Refused(403, Reason.MODEL_ACCOUNT_MISSING)
-    if not broker.deployment_key:
+    key = broker.deployment_keys.get(provider)
+    if not key:
         raise Refused(503, Reason.DEPLOYMENT_ACCOUNT_UNAVAILABLE)
-    target = Target(url=broker.deployment_base_url or anthropic.BASE_URL)
-    return _Payment(Payer.DEPLOYMENT, anthropic.PROVIDER, target, broker.deployment_key)
+    if broker.deployment_base_url:
+        gateway = broker.deployment_base_url
+        url = gateway if provider == anthropic.PROVIDER else gateway + chat_completions.GATEWAY_PATH
+        return _Payment(Payer.DEPLOYMENT, provider, Target(url=url), key)
+    endpoint = provider_endpoint(provider)
+    if endpoint is None:
+        # The deployment pays for an OpenAI-compatible endpoint only through its gateway.
+        raise Refused(503, Reason.DEPLOYMENT_ACCOUNT_UNAVAILABLE)
+    return _Payment(Payer.DEPLOYMENT, provider, Target(url=endpoint), key)
 
 
 def _provider_failure(status: int, payer: Payer) -> Refused:
@@ -207,7 +266,13 @@ def _provider_failure(status: int, payer: Payer) -> Refused:
     return Refused(502, Reason.PROVIDER_ERROR)
 
 
-async def _messages(broker: Broker, client: httpx.AsyncClient, request: Request) -> Response:
+async def _call(
+    broker: Broker,
+    client: httpx.AsyncClient,
+    request: Request,
+    provider: str,
+    form: _Format,
+) -> Response:
     agent = broker.agents.authenticate(presented_credential(request.headers))
     if agent is None:
         raise Refused(401, Reason.AGENT_UNAUTHENTICATED)
@@ -225,9 +290,11 @@ async def _messages(broker: Broker, client: httpx.AsyncClient, request: Request)
         raise Refused(400, Reason.STREAMING_UNSUPPORTED)
     if not grant.allows(body["model"]):
         raise Refused(403, Reason.MODEL_NOT_GRANTED)
-    payment = await run_in_threadpool(_choose, broker, grant)
+    payment = await run_in_threadpool(_choose, broker, grant, provider)
     try:
-        answer = await anthropic.send(client, payment.target, payment.key, body, request.headers)
+        answer = await form.forwarding.send(
+            client, payment.target, payment.key, body, request.headers
+        )
     except httpx.HTTPError:
         raise Refused(502, Reason.PROVIDER_UNREACHABLE) from None
     if answer.status_code != 200:
@@ -240,7 +307,7 @@ async def _messages(broker: Broker, client: httpx.AsyncClient, request: Request)
         raise Refused(502, Reason.PROVIDER_ERROR)
     reported = document.get("model")
     served: str = reported if isinstance(reported, str) else body["model"]
-    input_tokens, output_tokens = anthropic.usage(document)
+    input_tokens, output_tokens = form.forwarding.usage(document)
     await run_in_threadpool(
         lambda: broker.store.add_usage(
             grant.pseudonym,
@@ -276,15 +343,34 @@ def build_app(broker: Broker) -> Starlette:
             yield
             clients.clear()
 
-    async def messages(request: Request) -> Response:
+    async def serve(request: Request, provider: str, form: _Format) -> Response:
         try:
-            return await _messages(broker, clients[0], request)
+            return await _call(broker, clients[0], request, provider, form)
         except Refused as refused:
             log.info("refused reason=%s status=%d", refused.reason.value, refused.status)
-            return refusal(refused.status, refused.reason)
+            return form.refuse(refused.status, refused.reason)
+
+    async def messages(request: Request) -> Response:
+        return await serve(request, anthropic.PROVIDER, _MESSAGES)
+
+    async def completions(request: Request) -> Response:
+        provider = request.path_params["provider"]
+        if provider not in chat_completions.PROVIDERS:
+            return chat_refusal(404, Reason.ACCOUNT_UNSUPPORTED)
+        return await serve(request, provider, _CHAT)
 
     async def account(request: Request) -> Response:
-        return await enrolment.account(broker.store, broker.tickets, clients[0], request)
+        return await enrolment.account(
+            enrolment.Enrolment(
+                broker.store,
+                broker.tickets,
+                broker.allowed_base_urls,
+                broker.private_base_urls,
+                broker.resolve,
+            ),
+            clients[0],
+            request,
+        )
 
     async def healthz(request: Request) -> Response:
         return JSONResponse({"status": "ok"})
@@ -292,6 +378,7 @@ def build_app(broker: Broker) -> Starlette:
     return Starlette(
         routes=[
             Route("/anthropic/v1/messages", messages, methods=["POST"]),
+            Route("/{provider}" + chat_completions.COMPLETIONS_PATH, completions, methods=["POST"]),
             Route(enrolment.ACCOUNT_PATH, account, methods=["GET", "PUT", "DELETE"]),
             Route("/healthz", healthz, methods=["GET"]),
         ],

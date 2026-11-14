@@ -54,7 +54,28 @@ def test_a_complete_environment_is_read(tmp_path: Path) -> None:
 
 
 def test_the_deployment_key_is_optional(tmp_path: Path) -> None:
-    assert BrokerSettings.from_env(environment(tmp_path)).deployment_key is None
+    assert BrokerSettings.from_env(environment(tmp_path)).deployment_keys == {}
+
+
+def test_each_providers_deployment_key_is_read_from_its_own_variable(tmp_path: Path) -> None:
+    env = environment(tmp_path)
+    (Path(env["CREDENTIALS_DIRECTORY"]) / "openai").write_text("sk-openai-file\n")
+    settings = BrokerSettings.from_env(
+        env
+        | {
+            "ANTHROPIC_API_KEY": "sk-ant-env",
+            "OPENAI_API_KEY_FILE": "openai",
+            "GEMINI_API_KEY": "gemini-env",
+            "DD_MODEL_API_KEY": "sk-gateway-env",
+        }
+    )
+    assert settings.deployment_keys == {
+        "anthropic": "sk-ant-env",
+        "openai": "sk-openai-file",
+        "gemini": "gemini-env",
+        "openai-compatible": "sk-gateway-env",
+    }
+    assert "sk-openai-file" not in repr(settings)
 
 
 @pytest.mark.parametrize(

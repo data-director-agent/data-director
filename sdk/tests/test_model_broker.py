@@ -11,13 +11,14 @@ from typing import Any
 import httpx2 as httpx
 import pytest
 
-from dd_sdk import serve
+from dd_sdk import model_account, serve
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     GroundingMode,
     InvocationRequest,
     Message,
+    ModelAccount,
     Outcome,
     OutcomeStatus,
 )
@@ -31,7 +32,8 @@ from dd_sdk.credentials import (
 )
 from dd_sdk.model import bind_grant, current_grant
 from dd_sdk.model_anthropic import anthropic_client
-from dd_sdk.model_grant import HEADER_GRANT, META_MODEL_GRANT
+from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_GRANT, META_MODEL_GRANT
+from dd_sdk.model_openai import openai_client
 
 CREDENTIAL = "dd-broker-credential-0123456789"
 PROVIDER = "sk-ant-test-0123456789"
@@ -228,3 +230,107 @@ def test_without_a_grant_the_agent_is_given_none() -> None:
     assert ctx.model_grant is None
     [sent] = agent.broker.requests
     assert HEADER_GRANT not in sent.headers
+
+
+# --- The same through the Chat Completions format ----------------------------------------------
+
+
+class ChatBroker:
+    """Answers Chat Completions as the broker would, and keeps the headers of each request."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        return httpx.Response(
+            200,
+            headers={HEADER_ACCOUNT: "own"},
+            json={
+                "id": "chatcmpl-1",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "gpt-test",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {"role": "assistant", "content": "ok"},
+                    }
+                ],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_tokens": 4},
+            },
+        )
+
+
+def chat_client(broker: ChatBroker, *, brokered: bool = True) -> Any:
+    import openai
+
+    http_client = openai.DefaultHttpxClient(transport=httpx.MockTransport(broker))
+    return openai_client(BROKER + "/openai", CREDENTIAL, brokered=brokered, http_client=http_client)
+
+
+def chat(client: Any) -> None:
+    client.chat.completions.create(model="gpt-test", messages=[{"role": "user", "content": "hi"}])
+
+
+def test_with_a_broker_each_provider_has_its_own_path() -> None:
+    env = {BROKER_URL: BROKER + "/", BROKER_CREDENTIAL: CREDENTIAL}
+    assert model_endpoint(env).base_url == BROKER + "/anthropic"
+    assert model_endpoint(env, "openai", "OPENAI_API_KEY").base_url == BROKER + "/openai"
+
+
+def test_a_brokered_chat_client_sends_the_runs_grant_and_its_credential(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Headers the `openai` package would take from the environment never reach the broker.
+    monkeypatch.setenv("OPENAI_CUSTOM_HEADERS", "X-Ambient: leaked")
+    monkeypatch.setenv("OPENAI_ORG_ID", "org-ambient")
+    broker = ChatBroker()
+    client = chat_client(broker)
+    with bind_grant(GRANT):
+        chat(client)
+        assert model_account.take() is ModelAccount.OWN
+    chat(client)  # outside a run: no grant
+
+    first, second = broker.requests
+    assert first.url.path == "/openai/chat/completions"
+    assert first.headers[HEADER_GRANT] == GRANT
+    assert first.headers["authorization"] == f"Bearer {CREDENTIAL}"
+    assert "x-ambient" not in first.headers
+    assert "openai-organization" not in first.headers
+    assert HEADER_GRANT not in second.headers
+    assert current_grant() is None
+
+
+def test_a_chat_client_that_calls_the_provider_never_sends_a_grant() -> None:
+    provider = ChatBroker()
+    client = chat_client(provider, brokered=False)
+    with bind_grant(GRANT):
+        chat(client)
+    [request] = provider.requests
+    assert HEADER_GRANT not in request.headers
+
+
+class ChatEcho:
+    """`Echo` with a Chat Completions client."""
+
+    spec = Echo.spec
+
+    def __init__(self) -> None:
+        self.broker = ChatBroker()
+        self.client = chat_client(self.broker)
+
+    def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        chat(self.client)
+        return AgentResult(outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement="Done."))
+
+
+def test_the_server_binds_the_grant_for_a_chat_client() -> None:
+    agent = ChatEcho()
+    body = serve.run_traced(agent, request(), {META_MODEL_GRANT: GRANT})
+
+    [sent] = agent.broker.requests
+    assert sent.headers[HEADER_GRANT] == GRANT
+    assert GRANT not in json.dumps(body)
+    assert current_grant() is None

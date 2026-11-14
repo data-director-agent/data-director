@@ -40,10 +40,12 @@ agent can call through the broker (`dd_sdk.credentials.model_endpoint`,
 (`dd_broker.enrolment`), and the Profile page holds the form. The profile key is built: the
 conductor reads `model_accounts` when it mints a grant (`dd_harness.policy.ModelAccounts`), and the
 broker enforces what the grant says. Recording whose account paid and the reason codes are built:
-the SDK reads the broker's answer (`dd_sdk.model_account`), and a refused account ends the run as
-an outcome. OpenAI-compatible accounts TODO(#811). The shipped profiles turn own accounts off, so
-every grant says the deployment pays, and every model call is paid for by the deployment, as it is
-today.
+the SDK reads the broker's answer (`dd_sdk.model_account`), and a refused account ends the run as an
+outcome. The broker serves both formats, and enrols and serves OpenAI, Gemini and OpenAI-compatible
+accounts as well as Anthropic ones (`dd_broker.chat_completions`); the profile's `providers` and the
+Profile page offer only Anthropic so far (TODO(#811)). The shipped profiles turn own accounts off,
+so every grant says the deployment pays, and every model call is paid for by the deployment, as it
+is today.
 
 The governing rule is the one in [Policy and identity](policy-and-identity.md): **the party being
 governed does not state the facts the governance rests on.** Neither an agent nor a request chooses
@@ -119,8 +121,12 @@ the broker checks that decision.
     them on is refused unless the harness mints grants, and the app offers a person no account of
     their own unless the profile lets one pay (`app/tests/test_model_account.py`).
 12. **A provider is never substituted silently.** A call is served by the provider and model the
-    grant allows, or it is refused. Choosing a different model for a person's account is a
-    profile mapping the run records, never a guess the broker makes (TODO(#811)).
+    grant allows, or it is refused. The path an agent calls names the provider its card declares,
+    and the broker serves that provider or refuses with `account-unsupported`: a person's account
+    with another provider is never used for it, and the deployment pays only with its key for that
+    provider (`broker/tests/test_broker_chat_completions.py`). Choosing a different model for a
+    person's account is a profile mapping the run records, never a guess the broker makes
+    (TODO(#811)).
 13. **Tests and CI never need a real key**, a real provider or a real broker key-encryption key.
     Provider calls are replayed from cassettes, as everywhere else
     ([Policy and identity](policy-and-identity.md), invariant 21).
@@ -154,15 +160,18 @@ provider SDKs or an OpenAI-compatible client, and may send the deployment's own 
 LiteLLM gateway. Checking the grant is governance and is the broker's own code.
 
 **The broker's interface for agents.** An agent's provider client points at the broker in place of
-the provider. For the Anthropic Messages API that is `POST /anthropic/v1/messages`. The client
-sends the agent's own broker credential where it would send an API key (`x-api-key` or
-`Authorization: Bearer`), and the grant as `X-DD-Model-Grant`. The broker does these checks and
+the provider, at `/{provider}` below the broker's base URL. For the Anthropic Messages API that
+is `POST /anthropic/v1/messages`. For the OpenAI Chat Completions API it is
+`POST /{provider}/chat/completions`, where the provider is `openai`, `gemini` or
+`openai-compatible`; any other is answered `404`. The client sends the agent's own broker
+credential where it would send an API key (`x-api-key` or `Authorization: Bearer`), and the grant
+as `X-DD-Model-Grant`. The broker does these checks and
 steps in order:
 
 1. It authenticates the agent.
 2. It verifies the grant for that agent.
 3. It refuses a model the grant does not allow, and a streamed request.
-4. It chooses the account from the grant alone:
+4. It chooses the account from the grant alone, for the provider the path names:
 
    | The grant's account | The person has an account | The person has none |
    |---|---|---|
@@ -170,12 +179,17 @@ steps in order:
    | `own-or-deployment` | Their key | The deployment's key |
    | `deployment` | The deployment's key | The deployment's key |
 
-5. It forwards the request body unchanged.
+   A person's account with another provider than the path names, or one the grant's
+   `dd_providers` does not list, is refused, `account-unsupported`.
+5. It forwards the request body unchanged with the paying key. Of the agent's headers it passes on
+   only, for Anthropic, `anthropic-version` and `anthropic-beta`.
 
 The broker returns the provider's answer unchanged, with `X-DD-Model-Account` (`own` or
 `deployment`) and `X-DD-Model-Provider`. The model that served the call is in the answer itself.
 A refusal or a provider error is reduced to a status and a reason code, which the broker sends in
-`X-DD-Reason` and in an error body of the provider's shape:
+`X-DD-Reason` and in an error body of the provider's shape (for Chat Completions,
+`{"error": {"message", "type", "code"}}` with the reason code as `code`), so the agent's client
+raises its usual exception:
 
 | What happened | The status | The reason code |
 |---|---|---|
@@ -186,10 +200,16 @@ Neither falls back to the deployment's key. The header names, claim names and ac
 in `dd_sdk.model_grant`; the reason codes are in `dd_broker.reasons`. The run records the three
 `model-account-*` codes as the `ReasonCode` values of the same names in snake case (invariant 10).
 
-The deployment's own calls go to `DD_BROKER_DEPLOYMENT_BASE_URL` when it is set, normally the
-[LiteLLM gateway](../../deploy/llm-gateway/README.md), with a gateway key in place of the provider
-key. The gateway's budgets and spend reports then cover them as before. A call on a person's own
-key never passes through the gateway, which would otherwise see the key.
+The deployment pays with its key for the provider the path names, read from the variable an agent
+would use (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`); a provider without one is
+refused, `deployment-account-unavailable`. Its calls go to the provider's own endpoint, or to
+`DD_BROKER_DEPLOYMENT_BASE_URL` when it is set, normally the [LiteLLM
+gateway](../../deploy/llm-gateway/README.md), with a gateway key in place of each provider key:
+Anthropic's calls to its `/v1/messages`, every other provider's to its `/v1/chat/completions`. An
+`openai-compatible` call has no endpoint of the deployment's own, so the deployment pays for one
+only through the gateway, with the key in `DD_MODEL_API_KEY`. The gateway's budgets and spend
+reports then cover the deployment's calls as before. A call on a person's own key never passes through the gateway,
+which would otherwise see the key.
 
 **Enrolment.** A signed-in person adds, replaces or removes their account on the Profile page.
 The steps are:
@@ -225,11 +245,14 @@ interface is `/enrolment/account`, with the ticket as `Authorization: Bearer`:
 | Request | What the broker does | Its answer |
 |---|---|---|
 | `GET` | Reads the account's label and the person's token use for the last 30 days. | `{account, usage}`; `account` is `null` if they have none. |
-| `PUT` `{provider, key}` | Checks the key by listing one model, which costs no tokens, and stores it only if the provider accepts it. | `{account, usage}`, or a status and `{reason}`. |
+| `PUT` `{provider, key, base_url}` | Checks the key by listing models, which costs no tokens, and stores it only if the provider accepts it. `provider` is `anthropic`, `openai`, `gemini` or `openai-compatible`; `base_url` is required for `openai-compatible` and refused for the others. | `{account, usage}`, or a status and `{reason}`. |
 | `DELETE` | Erases the sealed record. | `204`. |
 
 A key that fails is answered `422` with `model-account-rejected`, `429` with `model-account-limit`,
-or `502` with `provider-unreachable` or `provider-error`, and is not stored. A ticket that is
+or `502` with `provider-unreachable` or `provider-error`, and is not stored. A base URL is checked
+before the key is sent there: one whose origin is not on `DD_BROKER_ALLOWED_BASE_URLS`, or that
+resolves to a private address the operator has not allowed, is answered `422` with
+`base-url-refused`, and the key is sent nowhere. A ticket that is
 missing, invalid, expired or used is answered `401` with `ticket-missing`, `ticket-invalid`,
 `ticket-expired` or `ticket-used`. Every answer is `Cache-Control: no-store`. The page puts each
 reason in plain words.

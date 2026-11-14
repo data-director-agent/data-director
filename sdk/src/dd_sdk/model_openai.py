@@ -14,6 +14,11 @@ base URL explicitly, and a request hook (`_only_ours`) sends only the headers th
 itself, with the agent's own key as the bearer token, or with no `Authorization` header at all for
 a local endpoint that needs no key.
 
+Through the model broker (docs/specs/model-accounts.md), the base URL is the broker's
+`/{provider}` and the key is the agent's broker credential. The same hook then adds the current
+run's model grant (`dd_sdk.model.current_grant`) as `X-DD-Model-Grant`, and a response hook reads
+whose account paid from each answer (`dd_sdk.model_account.report`), so the call's record says so.
+
 `dd_sdk.model_provider.configured_model` builds this adapter from an agent's settings.
 """
 
@@ -23,6 +28,7 @@ import json
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
+from dd_sdk import model_account
 from dd_sdk.model import (
     AssistantMessage,
     ModelCallError,
@@ -33,7 +39,9 @@ from dd_sdk.model import (
     ToolCall,
     ToolResults,
     Usage,
+    current_grant,
 )
+from dd_sdk.model_grant import HEADER_GRANT
 
 if TYPE_CHECKING:
     import openai
@@ -55,9 +63,9 @@ _OWN_HEADERS = frozenset(
 _OWN_PREFIX = "x-stainless-"
 
 
-def _only_ours(api_key: str | None) -> Callable[[Any], None]:
+def _only_ours(api_key: str | None, *, brokered: bool = False) -> Callable[[Any], None]:
     """A request hook that keeps the client's own headers and sets `api_key` as the bearer token,
-    or none when there is no key."""
+    or none when there is no key. Through the broker it also sets the run's model grant."""
 
     def hook(request: Any) -> None:
         for name in list(request.headers):
@@ -66,18 +74,36 @@ def _only_ours(api_key: str | None) -> Callable[[Any], None]:
                 del request.headers[name]
         if api_key:
             request.headers["Authorization"] = f"Bearer {api_key}"
+        if brokered and (grant := current_grant()) is not None:
+            # The hook runs for every request, so the grant is the one bound to the run that makes
+            # the call.
+            request.headers[HEADER_GRANT] = grant
 
     return hook
 
 
-def openai_client(base_url: str, api_key: str | None, *, http_client: Any = None) -> openai.OpenAI:
+def _payer(response: Any) -> None:
+    """A response hook that records whose account paid, in the thread and context that made the
+    call, so the call's record reads it."""
+    model_account.report(response.headers)
+
+
+def openai_client(
+    base_url: str, api_key: str | None, *, brokered: bool = False, http_client: Any = None
+) -> openai.OpenAI:
     """A Chat Completions client for `base_url` that sends `api_key`, or no key, and nothing it
-    finds in the environment. `http_client` replaces the client's own HTTP client, for tests."""
+    finds in the environment. `brokered` is for the model broker: `api_key` is then the agent's
+    broker credential. `http_client` replaces the client's own HTTP client, for tests."""
     import openai as _openai
 
     if http_client is None:
         http_client = _openai.DefaultHttpxClient()
-    http_client.event_hooks["request"] = [*http_client.event_hooks["request"], _only_ours(api_key)]
+    http_client.event_hooks["request"] = [
+        *http_client.event_hooks["request"],
+        _only_ours(api_key, brokered=brokered),
+    ]
+    if brokered:
+        http_client.event_hooks["response"] = [*http_client.event_hooks["response"], _payer]
     return _openai.OpenAI(
         # The client insists on a key; with none, the hook sends no Authorization header.
         api_key=api_key or "unused",
@@ -154,7 +180,8 @@ class OpenAIModel:
     `provider` and `hosting` are what the agent's card declares (`dd_sdk.model.declared`).
     `max_tokens_field` is the request field that caps the reply: OpenAI's own API wants
     `max_completion_tokens`, and most other servers `max_tokens`. `effort`, if given, is sent as
-    `reasoning_effort` (`EFFORTS`)."""
+    `reasoning_effort` (`EFFORTS`). `brokered` says that `base_url` is the model broker and
+    `api_key` the agent's broker credential (`openai_client`)."""
 
     def __init__(
         self,
@@ -166,12 +193,13 @@ class OpenAIModel:
         api_key: str | None = None,
         max_tokens_field: str = "max_tokens",
         effort: str | None = None,
+        brokered: bool = False,
         client: openai.OpenAI | None = None,
     ) -> None:
         if client is None:
             if base_url is None:
                 raise ValueError("OpenAIModel needs a client or a base_url")
-            client = openai_client(base_url, api_key)
+            client = openai_client(base_url, api_key, brokered=brokered)
         self._client = client
         self.model_id = model_id
         self.provider = provider

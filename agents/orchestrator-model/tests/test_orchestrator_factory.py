@@ -68,6 +68,18 @@ def test_it_runs_on_a_local_endpoint_that_needs_no_key() -> None:
     assert built.spec.models == (ModelUse("localhost:11434", "llama-test", "local"),)
 
 
+def test_it_runs_on_another_provider_through_the_broker() -> None:
+    env = {
+        "DD_MODEL_PROVIDER": "openai",
+        "DD_MODEL_ID": "gpt-test",
+        "DD_MODEL_BROKER_URL": "http://broker.test",
+        "DD_MODEL_BROKER_CREDENTIAL": "c",
+        "DD_TITLE_MODEL": "none",
+    }
+    built = factory.build(env)
+    assert built.spec.models == (ModelUse("openai", "gpt-test", "hosted"),)
+
+
 def test_claude_is_asked_for_effort_and_fallback() -> None:
     built = factory.build({**KEY, "DD_ORCHESTRATOR_EFFORT": "max"})
     assert getattr(built.model, "effort", None) == "max"
@@ -90,8 +102,8 @@ def test_claude_is_asked_for_effort_and_fallback() -> None:
         {**LOCAL, "DD_ORCHESTRATOR_EFFORT": "xhigh"},
         # Another provider has no default model.
         {"DD_MODEL_PROVIDER": "openai", "OPENAI_API_KEY": "k"},
-        # The broker forwards Anthropic's format only (#832).
-        {**OPENAI, "DD_MODEL_BROKER_URL": "http://broker.test"},
+        # An agent that calls through the broker holds no provider key.
+        {**OPENAI, "DD_MODEL_BROKER_URL": "http://broker.test", "DD_MODEL_BROKER_CREDENTIAL": "c"},
     ],
 )
 def test_a_bad_setting_is_a_configuration_error(env: dict[str, str]) -> None:

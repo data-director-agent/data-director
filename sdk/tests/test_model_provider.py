@@ -126,8 +126,27 @@ def test_hosting_is_worked_out_from_the_endpoint(url: str, hosting: str) -> None
                 "DD_MODEL_ID": "m",
                 "OPENAI_API_KEY": "k",
                 "DD_MODEL_BROKER_URL": "http://127.0.0.1:7870",
+                "DD_MODEL_BROKER_CREDENTIAL": "c",
             },
-            "DD_MODEL_BROKER_URL",
+            "OPENAI_API_KEY",
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "openai-compatible",
+                "DD_MODEL_ID": "m",
+                "DD_MODEL_BASE_URL": LOCAL,
+                "DD_MODEL_BROKER_URL": "http://127.0.0.1:7870",
+                "DD_MODEL_BROKER_CREDENTIAL": "c",
+            },
+            "DD_MODEL_BASE_URL",
+        ),
+        (
+            {
+                "DD_MODEL_PROVIDER": "gemini",
+                "DD_MODEL_ID": "m",
+                "DD_MODEL_BROKER_URL": "http://127.0.0.1:7870",
+            },
+            "DD_MODEL_BROKER_CREDENTIAL",
         ),
     ],
 )
@@ -160,6 +179,21 @@ def test_anthropic_through_the_broker_holds_no_key() -> None:
     }
     model = configured_model(env, default_model="claude-default")
     assert isinstance(model, AnthropicModel)
+
+
+@pytest.mark.parametrize("name", ["openai", "gemini", "openai-compatible"])
+def test_every_other_provider_through_the_broker_holds_no_key(name: str) -> None:
+    env = {
+        "DD_MODEL_PROVIDER": name,
+        "DD_MODEL_ID": "m",
+        "DD_MODEL_BROKER_URL": "http://127.0.0.1:7870/",
+        "DD_MODEL_BROKER_CREDENTIAL": "c",
+    }
+    model = configured_model(env)
+    assert isinstance(model, OpenAIModel)
+    # The card declares the provider the broker is asked for, and a hosted model: the endpoint a
+    # person's account names is not known at start-up.
+    assert (model.provider, model.hosting) == (name, "hosted")
 
 
 @pytest.mark.parametrize(

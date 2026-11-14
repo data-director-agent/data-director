@@ -103,6 +103,129 @@ def test_a_key_the_provider_accepts_is_stored_and_shown_only_by_its_label(
 
 
 @pytest.mark.parametrize(
+    ("provider_name", "path"),
+    [("openai", "/v1/models"), ("gemini", "/v1beta/openai/models")],
+)
+def test_an_openai_format_key_is_checked_at_its_providers_endpoint(
+    harness: FakeHarness, broker_for: Callable[..., Broker], provider_name: str, path: str
+) -> None:
+    seen: list[httpx.Request] = []
+    broker = broker_for(provider(200, seen))
+    with client(broker) as http:
+        answer = http.put(
+            ACCOUNT_PATH,
+            json={"provider": provider_name, "key": KEY},
+            headers=bearer(harness.ticket()),
+        )
+
+    assert answer.status_code == 200
+    account = answer.json()["account"]
+    assert account["provider"] == provider_name
+    assert account["label"].endswith(KEY[-4:])
+    [check] = seen
+    assert (check.method, check.url.path) == ("GET", path)
+    assert check.headers["authorization"] == f"Bearer {KEY}"
+    assert "x-api-key" not in check.headers
+    stored = broker.store.account(PSEUDONYM)
+    assert stored is not None
+    assert (stored.provider, stored.key, stored.base_url) == (provider_name, KEY, None)
+
+
+def test_an_openai_compatible_key_is_checked_at_its_allowed_base_url(
+    harness: FakeHarness, tmp_path: Path
+) -> None:
+    seen: list[httpx.Request] = []
+    broker = make_broker(
+        harness,
+        tmp_path / "broker.sqlite3",
+        transport=provider(200, seen),
+        allowed=["https://llm.example.ac.uk"],
+    )
+    with client(broker) as http:
+        answer = http.put(
+            ACCOUNT_PATH,
+            json={
+                "provider": "openai-compatible",
+                "key": KEY,
+                "base_url": "https://llm.example.ac.uk/v1/",
+            },
+            headers=bearer(harness.ticket()),
+        )
+
+    assert answer.status_code == 200
+    account = answer.json()["account"]
+    assert account["provider"] == "openai-compatible"
+    assert "llm.example.ac.uk" in account["label"]
+    # Checked at the address the guard resolved, with the host kept for TLS.
+    [check] = seen
+    assert (check.method, check.url.path) == ("GET", "/v1/models")
+    assert check.url.host == "93.184.215.14"
+    assert check.headers["host"] == "llm.example.ac.uk"
+    assert check.headers["authorization"] == f"Bearer {KEY}"
+    stored = broker.store.account(PSEUDONYM)
+    assert stored is not None
+    assert stored.base_url == "https://llm.example.ac.uk/v1"
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "https://elsewhere.example.org/v1",  # not on the operator's allow-list
+        "http://llm.example.ac.uk/v1",  # not https
+    ],
+)
+def test_an_openai_compatible_base_url_the_operator_does_not_allow_is_refused(
+    harness: FakeHarness, tmp_path: Path, base_url: str
+) -> None:
+    seen: list[httpx.Request] = []
+    broker = make_broker(
+        harness,
+        tmp_path / "broker.sqlite3",
+        transport=provider(200, seen),
+        allowed=["https://llm.example.ac.uk"],
+    )
+    with client(broker) as http:
+        answer = http.put(
+            ACCOUNT_PATH,
+            json={"provider": "openai-compatible", "key": KEY, "base_url": base_url},
+            headers=bearer(harness.ticket()),
+        )
+
+    assert answer.status_code == 422
+    assert answer.json()["reason"] == Reason.BASE_URL_REFUSED.value
+    assert answer.headers[HEADER_REASON] == Reason.BASE_URL_REFUSED.value
+    assert seen == []
+    assert broker.store.label(PSEUDONYM) is None
+
+
+def test_an_openai_compatible_base_url_on_a_private_address_is_refused(
+    harness: FakeHarness, tmp_path: Path
+) -> None:
+    seen: list[httpx.Request] = []
+    broker = make_broker(
+        harness,
+        tmp_path / "broker.sqlite3",
+        transport=provider(200, seen),
+        allowed=["https://llm.example.ac.uk"],
+    )
+    broker.resolve = lambda host, port: ["10.0.0.5"]
+    with client(broker) as http:
+        answer = http.put(
+            ACCOUNT_PATH,
+            json={
+                "provider": "openai-compatible",
+                "key": KEY,
+                "base_url": "https://llm.example.ac.uk/v1",
+            },
+            headers=bearer(harness.ticket()),
+        )
+
+    assert answer.status_code == 422
+    assert answer.json()["reason"] == Reason.BASE_URL_REFUSED.value
+    assert seen == []
+
+
+@pytest.mark.parametrize(
     ("status", "answered", "reason"),
     [
         (401, 422, Reason.MODEL_ACCOUNT_REJECTED),
@@ -179,7 +302,11 @@ def test_a_working_key_replaces_the_last(
 @pytest.mark.parametrize(
     "body",
     [
-        {"provider": "openai", "key": KEY},
+        {"provider": "another", "key": KEY},
+        {"provider": "anthropic", "key": KEY, "base_url": "https://llm.example.ac.uk/v1"},
+        {"provider": "openai", "key": KEY, "base_url": "https://llm.example.ac.uk/v1"},
+        {"provider": "openai-compatible", "key": KEY},
+        {"provider": "openai-compatible", "key": KEY, "base_url": 42},
         {"provider": "anthropic"},
         {"provider": "anthropic", "key": "short"},
         {"provider": "anthropic", "key": "sk-ant with a space"},
