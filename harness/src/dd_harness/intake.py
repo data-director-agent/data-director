@@ -76,8 +76,9 @@ def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     """Where the intake stands, as the app's card reads it (docs/specs/app.md, rule 25): its
     state, the id of the next question (None once none is left), every question asked from the
     project's entry point, in order, each as a core `Question` with its current answer's values
-    (None while it has none), and the project's progress, whose entry point and suggested step
-    the card names once the intake is complete."""
+    (None while it has none) and the notices its answers carry, keyed by answer value, and the
+    project's progress, whose entry point and suggested step the card names once the intake is
+    complete."""
     events = list(events)
     entry, answers = entry_chosen(events), intake_answers(events)
     following = next_question(events)
@@ -96,12 +97,19 @@ def describe(events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
                 "question_id": q.id,
                 "question": q.as_question().model_dump(mode="json", exclude_none=True),
                 "answer_values": current(q),
+                **({"notices": notices} if (notices := _notices(q)) else {}),
             }
             for q in INTAKE
             if q.asked_at(entry)
         ],
         "progress": describe_progress(events),
     }
+
+
+def _notices(q: IntakeQuestion) -> dict[str, str]:
+    """What each of the question's answers says to the researcher at once, by answer value; only
+    the answers that say something are listed."""
+    return {o.value: o.notice for o in q.options if o.notice}
 
 
 def answer_problem(question_id: str, answer_values: Sequence[str], entry: int | None) -> str | None:

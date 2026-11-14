@@ -237,18 +237,30 @@ def test_only_no_to_an_intake_question_skips_its_steps() -> None:
         assert progress.step_states([chose(2), answered("intake.sensitive", value)]) == {}
 
 
+def test_yes_to_a_mandated_repository_skips_the_recommendation_and_never_marks_a_step_done() -> (
+    None
+):
+    states = progress.step_states([chose(3), answered("intake.repository-mandated", YES)])
+    assert states == {"repository.recommend": "skipped"}
+
+
+def test_an_answer_to_the_dmp_question_marks_no_step() -> None:
+    for value in (YES, NO, NOT_SURE):
+        assert progress.step_states([chose(1), answered("intake.dmp", value)]) == {}
+
+
 def test_the_latest_answer_to_an_intake_question_counts() -> None:
-    events = [chose(1), answered("intake.dmp", NO), answered("intake.dmp", YES)]
+    events = [chose(1), answered("intake.sensitive", NO), answered("intake.sensitive", YES)]
     assert progress.step_states(events) == {}
-    assert progress.step_states([*events, answered("intake.dmp", NO)]) == {
-        "governance.dmp": "skipped"
-    }
+    skipped = dict.fromkeys(question("intake.sensitive").skips([NO]), "skipped")
+    assert progress.step_states([*events, answered("intake.sensitive", NO)]) == skipped
 
 
 @pytest.mark.parametrize("mark", ["open", "done"])
 def test_a_researchers_mark_overrides_an_intake_skip(mark: str) -> None:
-    events = [chose(1), answered("intake.dmp", NO), marked("governance.dmp", mark)]
-    assert progress.step_states(events).get("governance.dmp", "open") == mark
+    step = "governance.sensitive-data-identify"
+    events = [chose(1), answered("intake.sensitive", NO), marked(step, mark)]
+    assert progress.step_states(events).get(step, "open") == mark
 
 
 def test_work_the_log_shows_overrides_an_intake_skip() -> None:
@@ -259,6 +271,6 @@ def test_work_the_log_shows_overrides_an_intake_skip() -> None:
 
 
 def test_an_intake_answer_counts_only_from_an_entry_point_that_asks_it() -> None:
-    events = [chose(2), answered("intake.dmp", NO)]
-    assert "governance.dmp" in progress.step_states(events)
-    assert "governance.dmp" not in progress.step_states([*events, chose(3)])
+    events = [chose(2), answered("intake.sensitive", NO)]
+    assert "governance.sensitive-data-handle" in progress.step_states(events)
+    assert "governance.sensitive-data-handle" not in progress.step_states([*events, chose(3)])

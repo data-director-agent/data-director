@@ -130,4 +130,38 @@ describe("IntakeCard", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onDismiss).not.toHaveBeenCalled();
   });
+  it("shows an answer's notice as soon as it is chosen, and keeps it once recorded", async () => {
+    const notice = "Please do not paste the sensitive data itself.";
+    const sensitive = {
+      question_id: "intake.sensitive",
+      question: {
+        ...ENTRY.question,
+        question_key: "sensitive",
+        question_prompt: "Does the data include sensitive information?",
+        question_options: [
+          { option_value: "yes", option_label: "Yes" },
+          { option_value: "no", option_label: "No" },
+        ],
+      },
+      answer_values: null,
+      notices: { yes: notice },
+    };
+    const intake: ProjectIntake = {
+      ...PENDING,
+      questions: [{ ...ENTRY, answer_values: [ENTRY_OPTION.option_value] }, sensitive],
+    };
+    const { rerender, ...handlers } = renderCard({ intake });
+    expect(screen.queryByRole("note")).toBeNull();
+    await userEvent.click(screen.getByRole("radio", { name: "No" }));
+    expect(screen.queryByRole("note")).toBeNull();
+    await userEvent.click(screen.getByRole("radio", { name: "Yes" }));
+    expect(screen.getByRole("note").textContent).toBe(notice);
+    // Recorded, the notice stays while the card goes on.
+    const recorded: ProjectIntake = {
+      ...intake,
+      questions: [intake.questions[0] as (typeof intake.questions)[0], { ...sensitive, answer_values: ["yes"] }],
+    };
+    rerender(<IntakeCard intake={recorded} flow={FLOW} {...handlers} />);
+    expect(screen.getByRole("note").textContent).toBe(notice);
+  });
 });

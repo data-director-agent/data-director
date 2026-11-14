@@ -194,18 +194,26 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     `Question` of kind `choice` and is asked one at a time. Each, apart from the first, is asked only from the
     entry points that reach its step:
 
-    | Question id | Asks | From entry | An answer of "No" marks skipped |
-    |---|---|---|---|
-    | `intake.entry` | Where are you with your research data? | always, first | (the answer is the entry point: `entry_chosen`) |
-    | `intake.dmp` | Do you have a Data Management Plan for this project? | 1, 2 | `governance.dmp` |
-    | `intake.sensitive` | Does the data include personal or otherwise sensitive information? | 1, 2 | `governance.sensitive-data-identify`, `governance.sensitive-data-handle` |
-    | `intake.repository-mandated` | Has a funder, journal or institution said where the data must go? | 1, 2, 3 | `repository.mandated` |
+    | Question id | Asks | From entry | An answer of "No" marks skipped | An answer of "Yes" marks skipped |
+    |---|---|---|---|---|
+    | `intake.entry` | Where are you with your research data? | always, first | (the answer is the entry point: `entry_chosen`) | |
+    | `intake.dmp` | Do you have a Data Management Plan for this project? | 1, 2 | nothing | nothing |
+    | `intake.sensitive` | Does the data include personal or otherwise sensitive information? | 1, 2 | `governance.sensitive-data-identify`, `governance.sensitive-data-handle` | nothing, but it says at once not to share the data itself |
+    | `intake.repository-mandated` | Has a funder, journal or institution said where the data must go? | 1, 2, 3 | `repository.mandated` | `repository.recommend` |
 
     So the intake asks at most four questions, and two from entry 3. The entry question's option
     values are the entry numbers; the others' are `yes`, `no` and `not-sure`, each a single choice
     with no "Something else" (`sdk/tests/test_intake.py`). Every question but the first
-    offers "Not sure", which records the answer and marks nothing. "Yes" also marks nothing: it
-    never shows a step as done. The intake gathers nothing else. Funder, discipline, data types,
+    offers "Not sure", which records the answer and marks nothing. No answer ever shows a step as
+    done. "Yes" to a mandated repository marks the recommendation of one skipped, as Figure 3's
+    "Yes" branch does; the Data Management Plan question marks nothing, because Figure 1's decision
+    gates the steps that create or review a plan, which are out of scope. "Yes" to sensitive data
+    says at once, in the card, not to paste or upload the data itself into the conversation, and
+    that the governance step covers how it is handled: Blueprint §5.2 asks that sensitive data not
+    reach the model without institutional authorisation, and Figure 2 asks that it be anonymised
+    first in a cloud deployment. The notice marks no step and does not depend on the deployment.
+    The questions are the same for every deployment: a profile may not change or extend them. The
+    intake gathers nothing else. Funder, discipline, data types,
     embargo and licence are asked by the step that needs them, when the researcher reaches it.
     Answers are the researcher's own word, recorded in the project log and read like
     `step_marked` ([Projects](projects.md)). They can be changed at any time, from the phase tracker
@@ -213,8 +221,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     None of these holds up the conversation (invariant 16). When the intake ends, the app says which
     phase the project starts at, by its researcher-facing name, and which step `suggested_next`
     proposes. A researcher who dismisses the intake or types instead may still say where they are
-    in their own words; the model then records the entry point it worked out (invariant 18). The
-    wording and the decision mapping await a Blueprint reading, TODO(#670).
+    in their own words; the model then records the entry point it worked out (invariant 18). A
+    Blueprint reading checked the wording, the entry points and the mapping
+    ([The intake against §8](intake-reading.md)).
 
 ## Boundaries and contracts
 
@@ -281,8 +290,9 @@ must reach the project log, and no agent writes there. It must be the same which
 a deployment runs. And it is Blueprint data, like the flow it places the project in. It asks only
 the §8 decisions that change which steps come first, because every question asked before the
 researcher has said anything is a cost. Everything else is asked by the step that uses it, when
-the researcher can see why it is needed. A "No" may skip a step, but a "Yes" never marks one done,
-because saying a plan exists is not the check of the deposit against it.
+the researcher can see why it is needed. An answer may skip a step, following the §8 branch it
+takes, but none marks one done, because saying a plan exists is not the check of the deposit
+against it.
 
 ## Rejected alternatives
 
@@ -368,7 +378,5 @@ because saying a plan exists is not the check of the deposit against it.
 - The orchestrator's context about its deployment and the researcher's project beyond the
   inventory the project holds and the intake's answers (invariant 20), to be supplied by the
   harness rather than as a tool, TODO(#341, #160).
-- Whether a deployment may change or extend the intake's questions in its profile, and whether
-  "Yes" to sensitive data should say anything before the governance step, TODO(#670).
 - A read-only check of a deposit against an existing Data Management Plan, TODO(#284).
 - Streaming replies, TODO(#159).

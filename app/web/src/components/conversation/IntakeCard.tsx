@@ -13,6 +13,9 @@
  * chosen, and records only what changed. Each new question, and the summary, is announced in the
  * page's polite live region; the focus moves to it only once the researcher has acted. The card
  * is not a turn and never holds up the message box below it.
+ *
+ * An answer may carry a notice, which the card shows as soon as it is chosen and keeps showing
+ * once it is recorded (`notices` on the question); it changes no step.
  */
 
 import "./ChoiceQuestion.css";
@@ -41,6 +44,20 @@ function summaryOf(
     phase: phase ? `Phase ${phase.number}, ${phase.name}` : null,
     step: step ? step.label : null,
   };
+}
+
+/** What the answers chosen say at once: the notices of the answers recorded, and of the one
+ * selected for the question shown, each once and in the order of the questions. */
+function noticesOf(
+  intake: ProjectIntake,
+  shown: IntakeQuestion | undefined,
+  chosen: readonly string[],
+): string[] {
+  const notices = intake.questions.flatMap((q) => {
+    const values = q.question_id === shown?.question_id ? chosen : (q.answer_values ?? []);
+    return values.map((v) => q.notices?.[v]).filter((n): n is string => Boolean(n));
+  });
+  return [...new Set(notices)];
 }
 
 function sameValues(a: readonly string[], b: readonly string[] | null): boolean {
@@ -84,6 +101,7 @@ export function IntakeCard({
   );
   const draftOf = (q: IntakeQuestion): Draft =>
     drafts[q.question_id] ?? { values: q.answer_values ?? [], words: "" };
+  const notices = noticesOf(intake, shown, shown ? draftOf(shown).values : []);
   const complete = intake.state === "complete";
   const summary = summaryOf(flow, intake);
   const said = shown
@@ -149,6 +167,11 @@ export function IntakeCard({
           or type below at any time.
         </p>
       )}
+      {notices.map((notice) => (
+        <p key={notice} role="note" className="intake-card-notice">
+          {notice}
+        </p>
+      ))}
       {shown ? (
         <form onSubmit={(e) => void next(e)} aria-labelledby={`${id}-heading`}>
           <fieldset className="question-step" disabled={busy}>

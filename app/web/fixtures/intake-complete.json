@@ -3,9 +3,7 @@
   "progress": {
     "entry": 1,
     "entry_source": "researcher",
-    "steps": {
-      "governance.dmp": "skipped"
-    },
+    "steps": {},
     "suggested": "setup.documentation"
   },
   "questions": [
@@ -67,6 +65,9 @@
       "answer_values": [
         "not-sure"
       ],
+      "notices": {
+        "yes": "Please do not paste or upload the sensitive data itself into this conversation. The governance step will cover how it is handled."
+      },
       "question": {
         "question_key": "sensitive",
         "question_kind": "choice",

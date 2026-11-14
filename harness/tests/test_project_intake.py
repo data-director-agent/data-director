@@ -67,21 +67,37 @@ def test_any_entry_point_recorded_answers_the_entry_question(
     assert asked(store, project) == "intake.repository-mandated"
 
 
-def test_another_answer_is_an_intake_answered_event_and_skips_on_no(
+def test_another_answer_is_an_intake_answered_event_and_skips_what_its_branch_bypasses(
+    store: ProjectStore, project: str
+) -> None:
+    mandated = "intake.repository-mandated"
+    answer(store, project, ENTRY, "1")
+    answer(store, project, mandated, NO)
+    last = store.events(project)[-1]
+    assert last["event"] == progress.INTAKE_ANSWERED
+    assert (last["question_id"], last["answer_values"]) == (mandated, [NO])
+    steps = store.progress(project)["steps"]
+    assert {s for s, state in steps.items() if state == "skipped"} == question(mandated).skips([NO])
+    # Answering again replaces the answer: "Yes" skips the other step, never marks one done.
+    answer(store, project, mandated, YES)
+    steps = store.progress(project)["steps"]
+    assert {s for s, state in steps.items() if state == "skipped"} == question(mandated).skips(
+        [YES]
+    )
+    assert "done" not in steps.values()
+    # "Not sure" marks nothing.
+    answer(store, project, mandated, NOT_SURE)
+    assert store.progress(project)["steps"] == {}
+
+
+def test_an_answer_to_the_dmp_question_is_recorded_and_marks_no_step(
     store: ProjectStore, project: str
 ) -> None:
     answer(store, project, ENTRY, "1")
-    answer(store, project, "intake.dmp", NO)
-    last = store.events(project)[-1]
-    assert last["event"] == progress.INTAKE_ANSWERED
-    assert (last["question_id"], last["answer_values"]) == ("intake.dmp", [NO])
-    steps = store.progress(project)["steps"]
-    assert {s for s, state in steps.items() if state == "skipped"} == question("intake.dmp").skips(
-        [NO]
-    )
-    # Answering again replaces the answer.
-    answer(store, project, "intake.dmp", YES)
-    assert store.progress(project)["steps"] == {}
+    for value in (NO, YES):
+        answer(store, project, "intake.dmp", value)
+        assert store.progress(project)["steps"] == {}
+        assert store.events(project)[-1]["answer_values"] == [value]
 
 
 def test_a_dismissal_stands_until_an_answer_is_recorded_after_it(
@@ -169,3 +185,14 @@ def test_a_dismissed_intake_reads_as_dismissed_with_no_next_question(
     read = store.intake(project)
     assert read["state"] == intake.DISMISSED
     assert read["next"] is None
+
+
+def test_the_intake_read_carries_the_notices_of_the_answers_that_say_something(
+    store: ProjectStore, project: str
+) -> None:
+    answer(store, project, ENTRY, "1")
+    by_id = {q["question_id"]: q for q in store.intake(project)["questions"]}
+    assert by_id["intake.sensitive"]["notices"] == {
+        YES: question("intake.sensitive").options[0].notice
+    }
+    assert all("notices" not in q for i, q in by_id.items() if i != "intake.sensitive")

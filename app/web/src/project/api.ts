@@ -425,6 +425,8 @@ export interface IntakeQuestion {
   question: Question;
   /** The values of the latest answer, or null while it has none. */
   answer_values: string[] | null;
+  /** What an answer says to the researcher at once, by answer value; only for those that do. */
+  notices?: Record<string, string>;
 }
 
 /**

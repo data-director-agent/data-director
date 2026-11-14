@@ -207,7 +207,7 @@ intended design, and each part says where it is not built yet.
     2. the researcher's own `step_marked`;
     3. a skip implied by an intake answer.
 
-    So answering "Yes" after "No" opens the step again. Marking a step open from the tracker
+    So answering again replaces the skips the earlier answer implied. Marking a step open from the tracker
     overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
     which question comes next in the same way, and none is stored; `ProjectStore.intake` reads the
     questions with their current answers for the app's card. Any entry point recorded,

@@ -11,13 +11,22 @@ agent and runs no orchestrator. The harness records the answers in the project l
 step states from them (docs/specs/projects.md, rule 20, `dd_harness.intake`); the app shows the
 questions one at a time (docs/specs/app.md, rule 25).
 
-An answer of "No" marks the question's steps skipped. "Yes" and "Not sure" mark nothing: saying a
-plan exists is not the check of a deposit against it, so the intake never shows a step as done.
+Each answer may mark steps skipped, and none ever marks a step done: saying a plan exists is not
+the check of a deposit against it, so the intake never shows a step as done. "Not sure" marks
+nothing. The mandated-repository question follows §8's two branches (Figure 3): "No" marks the
+check of whether a repository is mandated skipped, and "Yes" marks the recommendation of one
+skipped, since the choice is made. The Data Management Plan question marks nothing: §8's decision
+(Figure 1) gates the steps that create or review a plan, which are out of scope. An answer may also
+carry a notice, which the app shows at once. "Yes" to sensitive data says not to share the data
+itself with the agent, as §5.2 asks that sensitive data not reach the model without institutional
+authorisation and Figure 2 asks that it be anonymised first in a cloud deployment.
+
 Each question is a single choice with fixed options and no "Something else": an answer in the
 researcher's own words is one no step state can follow, and the researcher may always type instead.
+The question set is the same for every deployment: a profile may not change or extend it.
 
-The wording, the entry points each question is asked from and the steps a "No" skips await a
-Blueprint reading, TODO(#670).
+The Blueprint reading that checked the wording, the entry points and the steps is
+docs/specs/intake-reading.md.
 """
 
 from __future__ import annotations
@@ -44,6 +53,8 @@ class IntakeOption:
     label: str
     # The steps this answer marks skipped; empty for an answer that marks nothing.
     skips: tuple[str, ...] = ()
+    # What the app says to the researcher at once on this answer; empty for none. It marks no step.
+    notice: str = ""
 
 
 @dataclass(frozen=True)
@@ -78,19 +89,32 @@ class IntakeQuestion:
 
 
 def _yes_no(
-    question_id: str, prompt: str, asked_from: tuple[int, ...], skips: tuple[str, ...]
+    question_id: str,
+    prompt: str,
+    asked_from: tuple[int, ...],
+    *,
+    yes: tuple[str, ...] = (),
+    no: tuple[str, ...] = (),
+    yes_notice: str = "",
 ) -> IntakeQuestion:
     return IntakeQuestion(
         question_id,
         prompt,
         (
-            IntakeOption(YES, "Yes"),
-            IntakeOption(NO, "No", skips),
+            IntakeOption(YES, "Yes", yes, yes_notice),
+            IntakeOption(NO, "No", no),
             IntakeOption(NOT_SURE, "Not sure"),
         ),
         asked_from,
     )
 
+
+# What "Yes" to sensitive data tells the researcher at once. It does not depend on the deployment:
+# whether the data may reach the agent at all is for the governance step.
+SENSITIVE_NOTICE = (
+    "Please do not paste or upload the sensitive data itself into this conversation. "
+    "The governance step will cover how it is handled."
+)
 
 # The intake's questions, in the order they are asked.
 INTAKE: tuple[IntakeQuestion, ...] = (
@@ -100,23 +124,26 @@ INTAKE: tuple[IntakeQuestion, ...] = (
         tuple(IntakeOption(str(e.number), f"{e.text[0].upper()}{e.text[1:]}") for e in ENTRIES),
         tuple(e.number for e in ENTRIES),
     ),
+    # Figure 1's decision gates steps that are out of scope, so no answer skips a step: the answer
+    # is recorded for the project log.
     _yes_no(
         "intake.dmp",
         "Do you have a Data Management Plan for this project?",
         (1, 2),
-        ("governance.dmp",),
     ),
     _yes_no(
         "intake.sensitive",
         "Does the data include personal or otherwise sensitive information?",
         (1, 2),
-        ("governance.sensitive-data-identify", "governance.sensitive-data-handle"),
+        no=("governance.sensitive-data-identify", "governance.sensitive-data-handle"),
+        yes_notice=SENSITIVE_NOTICE,
     ),
     _yes_no(
         "intake.repository-mandated",
         "Has a funder, journal or institution said where the data must go?",
         (1, 2, 3),
-        ("repository.mandated",),
+        yes=("repository.recommend",),
+        no=("repository.mandated",),
     ),
 )
 

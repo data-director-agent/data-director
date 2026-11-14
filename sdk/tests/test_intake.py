@@ -10,10 +10,14 @@ from dd_sdk.contract.models import QUESTION_KEY_PATTERN, Question, QuestionKind
 from dd_sdk.intake import ENTRY, INTAKE, NO, NOT_SURE, YES, IntakeQuestion, question
 from dd_sdk.process_flow import ENTRIES, OUT_OF_SCOPE, STEPS
 
-EXPECTED_SKIPS = {
-    "intake.dmp": {"governance.dmp"},
-    "intake.sensitive": {"governance.sensitive-data-identify", "governance.sensitive-data-handle"},
-    "intake.repository-mandated": {"repository.mandated"},
+# The steps each answer marks skipped (Blueprint §8, docs/specs/intake-reading.md). "Not sure" and
+# an answer not listed mark nothing.
+EXPECTED_SKIPS: dict[str, dict[str, set[str]]] = {
+    "intake.dmp": {},
+    "intake.sensitive": {
+        NO: {"governance.sensitive-data-identify", "governance.sensitive-data-handle"}
+    },
+    "intake.repository-mandated": {YES: {"repository.recommend"}, NO: {"repository.mandated"}},
 }
 
 
@@ -60,11 +64,17 @@ def test_every_question_but_the_entry_offers_not_sure_which_skips_nothing(
 
 
 @pytest.mark.parametrize("question_id", sorted(EXPECTED_SKIPS))
-def test_only_no_skips_steps(question_id: str) -> None:
+def test_each_answer_skips_the_steps_the_blueprint_branch_bypasses(question_id: str) -> None:
     q = question(question_id)
     assert {o.value for o in q.options} == {YES, NO, NOT_SURE}
-    assert q.skips([NO]) == EXPECTED_SKIPS[question_id]
-    assert not q.skips([YES])
+    for value in (YES, NO, NOT_SURE):
+        assert q.skips([value]) == EXPECTED_SKIPS[question_id].get(value, set())
+
+
+def test_only_yes_to_sensitive_data_carries_a_notice_and_it_marks_no_step() -> None:
+    noticed = {(q.id, o.value) for q in INTAKE for o in q.options if o.notice}
+    assert noticed == {("intake.sensitive", YES)}
+    assert not question("intake.sensitive").skips([YES])
 
 
 def test_each_question_is_asked_only_from_the_entry_points_that_reach_its_step() -> None:

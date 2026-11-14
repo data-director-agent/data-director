@@ -258,8 +258,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     "Skip these questions" button.
     - `GET /api/projects/{id}/intake` reads the next question, or says the intake is complete or
       dismissed. It carries `state`, `next` (the next question's id, or null), every question
-      asked from the project's entry point with its current `answer_values`, and the project's
-      `progress` (`dd_harness.intake.describe`).
+      asked from the project's entry point with its current `answer_values` and, for a question one
+      of whose answers says something at once, its `notices` by answer value, and the project's
+      `progress` (`dd_harness.intake.describe`). The card shows a notice as soon as its answer is
+      chosen and keeps showing it once recorded; it changes no step.
     - `POST /api/projects/{id}/intake/{question_id}` records an answer (`{"answer_values": […]}`).
       It answers with the next question, or, once the intake is complete, with the phase the
       project starts at and the suggested step, both from the project summary.

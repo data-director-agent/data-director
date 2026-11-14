@@ -46,6 +46,7 @@ which gets one line that points to the code.
 | [A person's own model account](model-accounts.md) | The model broker, enrolling a person's own key, the model grant, and recording whose account paid. |
 | [The app](app.md) | The browser shell, the app's process boundary and problem reports. |
 | [Projects](projects.md) | Projects, file inventories, documents and their versions, proposed changes and approval, sharing. |
+| [The intake against §8](intake-reading.md) | A reading of the project intake's questions, entry points and the steps an answer skips against Blueprint §8, and the decisions it settled. |
 | [Drafting documents](drafting.md) | What a drafter may infer, ask and write; gaps, questions to the researcher and their answers. |
 | [Deposit](deposit.md) | Repository requirements and the deposit package. |
 | [Storage](storage.md) | The run and project storage protocols, their guarantees, the file backends and how another backend is added. |
