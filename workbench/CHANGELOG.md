@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0-alpha.6](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.5...workbench-v0.2.0-alpha.6) (2026-11-14)
+
+
+### Features
+
+* **harness:** add pagination for listing runs and conversations ([#715](https://github.com/data-director-agent/data-director/issues/715)) ([bc3b541](https://github.com/data-director-agent/data-director/commit/bc3b5411362e31b8dae01eb13fd671bc0e55af43))
+* **harness:** enforce the profile's model_accounts key ([#820](https://github.com/data-director-agent/data-director/issues/820)) ([3229145](https://github.com/data-director-agent/data-director/commit/3229145163e9ccf90cdc8176417373e9ed22f05a))
+* **harness:** stream run stages, check reports and cancellation over ag-ui ([#709](https://github.com/data-director-agent/data-director/issues/709)) ([6a48a7f](https://github.com/data-director-agent/data-director/commit/6a48a7f9e210fc29d96d0e59d0b680f6fddc61e5))
+* **harness:** validate agent payloads against their SHACL shapes ([#654](https://github.com/data-director-agent/data-director/issues/654)) ([7406741](https://github.com/data-director-agent/data-director/commit/74067418e35de94175a76c3e9d66601c8875cbf1))
+* let agents ask a series of questions answered one at a time ([#739](https://github.com/data-director-agent/data-director/issues/739)) ([5332215](https://github.com/data-director-agent/data-director/commit/5332215e8f050dcf3b61fdccb11b63ad436e6d92))
+
+
+### Bug Fixes
+
+* **advisor-repository:** match plurals and rank the researcher's country first ([#745](https://github.com/data-director-agent/data-director/issues/745)) ([aa9b1fe](https://github.com/data-director-agent/data-director/commit/aa9b1fe5583312e7e0ac486e83a8bed303379dbc))
+
 ## [0.2.0-alpha.5](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.4...workbench-v0.2.0-alpha.5) (2026-11-07)
 
 

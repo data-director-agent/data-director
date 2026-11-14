@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-advisor-repository-v0.1.0-alpha.2...agent-advisor-repository-v0.1.0-alpha.3) (2026-11-14)
+
+
+### Features
+
+* **advisor-repository:** grade repositories by DFG subject and text match ([#743](https://github.com/data-director-agent/data-director/issues/743)) ([dc946bc](https://github.com/data-director-agent/data-director/commit/dc946bc3d4cc4eedee1e2b5b394478077d8e9f94))
+* **harness:** mint a model grant for each model-backed invocation ([#817](https://github.com/data-director-agent/data-director/issues/817)) ([6042098](https://github.com/data-director-agent/data-director/commit/604209892028330c5eee74f58f04f15485ce4ee1))
+* **harness:** validate agent payloads against their SHACL shapes ([#654](https://github.com/data-director-agent/data-director/issues/654)) ([7406741](https://github.com/data-director-agent/data-director/commit/74067418e35de94175a76c3e9d66601c8875cbf1))
+
+
+### Bug Fixes
+
+* **advisor-repository:** match plurals and rank the researcher's country first ([#745](https://github.com/data-director-agent/data-director/issues/745)) ([aa9b1fe](https://github.com/data-director-agent/data-director/commit/aa9b1fe5583312e7e0ac486e83a8bed303379dbc))
+
 ## [0.1.0-alpha.2](https://github.com/data-director-agent/data-director/compare/agent-advisor-repository-v0.1.0-alpha.1...agent-advisor-repository-v0.1.0-alpha.2) (2026-11-06)
 
 

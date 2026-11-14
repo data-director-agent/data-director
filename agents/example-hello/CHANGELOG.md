@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-example-hello-v0.1.1-alpha.2...agent-example-hello-v0.1.1-alpha.3) (2026-11-14)
+
+
+### Features
+
+* **harness:** validate agent payloads against their SHACL shapes ([#654](https://github.com/data-director-agent/data-director/issues/654)) ([7406741](https://github.com/data-director-agent/data-director/commit/74067418e35de94175a76c3e9d66601c8875cbf1))
+
 ## [0.1.1-alpha.2](https://github.com/data-director-agent/data-director/compare/agent-example-hello-v0.1.1-alpha.1...agent-example-hello-v0.1.1-alpha.2) (2026-11-07)
 
 
