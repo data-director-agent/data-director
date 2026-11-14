@@ -211,7 +211,8 @@ it reads and how.
 The model broker (`broker/README.md`) lets a person's own AI account pay for model calls. It is
 alpha and nothing calls it yet, so `install.sh` creates its user, its credentials directory and its
 settings file, but does not enable it. [The model broker](../docs/guide/operations/model-broker.md)
-in the operations guide says how to turn it on. Its store is not yet backed up (TODO(#814)).
+in the operations guide says how to turn it on. Its store is backed up with the others
+([Backups](#backups)).
 
 ## Day to day
 
@@ -462,6 +463,7 @@ on another VM:
 | `state.tar.gz` | `/var/lib/data-director/.sign-in`, and any runs set aside before sign-in |
 | `store-<name>.tar.gz` | Each store kept in a directory: `runs`, `projects`, `workbench-runs` |
 | `db-<name>.pgdump` | Each database a store names (`pg_dump --format=custom`), once per database |
+| `broker.sqlite3` | The [model broker](#the-model-broker)'s store, people's sealed keys and token counts, once the broker has run |
 | `MANIFEST`, `SHA256SUMS` | Where each store was, the release that ran, and a checksum of each file |
 
 Each store is backed up from where the services keep it: the directory the unit sets, or the
@@ -471,8 +473,10 @@ directory or a `postgresql://` URL ([Storage](../docs/specs/storage.md)). Python
 
 A store in a directory is copied while the app and the workbench are stopped, because the file
 backends append to their logs as they run; they are started again as soon as the copy is done,
-usually within seconds, and also if the copy fails. A database is dumped while it runs. A backup
-appears under its final name only when it is whole.
+usually within seconds, and also if the copy fails. A database is dumped while it runs. The model
+broker's store, `/var/lib/data-director-model-broker/broker.sqlite3`, is copied with SQLite's online
+backup while the broker runs, so the broker is not stopped. A backup appears under its final name
+only when it is whole.
 
 ```bash
 sudo data-director backup                                    # back up now
@@ -506,6 +510,17 @@ rsync -a --delete admin@data-director.example.ac.uk:/var/backups/data-director/ 
 Whoever holds a copy holds the secrets: after one is lost, rotate them
 ([AI models](../docs/guide/operations/ai-models.md), [Problem reports](#problem-reports)).
 
+A backup holds both people's own model keys, sealed, in `broker.sqlite3`, and the key that unseals
+them, `credentials/model-broker/key-encryption-key` in `config.tar.gz`. Whoever holds a copy can
+therefore read every key people have enrolled. That is accepted: a backup already holds every
+other secret of the deployment, and must be guarded as well as the VM, and a backup without the
+key-encryption key could not restore the enrolments. After a copy is lost, replace the
+key-encryption key and move the broker's store aside while the broker is stopped, so that people
+enrol their keys again; keys sealed under the old one no longer open, and a call on one fails. Ask
+the people who had enrolled to revoke their keys with their providers
+([The model broker](../docs/guide/operations/model-broker.md)). TODO(#43): whether the
+key-encryption key should be kept apart from the backups, which the threat model (#37) decides.
+
 ### A store in PostgreSQL
 
 `install.sh` installs `postgresql-client`, whose `pg_dump` must be of the server's major version or
@@ -531,10 +546,12 @@ To move a deployment, or to rebuild it after losing the VM, on a new Ubuntu VM:
    ```
 
    `restore` checks every file against `SHA256SUMS` before it changes anything, and refuses a
-   damaged backup. It puts back `/etc/data-director`, the drop-ins, the sign-in marker and each
-   store, where the restored settings say it is kept, and starts nothing. It refuses to write over
+   damaged backup. It puts back `/etc/data-director`, the drop-ins, the sign-in marker, each
+   store, where the restored settings say it is kept, and the model broker's store, owned by
+   `data-director-broker` with mode 0600, and starts nothing. It refuses to write over
    a store that already holds something; `--force` moves such a directory aside to
-   `<store>.before-restore-<time>`, and drops and replaces a database's tables.
+   `<store>.before-restore-<time>`, and drops and replaces a database's tables; it moves the
+   broker's store aside in the same way.
 
    For a store in PostgreSQL, the database must exist and be reachable with the restored
    settings before `restore` runs, with the same name and owner as before; for a server on the VM:

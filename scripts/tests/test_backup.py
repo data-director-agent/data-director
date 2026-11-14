@@ -10,10 +10,12 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import sqlite3
 import stat
 import subprocess
 import uuid
 from collections.abc import Iterator
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -46,6 +48,14 @@ class Host:
         return self.base / "state"
 
     @property
+    def broker(self) -> Path:
+        return self.base / "broker"
+
+    @property
+    def broker_store(self) -> Path:
+        return self.broker / "broker.sqlite3"
+
+    @property
     def units(self) -> Path:
         return self.base / "units"
 
@@ -62,6 +72,7 @@ class Host:
             "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
             "DD_ETC": str(self.etc),
             "DD_STATE": str(self.state),
+            "DD_BROKER_STATE": str(self.broker),
             "DD_ROOT": str(self.base / "opt"),
             "DD_UNIT_DIR": str(self.units),
             "DD_SYSTEMCTL": str(systemctl),
@@ -91,7 +102,7 @@ def systemctl(tmp_path: Path) -> Path:
     return path
 
 
-def lay_out(host: Host, app_env: str = "") -> None:
+def lay_out(host: Host, app_env: str = "", *, broker: bool = True) -> None:
     """A deployment as install.sh leaves it, with something in each store."""
     (host.etc / "credentials" / "app").mkdir(parents=True)
     (host.etc / "app.env").write_text(f"DD_APP_PUBLIC_URL=https://dd.example.ac.uk\n{app_env}")
@@ -112,6 +123,18 @@ def lay_out(host: Host, app_env: str = "") -> None:
     dropin = host.units / "data-director-app.service.d"
     dropin.mkdir(parents=True)
     (dropin / "override.conf").write_text("[Service]\nEnvironment=DD_FEEDBACK_GITHUB_APP_ID=1\n")
+    if broker:
+        host.broker.mkdir(mode=0o700)
+        with closing(sqlite3.connect(host.broker_store)) as db, db:
+            db.execute("pragma journal_mode=wal")
+            db.execute("create table keys (pseudonym text primary key, sealed blob not null)")
+            db.execute("insert into keys values ('p-1', x'00ff')")
+        host.broker_store.chmod(0o600)
+
+
+def broker_rows(store: Path) -> list[tuple[str, bytes]]:
+    with closing(sqlite3.connect(store)) as db:
+        return db.execute("select pseudonym, sealed from keys order by pseudonym").fetchall()
 
 
 def run(script: Path, env: dict[str, str], *args: str) -> subprocess.CompletedProcess[str]:
@@ -162,7 +185,72 @@ def test_a_backup_restores_into_a_clean_tree(host: Host, clean: Host, systemctl:
     assert (clean.state / ".sign-in").exists()
     assert not (clean.state / ".cache").exists()
     assert tree(clean.units) == tree(host.units)
+    assert broker_rows(clean.broker_store) == broker_rows(host.broker_store)
+    assert stat.S_IMODE(clean.broker_store.stat().st_mode) == 0o600
+    assert stat.S_IMODE(clean.broker.stat().st_mode) == 0o700
+    if os.geteuid() == 0 and run_id("data-director-broker"):
+        assert clean.broker_store.owner() == "data-director-broker"
     assert "--domain dd.example.ac.uk" in done.stdout
+    assert "data-director-model-broker.service" in done.stdout
+
+
+def run_id(user: str) -> bool:
+    return subprocess.run(["id", user], capture_output=True, check=False).returncode == 0
+
+
+def test_the_brokers_store_is_copied_while_it_runs(host: Host, systemctl: Path) -> None:
+    # The broker holds the store open, with a key it has committed still only in its log.
+    with closing(sqlite3.connect(host.broker_store)) as broker:
+        broker.execute("pragma wal_autocheckpoint=0")
+        with broker:
+            broker.execute("insert into keys values ('p-2', x'01')")
+        assert Path(f"{host.broker_store}-wal").stat().st_size > 0
+        done = run(BACKUP, host.env(systemctl))
+        assert done.returncode == 0, done.stderr
+        expected = broker_rows(host.broker_store)
+    [made] = backups(host)
+    assert broker_rows(made / "broker.sqlite3") == expected
+    assert ("p-2", b"\x01") in expected
+    # One file, with no log left beside it, and checked like every other.
+    assert not list(made.glob("broker.sqlite3-*"))
+    assert stat.S_IMODE((made / "broker.sqlite3").stat().st_mode) == 0o600
+    assert " broker.sqlite3" in (made / "SHA256SUMS").read_text()
+    assert f"broker file {host.broker_store} broker.sqlite3" in (made / "MANIFEST").read_text()
+    assert not any("model-broker" in call for call in host.calls())
+
+
+def test_a_deployment_without_the_broker_backs_up_and_restores(
+    tmp_path: Path, clean: Host, systemctl: Path
+) -> None:
+    host = Host(tmp_path / "old")
+    lay_out(host, broker=False)
+    assert run(BACKUP, host.env(systemctl)).returncode == 0
+    [made] = backups(host)
+    assert not (made / "broker.sqlite3").exists()
+    done = run(RESTORE, clean.env(systemctl), str(made))
+    assert done.returncode == 0, done.stderr
+    assert not clean.broker.exists()
+
+
+def test_the_brokers_store_is_set_aside_only_when_forced(host: Host, systemctl: Path) -> None:
+    assert run(BACKUP, host.env(systemctl)).returncode == 0
+    [made] = backups(host)
+    with closing(sqlite3.connect(host.broker_store)) as db, db:
+        db.execute("insert into keys values ('p-later', x'02')")
+    stale = Path(f"{host.broker_store}-wal")
+    stale.write_bytes(b"a log from before the restore")
+
+    done = run(RESTORE, host.env(systemctl), str(made))
+    assert done.returncode == 1
+    assert "model broker" in done.stderr
+
+    done = run(RESTORE, host.env(systemctl), "--force", str(made))
+    assert done.returncode == 0, done.stderr
+    assert not stale.exists()
+    assert broker_rows(host.broker_store) == [("p-1", b"\x00\xff")]
+    [aside] = host.broker.glob("broker.sqlite3.before-restore-*")
+    assert ("p-later", b"\x02") in broker_rows(aside)
+    assert list(host.broker.glob("broker.sqlite3-wal.before-restore-*"))
 
 
 def test_the_app_is_stopped_only_while_the_files_are_copied(host: Host, systemctl: Path) -> None:

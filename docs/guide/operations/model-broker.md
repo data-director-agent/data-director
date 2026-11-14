@@ -164,8 +164,17 @@ address it checked.
 
 ## Backups
 
-The broker's store holds sealed keys and token counts. `data-director backup` does not copy it yet
-(TODO(#814)). Losing it loses only enrolments: people enrol their keys again.
+The broker's store holds sealed keys and token counts. `data-director backup` copies it every night
+while the broker runs, and `data-director restore` puts it back owned by the broker's user alone
+([Backups](../../../deploy/README.md#backups)). A backup also holds the key-encryption key, in
+`config.tar.gz`, so whoever holds a copy can unseal every enrolled key: guard the backups as well
+as the VM. After a copy is lost, stop the broker, replace the key-encryption key and move
+`broker.sqlite3` aside, since a key sealed under the old one no longer opens and a call on it
+fails. Start the broker again; people enrol their keys again. Ask them to revoke the old keys with
+their providers.
+
+Restoring starts nothing, and whether the broker was enabled is not in the backup: if it was on,
+run `sudo systemctl enable --now data-director-model-broker.service` after the restore.
 
 ## In development
 

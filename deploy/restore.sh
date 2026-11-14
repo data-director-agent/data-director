@@ -6,22 +6,25 @@
 #   sudo data-director restore --force BACKUP     # over stores that already hold something
 #
 # It checks every file against SHA256SUMS before it changes anything, then stops the services and
-# puts back /etc/data-director, the systemd drop-ins, the sign-in marker and each store, where the
-# restored settings say it is kept. It refuses a store that already holds something unless given
+# puts back /etc/data-director, the systemd drop-ins, the sign-in marker, each store, where the
+# restored settings say it is kept, and the model broker's store, if the backup holds it. It refuses a store that already holds something unless given
 # --force: a directory is then moved aside to <store>.before-restore-<time>, and a database's
 # tables are dropped and replaced. A database must exist; restore.sh fills it and creates none.
 # It starts nothing: install.sh, run next, deploys a release if there is none and starts it all.
 #
-# DD_ETC, DD_STATE, DD_UNIT_DIR and DD_SYSTEMCTL replace /etc/data-director,
-# /var/lib/data-director, /etc/systemd/system and systemctl, for its tests.
+# DD_ETC, DD_STATE, DD_BROKER_STATE, DD_UNIT_DIR and DD_SYSTEMCTL replace /etc/data-director,
+# /var/lib/data-director, /var/lib/data-director-model-broker, /etc/systemd/system and systemctl,
+# for its tests.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ETC="${DD_ETC:-/etc/data-director}"
 STATE="${DD_STATE:-/var/lib/data-director}"
+BROKER_STATE="${DD_BROKER_STATE:-/var/lib/data-director-model-broker}"
 UNIT_DIR="${DD_UNIT_DIR:-/etc/systemd/system}"
 SYSTEMCTL="${DD_SYSTEMCTL:-systemctl}"
 USER_NAME=datadirector
+BROKER_USER=data-director-broker
 # shellcheck source=deploy/stores.sh
 source "$HERE/stores.sh"
 
@@ -88,6 +91,15 @@ for name in "${STORE_NAMES[@]}"; do
     fi
   fi
 done
+# The model broker's store, kept where its unit keeps it.
+broker_store="$BROKER_STATE/broker.sqlite3"
+broker_backup=0
+if [[ -f "$backup/broker.sqlite3" ]]; then
+  broker_backup=1
+  if [[ -s "$broker_store" ]]; then
+    busy+=("$broker_store (the model broker's store) is not empty")
+  fi
+fi
 if ((${#busy[@]})) && ((!force)); then
   printf '%s\n' "restore.sh: these already hold something, and nothing was changed:" "${busy[@]/#/  }" >&2
   echo "Run again with --force to set the directories aside and replace the databases' tables." >&2
@@ -144,6 +156,23 @@ for name in "${STORE_NAMES[@]}"; do
   fi
 done
 
+if ((broker_backup)); then
+  # A log or index left beside an old store must not be read into the restored one.
+  for file in "$broker_store" "$broker_store-wal" "$broker_store-shm"; do
+    if [[ -e "$file" ]]; then
+      mv -T "$file" "$file.before-restore-$when"
+      echo "moved $file to $file.before-restore-$when"
+    fi
+  done
+  broker_owner=()
+  if [[ $EUID -eq 0 ]] && id "$BROKER_USER" &>/dev/null; then
+    broker_owner=(-o "$BROKER_USER" -g "$BROKER_USER")
+  fi
+  install -d "${broker_owner[@]}" -m 0700 "$BROKER_STATE"
+  install "${broker_owner[@]}" -m 0600 "$backup/broker.sqlite3" "$broker_store"
+  echo "restored the model broker's store to $broker_store"
+fi
+
 if [[ -z "${DD_UNIT_DIR:-}" ]]; then
   "$SYSTEMCTL" daemon-reload || true
 fi
@@ -156,3 +185,7 @@ echo "Restored $backup, made $(sed -n 's/^created //p' "$backup/MANIFEST") on $(
 echo "Nothing is started yet. To start it all, run from the clone:"
 echo "  sudo deploy/install.sh --domain ${domain:-<name>}"
 echo "  sudo data-director doctor"
+if ((broker_backup)); then
+  echo "If the model broker was on, start it again:"
+  echo "  sudo systemctl enable --now data-director-model-broker.service"
+fi

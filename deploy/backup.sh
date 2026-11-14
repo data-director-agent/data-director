@@ -11,23 +11,27 @@
 #   state.tar.gz         /var/lib/data-director/.sign-in and any runs set aside before sign-in
 #   store-<name>.tar.gz  each store kept in a directory (runs, projects, workbench-runs)
 #   db-<name>.pgdump     each database a store names, by pg_dump's custom format
+#   broker.sqlite3       the model broker's store, people's sealed keys and token counts, if any
 #   MANIFEST             what was backed up, from where, and the release that ran
 #   SHA256SUMS           a checksum of each file, which restore.sh checks first
 #
 # A store in a directory is copied while the app and the workbench are stopped, since the file
 # backends append to their logs as they run; they are started again straight after. A database is
-# dumped as it runs. The directory appears under its final name only once complete, and backups
+# dumped as it runs, and so is the model broker's store, by SQLite's online backup, so the broker
+# keeps running. The directory appears under its final name only once complete, and backups
 # older than DD_BACKUP_KEEP_DAYS are deleted, the newest always kept.
 #
 # Settings, from /etc/data-director/backup.env: DD_BACKUP_DIR (/var/backups/data-director) and
-# DD_BACKUP_KEEP_DAYS (30). DD_ETC, DD_STATE, DD_ROOT, DD_UNIT_DIR and DD_SYSTEMCTL replace
-# /etc/data-director, /var/lib/data-director, /opt/data-director, /etc/systemd/system and
-# systemctl, for its tests.
+# DD_BACKUP_KEEP_DAYS (30). DD_ETC, DD_STATE, DD_BROKER_STATE, DD_ROOT, DD_UNIT_DIR and
+# DD_SYSTEMCTL replace /etc/data-director, /var/lib/data-director,
+# /var/lib/data-director-model-broker, /opt/data-director, /etc/systemd/system and systemctl, for
+# its tests.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ETC="${DD_ETC:-/etc/data-director}"
 STATE="${DD_STATE:-/var/lib/data-director}"
+BROKER_STATE="${DD_BROKER_STATE:-/var/lib/data-director-model-broker}"
 ROOT="${DD_ROOT:-/opt/data-director}"
 UNIT_DIR="${DD_UNIT_DIR:-/etc/systemd/system}"
 SYSTEMCTL="${DD_SYSTEMCTL:-systemctl}"
@@ -148,6 +152,32 @@ for name in "${databases[@]}"; do
     echo "schema $name $version" >>"$manifest"
   fi
 done
+
+# The model broker's store (docs/guide/operations/model-broker.md), which exists once the broker has
+# run. SQLite's online backup copies what the broker has committed, its write-ahead log included,
+# while it runs, so the broker is not stopped. python3 is the system's; there is no sqlite3 command.
+broker_store="$BROKER_STATE/broker.sqlite3"
+if [[ -f "$broker_store" ]]; then
+  python3 -I -c '
+import pathlib, sqlite3, sys
+source = sqlite3.connect(pathlib.Path(sys.argv[1]).absolute().as_uri() + "?mode=ro", uri=True)
+copy = sqlite3.connect(sys.argv[2])
+source.backup(copy)
+source.close()
+# One file, with no log beside it; the broker turns its log on again when it opens the store.
+copy.execute("pragma journal_mode=delete")
+found = copy.execute("pragma quick_check").fetchone()[0]
+copy.close()
+sys.exit(0 if found == "ok" else f"the copy fails its check: {found}")
+' "$broker_store" "$work/broker.sqlite3" || die "could not copy the model broker's store, $broker_store"
+  # Reading may have made the log and its index as root; the broker must still write them.
+  for side in "$broker_store-wal" "$broker_store-shm"; do
+    if [[ -e "$side" ]]; then
+      chown --reference="$broker_store" "$side" 2>/dev/null || true
+    fi
+  done
+  echo "broker file $broker_store broker.sqlite3" >>"$manifest"
+fi
 
 (cd "$work" && sha256sum -- * >SHA256SUMS)
 mv -T "$work" "$BACKUP_DIR/$stamp"
