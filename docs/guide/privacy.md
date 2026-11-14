@@ -156,9 +156,9 @@ regulator, whether or not you have complained to us first:
 This notice covers the website and the project's work on GitHub. The Data Director **app** and
 agents run on a computer or server that you or your institution operates. When an institution
 runs them, it decides why and how personal data is processed, and must give its own privacy
-information to its users. [What is recorded](user-guide/records.md) describes the records the app
-keeps, and the [operations guide](operations/index.md) covers the AI models an instance may
-call. The project does not receive that data.
+information to its users ([what an institution's notice should cover](operations/privacy.md)).
+[What is recorded](user-guide/records.md) describes the records the app keeps, and the
+[operations guide](operations/index.md) covers the AI models an instance may call. The project does not receive that data.
 
 ## Changes to this notice
 

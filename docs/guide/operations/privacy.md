@@ -8,9 +8,9 @@ can write the privacy notice your users are owed, and how to make the app link t
 The app and its agents run on your computer or server. **Your institution decides why and how
 personal data is processed**, so it is the controller under the UK GDPR, or the equivalent law
 where you are, and it must give the people who use the app privacy information of its own. The
-Data Director project does not receive this data. The project's notice covers only its
-documentation website and its work on GitHub, so linking to it would tell your users nothing
-about their data.
+Data Director project does not receive this data. The project's [privacy notice](../privacy.md) covers
+only its documentation website and its work on GitHub, so linking to it would tell your users
+nothing about their data.
 
 ## What the app holds
 
