@@ -48,6 +48,15 @@ export {
   type Omission,
 } from "./omit";
 export { asInventory, looksLikeInventory, NotAnInventory, parseInventory } from "./parse";
+export {
+  asParts,
+  NotAPartFolder,
+  partFolderProblem,
+  partOf,
+  partProblems,
+  partsOf,
+  withPart,
+} from "./parts";
 export { searchFiles } from "./search";
 export { files, summarise, type FormatGroup, type InventorySummary, type TableSummary } from "./summary";
 export { folderTree, type FileNode, type FolderNode, type TreeNode } from "./tree";
@@ -58,5 +67,6 @@ export {
   type FileRole,
   type IdentificationMethod,
   type InventoryFile,
+  type InventoryPart,
   type TableField,
 } from "./types";

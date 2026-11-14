@@ -6,7 +6,8 @@
  * never names it, since naming it would send the very thing the researcher kept back.
  */
 
-import type { FileInventory, InventoryFile } from "./types";
+import { assemble } from "./parts";
+import type { FileInventory, InventoryFile, InventoryPart } from "./types";
 
 /** What a researcher chose to leave out of an inventory. */
 export interface Omission {
@@ -66,6 +67,7 @@ export function describeOmitted(counts: { files: number; columns: number }): str
  * nothing left out, `inventory` is returned as it is.
  */
 export function omit(inventory: FileInventory, omission: Omission): FileInventory {
+  if (inventory.inventory_parts?.length) return omitFromParts(inventory, omission);
   const counts = countOmitted(inventory, omission);
   const described = describeOmitted(counts);
   if (!described) return inventory;
@@ -89,9 +91,69 @@ export function omit(inventory: FileInventory, omission: Omission): FileInventor
   const limitations = (inventory.inventory_limitations ?? []).filter(
     (sentence) => !named.some((name) => name && sentence.includes(name)),
   );
-  limitations.push(
-    `Before this inventory was added, the researcher left out ${described}. That they are not ` +
-      "listed here does not mean they are not in the dataset.",
-  );
+  limitations.push(leftOutSentence(described));
   return { ...inventory, inventory_files: kept, inventory_limitations: limitations };
+}
+
+function leftOutSentence(described: string): string {
+  return (
+    `Before this inventory was added, the researcher left out ${described}. That they are not ` +
+    "listed here does not mean they are not in the dataset."
+  );
+}
+
+function within(path: string, folder: string): boolean {
+  return path === folder || path.startsWith(`${folder}/`);
+}
+
+/**
+ * `omit` for an inventory made of parts. Each part's own limitations are cleaned of what names a
+ * file left out, and gain a sentence counting what was left out of that part, so the count stays
+ * with the part when another folder is updated. A part whose folder is left out is dropped, and
+ * what it held is counted among the limitations that concern no one part.
+ */
+function omitFromParts(inventory: FileInventory, omission: Omission): FileInventory {
+  if (!describeOmitted(countOmitted(inventory, omission))) return inventory;
+  const parts = inventory.inventory_parts ?? [];
+  const leads = parts.map((p) => `In ${p.part_folder}: `);
+  const general = (inventory.inventory_limitations ?? []).filter(
+    (sentence) => !leads.some((l) => sentence.startsWith(l)),
+  );
+  const kept: InventoryPart[] = [];
+  let dropped = { files: 0, columns: 0 };
+  for (const part of parts) {
+    const folder = part.part_folder;
+    const own: FileInventory = {
+      ...inventory,
+      inventory_files: (inventory.inventory_files ?? []).filter((f) => within(f.file_path, folder)),
+    };
+    const counts = countOmitted(own, omission);
+    if (isOmitted(folder, omission.paths)) {
+      dropped = { files: dropped.files + counts.files, columns: dropped.columns + counts.columns };
+      continue;
+    }
+    const described = describeOmitted(counts);
+    if (!described) {
+      kept.push(part);
+      continue;
+    }
+    const named = [...(own.inventory_files ?? []).map((f) => f.file_path), ...omission.paths]
+      .filter((path) => within(path, folder) && path !== folder && isOmitted(path, omission.paths))
+      .map((path) => path.slice(folder.length + 1));
+    const limitations = (part.part_limitations ?? []).filter(
+      (sentence) => !named.some((name) => name && sentence.includes(name)),
+    );
+    limitations.push(leftOutSentence(described));
+    kept.push({ ...part, part_limitations: limitations });
+  }
+  const droppedDescribed = describeOmitted(dropped);
+  if (droppedDescribed) general.push(leftOutSentence(droppedDescribed));
+  const files = (inventory.inventory_files ?? [])
+    .filter((f) => !isOmitted(f.file_path, omission.paths))
+    .map((f) => {
+      const columns = omission.columns.get(f.file_path);
+      if (!columns || !f.file_fields?.some((c) => columns.has(c.name))) return f;
+      return { ...f, file_fields: f.file_fields.filter((c) => !columns.has(c.name)) };
+    });
+  return assemble(inventory, files, kept, general);
 }

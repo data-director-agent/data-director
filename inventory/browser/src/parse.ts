@@ -4,6 +4,7 @@
  * still checks it against the contract's class schema before a project keeps it.
  */
 
+import { partProblems } from "./parts";
 import { FILE_ROLES, IDENTIFICATION_METHODS, type FileInventory } from "./types";
 
 /** A document that is not an inventory; the message is a sentence a researcher can read. */
@@ -55,7 +56,28 @@ export function asInventory(value: unknown): FileInventory {
     throw new NotAnInventory("This inventory's limitations are not a list of sentences.");
   }
   (files ?? []).forEach((file: unknown, index: number) => checkFile(file, index + 1));
+  const parts = value.inventory_parts;
+  if (parts !== undefined) {
+    if (!Array.isArray(parts) || !parts.every(isPart)) {
+      throw new NotAnInventory("This inventory's folders do not each say which tool scanned them, and when.");
+    }
+    const problems = partProblems(value as unknown as FileInventory);
+    if (problems.length) {
+      throw new NotAnInventory(`This inventory's folders do not fit its files: ${problems[0]}`);
+    }
+  }
   return value as unknown as FileInventory;
+}
+
+function isPart(part: unknown): boolean {
+  return (
+    isRecord(part) &&
+    typeof part.part_folder === "string" &&
+    typeof part.part_tool === "string" &&
+    typeof part.part_tool_version === "string" &&
+    typeof part.part_made_at === "string" &&
+    (part.part_limitations === undefined || isStringList(part.part_limitations))
+  );
 }
 
 function checkFile(file: unknown, position: number): void {

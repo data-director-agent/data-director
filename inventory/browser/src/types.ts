@@ -52,7 +52,27 @@ export interface InventoryFile {
   file_role?: FileRole;
 }
 
-/** The facts about a dataset's files that a project holds in place of the files. */
+/**
+ * One scan of one folder, mounted at a folder name, in an inventory made of several. Every file
+ * of the inventory lies under exactly one part's folder.
+ */
+export interface InventoryPart {
+  /** Relative, with forward slashes, such as `instrument` or `raw/2024`. */
+  part_folder: string;
+  part_tool: string;
+  part_tool_version: string;
+  part_identified_with?: string;
+  /** ISO 8601. */
+  part_made_at: string;
+  /** As the scan wrote them: paths in them are relative to the part's folder. */
+  part_limitations?: string[];
+}
+
+/**
+ * The facts about a dataset's files that a project holds in place of the files. Without
+ * `inventory_parts` it is one scan of one folder; with them, the top-level tool, version and date
+ * are the latest part's, and `inventory_limitations` holds each part's, after `In <folder>: `.
+ */
 export interface FileInventory {
   schema_class: "FileInventory";
   inventory_files?: InventoryFile[];
@@ -62,4 +82,5 @@ export interface FileInventory {
   /** ISO 8601. */
   inventory_made_at: string;
   inventory_limitations?: string[];
+  inventory_parts?: InventoryPart[];
 }
