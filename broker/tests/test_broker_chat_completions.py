@@ -267,31 +267,64 @@ def test_an_own_openai_compatible_account_is_called_at_the_address_that_was_chec
     ("path_provider", "account_provider"),
     [("openai", "gemini"), ("gemini", "openai"), ("openai", "anthropic")],
 )
-@pytest.mark.parametrize("account", [Account.OWN, Account.OWN_OR_DEPLOYMENT])
-def test_an_account_with_another_provider_is_never_substituted(
+def test_an_account_with_another_provider_is_no_account_for_the_call(
     harness: FakeHarness,
     tmp_path: Path,
     provider: Provider,
     path_provider: str,
     account_provider: str,
-    account: Account,
+) -> None:
+    """An own grant ends with `model-account-missing`: the other provider never serves the call,
+    and the person's key is never sent (invariant 12)."""
+    broker = broker_with(harness, tmp_path, provider)
+    own(broker, account_provider)
+    with client(broker) as http:
+        response = http.post(
+            completions(path_provider), json=body(), headers=headers(grant(harness))
+        )
+
+    assert response.status_code == 403
+    assert reason(response) == "model-account-missing"
+    assert provider.seen == []
+
+
+@pytest.mark.parametrize(
+    ("path_provider", "account_provider", "key"),
+    [
+        ("openai", "gemini", DEPLOYMENT_OPENAI),
+        ("gemini", "openai", DEPLOYMENT_GEMINI),
+        ("openai", "anthropic", DEPLOYMENT_OPENAI),
+    ],
+)
+def test_own_or_deployment_pays_with_the_deployments_key_for_the_paths_provider(
+    harness: FakeHarness,
+    tmp_path: Path,
+    provider: Provider,
+    path_provider: str,
+    account_provider: str,
+    key: str,
 ) -> None:
     broker = broker_with(harness, tmp_path, provider)
     own(broker, account_provider)
     with client(broker) as http:
         response = http.post(
-            completions(path_provider), json=body(), headers=headers(grant(harness, account))
+            completions(path_provider),
+            json=body(),
+            headers=headers(grant(harness, Account.OWN_OR_DEPLOYMENT)),
         )
 
-    # Refused, not served by the other provider nor paid for by the deployment instead.
-    assert response.status_code == 403
-    assert reason(response) == "account-unsupported"
-    assert provider.seen == []
+    assert response.status_code == 200
+    assert response.headers[HEADER_ACCOUNT] == "deployment"
+    assert response.headers[HEADER_PROVIDER] == path_provider
+    [sent] = provider.seen
+    assert sent.headers["authorization"] == f"Bearer {key}"
 
 
-def test_an_openai_account_is_not_served_on_the_anthropic_route(
+def test_an_openai_account_is_not_used_on_the_anthropic_route(
     harness: FakeHarness, tmp_path: Path, provider: Provider
 ) -> None:
+    """An agent whose card declares an Anthropic model, called for a person with an OpenAI
+    account, ends with `model-account-missing` under an own grant."""
     broker = broker_with(harness, tmp_path, provider)
     own(broker)
     with client(broker) as http:
@@ -302,7 +335,7 @@ def test_an_openai_account_is_not_served_on_the_anthropic_route(
         )
 
     assert response.status_code == 403
-    assert reason(response) == "account-unsupported"
+    assert reason(response) == "model-account-missing"
     assert provider.seen == []
 
 

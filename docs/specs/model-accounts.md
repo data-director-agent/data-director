@@ -43,7 +43,8 @@ broker enforces what the grant says. Recording whose account paid and the reason
 the SDK reads the broker's answer (`dd_sdk.model_account`), and a refused account ends the run as an
 outcome. The broker serves both formats, and enrols and serves OpenAI, Gemini and OpenAI-compatible
 accounts as well as Anthropic ones (`dd_broker.chat_completions`); the profile's `providers` and the
-Profile page offer only Anthropic so far (TODO(#811)). The shipped profiles turn own accounts off,
+Profile page offer each of them, and a run records the provider the broker reports. Mapping a declared
+model to one a person's provider serves is not built (TODO(#843)). The shipped profiles turn own accounts off,
 so every grant says the deployment pays, and every model call is paid for by the deployment, as it
 is today.
 
@@ -97,10 +98,11 @@ the broker checks that decision.
    `sdk/tests/test_model_broker.py`).
 9. **Whose account paid is recorded, never whose key.** Every model call records `own` or
    `deployment` (`ModelCall.model_account`, and `dd.model_account` on its `chat` span), and the
-   provider and model that served it as the broker reports them. The client the SDK builds for
-   the broker reads `X-DD-Model-Account` from each answer, so an agent that calls its client
-   directly records it too; a call that did not go through the broker was paid for by the
-   deployment. The Process Run Crate gives each call's `CreateAction` the same value as a
+   provider and model that served it as the broker reports them: `ModelCall.model_provider` is
+   the broker's `X-DD-Model-Provider`, and `model_id` the model the answer names. Every client the
+   SDK builds for the broker reads both headers from each answer, so an agent that calls its client
+   directly records them too; a call that did not go through the broker was paid for by the
+   deployment and served by the provider the agent was configured with. The Process Run Crate gives each call's `CreateAction` the same value as a
    `PropertyValue` named `model_account`. The credential, its label and the pseudonym never enter
    the record (`dd_sdk.model_account`, `sdk/tests/test_whose_account_paid.py`,
    `harness/tests/test_model_grants.py`, `app/tests/test_model_account.py`).
@@ -122,11 +124,12 @@ the broker checks that decision.
     their own unless the profile lets one pay (`app/tests/test_model_account.py`).
 12. **A provider is never substituted silently.** A call is served by the provider and model the
     grant allows, or it is refused. The path an agent calls names the provider its card declares,
-    and the broker serves that provider or refuses with `account-unsupported`: a person's account
-    with another provider is never used for it, and the deployment pays only with its key for that
-    provider (`broker/tests/test_broker_chat_completions.py`). Choosing a different model for a
-    person's account is a profile mapping the run records, never a guess the broker makes
-    (TODO(#811)).
+    and only that provider serves the call. A person's account with another provider is no account
+    for it: its key is never used, so the run ends `model_account_missing` unless the grant lets the
+    deployment pay with its own key for that provider
+    (`broker/tests/test_broker_chat_completions.py`, `broker/tests/test_broker_calls.py`). Choosing
+    a different model for a person's account is a profile mapping the run records, never a guess
+    the broker makes (TODO(#843)).
 13. **Tests and CI never need a real key**, a real provider or a real broker key-encryption key.
     Provider calls are replayed from cassettes, as everywhere else
     ([Policy and identity](policy-and-identity.md), invariant 21).
@@ -179,8 +182,10 @@ steps in order:
    | `own-or-deployment` | Their key | The deployment's key |
    | `deployment` | The deployment's key | The deployment's key |
 
-   A person's account with another provider than the path names, or one the grant's
-   `dd_providers` does not list, is refused, `account-unsupported`.
+   A person's account with another provider than the path names counts as none: the table's
+   last column applies, and its key is never used. One with the path's provider that the grant's
+   `dd_providers` does not list is refused, `account-unsupported`, and the deployment does not pay
+   in its place.
 5. It forwards the request body unchanged with the paying key. Of the agent's headers it passes on
    only, for Anthropic, `anthropic-version` and `anthropic-beta`.
 
@@ -327,8 +332,10 @@ refuses to start if a provider key is set beside it (`dd_sdk.credentials.model_e
 - `own`: `off`, `allowed` or `required`; `off` when the key is absent;
 - `fallback`: `deployment` or `none`, required unless `own` is `off`;
 - `providers`: the providers, and the allow-listed base URLs, that a person's own account may use,
-  required unless `own` is `off`. Each entry names a `provider` (`anthropic` until TODO(#811)) and
-  may list `base_urls`, each a `url` and an optional `local: true`.
+  required unless `own` is `off`. Each entry names a `provider`: `anthropic`, `openai`, `gemini` or
+  `openai-compatible`. An `openai-compatible` entry must list `base_urls`, each a `url` and an
+  optional `local: true`, since it has no endpoint of its own; any other entry lists none, since
+  its account always calls the provider's own endpoint.
 
 ```yaml
 model_accounts:
@@ -336,10 +343,15 @@ model_accounts:
   fallback: deployment
   providers:
     - provider: anthropic
+    - provider: openai
+    - provider: openai-compatible
       base_urls:
         - url: https://llm.example.ac.uk
           local: true
 ```
+
+The app's `/api/session` gives the Profile page these providers and origins
+(`model_account_providers`), so it offers only those; the broker checks them again.
 
 The conductor turns the first two into the grant's account setting:
 
@@ -352,7 +364,8 @@ The conductor turns the first two into the grant's account setting:
 
 `required` with `fallback: deployment` contradicts itself, so a profile that combines them is
 refused when it is loaded. So is a `fallback` or `providers` beside `own: off`, a provider the
-broker cannot serve, a base URL that is not a plain `https` URL, and any other key: each would tell
+broker cannot serve, an `openai-compatible` entry without `base_urls` or another entry with them, a
+base URL that is not a plain `https` URL, and any other key: each would tell
 a steward a rule is in force when nothing enforces it ([Policy and identity](policy-and-identity.md),
 invariant 4). A profile that turns own accounts on stops the harness at start-up unless it mints
 grants, since nothing else would carry the decision to the broker.
@@ -452,7 +465,7 @@ model call and whether the person's own account or the deployment's paid for it
   as a conversation's text, beyond `hosted_models` for project content.
 - TODO(#154): whether a steward may require own accounts for some people or groups and not
   others.
-- TODO(#811): how a profile maps a declared model to one a person's provider serves, and whether an
+- TODO(#843): how a profile maps a declared model to one a person's provider serves, and whether an
   agent that relies on tool calls refuses an endpoint that does not support them.
 - TODO(#43, #37): where the broker's key-encryption key and its rotation fit the security baseline
   and the threat model.

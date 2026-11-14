@@ -260,6 +260,7 @@ describe("the session API", () => {
       },
       expiresAt: "2026-10-29T18:00:00Z",
       modelAccounts: false,
+      modelAccountProviders: [],
     });
   });
 

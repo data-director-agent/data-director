@@ -1589,7 +1589,9 @@ slots:
     multivalued: true
     inlined_as_list: true
   model_provider:
-    description: Who serves the model, as the agent's card names it (anthropic).
+    description: >-
+      Who served the call: the provider the model broker reports, or else the provider as the
+      agent's card names it (anthropic).
     required: true
   called_at:
     description: When the agent sent the call.

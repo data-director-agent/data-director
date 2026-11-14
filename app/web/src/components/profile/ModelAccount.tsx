@@ -5,6 +5,10 @@
  * only until it is sent, and shows nothing of it afterwards but the label the broker returns. A key
  * the provider refuses is not saved, and the page says why in plain words. Removing the account
  * erases it at the broker at once.
+ *
+ * The page offers only the providers the profile allows (`providers`, from the session), and for an
+ * OpenAI-compatible service only an address under one of the origins the profile lists. The broker
+ * checks both again; the page only saves a person a refusal.
  */
 
 import { KeyRound, Trash2 } from "lucide-react";
@@ -16,7 +20,7 @@ import {
   reasonText,
   useModelAccountApi,
 } from "../../model-account/api";
-import { SignedOut } from "../../session/api";
+import { type ModelAccountProvider, SignedOut } from "../../session/api";
 import { Button } from "../ui/Button";
 import { DialogTrigger, ModalDialog } from "../ui/Dialog";
 
@@ -29,12 +33,73 @@ type Change =
 
 const NUMBER = new Intl.NumberFormat();
 
+const COMPATIBLE = "openai-compatible";
+
+/** How the page names each provider the broker serves, and where a person gets a key. */
+const PROVIDERS: Record<string, { name: string; key: string; hint: string }> = {
+  anthropic: {
+    name: "Anthropic",
+    key: "Anthropic API key",
+    hint: "Create a key in the Anthropic Console and paste it here.",
+  },
+  openai: {
+    name: "OpenAI",
+    key: "OpenAI API key",
+    hint: "Create a key in the OpenAI dashboard and paste it here.",
+  },
+  gemini: {
+    name: "Google Gemini",
+    key: "Gemini API key",
+    hint: "Create a key in Google AI Studio and paste it here.",
+  },
+  [COMPATIBLE]: {
+    name: "A model service your institution runs",
+    key: "API key for the service",
+    hint: "Ask the people who run the service for a key, and paste it here.",
+  },
+};
+
+/** Where an account is offered when the server names no providers: Anthropic, as before. */
+const DEFAULT_PROVIDERS: ModelAccountProvider[] = [{ provider: "anthropic", baseUrls: [] }];
+
+function describe(provider: string) {
+  return (
+    PROVIDERS[provider] ?? {
+      name: provider,
+      key: "API key",
+      hint: "Paste the key here.",
+    }
+  );
+}
+
+/** Whether `url` is an `https` address under one of `origins`, as the profile lists them. */
+function underOrigin(url: string, origins: string[]): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === "https:" && origins.includes(parsed.origin);
+}
+
 function messageOf(error: unknown): string {
   return error instanceof AccountRefused ? reasonText(error.reason) : reasonText("");
 }
 
-export function ModelAccount() {
+export function ModelAccount({
+  providers: offered = DEFAULT_PROVIDERS,
+}: {
+  /** The providers the profile lets a person's own account be with. */
+  providers?: ModelAccountProvider[];
+}) {
+  const providers = offered.length > 0 ? offered : DEFAULT_PROVIDERS;
   const api = useModelAccountApi();
+  const [chosen, setChosen] = useState(providers[0]?.provider ?? "anthropic");
+  const choice = providers.find((p) => p.provider === chosen) ?? providers[0];
+  const origins = choice?.baseUrls ?? [];
+  const [baseUrl, setBaseUrl] = useState(origins[0] ?? "");
+  const [baseUrlTouched, setBaseUrlTouched] = useState(false);
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [change, setChange] = useState<Change>({ state: "idle" });
   const [replacing, setReplacing] = useState(false);
@@ -42,6 +107,12 @@ export function ModelAccount() {
   const outcome = useRef<HTMLDivElement>(null);
   const keyId = useId();
   const hintId = useId();
+  const baseUrlId = useId();
+  const baseUrlHintId = useId();
+  const baseUrlErrorId = useId();
+  const providerName = useId();
+  const compatible = chosen === COMPATIBLE;
+  const baseUrlValid = !compatible || underOrigin(baseUrl.trim(), origins);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,12 +132,18 @@ export function ModelAccount() {
 
   async function enrol(event: FormEvent) {
     event.preventDefault();
+    if (!baseUrlValid) {
+      setBaseUrlTouched(true);
+      return;
+    }
     const typed = key.trim();
     // The key leaves the page's state as soon as it is sent, whatever the answer.
     setKey("");
     setChange({ state: "sending" });
     try {
-      const value = await api.enrol("anthropic", typed);
+      const value = compatible
+        ? await api.enrol(chosen, typed, baseUrl.trim().replace(/\/+$/, ""))
+        : await api.enrol(chosen, typed);
       setLoad({ state: "loaded", value });
       setReplacing(false);
       setChange({ state: "done", message: "Your account was checked and saved." });
@@ -102,10 +179,14 @@ export function ModelAccount() {
     <section className="model-account" aria-labelledby="model-account-heading">
       <h2 id="model-account-heading">Your AI account</h2>
       <p>
-        You can use your own Anthropic account for the AI models Data Director calls for you. Your
-        key goes to Data Director’s model broker, which checks it with Anthropic and keeps it
+        You can use your own AI provider account for the AI models Data Director calls for you. Your
+        key goes to Data Director’s model broker, which checks it with the provider and keeps it
         encrypted. The rest of Data Director never sees it, and this page shows only its last four
         characters.
+      </p>
+      <p className="hint">
+        An AI model is called with your account only if your provider serves it. Otherwise the
+        deployment pays, if it allows that, or the run stops and says why.
       </p>
       <p className="hint">
         Each run records whether your account or the deployment’s paid for each call to a model,
@@ -133,6 +214,10 @@ export function ModelAccount() {
       {account && (
         <>
           <dl className="profile-details">
+            <div>
+              <dt>Provider</dt>
+              <dd>{describe(account.provider).name}</dd>
+            </div>
             <div>
               <dt>Account</dt>
               <dd>{account.label}</dd>
@@ -173,7 +258,8 @@ export function ModelAccount() {
                 >
                   <p>
                     Your key is erased from Data Director at once. A run that has already started
-                    may finish first. Your account with Anthropic is not changed.
+                    may finish first. Your account with {describe(account.provider).name} is not
+                    changed.
                   </p>
                 </ModalDialog>
               </DialogTrigger>
@@ -183,12 +269,66 @@ export function ModelAccount() {
       )}
 
       {showForm && (
-        <form className="model-account-form" onSubmit={(event) => void enrol(event)}>
+        <form className="model-account-form" noValidate onSubmit={(event) => void enrol(event)}>
+          {providers.length > 1 && (
+            <fieldset className="field">
+              <legend>Provider</legend>
+              {providers.map(({ provider, baseUrls }) => (
+                <div className="field-check" key={provider}>
+                  <input
+                    type="radio"
+                    id={`${providerName}-${provider}`}
+                    name={providerName}
+                    value={provider}
+                    checked={chosen === provider}
+                    onChange={() => {
+                      setChosen(provider);
+                      setBaseUrl(baseUrls[0] ?? "");
+                      setBaseUrlTouched(false);
+                    }}
+                  />
+                  <label htmlFor={`${providerName}-${provider}`}>{describe(provider).name}</label>
+                </div>
+              ))}
+            </fieldset>
+          )}
+          {compatible && (
+            <div className="field">
+              <label htmlFor={baseUrlId}>Address of the service</label>
+              <p className="hint" id={baseUrlHintId}>
+                The address its software is reached at, such as {origins[0] ?? "https://…"}/v1. It
+                must start with {origins.length > 1 ? "one of " : ""}
+                {origins.join(", ")}.
+              </p>
+              <input
+                type="url"
+                id={baseUrlId}
+                aria-describedby={
+                  baseUrlTouched && !baseUrlValid
+                    ? `${baseUrlHintId} ${baseUrlErrorId}`
+                    : baseUrlHintId
+                }
+                aria-invalid={baseUrlTouched && !baseUrlValid}
+                autoComplete="off"
+                spellCheck={false}
+                required
+                value={baseUrl}
+                onChange={(event) => setBaseUrl(event.target.value)}
+                onBlur={() => setBaseUrlTouched(true)}
+              />
+              {baseUrlTouched && !baseUrlValid && (
+                <p className="field-error" id={baseUrlErrorId}>
+                  Data Director may send your key only to an address that starts with{" "}
+                  {origins.length > 1 ? "one of " : ""}
+                  {origins.join(", ")}.
+                </p>
+              )}
+            </div>
+          )}
           <div className="field">
-            <label htmlFor={keyId}>Anthropic API key</label>
+            <label htmlFor={keyId}>{describe(chosen).key}</label>
             <p className="hint" id={hintId}>
-              Create a key in the Anthropic Console and paste it here. It is checked with one free
-              request before it is saved.
+              {describe(chosen).hint} It is checked with one free request before it is saved.
             </p>
             <input
               type="password"
@@ -238,6 +378,7 @@ export function ModelAccount() {
                 <thead>
                   <tr>
                     <th scope="col">Day</th>
+                    <th scope="col">Provider</th>
                     <th scope="col">Model</th>
                     <th scope="col">Paid by</th>
                     <th scope="col">Input tokens</th>
@@ -250,6 +391,7 @@ export function ModelAccount() {
                       <td>
                         <time dateTime={row.day}>{row.day}</time>
                       </td>
+                      <td>{describe(row.provider).name}</td>
                       <td>{row.model}</td>
                       <td>{row.payer === "own" ? "Your account" : "The deployment"}</td>
                       <td>{NUMBER.format(row.inputTokens)}</td>

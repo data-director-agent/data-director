@@ -18,11 +18,31 @@ import signedIn from "../fixtures/session-signed-in.json" with { type: "json" };
 
 const KEY = "sk-ant-api03-typed-by-keyboard-5678";
 
-/** A signed-in person on a deployment that offers own accounts, whose account starts as `start`. */
-async function serve(page: Page, start: unknown, enrolled: { status: number; json: unknown }) {
+const ORIGIN = "https://llm.example.ac.uk";
+const OFFERED = [
+  { provider: "anthropic", base_urls: [] },
+  { provider: "openai", base_urls: [] },
+  { provider: "openai-compatible", base_urls: [ORIGIN] },
+];
+
+/** A signed-in person on a deployment that offers own accounts, whose account starts as `start`.
+ * `sent` collects each enrolment's body. */
+async function serve(
+  page: Page,
+  start: unknown,
+  enrolled: { status: number; json: unknown },
+  providers: unknown[] = [{ provider: "anthropic", base_urls: [] }],
+  sent: unknown[] = [],
+) {
   let account = start;
   await page.route("/api/session", (route) =>
-    route.fulfill({ json: { ...signedIn, model_accounts: true } }),
+    route.fulfill({
+      json: {
+        ...signedIn,
+        model_accounts: true,
+        model_account_providers: providers,
+      },
+    }),
   );
   await page.route("/api/model-account/ticket", (route) => route.fulfill({ json: ticket }));
   await page.route("/broker/enrolment/account", async (route) => {
@@ -30,6 +50,7 @@ async function serve(page: Page, start: unknown, enrolled: { status: number; jso
     expect(request.headers()["authorization"]).toBe(`Bearer ${ticket.ticket}`);
     switch (request.method()) {
       case "PUT":
+        sent.push(request.postDataJSON());
         if (enrolled.status === 200) account = enrolled.json;
         return route.fulfill(enrolled);
       case "DELETE":
@@ -53,6 +74,15 @@ async function axeViolations(page: Page) {
 }
 
 for (const scheme of ["light", "dark"] as const) {
+  test(`profile with a choice of providers, ${scheme}: no axe violations`, async ({ page }) => {
+    await useScheme(page, scheme);
+    await serve(page, none, { status: 200, json: held }, OFFERED);
+    await page.goto("/profile");
+    await page.getByRole("radio", { name: "A model service your institution runs" }).check();
+    await expect(page.getByLabel("Address of the service")).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+  });
+
   for (const [name, start] of [
     ["no account", none],
     ["an account", held],
@@ -103,4 +133,30 @@ test("a key the provider refuses is explained and not kept on the page", async (
   await page.getByRole("button", { name: "Check and add" }).click();
   await expect(page.getByRole("alert")).toContainText("did not accept this key");
   await expect(field).toHaveValue("");
+});
+
+test("an OpenAI-compatible account is chosen and added by keyboard alone", async ({ page }) => {
+  const sent: unknown[] = [];
+  await serve(page, none, { status: 200, json: held }, OFFERED, sent);
+  await page.goto("/profile");
+  const first = page.getByRole("radio", { name: "Anthropic" });
+  await first.focus();
+  // Arrow keys move through a radio group and choose as they go.
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.getByRole("radio", { name: "A model service your institution runs" }),
+  ).toBeChecked();
+
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Address of the service")).toBeFocused();
+  await page.keyboard.press("End");
+  await page.keyboard.type("/v1");
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("API key for the service")).toBeFocused();
+  await page.keyboard.type(KEY);
+  await page.keyboard.press("Enter");
+
+  await expect(page.getByRole("status").filter({ hasText: "checked and saved" })).toBeVisible();
+  expect(sent).toEqual([{ provider: "openai-compatible", key: KEY, base_url: `${ORIGIN}/v1` }]);
 });

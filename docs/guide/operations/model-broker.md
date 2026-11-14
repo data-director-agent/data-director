@@ -168,8 +168,9 @@ their provider, never through the gateway.
 
 ### Custom endpoints
 
-A person's own `openai-compatible` account names its endpoint's base URL when they add it. The
-Profile page and the profile's `providers` do not offer it yet (TODO(#811)). The broker checks
+A person's own `openai-compatible` account names its endpoint's base URL when they add it, under
+one of the origins the profile's `providers` lists for it; the Profile page offers no other. The
+broker checks
 the key there, and later sends calls there, only if the origin is `https` and on
 `DD_BROKER_ALLOWED_BASE_URLS`; for a call, the profile's `model_accounts` (carried in the grant)
 must list it as well. It refuses one that

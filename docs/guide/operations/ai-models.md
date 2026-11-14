@@ -170,10 +170,13 @@ the provider's usage reports show each agent separately. A spending limit is set
 side, for the Console workspace a key belongs to, not per key. An institution that wants a limit
 per agent needs a workspace per agent.
 
-**People's own accounts.** Letting each person use their own AI provider account, so that their
-calls are paid for by them rather than by the deployment, is specified in
-[A person's own model account](../../specs/model-accounts.md) but not built yet (#221). Until it
-is, every model call uses the keys described here.
+**People's own accounts.** Each person may use their own Anthropic, OpenAI, Gemini or
+OpenAI-compatible account, so that their calls are paid for by them rather than by the
+deployment, where the profile allows it and the [model broker](model-broker.md) runs
+([A person's own model account](../../specs/model-accounts.md)). An agent is served only by the
+provider it is configured for: a person's account with another provider counts as none for its
+calls. The shipped profiles keep own accounts off, so every model call uses the keys described
+here.
 
 ## Turn on the standards advisor's explainer
 

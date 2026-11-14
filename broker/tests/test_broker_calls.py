@@ -250,14 +250,18 @@ def test_a_request_the_broker_does_not_serve_is_refused(
 
 
 def test_an_account_with_another_provider_is_never_substituted(
-    harness: FakeHarness, broker: Broker
+    harness: FakeHarness, broker: Broker, sent: list[Sent]
 ) -> None:
+    """The person's OpenAI account is no account for an Anthropic call: the run ends with
+    `model-account-missing`, and OpenAI is never called (invariant 12)."""
     broker.store.put(PSEUDONYM, "openai", "sk-openai-test", label="openai …test")
+    grant = harness.grant(providers=["anthropic", "openai"])
     with client(broker) as http:
-        response = http.post(MESSAGES, json=message_body(), headers=call_headers(harness.grant()))
+        response = http.post(MESSAGES, json=message_body(), headers=call_headers(grant))
 
     assert response.status_code == 403
-    assert reason(response) == "account-unsupported"
+    assert reason(response) == "model-account-missing"
+    assert sent == []
 
 
 def test_a_base_url_off_the_allow_list_is_refused(harness: FakeHarness, broker: Broker) -> None:

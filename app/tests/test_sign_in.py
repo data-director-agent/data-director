@@ -279,6 +279,7 @@ def test_what_the_sign_in_page_needs_is_open(deployment: Deployment):
         "principal": None,
         "expires_at": None,
         "model_accounts": False,
+        "model_account_providers": [],
     }
     assert browser.get("/api/about").status_code == 200
     assert browser.get("/sign-in").status_code == 200

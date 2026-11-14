@@ -26,7 +26,7 @@ from dd_sdk.credentials import ModelEndpoint
 from dd_sdk.model import call
 from dd_sdk.model_account import refusal
 from dd_sdk.model_anthropic import AnthropicModel, anthropic_client
-from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_REASON, META_MODEL_GRANT
+from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_PROVIDER, HEADER_REASON, META_MODEL_GRANT
 from dd_sdk.model_openai import OpenAIModel, openai_client
 from dd_sdk.prompts import ModelCallLog
 from dd_sdk.tracing import ATTR_MODEL_ACCOUNT, CHAT
@@ -59,10 +59,22 @@ ERROR_TYPE = {403: "permission_error", 429: "rate_limit_error"}
 
 class Broker:
     """Answers each call in turn as the broker would: `own` or `deployment` paid, or a refusal
-    given as `(status, reason)`."""
+    given as `(status, reason)`. `providers`, if given, are the `X-DD-Model-Provider` of each
+    answer in turn (None: no header)."""
 
-    def __init__(self, *answers: ModelAccount | tuple[int, str] | None) -> None:
+    def __init__(
+        self,
+        *answers: ModelAccount | tuple[int, str] | None,
+        providers: tuple[str | None, ...] = (),
+    ) -> None:
         self.answers: Iterator[ModelAccount | tuple[int, str] | None] = iter(answers)
+        self.providers: Iterator[str | None] = iter(providers)
+
+    def headers(self, answer: ModelAccount | None) -> dict[str, str]:
+        headers = {HEADER_ACCOUNT: answer.value} if answer is not None else {}
+        if (provider := next(self.providers, None)) is not None:
+            headers[HEADER_PROVIDER] = provider
+        return headers
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         answer = next(self.answers)
@@ -74,8 +86,7 @@ class Broker:
                 headers={HEADER_REASON: reason, "x-should-retry": "false"},
                 json={"type": "error", "error": {"type": ERROR_TYPE[status], "message": reason}},
             )
-        headers = {HEADER_ACCOUNT: answer.value} if answer is not None else {}
-        return httpx.Response(200, headers=headers, json=ANSWER)
+        return httpx.Response(200, headers=self.headers(answer), json=ANSWER)
 
 
 def client(broker: Broker, *, brokered: bool = True) -> Any:
@@ -216,8 +227,7 @@ class ChatBroker(Broker):
                 headers={HEADER_REASON: reason, "x-should-retry": "false"},
                 json={"error": {"message": reason, "type": ERROR_TYPE[status], "code": reason}},
             )
-        headers = {HEADER_ACCOUNT: answer.value} if answer is not None else {}
-        return httpx.Response(200, headers=headers, json=COMPLETION)
+        return httpx.Response(200, headers=self.headers(answer), json=COMPLETION)
 
 
 class ChatTwice:
@@ -275,3 +285,30 @@ def test_a_refused_own_account_ends_a_chat_run_abstained(
     assert result.outcome.reason_code is code
     [made] = result.model_calls
     assert made.model_account is ModelAccount.OWN
+
+
+# --- Which provider served each call ------------------------------------------------------------
+
+
+def test_each_call_records_the_provider_the_broker_said_served_it() -> None:
+    """The broker, not the agent's settings, says which provider served a call
+    (docs/specs/model-accounts.md, invariant 9)."""
+    broker = ChatBroker(
+        ModelAccount.OWN, ModelAccount.DEPLOYMENT, providers=("openai-compatible", "openai")
+    )
+    result, _ = run(ChatTwice(broker))
+    assert [c.model_provider for c in result.model_calls] == ["openai-compatible", "openai"]
+    # The model is the one the answer names.
+    assert {c.model_id for c in result.model_calls} == {"gpt-test"}
+
+
+def test_a_call_without_the_broker_records_the_configured_provider() -> None:
+    result, _ = run(Twice(Broker(None, None, providers=()), brokered=False))
+    assert {c.model_provider for c in result.model_calls} == {"anthropic"}
+
+
+@pytest.mark.parametrize("second", [None, "Not a provider", ""])
+def test_a_call_does_not_inherit_the_provider_of_the_call_before(second: str | None) -> None:
+    broker = Broker(ModelAccount.OWN, ModelAccount.DEPLOYMENT, providers=("gemini", second))
+    result, _ = run(Twice(broker))
+    assert [c.model_provider for c in result.model_calls] == ["gemini", "anthropic"]

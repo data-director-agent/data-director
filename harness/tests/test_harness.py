@@ -164,7 +164,7 @@ def test_the_base_urls_a_grant_carries_are_each_named_once(tmp_path: Path) -> No
         _accounts(
             tmp_path,
             "model_accounts:\n  own: allowed\n  fallback: none\n  providers:\n"
-            "    - provider: anthropic\n      base_urls:\n"
+            "    - provider: openai-compatible\n      base_urls:\n"
             "        - {url: 'https://LLM.example.ac.uk/v1'}\n"
             "        - {url: 'https://llm.example.ac.uk:443'}\n",
         )
@@ -244,6 +244,31 @@ def test_model_accounts_decide_the_grants_account(
 
 @pytest.mark.requirement("DD-POLICY")
 @pytest.mark.parametrize(
+    ("provider", "base_urls"),
+    [
+        ("anthropic", ""),
+        ("openai", ""),
+        ("gemini", ""),
+        ("openai-compatible", "      base_urls: [{url: 'https://llm.example.ac.uk/v1'}]\n"),
+    ],
+)
+def test_a_persons_own_account_may_be_with_any_provider_the_broker_serves(
+    tmp_path: Path, provider: str, base_urls: str
+) -> None:
+    """docs/specs/model-accounts.md, The profile: only an openai-compatible account names a base
+    URL, and it must, since it has no endpoint of its own."""
+    path = _accounts(
+        tmp_path,
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        f"  providers:\n    - provider: {provider}\n{base_urls}",
+    )
+    accounts = load_profile(path).model_accounts
+    assert accounts.provider_names == (provider,)
+    assert bool(accounts.base_urls) is bool(base_urls)
+
+
+@pytest.mark.requirement("DD-POLICY")
+@pytest.mark.parametrize(
     "written",
     [
         "model_accounts: allowed\n",
@@ -255,20 +280,25 @@ def test_model_accounts_decide_the_grants_account(
         "  providers: [{provider: anthropic}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n  providers: []\n",
-        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [{provider: openai}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [{provider: mistral}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai-compatible}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, base_urls: [{url: 'https://x.example'}]}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
         "  providers: [{provider: anthropic}, {provider: anthropic}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
-        "  providers: [{provider: anthropic, base_urls: [{url: 'http://x.example'}]}]\n",
+        "  providers: [{provider: openai-compatible, base_urls: [{url: 'http://x.example'}]}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
-        "  providers: [{provider: anthropic, base_urls: [{url: 'https://x.example', local: 2}]}]\n",
+        "  providers: [{provider: openai-compatible,\n"
+        "               base_urls: [{url: 'https://x.example', local: 2}]}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
         "  providers: [{provider: anthropic, models: [x]}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [anthropic]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
-        "  providers: [{provider: anthropic, base_urls: 'https://x.example'}]\n",
+        "  providers: [{provider: openai-compatible, base_urls: 'https://x.example'}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
-        "  providers: [{provider: anthropic, base_urls: ['https://x.example']}]\n",
+        "  providers: [{provider: openai-compatible, base_urls: ['https://x.example']}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n  budget: 10\n"
         "  providers: [{provider: anthropic}]\n",
     ],
@@ -282,27 +312,36 @@ def test_model_accounts_a_steward_could_misread_are_refused(tmp_path: Path, writ
 
 @pytest.mark.requirement("DD-POLICY", "C13.5")
 @pytest.mark.parametrize(
-    ("base_urls", "hosted"),
+    ("providers", "hosted"),
     [
-        ("", True),
-        ("    base_urls: [{url: 'https://llm.example.ac.uk'}]\n", True),
-        ("    base_urls: [{url: 'https://llm.example.ac.uk/v1', local: true}]\n", False),
+        ("  - provider: anthropic\n", True),
         (
-            "    base_urls:\n      - {url: 'https://llm.example.ac.uk', local: true}\n"
+            "  - provider: openai-compatible\n"
+            "    base_urls: [{url: 'https://llm.example.ac.uk'}]\n",
+            True,
+        ),
+        (
+            "  - provider: openai-compatible\n"
+            "    base_urls: [{url: 'https://llm.example.ac.uk/v1', local: true}]\n",
+            False,
+        ),
+        (
+            "  - provider: openai-compatible\n    base_urls:\n"
+            "      - {url: 'https://llm.example.ac.uk', local: true}\n"
             "      - {url: 'https://other.example.org'}\n",
             True,
         ),
     ],
 )
 def test_an_own_endpoint_counts_as_hosted_unless_declared_local(
-    tmp_path: Path, base_urls: str, hosted: bool
+    tmp_path: Path, providers: str, hosted: bool
 ) -> None:
     """docs/specs/model-accounts.md, The profile; docs/specs/projects.md, invariant 8."""
     profile = load_profile(
         _accounts(
             tmp_path,
             "hosted_models: [inventory]\nmodel_accounts:\n  own: allowed\n  fallback: none\n"
-            "  providers:\n  - provider: anthropic\n" + base_urls,
+            "  providers:\n" + providers,
         )
     )
     assert profile.model_accounts.hosted is hosted
