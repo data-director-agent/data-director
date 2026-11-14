@@ -7,6 +7,7 @@
 import { type Ref, useEffect, useState } from "react";
 
 import type { AgentView } from "../../manifest/normalise";
+import type { ProjectSummary } from "../../project/api";
 import { errorMessage, useRunApi } from "../../run/api";
 import { inferStages } from "../../run/stages";
 import type { RunResult } from "../../run/types";
@@ -20,12 +21,16 @@ export function RunDetail({
   agents,
   idPrefix,
   headingRef,
+  project,
 }: {
   invocationId: string;
   /** The directory, in which the run's own agent is found once the run is loaded. */
   agents: AgentView[];
   idPrefix: string;
   headingRef?: Ref<HTMLHeadingElement>;
+  /** The project of the conversation that started the run; null if it has none, and left out
+   * if that is not known. */
+  project?: ProjectSummary | null | undefined;
 }) {
   const runs = useRunApi();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -59,6 +64,7 @@ export function RunDetail({
             result={shown.result}
             agent={agent}
             idPrefix={idPrefix}
+            project={project}
             {...(headingRef ? { headingRef } : {})}
           />
         </>

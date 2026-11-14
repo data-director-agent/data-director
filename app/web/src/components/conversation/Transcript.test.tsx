@@ -2,10 +2,23 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
+import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
 import projectFixture from "../../../fixtures/project-documents.json";
+import projectsFixture from "../../../fixtures/projects.json";
+import runFixture from "../../../fixtures/run-succeeded.json";
 import type { Conversation } from "../../conversation/types";
-import type { DocumentVersion, ProjectDocument, ProjectDocuments } from "../../project/api";
+import { normalise } from "../../manifest/normalise";
+import type { RawAgentsResponse } from "../../manifest/types";
+import type {
+  DocumentVersion,
+  ProjectDocument,
+  ProjectDocuments,
+  ProjectSummary,
+} from "../../project/api";
+import { projectName } from "../../project/name";
+import { type RunApi, RunApiContext } from "../../run/api";
+import type { RunResult } from "../../run/types";
 import { Transcript } from "./Transcript";
 
 /** The fixture's README, drafted by `invocationId`, with `later` versions after it. */
@@ -159,5 +172,60 @@ describe("Transcript", () => {
       rerender(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} documents={null} />);
       expect(screen.queryByRole("list", { name: "Documents drafted on this turn" })).toBeNull();
     });
+  });
+});
+
+describe("Transcript, a delegated run's project", () => {
+  const { agents } = normalise(several as unknown as RawAgentsResponse);
+  const runs = { get: () => Promise.resolve(runFixture as unknown as RunResult) } as unknown as RunApi;
+
+  async function openRun(conversation: Conversation, project?: ProjectSummary | null) {
+    const child = conversation.turns.flatMap((t) => t.children)[0];
+    if (!child) throw new Error("no delegated run in the fixture");
+    render(
+      <RunApiContext.Provider value={runs}>
+        <Transcript
+          conversation={conversation}
+          agents={agents}
+          onToggleRun={() => {}}
+          selectedRun={child.invocation_id}
+          project={project}
+        />
+      </RunApiContext.Provider>,
+    );
+    const review = (await screen.findByText("Human review", { selector: ".not-built strong" })).closest(".not-built");
+    if (!(review instanceof HTMLElement)) throw new Error("no human review callout");
+    return review;
+  }
+
+  it("names and links the conversation's project", async () => {
+    const conversation = structuredClone(conversationFixture) as unknown as Conversation;
+    const project = {
+      ...((projectsFixture as ProjectSummary[])[0] as ProjectSummary),
+      project_id: conversation.project_id ?? "",
+    };
+    const review = await openRun(conversation, project);
+    expect(within(review).getByRole("link", { name: projectName(project) })).toHaveAttribute(
+      "href",
+      `/projects/${encodeURIComponent(project.project_id)}`,
+    );
+  });
+
+  it("says the run is not part of a project when the conversation has none", async () => {
+    const conversation = {
+      ...(structuredClone(conversationFixture) as unknown as Conversation),
+      project_id: null,
+    };
+    const review = await openRun(conversation);
+    expect(review).toHaveTextContent(/not part of a project/);
+    expect(review.querySelector('a[href^="/projects/"]')).toBeNull();
+  });
+
+  it("names no project that is not the conversation's", async () => {
+    const conversation = structuredClone(conversationFixture) as unknown as Conversation;
+    const other = { ...((projectsFixture as ProjectSummary[])[0] as ProjectSummary), project_id: "other" };
+    const review = await openRun(conversation, other);
+    expect(within(review).queryByRole("link", { name: projectName(other) })).toBeNull();
+    expect(review).not.toHaveTextContent(/part of/);
   });
 });

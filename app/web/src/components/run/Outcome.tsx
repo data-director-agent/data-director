@@ -3,8 +3,9 @@
  *
  * Succeeded shows the result and the evidence it rests on. Abstained and referred are answers in
  * their own right, each with what it means and what to do next, not errors. Failed shows the
- * problem as the harness stated it. A run is not yet part of a project, so nothing it proposes
- * waits for review (#394); that, and resuming a suspended run, are drawn in place (#72, #73).
+ * problem as the harness stated it. Nothing a run proposes waits for review yet (#394), whether or
+ * not the conversation that started it belongs to a project; where it does, the project is named
+ * and linked (#755). That, and resuming a suspended run, are drawn in place (#72, #73).
  */
 
 import "./Outcome.css";
@@ -15,6 +16,9 @@ import { Copy, RotateCcw } from "lucide-react";
 import type { AgentView } from "../../manifest/normalise";
 import { MODEL_ACCOUNT, OUTCOME, REASON } from "../../manifest/wording";
 import { problemSlug } from "../../run/stages";
+import type { ProjectSummary } from "../../project/api";
+import { projectName } from "../../project/name";
+import { Link } from "../../route";
 import type { ModelCall, RunResult } from "../../run/types";
 import { NotBuilt } from "../NotBuilt";
 import { Button } from "../ui/Button";
@@ -83,18 +87,57 @@ function ModelCalls({ calls }: { calls: ModelCall[] }) {
   );
 }
 
+/**
+ * Where a succeeded run's result goes. The run store records no project, so this is the project
+ * of the conversation that started the run: named and linked when it is known, said to be none
+ * when the conversation has none, and left unsaid when it is not known.
+ */
+function HumanReview({ project }: { project: ProjectSummary | null | undefined }) {
+  return (
+    <NotBuilt title="Human review" issues={[72, 73, 394]}>
+      <p>
+        Nothing waits for approval.{" "}
+        {project ? (
+          <>
+            This run is part of the project{" "}
+            <Link to={`/projects/${encodeURIComponent(project.project_id)}`}>
+              {projectName(project)}
+            </Link>
+            , but what it proposes is not reviewed there yet, so its result is kept only with the
+            run, and nothing is changed until a person acts on it.
+          </>
+        ) : project === null ? (
+          <>
+            This run is not part of a project, so its result is kept only with the run, and
+            nothing is changed until a person acts on it.
+          </>
+        ) : (
+          <>
+            Its result is kept only with the run, and nothing is changed until a person acts on
+            it.
+          </>
+        )}
+      </p>
+    </NotBuilt>
+  );
+}
+
 export function Outcome({
   result,
   agent,
   idPrefix,
   headingRef,
   onEditInput,
+  project,
 }: {
   result: RunResult;
   agent: AgentView;
   idPrefix: string;
   headingRef?: Ref<HTMLHeadingElement>;
   onEditInput?: () => void;
+  /** The project of the conversation that started the run; null if it has none, and left out
+   * if that is not known. */
+  project?: ProjectSummary | null | undefined;
 }) {
   const { envelope, checks } = result;
   const { outcome } = envelope;
@@ -169,12 +212,7 @@ export function Outcome({
           ) : (
             <p>The agent reported its outcome without a result.</p>
           )}
-          <NotBuilt title="Human review" issues={[72, 73, 394]}>
-            <p>
-              Nothing waits for approval. This run is not part of a project, so its result is
-              kept only with the run, and nothing is changed until a person acts on it.
-            </p>
-          </NotBuilt>
+          <HumanReview project={project} />
         </>
       )}
 
