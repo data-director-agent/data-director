@@ -2088,7 +2088,7 @@ _:c14n70 sh:datatype xsd:string ;
 	sh:order 3 ;
 	sh:path dcterms:title .
 _:c14n71 sh:datatype xsd:string ;
-	sh:description "Who serves the model, as the agent's card names it (anthropic)." ;
+	sh:description "Who served the call: the provider the model broker reports, or else the provider as the agent's card names it (anthropic)." ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:nodeKind sh:Literal ;

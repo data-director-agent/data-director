@@ -12,6 +12,7 @@ import {
   type RawModelAccount,
   fromRaw,
 } from "../../model-account/api";
+import type { ModelAccountProvider } from "../../session/api";
 import { ModelAccount } from "./ModelAccount";
 
 const NONE = fromRaw(none as RawModelAccount);
@@ -29,10 +30,17 @@ function fakeApi(overrides: Partial<ModelAccountApi> = {}): ModelAccountApi {
   };
 }
 
-function renderWith(api: ModelAccountApi) {
+const ORIGIN = "https://llm.example.ac.uk";
+const OFFERED: ModelAccountProvider[] = [
+  { provider: "anthropic", baseUrls: [] },
+  { provider: "openai", baseUrls: [] },
+  { provider: "openai-compatible", baseUrls: [ORIGIN] },
+];
+
+function renderWith(api: ModelAccountApi, providers?: ModelAccountProvider[]) {
   return render(
     <ModelAccountApiContext.Provider value={api}>
-      <ModelAccount />
+      <ModelAccount {...(providers ? { providers } : {})} />
     </ModelAccountApiContext.Provider>,
   );
 }
@@ -101,5 +109,60 @@ describe("ModelAccount", () => {
     const second = renderWith(fakeApi({ read: () => Promise.resolve(HELD) }));
     await screen.findByText(LABEL);
     expect(await axe(second.container)).toHaveNoViolations();
+  });
+
+  it("offers no choice of provider where the profile allows one", async () => {
+    renderWith(fakeApi(), [{ provider: "openai", baseUrls: [] }]);
+    expect(await screen.findByLabelText("OpenAI API key")).toBeVisible();
+    expect(screen.queryByRole("group", { name: "Provider" })).toBeNull();
+  });
+
+  it("offers the providers the profile allows, and sends no address for a hosted one", async () => {
+    const enrol = vi.fn(() => Promise.resolve(HELD));
+    renderWith(fakeApi({ enrol }), OFFERED);
+    const group = await screen.findByRole("group", { name: "Provider" });
+    expect(within(group).getAllByRole("radio")).toHaveLength(OFFERED.length);
+
+    await userEvent.click(within(group).getByRole("radio", { name: "OpenAI" }));
+    await userEvent.type(screen.getByLabelText("OpenAI API key"), KEY);
+    await userEvent.click(screen.getByRole("button", { name: "Check and add" }));
+
+    expect(enrol).toHaveBeenCalledWith("openai", KEY);
+  });
+
+  it("sends an OpenAI-compatible account's address with its key", async () => {
+    const enrol = vi.fn(() => Promise.resolve(HELD));
+    renderWith(fakeApi({ enrol }), OFFERED);
+    const group = await screen.findByRole("group", { name: "Provider" });
+    await userEvent.click(within(group).getAllByRole("radio")[2] as HTMLElement);
+    const address = screen.getByLabelText("Address of the service");
+    expect(address).toHaveValue(ORIGIN);
+
+    await userEvent.type(address, "/v1/");
+    await userEvent.type(screen.getByLabelText("API key for the service"), KEY);
+    await userEvent.click(screen.getByRole("button", { name: "Check and add" }));
+
+    expect(enrol).toHaveBeenCalledWith("openai-compatible", KEY, `${ORIGIN}/v1`);
+  });
+
+  it("sends a key to no address the profile does not list", async () => {
+    const enrol = vi.fn(() => Promise.resolve(HELD));
+    renderWith(fakeApi({ enrol }), [{ provider: "openai-compatible", baseUrls: [ORIGIN] }]);
+    const address = await screen.findByLabelText("Address of the service");
+    await userEvent.clear(address);
+    await userEvent.type(address, "https://elsewhere.example.org/v1");
+    await userEvent.type(screen.getByLabelText("API key for the service"), KEY);
+    await userEvent.click(screen.getByRole("button", { name: "Check and add" }));
+
+    expect(enrol).not.toHaveBeenCalled();
+    expect(address).toHaveAttribute("aria-invalid", "true");
+    expect(address).toHaveAccessibleDescription(expect.stringContaining(ORIGIN));
+  });
+
+  it("has no accessibility violations with a choice of providers", async () => {
+    const { container } = renderWith(fakeApi(), OFFERED);
+    const group = await screen.findByRole("group", { name: "Provider" });
+    await userEvent.click(within(group).getAllByRole("radio")[2] as HTMLElement);
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

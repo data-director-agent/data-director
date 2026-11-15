@@ -62,7 +62,8 @@ export class AccountRefused extends Error {
 
 export interface ModelAccountApi {
   read(signal?: AbortSignal): Promise<ModelAccount>;
-  enrol(provider: string, key: string): Promise<ModelAccount>;
+  /** `baseUrl` is sent only for an `openai-compatible` account, which must name one. */
+  enrol(provider: string, key: string, baseUrl?: string): Promise<ModelAccount>;
   remove(): Promise<void>;
 }
 
@@ -95,6 +96,8 @@ export function reasonText(reason: string): string {
       return "The request took too long. Try again.";
     case "account-unsupported":
       return "This provider is not supported here yet.";
+    case "base-url-refused":
+      return "Data Director may not send your key to that address. Use one of the addresses listed.";
     case "request-invalid":
       return "That does not look like an API key. Paste the whole key, with no spaces.";
     default:
@@ -138,8 +141,9 @@ export const httpModelAccountApi: ModelAccountApi = {
   async read(signal) {
     return fromRaw((await (await broker("GET", undefined, signal)).json()) as RawModelAccount);
   },
-  async enrol(provider, key) {
-    return fromRaw((await (await broker("PUT", { provider, key })).json()) as RawModelAccount);
+  async enrol(provider, key, baseUrl) {
+    const body = baseUrl === undefined ? { provider, key } : { provider, key, base_url: baseUrl };
+    return fromRaw((await (await broker("PUT", body)).json()) as RawModelAccount);
   },
   async remove() {
     await broker("DELETE");

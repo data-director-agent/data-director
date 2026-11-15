@@ -24,7 +24,7 @@ concurrency:
 jobs:
   changes:
     name: Changed paths
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       languages: ${{ steps.paths.outputs.codeql }}
@@ -50,7 +50,7 @@ jobs:
     needs: changes
     # An empty matrix is an error, so a pull request that changes no source skips the job.
     if: needs.changes.outputs.languages != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read

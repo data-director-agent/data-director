@@ -29,6 +29,7 @@ import type { Conversation, ConversationTurn } from "../../conversation/types";
 import {
   type ProjectDocument,
   type ProjectDocuments,
+  type ProjectSummary,
   type RepositoryRequirements,
   useProjectApi,
 } from "../../project/api";
@@ -112,11 +113,13 @@ function ChildCard({
   agents,
   onToggle,
   selected,
+  project,
 }: {
   child: Envelope;
   agents: AgentView[];
   onToggle: (child: Envelope) => void;
   selected: boolean;
+  project: ProjectSummary | null | undefined;
 }) {
   const { label, tone } = OUTCOME[child.outcome.status];
   // TODO(#72, #73): a suspended run is the only sign of review waiting until the gate exists.
@@ -149,7 +152,14 @@ function ChildCard({
         About this agent<span className="visually-hidden"> {child.agent_id}</span>
       </Link>
       <div id={regionId} className="child-run" hidden={!selected}>
-        {selected && <RunDetail invocationId={child.invocation_id} agents={agents} idPrefix={regionId} />}
+        {selected && (
+          <RunDetail
+            invocationId={child.invocation_id}
+            agents={agents}
+            idPrefix={regionId}
+            project={project}
+          />
+        )}
       </div>
     </li>
   );
@@ -166,6 +176,7 @@ export function Transcript({
   onDocumentAnswered,
   chosenRepository = null,
   onRepositoryChosen,
+  project,
 }: {
   conversation: Conversation | null;
   agents: AgentView[];
@@ -190,9 +201,20 @@ export function Transcript({
   /** Takes the requirements a repository the researcher chose from a shortlist resolved to;
    * without it, no shortlist can be chosen from. */
   onRepositoryChosen?: (requirements: RepositoryRequirements) => void;
+  /** The conversation's project as the projects list describes it, once that has been read. */
+  project?: ProjectSummary | null | undefined;
 }) {
   // Only the inventory the project holds now is served, so only its chip opens it.
   const projectId = conversation?.project_id;
+  // The project a delegated run belongs to, through the conversation that started it: null when
+  // the conversation has none, and unknown until the projects list describes the one it has.
+  const runProject = !conversation
+    ? undefined
+    : !projectId
+      ? null
+      : project?.project_id === projectId
+        ? project
+        : undefined;
   const current = conversation?.inventory?.digest;
   const projectApi = useProjectApi();
   const source = useMemo<InventorySource | undefined>(
@@ -309,6 +331,7 @@ export function Transcript({
                   agents={agents}
                   onToggle={onToggleRun}
                   selected={child.invocation_id === selectedRun}
+                  project={runProject}
                 />
               ))}
             </ul>

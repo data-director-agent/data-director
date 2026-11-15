@@ -17,6 +17,13 @@ export interface SessionPrincipal {
   vouchedBy?: string;
 }
 
+/** A provider a person's own model account may be with, and the base URL origins it may name. */
+export interface ModelAccountProvider {
+  provider: string;
+  /** Origins (`https://host[:port]`); listed only for `openai-compatible`, which must name one. */
+  baseUrls: string[];
+}
+
 export interface Session {
   /** False on a development server, where every run acts for the operator. */
   signsIn: boolean;
@@ -27,6 +34,8 @@ export interface Session {
   expiresAt: string | null;
   /** Whether a person may add their own model account on the Profile page (docs/specs/model-accounts.md). */
   modelAccounts: boolean;
+  /** The providers the profile lets a person's own account be with; empty unless `modelAccounts`. */
+  modelAccountProviders: ModelAccountProvider[];
 }
 
 export interface RawSession {
@@ -40,6 +49,7 @@ export interface RawSession {
   } | null;
   expires_at: string | null;
   model_accounts?: boolean;
+  model_account_providers?: { provider: string; base_urls: string[] }[];
 }
 
 export interface SessionApi {
@@ -63,6 +73,10 @@ export function fromRaw(raw: RawSession): Session {
       : null,
     expiresAt: raw.expires_at,
     modelAccounts: raw.model_accounts ?? false,
+    modelAccountProviders: (raw.model_account_providers ?? []).map((p) => ({
+      provider: p.provider,
+      baseUrls: p.base_urls,
+    })),
   };
 }
 

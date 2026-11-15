@@ -1,12 +1,15 @@
 """Whose model account paid for each call, and how a run ends when a person's own account cannot
 be used (docs/specs/model-accounts.md, invariants 9 and 10).
 
-The model broker answers every call with `X-DD-Model-Account` (`own` or `deployment`), and a
-refusal with `X-DD-Reason`. The client `dd_sdk.model_anthropic.anthropic_client` builds for the
-broker reads the first header into this context (`report`) as each answer arrives. The call's
-`chat` span (`record_account`) and its `ModelCall` (`dd_sdk.prompts.ModelCallLog.record`) take it
-from there, so an agent that calls its client directly records whose account paid without reading
-a header itself. A call that did not go through the broker was paid for by the deployment's key.
+The model broker answers every call with `X-DD-Model-Account` (`own` or `deployment`) and
+`X-DD-Model-Provider` (the provider that served it), and a refusal with `X-DD-Reason`. Every client
+the SDK builds for the broker (`dd_sdk.model_anthropic.anthropic_client`,
+`dd_sdk.model_openai.openai_client`) reads the first two headers into this context (`report`) as
+each answer arrives. The call's `chat` span (`record_account`) and its `ModelCall`
+(`dd_sdk.prompts.ModelCallLog.record`) take them from there, so an agent that calls its client
+directly records whose account paid, and which provider served the call, without reading a header
+itself. A call that did not go through the broker was paid for by the deployment's key, and served
+by the provider the agent was configured with.
 
 While an agent runs, `dd_sdk.serve` collects every call it records (`bind_run`). If the agent then
 raises because the broker refused a person's own account (`refusal`), the run ends `abstained`
@@ -16,6 +19,7 @@ an exception. Nothing here sees a key, a label or a pseudonym.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -26,7 +30,7 @@ from opentelemetry.trace import Span
 
 from dd_sdk.agent import AgentResult
 from dd_sdk.contract.models import ModelAccount, ModelCall, Outcome, OutcomeStatus, ReasonCode
-from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_REASON
+from dd_sdk.model_grant import HEADER_ACCOUNT, HEADER_PROVIDER, HEADER_REASON
 from dd_sdk.tracing import ATTR_MODEL_ACCOUNT
 
 # The broker's reason codes for a person's own account (`dd_broker.reasons`), and the run's.
@@ -50,6 +54,9 @@ STATEMENTS: dict[ReasonCode, str] = {
 
 # Whose account paid for the call most recently answered in this context, if the broker said.
 _PAYER: ContextVar[ModelAccount | None] = ContextVar("dd_model_payer", default=None)
+# Which provider served that call, if the broker said: a provider name, never free text.
+_PROVIDER: ContextVar[str | None] = ContextVar("dd_model_provider", default=None)
+_PROVIDER_NAME = re.compile(r"[a-z][a-z0-9-]{0,63}")
 
 
 @dataclass
@@ -64,8 +71,12 @@ _RUN: ContextVar[RunCalls | None] = ContextVar("dd_model_run", default=None)
 
 
 def report(headers: Any) -> None:
-    """Note whose account paid, from the broker's answer's headers. Called by the brokered
-    client for every answer; an answer without the header changes nothing."""
+    """Note whose account paid and which provider served the call, from the broker's answer's
+    headers. Called by the brokered client for every answer; an answer without a header, or with
+    a value that is not one, changes nothing for it."""
+    provider = headers.get(HEADER_PROVIDER)
+    if isinstance(provider, str) and _PROVIDER_NAME.fullmatch(provider):
+        _PROVIDER.set(provider)
     value = headers.get(HEADER_ACCOUNT)
     if value is None:
         return
@@ -86,6 +97,14 @@ def take() -> ModelAccount:
     payer = current()
     _PAYER.set(None)
     return payer
+
+
+def take_provider() -> str | None:
+    """The provider the broker said served the call just answered, or None if it said nothing,
+    and forget it, so that the next call is not recorded with this one's provider."""
+    provider = _PROVIDER.get()
+    _PROVIDER.set(None)
+    return provider
 
 
 def record_account(span: Span) -> ModelAccount:
@@ -109,9 +128,11 @@ def bind_run() -> Iterator[RunCalls]:
     run = RunCalls()
     token = _RUN.set(run)
     payer = _PAYER.set(None)
+    provider = _PROVIDER.set(None)
     try:
         yield run
     finally:
+        _PROVIDER.reset(provider)
         _PAYER.reset(payer)
         _RUN.reset(token)
 

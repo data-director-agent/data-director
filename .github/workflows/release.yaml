@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write # to tag releases and push the release branches
@@ -61,7 +61,7 @@ jobs:
   refresh-lock:
     needs: release-please
     if: ${{ needs.release-please.outputs.prs != '' && needs.release-please.outputs.prs != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read # the push uses RELEASE_PLEASE_TOKEN, not GITHUB_TOKEN
@@ -98,7 +98,7 @@ jobs:
   publish-testpypi:
     needs: release-please
     if: ${{ needs.release-please.outputs.publish != '' && needs.release-please.outputs.publish != '[]' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:
       name: testpypi
@@ -137,7 +137,7 @@ jobs:
   publish-pypi:
     needs: release-please
     if: ${{ needs.release-please.outputs.publish != '' && contains(fromJSON(needs.release-please.outputs.publish), 'inventory') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment:
       name: pypi

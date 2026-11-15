@@ -91,9 +91,11 @@ on the app's Profile page. Their key goes to the model broker and nowhere else.
 model_accounts:
   own: allowed               # off, allowed or required
   fallback: deployment       # deployment or none: who pays for someone with no account of their own
-  providers:                 # the providers a person's own account may be with
+  providers:                 # anthropic, openai, gemini or openai-compatible
     - provider: anthropic
-      base_urls:             # optional: other addresses the account may name
+    - provider: openai
+    - provider: openai-compatible
+      base_urls:             # required for openai-compatible, and only for it
         - url: https://llm.example.ac.uk
           local: true        # optional: this address is not a hosted service
 ```
@@ -106,14 +108,17 @@ model_accounts:
 | `required` | `none` | They pay. | The run fails with `model-account-missing`. |
 
 If their provider refuses their key or reports a limit, the run fails. The deployment's key is
-never used instead.
+never used instead. An agent is served only by the provider its card declares: an account with
+another provider counts as none for that agent's calls (mapping one provider's models to
+another's is TODO(#843)).
 
 The profile is refused when the workbench or the app starts if it:
 
 - combines `own: required` with `fallback: deployment`, which contradict each other;
 - sets `fallback` or `providers` with `own: off`, where nothing would apply them;
 - turns own accounts on without `fallback` or without at least one provider;
-- names a provider other than `anthropic` (OpenAI-compatible providers are TODO(#811));
+- names a provider other than `anthropic`, `openai`, `gemini` or `openai-compatible`;
+- lists `openai-compatible` without `base_urls`, or `base_urls` for any other provider;
 - lists a base URL that is not a plain `https` address;
 - has any other key under `model_accounts`.
 

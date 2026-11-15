@@ -107,6 +107,10 @@ class Deployment:
             verifier=GrantVerifier(keys, self.keys.subject_key),
             tickets=TicketVerifier(keys, self.keys.subject_key, store),
             agents=AgentCredentials({}),
+            # The endpoint an OpenAI-compatible account may name, as the operator allows it, and
+            # resolving to a public address so no name is looked up.
+            allowed_base_urls=(COMPATIBLE_ORIGIN,),
+            resolve=lambda host, port: ["93.184.215.14"],
             transport=provider,
         )
         return TestClient(build_broker(broker))
@@ -127,12 +131,18 @@ def grant_env(keys: GrantKeys) -> dict[str, str]:
 
 
 # What a profile adds to let people's own accounts pay (docs/specs/model-accounts.md).
-OWN_ACCOUNTS = """
+COMPATIBLE_ORIGIN = "https://llm.example.ac.uk"
+OWN_ACCOUNTS = f"""
 model_accounts:
   own: allowed
   fallback: deployment
   providers:
     - provider: anthropic
+    - provider: openai
+    - provider: openai-compatible
+      base_urls:
+        - url: {COMPATIBLE_ORIGIN}/v1
+          local: true
 """
 
 
@@ -212,7 +222,14 @@ def test_a_signed_in_person_is_issued_a_ticket_naming_only_their_pseudonym(
 ) -> None:
     browser = deployment.browser()
     sign_in(deployment, browser)
-    assert browser.get("/api/session").json()["model_accounts"] is True
+    session = browser.get("/api/session").json()
+    assert session["model_accounts"] is True
+    # The page offers only the providers, and the base URLs, the profile allows.
+    assert session["model_account_providers"] == [
+        {"provider": "anthropic", "base_urls": []},
+        {"provider": "openai", "base_urls": []},
+        {"provider": "openai-compatible", "base_urls": [COMPATIBLE_ORIGIN]},
+    ]
 
     answer = browser.post("/api/model-account/ticket", headers=JSON_HEADERS)
     assert answer.status_code == 200
@@ -262,7 +279,9 @@ def test_a_deployment_that_does_not_offer_own_accounts_issues_no_ticket(
     try:
         browser = deployed.browser()
         sign_in(deployed, browser)
-        assert browser.get("/api/session").json()["model_accounts"] is False
+        session = browser.get("/api/session").json()
+        assert session["model_accounts"] is False
+        assert session["model_account_providers"] == []
         answer = browser.post("/api/model-account/ticket", headers=JSON_HEADERS)
         assert answer.status_code == 404
         assert answer.json()["type"].endswith("model-accounts-unavailable")
@@ -287,10 +306,19 @@ def test_the_broker_path_is_read_without_its_trailing_slash() -> None:
 # The key goes to the broker alone.
 
 
+@pytest.mark.parametrize(
+    "enrolment",
+    [
+        {"provider": "anthropic"},
+        {"provider": "openai"},
+        {"provider": "openai-compatible", "base_url": f"{COMPATIBLE_ORIGIN}/v1"},
+    ],
+)
 def test_the_browser_enrols_with_the_broker_and_the_app_never_sees_the_key(
     deployment: Deployment,
     caplog: pytest.LogCaptureFixture,
     capsys: pytest.CaptureFixture[str],
+    enrolment: dict[str, str],
 ) -> None:
     caplog.set_level(logging.DEBUG)
     browser = deployment.browser()
@@ -300,10 +328,10 @@ def test_the_browser_enrols_with_the_broker_and_the_app_never_sees_the_key(
     with broker:
         enrolled = broker.put(
             ACCOUNT_PATH,
-            json={"provider": "anthropic", "key": SENTINEL},
+            json={**enrolment, "key": SENTINEL},
             headers={"authorization": f"Bearer {ticket(browser)['ticket']}"},
         )
-        assert enrolled.status_code == 200
+        assert enrolled.status_code == 200, enrolled.json()
         # The page reads the label and the person's token use with a fresh ticket.
         read = broker.get(
             ACCOUNT_PATH, headers={"authorization": f"Bearer {ticket(browser)['ticket']}"}
