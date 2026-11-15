@@ -320,6 +320,71 @@ def test_own_or_deployment_pays_with_the_deployments_key_for_the_paths_provider(
     assert sent.headers["authorization"] == f"Bearer {key}"
 
 
+DECLARED = "claude-sonnet-5-5"
+MAPPED = {"openai": {DECLARED: MODEL}}
+
+
+def mapped_grant(harness: FakeHarness, account: Account = Account.OWN_OR_DEPLOYMENT) -> str:
+    """A grant for an agent whose card declares a Claude model the profile maps, for OpenAI
+    accounts, to the model the OpenAI tests call (docs/specs/model-accounts.md, The model map)."""
+    return grant(harness, account, models=[DECLARED], model_map=MAPPED)
+
+
+@pytest.mark.parametrize("account", [Account.OWN, Account.OWN_OR_DEPLOYMENT])
+def test_a_mapped_model_is_served_on_the_persons_own_account(
+    harness: FakeHarness, tmp_path: Path, provider: Provider, account: Account
+) -> None:
+    broker = broker_with(harness, tmp_path, provider)
+    own(broker)
+    with client(broker) as http:
+        response = http.post(
+            completions("openai"), json=body(), headers=headers(mapped_grant(harness, account))
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.headers[HEADER_ACCOUNT] == "own"
+    assert response.headers[HEADER_PROVIDER] == "openai"
+    [sent] = provider.seen
+    assert sent.headers["authorization"] == f"Bearer {OWN_KEY}"
+
+
+@pytest.mark.parametrize("account_provider", [None, "gemini", "anthropic"])
+def test_the_deployment_never_pays_for_a_mapped_call(
+    harness: FakeHarness, tmp_path: Path, provider: Provider, account_provider: str | None
+) -> None:
+    """A mapped model is allowed only on the person's own account with the provider it is mapped
+    for; without one the call ends `model-account-missing`, even where the deployment may pay
+    for a declared model (invariant 12)."""
+    broker = broker_with(harness, tmp_path, provider)
+    if account_provider is not None:
+        own(broker, account_provider)
+    with client(broker) as http:
+        response = http.post(
+            completions("openai"), json=body(), headers=headers(mapped_grant(harness))
+        )
+
+    assert response.status_code == 403
+    assert reason(response) == "model-account-missing"
+    assert provider.seen == []
+
+
+def test_a_mapped_model_is_not_granted_on_another_providers_path(
+    harness: FakeHarness, tmp_path: Path, provider: Provider
+) -> None:
+    """The map names a model for one provider; on any other path it is a model the grant does not
+    allow, and the broker never chooses a model the map does not name."""
+    broker = broker_with(harness, tmp_path, provider)
+    own(broker, "gemini")
+    with client(broker) as http:
+        response = http.post(
+            completions("gemini"), json=body(), headers=headers(mapped_grant(harness))
+        )
+
+    assert response.status_code == 403
+    assert reason(response) == "model-not-granted"
+    assert provider.seen == []
+
+
 def test_an_openai_account_is_not_used_on_the_anthropic_route(
     harness: FakeHarness, tmp_path: Path, provider: Provider
 ) -> None:

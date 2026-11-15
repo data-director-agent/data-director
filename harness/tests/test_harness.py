@@ -28,7 +28,7 @@ from dd_harness.testing import (
     make_conductor,
     request,
 )
-from dd_sdk.agent import AgentResult, RunContext
+from dd_sdk.agent import AgentResult, ModelUse, RunContext
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     Assurance,
@@ -267,6 +267,46 @@ def test_a_persons_own_account_may_be_with_any_provider_the_broker_serves(
     assert bool(accounts.base_urls) is bool(base_urls)
 
 
+MAPPED = (
+    "model_accounts:\n  own: allowed\n  fallback: none\n  providers:\n"
+    "    - provider: anthropic\n"
+    "    - provider: openai\n"
+    "      models:\n"
+    "        - {declared: claude-big, model: gpt-big, tools: true}\n"
+    "        - {declared: claude-small, model: gpt-small}\n"
+    "        - {declared: claude-other, model: gpt-other}\n"
+    "    - provider: gemini\n"
+    "      models: [{declared: claude-big, model: gemini-big}]\n"
+)
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_grant_maps_only_the_models_the_card_declares(tmp_path: Path) -> None:
+    """docs/specs/model-accounts.md, The model map: a mapping of a model the card does not declare
+    stays out of its grant."""
+    accounts = load_profile(_accounts(tmp_path, MAPPED)).model_accounts
+    uses = (ModelUse("anthropic", "claude-big", "hosted"),)
+    assert accounts.model_map(uses) == {
+        "openai": {"claude-big": "gpt-big"},
+        "gemini": {"claude-big": "gemini-big"},
+    }
+    assert accounts.model_map(()) == {}
+
+
+@pytest.mark.requirement("DD-POLICY")
+def test_a_model_relied_on_for_tool_calls_maps_only_to_one_that_serves_them(
+    tmp_path: Path,
+) -> None:
+    """docs/specs/model-accounts.md, The model map: the steward states which mapped models serve
+    tool calls, and a model the card relies on for them is never mapped to another."""
+    accounts = load_profile(_accounts(tmp_path, MAPPED)).model_accounts
+    uses = (
+        ModelUse("anthropic", "claude-big", "hosted", tools=True),
+        ModelUse("anthropic", "claude-small", "hosted", tools=True),
+    )
+    assert accounts.model_map(uses) == {"openai": {"claude-big": "gpt-big"}}
+
+
 @pytest.mark.requirement("DD-POLICY")
 @pytest.mark.parametrize(
     "written",
@@ -292,8 +332,25 @@ def test_a_persons_own_account_may_be_with_any_provider_the_broker_serves(
         "model_accounts:\n  own: allowed\n  fallback: none\n"
         "  providers: [{provider: openai-compatible,\n"
         "               base_urls: [{url: 'https://x.example', local: 2}]}]\n",
+        # A model map entry that is not a mapping, lacks a side, has a key nothing enforces or a
+        # tools that is not a boolean, or maps one declared model twice under one provider.
         "model_accounts:\n  own: allowed\n  fallback: none\n"
         "  providers: [{provider: anthropic, models: [x]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: {declared: a, model: b}}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{model: gpt-x}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x, model: gpt-x,\n"
+        "               cost: 1}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x, model: gpt-x,\n"
+        "               tools: maybe}]}]\n",
+        "model_accounts:\n  own: allowed\n  fallback: none\n"
+        "  providers: [{provider: openai, models: [{declared: claude-x, model: gpt-x},\n"
+        "                                         {declared: claude-x, model: gpt-y}]}]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n  providers: [anthropic]\n",
         "model_accounts:\n  own: allowed\n  fallback: none\n"
         "  providers: [{provider: openai-compatible, base_urls: 'https://x.example'}]\n",

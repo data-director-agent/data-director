@@ -23,19 +23,19 @@ LOCAL = {
 def test_the_spec_declares_the_models_it_calls() -> None:
     built = factory.build(KEY)
     assert built.spec.models == (
-        ModelUse("anthropic", DEFAULT_MODEL, "hosted"),
+        ModelUse("anthropic", DEFAULT_MODEL, "hosted", tools=True),
         ModelUse("anthropic", DEFAULT_TITLE_MODEL, "hosted"),
     )
     other = factory.build(
         {**KEY, "DD_MODEL_ID": "claude-opus-5-5", "DD_TITLE_MODEL_ID": "claude-opus-5-5"}
     )
-    assert other.spec.models == (ModelUse("anthropic", "claude-opus-5-5", "hosted"),)
+    assert other.spec.models == (ModelUse("anthropic", "claude-opus-5-5", "hosted", tools=True),)
 
 
 def test_titles_can_be_turned_off() -> None:
     built = factory.build({**KEY, "DD_TITLE_MODEL": "none"})
     assert built.titler is None
-    assert built.spec.models == (ModelUse("anthropic", DEFAULT_MODEL, "hosted"),)
+    assert built.spec.models == (ModelUse("anthropic", DEFAULT_MODEL, "hosted", tools=True),)
 
 
 def test_the_defaults() -> None:
@@ -51,13 +51,13 @@ def test_it_runs_on_a_hosted_provider_other_than_anthropic() -> None:
     assert built.model.provider == "openai" and built.model.model_id == "gpt-test"
     # The title is written by the same model unless another is named; no effort is sent.
     assert built.titler is not None and built.titler.model_id == "gpt-test"
-    assert built.spec.models == (ModelUse("openai", "gpt-test", "hosted"),)
+    assert built.spec.models == (ModelUse("openai", "gpt-test", "hosted", tools=True),)
     assert getattr(built.model, "effort", None) is None
     titled = factory.build(
         {**OPENAI, "DD_TITLE_MODEL_ID": "gpt-mini", "DD_ORCHESTRATOR_EFFORT": "low"}
     )
     assert titled.spec.models == (
-        ModelUse("openai", "gpt-test", "hosted"),
+        ModelUse("openai", "gpt-test", "hosted", tools=True),
         ModelUse("openai", "gpt-mini", "hosted"),
     )
     assert getattr(titled.model, "effort", None) == "low"
@@ -65,7 +65,7 @@ def test_it_runs_on_a_hosted_provider_other_than_anthropic() -> None:
 
 def test_it_runs_on_a_local_endpoint_that_needs_no_key() -> None:
     built = factory.build({**LOCAL, "DD_TITLE_MODEL": "none"})
-    assert built.spec.models == (ModelUse("localhost:11434", "llama-test", "local"),)
+    assert built.spec.models == (ModelUse("localhost:11434", "llama-test", "local", tools=True),)
 
 
 def test_it_runs_on_another_provider_through_the_broker() -> None:
@@ -77,7 +77,7 @@ def test_it_runs_on_another_provider_through_the_broker() -> None:
         "DD_TITLE_MODEL": "none",
     }
     built = factory.build(env)
-    assert built.spec.models == (ModelUse("openai", "gpt-test", "hosted"),)
+    assert built.spec.models == (ModelUse("openai", "gpt-test", "hosted", tools=True),)
 
 
 def test_claude_is_asked_for_effort_and_fallback() -> None:

@@ -54,6 +54,7 @@ from dd_sdk.contract.models import (
 from dd_sdk.contract.problem import PROBLEM_BASE
 from dd_sdk.model_grant import (
     BROKER_AUDIENCE,
+    CLAIM_MODEL_MAP,
     HEADER_REASON,
     META_MODEL_GRANT,
     TICKET_LIFETIME_S,
@@ -385,6 +386,63 @@ def test_a_grant_for_an_own_account_names_its_providers(keys: GrantKeys) -> None
         minter.mint(account=Account.OWN, **common)
     with pytest.raises(ValueError):
         minter.mint(account=Account.DEPLOYMENT, providers=["anthropic"], **common)
+    # The deployment never pays for a mapped call, and a map maps only what the grant allows.
+    with pytest.raises(ValueError):
+        minter.mint(account=Account.DEPLOYMENT, model_map={"openai": {MODEL: "gpt-x"}}, **common)
+    with pytest.raises(ValueError):
+        minter.mint(
+            account=Account.OWN,
+            providers=["anthropic"],
+            model_map={"openai": {MODEL: "x"}},
+            **common,
+        )
+    with pytest.raises(ValueError):
+        minter.mint(
+            account=Account.OWN,
+            providers=["openai"],
+            model_map={"openai": {"other": "x"}},
+            **common,
+        )
+
+
+@pytest.mark.parametrize(
+    ("own", "fallback", "mapped"),
+    [
+        ("off", None, {}),
+        ("allowed", "deployment", {"openai": {MODEL: "gpt-x"}}),
+        ("required", "none", {"openai": {MODEL: "gpt-x"}}),
+    ],
+)
+def test_a_grant_carries_the_profiles_map_of_the_models_the_card_declares(
+    keys: GrantKeys, tmp_path: Path, own: str, fallback: str | None, mapped: dict[str, Any]
+) -> None:
+    """docs/specs/model-accounts.md, The model map: the conductor puts into the grant each mapping
+    of a model the card declares, and none into a grant the deployment pays for."""
+    seen: list[RunContext] = []
+    profile = _own_profile(
+        tmp_path,
+        own,
+        fallback,
+        "      models:\n"
+        f"        - {{declared: {MODEL}, model: gpt-x}}\n"
+        "        - {declared: claude-undeclared, model: gpt-y}\n",
+        provider="openai",
+    )
+    conductor = make_conductor(
+        tmp_path / "runs",
+        model_backed(seen),
+        model_grants=keys.minter(),
+        profile=profile,
+        model_broker=True,
+    )
+
+    conductor.invoke(request("fake.none", record()), acting_for=TEST_PRINCIPAL)
+
+    [ctx] = seen
+    assert ctx.model_grant is not None
+    claims = keys.open(ctx.model_grant).claims
+    assert claims.get(CLAIM_MODEL_MAP, {}) == mapped
+    assert ModelGrantClaims.from_claims(claims).model_map == mapped
 
 
 def test_an_agent_that_declares_no_model_is_sent_no_grant(keys: GrantKeys, tmp_path: Path) -> None:

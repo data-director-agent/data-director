@@ -76,6 +76,47 @@ def test_own_account_claims_are_checked(change: dict[str, Any]) -> None:
         ModelGrantClaims.from_claims(claims(**change))
 
 
+def test_a_grant_may_map_a_declared_model_to_one_its_provider_serves() -> None:
+    grant = ModelGrantClaims.from_claims(
+        claims(
+            dd_providers=["anthropic", "openai"],
+            dd_model_map={"openai": {"claude-sonnet-5-5": "gpt-5.1"}},
+        )
+    )
+    assert grant.model_map == {"openai": {"claude-sonnet-5-5": "gpt-5.1"}}
+    assert grant.mapped("openai", "gpt-5.1")
+    assert not grant.mapped("anthropic", "gpt-5.1")
+    assert not grant.mapped("openai", "claude-sonnet-5-5")
+
+
+def test_a_grant_without_a_model_map_maps_nothing() -> None:
+    grant = ModelGrantClaims.from_claims(claims())
+    assert grant.model_map == {} and not grant.mapped("anthropic", "claude-sonnet-5-5")
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        # The deployment never pays for a mapped call, so its grant carries no map.
+        {
+            "dd_account": "deployment",
+            "dd_providers": None,
+            "dd_base_urls": None,
+            "dd_model_map": {"openai": {"claude-sonnet-5-5": "gpt-5.1"}},
+        },
+        {"dd_model_map": ["gpt-5.1"]},
+        {"dd_model_map": {"openai": {"claude-sonnet-5-5": "gpt-5.1"}}},
+        {"dd_model_map": {"anthropic": {}}},
+        {"dd_model_map": {"anthropic": "claude-opus-5-5"}},
+        {"dd_model_map": {"anthropic": {"claude-other": "claude-opus-5-5"}}},
+        {"dd_model_map": {"anthropic": {"claude-sonnet-5-5": ""}}},
+    ],
+)
+def test_a_malformed_model_map_is_refused(change: dict[str, Any]) -> None:
+    with pytest.raises(ModelGrantError):
+        ModelGrantClaims.from_claims(claims(**change))
+
+
 @pytest.mark.parametrize(
     ("url", "expected"),
     [
@@ -156,6 +197,7 @@ def test_a_well_formed_ticket_is_read() -> None:
         {"exp": 1_799_999_999},
         {"dd_agent": "advisor.standards"},
         {"dd_models": ["claude-sonnet-5-5"]},
+        {"dd_model_map": {"openai": {"claude-sonnet-5-5": "gpt-5.1"}}},
     ],
 )
 def test_a_malformed_ticket_is_refused(change: dict[str, Any]) -> None:

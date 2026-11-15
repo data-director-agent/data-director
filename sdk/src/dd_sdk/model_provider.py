@@ -136,8 +136,9 @@ def configured_model(
 
     `effort`, if given, is sent with every call; a value the provider does not accept is a
     `ConfigError` naming `effort_setting`, the agent's variable for it. `tool_use` is for an agent
-    whose model runs a tool loop: Claude then caches the system prompt and may fall back to
-    another model when it declines."""
+    whose model runs a tool loop: its card then declares that it relies on tool calls
+    (`ModelUse.tools`), and Claude caches the system prompt and may fall back to another model
+    when it declines."""
     name = provider_name(env)
     provider = PROVIDERS.get(name)
     if provider is None:
@@ -171,6 +172,7 @@ def configured_model(
             effort=effort,
             fallback=tool_use,
             cache_system=tool_use,
+            tool_use=tool_use,
         )
     if (env.get(BROKER_URL) or "").strip():
         if base_url:
@@ -188,6 +190,7 @@ def configured_model(
             max_tokens_field=provider.max_tokens_field,
             effort=effort,
             brokered=True,
+            tool_use=tool_use,
         )
 
     if name == COMPATIBLE:
@@ -212,6 +215,7 @@ def configured_model(
             base_url=base_url,
             api_key=key,
             effort=effort,
+            tool_use=tool_use,
         )
     assert provider.base_url is not None
     return OpenAIModel(
@@ -222,6 +226,7 @@ def configured_model(
         api_key=api_key(env, provider.key),
         max_tokens_field=provider.max_tokens_field,
         effort=effort,
+        tool_use=tool_use,
     )
 
 

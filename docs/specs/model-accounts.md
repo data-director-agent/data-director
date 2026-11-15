@@ -44,8 +44,10 @@ the SDK reads the broker's answer (`dd_sdk.model_account`), and a refused accoun
 outcome. The broker serves both formats, and enrols and serves OpenAI, Gemini and OpenAI-compatible
 accounts as well as Anthropic ones (`dd_broker.chat_completions`); the profile's `providers` and the
 Profile page offer each of them, and a run records the provider the broker reports. Mapping a declared
-model to one a person's provider serves is specified here (invariants 12 and 15, The model map) and
-not yet built (TODO(#843)). The shipped profiles turn own accounts off,
+model to one a person's provider serves is specified here (invariants 12 and 15, The model map). The
+profile's model map, the card's `ModelUse.tools`, the grant's `dd_model_map` and the broker's check
+of a mapped model are built; the route, and recording the declared model, are not yet
+(TODO(#843)). The shipped profiles turn own accounts off,
 so every grant says the deployment pays, and every model call is paid for by the deployment, as it
 is today.
 
@@ -134,7 +136,8 @@ the broker checks that decision.
     exception is the steward's: a different provider and model serve the call only where the
     grant's model map names that model for the person's own provider, the call is paid for by the
     person's own account, and the run records the declared model beside the served one
-    (invariant 9). The broker never chooses a model the map does not name (TODO(#843)).
+    (invariant 9). The broker never chooses a model the map does not name
+    (`broker/tests/test_broker_chat_completions.py`, `sdk/tests/test_model_grant.py`).
 13. **Tests and CI never need a real key**, a real provider or a real broker key-encryption key.
     Provider calls are replayed from cassettes, as everywhere else
     ([Policy and identity](policy-and-identity.md), invariant 21).
@@ -159,7 +162,8 @@ the broker checks that decision.
     call against the same answer. An agent's own code never chooses the route, and a client the
     agent calls outside the model seam is not routed: its calls go to the provider its card
     declares, as invariant 12 says. A model that relies on tool calls is never routed to a model
-    the profile does not say serves them (TODO(#843)).
+    the profile does not say serves them: the conductor leaves such a mapping out of the grant
+    (`harness/tests/test_harness.py`). The route itself is not yet built (TODO(#843)).
 
 ## Boundaries and contracts
 
@@ -197,7 +201,9 @@ steps in order:
 3. It refuses a model the grant does not allow, and a streamed request. The grant allows the
    models in `dd_models` on any path, as before. Beside them, it allows a model the grant's
    `dd_model_map` names for the path's provider, and only when the person's own account is with
-   that provider: the deployment never pays for a mapped call.
+   that provider: the deployment never pays for a mapped call. Without such an account a mapped
+   call is refused `model-account-missing`, whatever the grant's account, so a person who removes
+   their account mid-run ends the run as the account table says.
 4. It chooses the account from the grant alone, for the provider the path names:
 
    | The grant's account | The person has an account | The person has none |
@@ -331,7 +337,7 @@ against the harness's published keys. Its claims are:
   (`https://host[:port]`, lower case, default port left out, as `dd_sdk.model_grant.origin` writes
   them); a grant the deployment pays for carries neither. Such a grant may also carry
   `dd_model_map`, an object from a provider name in `dd_providers` to an object from a model in
-  `dd_models` to the model that provider serves in its place (TODO(#843)). The broker refuses a person's own
+  `dd_models` to the model that provider serves in its place. The broker refuses a person's own
   account whose provider is not in `dd_providers` (`account-unsupported`), and one whose base URL's
   origin is not in `dd_base_urls` (`base-url-refused`), and does not fall back to the deployment's
   key for either.

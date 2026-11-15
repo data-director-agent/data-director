@@ -383,6 +383,7 @@ class Conductor:
             lifetime_s=agent.timeout_s,
             providers=accounts.provider_names if own else (),
             base_urls=accounts.base_urls if own else (),
+            model_map=accounts.model_map(spec.models) if own else None,
         )
 
     def _issue_grant(self, request: InvocationRequest, acting_for: Principal) -> Grant:

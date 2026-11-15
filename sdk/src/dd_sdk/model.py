@@ -225,8 +225,11 @@ class Model(Protocol):
 
 
 def declared(model: Model) -> ModelUse:
-    """What an agent's card declares about `model`: the provider, the model and the hosting."""
-    return ModelUse(model.provider, model.model_id, model.hosting)
+    """What an agent's card declares about `model`: the provider, the model, the hosting, and
+    whether the agent relies on it to call tools (an adapter's `tool_use`, false if it has none)."""
+    return ModelUse(
+        model.provider, model.model_id, model.hosting, bool(getattr(model, "tool_use", False))
+    )
 
 
 @dataclass(frozen=True)

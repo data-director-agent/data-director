@@ -19,6 +19,8 @@ export interface RawModelUse {
   provider: string;
   model: string;
   hosting: "hosted" | "local";
+  /** Whether the agent relies on this model to call tools. Absent when it does not. */
+  tools?: boolean;
 }
 
 export interface RawSchemaEntry {

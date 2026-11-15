@@ -84,8 +84,9 @@ def build(env: Mapping[str, str] | None = None) -> ModelOrchestrator:
         titler=titler,
     )
     models = [declared(model)]
-    if titler is not None and declared(titler) not in models:
-        models.append(declared(titler))
+    # One model serving both is declared once, as the main model: it relies on tool calls.
+    if titler is not None and (titled := declared(titler)).model != models[0].model:
+        models.append(titled)
     agent.spec = replace(agent.spec, models=tuple(models))
     return agent
 

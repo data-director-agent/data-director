@@ -24,7 +24,7 @@ in a grant, and carries a `jti` so that the broker accepts it once. Its JOSE `ty
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 from urllib.parse import urlsplit
@@ -63,6 +63,10 @@ CLAIM_SUBJECT = "dd_subject"
 # decides both, and the broker refuses an own account outside them.
 CLAIM_PROVIDERS = "dd_providers"
 CLAIM_BASE_URLS = "dd_base_urls"
+# Only in a grant that may use a person's own account, and only if the profile maps a model the
+# card declares: for each provider, from a declared model to the model that provider serves in its
+# place (docs/specs/model-accounts.md, The model map).
+CLAIM_MODEL_MAP = "dd_model_map"
 CLAIM_TICKET_ID = "jti"
 CLAIM_PURPOSE = "dd_purpose"
 
@@ -79,6 +83,7 @@ _GRANT_ONLY_CLAIMS = (
     CLAIM_ACCOUNT,
     CLAIM_PROVIDERS,
     CLAIM_BASE_URLS,
+    CLAIM_MODEL_MAP,
 )
 
 # HTTP headers between an agent's adapter and the broker. The agent's own broker credential
@@ -158,6 +163,29 @@ def _number(claims: Mapping[str, Any], name: str, token: str) -> int:
     return value
 
 
+def _model_map(
+    value: Any, providers: tuple[str, ...], models: tuple[str, ...]
+) -> dict[str, dict[str, str]]:
+    """The grant's model map, which maps only a declared model, and only for a provider the
+    person's own account may be with."""
+    if not isinstance(value, dict):
+        raise ModelGrantError(f"the grant's {CLAIM_MODEL_MAP} is not an object")
+    model_map: dict[str, dict[str, str]] = {}
+    for provider, mapping in value.items():
+        if provider not in providers:
+            raise ModelGrantError(f"the grant's {CLAIM_MODEL_MAP} names a provider not allowed")
+        if (
+            not isinstance(mapping, dict)
+            or not mapping
+            or not all(d in models and isinstance(m, str) and m for d, m in mapping.items())
+        ):
+            raise ModelGrantError(
+                f"the grant's {CLAIM_MODEL_MAP} maps something other than a granted model"
+            )
+        model_map[provider] = dict(mapping)
+    return model_map
+
+
 @dataclass(frozen=True)
 class ModelGrantClaims:
     """The claims of a model grant whose signature has been checked."""
@@ -174,6 +202,13 @@ class ModelGrantClaims:
     # deployment pays for.
     providers: tuple[str, ...] = ()
     base_urls: tuple[str, ...] = ()
+    # For each provider in `providers`, from a model in `models` to the model that provider serves
+    # in its place; empty when the profile maps none of the agent's models.
+    model_map: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+
+    def mapped(self, provider: str, model: str) -> bool:
+        """Whether `model` is one the model map names for `provider`."""
+        return model in self.model_map.get(provider, {}).values()
 
     @classmethod
     def from_claims(cls, claims: Mapping[str, Any]) -> ModelGrantClaims:
@@ -198,15 +233,18 @@ class ModelGrantClaims:
             raise ModelGrantError(f"the grant's {CLAIM_ACCOUNT} is not a known account") from exc
         providers: tuple[str, ...] = ()
         base_urls: tuple[str, ...] = ()
+        model_map: dict[str, dict[str, str]] = {}
         if account is Account.DEPLOYMENT:
             # A grant the deployment pays for says nothing about a person's own account.
-            for name in (CLAIM_PROVIDERS, CLAIM_BASE_URLS):
+            for name in (CLAIM_PROVIDERS, CLAIM_BASE_URLS, CLAIM_MODEL_MAP):
                 if name in claims:
                     raise ModelGrantError(f"a grant the deployment pays for carries no {name}")
         else:
             providers = _texts(claims, CLAIM_PROVIDERS, empty=False)
             if CLAIM_BASE_URLS in claims:
                 base_urls = _texts(claims, CLAIM_BASE_URLS, empty=True)
+            if CLAIM_MODEL_MAP in claims:
+                model_map = _model_map(claims[CLAIM_MODEL_MAP], providers, tuple(models))
         issued_at, expires_at = number(CLAIM_ISSUED_AT), number(CLAIM_EXPIRES)
         if expires_at <= issued_at:
             raise ModelGrantError("the grant expires before it is issued")
@@ -221,6 +259,7 @@ class ModelGrantClaims:
             expires_at=expires_at,
             providers=providers,
             base_urls=base_urls,
+            model_map=model_map,
         )
 
 

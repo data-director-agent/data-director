@@ -94,6 +94,10 @@ model_accounts:
   providers:                 # anthropic, openai, gemini or openai-compatible
     - provider: anthropic
     - provider: openai
+      models:                # optional: the model this provider serves in place of one declared
+        - declared: claude-sonnet-5-5
+          model: gpt-5.1
+          tools: true        # optional: it serves tool calls; false when left out
     - provider: openai-compatible
       base_urls:             # required for openai-compatible, and only for it
         - url: https://llm.example.ac.uk
@@ -109,8 +113,11 @@ model_accounts:
 
 If their provider refuses their key or reports a limit, the run fails. The deployment's key is
 never used instead. An agent is served only by the provider its card declares: an account with
-another provider counts as none for that agent's calls (mapping one provider's models to
-another's is TODO(#843)).
+another provider counts as none for that agent's calls, unless that provider's `models` maps the
+model the card declares. A mapped model then serves the call on the person's own account, never
+the deployment's, and an agent that relies on tool calls is mapped only to a model with
+`tools: true`. Each grant already carries the mapping and the broker accepts the mapped model;
+agents route to it once the model seam asks the broker for its route (TODO(#843)).
 
 The profile is refused when the workbench or the app starts if it:
 
@@ -120,6 +127,8 @@ The profile is refused when the workbench or the app starts if it:
 - names a provider other than `anthropic`, `openai`, `gemini` or `openai-compatible`;
 - lists `openai-compatible` without `base_urls`, or `base_urls` for any other provider;
 - lists a base URL that is not a plain `https` address;
+- lists a `models` entry without both `declared` and `model`, with a `tools` that is not true or
+  false, or with any other key, or maps one declared model twice under one provider;
 - has any other key under `model_accounts`.
 
 Turning own accounts on also needs the operator to have set up model grants and the broker

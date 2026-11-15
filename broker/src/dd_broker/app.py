@@ -197,8 +197,12 @@ def provider_endpoint(provider: str) -> str | None:
     return chat_completions.PROVIDERS[provider].base_url
 
 
-def _choose(broker: Broker, grant: VerifiedGrant, provider: str) -> _Payment:
-    """Who pays for a call to `provider`, the provider the request's path names."""
+def _choose(
+    broker: Broker, grant: VerifiedGrant, provider: str, *, mapped: bool = False
+) -> _Payment:
+    """Who pays for a call to `provider`, the provider the request's path names. A `mapped` call,
+    to a model the grant allows only through its model map, is paid for by the person's own
+    account with that provider or by no one: the deployment never pays for one."""
     account = grant.claims.account
     if account in (Account.OWN, Account.OWN_OR_DEPLOYMENT):
         try:
@@ -238,8 +242,11 @@ def _choose(broker: Broker, grant: VerifiedGrant, provider: str) -> _Payment:
                     raise Refused(403, Reason.ACCOUNT_UNSUPPORTED)
                 target = Target(url=endpoint)
             return _Payment(Payer.OWN, own.provider, target, own.key)
-        if account is Account.OWN:
+        if account is Account.OWN or mapped:
             raise Refused(403, Reason.MODEL_ACCOUNT_MISSING)
+    if mapped:
+        # Only a grant that may use a person's own account carries a map.
+        raise Refused(403, Reason.MODEL_NOT_GRANTED)
     key = broker.deployment_keys.get(provider)
     if not key:
         raise Refused(503, Reason.DEPLOYMENT_ACCOUNT_UNAVAILABLE)
@@ -293,9 +300,12 @@ async def _call(
     if body.get("stream"):
         # No agent streams today; serving a stream is a later change.
         raise Refused(400, Reason.STREAMING_UNSUPPORTED)
-    if not grant.allows(body["model"]):
+    # A model the card declares is allowed on any path. One the grant's model map names for this
+    # path's provider is allowed only on the person's own account with that provider.
+    mapped = not grant.allows(body["model"])
+    if mapped and not grant.claims.mapped(provider, body["model"]):
         raise Refused(403, Reason.MODEL_NOT_GRANTED)
-    payment = await run_in_threadpool(_choose, broker, grant, provider)
+    payment = await run_in_threadpool(lambda: _choose(broker, grant, provider, mapped=mapped))
     try:
         answer = await form.forwarding.send(
             client, payment.target, payment.key, body, request.headers

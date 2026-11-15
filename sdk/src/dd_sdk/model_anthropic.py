@@ -145,7 +145,8 @@ class AnthropicModel:
     An agent with a long tool loop (the orchestrator) asks for three more things: an `effort`
     (`EFFORTS`), `fallback`, which lets the API route a declined request to another model by
     the refusal's category, and `cache_system`, which caches the fixed system prompt across
-    calls. Without them the request is the plain Messages API call."""
+    calls. Without them the request is the plain Messages API call. `tool_use` says the agent
+    relies on the model to call tools, which its card declares (`dd_sdk.model.declared`)."""
 
     provider = PROVIDER
     # Claude is served by Anthropic, or by the gateway the broker forwards to on its behalf.
@@ -161,6 +162,7 @@ class AnthropicModel:
         effort: str | None = None,
         fallback: bool = False,
         cache_system: bool = False,
+        tool_use: bool = False,
     ) -> None:
         if client is None:
             if endpoint is None:
@@ -173,6 +175,7 @@ class AnthropicModel:
         self.effort = effort
         self.fallback = fallback
         self.cache_system = cache_system
+        self.tool_use = tool_use
 
     def send(self, request: ModelRequest) -> ModelResponse:
         system: Any = request.system

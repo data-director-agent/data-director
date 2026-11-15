@@ -247,3 +247,20 @@ def test_a_tool_loop_asks_claude_to_cache_and_fall_back() -> None:
     plain = configured_model({"ANTHROPIC_API_KEY": "k"}, default_model="c")
     assert isinstance(plain, AnthropicModel)
     assert not plain.fallback and not plain.cache_system
+
+
+@pytest.mark.parametrize(
+    "env",
+    [
+        {"ANTHROPIC_API_KEY": "k"},
+        {"DD_MODEL_PROVIDER": "openai", "DD_MODEL_ID": "gpt-x", "OPENAI_API_KEY": "k"},
+        {
+            "DD_MODEL_PROVIDER": "openai-compatible",
+            "DD_MODEL_ID": "llama-x",
+            "DD_MODEL_BASE_URL": "http://localhost:11434/v1",
+        },
+    ],
+)
+def test_a_tool_loop_is_declared_on_the_card(env: dict[str, str]) -> None:
+    assert declared(configured_model(env, default_model="c", tool_use=True)).tools
+    assert not declared(configured_model(env, default_model="c")).tools

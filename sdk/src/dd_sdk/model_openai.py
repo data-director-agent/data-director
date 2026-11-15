@@ -181,7 +181,8 @@ class OpenAIModel:
     `max_tokens_field` is the request field that caps the reply: OpenAI's own API wants
     `max_completion_tokens`, and most other servers `max_tokens`. `effort`, if given, is sent as
     `reasoning_effort` (`EFFORTS`). `brokered` says that `base_url` is the model broker and
-    `api_key` the agent's broker credential (`openai_client`)."""
+    `api_key` the agent's broker credential (`openai_client`). `tool_use` says the agent relies on
+    the model to call tools, which its card declares."""
 
     def __init__(
         self,
@@ -195,6 +196,7 @@ class OpenAIModel:
         effort: str | None = None,
         brokered: bool = False,
         client: openai.OpenAI | None = None,
+        tool_use: bool = False,
     ) -> None:
         if client is None:
             if base_url is None:
@@ -206,6 +208,7 @@ class OpenAIModel:
         self.hosting: Literal["hosted", "local"] = hosting
         self.effort = effort
         self._max_tokens_field = max_tokens_field
+        self.tool_use = tool_use
 
     def _messages(self, request: ModelRequest) -> list[dict[str, Any]]:
         messages: list[dict[str, Any]] = [{"role": "system", "content": request.system}]

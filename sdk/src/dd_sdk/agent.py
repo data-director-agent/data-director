@@ -67,11 +67,14 @@ class Derived:
 class ModelUse:
     """A model the agent sends data to, as configured: who provides it, which model, and whether
     it runs on the provider's service (`hosted`) or on the institution's own (`local`)
-    (docs/specs/policy-and-identity.md). It names no credential."""
+    (docs/specs/policy-and-identity.md). It names no credential. `tools` says the agent relies on
+    the model to call tools, so a profile's model map never routes it to a model that does not
+    serve them (docs/specs/model-accounts.md, The model map)."""
 
     provider: str
     model: str
     hosting: Literal["hosted", "local"]
+    tools: bool = False
 
 
 @dataclass(frozen=True)
@@ -213,9 +216,7 @@ def describe(spec: AgentSpec) -> dict[str, Any]:
             for path, d in spec.derivations.items()
         },
         "contract_version": spec.contract_version,
-        "models": [
-            {"provider": m.provider, "model": m.model, "hosting": m.hosting} for m in spec.models
-        ],
+        "models": [_model_use(m) for m in spec.models],
         "serves": list(spec.serves),
         "title": spec.title,
         "schemas": {c.name: c.describe() for c in spec.schemas()},
@@ -275,7 +276,12 @@ def spec_from_description(entry: Mapping[str, Any]) -> AgentSpec:
     # model.
     try:
         models = tuple(
-            ModelUse(str(m["provider"]), str(m["model"]), _hosting(m["hosting"]))
+            ModelUse(
+                str(m["provider"]),
+                str(m["model"]),
+                _hosting(m["hosting"]),
+                _tools(m.get("tools", False)),
+            )
             for m in entry.get("models", ())
         )
     except (KeyError, TypeError, ValueError) as exc:
@@ -309,6 +315,24 @@ def _hosting(value: object) -> Literal["hosted", "local"]:
     if value == "hosted" or value == "local":
         return value
     raise ValueError(f"hosting {value!r}: expected hosted or local")
+
+
+def _tools(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"tools {value!r}: expected true or false")
+
+
+def _model_use(use: ModelUse) -> dict[str, Any]:
+    # `tools` is written only when true, so a card that relies on no tool calls reads as before.
+    described: dict[str, Any] = {
+        "provider": use.provider,
+        "model": use.model,
+        "hosting": use.hosting,
+    }
+    if use.tools:
+        described["tools"] = True
+    return described
 
 
 def typed_request(spec: AgentSpec, request: InvocationRequest) -> InvocationRequest:

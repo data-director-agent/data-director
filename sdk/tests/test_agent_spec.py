@@ -150,6 +150,26 @@ def test_the_models_an_agent_sends_data_to_round_trip_through_the_manifest() -> 
     assert spec_from_description(entry).models == spec.models
 
 
+def test_a_model_the_agent_relies_on_for_tool_calls_is_declared_so() -> None:
+    uses = (
+        ModelUse("anthropic", "claude-x", "hosted", tools=True),
+        ModelUse("anthropic", "claude-y", "hosted"),
+    )
+    entry = describe(dataclasses.replace(SPEC, models=uses))
+    assert entry["models"][0]["tools"] is True
+    assert "tools" not in entry["models"][1]
+    assert spec_from_description(entry).models == uses
+
+
+def test_a_model_whose_tools_is_not_a_boolean_is_refused() -> None:
+    entry = describe(SPEC)
+    entry["models"] = [
+        {"provider": "anthropic", "model": "claude-x", "hosting": "hosted", "tools": "yes"}
+    ]
+    with pytest.raises(SpecError):
+        spec_from_description(entry)
+
+
 def test_a_description_without_models_declares_none() -> None:
     entry = describe(SPEC)
     assert entry["models"] == []

@@ -17,6 +17,7 @@ from typing import Any
 
 import yaml
 
+from dd_sdk.agent import ModelUse
 from dd_sdk.model_grant import Account, origin
 
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
@@ -56,8 +57,9 @@ FALLBACK_SETTINGS = ("deployment", "none")
 COMPATIBLE = "openai-compatible"
 OWN_PROVIDERS = ("anthropic", "openai", "gemini", COMPATIBLE)
 _MODEL_ACCOUNTS_KEYS = frozenset({"own", "fallback", "providers"})
-_PROVIDER_KEYS = frozenset({"provider", "base_urls"})
+_PROVIDER_KEYS = frozenset({"provider", "base_urls", "models"})
 _BASE_URL_KEYS = frozenset({"url", "local"})
+_MODEL_KEYS = frozenset({"declared", "model", "tools"})
 
 
 @dataclass(frozen=True)
@@ -70,12 +72,24 @@ class OwnBaseUrl:
 
 
 @dataclass(frozen=True)
+class OwnModel:
+    """One entry of a provider's model map: the model a provider serves (`model`) in place of one
+    an agent's card may declare (`declared`), and whether it serves tool calls (`tools`), as the
+    steward states (docs/specs/model-accounts.md, The model map)."""
+
+    declared: str
+    model: str
+    tools: bool = False
+
+
+@dataclass(frozen=True)
 class OwnProvider:
-    """A provider a person's own account may be with, and the base URLs it may name. Without a
-    base URL the account calls the provider itself, which is always `hosted`."""
+    """A provider a person's own account may be with, the base URLs it may name, and its model
+    map. Without a base URL the account calls the provider itself, which is always `hosted`."""
 
     provider: str
     base_urls: tuple[OwnBaseUrl, ...] = ()
+    models: tuple[OwnModel, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -103,6 +117,24 @@ class ModelAccounts:
     @property
     def base_urls(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(u.origin for p in self.providers for u in p.base_urls))
+
+    def model_map(self, uses: Iterable[ModelUse]) -> dict[str, dict[str, str]]:
+        """The model map for a grant to an agent whose card declares `uses`: for each provider,
+        each mapping of a model the card declares, leaving out one that does not serve tool calls
+        where the card relies on them. Empty while own accounts are off."""
+        if self.own == "off":
+            return {}
+        needs_tools = {u.model: u.tools for u in uses}
+        model_map: dict[str, dict[str, str]] = {}
+        for provider in self.providers:
+            mapped = {
+                m.declared: m.model
+                for m in provider.models
+                if m.declared in needs_tools and (m.tools or not needs_tools[m.declared])
+            }
+            if mapped:
+                model_map[provider.provider] = mapped
+        return model_map
 
     @property
     def hosted(self) -> bool:
@@ -200,7 +232,33 @@ def _provider(entry: Any) -> OwnProvider:
             base_urls.append(OwnBaseUrl(origin(str(url.get("url") or "")), local))
         except ValueError as exc:
             raise ValueError(f"model_accounts base URL: {exc}") from None
-    return OwnProvider(name, tuple(base_urls))
+    return OwnProvider(name, tuple(base_urls), _models(name, entry.get("models") or []))
+
+
+def _models(provider: str, written: Any) -> tuple[OwnModel, ...]:
+    if not isinstance(written, list):
+        raise TypeError(f"model_accounts provider {provider}'s models must be a list")
+    models: list[OwnModel] = []
+    for entry in written:
+        if not isinstance(entry, dict):
+            raise TypeError(
+                f"each of model_accounts provider {provider}'s models must be a mapping with "
+                "declared and model"
+            )
+        _only(entry, _MODEL_KEYS, f"a model_accounts provider {provider} model")
+        declared, model = entry.get("declared"), entry.get("model")
+        if not isinstance(declared, str) or not declared or not isinstance(model, str) or not model:
+            raise ValueError(
+                f"each of model_accounts provider {provider}'s models must name both declared "
+                "and model"
+            )
+        tools = entry.get("tools", False)
+        if not isinstance(tools, bool):
+            raise TypeError("a model_accounts model's tools must be true or false")
+        models.append(OwnModel(declared, model, tools))
+    if len({m.declared for m in models}) != len(models):
+        raise ValueError(f"model_accounts provider {provider} maps a declared model more than once")
+    return tuple(models)
 
 
 @dataclass(frozen=True)

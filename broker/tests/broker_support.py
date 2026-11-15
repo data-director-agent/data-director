@@ -87,6 +87,7 @@ class FakeHarness:
         issued_at: int | None = None,
         providers: Sequence[str] = ("anthropic",),
         base_urls: Sequence[str] = (),
+        model_map: Mapping[str, Mapping[str, str]] | None = None,
     ) -> dict[str, Any]:
         """A grant's claims as `GrantMinter.mint` makes them: a grant that may use a person's own
         account names the providers and base URL origins the profile allows it."""
@@ -104,6 +105,8 @@ class FakeHarness:
         if account is not Account.DEPLOYMENT:
             claims["dd_providers"] = list(providers)
             claims["dd_base_urls"] = list(base_urls)
+        if model_map:
+            claims["dd_model_map"] = {p: dict(m) for p, m in model_map.items()}
         return claims
 
     def sign(self, claims: dict[str, Any], key: RSAKey | None = None) -> str:

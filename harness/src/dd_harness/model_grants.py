@@ -46,6 +46,7 @@ from dd_sdk.model_grant import (
     CLAIM_EXPIRES,
     CLAIM_INVOCATION,
     CLAIM_ISSUED_AT,
+    CLAIM_MODEL_MAP,
     CLAIM_MODELS,
     CLAIM_PROVIDERS,
     CLAIM_PURPOSE,
@@ -160,12 +161,14 @@ class GrantMinter:
         lifetime_s: float,
         providers: Iterable[str] = (),
         base_urls: Iterable[str] = (),
+        model_map: Mapping[str, Mapping[str, str]] | None = None,
     ) -> str:
         """A grant for one invocation of `agent_id` to call `models`, paid for as `account` says,
         for `acting_for`. It expires `lifetime_s` from now, rounded down: no later than the
         invocation's timeout. A grant that may use a person's own account names the `providers`
         and `base_urls` (origins) the profile lets that account use; one the deployment pays for
-        names neither."""
+        names neither. Such a grant also carries the `model_map` for `models`, if the profile maps
+        any of them (docs/specs/model-accounts.md, The model map)."""
         allowed = list(dict.fromkeys(models))
         if not allowed:
             raise ValueError("a model grant needs at least one model")
@@ -175,6 +178,11 @@ class GrantMinter:
             raise ValueError("a grant the deployment pays for names no own account's provider")
         if account is not Account.DEPLOYMENT and not own_providers:
             raise ValueError("a grant that may use a person's own account needs a provider")
+        mapped = {p: dict(m) for p, m in (model_map or {}).items() if m}
+        if mapped and account is Account.DEPLOYMENT:
+            raise ValueError("the deployment never pays for a mapped call, so its grant maps none")
+        if any(p not in own_providers or not set(m) <= set(allowed) for p, m in mapped.items()):
+            raise ValueError("a model map maps only a granted model, for a granted provider")
         issued_at = int(self.clock())
         lifetime = max(1, math.floor(lifetime_s))
         claims = {
@@ -190,6 +198,8 @@ class GrantMinter:
         if account is not Account.DEPLOYMENT:
             claims[CLAIM_PROVIDERS] = own_providers
             claims[CLAIM_BASE_URLS] = own_base_urls
+            if mapped:
+                claims[CLAIM_MODEL_MAP] = mapped
         return jwt.encode(
             {"alg": self.algorithm, "kid": self.signing_key.kid, "typ": "JWT"},
             claims,
